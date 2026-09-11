@@ -186,8 +186,8 @@ internal sealed partial class MethodCallDialog : Window, IAsyncDisposable
             {
                 foreach (ReferenceDescription r in br.Results[0].References)
                 {
-                    if (!r.BrowseName.IsNull
-                        && string.Equals(r.BrowseName.Name, BrowseNames.InputArguments, StringComparison.Ordinal))
+                    if (!r.BrowseName.IsNull &&
+                        string.Equals(r.BrowseName.Name, BrowseNames.InputArguments, StringComparison.Ordinal))
                     {
                         inputArgsId = ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris);
                         break;
@@ -256,9 +256,9 @@ internal sealed partial class MethodCallDialog : Window, IAsyncDisposable
         for (int i = 0; i < m_arguments.Count && i < Inputs.Count; i++)
         {
             Argument a = m_arguments[i];
-            if (a.ValueRank != ValueRanks.Scalar
-                && a.ValueRank != ValueRanks.ScalarOrOneDimension
-                && a.ValueRank != ValueRanks.Any)
+            if (a.ValueRank != ValueRanks.Scalar &&
+                a.ValueRank != ValueRanks.ScalarOrOneDimension &&
+                a.ValueRank != ValueRanks.Any)
             {
                 continue;
             }
@@ -289,8 +289,9 @@ internal sealed partial class MethodCallDialog : Window, IAsyncDisposable
             };
             BrowseResponse br = await m_session.BrowseAsync(null, null, 0, browse,
                 m_lifetime.Token).ConfigureAwait(true);
-            if (br.Results.Count > 0 && !StatusCode.IsBad(br.Results[0].StatusCode)
-                && br.Results[0].References.Count > 0)
+            if (br.Results.Count > 0 &&
+                !StatusCode.IsBad(br.Results[0].StatusCode) &&
+                br.Results[0].References.Count > 0)
             {
                 return ExpandedNodeId.ToNodeId(br.Results[0].References[0].NodeId, m_session.NamespaceUris);
             }
@@ -332,7 +333,7 @@ internal sealed partial class MethodCallDialog : Window, IAsyncDisposable
                 out Variant v, out string? perr))
             {
                 statusLbl.Text = $"Argument '{a.Name}' parse error: {perr}";
-                statusLbl.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                statusLbl.Foreground = (Application.Current?.FindResource("ErrorText") as IBrush)
                     ?? Brushes.Transparent;
                 return;
             }
@@ -375,9 +376,9 @@ internal sealed partial class MethodCallDialog : Window, IAsyncDisposable
             }
             statusLbl.Text = sb.ToString();
             statusLbl.Foreground = StatusCode.IsGood(cmr.StatusCode)
-                ? (Application.Current?.FindResource("AccentGreen") as IBrush)
+                ? (Application.Current?.FindResource("SuccessText") as IBrush)
                     ?? Brushes.Transparent
-                : (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                : (Application.Current?.FindResource("ErrorText") as IBrush)
                     ?? Brushes.Transparent;
             // Per-output rows so the user sees them in a table.
             for (int i = 0; i < cmr.OutputArguments.Count; i++)
@@ -394,7 +395,7 @@ internal sealed partial class MethodCallDialog : Window, IAsyncDisposable
         catch (Exception ex)
         {
             statusLbl.Text = $"Call exception: {ex.Message}";
-            statusLbl.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+            statusLbl.Foreground = (Application.Current?.FindResource("ErrorText") as IBrush)
                 ?? Brushes.Transparent;
         }
     }
@@ -416,13 +417,13 @@ internal sealed partial class MethodCallDialog : Window, IAsyncDisposable
             row.ValueText = FormatVariant(v);
             row.CachedVariant = v;
             statusLbl.Text = $"Loaded {row.Header} from {name} ({fmt}).";
-            statusLbl.Foreground = (Application.Current?.FindResource("AccentGreen") as IBrush)
+            statusLbl.Foreground = (Application.Current?.FindResource("SuccessText") as IBrush)
                 ?? Brushes.Transparent;
         }
         catch (Exception ex)
         {
             statusLbl.Text = $"Import failed: {ex.Message}";
-            statusLbl.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+            statusLbl.Foreground = (Application.Current?.FindResource("ErrorText") as IBrush)
                 ?? Brushes.Transparent;
         }
     }

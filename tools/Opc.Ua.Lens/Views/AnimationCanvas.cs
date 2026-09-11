@@ -188,6 +188,7 @@ namespace UaLens.Views
         private static IBrush s_gridBrush = new SolidColorBrush(Color.FromArgb(0x22, 0x47, 0x55, 0x69));
         private static IBrush s_kaBrush = new SolidColorBrush(Color.FromRgb(0xA7, 0x8B, 0xFA));
         private static IBrush s_cpuBrush = new SolidColorBrush(Color.FromRgb(0x06, 0xB6, 0xD4));
+        private static IBrush s_cpuTextBrush = s_textBrush;
         private static IBrush s_memBrush = new SolidColorBrush(Color.FromRgb(0xEC, 0x49, 0x99));
 
         private static readonly Typeface s_mono =
@@ -243,6 +244,34 @@ namespace UaLens.Views
             // input so this is benign.
             IsHitTestVisible = true;
             Focusable = false;
+        }
+
+        public event Action<int, LineStyle>? ItemLineStyleChanged;
+
+        public LineStyle GetLineStyle(int itemId)
+        {
+            return m_perItemLineStyle.TryGetValue(itemId, out LineStyle style) ? style : LineStyle.Interpolated;
+        }
+
+        public void SetLineStyle(int itemId, LineStyle style)
+        {
+            if (!Enum.IsDefined(style))
+            {
+                throw new ArgumentOutOfRangeException(nameof(style));
+            }
+            m_perItemLineStyle[itemId] = style;
+            InvalidateVisual();
+            ItemLineStyleChanged?.Invoke(itemId, style);
+        }
+
+        public void CycleLineStyle(int itemId)
+        {
+            SetLineStyle(itemId, GetLineStyle(itemId) switch
+            {
+                LineStyle.Interpolated => LineStyle.Wave,
+                LineStyle.Wave => LineStyle.Zigzag,
+                _ => LineStyle.Interpolated
+            });
         }
 
         public void Bind(ChannelReader<NotificationEvent>? events, SubscriptionCounters? counters,
@@ -315,6 +344,7 @@ namespace UaLens.Views
             s_gridBrush = PaletteBrush("SeparatorBrush", Colors.Gray);
             s_kaBrush = PaletteBrush("AccentPurple", Colors.Purple);
             s_cpuBrush = PaletteBrush("AccentCyan", Colors.Cyan);
+            s_cpuTextBrush = PaletteBrush("InfoText", Colors.White);
             s_memBrush = PaletteBrush("AccentBlue", Colors.Blue);
             InvalidateVisual();
         }
@@ -965,7 +995,7 @@ namespace UaLens.Views
                 double laneBottom = laneTop + laneH;
                 double cy = laneTop + (laneH * 0.5);
                 IBrush itemBrush = ItemColors.ForItemId(id);
-                LineStyle style = m_perItemLineStyle.TryGetValue(id, out LineStyle s) ? s : LineStyle.Interpolated;
+                LineStyle style = GetLineStyle(id);
                 string glyph = StyleGlyph(style);
 
                 string label = TruncateLabel(item.DisplayName, 24) + "  " + glyph;
@@ -1208,15 +1238,7 @@ namespace UaLens.Views
                 if (m_laneLabelHits[i].Rect.Contains(p))
                 {
                     int itemId = m_laneLabelHits[i].ItemId;
-                    LineStyle current = m_perItemLineStyle.TryGetValue(itemId, out LineStyle s)
-                        ? s : LineStyle.Interpolated;
-                    m_perItemLineStyle[itemId] = current switch
-                    {
-                        LineStyle.Interpolated => LineStyle.Wave,
-                        LineStyle.Wave => LineStyle.Zigzag,
-                        _ => LineStyle.Interpolated
-                    };
-                    InvalidateVisual();
+                    CycleLineStyle(itemId);
                     e.Handled = true;
                     return;
                 }
@@ -1253,8 +1275,8 @@ namespace UaLens.Views
             memTop = Math.Max(memTop, 16);
 
             // Y-axis labels (left = CPU 0..100%, right = Mem 0..memTop MiB).
-            DrawAxisLabel(ctx, "CPU% 100", chart.X + 2, chart.Y + 2, s_cpuBrush);
-            DrawAxisLabel(ctx, "0", chart.X + 2, chart.Bottom - 12, s_cpuBrush);
+            DrawAxisLabel(ctx, "CPU% 100", chart.X + 2, chart.Y + 2, s_cpuTextBrush);
+            DrawAxisLabel(ctx, "0", chart.X + 2, chart.Bottom - 12, s_cpuTextBrush);
             DrawAxisLabel(ctx, $"Mem {memTop:0} MiB",
                                            chart.Right - 100, chart.Y + 2, s_memBrush);
             DrawAxisLabel(ctx, "0", chart.Right - 12, chart.Bottom - 12, s_memBrush);

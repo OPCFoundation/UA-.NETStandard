@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Opc.Ua;
@@ -46,13 +45,9 @@ namespace UaLens.Views;
 /// </summary>
 internal sealed partial class AddItemDialog : Window
 {
-    private readonly NodeViewModel m_node;
-    private readonly bool m_isEvent;
-    public MonitoredItemConfig? Result { get; private set; }
-
     public AddItemDialog(NodeViewModel node, bool isEvent)
     {
-        m_node = node;
+        m_node = node ?? throw new ArgumentNullException(nameof(node));
         m_isEvent = isEvent;
         InitializeComponent();
 
@@ -72,6 +67,9 @@ internal sealed partial class AddItemDialog : Window
         var deadbandTypeCombo = this.RequiredControl<ComboBox>("DeadbandTypeCombo");
         var deadbandValueLabel = this.RequiredControl<TextBlock>("DeadbandValueLabel");
         var deadbandValueBox = this.RequiredControl<TextBox>("DeadbandValueBox");
+        var error = this.RequiredControl<TextBlock>("ValidationError");
+        samplingMs.TextChanged += (_, _) => MonitoredItemValidation.ClearError(error, samplingMs);
+        deadbandValueBox.TextChanged += (_, _) => MonitoredItemValidation.ClearError(error, deadbandValueBox);
 
         // The DataChangeFilter is only meaningful for value monitored items.
         // Hide the whole section in event mode so the dialog stays clean.
@@ -86,12 +84,22 @@ internal sealed partial class AddItemDialog : Window
 
         // Greying-out: the deadband value only matters when the type is non-None.
         deadbandTypeCombo.SelectionChanged += (_, _) =>
+        {
             deadbandValueBox.IsEnabled = deadbandTypeCombo.SelectedIndex > 0;
+            MonitoredItemValidation.SetDeadbandName(deadbandValueBox, deadbandTypeCombo.SelectedIndex);
+            MonitoredItemValidation.ClearError(error, deadbandValueBox);
+        };
+        MonitoredItemValidation.SetDeadbandName(deadbandValueBox, deadbandTypeCombo.SelectedIndex);
 
         ok.Click += (_, _) =>
         {
-            if (!uint.TryParse(samplingMs.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out uint smp))
+            if (Result is not null)
             {
+                return;
+            }
+            if (!MonitoredItemValidation.TrySampling(samplingMs.Text, out TimeSpan sampling, out string message))
+            {
+                MonitoredItemValidation.ShowError(error, samplingMs, message);
                 return;
             }
 
@@ -100,18 +108,11 @@ internal sealed partial class AddItemDialog : Window
             {
                 var trigger = (DataChangeTrigger)Math.Max(0, triggerCombo.SelectedIndex);
                 var deadbandType = (DeadbandType)Math.Max(0, deadbandTypeCombo.SelectedIndex);
-                double deadbandValue = 0.0;
-                if (deadbandType != DeadbandType.None)
+                if (!MonitoredItemValidation.TryDeadband(
+                    deadbandValueBox.Text, deadbandType, out double deadbandValue, out message))
                 {
-                    if (!double.TryParse(deadbandValueBox.Text, NumberStyles.Float,
-                            CultureInfo.InvariantCulture, out deadbandValue) || deadbandValue < 0.0)
-                    {
-                        return;
-                    }
-                    if (deadbandType == DeadbandType.Percent && deadbandValue > 100.0)
-                    {
-                        return;
-                    }
+                    MonitoredItemValidation.ShowError(error, deadbandValueBox, message);
+                    return;
                 }
 
                 // Only emit a filter when the user picked something other than
@@ -132,7 +133,7 @@ internal sealed partial class AddItemDialog : Window
                 DisplayName = (m_isEvent ? "event:" : "value:") + m_node.NodeId,
                 NodeId = m_node.NodeId,
                 AttributeId = m_isEvent ? Attributes.EventNotifier : Attributes.Value,
-                SamplingInterval = TimeSpan.FromMilliseconds(smp),
+                SamplingInterval = sampling,
                 QueueSize = m_isEvent ? 100u : 1u,
                 DiscardOldest = true,
                 IsEvent = m_isEvent,
@@ -144,8 +145,13 @@ internal sealed partial class AddItemDialog : Window
         cancel.Click += (_, _) => Close(null);
     }
 
+    public MonitoredItemConfig? Result { get; private set; }
+
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
     }
+
+    private readonly NodeViewModel m_node;
+    private readonly bool m_isEvent;
 }

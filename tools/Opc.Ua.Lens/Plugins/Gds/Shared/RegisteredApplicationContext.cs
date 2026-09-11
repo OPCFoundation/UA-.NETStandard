@@ -40,10 +40,14 @@ namespace UaLens.Plugins.Gds;
 /// </summary>
 internal enum GdsRegistrationType
 {
-    /// <summary>Client application that pulls its own cert + trust list from the GDS.</summary>
+    /// <summary>
+    /// Client application that pulls its own cert + trust list from the GDS.
+    /// </summary>
     ClientPull,
 
-    /// <summary>Server application that pulls its own cert + trust list from the GDS.</summary>
+    /// <summary>
+    /// Server application that pulls its own cert + trust list from the GDS.
+    /// </summary>
     ServerPull,
 
     /// <summary>
@@ -117,9 +121,19 @@ internal sealed record RegisteredApplicationContext(
     string? HttpsIssuerListStorePath = null,
     EndpointDescription? PushEndpoint = null)
 {
-    /// <summary>True when this record has been assigned a GDS application id.</summary>
+    /// <summary>
+    /// Endpoint that assigned the application id. Older imports must be registered
+    /// again before issuance because a NodeId alone does not identify a GDS application.
+    /// </summary>
+    public string GdsEndpointUrl { get; init; } = string.Empty;
+
+    /// <summary>
+    /// True when this record has been assigned a GDS application id.
+    /// </summary>
     public bool IsRegistered => !ApplicationId.IsNull;
 
-    /// <summary>True when the record points at a push-enabled endpoint.</summary>
+    /// <summary>
+    /// True when the record points at a push-enabled endpoint.
+    /// </summary>
     public bool HasPushEndpoint => PushEndpoint is not null;
 }

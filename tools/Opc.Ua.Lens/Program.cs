@@ -104,23 +104,36 @@ internal static class Program
             return await EventsProbe.RunAsync(endpoint).ConfigureAwait(false);
         }
 
+        DesktopSmokeTest? desktopSmoke = Has(args, "--smoke-test") ? new DesktopSmokeTest() : null;
         ServiceProvider services = new ServiceCollection().AddUaLens().BuildServiceProvider();
+        int exitCode;
         try
         {
             // No await is reached on this branch until Avalonia has finished. The
             // desktop therefore stays on the process's original STA thread.
-            return BuildAvaloniaApp(services).StartWithClassicDesktopLifetime(args);
+            exitCode = BuildAvaloniaApp(services, desktopSmoke).StartWithClassicDesktopLifetime(args);
+            if (desktopSmoke is not null)
+            {
+                await desktopSmoke.Completion.ConfigureAwait(false);
+            }
         }
         finally
         {
             await services.DisposeAsync().ConfigureAwait(false);
         }
+        if (desktopSmoke is not null && exitCode == 0)
+        {
+            // The artifact runner requires both this marker and exit 0. Never
+            // report success before the desktop and service container drain.
+            Console.WriteLine("UALENS_DESKTOP_SMOKE_PASS");
+        }
+        return exitCode;
     }
 
-    public static AppBuilder BuildAvaloniaApp(IServiceProvider services)
+    public static AppBuilder BuildAvaloniaApp(IServiceProvider services, DesktopSmokeTest? desktopSmoke = null)
     {
         ArgumentNullException.ThrowIfNull(services);
-        return AppBuilder.Configure(() => new App(services))
+        return AppBuilder.Configure(() => new App(services, desktopSmoke))
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();

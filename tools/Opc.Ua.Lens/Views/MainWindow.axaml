@@ -138,15 +138,18 @@
     <!-- Persistent connection strip. -->
     <Border DockPanel.Dock="Top" Classes="strip">
       <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
-        <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0"
+        <TextBlock Grid.Column="0" x:Name="ServerLabel" VerticalAlignment="Center" Margin="0,0,8,0"
                    Foreground="{DynamicResource TextSecondary}" Text="Server" />
         <TextBox Grid.Column="1" x:Name="EndpointBox" VerticalAlignment="Center"
+                 AutomationProperties.Name="Server endpoint URL" AutomationProperties.LabeledBy="{Binding #ServerLabel}"
                  MinWidth="180" PlaceholderText="opc.tcp://host:port/path"
                  Text="{CompiledBinding EndpointUrl, Mode=TwoWay}" />
         <Button Grid.Column="2" x:Name="EndpointHistoryButton" Classes="tonal"
+                AutomationProperties.Name="Recent and favourite endpoints"
                 Margin="4,0,0,0" MinWidth="0" Padding="8,4" Content="▾"
                 ToolTip.Tip="Recent and favourite endpoints" />
         <Button Grid.Column="3" x:Name="FavoriteToggle" Classes="tonal"
+                AutomationProperties.Name="Toggle endpoint favourite"
                 Margin="4,0,10,0" MinWidth="0" Padding="8,4" Content="★"
                 ToolTip.Tip="Add or remove this endpoint from favourites" />
         <Grid Grid.Row="1" Grid.ColumnSpan="6" ColumnDefinitions="Auto,*" Margin="0,8,0,0">
@@ -163,6 +166,7 @@
         <Button Grid.Column="4" x:Name="ConnectButton" Classes="primary"
                 MinWidth="110" Content="Connect" Command="{CompiledBinding ConnectCommand}" />
         <Button Grid.Column="5" x:Name="ConnectionSettingsButton" Classes="tonal"
+                AutomationProperties.Name="Connection settings"
                 Margin="6,0,0,0" MinWidth="0" Padding="8,4" Content="⚙"
                 ToolTip.Tip="Connection settings (engine, locales, identity, reconnect)" />
       </Grid>
@@ -175,7 +179,7 @@
         <Button DockPanel.Dock="Right" x:Name="OperationErrorDismiss" Classes="quiet"
                 Content="Dismiss" Foreground="{DynamicResource TextSecondary}" />
         <TextBlock x:Name="OperationErrorText" TextWrapping="Wrap" VerticalAlignment="Center"
-                   Foreground="{DynamicResource AccentRed}" />
+                   Foreground="{DynamicResource ErrorText}" />
       </DockPanel>
     </Border>
 
@@ -187,7 +191,7 @@
                    Foreground="{DynamicResource TextSecondary}"
                    Text="{CompiledBinding ConnectionStatus}" TextTrimming="CharacterEllipsis" />
         <TextBlock Grid.Column="2" x:Name="StatusWarningText" VerticalAlignment="Center"
-                   Margin="10,0" Classes="mono" Foreground="{DynamicResource AccentYellowLight}"
+                   Margin="10,0" Classes="mono" Foreground="{DynamicResource WarningText}"
                    IsVisible="False" />
         <ToggleButton Grid.Column="3" x:Name="ToggleDiagButton" Classes="tonal" Margin="4,0,0,0"
                       MinHeight="24" Padding="8,2" Content="Diagnostics" />
@@ -303,6 +307,7 @@
                     Content="+ Add tool" Padding="10,4" MinWidth="0"
                     ToolTip.Tip="Open the tool catalog (Ctrl+T)" />
             <ListBox x:Name="TabStrip"
+                     Focusable="True"
                      ItemsSource="{CompiledBinding Tabs}"
                      SelectedItem="{CompiledBinding SelectedTab, Mode=TwoWay}"
                      ScrollViewer.HorizontalScrollBarVisibility="Auto"
@@ -334,7 +339,8 @@
                     </StackPanel.ContextMenu>
                     <TextBlock Text="{CompiledBinding Title}" VerticalAlignment="Center"
                                IsVisible="{CompiledBinding !IsRenaming}" x:Name="TabTitleText" />
-                    <TextBox Text="{CompiledBinding Title, Mode=TwoWay}" VerticalAlignment="Center"
+                    <TextBox Text="{CompiledBinding Title, Mode=OneWay}" VerticalAlignment="Center"
+                             AutomationProperties.Name="Document title"
                              MinWidth="80" Padding="2,0"
                              IsVisible="{CompiledBinding IsRenaming}" x:Name="TabTitleEdit" />
                     <Button x:Name="CloseTabButton" Content="×" Width="20" Padding="0"

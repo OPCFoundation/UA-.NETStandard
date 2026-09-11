@@ -39,19 +39,23 @@
   <SolidColorBrush x:Key="PanelBorder"         Color="#3A404A" />
   <SolidColorBrush x:Key="SeparatorBrush"      Color="#333943" />
 
-  <SolidColorBrush x:Key="TextDim"             Color="#9EA8B7" />
+  <SolidColorBrush x:Key="TextDim"             Color="#ADB8C8" />
   <SolidColorBrush x:Key="TextSecondary"       Color="#B0B9C6" />
   <SolidColorBrush x:Key="TextSecondaryAlt"    Color="#D1D7E1" />
   <SolidColorBrush x:Key="TextPrimary"         Color="#F1F3F7" />
   <SolidColorBrush x:Key="TextOnAccent"        Color="#101826" />
 
   <SolidColorBrush x:Key="AccentBlue"          Color="#8FB4FF" />
-  <SolidColorBrush x:Key="AccentCyan"          Color="#22D3EE" />
-  <SolidColorBrush x:Key="AccentGreen"         Color="#22C55E" />
-  <SolidColorBrush x:Key="AccentYellow"        Color="#EAB308" />
+  <SolidColorBrush x:Key="AccentCyan"          Color="#67E8F9" />
+  <SolidColorBrush x:Key="AccentGreen"         Color="#4ADE80" />
+  <SolidColorBrush x:Key="AccentYellow"        Color="#FACC15" />
   <SolidColorBrush x:Key="AccentYellowLight"   Color="#FACC15" />
-  <SolidColorBrush x:Key="AccentRed"           Color="#EF4444" />
-  <SolidColorBrush x:Key="AccentRedLight"      Color="#F87171" />
-  <SolidColorBrush x:Key="AccentPurple"        Color="#A78BFA" />
+  <SolidColorBrush x:Key="AccentRed"           Color="#FCA5A5" />
+  <SolidColorBrush x:Key="AccentRedLight"      Color="#FCA5A5" />
+  <SolidColorBrush x:Key="AccentPurple"        Color="#C4B5FD" />
+  <SolidColorBrush x:Key="SuccessText"         Color="#4ADE80" />
+  <SolidColorBrush x:Key="WarningText"         Color="#FACC15" />
+  <SolidColorBrush x:Key="ErrorText"           Color="#FCA5A5" />
+  <SolidColorBrush x:Key="InfoText"            Color="#67E8F9" />
   <SolidColorBrush x:Key="AccentYellowBorder"  Color="#3D3D1C" />
 </ResourceDictionary>

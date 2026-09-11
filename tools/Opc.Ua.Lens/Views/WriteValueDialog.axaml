@@ -34,6 +34,14 @@
         Width="640" Height="560"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
+  <Window.Styles>
+    <Style Selector="TextBlock.write-success">
+      <Setter Property="Foreground" Value="{DynamicResource SuccessText}" />
+    </Style>
+    <Style Selector="TextBlock.write-error">
+      <Setter Property="Foreground" Value="{DynamicResource ErrorText}" />
+    </Style>
+  </Window.Styles>
   <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="160,*">
     <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                Margin="0,0,0,12"
@@ -58,6 +66,7 @@
               Classes="tonal" Content="📂 Import from file…"
               HorizontalAlignment="Left" Margin="0,0,0,4" />
       <TextBox Grid.Row="1" x:Name="ValueText"
+               AutomationProperties.Name="New value"
                AcceptsReturn="True" TextWrapping="Wrap" Height="120" />
       <v:ComplexValueEditor Grid.Row="2" x:Name="ComplexEditor"
                             IsVisible="False" Margin="0,4,0,0" />
@@ -72,27 +81,32 @@
         <CheckBox Grid.Row="0" Grid.Column="0" x:Name="StatusOverride"
                   Content="Override status" VerticalAlignment="Center" />
         <TextBox  Grid.Row="0" Grid.Column="1" x:Name="StatusText"
+                  AutomationProperties.Name="Status code override"
                   Margin="8,0,0,0"
                   PlaceholderText="e.g. 0x80000000 or BadOutOfService" />
         <CheckBox Grid.Row="1" Grid.Column="0" x:Name="SourceOverride"
                   Content="Override source timestamp" VerticalAlignment="Center"
                   Margin="0,8,0,0" />
         <v:UtcDateTimePicker Grid.Row="1" Grid.Column="1" x:Name="SourceTimePicker"
+                             AutomationProperties.Name="Source timestamp (UTC)"
                              Margin="8,8,0,0" />
         <CheckBox Grid.Row="2" Grid.Column="0" x:Name="ServerOverride"
                   Content="Override server timestamp" VerticalAlignment="Center"
                   Margin="0,8,0,0" />
         <v:UtcDateTimePicker Grid.Row="2" Grid.Column="1" x:Name="ServerTimePicker"
+                             AutomationProperties.Name="Server timestamp (UTC)"
                              Margin="8,8,0,0" />
       </Grid>
     </Expander>
 
     <TextBlock Grid.Row="6" Grid.ColumnSpan="2" x:Name="ResultLabel" Margin="0,8,0,0"
+               Classes="write-error"
+               AutomationProperties.LiveSetting="Assertive"
                FontFamily="Cascadia Mono, Consolas, monospace" TextWrapping="Wrap" />
 
     <StackPanel Grid.Row="7" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
       <Button x:Name="OkButton"     Content="Write"  IsDefault="True" Width="100" />
-      <Button x:Name="CancelButton" Content="Close"  IsCancel="True"  Width="100" Margin="8,0,0,0" />
+      <Button x:Name="CancelButton" Content="Close"  IsCancel="True"  MinWidth="100" Margin="8,0,0,0" />
     </StackPanel>
   </Grid>
 </Window>

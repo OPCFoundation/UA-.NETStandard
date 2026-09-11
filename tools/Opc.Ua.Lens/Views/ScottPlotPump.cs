@@ -36,50 +36,33 @@ using UaLens.Subscriptions;
 namespace UaLens.Views;
 
 /// <summary>
-/// Centralised dark-theme styling for all three ScottPlot pumps.  Sets
+/// Centralised theme styling for all three ScottPlot pumps. Sets
 /// background colors, axis frame, tick labels, title, grid, and legend
 /// to match the rest of the UaLens UI; switches the font
 /// to the same monospace stack used by the AnimationCanvas.
 /// </summary>
 internal static class ScottPlotStyling
 {
-    private static readonly ScottPlot.Color s_text = ScottPlot.Color.FromHex("#E2E8F0");
-    private static readonly ScottPlot.Color s_dim = ScottPlot.Color.FromHex("#94A3B8");
-    private static readonly ScottPlot.Color s_grid = ScottPlot.Color.FromHex("#1E293B");
-    private static readonly ScottPlot.Color s_figBg = ScottPlot.Color.FromHex("#0F172A");
-    private static readonly ScottPlot.Color s_dataBg = ScottPlot.Color.FromHex("#0B1220");
-    private static readonly ScottPlot.Color s_legBg = ScottPlot.Color.FromHex("#1E293B");
-
     private const string FontName = "Cascadia Mono";
 
     public static void Apply(Plot plot, string title, string xLabel, string yLabel)
     {
-        plot.FigureBackground.Color = s_figBg;
-        plot.DataBackground.Color = s_dataBg;
-        plot.Axes.Color(s_text);
-        plot.Grid.MajorLineColor = s_grid;
-        plot.Grid.MinorLineColor = s_grid;
+        ArgumentNullException.ThrowIfNull(plot);
 
         plot.Axes.Title.Label.Text = title;
-        plot.Axes.Title.Label.ForeColor = s_text;
         plot.Axes.Title.Label.FontName = FontName;
         plot.Axes.Title.Label.FontSize = 14;
 
         plot.XLabel(xLabel);
         plot.YLabel(yLabel);
-        plot.Axes.Bottom.Label.ForeColor = s_dim;
         plot.Axes.Bottom.Label.FontName = FontName;
-        plot.Axes.Bottom.TickLabelStyle.ForeColor = s_dim;
         plot.Axes.Bottom.TickLabelStyle.FontName = FontName;
-        plot.Axes.Left.Label.ForeColor = s_dim;
         plot.Axes.Left.Label.FontName = FontName;
-        plot.Axes.Left.TickLabelStyle.ForeColor = s_dim;
         plot.Axes.Left.TickLabelStyle.FontName = FontName;
 
-        plot.Legend.BackgroundColor = s_legBg;
-        plot.Legend.FontColor = s_text;
         plot.Legend.FontName = FontName;
-        plot.Legend.OutlineColor = s_dim;
+        Themes.ChartTheme.Apply(plot);
+        plot.Axes.Title.Label.ForeColor = plot.Axes.Left.Label.ForeColor;
     }
 
     /// <summary>
@@ -111,16 +94,29 @@ internal static class ScottPlotStyling
 /// </summary>
 internal interface IScottPlotPump : IDisposable
 {
-    /// <summary>Configure the plot for this mode and prepare per-item state.</summary>
+    /// <summary>
+    /// Configure the plot for this mode and prepare per-item state.
+    /// </summary>
     void Bind(Plot plot, Action refresh);
 
-    /// <summary>Called whenever the active tab's monitored-item list changes.</summary>
+    /// <summary>
+    /// Called whenever the active tab's monitored-item list changes.
+    /// </summary>
     void OnItemsChanged(IReadOnlyList<MonitoredItemConfig> items);
 
-    /// <summary>Called once per drained channel event.</summary>
+    /// <summary>
+    /// Recolors existing series and auxiliary axes without replacing samples, plottables or zoom.
+    /// </summary>
+    void ApplyPalette(bool isLight);
+
+    /// <summary>
+    /// Called once per drained channel event.
+    /// </summary>
     void OnEvent(in NotificationEvent ev);
 
-    /// <summary>Push any pending mutations to the plot and invoke the refresh callback.</summary>
+    /// <summary>
+    /// Push any pending mutations to the plot and invoke the refresh callback.
+    /// </summary>
     void Refresh();
 
     /// <summary>
@@ -129,7 +125,9 @@ internal interface IScottPlotPump : IDisposable
     /// </summary>
     void ApplyXZoom(double factor);
 
-    /// <summary>Reset the X-axis to the SDK auto-fit so live data fills the view.</summary>
+    /// <summary>
+    /// Reset the X-axis to the SDK auto-fit so live data fills the view.
+    /// </summary>
     void ResetXZoom();
 }
 
@@ -146,7 +144,9 @@ internal sealed class SignalPump : IScottPlotPump
     private Action? m_refresh;
     private readonly Dictionary<int, DataStreamer> m_streamers = new();
 
-    /// <summary>Test hook — how many streamers are currently active.</summary>
+    /// <summary>
+    /// Test hook — how many streamers are currently active.
+    /// </summary>
     internal int StreamerCount => m_streamers.Count;
 
     public void Bind(Plot plot, Action refresh)
@@ -204,8 +204,17 @@ internal sealed class SignalPump : IScottPlotPump
             DataStreamer streamer = m_plot.Add.DataStreamer(kCapacity);
             streamer.LegendText = it.DisplayName ?? $"#{it.Id}";
             streamer.Color = ItemColors.ScottPlotForItemId(it.Id);
+            streamer.LineWidth = 2;
             streamer.ViewScrollLeft();
             m_streamers[it.Id] = streamer;
+        }
+    }
+
+    public void ApplyPalette(bool isLight)
+    {
+        foreach ((int id, DataStreamer streamer) in m_streamers)
+        {
+            streamer.Color = ItemColors.ScottPlotForItemId(id, isLight);
         }
     }
 
@@ -312,10 +321,14 @@ internal sealed class HistogramPump : IScottPlotPump
     private bool m_dirty;
     private bool m_initialFit;
 
-    /// <summary>Test hook — number of items tracked.</summary>
+    /// <summary>
+    /// Test hook — number of items tracked.
+    /// </summary>
     internal int ItemCount => m_bins.Count;
 
-    /// <summary>Test hook — total sample count for a given item.</summary>
+    /// <summary>
+    /// Test hook — total sample count for a given item.
+    /// </summary>
     internal int SampleCountFor(int itemId)
         => m_sampleCount.TryGetValue(itemId, out int n) ? n : 0;
 
@@ -401,14 +414,14 @@ internal sealed class HistogramPump : IScottPlotPump
         int idx = 0;
         foreach ((int id, _) in m_bins)
         {
-            double xOffset = (idx - (itemCount - 1) / 2.0) * (kBinSizeMs / Math.Max(1, itemCount + 1));
+            double xOffset = (idx - ((itemCount - 1) / 2.0)) * (kBinSizeMs / Math.Max(1, itemCount + 1));
             double barSize = kBinSizeMs / Math.Max(1.5, itemCount + 1);
             var bars = new List<Bar>(kBinCount);
             for (int i = 0; i < kBinCount; i++)
             {
                 bars.Add(new Bar
                 {
-                    Position = (i + 0.5) * kBinSizeMs + xOffset,
+                    Position = ((i + 0.5) * kBinSizeMs) + xOffset,
                     Value = 0,
                     Size = barSize,
                     FillColor = ItemColors.ScottPlotForItemId(id)
@@ -419,6 +432,18 @@ internal sealed class HistogramPump : IScottPlotPump
             m_barPlots[id] = bp;
             m_barLists[id] = bars;
             idx++;
+        }
+    }
+
+    public void ApplyPalette(bool isLight)
+    {
+        foreach ((int id, List<Bar> bars) in m_barLists)
+        {
+            ScottPlot.Color color = ItemColors.ScottPlotForItemId(id, isLight);
+            foreach (Bar bar in bars)
+            {
+                bar.FillColor = color;
+            }
         }
     }
 
@@ -551,6 +576,7 @@ internal sealed class HeatmapPump : IScottPlotPump
     private Heatmap? m_heatmap;
     private ScottPlot.Panels.ColorBar? m_colorBar;
     private double[,] m_grid = new double[0, kCols];
+
     /// <summary>Display-ordered intensities (oldest at col 0, newest at right).</summary>
     private double[,] m_ordered = new double[0, kCols];
     private List<int> m_rowOrder = new();
@@ -559,7 +585,9 @@ internal sealed class HeatmapPump : IScottPlotPump
     private DateTime m_columnStartUtc = DateTime.UtcNow;
     private bool m_initialFit;
 
-    /// <summary>Test hook — number of rows in the heatmap grid.</summary>
+    /// <summary>
+    /// Test hook — number of rows in the heatmap grid.
+    /// </summary>
     internal int RowCount => m_grid.GetLength(0);
 
     public void Bind(Plot plot, Action refresh)
@@ -650,6 +678,22 @@ internal sealed class HeatmapPump : IScottPlotPump
         }
 
         m_grid[row, m_head]++;
+    }
+
+    public void ApplyPalette(bool isLight)
+    {
+        if (m_colorBar is null || m_plot is null)
+        {
+            return;
+        }
+        // Keep the intensity colormap; theme the separate scale from the plot's semantic axis colors.
+        IAxis axis = m_colorBar.Axis;
+        IAxis source = m_plot.Axes.Left;
+        axis.MajorTickStyle.Color = source.MajorTickStyle.Color;
+        axis.MinorTickStyle.Color = source.MinorTickStyle.Color;
+        axis.FrameLineStyle.Color = source.FrameLineStyle.Color;
+        axis.Label.ForeColor = source.Label.ForeColor;
+        axis.TickLabelStyle.ForeColor = source.TickLabelStyle.ForeColor;
     }
 
     private void AdvanceColumn(DateTime nowUtc)
@@ -768,4 +812,3 @@ internal sealed class HeatmapPump : IScottPlotPump
         m_rowNames.Clear();
     }
 }
-

@@ -162,6 +162,8 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
     private bool m_closed;
     private Task? m_disposal;
     private EventViewView? m_view;
+    private readonly WriteValueOperationFactory m_writeOperations;
+    private WriteValueDialog? m_writeDialog;
 
     [ObservableProperty]
     private string m_title;
@@ -227,10 +229,11 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
     /// <summary>UI-thread-only.  Sources displayed in the left panel.</summary>
     public ObservableCollection<EventSourceVm> EventSources { get; } = new();
 
-    public EventViewPlugin(PluginHost host)
+    public EventViewPlugin(PluginHost host, WriteValueOperationFactory? writeOperations = null)
     {
         m_host = host ?? throw new ArgumentNullException(nameof(host));
         m_log = host.Log;
+        m_writeOperations = writeOperations ?? (static (nodeId, session) => new WriteValueOperation(nodeId, session));
         m_title = string.Create(CultureInfo.InvariantCulture, $"Event View {Interlocked.Increment(ref s_number)}");
 
         (m_selectClauses, m_selectPaths) = BuildSelectClauses(m_filter);
@@ -311,6 +314,12 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
         try
         {
             m_closed = true;
+            if (m_writeDialog is not null)
+            {
+                WriteValueDialog writeDialog = m_writeDialog;
+                await m_writeDialog.DisposeAsync().ConfigureAwait(true);
+                writeDialog.Close();
+            }
             await ReleaseSubscriptionAsync().ConfigureAwait(true);
         }
         finally
@@ -479,22 +488,25 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
             return;
         }
 
-        Window? owner = TopLevelWindow();
+        Window owner = TopLevelWindow()
+            ?? throw new InvalidOperationException("A desktop owner is required to trigger an event.");
         var options = new BrowsePickerDialog.Options(
             Session: session,
             Root: ObjectIds.ObjectsFolder,
             Title: "Trigger event source",
             AcceptedClasses: NodeClass.Method | NodeClass.Variable | NodeClass.Object,
             ReferenceTypeId: ReferenceTypeIds.HierarchicalReferences,
-            AcceptPredicate: (id, _) => HasGeneratesEventAsync(session, id),
+            AcceptPredicate: async (id, _) =>
+            {
+                bool accepted = await HasGeneratesEventAsync(session, id).ConfigureAwait(false);
+                return !m_closed && accepted;
+            },
             Header: "Pick a Method (Call) or Variable (Write) whose " +
                 "GeneratesEvent reference fires a server-side event.");
 
         var dlg = new FlattenedBrowseDialog(options);
-        NodeId? picked = owner is null
-            ? await dlg.ShowDialog<NodeId?>(new Window()).ConfigureAwait(true)
-            : await dlg.ShowDialog<NodeId?>(owner).ConfigureAwait(true);
-        if (picked is null || picked.Value.IsNull || dlg.PickedItem is null)
+        NodeId picked = await dlg.ShowDialog<NodeId>(owner).ConfigureAwait(true);
+        if (m_closed || picked.IsNull || dlg.PickedItem is null)
         {
             return;
         }
@@ -505,22 +517,22 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
 
         if (item.NodeClass == NodeClass.Method)
         {
-            if (owner is null)
-            {
-                throw new InvalidOperationException("A desktop owner is required to show a method-call dialog.");
-            }
             await ShowMethodCallDialogAsync(node, session, owner).ConfigureAwait(true);
         }
         else if (item.NodeClass == NodeClass.Variable)
         {
-            var writeDlg = new WriteValueDialog(node, session);
-            if (owner is not null)
+            var writeDlg = new WriteValueDialog(node, session, m_writeOperations(node.NodeId, session));
+            await using (writeDlg.ConfigureAwait(true))
             {
-                await writeDlg.ShowDialog(owner).ConfigureAwait(true);
-            }
-            else
-            {
-                writeDlg.Show();
+                m_writeDialog = writeDlg;
+                try
+                {
+                    await writeDlg.ShowDialog(owner).ConfigureAwait(true);
+                }
+                finally
+                {
+                    m_writeDialog = null;
+                }
             }
         }
         else
@@ -536,6 +548,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
         {
             await dialog.ShowDialog(owner).ConfigureAwait(true);
         }
+
     }
 
     private static async Task<bool> HasGeneratesEventAsync(ManagedSession session, NodeId id)
@@ -1008,24 +1021,23 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
         {
             return null;
         }
-        object? raw = v.Value;
-        if (raw is LocalizedText lt)
+        if (v.TryGetValue(out LocalizedText lt))
         {
             return lt.IsNull ? string.Empty : lt.Text;
         }
-        if (raw is QualifiedName qn)
+        if (v.TryGetValue(out QualifiedName qn))
         {
             return qn.IsNull ? string.Empty : qn.Name;
         }
-        if (raw is NodeId nid)
+        if (v.TryGetValue(out NodeId nid))
         {
             return nid.IsNull ? string.Empty : nid.ToString();
         }
-        if (raw is byte[] bytes)
+        if (v.TryGetValue(out ByteString bytes))
         {
-            return Convert.ToHexString(bytes);
+            return Convert.ToHexString(bytes.Span);
         }
-        return raw;
+        return v.AsBoxedObject(Variant.BoxingBehavior.Legacy);
     }
 
     private static (SimpleAttributeOperand[], string[]) BuildSelectClauses(EventFilterConfig config)
@@ -1255,7 +1267,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
         {
             return session.MessageContext;
         }
-        return new ServiceMessageContext(m_host.Telemetry);
+        return ServiceMessageContext.Create(m_host.Telemetry);
     }
 }
 

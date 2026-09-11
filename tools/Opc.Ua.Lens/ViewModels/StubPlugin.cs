@@ -80,8 +80,13 @@ internal sealed partial class StubPlugin : ObservableObject, IPlugin
 
     public IReadOnlyList<MenuItem> ContributeMenuItems() => Array.Empty<MenuItem>();
 
-    public void OnActivated() { }
-    public void OnDeactivated() { }
+    public void OnActivated()
+    {
+    }
+
+    public void OnDeactivated()
+    {
+    }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
@@ -123,7 +128,7 @@ internal sealed partial class StubPlugin : ObservableObject, IPlugin
                 Text = "🚧  Coming soon",
                 FontSize = 13,
                 FontWeight = FontWeight.SemiBold,
-                Foreground = (Application.Current?.FindResource("AccentYellow") as IBrush)
+                Foreground = (Application.Current?.FindResource("WarningText") as IBrush)
                     ?? Brushes.Transparent
             }
         };

@@ -144,6 +144,7 @@ namespace UaLens.Views
         {
             m_items = items;
             m_pump?.OnItemsChanged(items);
+            ApplyPalette();
         }
 
         /// <summary>
@@ -253,6 +254,8 @@ namespace UaLens.Views
                 return;
             }
             Themes.ChartTheme.Apply(m_plot.Plot);
+            m_plot.Plot.Axes.Title.Label.ForeColor = m_plot.Plot.Axes.Left.Label.ForeColor;
+            m_pump?.ApplyPalette(Themes.ChartTheme.IsLight);
             m_plot.Refresh();
         }
     }

@@ -38,7 +38,7 @@
     <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                Margin="0,0,0,8"
                TextWrapping="Wrap"
-               Foreground="{DynamicResource AccentYellow}"
+               Foreground="{DynamicResource WarningText}"
                x:Name="ErrorLabel"
                Text="The server certificate could not be validated." />
 

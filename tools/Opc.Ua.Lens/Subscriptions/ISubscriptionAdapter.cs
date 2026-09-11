@@ -60,6 +60,10 @@ namespace UaLens.Subscriptions
 
     internal sealed record MonitoredItemConfig
     {
+        /// <summary>
+        /// Document item identity. Positive identities are retained by adapters across reconnects;
+        /// zero requests a new identity for callers without a document.
+        /// </summary>
         public int Id { get; init; }
         public required string DisplayName { get; init; }
         public required NodeId NodeId { get; init; }

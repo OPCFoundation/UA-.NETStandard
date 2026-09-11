@@ -53,7 +53,7 @@
     </StackPanel>
 
     <TextBlock x:Name="ErrorLabel" DockPanel.Dock="Bottom"
-               Foreground="{DynamicResource AccentRedLight}"
+               Foreground="{DynamicResource ErrorText}"
                Margin="0,8,0,0" IsVisible="False" TextWrapping="Wrap" />
 
     <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="140,*">

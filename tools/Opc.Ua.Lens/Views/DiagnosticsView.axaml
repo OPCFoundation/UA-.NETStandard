@@ -35,6 +35,7 @@
     <Grid Margin="10" RowDefinitions="Auto,*">
       <DockPanel Grid.Row="0" Margin="0,0,0,8">
         <Button x:Name="HideButton" DockPanel.Dock="Right" Content="×" Width="24" Height="24"
+                AutomationProperties.Name="Hide diagnostics"
                 Padding="0" Background="Transparent" BorderThickness="0"
                 ToolTip.Tip="Hide diagnostics" />
         <Button x:Name="ExportButton" DockPanel.Dock="Right" Content="Export…" Margin="0,0,8,0"

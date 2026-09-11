@@ -31,7 +31,7 @@
              x:Class="UaLens.Views.ComplexValueEditor">
   <Grid RowDefinitions="Auto,Auto,*">
     <TextBlock Grid.Row="0" x:Name="HeaderLabel"
-               FontWeight="SemiBold" Foreground="{DynamicResource AccentCyan}"
+               FontWeight="SemiBold" Foreground="{DynamicResource InfoText}"
                Margin="0,0,0,4" />
     <TextBlock Grid.Row="1" x:Name="HintLabel"
                Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,6" TextWrapping="Wrap" />

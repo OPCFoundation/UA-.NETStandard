@@ -84,7 +84,7 @@ internal sealed partial class ComplexValueElementDialog : Window, IAsyncDisposab
             {
                 TextBlock status = this.RequiredControl<TextBlock>("StatusLabel");
                 status.Text = err ?? "Could not commit value.";
-                status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                status.Foreground = (Application.Current?.FindResource("ErrorText") as IBrush)
                     ?? Brushes.Transparent;
             }
         };

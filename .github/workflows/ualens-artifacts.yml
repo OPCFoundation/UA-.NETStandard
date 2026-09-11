@@ -1,0 +1,236 @@
+name: UaLens desktop and distributed artifacts
+
+on:
+  pull_request:
+    paths:
+    - 'tools/Opc.Ua.Lens/**'
+    - 'tests/Opc.Ua.Lens.Tests/**'
+    - 'src/**'
+    - '*.props'
+    - 'Directory.Build.targets'
+    - 'NuGet.config'
+    - 'version.json'
+    - '.github/workflows/ualens-artifacts.yml'
+    - '.github/scripts/test-lens-desktop.ps1'
+    - '.github/scripts/test_desktop_result_guard.py'
+  push:
+    branches: [master, main, develop/*]
+    paths:
+    - 'tools/Opc.Ua.Lens/**'
+    - 'tests/Opc.Ua.Lens.Tests/**'
+    - 'src/**'
+    - '*.props'
+    - 'Directory.Build.targets'
+    - 'NuGet.config'
+    - 'version.json'
+    - '.github/workflows/ualens-artifacts.yml'
+    - '.github/scripts/test-lens-desktop.ps1'
+    - '.github/scripts/test_desktop_result_guard.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ualens-artifacts-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  PROJECT: tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj
+
+jobs:
+  desktop-targets:
+    name: Desktop diagnostics (${{ matrix.tfm }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        tfm: [net8.0, net9.0, net10.0]
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: '10.0.x'
+    - name: Verify desktop result guard negative cases
+      if: matrix.tfm == 'net10.0'
+      run: python3 .github/scripts/test_desktop_result_guard.py
+    - name: Build with normal analyzer and obsolete guards
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force artifacts/lens/logs | Out-Null
+        dotnet build $env:PROJECT -c Release -f ${{ matrix.tfm }} -p:CustomTestTarget=${{ matrix.tfm }} -m:2 --nologo -v:minimal -bl:artifacts/lens/logs/build.binlog '-flp:logfile=artifacts/lens/logs/build.log;verbosity=normal'
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: ualens-diagnostics-${{ matrix.tfm }}
+        path: artifacts/lens/logs
+        if-no-files-found: error
+
+  desktop-regressions:
+    name: Windows desktop regressions
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: '10.0.x'
+    - name: Build the desktop regression harness
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force artifacts/lens/desktop-logs | Out-Null
+        dotnet build tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj -c Release -f net10.0 -p:CustomTestTarget=net10.0 -m:2 --nologo -v:minimal -bl:artifacts/lens/desktop-logs/build.binlog '-flp:logfile=artifacts/lens/desktop-logs/build.log;verbosity=normal'
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Execute explicit real-desktop fixtures and validate the expected results
+      timeout-minutes: 5
+      shell: pwsh
+      run: |
+        pwsh -NoProfile -File .github/scripts/test-lens-desktop.ps1 -Configuration Release -NoBuild
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: ualens-windows-desktop-regressions
+        path: |
+          TestResults/lens-desktop
+          artifacts/lens/desktop-logs
+        if-no-files-found: error
+
+  native-desktop:
+    name: Native desktop (${{ matrix.rid }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - os: windows-2022
+          rid: win-x64
+          executable: UaLens.exe
+        - os: ubuntu-24.04
+          rid: linux-x64
+          executable: UaLens
+        - os: macos-15
+          rid: osx-arm64
+          executable: UaLens
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: '10.0.x'
+    - name: Linux native compiler and desktop prerequisites
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang zlib1g-dev libice6 libsm6 libx11-6 libxext6 libxrender1 libfontconfig1 libfreetype6 fonts-dejavu-core xvfb xauth
+    - name: Publish native desktop (keep detailed trim and AOT diagnostics)
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force artifacts/lens/logs | Out-Null
+        # Keep PublishAot project-local; a global value also targets netstandard source generators.
+        dotnet publish $env:PROJECT -c Release -f net10.0 -p:CustomTestTarget=net10.0 -r ${{ matrix.rid }} --self-contained true -p:PackAsTool=false -p:PublishAotEnabled=true -p:SuppressTrimAnalysisWarnings=false -p:TrimmerSingleWarn=false -m:2 -o artifacts/lens/native -bl:artifacts/lens/logs/native.binlog '-flp:logfile=artifacts/lens/logs/native.log;verbosity=normal'
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        # Preserve Unix executable permissions through artifact upload/download.
+        tar -czf artifacts/lens/ualens-${{ matrix.rid }}.tar.gz -C artifacts/lens/native .
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Launch the native artifact on a desktop and require drained exit
+      timeout-minutes: 3
+      shell: pwsh
+      run: |
+        $arguments = @('tools/Opc.Ua.Lens/validate-artifact.py', '--executable', 'artifacts/lens/native/${{ matrix.executable }}', '--log-directory', 'artifacts/lens/logs/smoke')
+        if ($IsLinux) {
+          xvfb-run --auto-servernum '--server-args=-screen 0 1600x1000x24 -dpi 96' python3 @arguments
+        } elseif ($IsMacOS) {
+          python3 @arguments
+        } else {
+          python @arguments
+        }
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: ualens-native-${{ matrix.rid }}
+        path: artifacts/lens
+        if-no-files-found: error
+
+  managed-tool:
+    name: Installed managed desktop (${{ matrix.rid }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - os: windows-2022
+          rid: win-x64
+          command: ualens.exe
+        - os: ubuntu-24.04
+          rid: linux-x64
+          command: ualens
+        - os: macos-15
+          rid: osx-arm64
+          command: ualens
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: '10.0.x'
+    - name: Linux desktop prerequisites
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libice6 libsm6 libx11-6 libxext6 libxrender1 libfontconfig1 libfreetype6 fonts-dejavu-core xvfb xauth
+    - name: Restore and pack managed tool (never reuse native output)
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force artifacts/lens/logs | Out-Null
+        dotnet restore $env:PROJECT -p:Configuration=Release -p:CustomTestTarget=net10.0 -p:PublishAotEnabled=false -p:PublishAot=false -p:PublishTrimmed=false -p:PackAsTool=true
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        dotnet pack $env:PROJECT -c Release --no-restore -p:CustomTestTarget=net10.0 -p:TargetFramework=net10.0 -p:PublishAotEnabled=false -p:PublishAot=false -p:PublishTrimmed=false -p:PackAsTool=true -m:2 -o artifacts/lens/packages -bl:artifacts/lens/logs/managed.binlog '-flp:logfile=artifacts/lens/logs/managed.log;verbosity=normal'
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Install only the freshly packed local artifact into an isolated directory
+      shell: pwsh
+      run: |
+        $root = Join-Path $env:RUNNER_TEMP 'ualens-installed'
+        New-Item -ItemType Directory $root | Out-Null
+        $source = [System.Security.SecurityElement]::Escape((Resolve-Path artifacts/lens/packages).Path)
+        $config = Join-Path $root 'NuGet.config'
+        [System.IO.File]::WriteAllText($config, "<configuration><packageSources><clear/><add key=`"artifact`" value=`"$source`"/></packageSources></configuration>")
+        $env:NUGET_PACKAGES = Join-Path $root 'cache'
+        $env:DOTNET_CLI_HOME = Join-Path $root 'cli'
+        $packages = @(Get-ChildItem artifacts/lens/packages -Filter '*.nupkg')
+        if ($packages.Count -ne 1) { throw 'Expected exactly one freshly packed tool artifact.' }
+        $archive = [IO.Compression.ZipFile]::OpenRead($packages[0].FullName)
+        try {
+          $entry = $archive.GetEntry('OPCFoundation.NetStandard.Opc.Ua.Lens.nuspec')
+          if ($null -eq $entry) { throw 'The tool artifact has no expected package manifest.' }
+          $reader = [IO.StreamReader]::new($entry.Open())
+          try { [xml] $manifest = $reader.ReadToEnd() } finally { $reader.Dispose() }
+          $version = $manifest.package.metadata.version
+        } finally { $archive.Dispose() }
+        dotnet tool install OPCFoundation.NetStandard.Opc.Ua.Lens --version $version --tool-path (Join-Path $root 'tool') --configfile $config --no-cache
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Launch the installed shim on a desktop and require drained exit
+      timeout-minutes: 3
+      shell: pwsh
+      run: |
+        $executable = Join-Path $env:RUNNER_TEMP 'ualens-installed/tool/${{ matrix.command }}'
+        $arguments = @('tools/Opc.Ua.Lens/validate-artifact.py', '--executable', $executable, '--log-directory', 'artifacts/lens/logs/smoke')
+        if ($IsLinux) {
+          xvfb-run --auto-servernum '--server-args=-screen 0 1600x1000x24 -dpi 96' python3 @arguments
+        } elseif ($IsMacOS) {
+          python3 @arguments
+        } else {
+          python @arguments
+        }
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: ualens-managed-${{ matrix.rid }}
+        path: artifacts/lens
+        if-no-files-found: error

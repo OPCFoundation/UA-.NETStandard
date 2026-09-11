@@ -39,6 +39,7 @@ using UaLens.Diagnostics;
 using UaLens.Telemetry;
 using UaLens.Themes;
 using UaLens.ViewModels;
+using UaLens.Views;
 using UaLens.Workspace;
 
 namespace UaLens;
@@ -58,6 +59,16 @@ internal static class UaLensServiceCollectionExtensions
         services.TryAddSingleton(_ => new PublishLogObserver());
         services.TryAddSingleton(_ => new AppearancePreferences());
         services.TryAddSingleton<IWorkspaceDispatcher>(_ => new AvaloniaWorkspaceDispatcher());
+        services.TryAddSingleton<WriteValueOperationFactory>(_ =>
+            static (nodeId, session) => new WriteValueOperation(nodeId, session));
+        services.TryAddSingleton<Func<ApplicationConfiguration, CertificateStoreOperations>>(provider =>
+        {
+            ITelemetryContext telemetry = provider.GetRequiredService<ITelemetryContext>();
+            ICertificateStoreAccess? store = provider.GetService<ICertificateStoreAccess>();
+            TimeProvider? timeProvider = provider.GetService<TimeProvider>();
+            return configuration => new CertificateStoreOperations(
+                store ?? new CertificateStoreService(configuration, telemetry), timeProvider);
+        });
         services.AddUaLensConnection();
         services.AddUaLensShowcases();
         services.TryAddSingleton<ICapabilityProbe>(_ => new SessionCapabilityProbe());
@@ -98,7 +109,8 @@ internal static class UaLensServiceCollectionExtensions
     public static IServiceCollection AddUaLensPluginFactory<TFactory>(
         this IServiceCollection services,
         PluginKind kind,
-        Func<TFactory, PluginHost, IPlugin> create)
+        Func<TFactory, PluginHost, IPlugin> create,
+        bool isDefault = false)
         where TFactory : class
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -106,7 +118,7 @@ internal static class UaLensServiceCollectionExtensions
         services.AddSingleton(provider =>
         {
             TFactory factory = provider.GetRequiredService<TFactory>();
-            return new PluginFactoryRegistration(kind, host => create(factory, host));
+            return new PluginFactoryRegistration(kind, host => create(factory, host), isDefault);
         });
         return services;
     }

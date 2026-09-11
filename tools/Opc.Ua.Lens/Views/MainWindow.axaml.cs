@@ -28,9 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.Platform.Storage;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using UaLens.Themes;
@@ -52,7 +55,12 @@ internal sealed partial class MainWindow : Window, IAsyncDisposable
     /// </summary>
     public static UaLens.Diagnostics.ResourceMonitorHost? PendingResourceMonitor { get; set; }
 
-    public MainWindow(MainViewModel viewModel, AppearancePreferences? appearance = null)
+    public MainWindow(
+        MainViewModel viewModel,
+        AppearancePreferences? appearance = null,
+        WriteValueOperationFactory? writeOperations = null,
+        IStorageProvider? storageProvider = null,
+        Func<ApplicationConfiguration, CertificateStoreOperations>? certificateOperations = null)
     {
         m_vm = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         m_appearance = appearance ?? new AppearancePreferences();
@@ -62,16 +70,18 @@ internal sealed partial class MainWindow : Window, IAsyncDisposable
         }
         DataContext = m_vm;
         InitializeComponent();
+        // The shell drains owned operations before asking their windows to close.
+        ClosingBehavior = WindowClosingBehavior.OwnerWindowOnly;
 
         ILogger log = m_vm.Telemetry.CreateLogger("Shell");
-        m_nodes = new NodeInteractionController(this, m_vm, log);
-        m_connection = new ConnectionController(this, m_vm, log);
+        m_nodes = new NodeInteractionController(this, m_vm, log, writeOperations);
+        m_connection = new ConnectionController(this, m_vm, log, storageProvider, certificateOperations);
         m_shell = new ShellPresenter(this, m_vm, m_connection, log, ChangeThemeAsync);
         m_nodes.Attach();
         m_connection.Attach();
         m_shell.Attach();
 
-        KeyDown += (_, e) => m_shell.OnKeyDown(e);
+        AddHandler(KeyDownEvent, (_, e) => m_shell.OnKeyDown(e), RoutingStrategies.Tunnel);
         Opened += async (_, _) =>
         {
             try
@@ -127,8 +137,18 @@ internal sealed partial class MainWindow : Window, IAsyncDisposable
 
     private async Task DisposeCoreAsync()
     {
+        m_closing = true;
         m_shell.Dispose();
+        foreach (Window dialog in OwnedWindows.ToArray())
+        {
+            if (dialog is IAsyncDisposable ownedWork)
+            {
+                await ownedWork.DisposeAsync().ConfigureAwait(true);
+            }
+            dialog.Close();
+        }
         await m_vm.DisposeAsync().ConfigureAwait(true);
+        m_closeReady = true;
     }
 
     private async Task ChangeThemeAsync(ThemePreset preset)

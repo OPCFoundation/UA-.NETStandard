@@ -90,7 +90,7 @@
             BorderBrush="{DynamicResource PanelBorder}" BorderThickness="0,1,0,0"
             Padding="10,4" Margin="8,0,8,8">
       <TextBlock Text="{CompiledBinding Status}"
-                 Foreground="{DynamicResource AccentGreen}"
+                 Foreground="{DynamicResource SuccessText}"
                  FontFamily="Cascadia Mono, Consolas, monospace"
                  FontSize="11" />
     </Border>
@@ -181,7 +181,7 @@
                                    Text="{CompiledBinding CriteriaType}"
                                    FontFamily="Cascadia Mono, Consolas, monospace"
                                    FontSize="12"
-                                   Foreground="{DynamicResource AccentCyan}" />
+                                   Foreground="{DynamicResource InfoText}" />
                         <TextBlock Grid.Column="1"
                                    Text="{CompiledBinding Criteria}"
                                    FontFamily="Cascadia Mono, Consolas, monospace"

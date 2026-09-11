@@ -39,7 +39,7 @@
     <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                Text="Monitored item parameters"
                FontWeight="SemiBold" FontSize="14"
-               Foreground="{DynamicResource AccentCyan}" Margin="0,0,0,4" />
+               Foreground="{DynamicResource InfoText}" Margin="0,0,0,4" />
     <Border Grid.Row="1" Grid.ColumnSpan="2" Height="1"
             Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,8" />
 
@@ -54,15 +54,18 @@
     </TextBlock>
 
     <TextBlock Grid.Row="3" Grid.Column="0" Text="Sampling interval (ms)" VerticalAlignment="Center" Margin="0,8,0,0" />
-    <TextBox   Grid.Row="3" Grid.Column="1" x:Name="SamplingMs" Margin="0,8,0,0" />
+    <TextBox   Grid.Row="3" Grid.Column="1" x:Name="SamplingMs" Margin="0,8,0,0"
+               AutomationProperties.Name="Sampling interval (ms)" />
 
     <TextBlock Grid.Row="4" Grid.Column="0" Text="Queue size" VerticalAlignment="Center" Margin="0,8,0,0" />
-    <TextBox   Grid.Row="4" Grid.Column="1" x:Name="QueueSizeBox" Margin="0,8,0,0" />
+    <TextBox   Grid.Row="4" Grid.Column="1" x:Name="QueueSizeBox" Margin="0,8,0,0"
+               AutomationProperties.Name="Queue size (notifications)" />
 
     <CheckBox  Grid.Row="5" Grid.Column="1" x:Name="DiscardOldestBox" Content="Discard oldest" Margin="0,8,0,0" />
 
     <TextBlock Grid.Row="6" Grid.Column="0" Text="Monitoring mode" VerticalAlignment="Center" Margin="0,8,0,0" />
-    <ComboBox  Grid.Row="6" Grid.Column="1" x:Name="MonitoringModeCombo" Margin="0,8,0,0" HorizontalAlignment="Stretch">
+    <ComboBox  Grid.Row="6" Grid.Column="1" x:Name="MonitoringModeCombo" Margin="0,8,0,0" HorizontalAlignment="Stretch"
+               AutomationProperties.Name="Monitoring mode">
       <ComboBoxItem Content="Disabled" />
       <ComboBoxItem Content="Sampling" />
       <ComboBoxItem Content="Reporting" />
@@ -71,27 +74,31 @@
     <TextBlock Grid.Row="7" Grid.ColumnSpan="2"
                Text="Data change filter (optional)"
                FontWeight="SemiBold" FontSize="13"
-               Foreground="{DynamicResource AccentCyan}" Margin="0,16,0,4" />
+               Foreground="{DynamicResource InfoText}" Margin="0,16,0,4" />
 
     <TextBlock Grid.Row="8" Grid.Column="0" Text="Trigger" VerticalAlignment="Center" Margin="0,4,0,0" />
-    <ComboBox  Grid.Row="8" Grid.Column="1" x:Name="TriggerCombo" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+    <ComboBox  Grid.Row="8" Grid.Column="1" x:Name="TriggerCombo" Margin="0,4,0,0" HorizontalAlignment="Stretch"
+               AutomationProperties.Name="Data change trigger">
       <ComboBoxItem Content="Status" />
       <ComboBoxItem Content="StatusValue" />
       <ComboBoxItem Content="StatusValueTimestamp" />
     </ComboBox>
 
     <TextBlock Grid.Row="9" Grid.Column="0" Text="Deadband type" VerticalAlignment="Center" Margin="0,8,0,0" />
-    <ComboBox  Grid.Row="9" Grid.Column="1" x:Name="DeadbandTypeCombo" Margin="0,8,0,0" HorizontalAlignment="Stretch">
+    <ComboBox  Grid.Row="9" Grid.Column="1" x:Name="DeadbandTypeCombo" Margin="0,8,0,0" HorizontalAlignment="Stretch"
+               AutomationProperties.Name="Deadband type">
       <ComboBoxItem Content="None" />
       <ComboBoxItem Content="Absolute" />
       <ComboBoxItem Content="Percent" />
     </ComboBox>
 
     <TextBlock Grid.Row="10" Grid.Column="0" Text="Deadband value" VerticalAlignment="Center" Margin="0,8,0,0" />
-    <TextBox   Grid.Row="10" Grid.Column="1" x:Name="DeadbandValueBox" Text="0" Margin="0,8,0,0" IsEnabled="False" />
+    <TextBox   Grid.Row="10" Grid.Column="1" x:Name="DeadbandValueBox" Text="0" Margin="0,8,0,0" IsEnabled="False"
+               AutomationProperties.Name="Deadband value (absolute)" />
 
     <TextBlock Grid.Row="11" Grid.ColumnSpan="2" x:Name="ValidationError" TextWrapping="Wrap"
-               Foreground="{DynamicResource AccentRed}" Margin="0,10,0,0" />
+               AutomationProperties.LiveSetting="Assertive"
+               Foreground="{DynamicResource ErrorText}" Margin="0,10,0,0" />
     <StackPanel Grid.Row="12" Grid.ColumnSpan="2" Orientation="Horizontal"
                 HorizontalAlignment="Right" Margin="0,16,0,0">
       <Button x:Name="OkButton"     Content="Apply"  IsDefault="True" Width="90" />

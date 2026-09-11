@@ -85,10 +85,15 @@ public sealed class PluginFactoryTests
         }
     }
 
-    [Test]
-    public async Task TypedFactoryRegistrationReachesTheCachedHostAndCreatesFreshWorkspaceOwnedDocuments()
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task TypedFactoryRegistrationOverridesDefaultsAndCreatesFreshOwnedDocuments(bool registerAfterDefaults)
     {
         var services = CreateServices();
+        if (registerAfterDefaults)
+        {
+            services.AddUaLens();
+        }
         var factory = new RecordingFactory();
         services.AddSingleton(factory);
         services.AddUaLensPluginFactory<RecordingFactory>(
@@ -125,7 +130,7 @@ public sealed class PluginFactoryTests
     }
 
     [Test]
-    public async Task InjectedFactoriesLeaveUnmodifiedKindsOnTheirDirectFallback()
+    public async Task InjectedFactoriesPreserveDefaultMonitorConstruction()
     {
         var services = CreateServices();
         var factory = new RecordingFactory();

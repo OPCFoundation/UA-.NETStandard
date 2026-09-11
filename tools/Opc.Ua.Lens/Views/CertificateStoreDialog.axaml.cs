@@ -28,12 +28,10 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
-using System.Linq;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
@@ -51,29 +49,60 @@ namespace UaLens.Views;
 /// </summary>
 internal sealed partial class CertificateStoreDialog : Window
 {
-    private static readonly string[] s_certPatterns = ["*.cer", "*.crt", "*.der", "*.pem"];
-
-    private readonly CertificateStoreService m_service;
-    // Cached up-front in WireUp() to avoid FindControl walks from worker
-    // threads — Avalonia 11+ enforces UI-thread access for logical-tree
-    // queries.  See SetStatus.
-    private TextBlock? m_statusLabel;
-    public ObservableCollection<CertRow> Trusted { get; } = new();
-    public ObservableCollection<CertRow> Issuer { get; } = new();
-    public ObservableCollection<CertRow> Rejected { get; } = new();
-
     public CertificateStoreDialog()
     {
-        m_service = null!;
         InitializeComponent();
+        this.RequiredControl<Button>("CloseBtn").Click += (_, _) => Close();
     }
 
     public CertificateStoreDialog(ApplicationConfiguration config, ITelemetryContext telemetry)
+        : this(new CertificateStoreOperations(new CertificateStoreService(config, telemetry)))
     {
-        m_service = new CertificateStoreService(config, telemetry);
+    }
+
+    public CertificateStoreDialog(CertificateStoreOperations operations)
+    {
+        m_operations = operations ?? throw new ArgumentNullException(nameof(operations));
         InitializeComponent();
         WireUp();
-        _ = ReloadAllAsync();
+        InitialLoad = ReloadAllAsync();
+    }
+
+    /// <summary>
+    /// Completes after all three initial store listings finish, including reported listing failures.
+    /// </summary>
+    public Task InitialLoad { get; } = Task.CompletedTask;
+
+    public ObservableCollection<CertRow> Trusted => m_operations!.Trusted;
+
+    public ObservableCollection<CertRow> Issuer => m_operations!.Issuers;
+
+    public ObservableCollection<CertRow> Rejected => m_operations!.Rejected;
+
+    /// <summary>
+    /// Shows the modal and restores the owner's prior focus when it is dismissed.
+    /// </summary>
+    public async Task ShowAsync(Window owner)
+    {
+        ArgumentNullException.ThrowIfNull(owner);
+        Avalonia.Input.IInputElement? previousFocus = owner.FocusManager?.GetFocusedElement();
+        try
+        {
+            await ShowDialog(owner).ConfigureAwait(true);
+        }
+        finally
+        {
+            previousFocus?.Focus();
+        }
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        if (m_operations is not null)
+        {
+            m_operations.PropertyChanged -= OnOperationChanged;
+        }
+        base.OnClosed(e);
     }
 
     private void InitializeComponent()
@@ -86,17 +115,22 @@ internal sealed partial class CertificateStoreDialog : Window
         var trustedList = this.RequiredControl<ListBox>("TrustedList");
         var issuerList = this.RequiredControl<ListBox>("IssuerList");
         var rejectedList = this.RequiredControl<ListBox>("RejectedList");
-        // Capture the status label on the UI thread once at construction
-        // so SetStatus(...) — which may be invoked from worker threads —
-        // doesn't have to walk the logical tree.
         m_statusLabel = this.FindControl<TextBlock>("StatusLabel");
+        m_resultLabel = this.FindControl<TextBlock>("ResultLabel");
+        m_storeTabs = this.RequiredControl<TabControl>("StoreTabs");
+        m_operations!.PropertyChanged += OnOperationChanged;
+        this.RequiredControl<Button>("CloseBtn").Click += (_, _) => Close();
+        this.RequiredControl<Button>("AcknowledgeBtn").Click += (_, _) => m_operations.AcknowledgeResult();
         trustedList.ItemsSource = Trusted;
         issuerList.ItemsSource = Issuer;
         rejectedList.ItemsSource = Rejected;
 
-        this.RequiredControl<Button>("TrustedRefreshBtn").Click += async (_, _) => await ReloadAsync(CertStoreKind.Trusted).ConfigureAwait(true);
-        this.RequiredControl<Button>("IssuerRefreshBtn").Click += async (_, _) => await ReloadAsync(CertStoreKind.Issuer).ConfigureAwait(true);
-        this.RequiredControl<Button>("RejectedRefreshBtn").Click += async (_, _) => await ReloadAsync(CertStoreKind.Rejected).ConfigureAwait(true);
+        this.RequiredControl<Button>("TrustedRefreshBtn").Click += async (_, _) =>
+            await m_operations.ReloadAsync(CertStoreKind.Trusted).ConfigureAwait(true);
+        this.RequiredControl<Button>("IssuerRefreshBtn").Click += async (_, _) =>
+            await m_operations.ReloadAsync(CertStoreKind.Issuer).ConfigureAwait(true);
+        this.RequiredControl<Button>("RejectedRefreshBtn").Click += async (_, _) =>
+            await m_operations.ReloadAsync(CertStoreKind.Rejected).ConfigureAwait(true);
 
         this.RequiredControl<Button>("TrustedUntrustBtn").Click += async (_, _) =>
             await UntrustSelectedAsync(CertStoreKind.Trusted, trustedList).ConfigureAwait(true);
@@ -104,9 +138,9 @@ internal sealed partial class CertificateStoreDialog : Window
             await UntrustSelectedAsync(CertStoreKind.Issuer, issuerList).ConfigureAwait(true);
 
         this.RequiredControl<Button>("TrustedExpireBtn").Click += async (_, _) =>
-            await DeleteExpiredAsync(CertStoreKind.Trusted).ConfigureAwait(true);
+            await m_operations.DeleteAllAsync(CertStoreKind.Trusted, expiredOnly: true).ConfigureAwait(true);
         this.RequiredControl<Button>("IssuerExpireBtn").Click += async (_, _) =>
-            await DeleteExpiredAsync(CertStoreKind.Issuer).ConfigureAwait(true);
+            await m_operations.DeleteAllAsync(CertStoreKind.Issuer, expiredOnly: true).ConfigureAwait(true);
 
         this.RequiredControl<Button>("TrustedAddBtn").Click += async (_, _) =>
             await AddFromFileAsync(CertStoreKind.Trusted).ConfigureAwait(true);
@@ -120,65 +154,20 @@ internal sealed partial class CertificateStoreDialog : Window
                 return;
             }
 
-            try
-            {
-                bool ok = await m_service.TrustRejectedAsync(row.Thumbprint).ConfigureAwait(true);
-                SetStatus(ok ? $"Moved {row.Subject} to Trusted Peers." : "Trust failed.");
-            }
-            catch (Exception ex) { SetStatus($"Trust failed: {ex.Message}"); }
-            await ReloadAsync(CertStoreKind.Rejected).ConfigureAwait(true);
-            await ReloadAsync(CertStoreKind.Trusted).ConfigureAwait(true);
+            await m_operations.TrustAsync(row.Thumbprint).ConfigureAwait(true);
         };
         this.RequiredControl<Button>("RejectedDeleteBtn").Click += async (_, _) =>
             await UntrustSelectedAsync(CertStoreKind.Rejected, rejectedList).ConfigureAwait(true);
         this.RequiredControl<Button>("RejectedClearBtn").Click += async (_, _) =>
-        {
-            try
-            {
-                IReadOnlyList<X509Certificate2> all = await m_service.ListAsync(CertStoreKind.Rejected).ConfigureAwait(true);
-                int n = 0;
-                foreach (X509Certificate2 c in all)
-                {
-                    if (await m_service.DeleteAsync(CertStoreKind.Rejected, c.Thumbprint).ConfigureAwait(true))
-                    {
-                        n++;
-                    }
-                }
-                SetStatus($"Cleared {n} rejected certificate(s).");
-            }
-            catch (Exception ex) { SetStatus($"Clear failed: {ex.Message}"); }
-            await ReloadAsync(CertStoreKind.Rejected).ConfigureAwait(true);
-        };
+            await m_operations.DeleteAllAsync(CertStoreKind.Rejected, expiredOnly: false).ConfigureAwait(true);
+        UpdateOperationStatus();
     }
 
     private async Task ReloadAllAsync()
     {
-        await Task.WhenAll(
-            ReloadAsync(CertStoreKind.Trusted),
-            ReloadAsync(CertStoreKind.Issuer),
-            ReloadAsync(CertStoreKind.Rejected)).ConfigureAwait(true);
-    }
-
-    private async Task ReloadAsync(CertStoreKind kind)
-    {
-        try
-        {
-            IReadOnlyList<X509Certificate2> certs = await m_service.ListAsync(kind).ConfigureAwait(true);
-            ObservableCollection<CertRow> target = TargetFor(kind);
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                target.Clear();
-                foreach (X509Certificate2 c in certs)
-                {
-                    target.Add(CertRow.From(c));
-                }
-            });
-            SetStatus($"{kind}: {certs.Count} certificate(s).");
-        }
-        catch (Exception ex)
-        {
-            SetStatus($"Load {kind} failed: {ex.Message}");
-        }
+        await m_operations!.ReloadAsync(CertStoreKind.Trusted).ConfigureAwait(true);
+        await m_operations.ReloadAsync(CertStoreKind.Issuer).ConfigureAwait(true);
+        await m_operations.ReloadAsync(CertStoreKind.Rejected).ConfigureAwait(true);
     }
 
     private async Task UntrustSelectedAsync(CertStoreKind kind, ListBox list)
@@ -188,24 +177,7 @@ internal sealed partial class CertificateStoreDialog : Window
             return;
         }
 
-        try
-        {
-            bool ok = await m_service.DeleteAsync(kind, row.Thumbprint).ConfigureAwait(true);
-            SetStatus(ok ? $"Removed {row.Subject} from {kind}." : "Delete failed.");
-        }
-        catch (Exception ex) { SetStatus($"Delete failed: {ex.Message}"); }
-        await ReloadAsync(kind).ConfigureAwait(true);
-    }
-
-    private async Task DeleteExpiredAsync(CertStoreKind kind)
-    {
-        try
-        {
-            int n = await m_service.DeleteExpiredAsync(kind).ConfigureAwait(true);
-            SetStatus($"Deleted {n} expired certificate(s) from {kind}.");
-        }
-        catch (Exception ex) { SetStatus($"Delete-expired failed: {ex.Message}"); }
-        await ReloadAsync(kind).ConfigureAwait(true);
+        await m_operations!.DeleteAsync(kind, row.Thumbprint).ConfigureAwait(true);
     }
 
     /// <summary>
@@ -237,48 +209,54 @@ internal sealed partial class CertificateStoreDialog : Window
 
             string path = files[0].Path.LocalPath;
             byte[] bytes = await System.IO.File.ReadAllBytesAsync(path).ConfigureAwait(true);
-            X509Certificate2 cert = X509CertificateLoader.LoadCertificate(bytes);
-            bool ok = await m_service.AddAsync(kind, cert).ConfigureAwait(true);
-            SetStatus(ok
-                ? $"Added {cert.Subject} to {kind}."
-                : $"Add failed for {System.IO.Path.GetFileName(path)}.");
+            using X509Certificate2 cert = X509CertificateLoader.LoadCertificate(bytes);
+            await m_operations!.AddAsync(kind, cert).ConfigureAwait(true);
         }
-        catch (Exception ex) { SetStatus($"Add failed: {ex.Message}"); }
-        await ReloadAsync(kind).ConfigureAwait(true);
+        catch (Exception ex)
+        {
+            m_operations!.ReportFailure("Add", kind, ex.Message);
+            await m_operations.ReloadAsync(kind).ConfigureAwait(true);
+        }
     }
 
-    private ObservableCollection<CertRow> TargetFor(CertStoreKind kind) => kind switch
+    private void OnOperationChanged(object? sender, PropertyChangedEventArgs e)
     {
-        CertStoreKind.Trusted => Trusted,
-        CertStoreKind.Issuer => Issuer,
-        CertStoreKind.Rejected => Rejected,
-        _ => throw new ArgumentOutOfRangeException(nameof(kind))
-    };
-
-    private void SetStatus(string text)
-    {
-        // Thread-safe: may be called from worker threads after awaiting
-        // CertificateStoreService methods that ran on the thread pool.
-        // Marshal the assignment to the UI thread; the label reference
-        // was cached on the UI thread by WireUp() so no FindControl walk
-        // happens here.
-        TextBlock? lbl = m_statusLabel;
-        if (lbl is null)
-        {
-            return;
-        }
         if (Dispatcher.UIThread.CheckAccess())
         {
-            lbl.Text = text;
+            UpdateOperationStatus();
         }
         else
         {
-            Dispatcher.UIThread.Post(() => lbl.Text = text);
+            Dispatcher.UIThread.Post(UpdateOperationStatus);
         }
     }
+
+    private void UpdateOperationStatus()
+    {
+        if (m_statusLabel is not null)
+        {
+            m_statusLabel.Text = m_operations!.LoadingStatus;
+        }
+        if (m_resultLabel is not null)
+        {
+            m_resultLabel.Text = m_operations!.LastResult?.Summary ?? string.Empty;
+        }
+        if (m_storeTabs is not null)
+        {
+            m_storeTabs.IsEnabled = !m_operations!.IsBusy;
+        }
+    }
+
+    private static readonly string[] s_certPatterns = ["*.cer", "*.crt", "*.der", "*.pem"];
+    private readonly CertificateStoreOperations? m_operations;
+    private TextBlock? m_statusLabel;
+    private TextBlock? m_resultLabel;
+    private TabControl? m_storeTabs;
 }
 
-/// <summary>One row in the certificate-store DataGrid.</summary>
+/// <summary>
+/// One row in the certificate-store DataGrid.
+/// </summary>
 internal sealed record CertRow(
     string Subject,
     string Issuer,
@@ -309,7 +287,8 @@ internal sealed record CertRow(
     {
         // X.509 DNs are comma-separated RDNs.  The CN= component is by far
         // the most useful for at-a-glance identification.
-        foreach (string rdn in distinguished.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (string rdn in distinguished.Split(
+            ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             if (rdn.StartsWith("CN=", StringComparison.OrdinalIgnoreCase))
             {

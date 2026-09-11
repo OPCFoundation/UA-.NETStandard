@@ -121,7 +121,7 @@ internal sealed partial class ContentFilterEditor : UserControl
                 var vm = new ContentFilterElementVm(el.FilterOperator);
                 for (int j = 0; j < el.FilterOperands.Count; j++)
                 {
-                    if (el.FilterOperands[j].Body is FilterOperand op)
+                    if (el.FilterOperands[j].TryGetValue(out FilterOperand? op))
                     {
                         vm.Operands.Add(op);
                     }

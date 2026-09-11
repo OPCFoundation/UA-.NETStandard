@@ -353,13 +353,17 @@ internal static class PluginRegistry
         throw new ArgumentOutOfRangeException(nameof(kind), kind, "No registration.");
     }
 
-    private static SubscriptionViewModel CreateSubscription(PluginHost host)
+    private static SubscriptionViewModel CreateSubscription(PluginHost host) => CreateSubscription(host, null);
+
+    internal static SubscriptionViewModel CreateSubscription(
+        PluginHost host, UaLens.Workspace.IWorkspaceDispatcher? dispatcher)
     {
         ArgumentNullException.ThrowIfNull(host);
         return new SubscriptionViewModel(
             $"Monitor {Interlocked.Increment(ref s_monitorNumber)}",
             adapter: null,
-            host.Log);
+            host.Log,
+            dispatcher);
     }
 
     private static int s_monitorNumber;

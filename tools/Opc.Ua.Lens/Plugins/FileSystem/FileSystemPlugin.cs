@@ -94,6 +94,8 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
     private FileSystemView? m_view;
     private FileSystemRootFilter m_filter = FileSystemRootFilter.Default;
     private bool m_disposed;
+    private ISession? m_attachedSession;
+    private readonly HashSet<NodeId> m_attachedRoots = new();
 
     [ObservableProperty]
     private string m_title;
@@ -149,16 +151,30 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
     /// workspace are re-attached. On disconnect every root is dropped because the
     /// <see cref="FileSystemClient"/> handles hang off the dead session.
     /// </summary>
-    public async Task OnConnectionStateChangedAsync(CancellationToken cancellationToken)
+    public Task OnConnectionStateChangedAsync(CancellationToken cancellationToken)
+        => AttachConfiguredRootsAsync(m_host.Connection.Session, cancellationToken);
+
+    internal async Task AttachConfiguredRootsAsync(ISession? session, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (m_host.Connection.Session is { } session)
+        if (m_disposed)
+        {
+            return;
+        }
+        if (!ReferenceEquals(session, m_attachedSession))
+        {
+            Roots.Clear();
+            m_attachedRoots.Clear();
+            SelectedNode = null;
+            m_attachedSession = session;
+        }
+        if (session is not null)
         {
             if (Roots.Count == 0)
             {
                 TryAttachServerFileSystem(session);
             }
-            await AttachPendingRootsAsync(session, cancellationToken).ConfigureAwait(true);
+            await AttachSavedRootsAsync(session, cancellationToken).ConfigureAwait(true);
         }
         else
         {
@@ -170,17 +186,16 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
 
     /// <summary>
     /// Re-attaches the roots restored from a saved workspace against a live session.
-    /// Each pending root is attached at most once; malformed or unreachable roots
-    /// are reported and skipped.
+    /// Each root is attached at most once per session. Failed attachments retain
+    /// their configuration and can be retried on the next notification.
     /// </summary>
-    private async Task AttachPendingRootsAsync(ISession session, CancellationToken cancellationToken)
+    private async Task AttachSavedRootsAsync(ISession session, CancellationToken cancellationToken)
     {
-        if (m_pendingRoots.Count == 0)
+        if (m_userRoots.Count == 0)
         {
             return;
         }
-        var specs = new List<FileSystemState.RootSpec>(m_pendingRoots);
-        m_pendingRoots.Clear();
+        var specs = new List<FileSystemState.RootSpec>(m_userRoots);
         foreach (FileSystemState.RootSpec spec in specs)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -189,7 +204,7 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
             {
                 continue;
             }
-            await AttachRootAsync(session, rootId, spec.DisplayName).ConfigureAwait(true);
+            await AttachRootAsync(session, rootId, spec.DisplayName, cancellationToken).ConfigureAwait(true);
         }
     }
 
@@ -219,6 +234,10 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
     public ValueTask DisposeAsync()
     {
         m_disposed = true;
+        m_attachedSession = null;
+        m_attachedRoots.Clear();
+        Roots.Clear();
+        SelectedNode = null;
         // FileSystemClient has no IDisposable surface — session-bound
         // state is owned by the underlying ISession. Nothing to clean.
         return ValueTask.CompletedTask;
@@ -263,6 +282,7 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         {
             return;
         }
+        TrackUserRoot(pickedId.Value.ToString(), picker.PickedDisplay);
         await AttachRootAsync(session, pickedId.Value, picker.PickedDisplay).ConfigureAwait(true);
     }
 
@@ -572,6 +592,7 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
             FileSystemClient client = FileSystemClient.OpenServerFileSystem(session);
             var root = new FsNode(client, "Server.FileSystem", m_log);
             Roots.Add(root);
+            m_attachedRoots.Add(ObjectIds.FileSystem);
             SelectedNode = root;
             UpdateStatus();
         }
@@ -582,8 +603,16 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
     }
 
     /// <summary>Attaches a user-picked <see cref="FileSystemClient"/> root.</summary>
-    private async Task AttachRootAsync(ISession session, NodeId rootId, string displayName)
+    private async Task AttachRootAsync(
+        ISession session,
+        NodeId rootId,
+        string displayName,
+        CancellationToken cancellationToken = default)
     {
+        if (m_attachedRoots.Contains(rootId))
+        {
+            return;
+        }
         try
         {
             FileSystemClient client;
@@ -591,30 +620,43 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
             // When the user picked a FileType node, root at its parent
             // directory and select the file in the right pane. The SDK
             // ctor itself requires a FileDirectoryType.
-            NodeId typeDef = await ReadTypeDefinitionAsync(session, rootId).ConfigureAwait(true);
+            NodeId typeDef = await ReadTypeDefinitionAsync(
+                session, rootId, throwOnError: true, cancellationToken).ConfigureAwait(true);
+            cancellationToken.ThrowIfCancellationRequested();
             if (typeDef == ObjectTypeIds.FileType)
             {
-                NodeId? parentId = await GetContainingDirectoryAsync(session, rootId).ConfigureAwait(true);
-                if (parentId is null || parentId.Value.IsNull)
+                NodeId parentId = await GetContainingDirectoryAsync(session, rootId, cancellationToken)
+                    .ConfigureAwait(true);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (parentId.IsNull)
                 {
                     m_log.FsPickedFileNoDirectory(rootId);
                     return;
                 }
-                client = new FileSystemClient(session, parentId.Value);
+                client = new FileSystemClient(session, parentId);
             }
             else
             {
                 client = new FileSystemClient(session, rootId);
             }
             var root = new FsNode(client, label, m_log);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (m_disposed || !ReferenceEquals(session, m_attachedSession) || !m_attachedRoots.Add(rootId))
+            {
+                return;
+            }
             Roots.Add(root);
             SelectedNode = root;
             UpdateStatus();
-            TrackUserRoot(rootId.ToString(), label);
             m_log.FsRootAttached(label, rootId);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             m_log.FsAttachRootFailed(ex, rootId);
             Status = $"● Attach root failed: {ex.Message}";
         }
@@ -654,7 +696,11 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         return false;
     }
 
-    private static async Task<NodeId> ReadTypeDefinitionAsync(ISession session, NodeId nodeId)
+    private static async Task<NodeId> ReadTypeDefinitionAsync(
+        ISession session,
+        NodeId nodeId,
+        bool throwOnError = false,
+        CancellationToken cancellationToken = default)
     {
         ArrayOf<BrowseDescription> browse = new BrowseDescription[]
         {
@@ -671,24 +717,29 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         try
         {
             BrowseResponse resp = await session
-                .BrowseAsync(null, null, 0, browse, CancellationToken.None).ConfigureAwait(false);
-            if (resp.Results.Count == 0 || StatusCode.IsBad(resp.Results[0].StatusCode))
+                .BrowseAsync(null, null, 0, browse, cancellationToken).ConfigureAwait(false);
+            if (resp.Results.Count != 1)
             {
-                return NodeId.Null;
+                throw new ServiceResultException(StatusCodes.BadUnexpectedError);
+            }
+            if (StatusCode.IsBad(resp.Results[0].StatusCode))
+            {
+                throw new ServiceResultException(resp.Results[0].StatusCode);
             }
             foreach (ReferenceDescription r in resp.Results[0].References)
             {
                 return ExpandedNodeId.ToNodeId(r.NodeId, session.NamespaceUris);
             }
         }
-        catch
+        catch (Exception failure) when (!throwOnError && failure is not OperationCanceledException)
         {
-            // Treat browse failure as "unknown type" — caller decides.
+            // Picker filtering remains best effort; configured-root attachment is strict.
         }
         return NodeId.Null;
     }
 
-    private static async Task<bool> IsSubtypeOfAsync(ISession session, NodeId typeId, NodeId parentType)
+    private static async Task<bool> IsSubtypeOfAsync(
+        ISession session, NodeId typeId, NodeId parentType, CancellationToken cancellationToken = default)
     {
         if (typeId.IsNull || parentType.IsNull)
         {
@@ -717,9 +768,9 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
             try
             {
                 resp = await session
-                    .BrowseAsync(null, null, 0, browse, CancellationToken.None).ConfigureAwait(false);
+                    .BrowseAsync(null, null, 0, browse, cancellationToken).ConfigureAwait(false);
             }
-            catch
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 return false;
             }
@@ -742,7 +793,8 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         return false;
     }
 
-    private static async Task<NodeId?> GetContainingDirectoryAsync(ISession session, NodeId fileId)
+    private static async Task<NodeId> GetContainingDirectoryAsync(
+        ISession session, NodeId fileId, CancellationToken cancellationToken)
     {
         ArrayOf<BrowseDescription> browse = new BrowseDescription[]
         {
@@ -759,10 +811,10 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         try
         {
             BrowseResponse resp = await session
-                .BrowseAsync(null, null, 0, browse, CancellationToken.None).ConfigureAwait(false);
+                .BrowseAsync(null, null, 0, browse, cancellationToken).ConfigureAwait(false);
             if (resp.Results.Count == 0 || StatusCode.IsBad(resp.Results[0].StatusCode))
             {
-                return null;
+                return NodeId.Null;
             }
             // Materialise before awaiting — References' enumerator is a
             // ref-struct that cannot cross an await boundary.
@@ -773,19 +825,21 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
             }
             foreach (NodeId candidate in candidates)
             {
-                NodeId td = await ReadTypeDefinitionAsync(session, candidate).ConfigureAwait(false);
+                NodeId td = await ReadTypeDefinitionAsync(session, candidate, cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
                 if (td == ObjectTypeIds.FileDirectoryType
-                    || await IsSubtypeOfAsync(session, td, ObjectTypeIds.FileDirectoryType).ConfigureAwait(false))
+                    || await IsSubtypeOfAsync(session, td, ObjectTypeIds.FileDirectoryType, cancellationToken)
+                        .ConfigureAwait(false))
                 {
                     return candidate;
                 }
             }
         }
-        catch
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // Best-effort.
         }
-        return null;
+        return NodeId.Null;
     }
 
     private static string BuildFilterHeader(FileSystemRootFilter filter)

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using Avalonia.Media;
+using UaLens.Themes;
 
 namespace UaLens.Views;
 
@@ -41,43 +42,27 @@ namespace UaLens.Views;
 /// </summary>
 internal static class ItemColors
 {
-    /// <summary>Single source of truth for the palette: 12 (R, G, B) bytes.</summary>
-    private static readonly (byte R, byte G, byte B)[] s_rgb =
-    [
-        (0x22, 0xC5, 0x5E), // green
-        (0xF5, 0x9E, 0x0B), // amber
-        (0x06, 0xB6, 0xD4), // cyan
-        (0xEC, 0x49, 0x99), // pink
-        (0x60, 0xA5, 0xFA), // blue
-        (0xFB, 0x71, 0x85), // rose
-        (0xFA, 0xCC, 0x15), // yellow
-        (0x4A, 0xDE, 0x80), // light green
-        (0xC0, 0x84, 0xFC), // violet
-        (0xF8, 0x71, 0x71), // red
-        (0x2D, 0xD4, 0xBF), // teal
-        (0xD9, 0xF9, 0x9D), // lime
-    ];
+    public static int Count => s_dark.Length;
 
-    private static readonly IBrush[] s_palette = BuildBrushes();
-
-    private static IBrush[] BuildBrushes()
+    /// <summary>
+    /// Stable palette slot for a given monitored-item identity.
+    /// </summary>
+    public static int IndexForItemId(int id)
     {
-        var arr = new IBrush[s_rgb.Length];
-        for (int i = 0; i < s_rgb.Length; i++)
-        {
-            arr[i] = new SolidColorBrush(Color.FromRgb(s_rgb[i].R, s_rgb[i].G, s_rgb[i].B));
-        }
-        return arr;
+        return ((id % Count) + Count) % Count;
     }
 
-    public static int Count => s_palette.Length;
-
-    /// <summary>Stable Avalonia brush for a given monitored-item id.</summary>
+    /// <summary>
+    /// Theme-aware Avalonia brush without changing the item's palette slot.
+    /// </summary>
     public static IBrush ForItemId(int id)
     {
-        int n = s_palette.Length;
-        int idx = ((id % n) + n) % n;
-        return s_palette[idx];
+        return ForItemId(id, ChartTheme.IsLight);
+    }
+
+    public static IBrush ForItemId(int id, bool isLight)
+    {
+        return (isLight ? s_lightBrushes : s_darkBrushes)[IndexForItemId(id)];
     }
 
     /// <summary>
@@ -87,10 +72,57 @@ internal static class ItemColors
     /// </summary>
     public static ScottPlot.Color ScottPlotForItemId(int id)
     {
-        int n = s_rgb.Length;
-        int idx = ((id % n) + n) % n;
-        (byte r, byte g, byte b) = s_rgb[idx];
-        return new ScottPlot.Color(r, g, b);
+        return ScottPlotForItemId(id, ChartTheme.IsLight);
     }
-}
 
+    public static ScottPlot.Color ScottPlotForItemId(int id, bool isLight)
+    {
+        Color color = (isLight ? s_light : s_dark)[IndexForItemId(id)];
+        return new ScottPlot.Color(color.R, color.G, color.B);
+    }
+
+    private static IBrush[] BuildBrushes(Color[] colors)
+    {
+        var brushes = new IBrush[colors.Length];
+        for (int i = 0; i < colors.Length; i++)
+        {
+            brushes[i] = new SolidColorBrush(colors[i]);
+        }
+        return brushes;
+    }
+
+    private static readonly Color[] s_dark =
+    [
+        Color.FromRgb(0x22, 0xC5, 0x5E),
+        Color.FromRgb(0xF5, 0x9E, 0x0B),
+        Color.FromRgb(0x06, 0xB6, 0xD4),
+        Color.FromRgb(0xEC, 0x49, 0x99),
+        Color.FromRgb(0x60, 0xA5, 0xFA),
+        Color.FromRgb(0xFB, 0x71, 0x85),
+        Color.FromRgb(0xFA, 0xCC, 0x15),
+        Color.FromRgb(0x4A, 0xDE, 0x80),
+        Color.FromRgb(0xC0, 0x84, 0xFC),
+        Color.FromRgb(0xF8, 0x71, 0x71),
+        Color.FromRgb(0x2D, 0xD4, 0xBF),
+        Color.FromRgb(0xD9, 0xF9, 0x9D)
+    ];
+
+    private static readonly Color[] s_light =
+    [
+        Color.FromRgb(0x16, 0x65, 0x34),
+        Color.FromRgb(0x92, 0x40, 0x0E),
+        Color.FromRgb(0x0E, 0x74, 0x90),
+        Color.FromRgb(0xBE, 0x18, 0x5D),
+        Color.FromRgb(0x1D, 0x4E, 0xD8),
+        Color.FromRgb(0xBE, 0x12, 0x3C),
+        Color.FromRgb(0x85, 0x4D, 0x0E),
+        Color.FromRgb(0x15, 0x80, 0x3D),
+        Color.FromRgb(0x7E, 0x22, 0xCE),
+        Color.FromRgb(0xB9, 0x1C, 0x1C),
+        Color.FromRgb(0x0F, 0x76, 0x6E),
+        Color.FromRgb(0x4D, 0x7C, 0x0F)
+    ];
+
+    private static readonly IBrush[] s_darkBrushes = BuildBrushes(s_dark);
+    private static readonly IBrush[] s_lightBrushes = BuildBrushes(s_light);
+}

@@ -32,6 +32,8 @@ Here is a list of available documentation for different topics:
 * [UaLens desktop engineering workspace](UaLens.md) - Connection, exploration, monitoring, history, events,
   administration and saved workspaces, with guided alarm, structured-model, continuity, PubSub and companion
   workflows, configuration prerequisites and safety limits.
+* [UaLens review and ticket backlog](UaLensReview.md) - Architecture, GUI/UX, implementation and test-quality
+  findings against the 2026-09-10 baseline, with priorities, source evidence and acceptance criteria.
 * Client-based [NodeSet Export](NodeSetExport.md) - Export server address space to NodeSet2 XML.
 * Source generated [DataTypes] - How to annotate POCO classes and let the source generator generate the `IEncodeable` implementation.
 * Runtime [Schema Generation](SchemaGeneration.md) - Produce XSD, OPC Binary (BSD) and JSON Schema (Part 6 Annex C, compact + verbose) for generated encodeable types and dynamically added complex types via the injectable `ISchemaProvider`; schemas are built as object models in code (trimmable, NativeAOT compatible).

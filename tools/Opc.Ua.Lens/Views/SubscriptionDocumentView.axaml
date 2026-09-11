@@ -26,6 +26,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:UaLens.ViewModels"
              xmlns:v="using:UaLens.Views"
+             xmlns:sub="using:UaLens.Subscriptions"
              x:Class="UaLens.Views.SubscriptionDocumentView"
              x:DataType="vm:SubscriptionViewModel"
              Background="{DynamicResource SurfaceBg}">
@@ -33,15 +34,19 @@
     <Border Background="{DynamicResource PanelBg}" Padding="12,8"
             BorderBrush="{DynamicResource PanelBorder}" BorderThickness="0,0,0,1">
       <WrapPanel Classes="toolbar" ItemHeight="36">
-        <TextBlock Text="Publishing (ms)" Margin="0,0,8,0" />
+        <TextBlock x:Name="PublishingIntervalLabel" Text="Publishing (ms)" Margin="0,0,8,0" />
         <NumericUpDown x:Name="PublishingIntervalInput" Minimum="0" Maximum="3600000"
                        Increment="10" Width="150" FormatString="0.###"
+                       AutomationProperties.LabeledBy="{Binding #PublishingIntervalLabel}"
+                       AutomationProperties.Name="Publishing interval (milliseconds)"
                        ToolTip.Tip="Requested interval. The server's revised value appears below." />
         <Button x:Name="ApplyPublishingButton" Content="Apply" Margin="6,0,12,0" />
         <CheckBox x:Name="PublishingEnabledCheck" Content="Publishing" Margin="0,0,12,0"
                   ToolTip.Tip="Changes server publishing, not just display playback." />
-        <TextBlock Text="View" Margin="0,0,6,0" />
-        <ComboBox x:Name="DocumentViewMode" MinWidth="120" Margin="0,0,12,0">
+        <TextBlock x:Name="DocumentViewLabel" Text="View" Margin="0,0,6,0" />
+        <ComboBox x:Name="DocumentViewMode" MinWidth="120" Margin="0,0,12,0"
+                  AutomationProperties.LabeledBy="{Binding #DocumentViewLabel}"
+                  AutomationProperties.Name="Monitor view">
           <ComboBoxItem Content="Values" />
           <ComboBoxItem Content="Trend" />
           <ComboBoxItem Content="Timing: dots" />
@@ -56,6 +61,7 @@
     </Border>
     <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" Margin="12,10,12,4">
       <TextBox x:Name="MonitoredNodeIdInput" PlaceholderText="Add a node by id, or use Monitor in the address space"
+               AutomationProperties.Name="Monitored node id"
                FontFamily="Cascadia Mono, Consolas, monospace"
                ToolTip.Tip="Examples: i=2258 or ns=2;s=Scalar_Simulation_UInt32" />
       <Button Grid.Column="1" x:Name="AddNodeIdButton" Content="Add node" Margin="6,0,0,0" />
@@ -66,8 +72,29 @@
     <StackPanel Grid.Row="2" Margin="12,4,12,6" Spacing="3">
       <TextBlock Text="Offline: settings and nodes are retained until a connection is available."
                  IsVisible="{CompiledBinding !IsBound}" Classes="caption" TextWrapping="Wrap" />
-      <TextBlock Text="{CompiledBinding ErrorText}" Foreground="{DynamicResource AccentRed}"
+      <TextBlock Text="{CompiledBinding ErrorText}" Foreground="{DynamicResource ErrorText}"
                  TextWrapping="Wrap" />
+      <WrapPanel x:Name="LaneStyleOptions" IsVisible="False" Classes="toolbar" ItemHeight="36">
+        <TextBlock x:Name="LaneItemLabel" Text="Lane item" Margin="0,0,6,0" />
+        <ComboBox x:Name="LaneItemSelector" MinWidth="150" MaxWidth="400" Margin="0,0,12,0"
+                  ItemsSource="{CompiledBinding Items}" Focusable="True"
+                  AutomationProperties.Name="Timing lane item"
+                  AutomationProperties.LabeledBy="{Binding #LaneItemLabel}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="sub:MonitoredItemConfig">
+              <TextBlock Text="{CompiledBinding DisplayName}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <TextBlock x:Name="LaneStyleLabel" Text="Line style" Margin="0,0,6,0" />
+        <ComboBox x:Name="LaneStyleSelector" MinWidth="150" Focusable="True"
+                  AutomationProperties.LabeledBy="{Binding #LaneStyleLabel}"
+                  AutomationProperties.Name="Timing lane line style">
+          <ComboBoxItem Content="Interpolated" />
+          <ComboBoxItem Content="Wave" />
+          <ComboBoxItem Content="Zigzag" />
+        </ComboBox>
+      </WrapPanel>
       <Expander x:Name="ChartOptions" Header="Chart options" IsExpanded="False" IsVisible="False">
         <WrapPanel Classes="toolbar" ItemHeight="34">
           <CheckBox x:Name="ChartLegendCheck" Content="Legend"
@@ -93,6 +120,7 @@
           <TextBlock Grid.Column="3" Text="Source time (UTC)" Classes="caption" />
         </Grid>
         <ListBox Grid.Row="1" x:Name="MonitorValuesList"
+                 AutomationProperties.Name="Monitored item values"
                  ItemsSource="{CompiledBinding ItemStatuses}" Background="Transparent" BorderThickness="0">
           <ListBox.ItemTemplate>
             <DataTemplate x:DataType="vm:MonitoredItemStatusRow">

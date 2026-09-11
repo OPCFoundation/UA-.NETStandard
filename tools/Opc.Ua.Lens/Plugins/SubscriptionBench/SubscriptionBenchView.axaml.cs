@@ -132,9 +132,9 @@ internal sealed partial class SubscriptionBenchView : UserControl
         ApplyDarkTheme(plot, "Subscription throughput", "seconds", "values/sec");
 
         ScottPlot.AxisPanels.RightAxis rightAxis = plot.Axes.AddRightAxis();
-        rightAxis.Label.Text = "CPU % / Mem MB";
-        rightAxis.Label.ForeColor = s_dim;
-        rightAxis.Label.FontName = "Cascadia Mono";
+        rightAxis.LabelStyle.Text = "CPU % / Mem MB";
+        rightAxis.LabelStyle.ForeColor = s_dim;
+        rightAxis.LabelStyle.FontName = "Cascadia Mono";
         rightAxis.TickLabelStyle.ForeColor = s_dim;
         rightAxis.TickLabelStyle.FontName = "Cascadia Mono";
 

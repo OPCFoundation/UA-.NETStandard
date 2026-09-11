@@ -28,11 +28,13 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
@@ -58,10 +60,37 @@ namespace UaLens.Views
             m_enabled = this.RequiredControl<CheckBox>("PublishingEnabledCheck");
             m_viewMode = this.RequiredControl<ComboBox>("DocumentViewMode");
             m_values = this.RequiredControl<ListBox>("MonitorValuesList");
+            m_laneItems = this.RequiredControl<ComboBox>("LaneItemSelector");
+            m_laneStyles = this.RequiredControl<ComboBox>("LaneStyleSelector");
             m_timer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background,
                 (_, _) => RefreshSummary());
 
             m_animation.GetItems = () => [.. m_model.Items];
+            m_animation.ItemLineStyleChanged += OnItemLineStyleChanged;
+            m_model.Items.CollectionChanged += OnItemsChanged;
+            m_laneItems.SelectionChanged += (_, _) =>
+            {
+                if (m_laneItems.SelectedItem is MonitoredItemConfig item)
+                {
+                    m_selectedLaneItemId = item.Id;
+                }
+                RefreshLaneStyle();
+            };
+            m_laneStyles.SelectionChanged += (_, _) =>
+            {
+                if (!m_updatingLaneStyle && m_laneItems.SelectedItem is MonitoredItemConfig item &&
+                    m_laneStyles.SelectedIndex >= 0)
+                {
+                    m_animation.SetLineStyle(item.Id, (LineStyle)m_laneStyles.SelectedIndex);
+                }
+            };
+            m_values.SelectionChanged += (_, _) =>
+            {
+                if (SelectedItem() is { } item)
+                {
+                    m_laneItems.SelectedItem = item;
+                }
+            };
             m_animation.GetHeaderText = () => m_model.SubscriptionStatus;
             m_animation.GetGapMetrics = () => m_model.Adapter is { } adapter
                 ? (adapter.MissingMessageCount, adapter.RepublishMessageCount, adapter.DroppedNotificationCount)
@@ -105,6 +134,7 @@ namespace UaLens.Views
                 m_plot.ResetXZoom();
             };
             RefreshSettings();
+            RefreshLaneItems();
             BindChart();
         }
 
@@ -116,8 +146,11 @@ namespace UaLens.Views
 
         public void Dispose()
         {
+            m_disposed = true;
             m_timer.Stop();
             m_model.PropertyChanged -= OnModelChanged;
+            m_model.Items.CollectionChanged -= OnItemsChanged;
+            m_animation.ItemLineStyleChanged -= OnItemLineStyleChanged;
             m_plot.Dispose();
         }
 
@@ -198,6 +231,10 @@ namespace UaLens.Views
                 NodeId = nodeId,
                 DisplayName = nodeId.ToString()
             }).ConfigureAwait(true);
+            if (m_disposed)
+            {
+                return;
+            }
             if (string.IsNullOrEmpty(m_model.ErrorText))
             {
                 input.Text = string.Empty;
@@ -213,7 +250,7 @@ namespace UaLens.Views
             }
             var dialog = new SubscriptionSettingsDialog(m_model.Subscription, m_model.Adapter?.HasWorkerPool ?? true);
             SubscriptionConfig? result = await dialog.ShowDialog<SubscriptionConfig?>(owner).ConfigureAwait(true);
-            if (result is not null)
+            if (result is not null && !m_disposed)
             {
                 await m_model.ApplySubscriptionCommand.ExecuteAsync(result).ConfigureAwait(true);
             }
@@ -240,17 +277,27 @@ namespace UaLens.Views
             }, "Only the selected monitored item will change.");
             MonitoredItemSettings? settings = await dialog.ShowDialog<MonitoredItemSettings?>(owner)
                 .ConfigureAwait(true);
-            if (settings is not null)
+            if (settings is not null && !m_disposed)
             {
+                ISubscriptionAdapter? adapter = m_model.Adapter;
                 try
                 {
                     await m_model.ConfigureItemAsync(item, settings).ConfigureAwait(true);
-                    m_model.ErrorText = string.Empty;
+                    if (!m_disposed && ReferenceEquals(adapter, m_model.Adapter))
+                    {
+                        m_model.ErrorText = string.Empty;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
                 }
                 catch (Exception error) when (error is ServiceResultException or ArgumentException
                     or InvalidOperationException)
                 {
-                    m_model.ErrorText = $"Item settings failed: {error.Message}";
+                    if (!m_disposed && ReferenceEquals(adapter, m_model.Adapter))
+                    {
+                        m_model.ErrorText = $"Item settings failed: {error.Message}";
+                    }
                 }
             }
         }
@@ -268,6 +315,7 @@ namespace UaLens.Views
         {
             int index = m_model.DisplayModeIndex;
             bool show = index != 0;
+            this.RequiredControl<WrapPanel>("LaneStyleOptions").IsVisible = index == 4;
             this.RequiredControl<Grid>("DocumentChart").IsVisible = show;
             this.RequiredControl<Expander>("ChartOptions").IsVisible = show;
             Grid grid = this.RequiredControl<Grid>("DocumentDataGrid");
@@ -301,6 +349,46 @@ namespace UaLens.Views
             }
         }
 
+        private void OnItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            RefreshLaneItems();
+            m_plot.OnItemsChanged([.. m_model.Items]);
+        }
+
+        private void RefreshLaneItems()
+        {
+            m_laneItems.SelectedItem = m_model.Items.FirstOrDefault(item => item.Id == m_selectedLaneItemId)
+                ?? m_model.Items.FirstOrDefault();
+            RefreshLaneStyle();
+        }
+
+        private void RefreshLaneStyle()
+        {
+            m_updatingLaneStyle = true;
+            try
+            {
+                MonitoredItemConfig? item = m_laneItems.SelectedItem as MonitoredItemConfig;
+                m_laneStyles.IsEnabled = item is not null;
+                m_laneStyles.SelectedIndex = item is null ? -1 : (int)m_animation.GetLineStyle(item.Id);
+                AutomationProperties.SetName(m_laneItems, item is null
+                    ? "Timing lane item"
+                    : $"Timing lane item: {item.DisplayName}");
+                AutomationProperties.SetName(m_laneStyles, item is null
+                    ? "Timing lane line style: select an item"
+                    : $"Line style for {item.DisplayName}: {m_animation.GetLineStyle(item.Id)}");
+            }
+            finally
+            {
+                m_updatingLaneStyle = false;
+            }
+        }
+
+        private void OnItemLineStyleChanged(int itemId, LineStyle _)
+        {
+            m_laneItems.SelectedItem = m_model.Items.FirstOrDefault(item => item.Id == itemId);
+            RefreshLaneStyle();
+        }
+
         private void Zoom(double factor)
         {
             m_model.AnimationTimeScale = Math.Clamp(m_model.AnimationTimeScale * factor, 0.125, 8);
@@ -329,7 +417,12 @@ namespace UaLens.Views
         private readonly CheckBox m_enabled;
         private readonly ComboBox m_viewMode;
         private readonly ListBox m_values;
+        private readonly ComboBox m_laneItems;
+        private readonly ComboBox m_laneStyles;
         private readonly DispatcherTimer m_timer;
         private bool m_updating;
+        private bool m_updatingLaneStyle;
+        private bool m_disposed;
+        private int m_selectedLaneItemId;
     }
 }

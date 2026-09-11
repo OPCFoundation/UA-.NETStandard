@@ -52,12 +52,14 @@ namespace UaLens.Subscriptions
     /// </summary>
     internal sealed class ClassicEngineAdapter : ISubscriptionAdapter
     {
-        private readonly ManagedSession m_session;
+        private readonly ISession m_session;
         private readonly ILogger m_log;
         private readonly Channel<NotificationEvent> m_channel;
         private readonly PublishLogObserver? m_publishLog;
         private readonly ConcurrentDictionary<int, ItemEntry> m_items = new();
         private readonly ConcurrentDictionary<int, MonitoredItemLiveStats> m_stats = new();
+        private readonly ConcurrentDictionary<uint, MonitoredItemConfig> m_attribution = new();
+        private readonly HashSet<int> m_usedItemIds = [];
         private readonly Lock m_lock = new();
         // CA2213: m_subscription IS disposed in DisposeAsync below, but the
         // analyzer can't track lifecycle through Interlocked.Exchange.
@@ -102,10 +104,11 @@ namespace UaLens.Subscriptions
                 MonitoringMode = e.MonitoredItem.Status.MonitoringMode
             }).ToArray();
 
-        public ClassicEngineAdapter(ManagedSession session, ITelemetryContext telemetry,
+        public ClassicEngineAdapter(ISession session, ITelemetryContext telemetry,
             PublishLogObserver? publishLog = null)
         {
-            m_session = session;
+            ArgumentNullException.ThrowIfNull(telemetry);
+            m_session = session ?? throw new ArgumentNullException(nameof(session));
             m_log = telemetry.CreateLogger("ClassicAdapter");
             m_publishLog = publishLog;
             m_channel = Channel.CreateBounded<NotificationEvent>(new BoundedChannelOptions(8192)
@@ -113,12 +116,14 @@ namespace UaLens.Subscriptions
                 FullMode = BoundedChannelFullMode.DropOldest,
                 SingleReader = true,
                 SingleWriter = false
-            });
+            }, _ => Interlocked.Increment(ref m_droppedCount));
             Events = m_channel.Reader;
         }
 
         public async Task ApplySubscriptionAsync(SubscriptionConfig config, CancellationToken ct)
         {
+            ArgumentNullException.ThrowIfNull(config);
+            ct.ThrowIfCancellationRequested();
             if (m_subscription is null)
             {
                 var sub = new ClassicSubscription(m_session.MessageContext.Telemetry, new ClassicSubscriptionOptions
@@ -164,11 +169,22 @@ namespace UaLens.Subscriptions
 
         public async Task<int> AddItemAsync(MonitoredItemConfig config, CancellationToken ct)
         {
+            ArgumentNullException.ThrowIfNull(config);
+            ct.ThrowIfCancellationRequested();
             if (m_subscription is null)
             {
                 throw new InvalidOperationException("Apply a subscription before adding items.");
             }
-            int id = Interlocked.Increment(ref m_nextItemId);
+            int id;
+            lock (m_lock)
+            {
+                m_nextItemId = Math.Max(m_nextItemId, config.Id);
+                id = config.Id > 0 ? config.Id : checked(++m_nextItemId);
+                if (!m_usedItemIds.Add(id))
+                {
+                    throw new ArgumentException("The document item identity is already in use.", nameof(config));
+                }
+            }
             MonitoredItemConfig stored = config with { Id = id };
 
             var mi = new ClassicMonitoredItem(m_session.MessageContext.Telemetry, new ClassicMonitoredItemOptions
@@ -189,6 +205,7 @@ namespace UaLens.Subscriptions
             {
                 m_subscription.AddItem(mi);
                 m_items[id] = new ItemEntry(stored, mi);
+                m_attribution[mi.ClientHandle] = stored;
             }
             m_stats[id] = new MonitoredItemLiveStats();
 
@@ -199,6 +216,7 @@ namespace UaLens.Subscriptions
 
         public async Task RemoveItemAsync(int id, CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
             if (m_subscription is null || !m_items.TryRemove(id, out ItemEntry? entry))
             {
                 return;
@@ -240,10 +258,12 @@ namespace UaLens.Subscriptions
                 await SetMonitoringModeAsync(config.Id, config.MonitoringMode, ct).ConfigureAwait(false);
             }
             m_items[config.Id] = entry with { Config = config };
+            m_attribution[entry.MonitoredItem.ClientHandle] = config;
         }
 
         public async Task SetMonitoringModeAsync(int id, MonitoringMode mode, CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
             if (m_subscription is null || !m_items.TryGetValue(id, out ItemEntry? entry))
             {
                 return;
@@ -316,16 +336,17 @@ namespace UaLens.Subscriptions
             for (int i = 0; i < n; i++)
             {
                 MonitoredItemNotification mi = notification.MonitoredItems[i];
-                int itemId = ResolveItemId(mi.ClientHandle);
+                m_attribution.TryGetValue(mi.ClientHandle, out MonitoredItemConfig? config);
+                int itemId = config?.Id ?? 0;
                 if (itemId != 0 && m_stats.TryGetValue(itemId, out MonitoredItemLiveStats? stats))
                 {
                     stats.RecordValue(mi.Value);
                 }
                 double? d = VariantNumeric.TryToDouble(mi.Value.WrappedValue, out double parsed)
                     ? parsed : null;
-                m_channel.Writer.TryWrite(new NotificationEvent(
-                    NotificationKind.DataChange, itemId, 1, subscription.SequenceNumber, now, d));
-                CountDroppedNotificationAfterWrite();
+                WriteEventOrCount(new NotificationEvent(
+                    NotificationKind.DataChange, itemId, 1, subscription.SequenceNumber, now, d,
+                    config?.DisplayName ?? string.Empty, config?.NodeId.ToString() ?? string.Empty));
             }
         }
 
@@ -341,14 +362,16 @@ namespace UaLens.Subscriptions
             DateTime now = DateTime.UtcNow;
             for (int i = 0; i < n; i++)
             {
-                int itemId = ResolveItemId(notification.Events[i].ClientHandle);
+                m_attribution.TryGetValue(notification.Events[i].ClientHandle, out MonitoredItemConfig? config);
+                int itemId = config?.Id ?? 0;
                 if (itemId != 0 && m_stats.TryGetValue(itemId, out MonitoredItemLiveStats? stats))
                 {
                     stats.RecordEvent();
                 }
-                m_channel.Writer.TryWrite(new NotificationEvent(
-                    NotificationKind.Event, itemId, 1, subscription.SequenceNumber, now));
-                CountDroppedNotificationAfterWrite();
+                WriteEventOrCount(new NotificationEvent(
+                    NotificationKind.Event, itemId, 1, subscription.SequenceNumber, now,
+                    DisplayName: config?.DisplayName ?? string.Empty,
+                    NodeId: config?.NodeId.ToString() ?? string.Empty));
             }
         }
 
@@ -357,36 +380,16 @@ namespace UaLens.Subscriptions
             Counters.IncKeepAlive();
             m_publishLog?.Record(subscription.Id, subscription.SequenceNumber,
                 (DateTime)subscription.PublishTime, 1, PublishLogKind.KeepAlive);
-            m_channel.Writer.TryWrite(new NotificationEvent(
+            WriteEventOrCount(new NotificationEvent(
                 NotificationKind.KeepAlive, 0, 0, subscription.SequenceNumber, DateTime.UtcNow));
-            CountDroppedNotificationAfterWrite();
         }
 
         /// <summary>
-        /// Drop-counter increment after a TryWrite (the channel was at
-        /// capacity, so DropOldest evicted one).  Kept as a separate post-hoc
-        /// check because Classic's hot paths emit ad-hoc; we sample
-        /// <see cref="ChannelReader{T}.Count"/> and bump the counter when
-        /// the channel was already saturated.
+        /// Writes to the delivery queue. Its dropped-item callback counts actual evictions.
         /// </summary>
-        private void CountDroppedNotificationAfterWrite()
+        internal void WriteEventOrCount(NotificationEvent notification)
         {
-            if (m_channel.Reader.CanCount && m_channel.Reader.Count >= 8192)
-            {
-                Interlocked.Increment(ref m_droppedCount);
-            }
-        }
-
-        private int ResolveItemId(uint clientHandle)
-        {
-            foreach (KeyValuePair<int, ItemEntry> kv in m_items)
-            {
-                if (kv.Value.MonitoredItem.ClientHandle == clientHandle)
-                {
-                    return kv.Key;
-                }
-            }
-            return 0;
+            m_channel.Writer.TryWrite(notification);
         }
 
         private sealed record ItemEntry(MonitoredItemConfig Config, ClassicMonitoredItem MonitoredItem);

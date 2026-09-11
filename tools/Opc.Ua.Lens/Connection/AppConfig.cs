@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
@@ -81,7 +82,7 @@ internal static class AppConfig
             ApplicationConfiguration cfg = await instance
                 .Build("urn:localhost:UA:UaLens", "urn:opcfoundation.org:UaLens")
                 .AsClient()
-                .AddSecurityConfiguration("CN=UaLens", pkiRoot: pkiRoot)
+                .AddSecurityConfiguration([CreateApplicationCertificate(pkiRoot)], pkiRoot: pkiRoot)
                 .SetAutoAcceptUntrustedCertificates(false)
                 .SetUseValidatedCertificates(false)
                 .CreateAsync(ct)
@@ -103,5 +104,49 @@ internal static class AppConfig
             }
             throw;
         }
+    }
+
+    private static CertificateIdentifier CreateApplicationCertificate(string? pkiRoot)
+    {
+        // Preserve the legacy builder's single RSA certificate and store
+        // resolution. Its default-certificate-list helper also adds ECC
+        // certificates, which would change existing stores and policy support.
+        string root = pkiRoot is null
+            || pkiRoot.Equals(CertificateStoreType.Directory, StringComparison.OrdinalIgnoreCase)
+            ? CertificateStoreIdentifier.DefaultPKIRoot
+            : pkiRoot.Equals(CertificateStoreType.X509Store, StringComparison.OrdinalIgnoreCase)
+                ? CertificateStoreIdentifier.CurrentUser
+                : pkiRoot;
+        string storeType = CertificateStoreIdentifier.DetermineStoreType(root);
+        string storePath = root;
+        if (storeType.Equals(CertificateStoreType.Directory, StringComparison.OrdinalIgnoreCase))
+        {
+            // Match the builder's existing own-suffix handling, including an
+            // optional trailing separator, instead of appending own twice.
+            int suffix = root.Length - 3;
+            if (Path.EndsInDirectorySeparator(root))
+            {
+                suffix--;
+            }
+            if (suffix <= 0
+                || !root.AsSpan(suffix, 3).Equals("own", StringComparison.OrdinalIgnoreCase))
+            {
+                storePath = Path.Combine(root, "own");
+            }
+        }
+        else if (storeType.Equals(CertificateStoreType.X509Store, StringComparison.OrdinalIgnoreCase))
+        {
+            storePath = root + (!OperatingSystem.IsWindows()
+                && root.StartsWith(CertificateStoreIdentifier.CurrentUser, StringComparison.OrdinalIgnoreCase)
+                    ? "My"
+                    : "UA_MachineDefault");
+        }
+        return new CertificateIdentifier
+        {
+            StoreType = storeType,
+            StorePath = storePath,
+            SubjectName = "CN=UaLens",
+            CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+        };
     }
 }

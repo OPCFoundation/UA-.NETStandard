@@ -62,6 +62,15 @@ Run the whole suite from the solution:
 dotnet test UA.slnx
 ```
 
+UaLens has a separate native-desktop regression lane. Its ordinary unit-test
+selection does not execute the explicit desktop fixtures. Use
+[the desktop runner](../tools/Opc.Ua.Lens/DesktopTesting.md) for the supported
+platform commands, expected test count, layout matrix, and manual
+assistive-technology checks. The runner rejects missing, skipped, and zero-test
+results. Native publishing and local installation of the managed tool are
+[separate artifact checks](../tools/Opc.Ua.Lens/README.md); a project build is not
+evidence that either distributed application starts successfully.
+
 Conventions and requirements:
 
 - **Frameworks.** Test projects use either **NUnit** (with `Assert.That` assertions and **Moq** for mocking) or **TUnit** (with its own assertions and mock helpers). Do not mix the two in one project, and do not use the classic NUnit asserts (`Assert.AreEqual`, …).

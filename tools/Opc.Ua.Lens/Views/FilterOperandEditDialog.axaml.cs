@@ -53,7 +53,7 @@ internal enum FilterOperandKind
     Literal,
     Element,
     Attribute,
-    SimpleAttribute,
+    SimpleAttribute
 }
 
 /// <summary>
@@ -91,7 +91,7 @@ internal sealed partial class FilterOperandEditDialog : Window
         ("String",   BuiltInType.String,     DataTypeIds.String),
         ("DateTime", BuiltInType.DateTime,   DataTypeIds.DateTime),
         ("Guid",     BuiltInType.Guid,       DataTypeIds.Guid),
-        ("NodeId",   BuiltInType.NodeId,     DataTypeIds.NodeId),
+        ("NodeId",   BuiltInType.NodeId,     DataTypeIds.NodeId)
     ];
 
     /// <summary>Attribute id options shared by Attribute / SimpleAttribute panels.</summary>
@@ -107,7 +107,7 @@ internal sealed partial class FilterOperandEditDialog : Window
         ("ValueRank",      Attributes.ValueRank),
         ("ArrayDimensions", Attributes.ArrayDimensions),
         ("AccessLevel",    Attributes.AccessLevel),
-        ("EventNotifier",  Attributes.EventNotifier),
+        ("EventNotifier",  Attributes.EventNotifier)
     ];
 
     public FilterOperand? Result { get; private set; }
@@ -272,9 +272,14 @@ internal sealed partial class FilterOperandEditDialog : Window
             Session: m_session,
             Root: ObjectIds.RootFolder,
             Title: "Pick node",
-            AcceptedClasses: NodeClass.Object | NodeClass.Variable | NodeClass.ObjectType
-                | NodeClass.VariableType | NodeClass.View | NodeClass.Method
-                | NodeClass.ReferenceType | NodeClass.DataType,
+            AcceptedClasses: NodeClass.Object |
+                NodeClass.Variable |
+                NodeClass.ObjectType |
+                NodeClass.VariableType |
+                NodeClass.View |
+                NodeClass.Method |
+                NodeClass.ReferenceType |
+                NodeClass.DataType,
             Header: "Pick the node whose attribute this operand refers to."));
         NodeId? picked = await picker.ShowDialog<NodeId?>(this).ConfigureAwait(true);
         if (picked.HasValue && !picked.Value.IsNull)
@@ -322,7 +327,7 @@ internal sealed partial class FilterOperandEditDialog : Window
         catch (Exception ex)
         {
             m_status.Text = $"Error: {ex.Message}";
-            m_status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+            m_status.Foreground = (Application.Current?.FindResource("ErrorText") as IBrush)
                 ?? Brushes.Transparent;
         }
     }
@@ -367,7 +372,7 @@ internal sealed partial class FilterOperandEditDialog : Window
             Alias = m_attrAlias.Text ?? string.Empty,
             BrowsePath = ParseRelativePath(m_attrPath.Text),
             AttributeId = SelectedAttributeId(m_attrAttributeId),
-            IndexRange = m_attrIndexRange.Text ?? string.Empty,
+            IndexRange = m_attrIndexRange.Text ?? string.Empty
         };
         return op;
     }
@@ -379,7 +384,7 @@ internal sealed partial class FilterOperandEditDialog : Window
             TypeDefinitionId = ParseNodeId(m_simpleTypeId.Text),
             BrowsePath = ParseSimpleBrowsePath(m_simplePath.Text),
             AttributeId = SelectedAttributeId(m_simpleAttributeId),
-            IndexRange = m_simpleIndexRange.Text ?? string.Empty,
+            IndexRange = m_simpleIndexRange.Text ?? string.Empty
         };
         return op;
     }
@@ -443,7 +448,7 @@ internal sealed partial class FilterOperandEditDialog : Window
                     ReferenceTypeId = el.ElementType switch
                     {
                         RelativePathFormatter.ElementType.AnyComponent => ReferenceTypeIds.Aggregates,
-                        _ => ReferenceTypeIds.HierarchicalReferences,
+                        _ => ReferenceTypeIds.HierarchicalReferences
                     }
                 };
                 elements.Add(parsed);

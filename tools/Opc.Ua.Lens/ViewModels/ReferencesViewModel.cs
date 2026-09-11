@@ -35,7 +35,9 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Client;
 using UaLens.Connection;
+using UaLens.Workspace;
 
 namespace UaLens.ViewModels;
 
@@ -50,45 +52,71 @@ namespace UaLens.ViewModels;
 /// </summary>
 internal sealed partial class ReferencesViewModel : ObservableObject, IDisposable
 {
-    private readonly ConnectionService m_connection;
+    private readonly Func<ISession?> m_session;
+    private readonly IWorkspaceDispatcher m_dispatcher;
     private readonly ILogger m_log;
-    private CancellationTokenSource? m_cts;
+    private Action? m_cancelCurrent;
+    private CancellationToken m_currentRequest;
+    private bool m_disposed;
 
     public ObservableCollection<ReferenceRow> Rows { get; } = new();
 
     [ObservableProperty]
     private string m_header = "(no node selected)";
 
-    public ReferencesViewModel(ITelemetryContext telemetry, ConnectionService connection)
+    public ReferencesViewModel(
+        ITelemetryContext telemetry,
+        ConnectionService connection,
+        IWorkspaceDispatcher? dispatcher = null)
+        : this(telemetry, () => connection.CurrentSession, dispatcher ??
+            (Avalonia.Application.Current is null
+                ? InlineWorkspaceDispatcher.Instance
+                : new AvaloniaWorkspaceDispatcher()))
     {
-        m_connection = connection;
+        ArgumentNullException.ThrowIfNull(connection);
+    }
+
+    public ReferencesViewModel(
+        ITelemetryContext telemetry,
+        Func<ISession?> session,
+        IWorkspaceDispatcher dispatcher)
+    {
+        ArgumentNullException.ThrowIfNull(telemetry);
+        m_session = session ?? throw new ArgumentNullException(nameof(session));
+        m_dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         m_log = telemetry.CreateLogger("References");
     }
 
     public void Clear()
     {
-        m_cts?.Cancel();
+        m_dispatcher.VerifyAccess();
+        m_cancelCurrent?.Invoke();
+        m_cancelCurrent = null;
+        m_currentRequest = default;
         Rows.Clear();
         Header = "(no node selected)";
     }
 
     public async Task LoadAsync(NodeId nodeId, NodeClass nodeClass)
     {
-        m_cts?.Cancel();
-        m_cts = new CancellationTokenSource();
-        CancellationToken ct = m_cts.Token;
+        m_dispatcher.VerifyAccess();
+        ObjectDisposedException.ThrowIf(m_disposed, this);
+        m_cancelCurrent?.Invoke();
+        using var request = new CancellationTokenSource();
+        m_cancelCurrent = request.Cancel;
+        CancellationToken ct = request.Token;
+        m_currentRequest = ct;
 
         Header = $"{Glyph(nodeClass)} {nodeId}  ({nodeClass})";
         Rows.Clear();
 
-        if (m_connection.Session is not { } session)
-        {
-            Rows.Add(new ReferenceRow("·", "(disconnected)", string.Empty, string.Empty, string.Empty));
-            return;
-        }
-
         try
         {
+            if (m_session() is not { } session)
+            {
+                Rows.Add(new ReferenceRow("·", "(disconnected)", string.Empty, string.Empty, string.Empty));
+                return;
+            }
             ArrayOf<BrowseDescription> descriptions = new BrowseDescription[]
             {
                 new BrowseDescription
@@ -162,6 +190,7 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
                 }
             }
 
+            var rows = new List<ReferenceRow>();
             foreach (ReferenceDescription r in refs)
             {
                 string direction = r.IsForward ? "→" : "←";
@@ -172,22 +201,53 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
                 string targetName = !r.DisplayName.IsNull
                     ? r.DisplayName.Text ?? string.Empty
                     : (!r.BrowseName.IsNull ? r.BrowseName.Name ?? string.Empty : string.Empty);
-                Rows.Add(new ReferenceRow(direction, refType, target, targetName, r.NodeClass.ToString()));
+                rows.Add(new ReferenceRow(direction, refType, target, targetName, r.NodeClass.ToString()));
             }
-            if (Rows.Count == 0)
+            if (rows.Count == 0)
             {
-                Rows.Add(new ReferenceRow("·", "(no references)", string.Empty, string.Empty, string.Empty));
+                rows.Add(new ReferenceRow("·", "(no references)", string.Empty, string.Empty, string.Empty));
             }
+            await PublishAsync(request, rows).ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             // Selection moved on — drop the partial list.
         }
         catch (Exception ex)
         {
             ReferencesViewModelLog.ReferenceBrowseFailed(m_log, ex, nodeId);
-            Rows.Add(new ReferenceRow("!", "(browse failed)", ex.Message, string.Empty, string.Empty));
+            await PublishAsync(request,
+                [new ReferenceRow("!", "(browse failed)", ex.Message, string.Empty, string.Empty)])
+                .ConfigureAwait(false);
         }
+        finally
+        {
+            await m_dispatcher.InvokeAsync(() =>
+            {
+                if (m_currentRequest == ct)
+                {
+                    m_cancelCurrent = null;
+                    m_currentRequest = default;
+                }
+                return Task.CompletedTask;
+            }).ConfigureAwait(false);
+        }
+    }
+
+    private Task PublishAsync(CancellationTokenSource request, List<ReferenceRow> rows)
+    {
+        return m_dispatcher.InvokeAsync(() =>
+        {
+            if (!m_disposed && !request.IsCancellationRequested && m_currentRequest == request.Token)
+            {
+                Rows.Clear();
+                foreach (ReferenceRow row in rows)
+                {
+                    Rows.Add(row);
+                }
+            }
+            return Task.CompletedTask;
+        });
     }
 
     private static string Glyph(NodeClass cls) => cls switch
@@ -205,9 +265,11 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
 
     public void Dispose()
     {
-        m_cts?.Cancel();
-        m_cts?.Dispose();
-        m_cts = null;
+        m_dispatcher.VerifyAccess();
+        m_disposed = true;
+        m_cancelCurrent?.Invoke();
+        m_cancelCurrent = null;
+        m_currentRequest = default;
     }
 }
 

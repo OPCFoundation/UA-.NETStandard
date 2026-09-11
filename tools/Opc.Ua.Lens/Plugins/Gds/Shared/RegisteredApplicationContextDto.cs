@@ -65,70 +65,117 @@ namespace UaLens.Plugins.Gds;
 /// </remarks>
 internal sealed class RegisteredApplicationContextDto
 {
-    /// <summary>GDS-assigned application id as its string form
-    /// (<c>NodeId.ToString()</c>); empty when not yet registered.</summary>
+    /// <summary>
+    /// Endpoint that assigned the application id.
+    /// </summary>
+    public string? GdsEndpointUrl { get; set; }
+
+    /// <summary>
+    /// GDS-assigned application id as its string form
+    /// (<c>NodeId.ToString()</c>); empty when not yet registered.
+    /// </summary>
     public string? ApplicationId { get; set; }
 
-    /// <summary>Canonical Application URI.</summary>
+    /// <summary>
+    /// Canonical Application URI.
+    /// </summary>
     public string ApplicationUri { get; set; } = string.Empty;
 
-    /// <summary>Display name shown in the UI.</summary>
+    /// <summary>
+    /// Display name shown in the UI.
+    /// </summary>
     public string ApplicationName { get; set; } = string.Empty;
 
-    /// <summary>Product URI used during registration.</summary>
+    /// <summary>
+    /// Product URI used during registration.
+    /// </summary>
     public string ProductUri { get; set; } = string.Empty;
 
-    /// <summary>Stringified <c>GdsRegistrationType</c>:
-    /// <c>ClientPull</c>, <c>ServerPull</c>, or <c>ServerPush</c>.</summary>
+    /// <summary>
+    /// Stringified <c>GdsRegistrationType</c>:
+    /// <c>ClientPull</c>, <c>ServerPull</c>, or <c>ServerPush</c>.
+    /// </summary>
     public string RegistrationType { get; set; } = "ClientPull";
 
-    /// <summary>DiscoveryUrls advertised for the application.</summary>
+    /// <summary>
+    /// DiscoveryUrls advertised for the application.
+    /// </summary>
     public List<string> DiscoveryUrls { get; set; } = new();
 
-    /// <summary>Server capabilities ("LiveData", "DA", "HA", …).</summary>
+    /// <summary>
+    /// Server capabilities ("LiveData", "DA", "HA", …).
+    /// </summary>
     public List<string> ServerCapabilities { get; set; } = new();
 
-    /// <summary>Comma-separated SAN list used when crafting CSRs.</summary>
+    /// <summary>
+    /// Comma-separated SAN list used when crafting CSRs.
+    /// </summary>
     public string? Domains { get; set; }
 
-    /// <summary>Local certificate-store path (pull mode).</summary>
+    /// <summary>
+    /// Local certificate-store path (pull mode).
+    /// </summary>
     public string? CertificateStorePath { get; set; }
 
-    /// <summary>Subject name used when generating a CSR.</summary>
+    /// <summary>
+    /// Subject name used when generating a CSR.
+    /// </summary>
     public string? CertificateSubjectName { get; set; }
 
-    /// <summary>Public-key DER/PEM file path (pull mode).</summary>
+    /// <summary>
+    /// Public-key DER/PEM file path (pull mode).
+    /// </summary>
     public string? CertificatePublicKeyPath { get; set; }
 
-    /// <summary>Private-key PFX/PEM file path (pull mode).</summary>
+    /// <summary>
+    /// Private-key PFX/PEM file path (pull mode).
+    /// </summary>
     public string? CertificatePrivateKeyPath { get; set; }
 
-    /// <summary>Trust-list directory store path (pull mode).</summary>
+    /// <summary>
+    /// Trust-list directory store path (pull mode).
+    /// </summary>
     public string? TrustListStorePath { get; set; }
 
-    /// <summary>Issuer-list directory store path (pull mode).</summary>
+    /// <summary>
+    /// Issuer-list directory store path (pull mode).
+    /// </summary>
     public string? IssuerListStorePath { get; set; }
 
-    /// <summary>HTTPS public-key file path (pull mode).</summary>
+    /// <summary>
+    /// HTTPS public-key file path (pull mode).
+    /// </summary>
     public string? HttpsCertificatePublicKeyPath { get; set; }
 
-    /// <summary>HTTPS private-key file path (pull mode).</summary>
+    /// <summary>
+    /// HTTPS private-key file path (pull mode).
+    /// </summary>
     public string? HttpsCertificatePrivateKeyPath { get; set; }
 
-    /// <summary>HTTPS trust-list store path (pull mode).</summary>
+    /// <summary>
+    /// HTTPS trust-list store path (pull mode).
+    /// </summary>
     public string? HttpsTrustListStorePath { get; set; }
 
-    /// <summary>HTTPS issuer-list store path (pull mode).</summary>
+    /// <summary>
+    /// HTTPS issuer-list store path (pull mode).
+    /// </summary>
     public string? HttpsIssuerListStorePath { get; set; }
 
-    /// <summary>Push-endpoint URL (only meaningful in <c>ServerPush</c> mode).</summary>
+    /// <summary>
+    /// Push-endpoint URL (only meaningful in <c>ServerPush</c> mode).
+    /// </summary>
     public string? PushEndpointUrl { get; set; }
 
-    /// <summary>Push-endpoint <c>MessageSecurityMode</c> as a string
-    /// (e.g. <c>SignAndEncrypt</c>).</summary>
+    /// <summary>
+    /// Push-endpoint <c>MessageSecurityMode</c> as a string
+    /// (e.g. <c>SignAndEncrypt</c>).
+    /// </summary>
     public string? PushEndpointSecurityMode { get; set; }
 
-    /// <summary>Push-endpoint <c>SecurityPolicyUri</c>.</summary>
+    /// <summary>
+    /// Push-endpoint <c>SecurityPolicyUri</c>.
+    /// </summary>
     public string? PushEndpointSecurityPolicyUri { get; set; }
 }
 

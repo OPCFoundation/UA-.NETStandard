@@ -34,10 +34,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
 using UaLens.Connection;
+using UaLens.Workspace;
 
 namespace UaLens.ViewModels;
 
@@ -49,22 +51,34 @@ namespace UaLens.ViewModels;
 /// </summary>
 internal enum BrowseViewKind
 {
-    /// <summary>Object instance hierarchy under <c>ObjectsFolder</c> (i=85).</summary>
+    /// <summary>
+    /// Object instance hierarchy under <c>ObjectsFolder</c> (i=85).
+    /// </summary>
     Objects,
 
-    /// <summary>ObjectType hierarchy under <c>ObjectTypesFolder</c> (i=88).</summary>
+    /// <summary>
+    /// ObjectType hierarchy under <c>ObjectTypesFolder</c> (i=88).
+    /// </summary>
     ObjectTypes,
 
-    /// <summary>VariableType hierarchy under <c>VariableTypesFolder</c> (i=89).</summary>
+    /// <summary>
+    /// VariableType hierarchy under <c>VariableTypesFolder</c> (i=89).
+    /// </summary>
     VariableTypes,
 
-    /// <summary>DataType hierarchy under <c>DataTypesFolder</c> (i=90).</summary>
+    /// <summary>
+    /// DataType hierarchy under <c>DataTypesFolder</c> (i=90).
+    /// </summary>
     DataTypes,
 
-    /// <summary>ReferenceType hierarchy under <c>ReferenceTypesFolder</c> (i=91).</summary>
+    /// <summary>
+    /// ReferenceType hierarchy under <c>ReferenceTypesFolder</c> (i=91).
+    /// </summary>
     ReferenceTypes,
 
-    /// <summary>Server-defined views under <c>ViewsFolder</c> (i=87).</summary>
+    /// <summary>
+    /// Server-defined views under <c>ViewsFolder</c> (i=87).
+    /// </summary>
     Views,
 }
 
@@ -110,9 +124,11 @@ internal sealed partial class BrowserViewModel : ObservableObject
     [ObservableProperty]
     private bool m_showFilters;
 
-    private readonly ITelemetryContext m_telemetry;
     private readonly ILogger m_log;
-    private readonly ConnectionService m_connection;
+    private readonly ConnectionService? m_connection;
+    private readonly Func<ISession?> m_session;
+    private readonly IWorkspaceDispatcher m_dispatcher;
+    private int m_treeGeneration;
     /// <summary>
     /// Last <see cref="ManagedSession"/> instance the tree was built against.
     /// The tree is only rebuilt when this changes — so transient
@@ -120,16 +136,32 @@ internal sealed partial class BrowserViewModel : ObservableObject
     /// tab switches that re-mirror the active adapter) don't wipe the
     /// user's expanded state.
     /// </summary>
-    private object? m_lastSessionRef;
+    private ISession? m_lastSessionRef;
 
     public ObservableCollection<NodeViewModel> Roots { get; } = new();
 
-    public BrowserViewModel(ITelemetryContext telemetry, ConnectionService connection)
+    public BrowserViewModel(
+        ITelemetryContext telemetry,
+        ConnectionService connection,
+        IWorkspaceDispatcher? dispatcher = null)
+        : this(telemetry, () => connection.CurrentSession, dispatcher ??
+            (Avalonia.Application.Current is null
+                ? InlineWorkspaceDispatcher.Instance
+                : new AvaloniaWorkspaceDispatcher()))
     {
-        m_telemetry = telemetry;
-        m_log = telemetry.CreateLogger("Browser");
-        m_connection = connection;
+        m_connection = connection ?? throw new ArgumentNullException(nameof(connection));
         m_connection.StateChanged += () => Dispatcher.UIThread.Post(OnConnectionStateChanged);
+    }
+
+    public BrowserViewModel(
+        ITelemetryContext telemetry,
+        Func<ISession?> session,
+        IWorkspaceDispatcher dispatcher)
+    {
+        ArgumentNullException.ThrowIfNull(telemetry);
+        m_log = telemetry.CreateLogger("Browser");
+        m_session = session ?? throw new ArgumentNullException(nameof(session));
+        m_dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
     }
 
     /// <summary>
@@ -141,7 +173,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
     /// </summary>
     private void OnConnectionStateChanged()
     {
-        object? cur = m_connection.Session;
+        ISession? cur = m_session();
         if (ReferenceEquals(cur, m_lastSessionRef))
         {
             return;
@@ -160,8 +192,10 @@ internal sealed partial class BrowserViewModel : ObservableObject
     /// </summary>
     internal void Reload()
     {
+        m_dispatcher.VerifyAccess();
+        m_treeGeneration++;
         Roots.Clear();
-        if (m_connection is { IsConnected: true, Session: { } })
+        if (m_session() is not null && (m_connection is null || m_connection.IsConnected))
         {
             (NodeId rootId, string rootLabel) = GetRootSpec(CurrentViewKind);
             // Children load lazily on expand via LoadChildrenAsync, which
@@ -172,7 +206,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
             // children (Objects / Types / Views, etc.).
             root.IsExpanded = true;
         }
-        m_lastSessionRef = m_connection.Session;
+        m_lastSessionRef = m_session();
     }
 
     /// <summary>
@@ -209,18 +243,23 @@ internal sealed partial class BrowserViewModel : ObservableObject
 
     internal async Task LoadChildrenAsync(NodeViewModel node)
     {
-        if (node.ChildrenLoaded || node.IsPlaceholder)
+        m_dispatcher.VerifyAccess();
+        if (node.ChildrenLoaded || node.IsPlaceholder || node.IsLoading)
         {
             return;
         }
-        node.ChildrenLoaded = true;
-
-        if (m_connection.Session is not { } session)
-        {
-            return;
-        }
+        node.IsLoading = true;
+        node.LoadError = string.Empty;
+        int generation = m_treeGeneration;
+        ISession? session = m_session();
+        var refs = new List<ReferenceDescription>();
+        var continuationPoints = new List<ByteString>();
         try
         {
+            if (session is null)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotConnected, "Reconnect, then retry this node.");
+            }
             // Build the BrowseDescription(s) to issue against this node.
             // For instance views (Objects, Views) we follow Aggregates+Organizes
             // so folder-style navigation works.  For type views (ObjectTypes,
@@ -233,80 +272,111 @@ internal sealed partial class BrowserViewModel : ObservableObject
             // event-emitting servers.
             ArrayOf<BrowseDescription> descriptions = BuildBrowseDescriptions(node.NodeId);
 
-            var refs = new List<ReferenceDescription>();
-            var continuationPoints = new List<ByteString>();
             BrowseResponse resp = await session.BrowseAsync(null, null, 0, descriptions, default).ConfigureAwait(false);
-            foreach (BrowseResult br in resp.Results)
-            {
-                if (StatusCode.IsBad(br.StatusCode))
-                {
-                    continue;
-                }
-                refs.AddRange(br.References);
-                if (br.ContinuationPoint.Length > 0)
-                {
-                    continuationPoints.Add(br.ContinuationPoint);
-                }
-            }
+            CollectPage(resp.Results, descriptions.Count);
             // Drain continuation points until both browse results are complete.
             while (continuationPoints.Count > 0)
             {
                 ArrayOf<ByteString> nextCps = continuationPoints.ToArray();
                 BrowseNextResponse next = await session.BrowseNextAsync(null, false, nextCps, default).ConfigureAwait(false);
                 continuationPoints.Clear();
-                foreach (BrowseResult br in next.Results)
+                for (int i = 0; i < nextCps.Count; i++)
                 {
-                    if (StatusCode.IsBad(br.StatusCode))
+                    if (i >= next.Results.Count || StatusCode.IsBad(next.Results[i].StatusCode))
                     {
-                        continue;
-                    }
-                    refs.AddRange(br.References);
-                    if (br.ContinuationPoint.Length > 0)
-                    {
-                        continuationPoints.Add(br.ContinuationPoint);
+                        continuationPoints.Add(nextCps[i]);
                     }
                 }
+                CollectPage(next.Results, nextCps.Count);
             }
 
-            var seen = new HashSet<NodeId>();
-            var children = new List<NodeViewModel>(refs.Count);
-            foreach (ReferenceDescription r in refs)
+            await PostToUiAsync(() =>
             {
-                if (r.NodeId.IsNull || r.NodeId.IsAbsolute)
+                if (generation == m_treeGeneration && ReferenceEquals(session, m_session()))
                 {
-                    continue;
+                    ApplyChildren();
+                    node.ChildrenLoaded = true;
+                    node.HasItems = node.Children.Count > 0;
                 }
-                NodeId child = ExpandedNodeId.ToNodeId(r.NodeId, session.NamespaceUris);
-                if (child.IsNull || !seen.Add(child))
-                {
-                    continue;
-                }
-                string name = !r.DisplayName.IsNull
-                    ? r.DisplayName.Text ?? string.Empty
-                    : (!r.BrowseName.IsNull ? r.BrowseName.Name ?? string.Empty : (child.ToString() ?? string.Empty));
-                children.Add(new NodeViewModel(this, node.NodeId, child, name, r.NodeClass));
-            }
-
-            Action apply = () =>
-            {
-                node.Children.Clear();              // remove the placeholder (if any)
-                foreach (NodeViewModel c in children)
-                {
-                    node.Children.Add(c);
-                }
-                node.HasItems = node.Children.Count > 0;
-            };
-            await PostToUiAsync(apply).ConfigureAwait(false);
+            }).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             BrowserViewModelLog.BrowseFailed(m_log, ex, node.NodeId);
-            // Make sure the placeholder doesn't linger if browse failed.
             await PostToUiAsync(() =>
             {
-                node.Children.Clear();
-                node.HasItems = false;
+                if (generation == m_treeGeneration && ReferenceEquals(session, m_session()))
+                {
+                    ApplyChildren();
+                    node.LoadError = refs.Count == 0
+                        ? $"Browse failed: {ex.Message}"
+                        : $"Incomplete browse ({refs.Count} references): {ex.Message}";
+                    node.EnsureRetryPlaceholder();
+                }
             }).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (session is not null && continuationPoints.Count > 0)
+            {
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                try
+                {
+                    await session.BrowseNextAsync(null, true, continuationPoints.ToArray(), cleanup.Token)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    BrowserViewModelLog.BrowseFailed(m_log, ex, node.NodeId);
+                }
+            }
+            await PostToUiAsync(() => node.IsLoading = false).ConfigureAwait(false);
+        }
+
+        void CollectPage(ArrayOf<BrowseResult> results, int expectedCount)
+        {
+            foreach (BrowseResult result in results)
+            {
+                if (result.ContinuationPoint.Length > 0)
+                {
+                    continuationPoints.Add(result.ContinuationPoint);
+                }
+                if (!StatusCode.IsBad(result.StatusCode))
+                {
+                    refs.AddRange(result.References);
+                }
+            }
+            if (results.Count != expectedCount)
+            {
+                throw new ServiceResultException(StatusCodes.BadUnexpectedError, "Incomplete browse response.");
+            }
+            foreach (BrowseResult result in results)
+            {
+                if (StatusCode.IsBad(result.StatusCode))
+                {
+                    throw new ServiceResultException(result.StatusCode);
+                }
+            }
+        }
+
+        void ApplyChildren()
+        {
+            node.Children.Clear();
+            var seen = new HashSet<NodeId>();
+            foreach (ReferenceDescription reference in refs)
+            {
+                if (reference.NodeId.IsNull || reference.NodeId.IsAbsolute || session is null)
+                {
+                    continue;
+                }
+                NodeId child = ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris);
+                if (child.IsNull || !seen.Add(child))
+                {
+                    continue;
+                }
+                string name = reference.DisplayName.Text ?? reference.BrowseName.Name ?? child.ToString();
+                node.Children.Add(new NodeViewModel(this, node.NodeId, child, name, reference.NodeClass));
+            }
         }
     }
 
@@ -408,7 +478,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
     public async Task<IReadOnlyList<(NodeId NodeId, string DisplayName)>> GetChildVariablesAsync(
         NodeId parent, CancellationToken ct = default)
     {
-        if (m_connection.Session is not { } session || parent.IsNull)
+        if (m_session() is not { } session || parent.IsNull)
         {
             return Array.Empty<(NodeId, string)>();
         }
@@ -496,7 +566,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
             IReadOnlyList<string> relativePaths,
             CancellationToken ct = default)
     {
-        if (m_connection.Session is not { } session || relativePaths.Count == 0)
+        if (m_session() is not { } session || relativePaths.Count == 0)
         {
             return Array.Empty<(string, StatusCode, IReadOnlyList<NodeId>)>();
         }
@@ -578,14 +648,13 @@ internal sealed partial class BrowserViewModel : ObservableObject
     /// validators like <c>--testtree</c>) runs it inline so the production
     /// code path doesn't dead-lock.
     /// </summary>
-    private static Task PostToUiAsync(Action a)
+    private Task PostToUiAsync(Action a)
     {
-        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
+        return m_dispatcher.InvokeAsync(() =>
         {
             a();
             return Task.CompletedTask;
-        }
-        return Dispatcher.UIThread.InvokeAsync(a).GetTask();
+        });
     }
 
     /// <summary>
@@ -595,7 +664,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
     /// </summary>
     public async Task<byte?> GetEventNotifierAsync(NodeId nodeId, CancellationToken ct = default)
     {
-        if (m_connection.Session is not { } session)
+        if (m_session() is not { } session)
         {
             return null;
         }
@@ -652,7 +721,6 @@ internal sealed partial class BrowserViewModel : ObservableObject
 internal sealed partial class NodeViewModel : ObservableObject
 {
     private readonly BrowserViewModel m_owner;
-    private bool m_loadStarted;
 
     public NodeId NodeId { get; }
     public NodeId ParentNodeId { get; }
@@ -667,6 +735,15 @@ internal sealed partial class NodeViewModel : ObservableObject
 
     [ObservableProperty]
     private bool m_hasItems = true;
+
+    [ObservableProperty]
+    private bool m_isLoading;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLoadError))]
+    private string m_loadError = string.Empty;
+
+    public bool HasLoadError => LoadError.Length > 0;
 
     public ObservableCollection<NodeViewModel> Children { get; } = new();
     internal bool ChildrenLoaded { get; set; }
@@ -692,16 +769,27 @@ internal sealed partial class NodeViewModel : ObservableObject
         {
             // The placeholder is itself a tree leaf.
             m_hasItems = false;
-            m_loadStarted = true;
         }
     }
 
     partial void OnIsExpandedChanged(bool value)
     {
-        if (value && !m_loadStarted && !IsPlaceholder)
+        if (value && !ChildrenLoaded && !IsPlaceholder)
         {
-            m_loadStarted = true;
             _ = m_owner.LoadChildrenAsync(this);
         }
+    }
+
+    [RelayCommand]
+    private Task RetryAsync() => m_owner.LoadChildrenAsync(this);
+
+    internal void EnsureRetryPlaceholder()
+    {
+        if (Children.Count == 0)
+        {
+            Children.Add(new NodeViewModel(
+                m_owner, NodeId, NodeId.Null, "Retry this node to load its children.", NodeClass.Unspecified, true));
+        }
+        HasItems = true;
     }
 }

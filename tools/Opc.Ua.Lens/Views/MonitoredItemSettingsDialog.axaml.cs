@@ -58,10 +58,9 @@ namespace UaLens.Views
 
     internal sealed partial class MonitoredItemSettingsDialog : Window
     {
-        public MonitoredItemSettings? Result { get; private set; }
-
         public MonitoredItemSettingsDialog(MonitoredItemSettings current, string? scope = null)
         {
+            ArgumentNullException.ThrowIfNull(current);
             InitializeComponent();
             if (scope is not null)
             {
@@ -77,6 +76,10 @@ namespace UaLens.Views
             TextBox deadbandValue = this.RequiredControl<TextBox>("DeadbandValueBox");
             Button ok = this.RequiredControl<Button>("OkButton");
             Button cancel = this.RequiredControl<Button>("CancelButton");
+            TextBlock error = this.RequiredControl<TextBlock>("ValidationError");
+            samplingMs.TextChanged += (_, _) => MonitoredItemValidation.ClearError(error, samplingMs);
+            queueSize.TextChanged += (_, _) => MonitoredItemValidation.ClearError(error, queueSize);
+            deadbandValue.TextChanged += (_, _) => MonitoredItemValidation.ClearError(error, deadbandValue);
 
             samplingMs.Text = current.SamplingInterval.TotalMilliseconds.ToString("0.###", CultureInfo.CurrentCulture);
             queueSize.Text = current.QueueSize.ToString(CultureInfo.InvariantCulture);
@@ -103,44 +106,37 @@ namespace UaLens.Views
             deadbandValue.IsEnabled = deadbandType.SelectedIndex > 0;
 
             deadbandType.SelectionChanged += (_, _) =>
+            {
                 deadbandValue.IsEnabled = deadbandType.SelectedIndex > 0;
+                MonitoredItemValidation.SetDeadbandName(deadbandValue, deadbandType.SelectedIndex);
+                MonitoredItemValidation.ClearError(error, deadbandValue);
+            };
+            MonitoredItemValidation.SetDeadbandName(deadbandValue, deadbandType.SelectedIndex);
 
             ok.Click += (_, _) =>
             {
-                TextBlock error = this.RequiredControl<TextBlock>("ValidationError");
-                error.Text = string.Empty;
-                if (!double.TryParse(samplingMs.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out double smp) ||
-                    !double.IsFinite(smp) ||
-                    smp < -1 ||
-                    smp > 3_600_000)
+                if (Result is not null)
                 {
-                    error.Text = "Sampling must be -1 (inherit publishing), 0 (fastest), " +
-                        "or a positive interval up to one hour.";
+                    return;
+                }
+                error.Text = string.Empty;
+                if (!MonitoredItemValidation.TrySampling(samplingMs.Text, out TimeSpan sampling, out string message))
+                {
+                    MonitoredItemValidation.ShowError(error, samplingMs, message);
                     return;
                 }
                 if (!uint.TryParse(queueSize.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out uint q))
                 {
-                    error.Text = "Queue size must be a non-negative whole number.";
+                    MonitoredItemValidation.ShowError(
+                        error, queueSize, "Queue size: enter a whole number from 0 to 4294967295.");
                     return;
                 }
                 var dt = (DataChangeTrigger)Math.Max(0, trigger.SelectedIndex);
                 var db = (DeadbandType)Math.Max(0, deadbandType.SelectedIndex);
-                double dbVal = 0.0;
-                if (db != DeadbandType.None)
+                if (!MonitoredItemValidation.TryDeadband(deadbandValue.Text, db, out double dbVal, out message))
                 {
-                    if (!double.TryParse(
-                        deadbandValue.Text, NumberStyles.Float, CultureInfo.CurrentCulture, out dbVal) ||
-                        !double.IsFinite(dbVal) ||
-                        dbVal < 0.0)
-                    {
-                        error.Text = "Deadband must be a finite, non-negative number.";
-                        return;
-                    }
-                    if (db == DeadbandType.Percent && dbVal > 100.0)
-                    {
-                        error.Text = "A percent deadband cannot exceed 100.";
-                        return;
-                    }
+                    MonitoredItemValidation.ShowError(error, deadbandValue, message);
+                    return;
                 }
                 DataChangeFilter? newFilter = null;
                 // Only emit a filter when the user picked something other than
@@ -162,7 +158,7 @@ namespace UaLens.Views
                 };
                 Result = new MonitoredItemSettings
                 {
-                    SamplingInterval = TimeSpan.FromMilliseconds(smp),
+                    SamplingInterval = sampling,
                     QueueSize = q,
                     DiscardOldest = discardOldest.IsChecked == true,
                     MonitoringMode = mode,
@@ -172,6 +168,8 @@ namespace UaLens.Views
             };
             cancel.Click += (_, _) => Close(null);
         }
+
+        public MonitoredItemSettings? Result { get; private set; }
 
         private void InitializeComponent()
         {

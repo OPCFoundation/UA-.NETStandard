@@ -53,11 +53,12 @@ namespace UaLens.Subscriptions
     internal sealed class ChannelV2EngineAdapter : ISubscriptionAdapter
     {
         public ChannelV2EngineAdapter(
-            ManagedSession session,
+            ISession session,
             ITelemetryContext telemetry,
             PublishLogObserver? publishLog = null)
         {
-            m_session = session;
+            ArgumentNullException.ThrowIfNull(telemetry);
+            m_session = session ?? throw new ArgumentNullException(nameof(session));
             m_log = telemetry.CreateLogger("ChannelV2Adapter");
             m_publishLog = publishLog;
             m_channel = Channel.CreateBounded<NotificationEvent>(new BoundedChannelOptions(8192)
@@ -65,7 +66,7 @@ namespace UaLens.Subscriptions
                 FullMode = BoundedChannelFullMode.DropOldest,
                 SingleReader = true,
                 SingleWriter = false
-            });
+            }, _ => Interlocked.Increment(ref m_droppedCount));
             Events = m_channel.Reader;
         }
 
@@ -124,6 +125,8 @@ namespace UaLens.Subscriptions
 
         public Task ApplySubscriptionAsync(SubscriptionConfig config, CancellationToken ct)
         {
+            ArgumentNullException.ThrowIfNull(config);
+            ct.ThrowIfCancellationRequested();
             lock (m_lock)
             {
                 V2SubscriptionOptions options = ToOptions(config);
@@ -152,12 +155,23 @@ namespace UaLens.Subscriptions
 
         public Task<int> AddItemAsync(MonitoredItemConfig config, CancellationToken ct)
         {
+            ArgumentNullException.ThrowIfNull(config);
+            ct.ThrowIfCancellationRequested();
             if (m_subscription is null)
             {
                 throw new InvalidOperationException("Apply a subscription before adding items.");
             }
 
-            int id = Interlocked.Increment(ref m_nextItemId);
+            int id;
+            lock (m_lock)
+            {
+                m_nextItemId = Math.Max(m_nextItemId, config.Id);
+                id = config.Id > 0 ? config.Id : checked(++m_nextItemId);
+                if (!m_usedItemIds.Add(id))
+                {
+                    throw new ArgumentException("The document item identity is already in use.", nameof(config));
+                }
+            }
             MonitoredItemConfig stored = config with { Id = id };
             var optionsMonitor = new OptionsMonitor<V2MonitoredItemOptions>(ToOptions(stored));
 
@@ -170,6 +184,7 @@ namespace UaLens.Subscriptions
                 }
                 // TryAdd's out value is non-null on success, but lacks NotNullWhen(true).
                 m_items[id] = new ItemEntry(stored, created!, optionsMonitor);
+                m_attribution[created!] = stored;
             }
             m_stats[id] = new MonitoredItemLiveStats();
             m_log.ChannelV2MonitoredItemAdded(id, stored.NodeId, stored.AttributeId);
@@ -178,6 +193,7 @@ namespace UaLens.Subscriptions
 
         public Task RemoveItemAsync(int id, CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
             if (m_subscription is null || !m_items.TryRemove(id, out ItemEntry? entry))
             {
                 return Task.CompletedTask;
@@ -207,11 +223,13 @@ namespace UaLens.Subscriptions
             }
             entry.Options.CurrentValue = ToOptions(config);
             m_items[config.Id] = entry with { Config = config };
+            m_attribution[entry.MonitoredItem] = config;
             return Task.CompletedTask;
         }
 
         public Task SetMonitoringModeAsync(int id, MonitoringMode mode, CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
             if (m_subscription is null || !m_items.TryGetValue(id, out ItemEntry? entry))
             {
                 return Task.CompletedTask;
@@ -267,15 +285,10 @@ namespace UaLens.Subscriptions
         }
 
         /// <summary>
-        /// Writes a notification and samples channel capacity to count dropped events.
-        /// Falls back to no count update when the channel does not expose its count.
+        /// Writes to the delivery queue. Its dropped-item callback counts actual evictions.
         /// </summary>
         internal void WriteEventOrCount(NotificationEvent ev)
         {
-            if (m_channel.Reader.CanCount && m_channel.Reader.Count >= 8192)
-            {
-                Interlocked.Increment(ref m_droppedCount);
-            }
             m_channel.Writer.TryWrite(ev);
         }
 
@@ -308,12 +321,15 @@ namespace UaLens.Subscriptions
             };
         }
 
-        private readonly ManagedSession m_session;
+        private readonly ISession m_session;
         private readonly ILogger m_log;
         private readonly Channel<NotificationEvent> m_channel;
         private readonly PublishLogObserver? m_publishLog;
         private readonly ConcurrentDictionary<int, ItemEntry> m_items = new();
         private readonly ConcurrentDictionary<int, MonitoredItemLiveStats> m_stats = new();
+        private readonly ConcurrentDictionary<IMonitoredItem, MonitoredItemConfig> m_attribution
+            = new(System.Collections.Generic.ReferenceEqualityComparer.Instance);
+        private readonly HashSet<int> m_usedItemIds = [];
         private readonly Lock m_lock = new();
         private OptionsMonitor<V2SubscriptionOptions>? m_subscriptionOptions;
         private ISubscription? m_subscription;
@@ -351,7 +367,8 @@ namespace UaLens.Subscriptions
                 ReadOnlySpan<DataValueChange> span = notification.Span;
                 for (int i = 0; i < span.Length; i++)
                 {
-                    int itemId = ResolveItemId(span[i].MonitoredItem);
+                    MonitoredItemConfig? config = ResolveItem(span[i].MonitoredItem);
+                    int itemId = config?.Id ?? 0;
                     if (itemId != 0 && m_owner.m_stats.TryGetValue(itemId, out MonitoredItemLiveStats? stats))
                     {
                         stats.RecordValue(span[i].Value);
@@ -359,7 +376,8 @@ namespace UaLens.Subscriptions
                     double? d = VariantNumeric.TryToDouble(span[i].Value.WrappedValue, out double parsed)
                         ? parsed : null;
                     m_owner.WriteEventOrCount(new NotificationEvent(
-                        NotificationKind.DataChange, itemId, 1, sequenceNumber, now, d));
+                        NotificationKind.DataChange, itemId, 1, sequenceNumber, now, d,
+                        config?.DisplayName ?? string.Empty, config?.NodeId.ToString() ?? string.Empty));
                 }
                 return ValueTask.CompletedTask;
             }
@@ -380,13 +398,16 @@ namespace UaLens.Subscriptions
                 DateTime now = DateTime.UtcNow;
                 for (int i = 0; i < span.Length; i++)
                 {
-                    int itemId = ResolveItemId(span[i].MonitoredItem);
+                    MonitoredItemConfig? config = ResolveItem(span[i].MonitoredItem);
+                    int itemId = config?.Id ?? 0;
                     if (itemId != 0 && m_owner.m_stats.TryGetValue(itemId, out MonitoredItemLiveStats? stats))
                     {
                         stats.RecordEvent();
                     }
                     m_owner.WriteEventOrCount(new NotificationEvent(
-                        NotificationKind.Event, itemId, 1, sequenceNumber, now));
+                        NotificationKind.Event, itemId, 1, sequenceNumber, now,
+                        DisplayName: config?.DisplayName ?? string.Empty,
+                        NodeId: config?.NodeId.ToString() ?? string.Empty));
                 }
                 return ValueTask.CompletedTask;
             }
@@ -414,20 +435,10 @@ namespace UaLens.Subscriptions
                 return ValueTask.CompletedTask;
             }
 
-            private int ResolveItemId(IMonitoredItem? mi)
+            private MonitoredItemConfig? ResolveItem(IMonitoredItem? mi)
             {
-                if (mi is null)
-                {
-                    return 0;
-                }
-                foreach (KeyValuePair<int, ItemEntry> kv in m_owner.m_items)
-                {
-                    if (ReferenceEquals(kv.Value.MonitoredItem, mi))
-                    {
-                        return kv.Key;
-                    }
-                }
-                return 0;
+                return mi is not null && m_owner.m_attribution.TryGetValue(mi, out MonitoredItemConfig? config)
+                    ? config : null;
             }
 
             private void RecordPublish(

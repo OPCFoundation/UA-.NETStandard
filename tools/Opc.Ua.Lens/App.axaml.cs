@@ -34,7 +34,9 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Platform.Storage;
 using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua;
 using UaLens.Themes;
 using UaLens.ViewModels;
 using UaLens.Views;
@@ -48,9 +50,10 @@ internal sealed partial class App : Application
     {
     }
 
-    public App(IServiceProvider? services)
+    public App(IServiceProvider? services, DesktopSmokeTest? desktopSmoke = null)
     {
         m_services = services;
+        m_desktopSmoke = desktopSmoke;
     }
 
     public override void Initialize()
@@ -67,8 +70,23 @@ internal sealed partial class App : Application
                 ?? throw new InvalidOperationException("Desktop startup requires the owned UaLens service container.");
             MainViewModel viewModel = services.GetRequiredService<MainViewModel>();
             AppearancePreferences appearance = services.GetRequiredService<AppearancePreferences>();
-            var window = new MainWindow(viewModel, appearance);
-            window.Opened += async (_, _) => await StartOptionalMonitoringAsync(viewModel).ConfigureAwait(true);
+            var window = new MainWindow(
+                viewModel,
+                appearance,
+                writeOperations: services.GetRequiredService<WriteValueOperationFactory>(),
+                storageProvider: services.GetService<IStorageProvider>(),
+                certificateOperations: services.GetRequiredService<
+                    Func<ApplicationConfiguration, CertificateStoreOperations>>());
+            if (m_desktopSmoke is { } smoke)
+            {
+                // The smoke task is observed by Program after the desktop loop.
+                // Keep a real desktop, but do not start optional host monitoring.
+                window.Opened += (_, _) => smoke.Start(window, viewModel, desktop);
+            }
+            else
+            {
+                window.Opened += async (_, _) => await StartOptionalMonitoringAsync(viewModel).ConfigureAwait(true);
+            }
             desktop.MainWindow = window;
         }
         base.OnFrameworkInitializationCompleted();
@@ -96,4 +114,5 @@ internal sealed partial class App : Application
     }
 
     private readonly IServiceProvider? m_services;
+    private readonly DesktopSmokeTest? m_desktopSmoke;
 }

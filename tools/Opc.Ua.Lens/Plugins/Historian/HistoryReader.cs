@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
@@ -43,19 +44,21 @@ namespace UaLens.Plugins.Historian;
 /// the end of the dataset (CP is null/empty).
 /// </summary>
 /// <remarks>
-/// On cancellation we issue one final HistoryRead with
+/// On failure or cancellation we issue one final HistoryRead with
 /// <c>releaseContinuationPoints: true</c> so any outstanding server-side
 /// cursor is freed.  Failures of that release call are intentionally
-/// swallowed — the original cancellation is what matters and the server
-/// will GC the cursor on its own timeout.
+/// swallowed to preserve the original outcome. Cleanup has an independent
+/// five-second cancellation deadline.
 /// </remarks>
 internal sealed class HistoryReader
 {
     private readonly ISession m_session;
+    private readonly TimeSpan m_cleanupTimeout;
 
-    public HistoryReader(ISession session)
+    public HistoryReader(ISession session, TimeSpan? cleanupTimeout = null)
     {
-        m_session = session;
+        m_session = session ?? throw new ArgumentNullException(nameof(session));
+        m_cleanupTimeout = cleanupTimeout ?? TimeSpan.FromSeconds(5);
     }
 
     /// <summary>Reads raw or modified history.  See Part 11 §6.4.3.</summary>
@@ -128,24 +131,26 @@ internal sealed class HistoryReader
     /// matches the row's <see cref="HistoryRow.SourceTimestamp"/> (UTC,
     /// millisecond precision).  Servers that do not expose the
     /// <c>Annotations</c> property or that fail the secondary read are
-    /// silently skipped — annotations are an optional feature and missing
-    /// annotations must never break the primary value read.
+    /// skipped — annotations are optional. Cancellation is not an optional-feature
+    /// failure and always propagates to the caller.
     /// </summary>
     public async Task AttachAnnotationsAsync(
         NodeId variableNodeId,
         IReadOnlyList<HistoryRow> rows,
         CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         if (variableNodeId.IsNull || rows.Count == 0)
         {
             return;
         }
-        NodeId? annotationsNodeId = await ResolveAnnotationsNodeIdAsync(variableNodeId, ct).ConfigureAwait(false);
-        if (!annotationsNodeId.HasValue || annotationsNodeId.Value.IsNull)
+        NodeId annotationsNodeId = await ResolveAnnotationsNodeIdAsync(variableNodeId, ct).ConfigureAwait(false);
+        ct.ThrowIfCancellationRequested();
+        if (annotationsNodeId.IsNull)
         {
             return;
         }
-        NodeId annNode = annotationsNodeId.Value;
+        NodeId annNode = annotationsNodeId;
         DateTime minTs = DateTime.MaxValue;
         DateTime maxTs = DateTime.MinValue;
         foreach (HistoryRow r in rows)
@@ -177,13 +182,19 @@ internal sealed class HistoryReader
             annotationValues = await ReadAnnotationDataValuesAsync(annNode, start, end, ct)
                 .ConfigureAwait(false);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception)
         {
             // Best-effort — server doesn't support annotations or read
             // failed for an unrelated reason.  Annotation column simply
             // stays empty for this batch.
+            ct.ThrowIfCancellationRequested();
             return;
         }
+        ct.ThrowIfCancellationRequested();
         if (annotationValues.Count == 0)
         {
             return;
@@ -227,7 +238,7 @@ internal sealed class HistoryReader
         }
     }
 
-    private async Task<NodeId?> ResolveAnnotationsNodeIdAsync(
+    private async Task<NodeId> ResolveAnnotationsNodeIdAsync(
         NodeId variableNodeId, CancellationToken ct)
     {
         try
@@ -250,19 +261,24 @@ internal sealed class HistoryReader
                 .ConfigureAwait(false);
             if (resp.Results.Count == 0)
             {
-                return null;
+                return NodeId.Null;
             }
             BrowsePathResult r = resp.Results[0];
             if (StatusCode.IsBad(r.StatusCode) || r.Targets is not { Count: > 0 } targets)
             {
-                return null;
+                return NodeId.Null;
             }
             NodeId mapped = ExpandedNodeId.ToNodeId(targets[0].TargetId, m_session.NamespaceUris);
-            return mapped.IsNull ? null : mapped;
+            return mapped;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception)
         {
-            return null;
+            ct.ThrowIfCancellationRequested();
+            return NodeId.Null;
         }
     }
 
@@ -282,71 +298,38 @@ internal sealed class HistoryReader
         };
         var detailsObject = new ExtensionObject(details);
         var results = new List<DataValue>();
-        ByteString continuationPoint = default;
-        while (true)
+        await foreach (HistoryReadResult result in ReadPagesAsync(
+            annotationsNodeId, detailsObject, TimestampsToReturn.Source, ct).ConfigureAwait(false))
         {
-            ct.ThrowIfCancellationRequested();
-            var valueId = new HistoryReadValueId
-            {
-                NodeId = annotationsNodeId,
-                ContinuationPoint = continuationPoint
-            };
-            var nodesToRead = new HistoryReadValueId[] { valueId };
-            HistoryReadResponse response = await m_session.HistoryReadAsync(
-                requestHeader: null,
-                historyReadDetails: detailsObject,
-                timestampsToReturn: TimestampsToReturn.Source,
-                releaseContinuationPoints: false,
-                nodesToRead: nodesToRead,
-                ct: ct).ConfigureAwait(false);
-            if (response.Results.Count == 0)
-            {
-                return results;
-            }
-            HistoryReadResult r = response.Results[0];
-            if (StatusCode.IsBad(r.StatusCode))
-            {
-                return results;
-            }
-            if (r.HistoryData.TryGetValue(out HistoryData? hd) && hd is not null)
+            if (result.HistoryData.TryGetValue(out HistoryData? hd) && hd is not null)
             {
                 foreach (DataValue dv in hd.DataValues)
                 {
                     results.Add(dv);
                 }
             }
-            ByteString cp = r.ContinuationPoint;
-            if (cp.IsNull || cp.Length == 0)
-            {
-                return results;
-            }
-            continuationPoint = cp;
         }
+        return results;
     }
 
     private static Annotation? ExtractAnnotation(Variant v)
     {
-        object? boxed = v.Value;
-        switch (boxed)
+        if (v.TryGetValue(out ExtensionObject extension) &&
+            extension.TryGetValue(out Annotation? annotation))
         {
-            case Annotation ann:
-                return ann;
-            case ExtensionObject eo when eo.Body is Annotation ann2:
-                return ann2;
-            case ExtensionObject[] arr when arr.Length > 0:
-                foreach (ExtensionObject e in arr)
-                {
-                    if (e.Body is Annotation match)
-                    {
-                        return match;
-                    }
-                }
-                return null;
-            case Annotation[] arr when arr.Length > 0:
-                return arr[0];
-            default:
-                return null;
+            return annotation;
         }
+        if (v.TryGetValue(out ArrayOf<ExtensionObject> extensions))
+        {
+            foreach (ExtensionObject item in extensions)
+            {
+                if (item.TryGetValue(out Annotation? match) && match is not null)
+                {
+                    return match;
+                }
+            }
+        }
+        return null;
     }
 
     private async Task<List<HistoryRow>> ReadLoopAsync(
@@ -355,103 +338,109 @@ internal sealed class HistoryReader
         CancellationToken ct)
     {
         var rows = new List<HistoryRow>();
-        ByteString continuationPoint = default;
-
-        try
+        await foreach (HistoryReadResult result in ReadPagesAsync(
+            nodeId, historyReadDetails, TimestampsToReturn.Both, ct).ConfigureAwait(false))
         {
-            while (true)
+            ArrayOf<DataValue> values = default;
+            if (result.HistoryData.TryGetValue(out HistoryModifiedData? modified) && modified is not null)
             {
-                ct.ThrowIfCancellationRequested();
-
-                var valueId = new HistoryReadValueId
-                {
-                    NodeId = nodeId,
-                    ContinuationPoint = continuationPoint
-                };
-                var nodesToRead = new HistoryReadValueId[] { valueId };
-
-                HistoryReadResponse response = await m_session.HistoryReadAsync(
-                    requestHeader: null,
-                    historyReadDetails: historyReadDetails,
-                    timestampsToReturn: TimestampsToReturn.Both,
-                    releaseContinuationPoints: false,
-                    nodesToRead: nodesToRead,
-                    ct: ct).ConfigureAwait(false);
-
-                if (response.Results.Count == 0)
-                {
-                    return rows;
-                }
-                HistoryReadResult result = response.Results[0];
-                if (StatusCode.IsBad(result.StatusCode))
-                {
-                    throw new ServiceResultException(
-                        result.StatusCode,
-                        $"HistoryRead returned {result.StatusCode}.");
-                }
-
-                if (result.HistoryData.TryGetValue(out HistoryData? hd) && hd is not null)
-                {
-                    foreach (DataValue dv in hd.DataValues)
-                    {
-                        rows.Add(new HistoryRow(
-                            (DateTime)dv.SourceTimestamp,
-                            (DateTime)dv.ServerTimestamp,
-                            dv.WrappedValue,
-                            dv.StatusCode));
-                    }
-                }
-                else if (result.HistoryData.TryGetValue(out HistoryModifiedData? hmd) && hmd is not null)
-                {
-                    foreach (DataValue dv in hmd.DataValues)
-                    {
-                        rows.Add(new HistoryRow(
-                            (DateTime)dv.SourceTimestamp,
-                            (DateTime)dv.ServerTimestamp,
-                            dv.WrappedValue,
-                            dv.StatusCode));
-                    }
-                }
-
-                ByteString cp = result.ContinuationPoint;
-                if (cp.IsNull || cp.Length == 0)
-                {
-                    return rows;
-                }
-                continuationPoint = cp;
+                values = modified.DataValues;
+            }
+            else if (result.HistoryData.TryGetValue(out HistoryData? data) && data is not null)
+            {
+                values = data.DataValues;
+            }
+            foreach (DataValue value in values)
+            {
+                rows.Add(new HistoryRow(
+                    (DateTime)value.SourceTimestamp, (DateTime)value.ServerTimestamp,
+                    value.WrappedValue, value.StatusCode));
             }
         }
-        catch (OperationCanceledException)
+        return rows;
+    }
+
+    private async IAsyncEnumerable<HistoryReadResult> ReadPagesAsync(
+        NodeId nodeId,
+        ExtensionObject historyReadDetails,
+        TimestampsToReturn timestamps,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var outstanding = new List<ByteString>();
+        ByteString continuationPoint = default;
+        try
         {
-            await TryReleaseAsync(nodeId, historyReadDetails, continuationPoint).ConfigureAwait(false);
-            throw;
+            do
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                HistoryReadResponse response = await m_session.HistoryReadAsync(
+                    null, historyReadDetails, timestamps, false,
+                    [new HistoryReadValueId { NodeId = nodeId, ContinuationPoint = continuationPoint }],
+                    cancellationToken).ConfigureAwait(false);
+                bool good = response.ResponseHeader is not null &&
+                    StatusCode.IsGood(response.ResponseHeader.ServiceResult) && response.Results.Count == 1 &&
+                    StatusCode.IsGood(response.Results[0].StatusCode);
+                if (good)
+                {
+                    outstanding.Clear();
+                }
+                foreach (HistoryReadResult result in response.Results)
+                {
+                    if (!result.ContinuationPoint.IsNull && result.ContinuationPoint.Length != 0 &&
+                        !outstanding.Contains(result.ContinuationPoint))
+                    {
+                        outstanding.Add(result.ContinuationPoint);
+                    }
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!good)
+                {
+                    StatusCode status = response.ResponseHeader is not null &&
+                        StatusCode.IsBad(response.ResponseHeader.ServiceResult)
+                        ? response.ResponseHeader.ServiceResult
+                        : response.Results.Count == 1
+                            ? response.Results[0].StatusCode
+                            : StatusCodes.BadUnexpectedError;
+                    throw new ServiceResultException(
+                        StatusCode.IsBad(status) ? status : StatusCodes.BadUnexpectedError);
+                }
+                HistoryReadResult page = response.Results[0];
+                continuationPoint = page.ContinuationPoint;
+                yield return page;
+            }
+            while (!continuationPoint.IsNull && continuationPoint.Length != 0);
+        }
+        finally
+        {
+            await TryReleaseAsync(nodeId, historyReadDetails, timestamps, outstanding).ConfigureAwait(false);
         }
     }
 
     private async Task TryReleaseAsync(
         NodeId nodeId,
         ExtensionObject historyReadDetails,
-        ByteString continuationPoint)
+        TimestampsToReturn timestamps,
+        List<ByteString> continuationPoints)
     {
-        if (continuationPoint.IsNull || continuationPoint.Length == 0)
+        if (continuationPoints.Count == 0)
         {
             return;
         }
         try
         {
-            var valueId = new HistoryReadValueId
+            using var cleanup = new CancellationTokenSource(m_cleanupTimeout);
+            var nodesToRead = new List<HistoryReadValueId>(continuationPoints.Count);
+            foreach (ByteString continuationPoint in continuationPoints)
             {
-                NodeId = nodeId,
-                ContinuationPoint = continuationPoint
-            };
-            var nodesToRead = new HistoryReadValueId[] { valueId };
+                nodesToRead.Add(new HistoryReadValueId { NodeId = nodeId, ContinuationPoint = continuationPoint });
+            }
             await m_session.HistoryReadAsync(
                 requestHeader: null,
                 historyReadDetails: historyReadDetails,
-                timestampsToReturn: TimestampsToReturn.Both,
+                timestampsToReturn: timestamps,
                 releaseContinuationPoints: true,
-                nodesToRead: nodesToRead,
-                ct: CancellationToken.None).ConfigureAwait(false);
+                nodesToRead: [.. nodesToRead],
+                ct: cleanup.Token).AsTask().WaitAsync(cleanup.Token).ConfigureAwait(false);
         }
         catch (Exception)
         {

@@ -52,11 +52,20 @@ namespace UaLens.Views;
 /// </summary>
 internal sealed class ConnectionController
 {
-    public ConnectionController(MainWindow window, MainViewModel viewModel, ILogger log)
+    public ConnectionController(
+        MainWindow window,
+        MainViewModel viewModel,
+        ILogger log,
+        IStorageProvider? storageProvider = null,
+        Func<ApplicationConfiguration, CertificateStoreOperations>? certificateOperations = null)
     {
         m_window = window ?? throw new ArgumentNullException(nameof(window));
         m_vm = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         m_log = log ?? throw new ArgumentNullException(nameof(log));
+        m_storageProvider = storageProvider;
+        m_certificateStores = certificateOperations
+            ?? (configuration => new CertificateStoreOperations(
+                new CertificateStoreService(configuration, viewModel.Telemetry)));
     }
 
     public void Attach()
@@ -83,7 +92,7 @@ internal sealed class ConnectionController
     {
         try
         {
-            IReadOnlyList<IStorageFile> files = await m_window.StorageProvider.OpenFilePickerAsync(
+            IReadOnlyList<IStorageFile> files = await (m_storageProvider ?? m_window.StorageProvider).OpenFilePickerAsync(
                 new FilePickerOpenOptions
                 {
                     Title = "Open UaLens workspace",
@@ -168,9 +177,10 @@ internal sealed class ConnectionController
         }
         try
         {
-            SessionPublishingSettings current = m_vm.PublishingPipeline ?? new SessionPublishingSettings(
-                Math.Max(1, session.MinPublishRequestCount),
-                Math.Max(Math.Max(1, session.MinPublishRequestCount), session.MaxPublishRequestCount));
+            SessionPublishingSettings current = m_vm.PublishingPipeline ??
+                new SessionPublishingSettings(
+                    Math.Max(1, session.MinPublishRequestCount),
+                    Math.Max(Math.Max(1, session.MinPublishRequestCount), session.MaxPublishRequestCount));
             var dialog = new SessionPublishingSettingsDialog(current);
             SessionPublishingSettings? result =
                 await dialog.ShowDialog<SessionPublishingSettings?>(m_window).ConfigureAwait(true);
@@ -398,8 +408,9 @@ internal sealed class ConnectionController
             ConnectionProfile? profile = m_vm.RestoredConnectionProfile ?? m_vm.Connection.Profile;
             ConnectionSetupSelection initial = m_vm.RestoredConnectionProfile is { } restored
                 ? new ConnectionSetupSelection(restored.EndpointUrl, restored.ReverseConnection, restored.ApplicationIdentityId)
-                : m_setup ?? new ConnectionSetupSelection(
-                    profile?.EndpointUrl ?? m_vm.EndpointUrl, profile?.ReverseConnection, profile?.ApplicationIdentityId);
+                : m_setup ??
+                    new ConnectionSetupSelection(
+                        profile?.EndpointUrl ?? m_vm.EndpointUrl, profile?.ReverseConnection, profile?.ApplicationIdentityId);
             var dialog = new ConnectionSetupDialog(
                 m_vm.Connection, initial, pinned: m_vm.RestoredConnectionProfile is not null);
             ConnectionSetupSelection? selected = await dialog.PromptAsync(m_window).ConfigureAwait(true);
@@ -430,8 +441,8 @@ internal sealed class ConnectionController
         try
         {
             ApplicationConfiguration cfg = await m_vm.Connection.GetConfigAsync().ConfigureAwait(true);
-            var dlg = new CertificateStoreDialog(cfg, m_vm.Telemetry);
-            await dlg.ShowDialog(m_window).ConfigureAwait(true);
+            var dlg = new CertificateStoreDialog(m_certificateStores(cfg));
+            await dlg.ShowAsync(m_window).ConfigureAwait(true);
         }
         catch (Exception error) when (error is ServiceResultException or InvalidOperationException
             or System.IO.IOException or UnauthorizedAccessException)
@@ -445,13 +456,14 @@ internal sealed class ConnectionController
     {
         try
         {
-            IStorageFile? file = await m_window.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-            {
-                Title = "Save UaLens workspace",
-                DefaultExtension = "subex",
-                SuggestedFileName = "workspace.subex",
-                FileTypeChoices = [new FilePickerFileType("UaLens workspace") { Patterns = s_sessionPatterns }]
-            }).ConfigureAwait(true);
+            IStorageFile? file = await (m_storageProvider ?? m_window.StorageProvider).SaveFilePickerAsync(
+                new FilePickerSaveOptions
+                {
+                    Title = "Save UaLens workspace",
+                    DefaultExtension = "subex",
+                    SuggestedFileName = "workspace.subex",
+                    FileTypeChoices = [new FilePickerFileType("UaLens workspace") { Patterns = s_sessionPatterns }]
+                }).ConfigureAwait(true);
             if (file is null)
             {
                 return;
@@ -489,4 +501,6 @@ internal sealed class ConnectionController
     private readonly MainWindow m_window;
     private readonly MainViewModel m_vm;
     private readonly ILogger m_log;
+    private readonly IStorageProvider? m_storageProvider;
+    private readonly Func<ApplicationConfiguration, CertificateStoreOperations> m_certificateStores;
 }

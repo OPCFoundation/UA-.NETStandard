@@ -109,7 +109,7 @@ internal sealed class HistoryUpdateOutcome
     }
 
     private static string FormatStatus(StatusCode s) =>
-        StatusCode.LookupSymbolicId(s.Code) is { Length: > 0 } sym
+        s.SymbolicId is { Length: > 0 } sym
             ? sym
             : $"0x{s.Code:X8}";
 }

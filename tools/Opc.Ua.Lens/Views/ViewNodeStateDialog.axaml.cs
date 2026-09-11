@@ -103,7 +103,7 @@ internal sealed partial class ViewNodeStateDialog : Window
         (Attributes.IsAbstract, "IsAbstract"),
         (Attributes.Symmetric, "Symmetric"),
         (Attributes.InverseName, "InverseName"),
-        (Attributes.DataTypeDefinition, "DataTypeDefinition"),
+        (Attributes.DataTypeDefinition, "DataTypeDefinition")
     ];
 
     public ViewNodeStateDialog(BrowserViewModel browser, ConnectionService connection, NodeId? nodeId)
@@ -183,21 +183,21 @@ internal sealed partial class ViewNodeStateDialog : Window
 
         NodeClass nc = NodeClass.Unspecified;
         int ncIdx = IndexOf(Attributes.NodeClass);
-        if (ncIdx >= 0
-            && results.Length > ncIdx
-            && !StatusCode.IsBad(results[ncIdx].StatusCode)
-            && results[ncIdx].WrappedValue.TryGetValue(out int ncv))
+        if (ncIdx >= 0 &&
+            results.Length > ncIdx &&
+            !StatusCode.IsBad(results[ncIdx].StatusCode) &&
+            results[ncIdx].WrappedValue.TryGetValue(out int ncv))
         {
             nc = (NodeClass)ncv;
         }
 
         string displayName = string.Empty;
         int dnIdx = IndexOf(Attributes.DisplayName);
-        if (dnIdx >= 0
-            && results.Length > dnIdx
-            && !StatusCode.IsBad(results[dnIdx].StatusCode)
-            && results[dnIdx].WrappedValue.TryGetValue(out LocalizedText dn)
-            && !dn.IsNull)
+        if (dnIdx >= 0 &&
+            results.Length > dnIdx &&
+            !StatusCode.IsBad(results[dnIdx].StatusCode) &&
+            results[dnIdx].WrappedValue.TryGetValue(out LocalizedText dn) &&
+            !dn.IsNull)
         {
             displayName = dn.Text ?? string.Empty;
         }
@@ -365,9 +365,9 @@ internal sealed partial class ViewNodeStateDialog : Window
                     .ConfigureAwait(true);
                 for (int i = 0; i < refTypeIds.Count; i++)
                 {
-                    if (i < nameResp.Results.Count
-                        && !StatusCode.IsBad(nameResp.Results[i].StatusCode)
-                        && nameResp.Results[i].WrappedValue.TryGetValue(out QualifiedName qn))
+                    if (i < nameResp.Results.Count &&
+                        !StatusCode.IsBad(nameResp.Results[i].StatusCode) &&
+                        nameResp.Results[i].WrappedValue.TryGetValue(out QualifiedName qn))
                     {
                         refTypeNames[refTypeIds[i]] = qn.Name ?? refTypeIds[i].ToString() ?? string.Empty;
                     }
@@ -444,7 +444,7 @@ internal sealed partial class ViewNodeStateDialog : Window
             (Attributes.DisplayName, "DisplayName"),
             (Attributes.Description, "Description"),
             (Attributes.WriteMask, "WriteMask"),
-            (Attributes.UserWriteMask, "UserWriteMask"),
+            (Attributes.UserWriteMask, "UserWriteMask")
         };
         switch (nc)
         {
@@ -546,7 +546,7 @@ internal sealed partial class ViewNodeStateDialog : Window
     /// </summary>
     private static string StatusCodeName(StatusCode sc)
     {
-        string? sym = StatusCode.LookupSymbolicId(sc.Code);
+        string? sym = sc.SymbolicId;
         return string.IsNullOrEmpty(sym)
             ? sc.ToString()
             : sym;

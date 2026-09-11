@@ -120,7 +120,7 @@ internal sealed partial class HistoryRow : ObservableObject
         DisplayTimestamp = sourceTimestamp
             .ToUniversalTime()
             .ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
-        DisplayStatus = StatusCode.LookupSymbolicId(statusCode.Code) is { Length: > 0 } sym
+        DisplayStatus = statusCode.SymbolicId is { Length: > 0 } sym
             ? sym
             : $"0x{statusCode.Code:X8}";
         (IsNumeric, Numeric) = TryGetDouble(value);
@@ -132,25 +132,34 @@ internal sealed partial class HistoryRow : ObservableObject
         {
             return string.Empty;
         }
-        object? boxed = v.Value;
-        return boxed switch
-        {
-            null => string.Empty,
-            string s => s,
-            IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
-            _ => boxed.ToString() ?? string.Empty
-        };
+        return v.ToString(null, CultureInfo.InvariantCulture);
     }
 
     private static (bool, double) TryGetDouble(Variant v)
     {
-        if (v.IsNull)
+        if (v.IsNull || !v.TypeInfo.IsScalar)
         {
             return (false, double.NaN);
         }
         try
         {
-            double d = Convert.ToDouble(v.Value, CultureInfo.InvariantCulture);
+            double d;
+            if (v.TryGetValue(out int integer))
+            {
+                d = integer;
+            }
+            else if (v.TryGetValue(out string? text))
+            {
+                if (!double.TryParse(text, NumberStyles.Float | NumberStyles.AllowThousands,
+                    CultureInfo.InvariantCulture, out d))
+                {
+                    return (false, double.NaN);
+                }
+            }
+            else if (!v.ConvertToDouble().TryGetValue(out d))
+            {
+                return (false, double.NaN);
+            }
             return double.IsFinite(d) ? (true, d) : (false, double.NaN);
         }
         catch (Exception ex) when (ex is InvalidCastException or FormatException or OverflowException)

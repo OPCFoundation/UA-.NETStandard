@@ -66,6 +66,8 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     private static readonly Dictionary<PluginKind, int> s_perKindCounter = new();
 
     private readonly PluginHost m_host;
+    private readonly VariablePoolBrowser m_poolBrowser;
+    private readonly List<Task<VariablePoolDiscovery>> m_browseOperations = new();
     private readonly ILogger m_log;
     private readonly BenchThroughputCounters m_counters = new();
     private readonly ConcurrentQueue<ChartSample> m_chartQueue = new();
@@ -213,9 +215,10 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         }
     }
 
-    public SubscriptionBenchPlugin(PluginHost host)
+    public SubscriptionBenchPlugin(PluginHost host, VariablePoolBrowser? poolBrowser = null)
     {
         m_host = host ?? throw new ArgumentNullException(nameof(host));
+        m_poolBrowser = poolBrowser ?? new VariablePoolBrowser(host.Telemetry);
         m_log = host.Log;
         int n;
         lock (s_counterLock)
@@ -350,7 +353,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
             Status = "Pick cancelled — pool unchanged.";
             return;
         }
-        AppendPool(picked);
+        AppendPool([.. picked]);
     }
 
     [RelayCommand]
@@ -379,11 +382,15 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         }
 
         Status = "Walking subtree…";
-        var collected = new List<(NodeId NodeId, string DisplayName)>();
+        VariablePoolDiscovery discovery;
         try
         {
-            await WalkVariablesAsync(session, root.Value, collected, CancellationToken.None)
-                .ConfigureAwait(true);
+            discovery = await BrowsePoolAsync(session, root.Value).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "Subtree walk cancelled — pool unchanged.";
+            return;
         }
         catch (Exception ex)
         {
@@ -391,85 +398,16 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
             SubscriptionBenchPluginLog.SubtreeWalkFailed(m_log, ex);
             return;
         }
-        if (collected.Count == 0)
+        if (discovery.Variables.Count == 0 && discovery.IncompleteReason is null)
         {
             Status = "Subtree contains no Variable nodes.";
             return;
         }
-        AppendPool(collected);
+        AppendPool(discovery.Variables);
+        ReportIncomplete(discovery);
     }
 
-    private static async Task WalkVariablesAsync(
-        ManagedSession session,
-        NodeId root,
-        List<(NodeId NodeId, string DisplayName)> sink,
-        CancellationToken ct)
-    {
-        const int maxDepth = 16;
-        var queue = new Queue<(NodeId Node, string Path, int Depth)>();
-        var seen = new HashSet<NodeId> { root };
-        queue.Enqueue((root, string.Empty, 0));
-
-        while (queue.Count > 0)
-        {
-            ct.ThrowIfCancellationRequested();
-            (NodeId node, string parentPath, int depth) = queue.Dequeue();
-            if (depth > maxDepth)
-            {
-                continue;
-            }
-
-            ArrayOf<BrowseDescription> browse = new BrowseDescription[]
-            {
-                new BrowseDescription
-                {
-                    NodeId = node,
-                    BrowseDirection = BrowseDirection.Forward,
-                    ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
-                    IncludeSubtypes = true,
-                    NodeClassMask = 0,
-                    ResultMask = (uint)BrowseResultMask.All
-                }
-            };
-            BrowseResponse br;
-            try
-            {
-                br = await session.BrowseAsync(null, null, 0, browse, ct).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                continue;
-            }
-            if (br.Results.Count == 0 || StatusCode.IsBad(br.Results[0].StatusCode))
-            {
-                continue;
-            }
-            var refs = new List<ReferenceDescription>();
-            foreach (ReferenceDescription r in br.Results[0].References)
-            {
-                refs.Add(r);
-            }
-            foreach (ReferenceDescription r in refs)
-            {
-                NodeId childId = ExpandedNodeId.ToNodeId(r.NodeId, session.NamespaceUris);
-                if (childId.IsNull || !seen.Add(childId))
-                {
-                    continue;
-                }
-                string display = r.DisplayName.IsNull
-                    ? r.BrowseName.Name ?? childId.ToString()
-                    : r.DisplayName.Text ?? childId.ToString();
-                string path = parentPath + "/" + display;
-                queue.Enqueue((childId, path, depth + 1));
-                if (r.NodeClass == NodeClass.Variable)
-                {
-                    sink.Add((childId, path));
-                }
-            }
-        }
-    }
-
-    private void AppendPool(IReadOnlyList<(NodeId NodeId, string DisplayName)> additions)
+    private void AppendPool(ArrayOf<(NodeId NodeId, string DisplayName)> additions)
     {
         int added = 0;
         lock (m_poolLock)
@@ -514,11 +452,15 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
             Status = "Connect to a server before seeding the pool.";
             return;
         }
-        var collected = new List<(NodeId NodeId, string DisplayName)>();
+        VariablePoolDiscovery discovery;
         try
         {
-            await WalkVariablesAsync(session, nodeId, collected, CancellationToken.None)
-                .ConfigureAwait(true);
+            discovery = await BrowsePoolAsync(session, nodeId).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "Subtree walk cancelled — pool unchanged.";
+            return;
         }
         catch (Exception ex)
         {
@@ -526,17 +468,49 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
             SubscriptionBenchPluginLog.SubtreeWalkFailed(m_log, ex);
             return;
         }
-        if (collected.Count == 0)
+        if (discovery.Variables.Count == 0 && discovery.IncompleteReason is null)
         {
             Status = "No variables found beneath '" + name + "'.";
             return;
         }
-        var prefixed = new List<(NodeId NodeId, string DisplayName)>(collected.Count);
-        foreach ((NodeId childId, string childPath) in collected)
+        var prefixed = new List<(NodeId NodeId, string DisplayName)>(discovery.Variables.Count);
+        foreach ((NodeId childId, string childPath) in discovery.Variables)
         {
             prefixed.Add((childId, name + childPath));
         }
-        AppendPool(prefixed);
+        AppendPool([.. prefixed]);
+        ReportIncomplete(discovery);
+    }
+
+    private void ReportIncomplete(VariablePoolDiscovery discovery)
+    {
+        if (discovery.IncompleteReason is not null)
+        {
+            Status = $"Incomplete discovery: {discovery.IncompleteReason} " +
+                $"Collected {discovery.Variables.Count} variable(s); the pool is partial.";
+        }
+    }
+
+    private async Task<VariablePoolDiscovery> BrowsePoolAsync(ManagedSession session, NodeId root)
+    {
+        if (m_sessionCts is not { } source || !ReferenceEquals(session, m_host.Connection.Session))
+        {
+            throw new OperationCanceledException("The session changed before subtree discovery started.");
+        }
+        CancellationToken cancellationToken = source.Token;
+        cancellationToken.ThrowIfCancellationRequested();
+        Task<VariablePoolDiscovery> operation = m_poolBrowser.BrowseAsync(session, root, cancellationToken);
+        m_browseOperations.Add(operation);
+        try
+        {
+            VariablePoolDiscovery result = await operation.ConfigureAwait(true);
+            cancellationToken.ThrowIfCancellationRequested();
+            return result;
+        }
+        finally
+        {
+            m_browseOperations.Remove(operation);
+        }
     }
 
     [RelayCommand]
@@ -818,6 +792,13 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         try
         {
             await loop.ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        try
+        {
+            await Task.WhenAll(m_browseOperations.ToArray()).ConfigureAwait(true);
         }
         catch (OperationCanceledException)
         {

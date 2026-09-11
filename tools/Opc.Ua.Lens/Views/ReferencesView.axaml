@@ -47,7 +47,7 @@
               <Grid ColumnDefinitions="20,140,*,80" Margin="8,1,8,1">
                 <TextBlock Grid.Column="0"
                            Text="{CompiledBinding Direction}"
-                           Foreground="{DynamicResource AccentGreen}"
+                           Foreground="{DynamicResource InfoText}"
                            FontFamily="Cascadia Mono, Consolas, monospace"
                            FontSize="11" />
                 <TextBlock Grid.Column="1"
@@ -80,4 +80,3 @@
     </Grid>
   </Border>
 </UserControl>
-

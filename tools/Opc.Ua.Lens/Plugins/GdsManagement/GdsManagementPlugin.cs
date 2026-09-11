@@ -92,8 +92,10 @@ internal sealed partial class GdsCertGroupVm : ObservableObject
     [ObservableProperty]
     private string m_displayName = string.Empty;
 
-    /// <summary>Trust-list / issuers / rejected entries for this group,
-    /// populated by <see cref="GdsManagementPlugin.RefreshCertGroupsAsync"/>.</summary>
+    /// <summary>
+    /// Trust-list / issuers / rejected entries for this group,
+    /// populated by <see cref="GdsManagementPlugin.RefreshCertGroupsAsync"/>.
+    /// </summary>
     public ObservableCollection<GdsAppCertItem> Trusted { get; } = new();
     public ObservableCollection<GdsAppCertItem> Issuers { get; } = new();
 }
@@ -106,12 +108,15 @@ internal sealed partial class GdsCertGroupVm : ObservableObject
 /// Cert / Cert-Groups commands targeting the selected app.  Auto-numbered
 /// title per kind ("GDS Management 1"…).
 /// </summary>
-internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
+internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin, IGdsCertificateDelivery
 {
     private static int s_nextNumber;
 
     private readonly PluginHost m_host;
     private readonly ILogger m_log;
+    private readonly IGdsManagementClient? m_operationsClient;
+    private readonly IGdsCertificateIssuance m_issuance;
+    private readonly IGdsCertificateDelivery m_delivery;
     private GlobalDiscoveryServerClient? m_client;
     private GdsManagementView? m_view;
     private EndpointDescription? m_boundEndpoint;
@@ -122,9 +127,11 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
     [ObservableProperty]
     private bool m_isRenaming;
 
-    /// <summary>Endpoint URL of the Global Discovery Server to connect to.
+    /// <summary>
+    /// Endpoint URL of the Global Discovery Server to connect to.
     /// Defaults to the host's current endpoint so the common case is
-    /// one-click.</summary>
+    /// one-click.
+    /// </summary>
     [ObservableProperty]
     private string m_endpointUrl;
 
@@ -172,21 +179,34 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
     [ObservableProperty]
     private string m_status = "● Disconnected";
 
-    /// <summary>All apps reported by the most recent
-    /// <c>QueryApplications</c> call.  Unfiltered.</summary>
+    /// <summary>
+    /// All apps reported by the most recent
+    /// <c>QueryApplications</c> call. Unfiltered.
+    /// </summary>
     public ObservableCollection<RegisteredApp> AllApps { get; } = new();
 
-    /// <summary>Apps after applying <see cref="FilterText"/> — what the
-    /// ListBox actually binds to.</summary>
+    /// <summary>
+    /// Apps after applying <see cref="FilterText"/> — what the
+    /// ListBox actually binds to.
+    /// </summary>
     public ObservableCollection<RegisteredApp> FilteredApps { get; } = new();
 
-    /// <summary>Certificate groups attached to the selected app.</summary>
+    /// <summary>
+    /// Certificate groups attached to the selected app.
+    /// </summary>
     public ObservableCollection<GdsCertGroupVm> CertGroups { get; } = new();
 
-    public GdsManagementPlugin(PluginHost host)
+    public GdsManagementPlugin(
+        PluginHost host,
+        IGdsCertificateIssuance? issuance = null,
+        IGdsManagementClient? client = null,
+        IGdsCertificateDelivery? delivery = null)
     {
         m_host = host ?? throw new ArgumentNullException(nameof(host));
         m_log = host.Log;
+        m_operationsClient = client;
+        m_issuance = issuance ?? new GdsCertificateIssuance();
+        m_delivery = delivery ?? this;
         int n = Interlocked.Increment(ref s_nextNumber);
         m_title = $"GDS Management {n}";
         m_endpointUrl = host.Workspace.EndpointUrl;
@@ -221,8 +241,6 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         OnPropertyChanged(nameof(HasSecondarySession));
         OnPropertyChanged(nameof(ConnectButtonText));
     }
-
-    // ----- IPlugin members -----
 
     public PluginKind Kind => PluginKind.GdsManagement;
 
@@ -278,8 +296,6 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             m_client = null;
         }
     }
-
-    // ----- Commands -----
 
     [RelayCommand]
     private async Task UseDifferentEndpointAsync()
@@ -386,7 +402,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             SetSecondaryConnected(true);
             ConnectionStatus = "● Connected";
             m_log.GdsMgmtConnected(Title, pick.Endpoint.EndpointUrl);
-            await RefreshAsync().ConfigureAwait(true);
+            await RefreshAsync(ct).ConfigureAwait(true);
             return true;
         }
         catch (Exception ex)
@@ -504,7 +520,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
     }
 
     [RelayCommand]
-    private async Task RefreshAsync()
+    private async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
         if (IsBusy)
         {
@@ -514,31 +530,12 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         IsBusy = true;
         try
         {
-            GlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IGdsManagementClient? client = await GetOperationsClientAsync(cancellationToken).ConfigureAwait(true);
             if (client is null)
             {
                 return;
             }
-            (ArrayOf<ApplicationDescription> apps, _, _) = await client.QueryApplicationsAsync(
-                0,
-                0,
-                string.Empty,
-                string.Empty,
-                0,
-                string.Empty,
-                Array.Empty<string>(),
-                CancellationToken.None).ConfigureAwait(true);
-
-            AllApps.Clear();
-            if (!apps.IsNull)
-            {
-                foreach (ApplicationDescription desc in apps)
-                {
-                    AllApps.Add(RegisteredApp.FromDescription(desc));
-                }
-            }
-            await ResolveAllRecordsAsync().ConfigureAwait(true);
-            ApplyFilter();
+            await RefreshCoreAsync(client, cancellationToken).ConfigureAwait(true);
             SetResult($"Refreshed: {AllApps.Count} applications.");
             m_log.GdsMgmtRefreshOk(Title, AllApps.Count);
         }
@@ -551,6 +548,45 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         {
             IsBusy = false;
             UpdateStatus();
+        }
+    }
+
+    private async Task<IGdsManagementClient?> GetOperationsClientAsync(CancellationToken cancellationToken)
+    {
+        if (m_operationsClient is not null)
+        {
+            return m_operationsClient;
+        }
+        GlobalDiscoveryServerClient? client = await EnsureSessionAsync(cancellationToken).ConfigureAwait(true);
+        return client is null ? null : new GdsManagementClientAdapter(client);
+    }
+
+    private async Task RefreshCoreAsync(IGdsManagementClient client, CancellationToken cancellationToken)
+    {
+        ArrayOf<ApplicationDescription> apps = await client.QueryApplicationsAsync(cancellationToken)
+            .ConfigureAwait(true);
+        AllApps.Clear();
+        foreach (ApplicationDescription desc in apps)
+        {
+            AllApps.Add(RegisteredApp.FromDescription(desc, client.EndpointUrl));
+        }
+        await ResolveAllRecordsAsync(client, cancellationToken).ConfigureAwait(true);
+        ApplyFilter();
+    }
+
+    private async Task RefreshAfterMutationAsync(
+        IGdsManagementClient client, string success, CancellationToken cancellationToken)
+    {
+        SetResult(success);
+        try
+        {
+            await RefreshCoreAsync(client, cancellationToken).ConfigureAwait(true);
+            SetResult($"{success} List refreshed.");
+        }
+        catch (Exception ex)
+        {
+            SetResult($"{success} Refresh failed: {ex.Message}. Retry Refresh, not the completed operation.");
+            m_log.GdsMgmtRefreshFailed(ex, Title);
         }
     }
 
@@ -586,21 +622,36 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             SetResult("Register cancelled.");
             return;
         }
+        await RegisterAsync(context, CancellationToken.None).ConfigureAwait(true);
+    }
+
+    internal async Task RegisterAsync(
+        RegisteredApplicationContext context, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        if (IsBusy)
+        {
+            return;
+        }
         IsBusy = true;
         try
         {
-            GlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IGdsManagementClient? client = await GetOperationsClientAsync(cancellationToken).ConfigureAwait(true);
             if (client is null)
             {
                 return;
             }
             ApplicationRecordDataType record = BuildApplicationRecord(context);
             NodeId id = await client.RegisterApplicationAsync(
-                record, CancellationToken.None).ConfigureAwait(true);
-            SetResult($"Registered {record.ApplicationUri} → {id}.");
+                record, cancellationToken).ConfigureAwait(true);
             m_log.GdsMgmtRegistered(Title, record.ApplicationUri, id);
-            m_host.Workspace.CurrentRegisteredApp = context with { ApplicationId = id };
-            await RefreshAsync().ConfigureAwait(true);
+            m_host.Workspace.CurrentRegisteredApp = context with
+            {
+                ApplicationId = id,
+                GdsEndpointUrl = client.EndpointUrl
+            };
+            await RefreshAfterMutationAsync(
+                client, $"Registered {record.ApplicationUri} → {id}.", cancellationToken).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -684,19 +735,29 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
                 return;
             }
         }
+        await UnregisterAsync(sel, CancellationToken.None).ConfigureAwait(true);
+    }
+
+    internal async Task UnregisterAsync(RegisteredApp application, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(application);
+        if (IsBusy)
+        {
+            return;
+        }
         IsBusy = true;
         try
         {
-            GlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IGdsManagementClient? client = await GetOperationsClientAsync(cancellationToken).ConfigureAwait(true);
             if (client is null)
             {
                 return;
             }
             await client.UnregisterApplicationAsync(
-                sel.ApplicationId, CancellationToken.None).ConfigureAwait(true);
-            SetResult($"Unregistered {sel.ApplicationName}.");
-            m_log.GdsMgmtUnregistered(Title, sel.ApplicationId);
-            await RefreshAsync().ConfigureAwait(true);
+                application.ApplicationId, cancellationToken).ConfigureAwait(true);
+            m_log.GdsMgmtUnregistered(Title, application.ApplicationId);
+            await RefreshAfterMutationAsync(
+                client, $"Unregistered {application.ApplicationName}.", cancellationToken).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -738,9 +799,8 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
     ///   registered push endpoint, <c>UpdateCertificate</c> + <c>ApplyChanges</c>,
     ///   dispose.</description></item>
     /// </list>
-    /// When <see cref="MainViewModel.CurrentRegisteredApp"/> is null the
-    /// flow falls back to the original "log only" behaviour with a
-    /// status message telling the user to register the app first.
+    /// The selected application and registration must belong to the same GDS.
+    /// Validation runs before connecting, issuing or delivering certificate material.
     /// </summary>
     private async Task IssueAndDeliverAsync(NodeId certificateTypeId, bool https)
     {
@@ -762,65 +822,25 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         IsBusy = true;
         try
         {
-            GlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            string endpoint = m_operationsClient?.EndpointUrl
+                ?? m_boundEndpoint?.EndpointUrl
+                ?? EndpointUrl;
+            GdsIssuanceTarget target = GdsIssuanceTarget.Create(
+                sel, m_host.Workspace.CurrentRegisteredApp, endpoint, certificateTypeId, https);
+            IGdsManagementClient? client = await GetOperationsClientAsync(CancellationToken.None).ConfigureAwait(true);
             if (client is null)
             {
                 return;
             }
-            // Discover cert groups for the application; if none are
-            // reported, fall back to the default application group (the
-            // server may still accept a key-pair request against null).
-            ArrayOf<NodeId> groups = await client.GetCertificateGroupsAsync(
-                sel.ApplicationId, CancellationToken.None).ConfigureAwait(true);
-            NodeId groupId = NodeId.Null;
-            if (!groups.IsNull && groups.Count > 0)
-            {
-                groupId = groups[0];
-            }
-            RegisteredApplicationContext? ctx = m_host.Workspace.CurrentRegisteredApp;
-            string subject = !string.IsNullOrWhiteSpace(ctx?.CertificateSubjectName)
-                ? ctx!.CertificateSubjectName!
-                : "CN=" + sel.ApplicationName;
-            ArrayOf<string> domainNames = BuildDomainNames(ctx);
-            const string privateKeyFormat = "PFX";
-            NodeId requestId = await client.StartNewKeyPairRequestAsync(
-                sel.ApplicationId,
-                groupId,
-                certificateTypeId,
-                subject,
-                domainNames,
-                privateKeyFormat,
-                Array.Empty<char>(),
-                CancellationToken.None).ConfigureAwait(true);
-            (ByteString publicKey, ByteString privateKey, ArrayOf<ByteString> issuers) =
-                await PollFinishRequestAsync(sel.ApplicationId, requestId, CancellationToken.None)
-                    .ConfigureAwait(true);
-            string summary = SummariseCert(publicKey);
-            int issuerCount = issuers.IsNull ? 0 : issuers.Count;
+            (GdsIssuedCertificate certificate, string deliveryDetail) = await m_issuance.IssueAndDeliverAsync(
+                target, client, m_delivery, CancellationToken.None).ConfigureAwait(true);
+            string summary = SummariseCert(certificate.PublicKey);
+            int issuerCount = certificate.Issuers.Count;
             string label = https ? "HTTPS cert" : "cert";
-
-            if (ctx is null)
-            {
-                SetResult(
-                    $"No registered application context — issued {label} for {sel.ApplicationName}: {summary} " +
-                    $"(+{issuerCount} issuer cert(s)) but cannot deliver. Register the app first.");
-                m_log.GdsMgmtIssuedNoContext(Title, label, sel.ApplicationName, requestId);
-                return;
-            }
-
-            string deliveryDetail = await DeliverIssuedCertificateAsync(
-                ctx,
-                certificateTypeId,
-                https,
-                publicKey,
-                privateKey,
-                privateKeyFormat,
-                issuers,
-                CancellationToken.None).ConfigureAwait(true);
             SetResult(
-                $"Issued {label} for {sel.ApplicationName}: {summary} (+{issuerCount} issuer cert(s)). " +
+                $"Issued {label} for {target.ApplicationName}: {summary} (+{issuerCount} issuer cert(s)). " +
                 deliveryDetail);
-            m_log.GdsMgmtIssued(Title, label, sel.ApplicationName, requestId, deliveryDetail);
+            m_log.GdsMgmtIssued(Title, label, target.ApplicationName, certificate.RequestId, deliveryDetail);
         }
         catch (Exception ex)
         {
@@ -1012,21 +1032,14 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         return await client.ReadTrustListAsync(trustListId, 0, ct).ConfigureAwait(true);
     }
 
-    // ----- Helpers -----
-
     /// <summary>
     /// Resolves each <see cref="RegisteredApp"/> in <see cref="AllApps"/>
     /// against <c>FindApplication</c> to fill in the NodeId required for
     /// management operations.  Best-effort — failures are logged but do
     /// not abort the refresh.
     /// </summary>
-    private async Task ResolveAllRecordsAsync()
+    private async Task ResolveAllRecordsAsync(IGdsManagementClient client, CancellationToken cancellationToken)
     {
-        if (m_client is null)
-        {
-            return;
-        }
-
         var snapshot = AllApps.ToArray();
         for (int i = 0; i < snapshot.Length; i++)
         {
@@ -1038,22 +1051,22 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
 
             try
             {
-                ArrayOf<ApplicationRecordDataType> hits = await m_client.FindApplicationAsync(
-                    app.ApplicationUri, CancellationToken.None).ConfigureAwait(true);
+                ArrayOf<ApplicationRecordDataType> hits = await client.FindApplicationAsync(
+                    app.ApplicationUri, cancellationToken).ConfigureAwait(true);
                 if (hits.IsNull || hits.Count == 0)
                 {
                     continue;
                 }
 
                 ApplicationRecordDataType rec = hits[0];
-                RegisteredApp resolved = RegisteredApp.FromRecord(rec);
+                RegisteredApp resolved = RegisteredApp.FromRecord(rec, client.EndpointUrl);
                 int idx = AllApps.IndexOf(app);
                 if (idx >= 0)
                 {
                     AllApps[idx] = resolved;
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 m_log.GdsMgmtFindApplicationFailed(ex, Title, app.ApplicationUri);
             }
@@ -1214,30 +1227,15 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         return distinguished;
     }
 
-    /// <summary>
-    /// Polls <see cref="GlobalDiscoveryServerClient.FinishRequestAsync"/>
-    /// until the server delivers the signed certificate or the call
-    /// throws.  Uses a short backoff so the UI stays responsive while
-    /// the certificate authority signs the request.
-    /// </summary>
-    private async Task<(ByteString publicKey, ByteString privateKey, ArrayOf<ByteString> issuers)>
-        PollFinishRequestAsync(NodeId applicationId, NodeId requestId, CancellationToken ct)
+    Task<string> IGdsCertificateDelivery.DeliverAsync(
+        GdsIssuanceTarget target,
+        GdsIssuedCertificate certificate,
+        CancellationToken cancellationToken)
     {
-        if (m_client is null)
-        {
-            throw new InvalidOperationException("Client disconnected.");
-        }
-        for (int attempt = 0; attempt < 30; attempt++)
-        {
-            (ByteString publicKey, ByteString privateKey, ArrayOf<ByteString> issuers) =
-                await m_client.FinishRequestAsync(applicationId, requestId, ct).ConfigureAwait(true);
-            if (!publicKey.Memory.IsEmpty)
-            {
-                return (publicKey, privateKey, issuers);
-            }
-            await Task.Delay(TimeSpan.FromSeconds(1), ct).ConfigureAwait(true);
-        }
-        throw new TimeoutException("FinishRequest did not produce a certificate within 30 seconds.");
+        return DeliverIssuedCertificateAsync(
+            target.DeliveryContext, target.CertificateTypeId, target.Https,
+            certificate.PublicKey, certificate.PrivateKey, certificate.PrivateKeyFormat,
+            certificate.Issuers, cancellationToken);
     }
 
     /// <summary>
@@ -1740,24 +1738,6 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
                 }
             }
         }
-    }
-
-    /// <summary>
-    /// Builds the SAN <c>domainNames</c> array passed to
-    /// <c>StartNewKeyPairRequest</c>. Pulls from the registered context's
-    /// <see cref="RegisteredApplicationContext.Domains"/> (comma-separated
-    /// list) when present; otherwise returns an empty array and lets the
-    /// GDS infer defaults.
-    /// </summary>
-    private static ArrayOf<string> BuildDomainNames(RegisteredApplicationContext? ctx)
-    {
-        if (ctx is null || string.IsNullOrWhiteSpace(ctx.Domains))
-        {
-            return Array.Empty<string>();
-        }
-        string[] parts = ctx.Domains.Split(
-            ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        return parts;
     }
 
     /// <summary>

@@ -151,19 +151,44 @@ internal sealed class ShellPresenter
     {
         switch (gesture.ToUpperInvariant())
         {
-            case "F1": ShowHelp(); return true;
-            case "CTRL+E": InvokeMenu("MenuExport"); return true;
-            case "CTRL+SHIFT+E": InvokeMenu("MenuExportTab"); return true;
-            case "CTRL+O": InvokeMenu("MenuOpenWorkspace"); return true;
-            case "CTRL+S": InvokeMenu("MenuSaveWorkspace"); return true;
-            case "CTRL+K": InvokeMenu("MenuCertificates"); return true;
-            case "CTRL+Q": m_window.Close(); return true;
-            case "CTRL+T": InvokeMenu("MenuAddTool"); return true;
-            case "CTRL+B": ToggleAddressSpace(); return true;
-            case "CTRL+SHIFT+F": ToggleFilters(); return true;
-            case "CTRL+SHIFT+G": SetDiagnostics(!m_diagnosticsVisible); return true;
-            case "CTRL+L": SetLog(!m_logVisible); return true;
-            default: return false;
+            case "F1":
+                ShowHelp();
+                return true;
+            case "CTRL+E":
+                InvokeMenu("MenuExport");
+                return true;
+            case "CTRL+SHIFT+E":
+                InvokeMenu("MenuExportTab");
+                return true;
+            case "CTRL+O":
+                InvokeMenu("MenuOpenWorkspace");
+                return true;
+            case "CTRL+S":
+                InvokeMenu("MenuSaveWorkspace");
+                return true;
+            case "CTRL+K":
+                InvokeMenu("MenuCertificates");
+                return true;
+            case "CTRL+Q":
+                m_window.Close();
+                return true;
+            case "CTRL+T":
+                InvokeMenu("MenuAddTool");
+                return true;
+            case "CTRL+B":
+                ToggleAddressSpace();
+                return true;
+            case "CTRL+SHIFT+F":
+                ToggleFilters();
+                return true;
+            case "CTRL+SHIFT+G":
+                SetDiagnostics(!m_diagnosticsVisible);
+                return true;
+            case "CTRL+L":
+                SetLog(!m_logVisible);
+                return true;
+            default:
+                return false;
         }
     }
 
@@ -257,9 +282,15 @@ internal sealed class ShellPresenter
             }
             switch (item.Name)
             {
-                case "TabMenuRename": BeginInPlaceRename(tab); break;
-                case "TabMenuDuplicate": await DuplicateTabAsync(tab).ConfigureAwait(true); break;
-                case "TabMenuClose": await CloseTabAsync(tab).ConfigureAwait(true); break;
+                case "TabMenuRename":
+                    BeginInPlaceRename(tab);
+                    break;
+                case "TabMenuDuplicate":
+                    await DuplicateTabAsync(tab).ConfigureAwait(true);
+                    break;
+                case "TabMenuClose":
+                    await CloseTabAsync(tab).ConfigureAwait(true);
+                    break;
             }
             e.Handled = true;
         });
@@ -273,17 +304,28 @@ internal sealed class ShellPresenter
         });
         tabStrip.AddHandler(InputElement.KeyDownEvent, (object? _, KeyEventArgs e) =>
         {
-            if (e.Source is TextBox { DataContext: IPlugin tab } && tab.IsRenaming
-                && e.Key is Key.Enter or Key.Escape)
+            if (e.Source is TextBox { DataContext: IPlugin tab } editor &&
+                tab.IsRenaming &&
+                e.Key is Key.Enter or Key.Escape)
             {
+                if (e.Key == Key.Enter)
+                {
+                    tab.Title = editor.Text ?? tab.Title;
+                }
+                else
+                {
+                    editor.Text = tab.Title;
+                }
                 tab.IsRenaming = false;
+                tabStrip.Focus();
                 e.Handled = true;
             }
         }, RoutingStrategies.Tunnel);
         tabStrip.AddHandler(InputElement.LostFocusEvent, (object? _, RoutedEventArgs e) =>
         {
-            if (e.Source is TextBox { DataContext: IPlugin tab } && tab.IsRenaming)
+            if (e.Source is TextBox { DataContext: IPlugin tab } editor && tab.IsRenaming)
             {
+                tab.Title = editor.Text ?? tab.Title;
                 tab.IsRenaming = false;
             }
         });
@@ -357,6 +399,7 @@ internal sealed class ShellPresenter
 
     private async Task OpenCatalogAsync()
     {
+        Avalonia.Input.IInputElement? previousFocus = m_window.FocusManager?.GetFocusedElement();
         var dlg = new ToolCatalogDialog(m_vm.CreatePluginHost());
         PluginKind? kind;
         await using (dlg.ConfigureAwait(false))
@@ -366,6 +409,10 @@ internal sealed class ShellPresenter
         if (kind is { } picked)
         {
             await m_vm.OpenToolAsync(picked).ConfigureAwait(true);
+        }
+        else
+        {
+            previousFocus?.Focus();
         }
     }
 
@@ -403,6 +450,7 @@ internal sealed class ShellPresenter
             {
                 if (child is TextBox { Name: "TabTitleEdit" } editor)
                 {
+                    editor.Text = tab.Title;
                     editor.Focus();
                     editor.SelectAll();
                     break;
@@ -512,8 +560,8 @@ internal sealed class ShellPresenter
 
     private void WireDocumentResourceSample()
     {
-        if (m_vm.SelectedTab is SubscriptionViewModel subscription
-            && ((IPlugin)subscription).View is SubscriptionDocumentView view)
+        if (m_vm.SelectedTab is SubscriptionViewModel subscription &&
+            ((IPlugin)subscription).View is SubscriptionDocumentView view)
         {
             // Per-frame render callback: use the cached, no-I/O sample updated by
             // the 1 Hz resource pump rather than sampling on every draw.

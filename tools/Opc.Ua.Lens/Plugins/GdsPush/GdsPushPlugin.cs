@@ -98,6 +98,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
 
     private readonly PluginHost m_host;
     private readonly ILogger m_log;
+    private readonly IGdsPushClient? m_operationsClient;
 
     private ServerPushConfigurationClient? m_client;
     private GdsPushView? m_view;
@@ -112,9 +113,11 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     [ObservableProperty]
     private bool m_isRenaming;
 
-    /// <summary>Endpoint URL — for display.  Reflects the secondary
+    /// <summary>
+    /// Endpoint URL — for display. Reflects the secondary
     /// Push session's bound endpoint when connected; otherwise mirrors
-    /// the main Connection pane's <see cref="MainViewModel.EndpointUrl"/>.</summary>
+    /// the main Connection pane's <see cref="MainViewModel.EndpointUrl"/>.
+    /// </summary>
     public string EndpointUrl => m_boundEndpoint?.EndpointUrl
                                  ?? m_host.Workspace.EndpointUrl;
 
@@ -231,10 +234,11 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     /// </summary>
     public IReadOnlyList<TrustListMasks> TrustListMaskOptions { get; } = Enum.GetValues<TrustListMasks>();
 
-    public GdsPushPlugin(PluginHost host)
+    public GdsPushPlugin(PluginHost host, IGdsPushClient? client = null)
     {
         m_host = host ?? throw new ArgumentNullException(nameof(host));
         m_log = host.Log;
+        m_operationsClient = client;
         int n = Interlocked.Increment(ref s_nextNumber);
         m_title = $"GDS Push {n}";
         // Idle until a (secondary or piggy-backed) Push session comes up;
@@ -285,8 +289,6 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         OnPropertyChanged(nameof(ConnectButtonText));
         UpdateStatusPolling();
     }
-
-    // ----- IPlugin members -----
 
     public PluginKind Kind => PluginKind.GdsPush;
 
@@ -359,8 +361,6 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         m_busyCts?.Dispose();
         m_busyCts = null;
     }
-
-    // ----- Commands -----
 
     [RelayCommand]
     private async Task UseDifferentEndpointAsync()
@@ -446,7 +446,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
                 ConnectionStatus = "● Connected";
                 SetResult("Credentials updated on existing session.");
                 await PopulateServerInfoAsync(ct).ConfigureAwait(true);
-                await RefreshAsync().ConfigureAwait(true);
+                await RefreshAsync(ct).ConfigureAwait(true);
                 return true;
             }
             catch (Exception ex)
@@ -476,7 +476,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             SetSecondaryConnected(true);
             ConnectionStatus = "● Connected";
             await PopulateServerInfoAsync(ct).ConfigureAwait(true);
-            await RefreshAsync().ConfigureAwait(true);
+            await RefreshAsync(ct).ConfigureAwait(true);
             m_log.GdsPushConnected(Title, pick.Endpoint.EndpointUrl);
             return true;
         }
@@ -614,7 +614,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     }
 
     [RelayCommand]
-    private async Task RefreshAsync()
+    private async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
         if (IsBusy)
         {
@@ -624,20 +624,15 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         IsBusy = true;
         try
         {
-            ServerPushConfigurationClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IGdsPushClient? client = await GetOperationsClientAsync(cancellationToken).ConfigureAwait(true);
             if (client is null)
             {
                 return;
             }
             TrustListMasks masks = TrustListMasks;
-            TrustListDataType list = await client.ReadTrustListAsync(
-                masks,
-                0,
-                CancellationToken.None).ConfigureAwait(true);
-            Opc.Ua.Security.Certificates.CertificateCollection rejected = await client.GetRejectedListAsync(
-                CancellationToken.None).ConfigureAwait(true);
-            PopulateTrustList(list, rejected, masks);
-            SetResult($"Refreshed ({masks}): {Trusted.Count} trusted · {Issuers.Count} issuers · {Rejected.Count} rejected.");
+            await RefreshCoreAsync(client, cancellationToken).ConfigureAwait(true);
+            SetResult(
+                $"Refreshed ({masks}): {Trusted.Count} trusted · {Issuers.Count} issuers · {Rejected.Count} rejected.");
             m_log.GdsPushRefreshOk(Title, masks);
         }
         catch (Exception ex)
@@ -649,6 +644,41 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         {
             IsBusy = false;
             UpdateStatus();
+        }
+    }
+
+    private async Task<IGdsPushClient?> GetOperationsClientAsync(CancellationToken cancellationToken)
+    {
+        if (m_operationsClient is not null)
+        {
+            return m_operationsClient;
+        }
+        ServerPushConfigurationClient? client = await EnsureSessionAsync(cancellationToken).ConfigureAwait(true);
+        return client is null ? null : new GdsPushClientAdapter(client);
+    }
+
+    private async Task RefreshCoreAsync(IGdsPushClient client, CancellationToken cancellationToken)
+    {
+        TrustListMasks masks = TrustListMasks;
+        TrustListDataType list = await client.ReadTrustListAsync(masks, cancellationToken).ConfigureAwait(true);
+        using Opc.Ua.Security.Certificates.CertificateCollection rejected =
+            await client.GetRejectedListAsync(cancellationToken).ConfigureAwait(true);
+        PopulateTrustList(list, rejected, masks);
+    }
+
+    private async Task RefreshAfterMutationAsync(
+        IGdsPushClient client, string success, CancellationToken cancellationToken)
+    {
+        SetResult(success);
+        try
+        {
+            await RefreshCoreAsync(client, cancellationToken).ConfigureAwait(true);
+            SetResult($"{success} List refreshed.");
+        }
+        catch (Exception ex)
+        {
+            SetResult($"{success} Refresh failed: {ex.Message}. Retry Refresh, not the completed operation.");
+            m_log.GdsPushRefreshFailed(ex, Title);
         }
     }
 
@@ -726,22 +756,34 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         {
             return;
         }
+        await AddCertificateAsync(result, CancellationToken.None).ConfigureAwait(true);
+    }
 
+    internal async Task AddCertificateAsync(
+        AddCertificateResult result, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        if (IsBusy)
+        {
+            return;
+        }
         IsBusy = true;
         try
         {
-            ServerPushConfigurationClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IGdsPushClient? client = await GetOperationsClientAsync(cancellationToken).ConfigureAwait(true);
             if (client is null)
             {
                 return;
             }
             bool isTrusted = result.Bucket == TrustListBucket.Trusted;
-            using Opc.Ua.Security.Certificates.Certificate wrapper = Opc.Ua.Security.Certificates.Certificate.From(result.Certificate);
-            await client.AddCertificateAsync(wrapper, isTrusted, CancellationToken.None)
+            using Opc.Ua.Security.Certificates.Certificate wrapper =
+                Opc.Ua.Security.Certificates.Certificate.From(result.Certificate);
+            await client.AddCertificateAsync(wrapper, isTrusted, cancellationToken)
                 .ConfigureAwait(true);
-            SetResult($"Added {ShortName(result.Certificate.Subject)} to " +
-                      $"{(isTrusted ? "Trusted Peers" : "Issuers")}.");
-            await RefreshAsync().ConfigureAwait(true);
+            await RefreshAfterMutationAsync(
+                client,
+                $"Added {ShortName(result.Certificate.Subject)} to {(isTrusted ? "Trusted Peers" : "Issuers")}.",
+                cancellationToken).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -756,7 +798,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     }
 
     [RelayCommand]
-    private async Task RemoveCertificateAsync()
+    private async Task RemoveCertificateAsync(CancellationToken cancellationToken)
     {
         if (IsBusy)
         {
@@ -778,17 +820,18 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         IsBusy = true;
         try
         {
-            ServerPushConfigurationClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IGdsPushClient? client = await GetOperationsClientAsync(cancellationToken).ConfigureAwait(true);
             if (client is null)
             {
                 return;
             }
             bool isTrusted = ActiveBucket == TrustListBucket.Trusted;
-            await client.RemoveCertificateAsync(sel.Thumbprint, isTrusted, CancellationToken.None)
+            await client.RemoveCertificateAsync(sel.Thumbprint, isTrusted, cancellationToken)
                 .ConfigureAwait(true);
-            SetResult($"Removed {ShortName(sel.Subject)} from " +
-                      $"{(isTrusted ? "Trusted Peers" : "Issuers")}.");
-            await RefreshAsync().ConfigureAwait(true);
+            await RefreshAfterMutationAsync(
+                client,
+                $"Removed {ShortName(sel.Subject)} from {(isTrusted ? "Trusted Peers" : "Issuers")}.",
+                cancellationToken).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -916,8 +959,6 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             UpdateStatus();
         }
     }
-
-    // ----- Helpers -----
 
     private async Task PopulateServerInfoAsync(CancellationToken ct)
     {
@@ -1227,8 +1268,6 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     }
 
     partial void OnLastOperationResultChanged(string value) => UpdateStatus();
-
-    // ----- ServerStatus polling (mirrors GDS WinForms client + ServerStatusControl) -----
 
     /// <summary>
     /// Forces an immediate ServerStatus read.  Bound to the "↻ Refresh"

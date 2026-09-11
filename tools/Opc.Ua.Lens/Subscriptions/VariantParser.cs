@@ -327,12 +327,10 @@ internal static class VariantParser
 
     private static BuiltInType BuiltInTypeForDataType(NodeId id)
     {
-        if (id.NamespaceIndex != 0 || id.IdType != IdType.Numeric)
+        if (id.NamespaceIndex != 0 || !id.TryGetValue(out uint idValue))
         {
             return BuiltInType.Null;
         }
-        // IdType.Numeric guarantees Identifier is a non-null boxed uint.
-        uint idValue = (uint)id.Identifier!;
         // Map well-known DataType node ids to built-in types.  This list
         // mirrors Opc.Ua.DataTypeIds for the values we support.
         return idValue switch

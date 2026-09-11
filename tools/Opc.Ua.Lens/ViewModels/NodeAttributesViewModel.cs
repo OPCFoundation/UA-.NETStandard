@@ -33,12 +33,13 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Client;
 using UaLens.Connection;
 using UaLens.Subscriptions;
+using UaLens.Workspace;
 
 namespace UaLens.ViewModels;
 
@@ -51,63 +52,88 @@ namespace UaLens.ViewModels;
 /// </summary>
 internal sealed partial class NodeAttributesViewModel : ObservableObject, IDisposable
 {
-    private readonly ConnectionService m_connection;
+    private readonly Func<ISession?> m_session;
+    private readonly IWorkspaceDispatcher m_dispatcher;
     private readonly ILogger m_log;
-    private CancellationTokenSource? m_cts;
+    private Action? m_cancelCurrent;
+    private CancellationToken m_currentRequest;
+    private bool m_disposed;
 
     public ObservableCollection<AttributeRow> Rows { get; } = new();
 
     [ObservableProperty]
     private string m_header = "(no node selected)";
 
-    public NodeAttributesViewModel(ITelemetryContext telemetry, ConnectionService connection)
+    public NodeAttributesViewModel(
+        ITelemetryContext telemetry,
+        ConnectionService connection,
+        IWorkspaceDispatcher? dispatcher = null)
+        : this(telemetry, () => connection.CurrentSession, dispatcher ??
+            (Avalonia.Application.Current is null
+                ? InlineWorkspaceDispatcher.Instance
+                : new AvaloniaWorkspaceDispatcher()))
     {
-        m_connection = connection;
+        ArgumentNullException.ThrowIfNull(connection);
+    }
+
+    public NodeAttributesViewModel(
+        ITelemetryContext telemetry,
+        Func<ISession?> session,
+        IWorkspaceDispatcher dispatcher)
+    {
+        ArgumentNullException.ThrowIfNull(telemetry);
+        m_session = session ?? throw new ArgumentNullException(nameof(session));
+        m_dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         m_log = telemetry.CreateLogger("NodeAttributes");
     }
 
     public void Clear()
     {
-        m_cts?.Cancel();
+        m_dispatcher.VerifyAccess();
+        m_cancelCurrent?.Invoke();
+        m_cancelCurrent = null;
+        m_currentRequest = default;
         Rows.Clear();
         Header = "(no node selected)";
     }
 
     public async Task LoadAsync(NodeId nodeId, NodeClass nodeClass)
     {
-        m_cts?.Cancel();
-        m_cts = new CancellationTokenSource();
-        CancellationToken ct = m_cts.Token;
+        m_dispatcher.VerifyAccess();
+        ObjectDisposedException.ThrowIf(m_disposed, this);
+        m_cancelCurrent?.Invoke();
+        using var request = new CancellationTokenSource();
+        m_cancelCurrent = request.Cancel;
+        CancellationToken ct = request.Token;
+        m_currentRequest = ct;
 
         Header = $"{Glyph(nodeClass)} {nodeId}  ({nodeClass})";
         Rows.Clear();
 
-        if (m_connection.Session is not { } session)
-        {
-            Rows.Add(new AttributeRow("(disconnected)", string.Empty));
-            return;
-        }
-
-        IReadOnlyList<NodeAttributeSets.Entry> attrs = NodeAttributeSets.SupportedAttributes(nodeClass);
-        if (attrs.Count == 0)
-        {
-            return;
-        }
-
-        var idList = new List<ReadValueId>(attrs.Count);
-        foreach (NodeAttributeSets.Entry e in attrs)
-        {
-            idList.Add(new ReadValueId { NodeId = nodeId, AttributeId = e.AttributeId });
-        }
-        var ids = new ArrayOf<ReadValueId>(idList.ToArray());
-
         try
         {
-            ReadResponse resp = await session.ReadAsync(null, 0, TimestampsToReturn.Neither, ids, ct).ConfigureAwait(false);
-            if (ct.IsCancellationRequested)
+            if (m_session() is not { } session)
+            {
+                Rows.Add(new AttributeRow("(disconnected)", string.Empty));
+                return;
+            }
+
+            IReadOnlyList<NodeAttributeSets.Entry> attrs = NodeAttributeSets.SupportedAttributes(nodeClass);
+            if (attrs.Count == 0)
             {
                 return;
             }
+
+            var idList = new List<ReadValueId>(attrs.Count);
+            foreach (NodeAttributeSets.Entry e in attrs)
+            {
+                idList.Add(new ReadValueId { NodeId = nodeId, AttributeId = e.AttributeId });
+            }
+            var ids = new ArrayOf<ReadValueId>(idList.ToArray());
+            ReadResponse resp = await session.ReadAsync(null, 0, TimestampsToReturn.Neither, ids, ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+            ClientBase.ValidateResponse(resp.Results, ids);
+            var rows = new List<AttributeRow>();
             for (int i = 0; i < resp.Results.Count; i++)
             {
                 DataValue dv = resp.Results[i];
@@ -122,30 +148,59 @@ internal sealed partial class NodeAttributesViewModel : ObservableObject, IDispo
                         || entry.AttributeId == Attributes.UserRolePermissions
                         || entry.AttributeId == Attributes.AccessRestrictions)
                     {
-                        Rows.Add(new AttributeRow(entry.Name, $"(not supported: {dv.StatusCode})"));
+                        rows.Add(new AttributeRow(entry.Name, $"(not supported: {dv.StatusCode})"));
                     }
                     continue;
                 }
                 string formatted = FormatValue(entry.AttributeId, dv);
-                Rows.Add(new AttributeRow(entry.Name, formatted));
+                rows.Add(new AttributeRow(entry.Name, formatted));
             }
-            if (Rows.Count == 0)
+            if (rows.Count == 0)
             {
-                Rows.Add(new AttributeRow("(no readable attributes)", string.Empty));
+                rows.Add(new AttributeRow("(no readable attributes)", string.Empty));
             }
+            await PublishAsync(request, rows).ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             // Selection moved on — abandon this load.
         }
         catch (Exception ex)
         {
             NodeAttributesViewModelLog.AttributeReadFailed(m_log, ex, nodeId);
-            Rows.Add(new AttributeRow("(read failed)", ex.Message));
+            await PublishAsync(request, [new AttributeRow("(read failed)", ex.Message)]).ConfigureAwait(false);
+        }
+        finally
+        {
+            await m_dispatcher.InvokeAsync(() =>
+            {
+                if (m_currentRequest == ct)
+                {
+                    m_cancelCurrent = null;
+                    m_currentRequest = default;
+                }
+                return Task.CompletedTask;
+            }).ConfigureAwait(false);
         }
     }
 
-    private static string FormatValue(uint attributeId, DataValue dv)
+    private Task PublishAsync(CancellationTokenSource request, List<AttributeRow> rows)
+    {
+        return m_dispatcher.InvokeAsync(() =>
+        {
+            if (!m_disposed && !request.IsCancellationRequested && m_currentRequest == request.Token)
+            {
+                Rows.Clear();
+                foreach (AttributeRow row in rows)
+                {
+                    Rows.Add(row);
+                }
+            }
+            return Task.CompletedTask;
+        });
+    }
+
+    private static string FormatValue(uint attributeId, in DataValue dv)
     {
         Variant v = dv.WrappedValue;
         if (v.IsNull)
@@ -383,7 +438,9 @@ internal sealed partial class NodeAttributesViewModel : ObservableObject, IDispo
         return sb.ToString();
     }
 
-    /// <summary>Render a <see cref="PermissionType"/> bit mask as OR-joined names.</summary>
+    /// <summary>
+    /// Render a <see cref="PermissionType"/> bit mask as OR-joined names.
+    /// </summary>
     private static string PermissionsBits(uint permissions)
     {
         if (permissions == 0)
@@ -592,9 +649,11 @@ internal sealed partial class NodeAttributesViewModel : ObservableObject, IDispo
 
     public void Dispose()
     {
-        m_cts?.Cancel();
-        m_cts?.Dispose();
-        m_cts = null;
+        m_dispatcher.VerifyAccess();
+        m_disposed = true;
+        m_cancelCurrent?.Invoke();
+        m_cancelCurrent = null;
+        m_currentRequest = default;
     }
 }
 

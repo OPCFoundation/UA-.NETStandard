@@ -37,6 +37,15 @@ namespace UaLens.Themes
     /// </summary>
     internal static class ChartTheme
     {
+        public static bool IsLight
+        {
+            get
+            {
+                Avalonia.Media.Color surface = ThemeManager.GetColor("SurfaceBg", Avalonia.Media.Colors.White);
+                return ((surface.R * 299) + (surface.G * 587) + (surface.B * 114)) > 128000;
+            }
+        }
+
         public static void Apply(Plot plot)
         {
             ArgumentNullException.ThrowIfNull(plot);

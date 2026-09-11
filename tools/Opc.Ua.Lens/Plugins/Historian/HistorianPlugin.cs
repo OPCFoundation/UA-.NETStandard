@@ -50,6 +50,7 @@ using Opc.Ua.Client;
 using UaLens.Storage;
 using UaLens.ViewModels;
 using UaLens.Views;
+using UaLens.Workspace;
 
 namespace UaLens.Plugins.Historian;
 
@@ -158,6 +159,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
     private static int s_nextNumber;
 
     private readonly PluginHost m_host;
+    private readonly IWorkspaceDispatcher m_dispatcher;
     private readonly ILogger m_log;
     private HistorianView? m_view;
     private CancellationTokenSource? m_readCts;
@@ -363,9 +365,10 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
     [ObservableProperty]
     private string m_updateResult = string.Empty;
 
-    public HistorianPlugin(PluginHost host)
+    public HistorianPlugin(PluginHost host, IWorkspaceDispatcher? dispatcher = null)
     {
         m_host = host ?? throw new ArgumentNullException(nameof(host));
+        m_dispatcher = dispatcher ?? new AvaloniaWorkspaceDispatcher();
         m_log = host.Log;
         int n = Interlocked.Increment(ref s_nextNumber);
         m_title = string.Create(CultureInfo.InvariantCulture, $"Historian {n}");
@@ -784,13 +787,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
                 m_log.AnnotationReadSkipped(ex, Title);
             }
 
-            Dispatcher.UIThread.Post(() =>
-            {
-                foreach (HistoryRow r in rows)
-                {
-                    Rows.Add(r);
-                }
-            });
+            await PublishRowsAsync([.. rows], ct).ConfigureAwait(true);
         }
         catch (OperationCanceledException)
         {
@@ -813,6 +810,20 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
     }
 
     private bool CanCancelRead() => IsReading;
+
+    internal Task PublishRowsAsync(ArrayOf<HistoryRow> rows, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return m_dispatcher.InvokeAsync(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (HistoryRow row in rows)
+            {
+                Rows.Add(row);
+            }
+            return Task.CompletedTask;
+        }, cancellationToken);
+    }
 
     [RelayCommand(CanExecute = nameof(CanCancelRead))]
     private void CancelRead()

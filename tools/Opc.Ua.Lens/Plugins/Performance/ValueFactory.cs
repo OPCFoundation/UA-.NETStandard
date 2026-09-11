@@ -68,7 +68,7 @@ internal static class ValueFactory
             return BuiltInType.Int32;
         }
 
-        if (arg.DataType.IdType != IdType.Numeric)
+        if (!arg.DataType.TryGetValue(out uint id))
         {
             return BuiltInType.Int32;
         }
@@ -78,7 +78,6 @@ internal static class ValueFactory
             return BuiltInType.Int32;
         }
 
-        uint id = (uint)arg.DataType.Identifier;
         BuiltInType bi = (BuiltInType)id;
         return Enum.IsDefined(bi) ? bi : BuiltInType.Int32;
     }

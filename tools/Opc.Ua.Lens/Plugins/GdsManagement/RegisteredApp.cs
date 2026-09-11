@@ -28,7 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Linq;
+using System.Collections.Generic;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Opc.Ua;
 using Opc.Ua.Gds;
@@ -44,13 +44,22 @@ namespace UaLens.Plugins.GdsManagement;
 /// </summary>
 internal sealed partial class RegisteredApp : ObservableObject
 {
-    /// <summary>The underlying GDS application record (may be null for
-    /// query rows that don't yet have a resolved NodeId).</summary>
+    /// <summary>
+    /// The underlying GDS application record (may be null for
+    /// query rows that don't yet have a resolved NodeId).
+    /// </summary>
     public ApplicationRecordDataType? Record { get; init; }
 
-    /// <summary>The application's GDS-assigned id.  When
-    /// <see cref="Record"/> is null this is <see cref="NodeId.Null"/>.</summary>
+    /// <summary>
+    /// The application's GDS-assigned id. When
+    /// <see cref="Record"/> is null this is <see cref="NodeId.Null"/>.
+    /// </summary>
     public NodeId ApplicationId { get; init; } = NodeId.Null;
+
+    /// <summary>
+    /// GDS endpoint from which this row was read.
+    /// </summary>
+    public string GdsEndpointUrl { get; init; } = string.Empty;
 
     [ObservableProperty]
     private string m_applicationName = string.Empty;
@@ -70,10 +79,12 @@ internal sealed partial class RegisteredApp : ObservableObject
     [ObservableProperty]
     private string m_serverCapabilities = string.Empty;
 
-    /// <summary>Display string for the "Registered" column — taken from
+    /// <summary>
+    /// Display string for the "Registered" column — taken from
     /// the underlying record's NodeId.  GDS records don't carry a
     /// registration timestamp, so we surface the NodeId as a stable
-    /// identifier suffix for the user.</summary>
+    /// identifier suffix for the user.
+    /// </summary>
     [ObservableProperty]
     private string m_identifier = string.Empty;
 
@@ -82,7 +93,7 @@ internal sealed partial class RegisteredApp : ObservableObject
     /// <see cref="ApplicationRecordDataType"/> (i.e. one obtained via
     /// <c>FindApplication</c>, which carries the NodeId).
     /// </summary>
-    public static RegisteredApp FromRecord(ApplicationRecordDataType record)
+    public static RegisteredApp FromRecord(ApplicationRecordDataType record, string gdsEndpointUrl = "")
     {
         ArgumentNullException.ThrowIfNull(record);
         string name = string.Empty;
@@ -96,6 +107,7 @@ internal sealed partial class RegisteredApp : ObservableObject
         {
             Record = record,
             ApplicationId = record.ApplicationId,
+            GdsEndpointUrl = gdsEndpointUrl,
             ApplicationName = string.IsNullOrEmpty(name)
                 ? (record.ApplicationUri ?? "(unnamed)")
                 : name,
@@ -115,7 +127,7 @@ internal sealed partial class RegisteredApp : ObservableObject
     /// resolve via <c>FindApplication(applicationUri)</c> to populate
     /// <see cref="ApplicationId"/> for management operations.
     /// </summary>
-    public static RegisteredApp FromDescription(ApplicationDescription desc)
+    public static RegisteredApp FromDescription(ApplicationDescription desc, string gdsEndpointUrl = "")
     {
         ArgumentNullException.ThrowIfNull(desc);
         string name = desc.ApplicationName.IsNull
@@ -126,6 +138,7 @@ internal sealed partial class RegisteredApp : ObservableObject
         {
             Record = null,
             ApplicationId = NodeId.Null,
+            GdsEndpointUrl = gdsEndpointUrl,
             ApplicationName = name,
             ApplicationUri = desc.ApplicationUri ?? string.Empty,
             ProductUri = desc.ProductUri ?? string.Empty,
@@ -142,18 +155,18 @@ internal sealed partial class RegisteredApp : ObservableObject
     /// <c>.Where()</c> path which doesn't compile for OPC UA's
     /// <c>ArrayOf&lt;T&gt;</c> (it isn't <see cref="IEnumerable{T}"/>).
     /// </summary>
-    private static string JoinNonEmpty(Opc.Ua.ArrayOf<string>? source, string sep)
+    private static string JoinNonEmpty(ArrayOf<string> source, string sep)
     {
-        if (source is not { } arr || arr.Count == 0)
+        if (source.IsNull || source.Count == 0)
         {
             return string.Empty;
         }
 
         var sb = new System.Text.StringBuilder();
         bool first = true;
-        for (int i = 0; i < arr.Count; i++)
+        for (int i = 0; i < source.Count; i++)
         {
-            string s = arr[i];
+            string s = source[i];
             if (string.IsNullOrEmpty(s))
             {
                 continue;

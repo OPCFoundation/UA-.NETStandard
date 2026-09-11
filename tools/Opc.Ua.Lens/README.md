@@ -44,24 +44,171 @@ workspace behavior, guided workflows, external prerequisites and intentional lim
 
 ## Publish and package
 
-Publish a native Windows desktop executable with the installed Visual Studio C++
-build tools available:
+The dedicated [artifact workflow](../../.github/workflows/ualens-artifacts.yml)
+builds all three desktop TFMs and validates two separate distributions on this
+explicit matrix:
+
+| Runner | Native RID | Native executable | Managed tool shim | Desktop prerequisite |
+| --- | --- | --- | --- | --- |
+| Windows Server 2022, x64 | `win-x64` | `UaLens.exe` | `ualens.exe` | Interactive Windows desktop; Visual Studio C++ desktop build tools for NativeAOT |
+| Ubuntu 24.04, x64 | `linux-x64` | `UaLens` | `ualens` | X11 or Xvfb, Xauthority, Fontconfig/FreeType and X11 libraries; Clang and zlib headers for NativeAOT |
+| macOS 15, Arm64 | `osx-arm64` | `UaLens` | `ualens` | Logged-in Cocoa desktop and Xcode command-line tools |
+
+These are validation targets, not a record of passing runs. A platform is
+validated for a revision only after **both** artifact jobs pass on that revision.
+Other RIDs, Linux distributions, macOS Intel, signing/notarization, and installer
+integration are not covered by this matrix. The managed package requires a
+.NET 10 runtime; the native artifact does not.
+
+All jobs need .NET SDK 10, package-feed access during restore, and Python 3
+for the bounded process runner. The workflow uses Python's standard library
+and adds no NuGet dependencies. Linux prerequisites are installed explicitly
+in the workflow. The Windows and macOS jobs use their hosted runner's compiler
+and desktop; do not substitute a service-only runner or a headless Avalonia backend.
+
+### Native artifact
+
+From the repository root, using PowerShell 7, select the matching RID from the
+table. Publish directly for that RID, not by cross-compiling on another OS:
 
 ```powershell
-$env:CustomTestTarget = 'net10.0'
-dotnet publish tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj -c Release -f net10.0 -r win-x64 --self-contained -p:PackAsTool=false -o publish\UaLens
+$project = 'tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj'
+$rid = 'win-x64' # linux-x64 on Ubuntu; osx-arm64 on macOS Arm64
+New-Item -ItemType Directory -Force artifacts/lens/logs | Out-Null
+dotnet publish $project -c Release -f net10.0 -p:CustomTestTarget=net10.0 -r $rid --self-contained true -p:PackAsTool=false -p:PublishAotEnabled=true -p:SuppressTrimAnalysisWarnings=false -p:TrimmerSingleWarn=false -m:2 -o artifacts/lens/native -bl:artifacts/lens/logs/native.binlog '-flp:logfile=artifacts/lens/logs/native.log;verbosity=normal'
+if ($LASTEXITCODE -ne 0) { throw 'Native publish failed.' }
+
+# Windows; launch the published executable, not dotnet run:
+python tools/Opc.Ua.Lens/validate-artifact.py --executable artifacts/lens/native/UaLens.exe --log-directory artifacts/lens/logs/native-smoke
 ```
 
-The normal .NET tool package is a separate managed distribution. Restore its
-Release/net10 graph before packing, particularly after building another framework:
+`PublishAotEnabled=true` enables the application's net10.0 NativeAOT setting.
+Do not pass `PublishAot=true` or `PublishTrimmed=true` as global MSBuild
+properties: those also reach the netstandard source-generator projects, which
+cannot themselves be published with NativeAOT.
+
+On Ubuntu, launch with a real X server, using this command when no display
+is already available:
+
+```bash
+xvfb-run --auto-servernum --server-args="-screen 0 1600x1000x24 -dpi 96" \
+  python3 tools/Opc.Ua.Lens/validate-artifact.py \
+  --executable artifacts/lens/native/UaLens \
+  --log-directory artifacts/lens/logs/native-smoke
+```
+
+On macOS:
+
+```bash
+python3 tools/Opc.Ua.Lens/validate-artifact.py \
+  --executable artifacts/lens/native/UaLens \
+  --log-directory artifacts/lens/logs/native-smoke
+```
+
+Keep the complete publish directory together; it includes native resources
+needed by the desktop. The workflow retains the publish output, text log,
+binary log, and startup results, including trimming/AOT diagnostics. Use the
+included `ualens-<rid>.tar.gz` archive when downloading native output; it
+preserves Unix executable permissions through artifact storage.
+
+### Managed tool artifact
+
+Restore and pack a managed graph separately. Do not reuse native publish
+output, pass `--no-build` after an unrelated build, or install an already
+published package from a remote feed when validating the local artifact.
+The repository's versioning targets determine the package version. Read it
+from the newly packed artifact rather than assuming a global `PackageVersion`
+override took effect. Use an empty package output directory for each check.
 
 ```powershell
-dotnet build tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj -c Release -f net10.0 -p:CustomTestTarget=net10.0 -p:PublishAotEnabled=false
-dotnet restore tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj -p:CustomTestTarget=net10.0 -p:Configuration=Release -p:PublishAotEnabled=false
-dotnet pack tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj -c Release --no-build --no-restore -p:CustomTestTarget=net10.0 -p:TargetFramework=net10.0 -p:PublishAotEnabled=false -o artifacts\packages
+$project = 'tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj'
+dotnet restore $project -p:Configuration=Release -p:CustomTestTarget=net10.0 -p:PublishAotEnabled=false -p:PublishAot=false -p:PublishTrimmed=false -p:PackAsTool=true
+if ($LASTEXITCODE -ne 0) { throw 'Managed restore failed.' }
+dotnet pack $project -c Release --no-restore -p:CustomTestTarget=net10.0 -p:TargetFramework=net10.0 -p:PublishAotEnabled=false -p:PublishAot=false -p:PublishTrimmed=false -p:PackAsTool=true -m:2 -o artifacts/lens/packages
+if ($LASTEXITCODE -ne 0) { throw 'Managed pack failed.' }
+
+$packages = @(Get-ChildItem artifacts/lens/packages -Filter '*.nupkg')
+if ($packages.Count -ne 1) { throw 'Expected exactly one freshly packed tool artifact.' }
+$archive = [IO.Compression.ZipFile]::OpenRead($packages[0].FullName)
+try {
+    $entry = $archive.GetEntry('OPCFoundation.NetStandard.Opc.Ua.Lens.nuspec')
+    if ($null -eq $entry) { throw 'The tool artifact has no expected package manifest.' }
+    $reader = [IO.StreamReader]::new($entry.Open())
+    try { [xml] $manifest = $reader.ReadToEnd() } finally { $reader.Dispose() }
+    $version = $manifest.package.metadata.version
+} finally { $archive.Dispose() }
+
+$root = Join-Path ([IO.Path]::GetTempPath()) ('ualens-installed-' + [Guid]::NewGuid())
+New-Item -ItemType Directory $root | Out-Null
+$source = [System.Security.SecurityElement]::Escape((Resolve-Path artifacts/lens/packages).Path)
+$config = Join-Path $root 'NuGet.config'
+[IO.File]::WriteAllText($config, "<configuration><packageSources><clear/><add key=`"artifact`" value=`"$source`"/></packageSources></configuration>")
+$env:NUGET_PACKAGES = Join-Path $root 'cache'
+$env:DOTNET_CLI_HOME = Join-Path $root 'cli'
+dotnet tool install OPCFoundation.NetStandard.Opc.Ua.Lens --version $version --tool-path (Join-Path $root 'tool') --configfile $config --no-cache
+if ($LASTEXITCODE -ne 0) { throw 'Isolated tool install failed.' }
+
+# Windows; never invoke an unrelated ualens from PATH:
+python tools/Opc.Ua.Lens/validate-artifact.py --executable (Join-Path $root 'tool/ualens.exe') --log-directory artifacts/lens/logs/managed-smoke
 ```
+
+Run the install commands in a disposable shell so the isolated NuGet/CLI
+environment does not affect later development commands. For Linux or macOS,
+replace the final Windows launch command with the matching PowerShell command:
+
+```powershell
+# Ubuntu:
+xvfb-run --auto-servernum '--server-args=-screen 0 1600x1000x24 -dpi 96' python3 tools/Opc.Ua.Lens/validate-artifact.py --executable (Join-Path $root 'tool/ualens') --log-directory artifacts/lens/logs/managed-smoke
+
+# macOS:
+python3 tools/Opc.Ua.Lens/validate-artifact.py --executable (Join-Path $root 'tool/ualens') --log-directory artifacts/lens/logs/managed-smoke
+```
+
+Remove `$root` after inspection. Each CI job gets a fresh installation directory,
+empty NuGet cache, and a configuration containing only the local artifact feed.
+
+### What the startup check proves
+
+`--smoke-test` runs the real classic desktop lifetime. It loads the compiled
+application/theme resources, opens a Subscription Bench document through the
+normal document factory/workspace, waits for actual visual-tree attachment,
+verifies its chart is attached and laid out,
+renders deterministic data with the document's ScottPlot/Skia renderer, and
+awaits window, workspace, connection and service-container cleanup. It stays
+offline and does not start optional resource monitoring or a benchmark.
+It is distinct from the older server-dependent `--smoke` protocol probe.
+
+The process runner changes to a temporary working directory, isolates
+preferences/data paths, and imposes a 90-second timeout. It requires exit code
+zero **and** the exact `UALENS_DESKTOP_SMOKE_PASS` line, printed only after
+cleanup. Missing display, native dependency failure, startup exceptions,
+cleanup failure, and hangs fail the job. Logs include stdout, stderr, and
+`result.json`; a managed test pass cannot substitute for this check.
+The application also bounds its asynchronous startup work to 30 seconds;
+the external timeout covers native hangs and cleanup.
+
+This check does not replace LENS-QA-02's desktop interaction lane, layout/DPI
+and keyboard checks, screen-reader evaluation, live-server tests, or hardware
+identity tests. See [desktop testing](DesktopTesting.md) for that separate lane.
+Artifact startup uses the runner's default system theme at
+96 DPI on Xvfb; it does not claim full theme/DPI coverage.
 
 ## Development diagnostics
+
+The application no longer suppresses `CS0618` or `EXTOBS0001`. Keep analyzers
+enabled and build each supported desktop TFM; the normal warning-as-error
+settings make new obsolete calls visible:
+
+```powershell
+foreach ($tfm in @('net8.0', 'net9.0', 'net10.0')) {
+    dotnet build tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj -c Release -f $tfm -p:CustomTestTarget=$tfm -m:2 --nologo
+    if ($LASTEXITCODE -ne 0) { throw "Desktop build failed: $tfm" }
+}
+```
+
+Migrate obsolete calls without dropping existing behavior. If no compatible
+replacement exists, document the reason and a follow-up TODO at a narrowly
+scoped pragma; do not restore project-wide suppression.
 
 ```powershell
 $env:CustomTestTarget = 'net10.0'

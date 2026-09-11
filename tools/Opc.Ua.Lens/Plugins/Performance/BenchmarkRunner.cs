@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -85,6 +86,7 @@ internal sealed record BenchmarkTarget(
 /// Errors are signalled via <see cref="Success"/>=false.
 /// </summary>
 internal readonly record struct BenchmarkSample(
+    Guid RunId,
     long CompletedAtTicks,
     double LatencyMs,
     bool Success);
@@ -92,7 +94,7 @@ internal readonly record struct BenchmarkSample(
 /// <summary>
 /// Background runner that pumps synthetic Write or Call ops at a
 /// configured target rate against an OPC UA session, cooperatively
-/// cancellable.  Concurrency is bounded by a <see cref="SemaphoreSlim"/>
+/// cancellable. Concurrency is bounded by the set of owned operation tasks
 /// so we never queue more than ~256 inflight ops at a time even when
 /// the target rate temporarily outruns the channel.  Each op's
 /// wall-clock latency is reported via <see cref="OnSample"/>; the host
@@ -109,6 +111,8 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
     private readonly double m_targetRatePerSec;
     private readonly bool m_unboundedBurst;
     private readonly TimeSpan m_duration;
+    private readonly TimeSpan m_drainTimeout;
+    private readonly TimeProvider m_timeProvider;
 
     private CancellationTokenSource? m_cts;
     private Task? m_loopTask;
@@ -121,7 +125,12 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
     public event Action<BenchmarkSample>? OnSample;
 
     /// <summary>Fired exactly once when the runner stops (cancelled or completed).</summary>
-    public event Action<string?>? OnFinished;
+    public event Action<Guid, string?>? OnFinished;
+
+    /// <summary>
+    /// Reports a missed cleanup deadline while the runner still owns pending operations.
+    /// </summary>
+    public event Action<Guid>? OnDrainTimedOut;
 
     public BenchmarkRunner(
         ISession session,
@@ -129,7 +138,9 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
         ValueGenerator generator,
         double targetRatePerSec,
         bool unboundedBurst,
-        TimeSpan duration)
+        TimeSpan duration,
+        TimeSpan? drainTimeout = null,
+        TimeProvider? timeProvider = null)
     {
         m_session = session ?? throw new ArgumentNullException(nameof(session));
         m_target = target ?? throw new ArgumentNullException(nameof(target));
@@ -137,7 +148,13 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
         m_targetRatePerSec = Math.Max(1.0, targetRatePerSec);
         m_unboundedBurst = unboundedBurst;
         m_duration = duration <= TimeSpan.Zero ? TimeSpan.FromSeconds(10) : duration;
+        m_drainTimeout = drainTimeout ?? TimeSpan.FromSeconds(5);
+        m_timeProvider = timeProvider ?? TimeProvider.System;
     }
+
+    public Guid RunId { get; } = Guid.NewGuid();
+
+    public bool DrainTimedOut { get; private set; }
 
     /// <summary>True between Start and the time the loop fully drains after cancellation.</summary>
     public bool IsRunning => m_loopTask is { IsCompleted: false };
@@ -167,24 +184,24 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
     }
 
     /// <summary>
-    /// Starts the run on a background task.  Idempotent — subsequent
-    /// calls are ignored while a run is already in flight.
+    /// Starts this single-use run on a background task. Subsequent calls are ignored.
     /// </summary>
     public void Start()
     {
-        if (IsRunning)
+        if (m_loopTask is not null)
         {
             return;
         }
 
         m_cts = new CancellationTokenSource();
         CancellationToken ct = m_cts.Token;
-        m_loopTask = Task.Run(() => RunAsync(ct), ct);
+        m_loopTask = Task.Run(() => RunAsync(ct), CancellationToken.None);
     }
 
     /// <summary>Cancels the run and awaits the loop to drain.</summary>
     public async Task StopAsync()
     {
+        Exception? cancellationFailure = null;
         try
         {
             m_cts?.Cancel();
@@ -193,21 +210,27 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
         {
             // already disposed
         }
-        Task? loop = m_loopTask;
-        if (loop is not null)
+        catch (Exception failure)
         {
-            try
+            cancellationFailure = failure;
+        }
+        try
+        {
+            if (m_loopTask is { } loop)
             {
                 await loop.ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
-            {
-                // expected
-            }
         }
-        m_cts?.Dispose();
-        m_cts = null;
-        m_loopTask = null;
+        finally
+        {
+            m_cts?.Dispose();
+            m_cts = null;
+        }
+        if (cancellationFailure is not null)
+        {
+            throw new AggregateException("Cancellation failed after the benchmark operations were joined.",
+                cancellationFailure);
+        }
     }
 
     private async Task RunAsync(CancellationToken ct)
@@ -216,14 +239,16 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
         int concurrency = m_unboundedBurst
             ? MaxConcurrencyCap
             : RecommendConcurrency(m_targetRatePerSec);
-        using var inflight = new SemaphoreSlim(concurrency, concurrency);
+        var operations = new List<Task>(concurrency);
+        using var duration = new CancellationTokenSource(m_duration, m_timeProvider);
+        using var scheduling = CancellationTokenSource.CreateLinkedTokenSource(ct, duration.Token);
+        CancellationToken scheduleToken = scheduling.Token;
 
         long startTicks = Stopwatch.GetTimestamp();
         long endTicks = startTicks + (long)(m_duration.TotalSeconds * Stopwatch.Frequency);
         long opIndex = 0;
 
-        // Inter-op delay in 100 ns ticks; unbounded burst sends as fast as
-        // the inflight semaphore allows.
+        // Unbounded burst issues another operation whenever one owned slot is free.
         double tickGap = m_unboundedBurst
             ? 0
             : Stopwatch.Frequency / m_targetRatePerSec;
@@ -231,7 +256,7 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
 
         try
         {
-            while (!ct.IsCancellationRequested
+            while (!scheduleToken.IsCancellationRequested
                 && Stopwatch.GetTimestamp() < endTicks)
             {
                 if (!m_unboundedBurst)
@@ -246,7 +271,7 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
                         {
                             try
                             {
-                                await Task.Delay(sleepMs, ct).ConfigureAwait(false);
+                                await Task.Delay(sleepMs, scheduleToken).ConfigureAwait(false);
                             }
                             catch (OperationCanceledException)
                             {
@@ -255,7 +280,7 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
                         }
                         // Final spin / yield for the last few hundred µs.
                         while (Stopwatch.GetTimestamp() < nextOpTicks
-                            && !ct.IsCancellationRequested)
+                            && !scheduleToken.IsCancellationRequested)
                         {
                             Thread.Yield();
                         }
@@ -263,26 +288,14 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
                     nextOpTicks += (long)tickGap;
                 }
 
-                await inflight.WaitAsync(ct).ConfigureAwait(false);
-                long thisIndex = opIndex++;
-                // CA2025: IssueOpAsync uses `inflight` (a `using var` in this
-                // method).  The drain loop below waits up to 5 s for all
-                // permits to return (i.e. all in-flight ops to release the
-                // semaphore) before `inflight` falls out of scope and gets
-                // disposed.  The pattern is safe.
-#pragma warning disable CA2025
-                _ = IssueOpAsync(thisIndex, inflight, ct);
-#pragma warning restore CA2025
-            }
-
-            // Drain in-flight ops on graceful stop — but don't wait
-            // forever if the channel is wedged.
-            int drainTimeoutMs = 5_000;
-            long drainEnd = Environment.TickCount64 + drainTimeoutMs;
-            while (inflight.CurrentCount < concurrency
-                && Environment.TickCount64 < drainEnd)
-            {
-                await Task.Delay(50, CancellationToken.None).ConfigureAwait(false);
+                await JoinCompletedAsync(operations).ConfigureAwait(false);
+                if (operations.Count == concurrency)
+                {
+                    await Task.WhenAny(operations).WaitAsync(scheduleToken).ConfigureAwait(false);
+                    await JoinCompletedAsync(operations).ConfigureAwait(false);
+                }
+                scheduleToken.ThrowIfCancellationRequested();
+                operations.Add(IssueOpAsync(opIndex++, ct));
             }
         }
         catch (OperationCanceledException)
@@ -295,11 +308,63 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
         }
         finally
         {
-            OnFinished?.Invoke(error);
+            Task drain = Task.WhenAll(operations);
+            try
+            {
+                await drain.WaitAsync(m_drainTimeout, m_timeProvider, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                DrainTimedOut = true;
+                error = "Operation cleanup timed out; all issued operations were joined before completion.";
+                try
+                {
+                    m_cts?.Cancel();
+                }
+                catch (Exception failure)
+                {
+                    error += $" Cancellation also failed: {failure.Message}";
+                }
+                try
+                {
+                    OnDrainTimedOut?.Invoke(RunId);
+                }
+                catch (Exception)
+                {
+                    // Consumer failures must not abandon the owned operations.
+                }
+                finally
+                {
+                    // The deadline changes the outcome, not ownership. A caller cannot
+                    // start a successor or dispose resources until these operations finish.
+                    await drain.ConfigureAwait(false);
+                }
+            }
+            try
+            {
+                OnFinished?.Invoke(RunId, error);
+            }
+            catch (Exception)
+            {
+                // Completion observers do not own the runner's resource cleanup.
+            }
         }
     }
 
-    private async Task IssueOpAsync(long opIndex, SemaphoreSlim inflight, CancellationToken ct)
+    private static async Task JoinCompletedAsync(List<Task> operations)
+    {
+        for (int index = operations.Count - 1; index >= 0; index--)
+        {
+            Task operation = operations[index];
+            if (operation.IsCompleted)
+            {
+                await operation.ConfigureAwait(false);
+                operations.RemoveAt(index);
+            }
+        }
+    }
+
+    private async Task IssueOpAsync(long opIndex, CancellationToken ct)
     {
         long startTicks = Stopwatch.GetTimestamp();
         bool ok = false;
@@ -358,19 +423,11 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
             double latencyMs = (endTicks - startTicks) * 1000.0 / Stopwatch.Frequency;
             try
             {
-                OnSample?.Invoke(new BenchmarkSample(endTicks, latencyMs, ok));
+                OnSample?.Invoke(new BenchmarkSample(RunId, endTicks, latencyMs, ok));
             }
             catch
             {
                 // swallow consumer errors so they don't bubble into the runner loop
-            }
-            try
-            {
-                inflight.Release();
-            }
-            catch (ObjectDisposedException)
-            {
-                // shutdown race — semaphore got disposed first
             }
         }
     }

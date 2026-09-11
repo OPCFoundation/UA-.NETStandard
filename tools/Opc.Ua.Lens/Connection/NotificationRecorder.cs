@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -197,21 +196,18 @@ namespace UaLens.Connection
         /// </summary>
         public async Task ExportCsvAsync(
             string path,
-            IReadOnlyDictionary<int, string>? displayNames = null,
             CancellationToken ct = default)
         {
             ArrayOf<NotificationEvent> snap = Snapshot();
             var sw = new StreamWriter(path, append: false, Encoding.UTF8);
             await using (sw.ConfigureAwait(false))
             {
-                await sw.WriteLineAsync("ReceivedAtUtc,Kind,ItemId,DisplayName,SequenceNumber,ValueCount,Value")
+                await sw.WriteLineAsync("ReceivedAtUtc,Kind,ItemId,DisplayName,SequenceNumber,ValueCount,Value,NodeId")
                     .ConfigureAwait(false);
                 for (int i = 0; i < snap.Count; i++)
                 {
                     NotificationEvent ev = snap[i];
                     ct.ThrowIfCancellationRequested();
-                    string name = displayNames is not null && displayNames.TryGetValue(ev.ItemId, out string? n)
-                        ? n : string.Empty;
                     string value = ev.Value.HasValue
                         ? ev.Value.Value.ToString("R", CultureInfo.InvariantCulture)
                         : string.Empty;
@@ -222,13 +218,15 @@ namespace UaLens.Connection
                     await sw.WriteAsync(",").ConfigureAwait(false);
                     await sw.WriteAsync(ev.ItemId.ToString(CultureInfo.InvariantCulture)).ConfigureAwait(false);
                     await sw.WriteAsync(",").ConfigureAwait(false);
-                    await sw.WriteAsync(CsvEscape(name)).ConfigureAwait(false);
+                    await sw.WriteAsync(CsvEscape(ev.DisplayName)).ConfigureAwait(false);
                     await sw.WriteAsync(",").ConfigureAwait(false);
                     await sw.WriteAsync(ev.SequenceNumber.ToString(CultureInfo.InvariantCulture)).ConfigureAwait(false);
                     await sw.WriteAsync(",").ConfigureAwait(false);
                     await sw.WriteAsync(ev.ValueCount.ToString(CultureInfo.InvariantCulture)).ConfigureAwait(false);
                     await sw.WriteAsync(",").ConfigureAwait(false);
-                    await sw.WriteLineAsync(value).ConfigureAwait(false);
+                    await sw.WriteAsync(value).ConfigureAwait(false);
+                    await sw.WriteAsync(",").ConfigureAwait(false);
+                    await sw.WriteLineAsync(CsvEscape(ev.NodeId)).ConfigureAwait(false);
                 }
             }
         }
@@ -238,7 +236,6 @@ namespace UaLens.Connection
         /// </summary>
         public async Task ExportJsonAsync(
             string path,
-            IReadOnlyDictionary<int, string>? displayNames = null,
             CancellationToken ct = default)
         {
             ArrayOf<NotificationEvent> snap = Snapshot();
@@ -257,10 +254,8 @@ namespace UaLens.Connection
                             "receivedAtUtc", ev.ReceivedAtUtc.ToString("o", CultureInfo.InvariantCulture));
                         writer.WriteString("kind", ev.Kind.ToString());
                         writer.WriteNumber("itemId", ev.ItemId);
-                        if (displayNames is not null && displayNames.TryGetValue(ev.ItemId, out string? n))
-                        {
-                            writer.WriteString("displayName", n);
-                        }
+                        writer.WriteString("displayName", ev.DisplayName);
+                        writer.WriteString("nodeId", ev.NodeId);
                         writer.WriteNumber("sequenceNumber", ev.SequenceNumber);
                         writer.WriteNumber("valueCount", ev.ValueCount);
                         if (ev.Value.HasValue)

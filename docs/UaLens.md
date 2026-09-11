@@ -57,6 +57,103 @@ An unavailable operation does not hide an entire document. Local certificate
 management and discovery are available without a primary connection. Session-bound
 documents retain their configuration while disconnected.
 
+Rename a document with **F2** or its tab menu. **Enter** commits the draft;
+**Escape** restores the original title. **Escape** also cancels the tool catalog
+without opening a document.
+
+The Write dialog reads type metadata before enabling editing. It sends at most
+one write, disables editing while awaiting the response, and keeps the result
+until **Acknowledge and close**. **Cancel wait** cancels the local operation and
+waits for its completion; it does not roll back a value the server may already
+have applied. An unknown outcome requires a fresh read to verify the value.
+
+Add Item and Monitored Item Settings share sampling and deadband validation.
+Sampling accepts `-1` (inherit publishing), `0` (fastest), or a positive number
+of milliseconds up to `3600000`. A percent deadband accepts `0` through `100`.
+Invalid input stays in the form, with an explanation and focus on the field
+to correct. Decimal values use the current locale's decimal separator.
+
+Status text uses `ErrorText`, `WarningText`, `SuccessText`, or `InfoText`; small
+section headings use `InfoText`. Decorative fills, borders, and connection
+indicators retain their accent resources. The markup regression checks both
+direct foreground bindings and style setters against this separation.
+Status-text resources are separate from chart-series palettes. Light and dark
+appearances retain each item's palette slot while adjusting its color. Automated
+source-color checks require 4.5:1 for semantic text on the defined UI surfaces
+and 3:1 for every series on chart and canvas surfaces; these checks do not
+replace screen-reader testing or evaluation by users.
+
+The native desktop case
+`UaLens.Tests.Desktop.DialogDesktopTests.AddItemValidationNamesAndFocusIdentifySamplingAndPercentBounds`
+also produces UX06 capture evidence without adding cases to the existing desktop
+selection. It keeps a real Add Item percent-bound error visible, opens the real
+certificate-trust warning with a temporary self-signed fixture certificate, and
+rejects it without changing any certificate store. A real `ScottPlotView`
+consumes a bounded synthetic notification stream for all 12 palette slots.
+Across Light, DarkStandard, and DarkNavy, it checks retained series objects,
+sample buffers, axis limits, full legend labels, and palette-slot identity.
+
+Within the test process's working directory, artifacts are written to
+`TestResults/lens-desktop/ux06/<platform>-<native-scale>/` and attached to the
+NUnit result. The test adapter copies attachments into the requested results
+directory alongside the TRX. Each run replaces nine named PNGs (`<theme>-error.png`,
+`<theme>-warning.png`, and `<theme>-all-series.png`) and two CSV reports.
+Captures render the live native window's client visual after a dispatcher frame,
+using Avalonia's render target; they are not OS-compositor screenshots and do
+not include window decorations. PNG export uses grayscale text antialiasing:
+LCD subpixel rendering produced RGB fringes rather than the source text color.
+The helper restores the window's text-rendering options after capture. Signal
+series use two-pixel strokes instead of ScottPlot's one-pixel default, retaining
+a solid palette-colored interior. Captures are capped at 1600 by 1200 pixels and
+8 MiB each. Decoded-PNG checks still require at least eight opaque pixels within
+two values per RGB channel of the expected color. The checks scan the semantic
+label's visible bounds and require every series color in the monitor capture; blank custom-draw
+surfaces fail rather than count as evidence. Failed pixel checks retain the
+candidate PNG for diagnosis; only a passing test makes it accepted capture
+evidence. No image binaries are checked in.
+
+On 2026-09-11, the strict 24-case native lane passed on Linux X11/Xvfb at all
+four actual render scales, with zero failures or skips in each cell:
+
+| Scale | X11 DPI | Native cases | Verified attachments |
+|---|---:|---:|---|
+| 100% | 96 | 24/24 | 9 PNGs, 2 CSVs |
+| 125% | 120 | 24/24 | 9 PNGs, 2 CSVs |
+| 150% | 144 | 24/24 | 9 PNGs, 2 CSVs |
+| 200% | 192 | 24/24 | 9 PNGs, 2 CSVs |
+
+The TRX files and attachment copies are under
+`TestResults/lens-desktop-final-<percent>/`, where `<percent>` is `100`, `125`,
+`150`, or `200`.
+Each contrast CSV contains 720 data rows; each series-separation CSV contains
+792. Attachment checks verify filenames, dimensions, byte bounds, expected
+palette colors, report shapes, and normal-source contrast thresholds.
+
+**Color-vision evaluation:** `contrast.csv` evaluates all four semantic text
+colors on six surfaces and all 12 series on three chart/canvas surfaces.
+`series-separation.csv` records all 66 series pairs in each theme. Both include
+normal sRGB and the severity-1 protanopia, deuteranopia, and tritanopia matrices
+from [Machado, Oliveira, and Fernandes (2009), supplementary Table 1](https://www.inf.ufrgs.br/~oliveira/pubs_files/CVD_Simulation/CVD_Simulation.html).
+The helper linearizes sRGB, applies the matrix, clips to the display gamut, and
+re-encodes to 8-bit sRGB. Contrast uses the shared W3C luminance implementation;
+series separation is Euclidean distance in linear RGB, not a validated measure
+of perceived distinguishability. Only normal-source contrast is a pass/fail
+gate. Simulated ratios are diagnostics, not additional WCAG conformance claims.
+
+Source-color calculations for the current palettes give a lowest simulated
+series/background contrast of 3.630:1 (DarkStandard, protanopia). Light semantic
+text falls as low as 4.266:1 under protanopia, despite meeting the normal-source
+4.5:1 requirement. Some hues converge: Light slots 1 and 6 have a linear-RGB
+distance of about 0.0031 under deuteranopia. These findings rule out claiming
+that twelve colors alone reliably identify twelve items. The capture fixture
+therefore retains full item labels and separates traces vertically. Real
+overlapping traces may still need inspection by item name or separate views.
+The simulation operates on palette colors, not screenshot pixels; it does not
+model individual vision, display calibration, antialiasing, or all severities.
+No human color-vision or screen-reader evaluation is claimed. Native execution
+and its attached artifacts remain required; source calculations alone do not
+establish that a desktop capture run passed.
+
 ![UaLens workspace with an expanded address space and live values, quality and source timestamps](Images/UaLens/workspace.png)
 
 *Browse the address space beside a monitor document. The connection bar applies
@@ -144,6 +241,10 @@ selector offers Values, Trend, Timing: dots, Timing: bars, Timing: lines, Histog
 and Heatmap. Trend plots the sampled signal; choosing a visualization does not
 change server publishing.
 
+In **Timing: lines**, use **Lane item** and **Line style** to choose Interpolated,
+Wave, or Zigzag with the keyboard. Clicking a lane label cycles the same selection.
+These choices affect rendering only, not subscription settings or recorded samples.
+
 ![Monitor document with two live numeric values and a trend chart with axes and legend](Images/UaLens/monitoring.png)
 
 *Trend combines the latest values and quality with a signal chart. The sample
@@ -179,6 +280,13 @@ cursors, so switching documents or views does not steal notifications from anoth
 reader or reset collected history. Retention and rendering work are bounded;
 retired history, dropped notifications, gaps, and republish activity must not be
 confused with a lossless delivery guarantee.
+
+Item identities stay with the document across disconnects and Classic/V2 engine
+changes. CSV and JSON exports use the name and node id captured with each sample,
+including samples from removed items. Offline edits do not relabel retained data.
+Disconnect and close cancel and drain accepted server mutations before disposing
+the adapter; local edits remain available for reconnect. The adapter's dropped
+count measures actual delivery-queue evictions, separately from retired history.
 
 Raw publish diagnostics use server subscription identifiers where the public
 stack interface exposes an unambiguous identifier. Partitioned V2 callbacks can

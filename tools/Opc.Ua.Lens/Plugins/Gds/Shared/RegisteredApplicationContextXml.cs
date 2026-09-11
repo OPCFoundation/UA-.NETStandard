@@ -52,13 +52,16 @@ namespace UaLens.Plugins.Gds;
 /// </remarks>
 internal static class RegisteredApplicationContextXml
 {
-    /// <summary>Lowers the internal record to its DTO.</summary>
+    /// <summary>
+    /// Lowers the internal record to its DTO.
+    /// </summary>
     public static RegisteredApplicationContextDto ToDto(RegisteredApplicationContext src)
     {
         ArgumentNullException.ThrowIfNull(src);
         var dto = new RegisteredApplicationContextDto
         {
             ApplicationId = src.ApplicationId.IsNull ? null : src.ApplicationId.ToString(),
+            GdsEndpointUrl = src.GdsEndpointUrl,
             ApplicationUri = src.ApplicationUri,
             ApplicationName = src.ApplicationName,
             ProductUri = src.ProductUri,
@@ -86,7 +89,9 @@ internal static class RegisteredApplicationContextXml
         return dto;
     }
 
-    /// <summary>Promotes a deserialised DTO back into the internal record.</summary>
+    /// <summary>
+    /// Promotes a deserialised DTO back into the internal record.
+    /// </summary>
     public static RegisteredApplicationContext ToRecord(RegisteredApplicationContextDto dto)
     {
         ArgumentNullException.ThrowIfNull(dto);
@@ -139,7 +144,10 @@ internal static class RegisteredApplicationContextXml
             HttpsCertificatePrivateKeyPath: dto.HttpsCertificatePrivateKeyPath,
             HttpsTrustListStorePath: dto.HttpsTrustListStorePath,
             HttpsIssuerListStorePath: dto.HttpsIssuerListStorePath,
-            PushEndpoint: push);
+            PushEndpoint: push)
+        {
+            GdsEndpointUrl = dto.GdsEndpointUrl ?? string.Empty
+        };
     }
 
     /// <summary>
@@ -231,6 +239,7 @@ internal static class RegisteredApplicationContextXml
         var dto = new RegisteredApplicationContextDto
         {
             ApplicationId = ElementValue(root, "ApplicationId"),
+            GdsEndpointUrl = ElementValue(root, "GdsEndpointUrl"),
             ApplicationUri = ElementValue(root, "ApplicationUri") ?? string.Empty,
             ApplicationName = ElementValue(root, "ApplicationName") ?? string.Empty,
             ProductUri = ElementValue(root, "ProductUri") ?? string.Empty,

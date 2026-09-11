@@ -45,10 +45,10 @@
       <Setter Property="Margin" Value="0,0,4,0" />
     </Style>
     <Style Selector="ListBoxItem.expired">
-      <Setter Property="Foreground" Value="{DynamicResource AccentRedLight}" />
+      <Setter Property="Foreground" Value="{DynamicResource ErrorText}" />
     </Style>
     <Style Selector="ListBoxItem.notyet">
-      <Setter Property="Foreground" Value="{DynamicResource AccentYellowLight}" />
+      <Setter Property="Foreground" Value="{DynamicResource WarningText}" />
     </Style>
   </Window.Styles>
   <Grid Margin="16" RowDefinitions="Auto,*,Auto">
@@ -162,14 +162,19 @@
       </TabItem>
     </TabControl>
 
-    <Grid Grid.Row="2" Margin="0,12,0,0" ColumnDefinitions="*,Auto">
+    <Grid Grid.Row="2" Margin="0,12,0,0" ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto">
+      <TextBlock Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" x:Name="ResultLabel"
+                 TextWrapping="Wrap" Margin="0,0,8,6"
+                 Foreground="{DynamicResource TextPrimary}" />
+      <Button Grid.Column="2" Grid.Row="0" x:Name="AcknowledgeBtn" Content="Dismiss result"
+              Margin="0,0,0,6" />
       <TextBlock Grid.Column="0" x:Name="StatusLabel"
+                 Grid.Row="1" Grid.ColumnSpan="2" TextWrapping="Wrap"
                  VerticalAlignment="Center"
                  Foreground="{DynamicResource TextSecondary}"
                  FontFamily="Cascadia Mono, Consolas, monospace"
                  Text="" />
-      <Button Grid.Column="1" x:Name="CloseBtn" Content="Close" IsCancel="True" Width="100" />
+      <Button Grid.Column="2" Grid.Row="1" x:Name="CloseBtn" Content="Close" IsCancel="True" Width="100" />
     </Grid>
   </Grid>
 </Window>
-

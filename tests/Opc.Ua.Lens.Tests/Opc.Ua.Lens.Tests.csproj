@@ -14,6 +14,11 @@
     <ProjectReference Include="..\..\tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="..\..\tools\Opc.Ua.Lens\**\*.axaml"
+                      Exclude="..\..\tools\Opc.Ua.Lens\bin\**;..\..\tools\Opc.Ua.Lens\obj\**"
+                      LogicalName="LensMarkup/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Moq" />
     <PackageReference Include="NUnit" />

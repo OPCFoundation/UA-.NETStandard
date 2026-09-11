@@ -207,8 +207,9 @@ public sealed class AdministrationPersistenceTests
             Assert.That(roundTripped.AllowFile, Is.True);
             Assert.That(roundTripped.AllowFileSystem, Is.False);
             Assert.That(roundTripped.AllowDirectory, Is.False);
-            // Roots re-attach against a live session, so an offline capture has none yet.
-            Assert.That(roundTripped.Roots, Is.Empty);
+            Assert.That(roundTripped.Roots, Has.Count.EqualTo(1));
+            Assert.That(roundTripped.Roots[0].NodeId, Is.EqualTo("ns=2;s=Root"));
+            Assert.That(roundTripped.Roots[0].DisplayName, Is.EqualTo("Docs"));
             Assert.That(context.Connection.IsConnected, Is.False);
         }
     }

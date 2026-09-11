@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using UaLens.Views;
 
 namespace UaLens.Connection;
 
@@ -55,20 +56,25 @@ internal enum CertStoreKind
 /// opens its store, performs the operation, and closes the store again
 /// so concurrent dialog operations don't fight over a shared handle.
 /// </summary>
-internal sealed class CertificateStoreService
+internal sealed class CertificateStoreService : ICertificateStoreAccess
 {
-    private readonly ApplicationConfiguration m_config;
-    private readonly ITelemetryContext m_telemetry;
-    private readonly ILogger m_log;
-
     public CertificateStoreService(ApplicationConfiguration config, ITelemetryContext telemetry)
     {
-        m_config = config;
-        m_telemetry = telemetry;
+        m_config = config ?? throw new ArgumentNullException(nameof(config));
+        m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
         m_log = telemetry.CreateLogger("CertificateStore");
     }
 
-    /// <summary>Enumerate every certificate currently in the store.</summary>
+    async Task<ArrayOf<X509Certificate2>> ICertificateStoreAccess.ListAsync(
+        CertStoreKind kind, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<X509Certificate2> certificates = await ListAsync(kind, cancellationToken).ConfigureAwait(false);
+        return certificates.ToArray();
+    }
+
+    /// <summary>
+    /// Enumerate every certificate currently in the store.
+    /// </summary>
     public async Task<IReadOnlyList<X509Certificate2>> ListAsync(CertStoreKind kind, CancellationToken ct = default)
     {
         ICertificateStore? store = OpenStore(kind);
@@ -78,7 +84,8 @@ internal sealed class CertificateStoreService
         }
         try
         {
-            Opc.Ua.Security.Certificates.CertificateCollection coll = await store.EnumerateAsync(ct).ConfigureAwait(false);
+            using Opc.Ua.Security.Certificates.CertificateCollection coll =
+                await store.EnumerateAsync(ct).ConfigureAwait(false);
             var list = new List<X509Certificate2>(coll.Count);
             foreach (Opc.Ua.Security.Certificates.Certificate cert in coll)
             {
@@ -93,7 +100,9 @@ internal sealed class CertificateStoreService
         }
     }
 
-    /// <summary>Delete one certificate from a store by thumbprint. Returns true when the cert was deleted.</summary>
+    /// <summary>
+    /// Delete one certificate from a store by thumbprint. Returns true when the cert was deleted.
+    /// </summary>
     public async Task<bool> DeleteAsync(CertStoreKind kind, string thumbprint, CancellationToken ct = default)
     {
         ICertificateStore? store = OpenStore(kind);
@@ -192,7 +201,7 @@ internal sealed class CertificateStoreService
         }
         bool ok = await DeleteAsync(CertStoreKind.Rejected, thumbprint, ct).ConfigureAwait(false);
         CertificateStoreServiceLog.RejectedCertificateTrusted(m_log, thumbprint, ok);
-        return true;
+        return ok;
     }
 
     /// <summary>
@@ -230,4 +239,8 @@ internal sealed class CertificateStoreService
         }
         return id.OpenStore(m_telemetry);
     }
+
+    private readonly ApplicationConfiguration m_config;
+    private readonly ITelemetryContext m_telemetry;
+    private readonly ILogger m_log;
 }

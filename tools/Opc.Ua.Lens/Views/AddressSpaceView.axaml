@@ -99,6 +99,12 @@
                            ToolTip.Tip="{CompiledBinding NodeClass}" />
               </Border>
               <TextBlock Text="{CompiledBinding Text}" VerticalAlignment="Center" />
+              <TextBlock Text="Loading..." IsVisible="{CompiledBinding IsLoading}" VerticalAlignment="Center" />
+              <TextBlock Text="{CompiledBinding LoadError}" IsVisible="{CompiledBinding HasLoadError}"
+                         Foreground="{DynamicResource ErrorText}" VerticalAlignment="Center" />
+              <Button Content="Retry" Command="{CompiledBinding RetryCommand}"
+                      IsVisible="{CompiledBinding HasLoadError}"
+                      AutomationProperties.Name="Retry loading this node's children" />
             </StackPanel>
           </TreeDataTemplate>
         </TreeView.ItemTemplate>
@@ -112,5 +118,3 @@
     </Grid>
   </Border>
 </UserControl>
-
-

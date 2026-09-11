@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using Opc.Ua;
 
 namespace UaLens.Telemetry;
 
@@ -44,15 +45,10 @@ internal readonly record struct LogEntry(
     string Message);
 
 /// <summary>
-/// Lock-free ring buffer of log entries. Producers (any thread) call <see cref="Add"/>;
-/// the UI thread snapshots via <see cref="Snapshot"/> at frame boundaries.
+/// Bounded log storage with atomic publication and consumer cursor advancement.
 /// </summary>
 internal sealed class LogRingBuffer
 {
-    private readonly LogEntry[] m_buffer;
-    private long m_writeIndex;
-    private readonly Lock m_snapshotLock = new();
-
     public LogRingBuffer(int capacity = 512)
     {
         if (capacity < 16)
@@ -64,12 +60,45 @@ internal sealed class LogRingBuffer
 
     public int Capacity => m_buffer.Length;
 
-    public long TotalWritten => Interlocked.Read(ref m_writeIndex);
+    public long TotalWritten
+    {
+        get
+        {
+            lock (m_snapshotLock)
+            {
+                return m_writeIndex;
+            }
+        }
+    }
 
     public void Add(in LogEntry entry)
     {
-        long idx = Interlocked.Increment(ref m_writeIndex) - 1;
-        m_buffer[idx % m_buffer.Length] = entry;
+        lock (m_snapshotLock)
+        {
+            m_buffer[m_writeIndex % m_buffer.Length] = entry;
+            m_writeIndex++;
+        }
+    }
+
+    /// <summary>
+    /// Reads retained entries after a committed cursor, reporting overwritten entries
+    /// separately. The returned cursor describes exactly this snapshot.
+    /// </summary>
+    public LogSnapshot ReadSince(long cursor)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(cursor);
+        lock (m_snapshotLock)
+        {
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(cursor, m_writeIndex);
+            long firstRetained = Math.Max(0, m_writeIndex - m_buffer.Length);
+            long start = Math.Max(cursor, firstRetained);
+            var entries = new LogEntry[(int)(m_writeIndex - start)];
+            for (int i = 0; i < entries.Length; i++)
+            {
+                entries[i] = m_buffer[(start + i) % m_buffer.Length];
+            }
+            return new LogSnapshot(entries, m_writeIndex, Math.Max(0, firstRetained - cursor));
+        }
     }
 
     /// <summary>
@@ -80,7 +109,7 @@ internal sealed class LogRingBuffer
     {
         lock (m_snapshotLock)
         {
-            long total = Interlocked.Read(ref m_writeIndex);
+            long total = m_writeIndex;
             int count = (int)Math.Min(total, m_buffer.Length);
             count = Math.Min(count, Math.Min(destination.Length, maxCount));
 
@@ -104,4 +133,10 @@ internal sealed class LogRingBuffer
         }
         return list;
     }
+
+    private readonly LogEntry[] m_buffer;
+    private long m_writeIndex;
+    private readonly Lock m_snapshotLock = new();
 }
+
+internal readonly record struct LogSnapshot(ArrayOf<LogEntry> Entries, long Cursor, long Overwritten);

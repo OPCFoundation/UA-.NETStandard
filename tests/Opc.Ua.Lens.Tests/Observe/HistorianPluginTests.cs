@@ -31,16 +31,59 @@ using System;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua;
 using UaLens.Plugins.Historian;
 using UaLens.ViewModels;
+using UaLens.Workspace;
 
 namespace UaLens.Tests.Observe;
 
 [TestFixture]
 public sealed class HistorianPluginTests
 {
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task QueuedPublicationChecksCancellationBeforeCommittingRows(bool cancel)
+    {
+        await using ObserveTestHost host = new();
+        var queued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var dispatch = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var dispatcher = new Mock<IWorkspaceDispatcher>(MockBehavior.Strict);
+        dispatcher.Setup(d => d.InvokeAsync(It.IsAny<Func<Task>>(), It.IsAny<CancellationToken>()))
+            .Returns(async (Func<Task> action, CancellationToken _) =>
+            {
+                queued.SetResult();
+                await dispatch.Task.ConfigureAwait(false);
+                await action().ConfigureAwait(false);
+            });
+        await using var plugin = new HistorianPlugin(host.Host, dispatcher.Object);
+        using var cancellation = new CancellationTokenSource();
+        DateTime timestamp = new(2026, 9, 10, 12, 0, 0, DateTimeKind.Utc);
+        var row = new HistoryRow(timestamp, timestamp, Variant.From(42), StatusCodes.Good);
+        Task publication = plugin.PublishRowsAsync([row], cancellation.Token);
+        await queued.Task.ConfigureAwait(false);
+        Assert.That(publication.IsCompleted, Is.False);
+        Assert.That(plugin.Rows, Is.Empty);
+        if (cancel)
+        {
+            cancellation.Cancel();
+        }
+        dispatch.SetResult();
+        if (cancel)
+        {
+            await Assert.ThatAsync(async () => await publication.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            Assert.That(plugin.Rows, Is.Empty);
+        }
+        else
+        {
+            await publication.ConfigureAwait(false);
+            Assert.That(plugin.Rows, Is.EqualTo(new[] { row }));
+        }
+    }
+
     [Test]
     public async Task OpensOfflineAndDisposesCleanlyWithoutASession()
     {

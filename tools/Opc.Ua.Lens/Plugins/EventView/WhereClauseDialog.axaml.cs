@@ -114,7 +114,7 @@ internal sealed partial class WhereClauseDialog : Window
         }
         catch (Exception ex)
         {
-            m_status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+            m_status.Foreground = (Application.Current?.FindResource("ErrorText") as IBrush)
                 ?? Brushes.Transparent;
             m_status.Text = $"Build failed: {ex.Message}";
             return;
@@ -130,7 +130,7 @@ internal sealed partial class WhereClauseDialog : Window
 
         if (m_session is null)
         {
-            m_status.Foreground = (Application.Current?.FindResource("AccentYellow") as IBrush)
+            m_status.Foreground = (Application.Current?.FindResource("WarningText") as IBrush)
                 ?? Brushes.Transparent;
             m_status.Text = "No active session — structure looks well-formed but cannot be validated against the server's TypeTree. Connect to validate.";
             return;
@@ -138,11 +138,12 @@ internal sealed partial class WhereClauseDialog : Window
 
         try
         {
-            var ctx = new FilterContext(m_session.NamespaceUris, m_session.TypeTree);
+            var ctx = new FilterContext(
+                m_session.NamespaceUris, m_session.TypeTree, m_session.MessageContext.Telemetry);
             ContentFilter.Result vr = built.Validate(ctx);
             if (ServiceResult.IsGood(vr.Status))
             {
-                m_status.Foreground = (Application.Current?.FindResource("AccentGreen") as IBrush)
+                m_status.Foreground = (Application.Current?.FindResource("SuccessText") as IBrush)
                     ?? Brushes.Transparent;
                 m_status.Text = "✓ Validates against the session's TypeTree.";
                 return;
@@ -174,13 +175,13 @@ internal sealed partial class WhereClauseDialog : Window
                     }
                 }
             }
-            m_status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+            m_status.Foreground = (Application.Current?.FindResource("ErrorText") as IBrush)
                 ?? Brushes.Transparent;
             m_status.Text = buf.ToString();
         }
         catch (Exception ex)
         {
-            m_status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+            m_status.Foreground = (Application.Current?.FindResource("ErrorText") as IBrush)
                 ?? Brushes.Transparent;
             m_status.Text = $"Validate failed: {ex.Message}";
         }

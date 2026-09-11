@@ -29,12 +29,19 @@
 
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
+using Opc.Ua;
+using Opc.Ua.Client;
+using UaLens.Connection;
 using UaLens.Themes;
 using UaLens.Tests.Observe;
 using UaLens.ViewModels;
+using UaLens.Views;
+using UaLens.Workspace;
 
 namespace UaLens.Tests.Workspace;
 
@@ -75,10 +82,17 @@ public sealed class DependencyInjectionTests
     [TestCase(nameof(PluginKind.Continuity))]
     [TestCase(nameof(PluginKind.PubSub))]
     [TestCase(nameof(PluginKind.Companions))]
+    [TestCase(nameof(PluginKind.GdsManagement))]
+    [TestCase(nameof(PluginKind.GdsPush))]
+    [TestCase(nameof(PluginKind.SubscriptionBench))]
+    [TestCase(nameof(PluginKind.Historian))]
+    [TestCase(nameof(PluginKind.EventView))]
+    [TestCase(nameof(PluginKind.Subscription))]
     public async Task ShowcaseFactoriesAreIdempotentlyRegisteredAndCreateFreshOfflineDocumentsAsync(string kindName)
     {
         PluginKind kind = Enum.Parse<PluginKind>(kindName);
         var services = new ServiceCollection();
+        services.AddSingleton<IWorkspaceDispatcher>(_ => InlineWorkspaceDispatcher.Instance);
         services.AddUaLens();
         services.AddUaLens();
         using ServiceProvider provider = services.BuildServiceProvider();
@@ -100,6 +114,48 @@ public sealed class DependencyInjectionTests
                     Assert.That(context.Connection.IsConnected, Is.False);
                 }
             }
+        }
+    }
+
+    [Test]
+    public async Task CertificateOperationsUseTheInjectedStoreWithoutCreatingDesktopOrRealStores()
+    {
+        var store = new Mock<ICertificateStoreAccess>(MockBehavior.Strict);
+        store.Setup(value => value.ListAsync(CertStoreKind.Trusted, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ArrayOf<System.Security.Cryptography.X509Certificates.X509Certificate2>.Empty);
+        var services = new ServiceCollection();
+        services.AddSingleton(store.Object);
+        services.AddUaLens();
+        using ServiceProvider provider = services.BuildServiceProvider();
+        Func<ApplicationConfiguration, CertificateStoreOperations> factory =
+            provider.GetRequiredService<Func<ApplicationConfiguration, CertificateStoreOperations>>();
+
+        CertificateStoreOperations operations = factory(new ApplicationConfiguration());
+        await operations.ReloadAsync(CertStoreKind.Trusted).ConfigureAwait(false);
+
+        Assert.That(operations.LoadingStatus, Is.EqualTo("Trusted: 0 certificate(s)."));
+        store.Verify(value => value.ListAsync(CertStoreKind.Trusted, It.IsAny<CancellationToken>()), Times.Once);
+        store.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task WriteOperationFactoryRemainsReplaceableAndIdempotent()
+    {
+        var session = new Mock<ISession>(MockBehavior.Strict);
+        var operation = new WriteValueOperation(new NodeId("value", 0), session.Object);
+        await using (operation.ConfigureAwait(false))
+        {
+            WriteValueOperationFactory replacement = (_, _) => operation;
+            var services = new ServiceCollection();
+            services.AddSingleton(replacement);
+            services.AddUaLens();
+            services.AddUaLens();
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            WriteValueOperationFactory factory = provider.GetRequiredService<WriteValueOperationFactory>();
+            Assert.That(factory(new NodeId("value", 0), session.Object), Is.SameAs(operation));
+            Assert.That(services.Count(value => value.ServiceType == typeof(WriteValueOperationFactory)), Is.EqualTo(1));
+            session.VerifyNoOtherCalls();
         }
     }
 }

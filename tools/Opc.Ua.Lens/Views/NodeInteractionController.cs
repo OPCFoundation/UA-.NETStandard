@@ -48,11 +48,16 @@ namespace UaLens.Views;
 /// </summary>
 internal sealed class NodeInteractionController
 {
-    public NodeInteractionController(MainWindow window, MainViewModel viewModel, ILogger log)
+    public NodeInteractionController(
+        MainWindow window,
+        MainViewModel viewModel,
+        ILogger log,
+        WriteValueOperationFactory? writeOperations = null)
     {
         m_window = window ?? throw new ArgumentNullException(nameof(window));
         m_vm = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         m_log = log ?? throw new ArgumentNullException(nameof(log));
+        m_writeOperations = writeOperations ?? (static (nodeId, session) => new WriteValueOperation(nodeId, session));
     }
 
     public void Attach()
@@ -404,12 +409,19 @@ internal sealed class NodeInteractionController
 
     private async Task WriteValueAsync(NodeViewModel node)
     {
+        if (m_window.IsClosingRequested)
+        {
+            return;
+        }
         if (m_vm.Connection.Session is not { } session)
         {
             return;
         }
-        var dlg = new WriteValueDialog(node, session);
-        await dlg.ShowDialog(m_window).ConfigureAwait(true);
+        var dlg = new WriteValueDialog(node, session, m_writeOperations(node.NodeId, session));
+        await using (dlg.ConfigureAwait(true))
+        {
+            await dlg.ShowDialog(m_window).ConfigureAwait(true);
+        }
     }
 
     private async Task ExportValueAsync(NodeViewModel node)
@@ -535,18 +547,13 @@ internal sealed class NodeInteractionController
                 return;
             }
             string path = file.Path.LocalPath;
-            var names = new Dictionary<int, string>();
-            foreach (MonitoredItemConfig item in tab.Items)
-            {
-                names[item.Id] = item.DisplayName ?? string.Empty;
-            }
             if (path.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
             {
-                await tab.Recorder.ExportJsonAsync(path, names).ConfigureAwait(true);
+                await tab.Recorder.ExportJsonAsync(path).ConfigureAwait(true);
             }
             else
             {
-                await tab.Recorder.ExportCsvAsync(path, names).ConfigureAwait(true);
+                await tab.Recorder.ExportCsvAsync(path).ConfigureAwait(true);
             }
             m_vm.ConnectionStatus = $"Exported document data to {System.IO.Path.GetFileName(path)}.";
         }
@@ -673,6 +680,7 @@ internal sealed class NodeInteractionController
     private readonly MainWindow m_window;
     private readonly MainViewModel m_vm;
     private readonly ILogger m_log;
+    private readonly WriteValueOperationFactory m_writeOperations;
 }
 
 /// <summary>

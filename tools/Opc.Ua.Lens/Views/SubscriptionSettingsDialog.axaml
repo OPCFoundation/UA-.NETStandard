@@ -58,7 +58,7 @@
       </Grid>
     </Expander>
     <TextBlock Grid.Row="3" x:Name="ValidationError" TextWrapping="Wrap"
-               Foreground="{DynamicResource AccentRed}" Margin="0,8,0,8" />
+               Foreground="{DynamicResource ErrorText}" Margin="0,8,0,8" />
     <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
       <Button x:Name="OkButton" Content="Apply" Classes="primary" IsDefault="True" />
       <Button x:Name="CancelButton" Content="Cancel" IsCancel="True" />

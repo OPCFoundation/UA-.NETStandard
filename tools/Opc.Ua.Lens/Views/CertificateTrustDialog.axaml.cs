@@ -53,15 +53,16 @@ namespace UaLens.Views
             this.RequiredControl<TextBlock>("IssuerLabel").Text = cert.Issuer;
             using (var certWrapper = new Opc.Ua.Security.Certificates.Certificate(cert.RawData))
             {
+                var applicationUris = X509Utils.GetApplicationUrisFromCertificate(certWrapper);
                 this.RequiredControl<TextBlock>("AppUriLabel").Text =
-                    X509Utils.GetApplicationUriFromCertificate(certWrapper) ?? "(none)";
+                    applicationUris.Count == 0 ? "(none)" : applicationUris[0];
             }
             DateTime nowUtc = DateTime.UtcNow;
             TextBlock notBefore = this.RequiredControl<TextBlock>("NotBeforeLabel");
             TextBlock notAfter = this.RequiredControl<TextBlock>("NotAfterLabel");
             notBefore.Text = cert.NotBefore.ToString("u", CultureInfo.InvariantCulture);
             notAfter.Text = cert.NotAfter.ToString("u", CultureInfo.InvariantCulture);
-            IBrush warnBrush = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+            IBrush warnBrush = (Application.Current?.FindResource("ErrorText") as IBrush)
                 ?? Brushes.Transparent;
             if (cert.NotBefore.ToUniversalTime() > nowUtc)
             {

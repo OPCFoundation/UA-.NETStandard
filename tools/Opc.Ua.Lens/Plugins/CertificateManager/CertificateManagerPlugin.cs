@@ -674,8 +674,6 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         }
     }
 
-    // ----- Helpers -----
-
     private static Window? GetOwnerWindow()
     {
         if (Avalonia.Application.Current?.ApplicationLifetime
@@ -705,7 +703,8 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
             // surface as "m_safeCertContext is an invalid handle" on the
             // next access of cert.Thumbprint / cert.NotBefore etc.
             using Certificate wrapper = Certificate.FromRawData(cert.RawData);
-            appUri = X509Utils.GetApplicationUriFromCertificate(wrapper) ?? "(none)";
+            IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(wrapper);
+            appUri = applicationUris.Count == 0 ? string.Empty : applicationUris[0];
         }
         catch (Exception)
         {

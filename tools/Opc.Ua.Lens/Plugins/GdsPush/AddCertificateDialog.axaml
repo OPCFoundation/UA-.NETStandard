@@ -63,7 +63,7 @@
                PlaceholderText="-----BEGIN CERTIFICATE-----&#x0A;…&#x0A;-----END CERTIFICATE-----" />
     </Grid>
 
-    <TextBlock Grid.Row="6" x:Name="ErrorLabel" Foreground="{DynamicResource AccentRedLight}" Margin="0,8,0,0" IsVisible="False" TextWrapping="Wrap" />
+    <TextBlock Grid.Row="6" x:Name="ErrorLabel" Foreground="{DynamicResource ErrorText}" Margin="0,8,0,0" IsVisible="False" TextWrapping="Wrap" />
 
     <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
       <Button x:Name="OkButton"     Content="Add"    IsDefault="True" Width="100" />

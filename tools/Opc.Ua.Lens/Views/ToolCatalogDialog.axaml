@@ -75,7 +75,7 @@
              PlaceholderText="Search tools by name or description…" />
     <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
       <Button DockPanel.Dock="Right" x:Name="CancelButton" Classes="tonal" Content="Cancel"
-              MinWidth="90" />
+              IsCancel="True" MinWidth="90" />
       <Button DockPanel.Dock="Right" x:Name="CheckButton" Classes="tonal" Content="Check availability"
               Margin="0,0,8,0" />
       <TextBlock x:Name="EmptyLabel" VerticalAlignment="Center" IsVisible="False"

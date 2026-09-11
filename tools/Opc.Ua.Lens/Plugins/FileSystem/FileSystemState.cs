@@ -45,7 +45,6 @@ namespace UaLens.Plugins.FileSystem;
 internal sealed partial class FileSystemPlugin : IWorkspaceState
 {
     private readonly List<FileSystemState.RootSpec> m_userRoots = new();
-    private readonly List<FileSystemState.RootSpec> m_pendingRoots = new();
 
     /// <summary>
     /// Captures the root filter and the user-picked root node ids as a versioned
@@ -76,14 +75,14 @@ internal sealed partial class FileSystemPlugin : IWorkspaceState
         restored.Validate();
         m_filter = new FileSystemRootFilter(
             restored.AllowFileSystem, restored.AllowDirectory, restored.AllowFile);
-        m_pendingRoots.Clear();
-        m_pendingRoots.AddRange(restored.Roots);
+        m_userRoots.Clear();
+        m_userRoots.AddRange(restored.Roots);
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// Records a successfully attached user-picked root so it can be re-attached on
-    /// a later restore. The auto-discovered <c>Server.FileSystem</c> root is not
+    /// Records a configured root before attachment so failures do not lose intent.
+    /// The auto-discovered <c>Server.FileSystem</c> root is not
     /// tracked because it is re-attached automatically on connect.
     /// </summary>
     private void TrackUserRoot(string nodeId, string displayName)

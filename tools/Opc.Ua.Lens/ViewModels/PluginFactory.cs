@@ -36,7 +36,8 @@ namespace UaLens.ViewModels;
 /// <summary>
 /// Typed creation supplied by a feature's composition code, without changing catalog metadata or document ownership.
 /// </summary>
-internal sealed record PluginFactoryRegistration(PluginKind Kind, Func<PluginHost, IPlugin> Create);
+internal sealed record PluginFactoryRegistration(
+    PluginKind Kind, Func<PluginHost, IPlugin> Create, bool IsDefault = false);
 
 /// <summary>
 /// Selects an injected feature factory or the registry's directly constructible fallback.
@@ -57,11 +58,19 @@ internal sealed class PluginFactory : IPluginFactory
         {
             ArgumentNullException.ThrowIfNull(registration);
             ArgumentNullException.ThrowIfNull(registration.Create);
-            if (!m_factories.TryAdd(registration.Kind, registration.Create))
+            if (m_factories.TryGetValue(registration.Kind, out PluginFactoryRegistration? existing))
             {
-                throw new ArgumentException(
-                    $"A factory for {registration.Kind} is already registered.", nameof(registrations));
+                if (existing.IsDefault == registration.IsDefault)
+                {
+                    throw new ArgumentException(
+                        $"A factory for {registration.Kind} is already registered.", nameof(registrations));
+                }
+                if (registration.IsDefault)
+                {
+                    continue;
+                }
             }
+            m_factories[registration.Kind] = registration;
         }
     }
 
@@ -71,10 +80,10 @@ internal sealed class PluginFactory : IPluginFactory
     {
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(fallback);
-        return m_factories.TryGetValue(kind, out Func<PluginHost, IPlugin>? create)
-            ? create(host)
+        return m_factories.TryGetValue(kind, out PluginFactoryRegistration? registration)
+            ? registration.Create(host)
             : fallback(host);
     }
 
-    private readonly Dictionary<PluginKind, Func<PluginHost, IPlugin>> m_factories = [];
+    private readonly Dictionary<PluginKind, PluginFactoryRegistration> m_factories = [];
 }

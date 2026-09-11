@@ -65,7 +65,7 @@
     </Grid>
 
     <TextBlock x:Name="ErrorLabel" DockPanel.Dock="Bottom"
-               Foreground="{DynamicResource AccentRedLight}" Margin="0,8,0,0" IsVisible="False" TextWrapping="Wrap" />
+               Foreground="{DynamicResource ErrorText}" Margin="0,8,0,0" IsVisible="False" TextWrapping="Wrap" />
 
     <!-- Scrollable body -->
     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">

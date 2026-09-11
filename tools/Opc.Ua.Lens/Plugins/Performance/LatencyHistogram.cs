@@ -58,7 +58,7 @@ internal sealed class LatencyHistogram
     private long m_count;
     private long m_overflow;
     private double m_maxMs;
-    private readonly object m_maxLock = new();
+    private readonly System.Threading.Lock m_maxLock = new();
 
     /// <summary>Total recorded samples (including ones that overflowed the top bucket).</summary>
     public long Count => System.Threading.Interlocked.Read(ref m_count);

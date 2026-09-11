@@ -59,12 +59,22 @@ namespace UaLens.ViewModels
     internal sealed partial class SubscriptionViewModel : ObservableObject, IPlugin, IWorkspaceState
     {
         private readonly ILogger m_log;
+        private readonly IWorkspaceDispatcher m_dispatcher;
         private ISubscriptionAdapter? m_adapter;
+        // Sources are disposed by awaited capture/mutation drains and DisposeCoreAsync.
+        // TODO: teach disposal analysis to follow these dispatcher-owned lifetime transfers.
+#pragma warning disable CA2213
         private CancellationTokenSource? m_captureCancellation;
+        private CancellationTokenSource m_mutationCancellation = new();
+#pragma warning restore CA2213
         private Task? m_captureTask;
         private Task? m_disposal;
         private SubscriptionDocumentView? m_view;
-        private int m_nextOfflineItemId;
+        private int m_nextItemId;
+        private int m_generation;
+        private bool m_closed;
+        private Task m_mutations = Task.CompletedTask;
+        private Task m_detachment = Task.CompletedTask;
 
         [ObservableProperty]
         public partial string ErrorText { get; set; } = string.Empty;
@@ -74,10 +84,8 @@ namespace UaLens.ViewModels
 
         /// <summary>
         /// The live adapter, or <c>null</c> when the tab was created in a
-        /// disconnected state and not yet bound.  Commands that mutate the
-        /// subscription early-return when null; the chart binders treat
-        /// null as "no source".  Bound via <see cref="AttachAdapterAsync"/>
-        /// once a session is available.
+        /// disconnected state and not yet bound. Offline edits update retained
+        /// intent. Bound via <see cref="AttachAdapterAsync"/> once a session is available.
         /// </summary>
         public ISubscriptionAdapter? Adapter => m_adapter;
 
@@ -211,11 +219,25 @@ namespace UaLens.ViewModels
         [ObservableProperty]
         public partial bool ShowResourceOverlay { get; set; }
 
-        public SubscriptionViewModel(string title, ISubscriptionAdapter? adapter, ILogger log)
+        public SubscriptionViewModel(
+            string title,
+            ISubscriptionAdapter? adapter,
+            ILogger log,
+            IWorkspaceDispatcher? dispatcher = null)
         {
-            Title = title;
+            Title = title ?? throw new ArgumentNullException(nameof(title));
             m_adapter = adapter;
-            m_log = log;
+            m_log = log ?? throw new ArgumentNullException(nameof(log));
+            m_dispatcher = dispatcher ?? (Avalonia.Application.Current is null
+                ? InlineWorkspaceDispatcher.Instance
+                : new AvaloniaWorkspaceDispatcher());
+            if (adapter is not null)
+            {
+                foreach (MonitoredItemConfig item in adapter.Items)
+                {
+                    m_nextItemId = Math.Max(m_nextItemId, item.Id);
+                }
+            }
             Items.CollectionChanged += OnItemsCollectionChanged;
             if (adapter is not null)
             {
@@ -224,9 +246,7 @@ namespace UaLens.ViewModels
         }
 
         /// <summary>
-        /// Mirror Items mutations into <see cref="ItemStatuses"/>.  Runs on
-        /// the UI thread because <see cref="Items"/> is only ever mutated via
-        /// <see cref="Dispatcher.UIThread.Post"/>.
+        /// Mirrors item mutations into status rows on the document dispatcher.
         /// </summary>
         private void OnItemsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
@@ -239,6 +259,7 @@ namespace UaLens.ViewModels
                         {
                             if (obj is MonitoredItemConfig cfg)
                             {
+                                m_nextItemId = Math.Max(m_nextItemId, cfg.Id);
                                 ItemStatuses.Add(new MonitoredItemStatusRow(cfg));
                             }
                         }
@@ -265,6 +286,29 @@ namespace UaLens.ViewModels
                     break;
                 case NotifyCollectionChangedAction.Reset:
                     ItemStatuses.Clear();
+                    break;
+                case NotifyCollectionChangedAction.Replace:
+                    if (e.NewItems is not null)
+                    {
+                        foreach (object? value in e.NewItems)
+                        {
+                            if (value is MonitoredItemConfig config)
+                            {
+                                for (int index = 0; index < ItemStatuses.Count; index++)
+                                {
+                                    if (ItemStatuses[index].Id == config.Id)
+                                    {
+                                        ItemStatuses[index].Mode = config.MonitoringMode.ToString();
+                                        ItemStatuses[index].Sampling = string.Format(CultureInfo.InvariantCulture,
+                                            "{0:0}ms", config.SamplingInterval.TotalMilliseconds);
+                                        ItemStatuses[index].Queue =
+                                            config.QueueSize.ToString(CultureInfo.InvariantCulture);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
                     break;
             }
         }
@@ -388,57 +432,14 @@ namespace UaLens.ViewModels
         /// where it was before disconnect.  Called by MainViewModel when a
         /// new connection comes online and the tab was previously unbound.
         /// </summary>
-        public async Task AttachAdapterAsync(
+        public Task AttachAdapterAsync(
             ISubscriptionAdapter adapter,
             CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(adapter);
-            bool adopted = false;
-            bool attached = false;
-            try
-            {
-                ObjectDisposedException.ThrowIf(m_disposal is not null, this);
-                cancellationToken.ThrowIfCancellationRequested();
-                if (m_adapter is not null)
-                {
-                    await DetachAdapterAsync().ConfigureAwait(true);
-                }
-                m_adapter = adapter;
-                adopted = true;
-                StartCapture(adapter);
-                OnPropertyChanged(nameof(Adapter));
-                OnPropertyChanged(nameof(IsBound));
-                await adapter.ApplySubscriptionAsync(Subscription, cancellationToken).ConfigureAwait(true);
-                MonitoredItemConfig[] snapshot = System.Linq.Enumerable.ToArray(Items);
-                var assigned = new List<MonitoredItemConfig>(snapshot.Length);
-                foreach (MonitoredItemConfig item in snapshot)
-                {
-                    int id = await adapter.AddItemAsync(item with { Id = 0 }, cancellationToken).ConfigureAwait(true);
-                    assigned.Add(item with { Id = id });
-                }
-                cancellationToken.ThrowIfCancellationRequested();
-                Items.Clear();
-                foreach (MonitoredItemConfig item in assigned)
-                {
-                    Items.Add(item);
-                }
-                attached = true;
-                RefreshStatus();
-            }
-            finally
-            {
-                if (!attached)
-                {
-                    if (adopted)
-                    {
-                        await DetachAdapterAsync().ConfigureAwait(true);
-                    }
-                    else
-                    {
-                        await adapter.DisposeAsync().ConfigureAwait(true);
-                    }
-                }
-            }
+            // The action must run even when cancelled so it can dispose the supplied adapter.
+            return m_dispatcher.InvokeAsync(
+                () => AttachCoreAsync(adapter, cancellationToken), CancellationToken.None);
         }
 
         /// <summary>
@@ -446,24 +447,9 @@ namespace UaLens.ViewModels
         /// <see cref="Items"/> collection populated as the user's intent so a
         /// later <see cref="AttachAdapterAsync"/> can restore them.
         /// </summary>
-        public async ValueTask DetachAdapterAsync()
+        public ValueTask DetachAdapterAsync()
         {
-            ISubscriptionAdapter? a = m_adapter;
-            m_adapter = null;
-            OnPropertyChanged(nameof(Adapter));
-            OnPropertyChanged(nameof(IsBound));
-            try
-            {
-                await StopCaptureAsync().ConfigureAwait(true);
-            }
-            finally
-            {
-                if (a is not null)
-                {
-                    await a.DisposeAsync().ConfigureAwait(true);
-                }
-            }
-            SubscriptionStatus = "● Disconnected — items preserved for reconnect.";
+            return new(m_dispatcher.InvokeAsync(() => m_closed ? m_disposal ?? m_detachment : BeginDetach()));
         }
 
         /// <summary>
@@ -505,116 +491,85 @@ namespace UaLens.ViewModels
             => OnPropertyChanged(nameof(Status));
 
         [RelayCommand]
-        private async Task ApplySubscriptionAsync(SubscriptionConfig newConfig)
+        public Task ApplySubscriptionAsync(SubscriptionConfig newConfig)
         {
-            ErrorText = string.Empty;
-            // The Subscription setter fires PropertyChanged synchronously, so it
-            // (and every other binding-touching mutation in this method) MUST
-            // run on the UI thread.  Marshal explicitly so this works regardless
-            // of how the caller awaited us (ConfigureAwait(true) vs false).
-            if (!Dispatcher.UIThread.CheckAccess())
+            ArgumentNullException.ThrowIfNull(newConfig);
+            return m_dispatcher.InvokeAsync(() =>
             {
-                await Dispatcher.UIThread.InvokeAsync(() => Subscription = newConfig);
-            }
-            else
-            {
+                ObjectDisposedException.ThrowIf(m_closed, this);
                 Subscription = newConfig;
-            }
-            if (m_adapter is null)
-            {
-                // Disconnected: just remember the new config; it'll be applied on AttachAdapterAsync.
-                m_log.SubscriptionTabSettingsStored(Title, newConfig.PublishingInterval.TotalMilliseconds);
-                return;
-            }
-            try
-            {
-                await m_adapter.ApplySubscriptionAsync(newConfig, CancellationToken.None).ConfigureAwait(false);
-                m_log.SubscriptionTabSettingsApplied(
-                    Title,
-                    newConfig.PublishingInterval.TotalMilliseconds,
-                    newConfig.KeepAliveCount,
-                    newConfig.LifetimeCount);
-                Dispatcher.UIThread.Post(RefreshStatus);
-            }
-            catch (Exception ex)
-            {
-                ErrorText = $"Subscription settings failed: {ex.Message}";
-                m_log.SubscriptionTabSettingsFailed(ex, Title);
-            }
+                return QueueMutation(
+                    (adapter, token) => adapter.ApplySubscriptionAsync(newConfig, token), "Subscription settings");
+            });
         }
 
         [RelayCommand]
-        private async Task AddItemAsync(MonitoredItemConfig config)
+        public Task AddItemAsync(MonitoredItemConfig config)
         {
-            ErrorText = string.Empty;
-            if (m_adapter is null)
+            ArgumentNullException.ThrowIfNull(config);
+            return m_dispatcher.InvokeAsync(() =>
             {
-                MonitoredItemConfig local = config with { Id = --m_nextOfflineItemId };
-                await Dispatcher.UIThread.InvokeAsync(() => Items.Add(local));
-                return;
-            }
-            try
-            {
-                int id = await m_adapter.AddItemAsync(config, CancellationToken.None).ConfigureAwait(false);
-                MonitoredItemConfig assigned = config with { Id = id };
-                await Dispatcher.UIThread.InvokeAsync(() => Items.Add(assigned));
-                m_log.SubscriptionTabItemAdded(Title, id, config.DisplayName);
-            }
-            catch (Exception ex)
-            {
-                ErrorText = $"Adding the monitored item failed: {ex.Message}";
-                m_log.SubscriptionTabAddItemFailed(ex, Title);
-            }
+                ObjectDisposedException.ThrowIf(m_closed, this);
+                MonitoredItemConfig assigned = config with { Id = checked(++m_nextItemId) };
+                Items.Add(assigned);
+                return QueueMutation(async (adapter, token) =>
+                {
+                    int id = await adapter.AddItemAsync(assigned, token).ConfigureAwait(true);
+                    token.ThrowIfCancellationRequested();
+                    if (id != assigned.Id)
+                    {
+                        throw new InvalidOperationException("The adapter changed the document item identity.");
+                    }
+                }, "Adding the monitored item");
+            });
         }
 
         [RelayCommand]
-        private async Task RemoveItemAsync(MonitoredItemConfig item)
+        public Task RemoveItemAsync(MonitoredItemConfig item)
         {
-            ErrorText = string.Empty;
-            if (m_adapter is null)
+            ArgumentNullException.ThrowIfNull(item);
+            return m_dispatcher.InvokeAsync(() =>
             {
-                Dispatcher.UIThread.Post(() => Items.Remove(item));
-                return;
-            }
-            try
-            {
-                await m_adapter.RemoveItemAsync(item.Id, CancellationToken.None).ConfigureAwait(false);
-                Dispatcher.UIThread.Post(() => Items.Remove(item));
-                m_log.SubscriptionTabItemRemoved(Title, item.Id);
-            }
-            catch (Exception ex)
-            {
-                ErrorText = $"Removing the monitored item failed: {ex.Message}";
-                m_log.SubscriptionTabRemoveItemFailed(ex, Title);
-            }
+                ObjectDisposedException.ThrowIf(m_closed, this);
+                int index = FindItem(item.Id);
+                if (index < 0)
+                {
+                    return Task.CompletedTask;
+                }
+                Items.RemoveAt(index);
+                return QueueMutation((adapter, token) => adapter.RemoveItemAsync(item.Id, token),
+                    "Removing the monitored item");
+            });
         }
 
-        public async Task ConfigureItemAsync(
+        public Task ConfigureItemAsync(
             MonitoredItemConfig item,
             MonitoredItemSettings settings,
             CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(item);
             ArgumentNullException.ThrowIfNull(settings);
-            int index = Items.IndexOf(item);
-            if (index < 0)
+            return m_dispatcher.InvokeAsync(() =>
             {
-                throw new InvalidOperationException("The monitored item is no longer in this document.");
-            }
-            MonitoredItemConfig updated = item with
-            {
-                SamplingInterval = settings.SamplingInterval,
-                QueueSize = settings.QueueSize,
-                DiscardOldest = settings.DiscardOldest,
-                MonitoringMode = settings.MonitoringMode,
-                DataChangeFilter = settings.DataChangeFilter
-            };
-            if (m_adapter is not null)
-            {
-                await m_adapter.ConfigureItemAsync(updated, cancellationToken).ConfigureAwait(true);
-            }
-            Items[index] = updated;
-            RefreshItemStatuses();
+                ObjectDisposedException.ThrowIf(m_closed, this);
+                cancellationToken.ThrowIfCancellationRequested();
+                int index = FindItem(item.Id);
+                if (index < 0)
+                {
+                    throw new InvalidOperationException("The monitored item is no longer in this document.");
+                }
+                MonitoredItemConfig updated = Items[index] with
+                {
+                    SamplingInterval = settings.SamplingInterval,
+                    QueueSize = settings.QueueSize,
+                    DiscardOldest = settings.DiscardOldest,
+                    MonitoringMode = settings.MonitoringMode,
+                    DataChangeFilter = settings.DataChangeFilter
+                };
+                Items[index] = updated;
+                return QueueMutation((adapter, token) => adapter.ConfigureItemAsync(updated, token),
+                    "Item settings", propagateFailure: true, cancellationToken: cancellationToken);
+            }, cancellationToken);
         }
 
         /// <summary>
@@ -624,49 +579,22 @@ namespace UaLens.ViewModels
         /// inline (the 250 ms status timer would catch it too, this just
         /// avoids the perceptible lag).
         /// </summary>
-        public async Task SetMonitoringModeAsync(MonitoredItemStatusRow row, MonitoringMode mode)
+        public Task SetMonitoringModeAsync(MonitoredItemStatusRow row, MonitoringMode mode)
         {
-            if (row is null)
+            ArgumentNullException.ThrowIfNull(row);
+            return m_dispatcher.InvokeAsync(() =>
             {
-                return;
-            }
-            if (m_adapter is null)
-            {
-                // Disconnected: persist the user's intent into the local Items
-                // collection so the next AttachAdapterAsync re-creates the item
-                // with the chosen mode.
-                for (int i = 0; i < Items.Count; i++)
+                ObjectDisposedException.ThrowIf(m_closed, this);
+                int index = FindItem(row.Id);
+                if (index < 0)
                 {
-                    if (Items[i].Id == row.Id)
-                    {
-                        Items[i] = Items[i] with { MonitoringMode = mode };
-                        break;
-                    }
+                    return Task.CompletedTask;
                 }
+                Items[index] = Items[index] with { MonitoringMode = mode };
                 row.Mode = mode.ToString();
-                return;
-            }
-            try
-            {
-                await m_adapter.SetMonitoringModeAsync(row.Id, mode, CancellationToken.None)
-                    .ConfigureAwait(true);
-                // Mirror the adapter's confirmed mode back into the VM's Items
-                // collection so a later reconnect restores the new mode.
-                for (int i = 0; i < Items.Count; i++)
-                {
-                    if (Items[i].Id == row.Id)
-                    {
-                        Items[i] = Items[i] with { MonitoringMode = mode };
-                        break;
-                    }
-                }
-                row.Mode = mode.ToString();
-                m_log.SubscriptionTabMonitoringModeChanged(Title, row.Id, mode);
-            }
-            catch (Exception ex)
-            {
-                m_log.SubscriptionTabSetMonitoringModeFailed(ex, Title, row.Id, mode);
-            }
+                return QueueMutation((adapter, token) => adapter.SetMonitoringModeAsync(row.Id, mode, token),
+                    "Monitoring mode");
+            });
         }
 
         /// <summary>
@@ -722,7 +650,7 @@ namespace UaLens.ViewModels
 
         public ValueTask DisposeAsync()
         {
-            return new(m_disposal ??= DisposeCoreAsync());
+            return new(m_dispatcher.InvokeAsync(() => m_disposal ??= DisposeCoreAsync()));
         }
 
         public JsonElement CaptureState()
@@ -742,17 +670,212 @@ namespace UaLens.ViewModels
 
         private async Task DisposeCoreAsync()
         {
+            m_closed = true;
             m_view?.Dispose();
             Items.CollectionChanged -= OnItemsCollectionChanged;
             m_statusRefreshTimer?.Stop();
             m_statusRefreshTimer = null;
             try
             {
-                await DetachAdapterAsync().ConfigureAwait(true);
+                await BeginDetach().ConfigureAwait(true);
             }
             finally
             {
                 Recorder.Complete();
+                m_mutationCancellation.Dispose();
+            }
+        }
+
+        private int FindItem(int id)
+        {
+            for (int index = 0; index < Items.Count; index++)
+            {
+                if (Items[index].Id == id)
+                {
+                    return index;
+                }
+            }
+            return -1;
+        }
+
+        private async Task AttachCoreAsync(ISubscriptionAdapter adapter, CancellationToken cancellationToken)
+        {
+            bool adopted = false;
+            bool attached = false;
+            try
+            {
+                ObjectDisposedException.ThrowIf(m_closed, this);
+                cancellationToken.ThrowIfCancellationRequested();
+                Task detachment = BeginDetach();
+                int generation = m_generation;
+                await detachment.ConfigureAwait(true);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (m_closed || generation != m_generation)
+                {
+                    return;
+                }
+                m_adapter = adapter;
+                adopted = true;
+                StartCapture(adapter);
+                OnPropertyChanged(nameof(Adapter));
+                OnPropertyChanged(nameof(IsBound));
+                SubscriptionConfig subscription = Subscription;
+                MonitoredItemConfig[] snapshot = [.. Items];
+                await QueueMutation(async (current, token) =>
+                {
+                    await current.ApplySubscriptionAsync(subscription, token).ConfigureAwait(true);
+                    foreach (MonitoredItemConfig item in snapshot)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        int id = await current.AddItemAsync(item, token).ConfigureAwait(true);
+                        if (id != item.Id)
+                        {
+                            throw new InvalidOperationException("The adapter changed the document item identity.");
+                        }
+                    }
+                }, "Restoring the monitor", propagateFailure: true, cancellationToken: cancellationToken)
+                    .ConfigureAwait(true);
+                attached = true;
+            }
+            finally
+            {
+                if (!adopted)
+                {
+                    await adapter.DisposeAsync().ConfigureAwait(true);
+                }
+                else if (!attached && ReferenceEquals(m_adapter, adapter))
+                {
+                    await BeginDetach().ConfigureAwait(true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Accepts local intent immediately; only server work is serialized. A disconnect
+        /// cancels and drains this generation without undoing edits needed for reconnect.
+        /// </summary>
+        private Task QueueMutation(
+            Func<ISubscriptionAdapter, CancellationToken, Task> action,
+            string operation,
+            bool propagateFailure = false,
+            CancellationToken cancellationToken = default)
+        {
+            ErrorText = string.Empty;
+            if (m_adapter is null)
+            {
+                return Task.CompletedTask;
+            }
+            CancellationToken generationToken = m_mutationCancellation.Token;
+            var cancellation = CancellationTokenSource.CreateLinkedTokenSource(generationToken, cancellationToken);
+            Task previous = m_mutations;
+            var drained = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_mutations = drained.Task;
+            return RunMutationAsync(previous, m_adapter, m_generation, action,
+                operation, cancellation, propagateFailure, drained, generationToken);
+        }
+
+        private async Task RunMutationAsync(
+            Task previous,
+            ISubscriptionAdapter adapter,
+            int generation,
+            Func<ISubscriptionAdapter, CancellationToken, Task> action,
+            string operation,
+            CancellationTokenSource cancellation,
+            bool propagateFailure,
+            TaskCompletionSource drained,
+            CancellationToken generationToken)
+        {
+            try
+            {
+                try
+                {
+                    await previous.ConfigureAwait(true);
+                    // CancelAsync propagates to linked tokens asynchronously; the generation flag changes immediately.
+                    generationToken.ThrowIfCancellationRequested();
+                    cancellation.Token.ThrowIfCancellationRequested();
+                    await action(adapter, cancellation.Token).ConfigureAwait(true);
+                    generationToken.ThrowIfCancellationRequested();
+                    cancellation.Token.ThrowIfCancellationRequested();
+                    if (!m_closed && generation == m_generation)
+                    {
+                        RefreshStatus();
+                    }
+                }
+                catch (OperationCanceledException) when (
+                    generationToken.IsCancellationRequested || cancellation.IsCancellationRequested)
+                {
+                    if (propagateFailure)
+                    {
+                        throw;
+                    }
+                }
+                catch (Exception) when (
+                    generationToken.IsCancellationRequested || cancellation.IsCancellationRequested)
+                {
+                    if (propagateFailure)
+                    {
+                        throw new OperationCanceledException(
+                            generationToken.IsCancellationRequested ? generationToken : cancellation.Token);
+                    }
+                }
+                catch (Exception error)
+                {
+                    if (!m_closed && generation == m_generation)
+                    {
+                        ErrorText = $"{operation} failed: {error.Message}";
+                        m_log.SubscriptionMutationFailed(error, Title, operation);
+                    }
+                    if (propagateFailure)
+                    {
+                        throw;
+                    }
+                }
+            }
+            finally
+            {
+                cancellation.Dispose();
+                drained.TrySetResult();
+            }
+        }
+
+        private Task BeginDetach()
+        {
+            ISubscriptionAdapter? adapter = m_adapter;
+            m_adapter = null;
+            m_generation++;
+            CancellationTokenSource cancellation = m_mutationCancellation;
+            m_mutationCancellation = new CancellationTokenSource();
+            Task mutations = m_mutations;
+            m_mutations = Task.CompletedTask;
+            Task cancelling = cancellation.CancelAsync();
+            Task capture = StopCaptureAsync();
+            m_detachment = DrainAndDisposeAsync(m_detachment, mutations, cancelling, capture, adapter, cancellation);
+            OnPropertyChanged(nameof(Adapter));
+            OnPropertyChanged(nameof(IsBound));
+            SubscriptionStatus = "● Disconnected — items preserved for reconnect.";
+            return m_detachment;
+        }
+
+        private static async Task DrainAndDisposeAsync(
+            Task previous,
+            Task mutations,
+            Task cancelling,
+            Task capture,
+            ISubscriptionAdapter? adapter,
+            CancellationTokenSource cancellation)
+        {
+            try
+            {
+                await mutations.ConfigureAwait(false);
+                await Task.WhenAll(previous, cancelling, capture).ConfigureAwait(false);
+            }
+            finally
+            {
+                cancellation.Dispose();
+                if (adapter is not null)
+                {
+                    await adapter.DisposeAsync().ConfigureAwait(false);
+                }
             }
         }
 
@@ -792,6 +915,11 @@ namespace UaLens.ViewModels
 
     internal static partial class SubscriptionViewModelLog
     {
+        [LoggerMessage(EventId = UaLensEventIds.SubscriptionViewModel + 9, Level = LogLevel.Error,
+            Message = "Monitor {Title}: {Operation} failed.")]
+        public static partial void SubscriptionMutationFailed(
+            this ILogger logger, Exception exception, string title, string operation);
+
         [LoggerMessage(EventId = UaLensEventIds.SubscriptionViewModel + 0, Level = LogLevel.Information,
             Message = "Tab {Title} stored subscription pub={Pub}ms (no live adapter).")]
         public static partial void SubscriptionTabSettingsStored(this ILogger logger, string title, double pub);

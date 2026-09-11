@@ -296,7 +296,7 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
         {
             try
             {
-                await r.StopAsync().ConfigureAwait(false);
+                await r.DisposeAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -304,6 +304,10 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
             }
         }
         m_aggregationTimer?.Stop();
+        lock (m_measurementLock)
+        {
+            m_runId = Guid.Empty;
+        }
     }
 
     /// <summary>Human-readable description of the configured Target (or "(no Target)").</summary>
@@ -451,7 +455,7 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task RunAsync()
     {
-        if (m_host.Connection.Session is not { } session || Target is null)
+        if (IsRunning || m_host.Connection.Session is not { } session || Target is null)
         {
             return;
         }
@@ -462,7 +466,10 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
             return;
         }
 
-        Reset();
+        if (m_runner is not null)
+        {
+            await m_runner.DisposeAsync().ConfigureAwait(true);
+        }
         m_runStartTicks = Stopwatch.GetTimestamp();
         m_runDuration = EffectiveDuration;
         m_runner = new BenchmarkRunner(
@@ -472,12 +479,14 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
             TargetRate,
             UnboundedBurst,
             m_runDuration);
+        StartMeasurements(m_runner.RunId);
         m_runner.OnSample += HandleSample;
         m_runner.OnFinished += HandleFinished;
-        m_runner.Start();
+        m_runner.OnDrainTimedOut += HandleDrainTimedOut;
 
         IsRunning = true;
         Status = "● Running…";
+        m_runner.Start();
 
         m_aggregationTimer?.Stop();
         m_aggregationTimer = new DispatcherTimer(
@@ -501,9 +510,6 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
             Status = "● Stopping…";
             await r.StopAsync().ConfigureAwait(true);
         }
-        IsRunning = false;
-        m_aggregationTimer?.Stop();
-        Status = "● Stopped";
     }
 
     [RelayCommand]
@@ -762,7 +768,7 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
     /// thread when a run finishes, so values stay consistent for the
     /// snapshot.
     /// </summary>
-    private BenchmarkRun SnapshotCurrentRun()
+    internal BenchmarkRun SnapshotCurrentRun()
     {
         long total = System.Threading.Interlocked.Read(ref m_totalOps);
         long errors = System.Threading.Interlocked.Read(ref m_errorOps);
@@ -849,24 +855,60 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
         return null;
     }
 
-    private void HandleSample(BenchmarkSample sample)
+    internal void StartMeasurements(Guid runId)
     {
-        m_histogram.Record(sample.LatencyMs);
-        System.Threading.Interlocked.Increment(ref m_totalOps);
-        if (!sample.Success)
+        lock (m_measurementLock)
         {
-            System.Threading.Interlocked.Increment(ref m_errorOps);
+            m_runId = runId;
+            Reset();
         }
     }
 
-    private void HandleFinished(string? error)
+    internal void HandleSample(BenchmarkSample sample)
+    {
+        lock (m_measurementLock)
+        {
+            if (sample.RunId != m_runId)
+            {
+                return;
+            }
+            m_histogram.Record(sample.LatencyMs);
+            System.Threading.Interlocked.Increment(ref m_totalOps);
+            if (!sample.Success)
+            {
+                System.Threading.Interlocked.Increment(ref m_errorOps);
+            }
+        }
+    }
+
+    private void HandleDrainTimedOut(Guid runId)
     {
         Dispatcher.UIThread.Post(() =>
         {
+            if (runId == m_runId && IsRunning)
+            {
+                m_aggregationTimer?.Stop();
+                Status = "● Cleanup timed out — waiting for issued operations before finishing.";
+            }
+        });
+    }
+
+    private void HandleFinished(Guid runId, string? error)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (runId != m_runId)
+            {
+                return;
+            }
             IsRunning = false;
             m_aggregationTimer?.Stop();
             OnAggregationTick(); // final refresh
             BenchmarkRun run = SnapshotCurrentRun();
+            if (error is not null)
+            {
+                run = run with { Notes = run.Notes + "; failure=" + error };
+            }
             RunHistory.Add(new BenchmarkRunRow(run));
             while (RunHistory.Count > MaxHistorySize)
             {
@@ -882,6 +924,9 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
             }
         });
     }
+
+    private readonly System.Threading.Lock m_measurementLock = new();
+    private Guid m_runId;
 
     private void OnAggregationTick()
     {

@@ -136,7 +136,7 @@ internal sealed partial class PerformanceTargetDialog : Window
             sel.Text = "(no node selected)";
             details.Text = "—";
             status.Text = "Select a node in the main address-space tree, then re-open this dialog.";
-            status.Foreground = (Application.Current?.FindResource("AccentYellow") as IBrush)
+            status.Foreground = (Application.Current?.FindResource("WarningText") as IBrush)
                 ?? Brushes.Transparent;
             return;
         }
@@ -151,7 +151,7 @@ internal sealed partial class PerformanceTargetDialog : Window
             {
                 details.Text = "Write mode requires a Variable selection.";
                 status.Text = "Pick a Variable in the address-space tree, then re-open this dialog.";
-                status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                status.Foreground = (Application.Current?.FindResource("ErrorText") as IBrush)
                     ?? Brushes.Transparent;
                 return;
             }
@@ -163,7 +163,7 @@ internal sealed partial class PerformanceTargetDialog : Window
             {
                 details.Text = "Call mode requires a Method selection.";
                 status.Text = "Pick a Method in the address-space tree, then re-open this dialog.";
-                status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                status.Foreground = (Application.Current?.FindResource("ErrorText") as IBrush)
                     ?? Brushes.Transparent;
                 return;
             }
@@ -209,13 +209,13 @@ internal sealed partial class PerformanceTargetDialog : Window
             if (!writable)
             {
                 status.Text = "Variable is not writable (AccessLevel does not have CurrentWrite). The benchmark will report write errors.";
-                status.Foreground = (Application.Current?.FindResource("AccentYellow") as IBrush)
+                status.Foreground = (Application.Current?.FindResource("WarningText") as IBrush)
                     ?? Brushes.Transparent;
             }
             else
             {
                 status.Text = "Ready. Click OK to use this variable as the Write target.";
-                status.Foreground = (Application.Current?.FindResource("AccentGreen") as IBrush)
+                status.Foreground = (Application.Current?.FindResource("SuccessText") as IBrush)
                     ?? Brushes.Transparent;
             }
         }
@@ -223,7 +223,7 @@ internal sealed partial class PerformanceTargetDialog : Window
         {
             details.Text = "(read failed)";
             status.Text = $"Read failed: {ex.Message}";
-            status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+            status.Foreground = (Application.Current?.FindResource("ErrorText") as IBrush)
                 ?? Brushes.Transparent;
         }
     }
@@ -258,8 +258,8 @@ internal sealed partial class PerformanceTargetDialog : Window
             {
                 foreach (ReferenceDescription r in br.Results[0].References)
                 {
-                    if (!r.BrowseName.IsNull
-                        && string.Equals(r.BrowseName.Name, BrowseNames.InputArguments, StringComparison.Ordinal))
+                    if (!r.BrowseName.IsNull &&
+                        string.Equals(r.BrowseName.Name, BrowseNames.InputArguments, StringComparison.Ordinal))
                     {
                         inputArgsId = ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris);
                         break;
@@ -347,13 +347,13 @@ internal sealed partial class PerformanceTargetDialog : Window
             if (m_resolvedObjectId.IsNull)
             {
                 status.Text = "Cannot resolve parent ObjectId — pick a method whose parent has been expanded in the tree.";
-                status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                status.Foreground = (Application.Current?.FindResource("ErrorText") as IBrush)
                     ?? Brushes.Transparent;
             }
             else
             {
                 status.Text = "Ready. Click OK to use this method as the Call target.";
-                status.Foreground = (Application.Current?.FindResource("AccentGreen") as IBrush)
+                status.Foreground = (Application.Current?.FindResource("SuccessText") as IBrush)
                     ?? Brushes.Transparent;
             }
         }
@@ -361,7 +361,7 @@ internal sealed partial class PerformanceTargetDialog : Window
         {
             details.Text = "(resolve failed)";
             status.Text = $"Resolve failed: {ex.Message}";
-            status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+            status.Foreground = (Application.Current?.FindResource("ErrorText") as IBrush)
                 ?? Brushes.Transparent;
         }
     }
@@ -384,9 +384,9 @@ internal sealed partial class PerformanceTargetDialog : Window
             };
             BrowseResponse br = await m_session.BrowseAsync(null, null, 0, browse,
                 CancellationToken.None).ConfigureAwait(true);
-            if (br.Results.Count > 0
-                && !StatusCode.IsBad(br.Results[0].StatusCode)
-                && br.Results[0].References.Count > 0)
+            if (br.Results.Count > 0 &&
+                !StatusCode.IsBad(br.Results[0].StatusCode) &&
+                br.Results[0].References.Count > 0)
             {
                 return ExpandedNodeId.ToNodeId(br.Results[0].References[0].NodeId, m_session.NamespaceUris);
             }
@@ -401,11 +401,17 @@ internal sealed partial class PerformanceTargetDialog : Window
     private void OnOk()
     {
         if (m_selected is null)
-        { Close(null); return; }
+        {
+            Close(null);
+            return;
+        }
         if (m_mode == BenchmarkMode.Write)
         {
             if (m_selected.NodeClass != NodeClass.Variable)
-            { Close(null); return; }
+            {
+                Close(null);
+                return;
+            }
             Result = new BenchmarkTarget(
                 BenchmarkMode.Write,
                 m_selected.NodeId,
@@ -454,7 +460,7 @@ internal sealed partial class PerformanceTargetDialog : Window
             return BuiltInType.Int32;
         }
 
-        if (dataType.IdType != IdType.Numeric)
+        if (!dataType.TryGetValue(out uint id))
         {
             return BuiltInType.Int32;
         }
@@ -464,7 +470,6 @@ internal sealed partial class PerformanceTargetDialog : Window
             return BuiltInType.Int32;
         }
 
-        uint id = (uint)dataType.Identifier;
         BuiltInType bi = (BuiltInType)id;
         return Enum.IsDefined(bi) ? bi : BuiltInType.Int32;
     }

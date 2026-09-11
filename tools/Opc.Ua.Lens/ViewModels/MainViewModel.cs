@@ -96,9 +96,9 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
         Connection = connection ?? new ConnectionService(telemetry, new PublishLogObserver());
         m_workspaceProfile = Connection.IsConnected ? Connection.Profile : null;
         PublishLog = Connection.PublishLog ?? new PublishLogObserver();
-        Browser = new BrowserViewModel(telemetry, Connection);
-        Attributes = new NodeAttributesViewModel(telemetry, Connection);
-        References = new ReferencesViewModel(telemetry, Connection);
+        Browser = new BrowserViewModel(telemetry, Connection, m_dispatcher);
+        Attributes = new NodeAttributesViewModel(telemetry, Connection, m_dispatcher);
+        References = new ReferencesViewModel(telemetry, Connection, m_dispatcher);
         m_documentOperations = documentOperations ?? new PluginDocumentOperations(Connection);
         Workspace = workspace ?? new DocumentWorkspace<IPlugin>(
             m_log, m_dispatcher, m_documentOperations.SynchronizeConnectionAsync);
@@ -251,7 +251,8 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
             throw new ArgumentException("The source document is not open.", nameof(source));
         }
         SubscriptionDocumentState snapshot = SubscriptionDocumentState.Capture(source)
-            with { Title = $"{source.Title} (copy)" };
+            with
+        { Title = $"{source.Title} (copy)" };
         IPlugin copy = await OpenDocumentAsync(
             PluginKind.Subscription, subscription: snapshot, cancellationToken: m_lifetime.Token).ConfigureAwait(true);
         return (SubscriptionViewModel)copy;
@@ -1125,17 +1126,9 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
 
     private void PumpLog()
     {
-        long total = m_logBuffer.TotalWritten;
-        if (total == m_lastLogIndex)
+        LogSnapshot snapshot = m_logBuffer.ReadSince(m_lastLogIndex);
+        foreach (LogEntry entry in snapshot.Entries)
         {
-            return;
-        }
-        List<LogEntry> snapshot = m_logBuffer.SnapshotList();
-        long start = Math.Max(m_lastLogIndex, total - snapshot.Count);
-        int skip = (int)(start - (total - snapshot.Count));
-        for (int i = skip; i < snapshot.Count; i++)
-        {
-            LogEntry entry = snapshot[i];
             LogLines.Add(string.Format(
                 CultureInfo.InvariantCulture,
                 "{0:HH:mm:ss.fff} {1,-5} {2}: {3}",
@@ -1145,7 +1138,7 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
                 LogLines.RemoveAt(0);
             }
         }
-        m_lastLogIndex = total;
+        m_lastLogIndex = snapshot.Cursor;
     }
 
     private static string LevelTag(LogLevel level) => level switch

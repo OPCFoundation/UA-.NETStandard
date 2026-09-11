@@ -38,7 +38,7 @@
     <TextBlock Grid.Row="0"
                Text="OPC UA filter operand"
                FontWeight="SemiBold" FontSize="14"
-               Foreground="{DynamicResource AccentCyan}" Margin="0,0,0,4" />
+               Foreground="{DynamicResource InfoText}" Margin="0,0,0,4" />
     <Border    Grid.Row="1" Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,12" />
 
     <Grid Grid.Row="2" ColumnDefinitions="160,*" Margin="0,0,0,12">
@@ -55,7 +55,7 @@
               RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" ColumnDefinitions="160,*">
           <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                      Text="Literal value (Variant)"
-                     FontWeight="SemiBold" Foreground="{DynamicResource AccentYellow}" Margin="0,0,0,6" />
+                     FontWeight="SemiBold" Foreground="{DynamicResource InfoText}" Margin="0,0,0,6" />
           <TextBlock Grid.Row="1" Grid.Column="0" Text="DataType" VerticalAlignment="Center" />
           <ComboBox  Grid.Row="1" Grid.Column="1" x:Name="LiteralDataType" />
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Value (invariant)"
@@ -77,7 +77,7 @@
               RowDefinitions="Auto,Auto,Auto,*" ColumnDefinitions="160,*">
           <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                      Text="Reference to another ContentFilterElement"
-                     FontWeight="SemiBold" Foreground="{DynamicResource AccentYellow}" Margin="0,0,0,6" />
+                     FontWeight="SemiBold" Foreground="{DynamicResource InfoText}" Margin="0,0,0,6" />
           <TextBlock Grid.Row="1" Grid.Column="0" Text="Element index (0-based)"
                      VerticalAlignment="Center" />
           <NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="ElementIndex"
@@ -94,7 +94,7 @@
               ColumnDefinitions="160,*,Auto">
           <TextBlock Grid.Row="0" Grid.ColumnSpan="3"
                      Text="AttributeOperand (refers to an attribute of any node)"
-                     FontWeight="SemiBold" Foreground="{DynamicResource AccentYellow}" Margin="0,0,0,6" />
+                     FontWeight="SemiBold" Foreground="{DynamicResource InfoText}" Margin="0,0,0,6" />
           <TextBlock Grid.Row="1" Grid.Column="0" Text="NodeId" VerticalAlignment="Center" />
           <TextBox   Grid.Row="1" Grid.Column="1" x:Name="AttrNodeId"
                      FontFamily="Cascadia Mono, Consolas, monospace" />
@@ -132,7 +132,7 @@
               ColumnDefinitions="160,*,Auto">
           <TextBlock Grid.Row="0" Grid.ColumnSpan="3"
                      Text="SimpleAttributeOperand (event-source field)"
-                     FontWeight="SemiBold" Foreground="{DynamicResource AccentYellow}" Margin="0,0,0,6" />
+                     FontWeight="SemiBold" Foreground="{DynamicResource InfoText}" Margin="0,0,0,6" />
           <TextBlock Grid.Row="1" Grid.Column="0" Text="TypeDefinition NodeId"
                      VerticalAlignment="Center" />
           <TextBox   Grid.Row="1" Grid.Column="1" x:Name="SimpleTypeId"

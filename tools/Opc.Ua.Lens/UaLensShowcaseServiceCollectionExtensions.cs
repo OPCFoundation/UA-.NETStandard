@@ -35,9 +35,15 @@ using Opc.Ua;
 using UaLens.Plugins.Alarms;
 using UaLens.Plugins.Companions;
 using UaLens.Plugins.Continuity;
+using UaLens.Plugins.EventView;
+using UaLens.Plugins.GdsManagement;
+using UaLens.Plugins.GdsPush;
+using UaLens.Plugins.Historian;
 using UaLens.Plugins.Models;
 using UaLens.Plugins.PubSub;
+using UaLens.Plugins.SubscriptionBench;
 using UaLens.ViewModels;
+using UaLens.Workspace;
 
 namespace UaLens;
 
@@ -57,6 +63,35 @@ internal static class UaLensShowcaseServiceCollectionExtensions
         AddFactory(services, PluginKind.Alarms, static host => new AlarmsPlugin(host));
         AddFactory(services, PluginKind.Models, static host => new ModelInspectorPlugin(host));
         AddFactory(services, PluginKind.Continuity, static host => new ContinuityPlugin(host));
+        services.TryAddSingleton<IGdsCertificateIssuance>(_ => new GdsCertificateIssuance());
+        services.TryAddSingleton<Func<PluginHost, GdsManagementPlugin>>(provider =>
+        {
+            IGdsCertificateIssuance issuance = provider.GetRequiredService<IGdsCertificateIssuance>();
+            IGdsManagementClient? client = provider.GetService<IGdsManagementClient>();
+            IGdsCertificateDelivery? delivery = provider.GetService<IGdsCertificateDelivery>();
+            return host => new GdsManagementPlugin(host, issuance, client, delivery);
+        });
+        services.AddUaLensPluginFactory<Func<PluginHost, GdsManagementPlugin>>(
+            PluginKind.GdsManagement, static (factory, host) => factory(host), isDefault: true);
+        services.TryAddSingleton<Func<PluginHost, GdsPushPlugin>>(provider =>
+        {
+            IGdsPushClient? client = provider.GetService<IGdsPushClient>();
+            return host => new GdsPushPlugin(host, client);
+        });
+        services.AddUaLensPluginFactory<Func<PluginHost, GdsPushPlugin>>(
+            PluginKind.GdsPush, static (factory, host) => factory(host), isDefault: true);
+
+        services.TryAddSingleton(provider => new VariablePoolBrowser(provider.GetRequiredService<ITelemetryContext>()));
+        services.AddUaLensPluginFactory<VariablePoolBrowser>(
+            PluginKind.SubscriptionBench, static (browser, host) => new SubscriptionBenchPlugin(host, browser),
+            isDefault: true);
+        services.AddUaLensPluginFactory<IWorkspaceDispatcher>(
+            PluginKind.Historian, static (dispatcher, host) => new HistorianPlugin(host, dispatcher), isDefault: true);
+        services.AddUaLensPluginFactory<IWorkspaceDispatcher>(
+            PluginKind.Subscription, static (dispatcher, host) => PluginRegistry.CreateSubscription(host, dispatcher),
+            isDefault: true);
+        services.AddUaLensPluginFactory<WriteValueOperationFactory>(
+            PluginKind.EventView, static (operations, host) => new EventViewPlugin(host, operations), isDefault: true);
 
         services.TryAddSingleton<IPubSubRuntimeFactory>(provider => new PubSubRuntimeFactory(
             provider.GetRequiredService<ITelemetryContext>(),
@@ -65,11 +100,11 @@ internal static class UaLensShowcaseServiceCollectionExtensions
             [.. provider.GetServices<IPubSubKeyProviderResolver>()],
             [.. provider.GetServices<IPubSubAdapterProvider>()]));
         services.AddUaLensPluginFactory<IPubSubRuntimeFactory>(
-            PluginKind.PubSub, static (factory, host) => new PubSubPlugin(host, factory));
+            PluginKind.PubSub, static (factory, host) => new PubSubPlugin(host, factory), isDefault: true);
 
         services.TryAddSingleton(_ => new CompanionPluginFactory());
         services.AddUaLensPluginFactory<CompanionPluginFactory>(
-            PluginKind.Companions, static (factory, host) => factory.Create(host));
+            PluginKind.Companions, static (factory, host) => factory.Create(host), isDefault: true);
         return services;
     }
 
@@ -81,7 +116,7 @@ internal static class UaLensShowcaseServiceCollectionExtensions
     {
         services.TryAddSingleton<Func<PluginHost, TPlugin>>(_ => create);
         services.AddUaLensPluginFactory<Func<PluginHost, TPlugin>>(
-            kind, static (factory, host) => factory(host));
+            kind, static (factory, host) => factory(host), isDefault: true);
     }
 
     private sealed class RegistrationMarker;

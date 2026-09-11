@@ -50,8 +50,8 @@ internal sealed partial class PrimitiveValuePromptDialog : Window
         InitializeComponent();
         this.RequiredControl<TextBlock>("HeaderLabel").Text = $"Edit element  ({elementType})";
         this.RequiredControl<TextBlock>("HintLabel").Text =
-            $"Element type: {elementType}. Enter a value in invariant culture; "
-            + "press OK to commit.";
+            $"Element type: {elementType}. Enter a value in invariant culture; " +
+            "press OK to commit.";
 
         TextBox box = this.RequiredControl<TextBox>("ValueText");
         TextBlock status = this.RequiredControl<TextBlock>("StatusLabel");
@@ -64,7 +64,7 @@ internal sealed partial class PrimitiveValuePromptDialog : Window
                 out Variant parsed, out string? err))
             {
                 status.Text = $"Parse error: {err}";
-                status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
+                status.Foreground = (Application.Current?.FindResource("ErrorText") as IBrush)
                     ?? Brushes.Transparent;
                 return;
             }
