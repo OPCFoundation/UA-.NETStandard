@@ -211,6 +211,54 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
         }
 
         /// <summary>
+        /// A browse that competes with another browse on the same session for
+        /// a small continuation point quota completes nothing for several
+        /// passes in a row while the other one holds the quota. Giving up
+        /// after a couple of such passes returned a truncated reference list,
+        /// so the no-progress bound has to ride out a long starvation run.
+        /// </summary>
+        [Test]
+        public async Task ManagedBrowseRidesOutAStarvationRunAsync()
+        {
+            using SessionMock session = SessionMock.Create();
+
+            // Ten passes during which the competing browse holds the quota,
+            // then the point is free and the node completes.
+            const int starvedPasses = 10;
+            int passes = 0;
+
+            session.Channel
+                .Setup(c => c.SendRequestAsync(
+                    It.IsAny<BrowseRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((IServiceRequest _, CancellationToken _) =>
+                {
+                    BrowseResult result = Interlocked.Increment(ref passes) <= starvedPasses
+                        ? BadResult(StatusCodes.BadNoContinuationPoints)
+                        : GoodResult("target");
+                    return new ValueTask<IServiceResponse>(new BrowseResponse
+                    {
+                        Results = [result],
+                        DiagnosticInfos = []
+                    });
+                });
+
+            var browser = new Browser(session);
+            ResultSet<ArrayOf<ReferenceDescription>> results = await browser
+                .BrowseAsync(new[] { new NodeId("A", 2) }.ToArrayOf())
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    ServiceResult.IsGood(results.Errors[0]),
+                    Is.True,
+                    "the browse must keep retrying while another browse holds the quota");
+                Assert.That(results.Results[0].Count, Is.EqualTo(1));
+            });
+        }
+
+        /// <summary>
         /// FetchReferencesAsync(NodeId) returned the empty result set of a
         /// failed browse, so the node cache stored "this node has no
         /// references" for a node the server merely refused to browse.

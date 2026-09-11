@@ -904,12 +904,18 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Consecutive managed browse passes that may complete no node at all
-        /// before the browse gives up. Guards against a server that answers
-        /// every retry with another continuation point error; a single such
-        /// pass can also be a concurrent browse transiently exhausting the
-        /// quota, hence more than one.
+        /// before the browse gives up. This is a last-resort breaker for a
+        /// server that answers every single retry with another continuation
+        /// point error, not a throttle: a browse that competes with another
+        /// browse on the same session for a small continuation point quota
+        /// legitimately completes nothing for several passes in a row while
+        /// the other one holds the quota, and cutting it short there returns
+        /// a truncated reference list. Any pass that completes a node resets
+        /// the count, so the bound only has to exceed the longest run of
+        /// passes such contention can starve a browse for - keep it far above
+        /// that rather than tightening it.
         /// </summary>
-        private const int kMaxManagedBrowsePassesWithoutProgress = 3;
+        private const int kMaxManagedBrowsePassesWithoutProgress = 100;
 
         private readonly ILogger m_logger;
         private readonly ITelemetryContext? m_telemetry;
