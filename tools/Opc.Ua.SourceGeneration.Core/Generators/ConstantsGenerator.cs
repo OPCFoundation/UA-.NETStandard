@@ -227,18 +227,20 @@ namespace Opc.Ua.SourceGeneration
         {
             List<NamespaceUriConstant> namespaceUris = [];
 
-            // Keyed by name *and* URI: two namespaces can legitimately sanitize
-            // to the same constant name (GetNameFromUri drops the host, so
-            // "http://a.org/UA/Robotics/" and "http://b.org/UA/Robotics/" both
-            // become "Robotics"). Suppressing the second one there would make
-            // every reference to it silently resolve to the first one's URI, so
-            // only an exact repeat of the same (name, URI) pair is dropped.
-            var emitted = new HashSet<(string Name, string Uri)>();
+            // Keyed by constant name: the Namespaces class has one member per
+            // name. A repeat of the same (name, URI) pair is simply dropped -
+            // that is the XmlNamespace == Value case this used to emit twice.
+            // Two different URIs claiming one name is not something this can
+            // resolve, because GetConstantSymbolForNamespace formats the same
+            // name for both: emitting both gives CS0102 and dropping one makes
+            // every reference to it resolve to the other one's URI, so report it.
+            var emitted = new Dictionary<string, string>(StringComparer.Ordinal);
             for (int ii = 0; ii < m_context.ModelDesign.Namespaces.Length; ii++)
             {
                 Namespace ns = m_context.ModelDesign.Namespaces[ii];
 
-                if (!string.IsNullOrEmpty(ns.Value) && emitted.Add((ns.Name, ns.Value)))
+                if (!string.IsNullOrEmpty(ns.Value) &&
+                    ClaimConstantName(emitted, ns.Name, ns.Value))
                 {
                     namespaceUris.Add(new NamespaceUriConstant(ns.Name, ns.Prefix, ns.Value));
                 }
@@ -251,13 +253,44 @@ namespace Opc.Ua.SourceGeneration
                 // name it references is always one that was emitted.
                 if (!string.IsNullOrEmpty(ns.XmlNamespace) &&
                     !string.Equals(ns.XmlNamespace, ns.Value, StringComparison.Ordinal) &&
-                    emitted.Add((ns.Name + "Xsd", ns.XmlNamespace)))
+                    ClaimConstantName(emitted, ns.Name + "Xsd", ns.XmlNamespace))
                 {
                     namespaceUris.Add(
                         new NamespaceUriConstant(ns.Name + "Xsd", ns.Prefix, ns.XmlNamespace));
                 }
             }
             return namespaceUris;
+        }
+
+        /// <summary>
+        /// Claims a namespace constant name for a URI. Returns false when the
+        /// same name and URI were already emitted, and throws when a different
+        /// URI already owns the name - the Namespaces class can only hold one
+        /// member of that name, and both callers of it would resolve to it.
+        /// </summary>
+        private static bool ClaimConstantName(
+            Dictionary<string, string> emitted,
+            string name,
+            string uri)
+        {
+            if (!emitted.TryGetValue(name, out string claimed))
+            {
+                emitted.Add(name, uri);
+                return true;
+            }
+
+            if (!string.Equals(claimed, uri, StringComparison.Ordinal))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "Two namespaces map to the constant name '{0}': {1} and {2}. " +
+                    "Give one of them a distinct Name in the model design.",
+                    name,
+                    claimed,
+                    uri);
+            }
+
+            return false;
         }
 
         /// <summary>

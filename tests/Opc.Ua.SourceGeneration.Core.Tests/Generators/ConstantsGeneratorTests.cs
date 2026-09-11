@@ -353,13 +353,15 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         /// <summary>
-        /// Regression: two namespaces can legitimately sanitize to the same
-        /// constant name (GetNameFromUri drops the host). Deduping on the name
-        /// alone dropped the second one's constant entirely, and every generated
-        /// reference to it then resolved to the first namespace's URI.
+        /// Regression: two namespaces can sanitize to the same constant name
+        /// (GetNameFromUri drops the host). Deduping on the name alone dropped
+        /// the second one's constant entirely while GetConstantSymbolForNamespace
+        /// still formatted that name for it, so every reference to the second
+        /// namespace silently resolved to the first one's URI. The Namespaces
+        /// class can only hold one member of the name, so this is reported.
         /// </summary>
         [Test]
-        public void Emit_TwoNamespacesWithTheSameName_EmitsBothUris()
+        public void Emit_TwoNamespacesWithTheSameNameButDifferentUris_Throws()
         {
             var targetNamespace = new Namespace
             {
@@ -376,13 +378,47 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
             m_mockModelDesign.Setup(m => m.Namespaces).Returns([targetNamespace, other]);
 
+            Assert.That(
+                () => EmitWithSingleObjectType(targetNamespace),
+                Throws.TypeOf<ServiceResultException>(),
+                "emitting both gives CS0102 and dropping one resolves to the wrong URI");
+        }
+
+        /// <summary>
+        /// The same namespace listed twice is not a collision - it collapses to
+        /// one constant.
+        /// </summary>
+        [Test]
+        public void Emit_TheSameNamespaceListedTwice_EmitsOneConstant()
+        {
+            var targetNamespace = new Namespace
+            {
+                Value = "http://a.org/UA/Robotics/",
+                Prefix = "Test",
+                Name = "Robotics"
+            };
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            m_mockModelDesign
+                .Setup(m => m.Namespaces)
+                .Returns([targetNamespace, targetNamespace]);
+
             string output = EmitWithSingleObjectType(targetNamespace);
 
-            Assert.That(output, Does.Contain("\"http://a.org/UA/Robotics/\""));
             Assert.That(
-                output,
-                Does.Contain("\"http://b.org/UA/Robotics/\""),
-                "the second namespace must not be silently dropped");
+                CountOccurrences(output, "public const string Robotics ="),
+                Is.EqualTo(1));
+        }
+
+        private static int CountOccurrences(string text, string value)
+        {
+            int count = 0;
+            for (int index = text.IndexOf(value, StringComparison.Ordinal);
+                index >= 0;
+                index = text.IndexOf(value, index + value.Length, StringComparison.Ordinal))
+            {
+                count++;
+            }
+            return count;
         }
 
         /// <summary>

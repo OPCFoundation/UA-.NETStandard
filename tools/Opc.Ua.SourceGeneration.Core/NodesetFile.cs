@@ -114,30 +114,16 @@ namespace Opc.Ua.SourceGeneration
             .ToDictionary(x => x.Key, x => x.Value.FileName);
 
         /// <summary>
-        /// The path of every NodeSet2 file that was loaded, including the
-        /// superseded versions <see cref="Files"/> hides behind the winning one.
-        /// Callers use this to tell NodeSet2 inputs apart from ModelDesign
-        /// inputs - a superseded NodeSet is still a NodeSet, and must not be
-        /// picked up and generated a second time by the ModelDesign pass.
+        /// The path of every file identified as a NodeSet2 input, including the
+        /// superseded versions <see cref="Files"/> hides behind the winning one
+        /// and the ones that failed to load. Callers use this to tell NodeSet2
+        /// inputs apart from ModelDesign inputs: a superseded NodeSet is still a
+        /// NodeSet and must not be generated a second time by the ModelDesign
+        /// pass, and a NodeSet that failed to load is still not a ModelDesign -
+        /// handing it to the ModelDesign pass only turns a skipped file into a
+        /// second, more confusing failure.
         /// </summary>
-        public IEnumerable<string> AllFilePaths
-        {
-            get
-            {
-                foreach (NodesetFile nodeset in m_nodesets.Values)
-                {
-                    yield return nodeset.FileName;
-                    if (nodeset.PreviousVersions == null)
-                    {
-                        continue;
-                    }
-                    foreach (NodesetFile previous in nodeset.PreviousVersions)
-                    {
-                        yield return previous.FileName;
-                    }
-                }
-            }
-        }
+        public IEnumerable<string> AllFilePaths => m_nodesetPaths;
 
         /// <summary>
         /// The models in the collection
@@ -184,6 +170,13 @@ namespace Opc.Ua.SourceGeneration
                     {
                         continue;
                     }
+
+                    // Positively identified as a NodeSet2 input. Record it
+                    // before the load is attempted: a file that fails to load
+                    // is still not a ModelDesign, and letting it fall through
+                    // to the ModelDesign pass turns a skipped file into a
+                    // second failure that aborts the whole pass.
+                    m_nodesetPaths.Add(file);
 
                     using Stream istrm = fileSystem.OpenRead(file);
                     SystemContext systemContext = new(telemetry)
@@ -488,6 +481,12 @@ namespace Opc.Ua.SourceGeneration
 
         private readonly ILogger m_logger;
         private readonly Dictionary<string, NodesetFile> m_nodesets = [];
+
+        /// <summary>
+        /// Every input recognised as a NodeSet2 file, whether or not it loaded
+        /// and whether or not it won its model URI. See <see cref="AllFilePaths"/>.
+        /// </summary>
+        private readonly HashSet<string> m_nodesetPaths = new(StringComparer.Ordinal);
         private readonly List<(NodesetFile NodeSet, string IdentifierFile)> m_identifierFiles = [];
         private readonly List<NodesetIdentifierValidationError> m_identifierValidationErrors = [];
     }

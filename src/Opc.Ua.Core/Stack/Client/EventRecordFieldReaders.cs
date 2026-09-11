@@ -640,15 +640,80 @@ namespace Opc.Ua
             {
                 return null;
             }
-            // NOTE: this only matches a field that arrived as a literal
-            // Variant[]. A field the generator has no specific projection for
-            // usually arrives as an array of a concrete built-in type
-            // (ExtensionObject[] for a structure array, String[] for a
-            // UriString array) and still reads back as null here. Wrapping
-            // those element-wise needs a non-reflective Variant conversion the
-            // stack does not expose yet - Variant(object) is deprecated and
-            // AOT-hostile.
-            return fields[index].TryGetValue(out ArrayOf<Variant> v) ? v.ToArray() : null;
+            if (fields[index].TryGetValue(out ArrayOf<Variant> v))
+            {
+                return v.ToArray();
+            }
+
+            // This reader stands in for any array the generator has no more
+            // specific projection for, and such a field normally arrives as an
+            // array of a concrete built-in type (ExtensionObject[] for a
+            // structure array, String[] for a UriString array) rather than as a
+            // literal Variant[]. Matching only Variant[] would report every one
+            // of those as null, so wrap the elements. The switch keeps this
+            // trim- and AOT-safe; Variant(object) would not be.
+            Variant field = fields[index];
+            BuiltInType elementType = field.TypeInfo.BuiltInType;
+            return elementType switch
+            {
+                BuiltInType.Boolean => WrapElements<bool>(field, elementType, Variant.From),
+                BuiltInType.SByte => WrapElements<sbyte>(field, elementType, Variant.From),
+                BuiltInType.Byte => WrapElements<byte>(field, elementType, Variant.From),
+                BuiltInType.Int16 => WrapElements<short>(field, elementType, Variant.From),
+                BuiltInType.UInt16 => WrapElements<ushort>(field, elementType, Variant.From),
+                BuiltInType.Int32 => WrapElements<int>(field, elementType, Variant.From),
+                BuiltInType.UInt32 => WrapElements<uint>(field, elementType, Variant.From),
+                BuiltInType.Int64 => WrapElements<long>(field, elementType, Variant.From),
+                BuiltInType.UInt64 => WrapElements<ulong>(field, elementType, Variant.From),
+                BuiltInType.Float => WrapElements<float>(field, elementType, Variant.From),
+                BuiltInType.Double => WrapElements<double>(field, elementType, Variant.From),
+                BuiltInType.String => WrapElements<string>(field, elementType, Variant.From),
+                BuiltInType.DateTime
+                    => WrapElements<DateTimeUtc>(field, elementType, Variant.From),
+                BuiltInType.Guid => WrapElements<Uuid>(field, elementType, Variant.From),
+                BuiltInType.ByteString
+                    => WrapElements<ByteString>(field, elementType, Variant.From),
+                BuiltInType.XmlElement
+                    => WrapElements<XmlElement>(field, elementType, Variant.From),
+                BuiltInType.NodeId => WrapElements<NodeId>(field, elementType, Variant.From),
+                BuiltInType.ExpandedNodeId
+                    => WrapElements<ExpandedNodeId>(field, elementType, Variant.From),
+                BuiltInType.StatusCode
+                    => WrapElements<StatusCode>(field, elementType, Variant.From),
+                BuiltInType.QualifiedName
+                    => WrapElements<QualifiedName>(field, elementType, Variant.From),
+                BuiltInType.LocalizedText
+                    => WrapElements<LocalizedText>(field, elementType, Variant.From),
+                BuiltInType.ExtensionObject
+                    => WrapElements<ExtensionObject>(field, elementType, Variant.From),
+                BuiltInType.DataValue
+                    => WrapElements<DataValue>(field, elementType, Variant.From),
+                BuiltInType.Enumeration
+                    => WrapElements<EnumValue>(field, elementType, Variant.From),
+                _ => null
+            };
+        }
+
+        /// <summary>
+        /// Reads an event field as an array of <typeparamref name="T"/> and
+        /// wraps every element in a Variant.
+        /// </summary>
+        /// <typeparam name="T">The array's element type.</typeparam>
+        private static Variant[]? WrapElements<T>(
+            Variant field,
+            BuiltInType elementType,
+            Func<T, Variant> wrap)
+        {
+            if (!field.TryGetArray(out ArrayOf<T> values, elementType))
+            {
+                return null;
+            }
+            var result = new Variant[values.Count];
+            for (int ii = 0; ii < result.Length; ii++)
+            {
+                result[ii] = wrap(values[ii]);
+            }
+            return result;
         }
 
         /// <summary>

@@ -827,34 +827,58 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
-        /// True when an earlier sibling field of the same structure sanitizes to
-        /// the same identifier. Authored names that differ only in characters the
-        /// sanitizer drops ("Value Id" and "ValueId") would otherwise be emitted
-        /// as the same member twice. The first field declared keeps the plain
+        /// True when the identifier is already taken inside the generated class.
+        /// That is any earlier sibling's property name - authored names that
+        /// differ only in characters the sanitizer drops ("Value Id" and
+        /// "ValueId") map onto one member - and, for every sibling, the backing
+        /// field the property is stored in: a field "Value" is stored in
+        /// "m_value", so a sibling literally named "m_value" would declare a
+        /// property of the same name. The first field declared keeps the plain
         /// name so the result does not depend on which field is asked first.
         /// </summary>
         private static bool CollidesWithEarlierSibling(Parameter field, string bare)
         {
+            if (s_reservedDataTypeFields.Contains(bare))
+            {
+                return true;
+            }
+
+            bool earlier = true;
             foreach (Parameter sibling in (field.Parent as DataTypeDesign)?.Fields ?? [])
             {
                 if (ReferenceEquals(sibling, field))
                 {
-                    return false;
+                    // Later siblings can still collide through their backing
+                    // field, which does not depend on declaration order.
+                    earlier = false;
+                    continue;
                 }
                 if (string.IsNullOrEmpty(sibling?.Name))
                 {
                     continue;
                 }
-                if (string.Equals(
-                    sibling.Name.ToCSharpIdentifierPreserveCase().TrimStart('@'),
-                    bare,
-                    StringComparison.Ordinal))
+                if (string.Equals(sibling.GetChildFieldName(), bare, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+                if (earlier &&
+                    string.Equals(
+                        sibling.Name.ToCSharpIdentifierPreserveCase().TrimStart('@'),
+                        bare,
+                        StringComparison.Ordinal))
                 {
                     return true;
                 }
             }
             return false;
         }
+
+        /// <summary>
+        /// Backing fields the data type templates declare themselves, which a
+        /// generated property therefore cannot be named after.
+        /// </summary>
+        private static readonly HashSet<string> s_reservedDataTypeFields =
+            new(StringComparer.Ordinal) { "m_FieldNames", "m_pooledSentinel" };
 
         /// <summary>
         /// Returns the C# identifier of the member a structure field is given in
@@ -908,7 +932,11 @@ namespace Opc.Ua.Schema.Model
                 }
                 taken.Add(sibling.Name);
                 taken.Add(sibling.Name.ToCSharpIdentifierPreserveCase().TrimStart('@'));
+                // The property shares the class with every sibling's backing
+                // field, so the replacement name must clear those too.
+                taken.Add(sibling.GetChildFieldName());
             }
+            taken.UnionWith(s_reservedDataTypeFields);
 
             string candidate = bare + "Field";
             while (taken.Contains(candidate) || isReserved(candidate))

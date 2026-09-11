@@ -1873,17 +1873,14 @@ namespace Opc.Ua.Schema.Model
                     return AccessRestrictions.SessionWithEncryptionAndApplyToBrowseRequired;
             }
 
-            // An unrecognised combination - a reserved or vendor bit set
-            // alongside a real restriction. Stay fail-closed: dropping the
-            // restriction because of a bit the schema cannot name would publish
-            // the node with no protection at all. Only a mask that demands
-            // nothing the schema can express maps to "unspecified".
-            const AccessRestrictionType restrictionBits =
-                AccessRestrictionType.SigningRequired |
-                AccessRestrictionType.EncryptionRequired |
-                AccessRestrictionType.SessionRequired;
-
-            if ((input & restrictionBits) != 0)
+            // An unrecognised combination - a reserved or vendor bit, possibly
+            // alongside a bit the schema does know. Stay fail-closed: a bit this
+            // mapping cannot name is still a restriction the NodeSet asked for,
+            // and dropping it would publish the node with no protection at all.
+            // Only a mask that demands nothing - empty, or nothing beyond
+            // ApplyRestrictionsToBrowse, which restricts nothing on its own -
+            // maps to "unspecified".
+            if ((input & ~AccessRestrictionType.ApplyRestrictionsToBrowse) != 0)
             {
                 return (input & AccessRestrictionType.ApplyRestrictionsToBrowse) != 0
                     ? AccessRestrictions.SessionWithEncryptionAndApplyToBrowseRequired

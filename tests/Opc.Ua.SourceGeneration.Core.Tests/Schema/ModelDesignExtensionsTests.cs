@@ -13360,6 +13360,58 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
+        /// Regression: the collision check compared generated property names
+        /// only. A field "Value" is stored in the backing field "m_value", so a
+        /// sibling literally named "m_value" declared a property of that name
+        /// next to it (CS0102).
+        /// </summary>
+        [Test]
+        public void GetPropertyName_CollidingWithASiblingBackingField_IsMadeUnique()
+        {
+            var first = new Parameter { Name = "Value" };
+            var second = new Parameter { Name = "m_value" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [first, second]
+            };
+            first.Parent = dataType;
+            second.Parent = dataType;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.GetChildFieldName(), Is.EqualTo("m_value"));
+                Assert.That(
+                    second.GetPropertyName(),
+                    Is.Not.EqualTo("m_value"),
+                    "the property would collide with the sibling's backing field");
+                Assert.That(
+                    second.GetPropertyName(),
+                    Is.Not.EqualTo(second.GetChildFieldName()));
+            });
+        }
+
+        /// <summary>
+        /// The templates declare their own backing fields, which a generated
+        /// property cannot be named after either.
+        /// </summary>
+        [TestCase("m_FieldNames")]
+        [TestCase("m_pooledSentinel")]
+        public void GetPropertyName_CollidingWithATemplateBackingField_IsMadeUnique(
+            string fieldName)
+        {
+            var field = new Parameter { Name = fieldName };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [field]
+            };
+            field.Parent = dataType;
+
+            Assert.That(field.GetPropertyName(), Is.Not.EqualTo(fieldName));
+        }
+
+        /// <summary>
         /// Same hole in the Fields enumeration member names.
         /// </summary>
         [Test]

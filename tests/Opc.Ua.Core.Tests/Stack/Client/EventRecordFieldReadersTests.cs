@@ -382,5 +382,63 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Assert.That(EventRecordFieldReaders.GetInt32Array(absent, 1), Is.Null);
             });
         }
+
+        /// <summary>
+        /// GetVariantArray stands in for any array the generator has no more
+        /// specific projection for, and those fields arrive as an array of a
+        /// concrete built-in type rather than as a literal Variant[]. Matching
+        /// only Variant[] left every such property permanently null.
+        /// </summary>
+        [Test]
+        public void GetVariantArrayWrapsConcreteElementTypes()
+        {
+            string[] strings = ["a", "b"];
+            int[] integers = [1, 2, 3];
+
+            Assert.Multiple(() =>
+            {
+                Variant[] fromStrings = EventRecordFieldReaders.GetVariantArray(
+                    [new Variant(strings.ToArrayOf())], 0);
+                Assert.That(fromStrings, Is.Not.Null);
+                Assert.That(fromStrings, Has.Length.EqualTo(2));
+                Assert.That(fromStrings[0].ToString(), Is.EqualTo("a"));
+                Assert.That(fromStrings[1].ToString(), Is.EqualTo("b"));
+
+                Variant[] fromInts = EventRecordFieldReaders.GetVariantArray(
+                    [new Variant(integers.ToArrayOf())], 0);
+                Assert.That(fromInts, Is.Not.Null);
+                Assert.That(fromInts, Has.Length.EqualTo(3));
+            });
+        }
+
+        /// <summary>
+        /// A literal Variant[] still round-trips unchanged.
+        /// </summary>
+        [Test]
+        public void GetVariantArrayPassesThroughAVariantArray()
+        {
+            Variant[] variants = [Variant.From(1), Variant.From("two")];
+
+            Variant[] result = EventRecordFieldReaders.GetVariantArray(
+                [Variant.From(variants.ToArrayOf())], 0);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result, Has.Length.EqualTo(2));
+        }
+
+        /// <summary>
+        /// An absent or null field still reads as null.
+        /// </summary>
+        [Test]
+        public void GetVariantArrayReturnsNullForAnAbsentField()
+        {
+            Variant[] absent = [Variant.Null];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(EventRecordFieldReaders.GetVariantArray(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetVariantArray(absent, 1), Is.Null);
+            });
+        }
     }
 }
