@@ -88,6 +88,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             try
             {
+                // Nothing will ever apply the queued triggering operations
+                // again, so complete their awaiters instead of leaving
+                // SetTriggeringAsync callers hanging forever.
+                FailPendingTriggeringOperations(StatusCodes.BadSubscriptionIdInvalid);
+
                 foreach (MonitoredItem? monitoredItem in m_monitoredItems.Values.ToList())
                 {
                     await monitoredItem.DisposeAsync().ConfigureAwait(false);
@@ -99,6 +104,21 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 m_monitoredItemsByName.Clear();
                 m_pendingByTriggeringName.Clear();
                 m_pendingTriggeringCount = 0;
+            }
+        }
+
+        /// <summary>
+        /// Completes every queued triggering operation with
+        /// <paramref name="status"/>. Used when the subscription can no longer
+        /// apply them (dispose), so awaiting callers observe a result rather
+        /// than waiting forever.
+        /// </summary>
+        /// <param name="status">The status reported to the awaiters.</param>
+        internal void FailPendingTriggeringOperations(StatusCode status)
+        {
+            while (m_triggeringOps.TryDequeue(out TriggeringOperation? op))
+            {
+                FailOperation(op, op.TriggeringItem, status);
             }
         }
 

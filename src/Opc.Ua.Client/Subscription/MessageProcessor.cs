@@ -549,9 +549,9 @@ namespace Opc.Ua.Client.Subscriptions
             IReadOnlyList<string> stringTable,
             CancellationToken ct)
         {
+            bool shouldAcknowledge = message.NotificationData.Count != 0;
             try
             {
-                bool shouldAcknowledge = message.NotificationData.Count != 0;
                 if (!shouldAcknowledge)
                 {
                     publishStateMask |= PublishState.KeepAlive;
@@ -571,7 +571,21 @@ namespace Opc.Ua.Client.Subscriptions
                             stringTable).ConfigureAwait(false);
                     }
                 }
-                if (shouldAcknowledge)
+            }
+            catch (Exception ex)
+            {
+                Logger.SubscriptionErrorDispatchingNotificationData(
+                    ex,
+                    Id);
+            }
+
+            // Acknowledge even when a handler threw: the dedup gate has already
+            // advanced past this sequence number, so withholding the ack only
+            // makes the server retransmit a message this subscription will
+            // discard as a duplicate.
+            if (shouldAcknowledge)
+            {
+                try
                 {
                     await AckQueue.QueueAsync(new SubscriptionAcknowledgement
                     {
@@ -579,12 +593,12 @@ namespace Opc.Ua.Client.Subscriptions
                         SubscriptionId = Id
                     }, ct).ConfigureAwait(false);
                 }
-            }
-            catch (Exception ex)
-            {
-                Logger.SubscriptionErrorDispatchingNotificationData(
-                    ex,
-                    Id);
+                catch (Exception ex)
+                {
+                    Logger.SubscriptionErrorDispatchingNotificationData(
+                        ex,
+                        Id);
+                }
             }
         }
 

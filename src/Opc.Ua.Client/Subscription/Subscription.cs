@@ -226,8 +226,14 @@ namespace Opc.Ua.Client.Subscriptions
             }
             else
             {
-                OnOptionsChanged(options.CurrentValue);
+                // Signal the initial pass unconditionally. Routing this through
+                // OnOptionsChanged would short-circuit on the record comparison
+                // whenever the supplied options equal the defaults, and the
+                // subscription would never be created on the server until some
+                // unrelated change happened to wake the state manager.
+                Options = options.CurrentValue;
                 m_changeTracking = options.OnChange((o, _) => OnOptionsChanged(o));
+                m_stateControl.Set();
             }
             m_stateManagement = StateManagerAsync(m_cts.Token);
         }
@@ -445,8 +451,23 @@ namespace Opc.Ua.Client.Subscriptions
                         uint oldId = Id;
                         if (oldId != 0)
                         {
-                            await DeleteForRecreateAsync(oldId, token)
-                                .ConfigureAwait(false);
+                            // A server that recycles identifiers may already
+                            // have handed this id to a sibling that recreated
+                            // first (typical after a session recreate). Deleting
+                            // it would tear down the sibling's live
+                            // subscription, so only delete an id that still
+                            // resolves to this subscription.
+                            if (AckQueue.OwnsSubscriptionId(this, oldId))
+                            {
+                                await DeleteForRecreateAsync(oldId, token)
+                                    .ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                Logger.SubscriptionSkippedDeleteOfReusedId(Id, oldId);
+                                StopKeepAliveTimer();
+                                OnSubscriptionDeleteCompleted();
+                            }
                             AckQueue.DropPendingForSubscription(oldId);
                         }
                     },
@@ -896,8 +917,31 @@ namespace Opc.Ua.Client.Subscriptions
                 // re-enters the engine. Handlers that need backpressure
                 // should buffer in OnSubscriptionStateChangedAsync and
                 // process on a worker.
-                _ = m_handler.OnSubscriptionStateChangedAsync(this, state,
-                    publishStateMask).AsTask();
+                Task dispatch = m_handler
+                    .OnSubscriptionStateChangedAsync(this, state, publishStateMask)
+                    .AsTask();
+                if (!dispatch.IsCompleted)
+                {
+                    // Observe the fault: an unobserved exception from the
+                    // fire-and-forget dispatch would otherwise surface on the
+                    // finalizer thread.
+                    _ = dispatch.ContinueWith(
+                        (t, s) => Logger
+                            .SubscriptionOnSubscriptionStateChangedAsyncHandlerThrew(
+                                t.Exception,
+                                (Subscription)s!),
+                        this,
+                        CancellationToken.None,
+                        TaskContinuationOptions.OnlyOnFaulted |
+                            TaskContinuationOptions.ExecuteSynchronously,
+                        TaskScheduler.Default);
+                }
+                else if (dispatch.IsFaulted)
+                {
+                    Logger.SubscriptionOnSubscriptionStateChangedAsyncHandlerThrew(
+                        dispatch.Exception,
+                        this);
+                }
             }
             catch (Exception ex)
             {
@@ -925,6 +969,7 @@ namespace Opc.Ua.Client.Subscriptions
                     await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
                     SubscriptionOptions options = Options;
                     bool applyFailed = false;
+                    bool recreateRequired = false;
                     try
                     {
                         while (!ct.IsCancellationRequested)
@@ -971,6 +1016,13 @@ namespace Opc.Ua.Client.Subscriptions
                     catch (Exception ex)
                     {
                         applyFailed = true;
+                        // The server no longer knows this subscription, so every
+                        // further Modify / ApplyChanges against the current id
+                        // fails the same way. Recreate it instead of retrying
+                        // the dead id until the process ends.
+                        recreateRequired = Created &&
+                            ex is ServiceResultException sre &&
+                            sre.StatusCode == StatusCodes.BadSubscriptionIdInvalid;
                         // Rate-limit: log the first failure of a streak at Error
                         // and the subsequent retries at Debug so a persistently
                         // failing apply cannot flood the log.
@@ -988,6 +1040,13 @@ namespace Opc.Ua.Client.Subscriptions
                     finally
                     {
                         m_stateLock.Release();
+                    }
+
+                    if (recreateRequired && !ct.IsCancellationRequested)
+                    {
+                        // Takes the state lock itself, so it has to run after
+                        // the release above.
+                        await ResetToRecreateAsync(ct).ConfigureAwait(false);
                     }
 
                     // A per-item change can fail transiently (e.g. a bad status
@@ -1412,7 +1471,12 @@ namespace Opc.Ua.Client.Subscriptions
                 }
 
                 uint minLifetimeInterval = (uint)options.MinLifetimeInterval.TotalMilliseconds;
-                uint publishingInterval = (uint)options.PublishingInterval.TotalMilliseconds;
+                // A sub-millisecond publishing interval truncates to zero and
+                // would divide by zero below; treat it as one millisecond,
+                // which is the smallest interval the wire format expresses.
+                uint publishingInterval = Math.Max(
+                    1u,
+                    (uint)options.PublishingInterval.TotalMilliseconds);
                 uint minLifetimeCount = minLifetimeInterval / publishingInterval;
                 if (lifetimeCount < minLifetimeCount)
                 {
@@ -1655,6 +1719,14 @@ namespace Opc.Ua.Client.Subscriptions
             Subscription subscription,
             uint old,
             uint @new);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 66, Level = LogLevel.Information,
+            Message = "Subscription {SubscriptionId}: skipped deleting stale id {StaleId} " +
+                "because it now belongs to another subscription.")]
+        public static partial void SubscriptionSkippedDeleteOfReusedId(
+            this ILogger logger,
+            uint subscriptionId,
+            uint staleId);
     }
 
 }

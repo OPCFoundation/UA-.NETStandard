@@ -262,9 +262,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     ? options.Encoding.Value
                     : QualifiedName.Null,
                 MonitoringMode = (uint)options.MonitoringMode,
+                // A negative interval is the "use the publishing interval"
+                // sentinel of Part 4 §7.21 and must survive the round trip;
+                // clamping it to 0 would ask the server for the fastest
+                // practical rate instead.
                 SamplingIntervalMs = (int)Math.Min(
                     int.MaxValue,
-                    Math.Max(0, options.SamplingInterval.TotalMilliseconds)),
+                    Math.Max(-1, options.SamplingInterval.TotalMilliseconds)),
                 Filter = options.Filter,
                 QueueSize = options.QueueSize,
                 DiscardOldest = options.DiscardOldest,

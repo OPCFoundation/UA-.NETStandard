@@ -352,6 +352,9 @@ namespace Opc.Ua.Client
             }
             catch (OperationCanceledException) when (!continuationPoint.IsEmpty)
             {
+                // Release the continuation point before propagating: returning
+                // the partial list here would hand the caller a silently
+                // truncated result that looks like a complete browse.
                 session = Session;
                 if (session != null)
                 {
@@ -361,6 +364,7 @@ namespace Opc.Ua.Client
                     true,
                     default).ConfigureAwait(false);
                 }
+                throw;
             }
             // return the results.
             return references;
@@ -427,6 +431,15 @@ namespace Opc.Ua.Client
             var errorsForPass = new List<ServiceResult>(count);
             errorsForPass.AddRange(errors);
 
+            // Index into the caller's result/error lists for every entry of the
+            // current pass. A retry pass browses a shrunken subset, so its own
+            // offsets no longer line up with the caller's lists.
+            var originalIndexForPass = new List<int>(count);
+            for (int i = 0; i < count; i++)
+            {
+                originalIndexForPass.Add(i);
+            }
+
             int passCount = 0;
 
             do
@@ -452,6 +465,7 @@ namespace Opc.Ua.Client
                 var referenceDescriptionsForNextPass
                     = new List<List<ReferenceDescription>>();
                 var errorsForNextPass = new List<ServiceResult>();
+                var originalIndexForNextPass = new List<int>();
 
                 // loop over the batches
                 foreach (ArrayOf<NodeId> nodesToBrowseBatch in
@@ -501,13 +515,15 @@ namespace Opc.Ua.Client
                                 referenceDescriptionsForNextPass.Add(
                                     resultForPass[resultOffset]);
                                 errorsForNextPass.Add(errorsForPass[resultOffset]);
+                                originalIndexForNextPass.Add(
+                                    originalIndexForPass[resultOffset]);
                             }
                         }
 
                         resultForPass[resultOffset].Clear();
                         resultForPass[resultOffset].AddRange(results.Results[ii]);
                         errorsForPass[resultOffset] = results.Errors[ii];
-                        errors[resultOffset] = results.Errors[ii];
+                        errors[originalIndexForPass[resultOffset]] = results.Errors[ii];
                         resultOffset++;
                     }
 
@@ -517,6 +533,7 @@ namespace Opc.Ua.Client
                 resultForPass = referenceDescriptionsForNextPass;
                 errorsForPass = errorsForNextPass;
                 nodesToBrowseForPass = nodesToBrowseForNextPass;
+                originalIndexForPass = originalIndexForNextPass;
 
                 if (badCPInvalidErrorsPerPass > 0)
                 {
@@ -549,6 +566,20 @@ namespace Opc.Ua.Client
                 }
 
                 passCount++;
+
+                if (passCount >= kMaxManagedBrowsePasses &&
+                    nodesToBrowseForPass.Count > 0)
+                {
+                    // A server that keeps answering BadNoContinuationPoints /
+                    // BadContinuationPointInvalid would otherwise keep this
+                    // loop running forever. Report the last error for the
+                    // nodes that never completed and return.
+                    m_logger.ManagedBrowsePassPassCountErrorS(
+                        passCount,
+                        nodesToBrowseForPass.Count,
+                        "continuation point errors that did not resolve; giving up");
+                    break;
+                }
             } while (nodesToBrowseForPass.Count > 0);
             return ResultSet.From(result.ConvertAll(l => (ArrayOf<ReferenceDescription>)l), errors);
         }
@@ -865,6 +896,13 @@ namespace Opc.Ua.Client
         {
             public required T Reference { get; set; }
         }
+
+        /// <summary>
+        /// Upper bound on the retry passes of the managed browse. Guards
+        /// against a server that answers every retry with another continuation
+        /// point error.
+        /// </summary>
+        private const int kMaxManagedBrowsePasses = 32;
 
         private readonly ILogger m_logger;
         private readonly ITelemetryContext? m_telemetry;

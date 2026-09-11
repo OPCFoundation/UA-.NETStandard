@@ -101,10 +101,35 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 throw new ArgumentNullException(nameof(logical));
             }
-            if (Interlocked.CompareExchange(ref m_logical, logical, null) != null)
+            List<(ISubscription Source, SubscriptionState State, PublishState Mask)> replay;
+            lock (m_bindLock)
             {
-                throw new InvalidOperationException(
-                    "PartitionForwardingHandler is already bound to a logical subscription.");
+                if (Interlocked.CompareExchange(ref m_logical, logical, null) != null)
+                {
+                    throw new InvalidOperationException(
+                        "PartitionForwardingHandler is already bound to a logical subscription.");
+                }
+                replay = [.. m_pendingStateChanges];
+                m_pendingStateChanges.Clear();
+            }
+
+            // Replay the state changes the partition raised before the wrapper
+            // existed (notably the initial Opened, which the partition's state
+            // manager fires from inside its own constructor). Fire-and-forget,
+            // matching how the partition raises them.
+            if (replay.Count != 0)
+            {
+                _ = ReplayStateChangesAsync(replay);
+            }
+        }
+
+        private async Task ReplayStateChangesAsync(
+            List<(ISubscription Source, SubscriptionState State, PublishState Mask)> replay)
+        {
+            foreach ((ISubscription source, SubscriptionState state, PublishState mask) in replay)
+            {
+                await OnSubscriptionStateChangedAsync(source, state, mask)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -125,7 +150,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             finally
             {
-                m_serialise.Release();
+                ReleaseSerialise();
             }
         }
 
@@ -146,7 +171,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             finally
             {
-                m_serialise.Release();
+                ReleaseSerialise();
             }
         }
 
@@ -165,7 +190,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             finally
             {
-                m_serialise.Release();
+                ReleaseSerialise();
             }
         }
 
@@ -174,7 +199,25 @@ namespace Opc.Ua.Client.Subscriptions
             SubscriptionState state, PublishState publishStateMask,
             CancellationToken ct = default)
         {
-            ISubscription logical = m_logical ?? subscription;
+            ISubscription? bound = m_logical;
+            if (bound == null)
+            {
+                lock (m_bindLock)
+                {
+                    if (m_logical == null)
+                    {
+                        // The partition raises its initial Opened from inside
+                        // its own constructor, before the manager can bind the
+                        // wrapper. Buffer it so the user handler is never
+                        // handed the raw partition; BindLogical replays it.
+                        m_pendingStateChanges.Add((subscription, state, publishStateMask));
+                        return;
+                    }
+                }
+                bound = m_logical;
+            }
+
+            ISubscription logical = bound ?? subscription;
             await m_serialise.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -185,7 +228,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             finally
             {
-                m_serialise.Release();
+                ReleaseSerialise();
             }
         }
 
@@ -220,12 +263,43 @@ namespace Opc.Ua.Client.Subscriptions
         /// <inheritdoc/>
         public void Dispose()
         {
+            m_disposed = true;
             m_serialise.Dispose();
+        }
+
+        /// <summary>
+        /// Releases the serialisation gate. A user handler that outlives the
+        /// wrapper's disposal would otherwise throw ObjectDisposedException out
+        /// of the finally block that releases it.
+        /// </summary>
+        private void ReleaseSerialise()
+        {
+            if (m_disposed)
+            {
+                return;
+            }
+            try
+            {
+                m_serialise.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Raced with Dispose; nothing left to release.
+            }
         }
 
         private readonly ISubscriptionNotificationHandler m_userHandler;
         private readonly SemaphoreSlim m_serialise = new(1, 1);
         private readonly HashSet<ISubscription> m_stoppedSubscriptions = [];
+        private readonly Lock m_bindLock = new();
+
+        /// <summary>
+        /// State changes raised before <see cref="BindLogical"/> ran, replayed
+        /// once the logical wrapper is known.
+        /// </summary>
+        private readonly List<(ISubscription Source, SubscriptionState State,
+            PublishState Mask)> m_pendingStateChanges = [];
         private ISubscription? m_logical;
+        private volatile bool m_disposed;
     }
 }

@@ -240,7 +240,10 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             var current = ExpandedNodeId.ToNodeId(nodeId, cache.NamespaceUris);
-            while (!current.IsNull)
+            // A cyclic subtype relation reported by the server would otherwise
+            // spin here forever.
+            var visited = new HashSet<NodeId>();
+            while (!current.IsNull && visited.Add(current))
             {
                 current = await cache.FindSuperTypeAsync(current, ct).ConfigureAwait(false);
             }
@@ -311,7 +314,10 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             NodeId typeId = datatypeId;
-            while (!typeId.IsNull)
+            // A cyclic subtype relation reported by the server would otherwise
+            // spin here forever.
+            var visited = new HashSet<NodeId>();
+            while (!typeId.IsNull && visited.Add(typeId))
             {
                 if (typeId.NamespaceIndex == 0 && typeId.TryGetValue(out uint numericId))
                 {

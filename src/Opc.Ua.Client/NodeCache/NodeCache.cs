@@ -306,6 +306,15 @@ namespace Opc.Ua.Client
                 }
                 ArrayOf<ReferenceDescription> references = await GetOrAddReferencesAsync(nodeId, ct)
                     .ConfigureAwait(false);
+                if (includeSubtypes)
+                {
+                    // FilterNodes walks upwards from each reference type, which
+                    // LoadTypeHierarchyAsync (a downward walk) does not cover.
+                    // Warm those chains here so the synchronous filter never
+                    // blocks on the network.
+                    await EnsureSuperTypeChainsLoadedAsync(references, ct)
+                        .ConfigureAwait(false);
+                }
                 return await GetNodesAsync(
                     FilterNodes(references, isInverse, referenceTypeId, includeSubtypes),
                     ct)
@@ -337,73 +346,51 @@ namespace Opc.Ua.Client
             bool includeSubtypes,
             CancellationToken ct)
         {
-            var targetIds = new List<NodeId>();
-            var notFound = new List<NodeId>();
-            if (includeSubtypes && !IsTypeHierarchyLoaded(referenceTypeIds))
-            {
-                // Type hierarchy is not fully cached, so the synchronous
-                // IsTypeOf used by FilterNodes cannot reliably classify
-                // references. Force every input node through the async
-                // core which loads the hierarchy first before filtering.
-                foreach (NodeId nodeId in nodeIds)
-                {
-                    if (!nodeId.IsNull)
-                    {
-                        notFound.Add(nodeId);
-                    }
-                }
-                return FindReferencesAsyncCore(
-                    notFound,
-                    referenceTypeIds,
-                    isInverse,
-                    includeSubtypes,
-                    targetIds,
-                    ct);
-            }
-            foreach (NodeId nodeId in nodeIds)
-            {
-                if (nodeId.IsNull)
-                {
-                    continue;
-                }
-                if (m_refs.TryGet(nodeId, out ArrayOf<ReferenceDescription> references))
-                {
-                    targetIds.AddRange(
-                        FilterNodes(references, isInverse, referenceTypeIds, includeSubtypes));
-                }
-                else
-                {
-                    notFound.Add(nodeId);
-                }
-            }
-            return notFound.Count != 0
-                ? FindReferencesAsyncCore(
-                    notFound,
-                    referenceTypeIds,
-                    isInverse,
-                    includeSubtypes,
-                    targetIds,
-                    ct)
-                : GetNodesAsync(targetIds.ToArrayOf(), ct);
+            return FindReferencesAsyncCore(
+                nodeIds,
+                referenceTypeIds,
+                isInverse,
+                includeSubtypes,
+                ct);
 
             async ValueTask<ArrayOf<INode>> FindReferencesAsyncCore(
-                List<NodeId> nodeIds,
+                ArrayOf<NodeId> nodeIds,
                 ArrayOf<NodeId> referenceTypeIds,
                 bool isInverse,
                 bool includeSubtypes,
-                List<NodeId> targetIds,
                 CancellationToken ct)
             {
-                if (includeSubtypes)
+                if (includeSubtypes && !IsTypeHierarchyLoaded(referenceTypeIds))
                 {
+                    // The synchronous IsTypeOf used by FilterNodes cannot
+                    // classify references until the hierarchy is cached.
                     await LoadTypeHierarchyAsync(referenceTypeIds, ct).ConfigureAwait(false);
                 }
-                foreach (NodeId nodeId in nodeIds)
+
+                // Walk the inputs in the caller's order - and only in that
+                // order. Emitting the targets of the already cached inputs
+                // first and the freshly fetched ones afterwards reorders the
+                // result, which silently mispairs it for every consumer that
+                // matches results back to inputs positionally.
+                var targetIds = new List<NodeId>();
+                for (int i = 0; i < nodeIds.Count; i++)
                 {
+                    NodeId nodeId = nodeIds[i];
+                    if (nodeId.IsNull)
+                    {
+                        continue;
+                    }
                     ArrayOf<ReferenceDescription> references = await GetOrAddReferencesAsync(
                         nodeId,
                         ct)
                         .ConfigureAwait(false);
+                    if (includeSubtypes)
+                    {
+                        // See the single-node overload: warm the upward chains
+                        // the synchronous filter needs.
+                        await EnsureSuperTypeChainsLoadedAsync(references, ct)
+                            .ConfigureAwait(false);
+                    }
                     targetIds.AddRange(
                         FilterNodes(references, isInverse, referenceTypeIds, includeSubtypes));
                 }
@@ -427,12 +414,29 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async ValueTask LoadTypeHierarchyAsync(
+        public ValueTask LoadTypeHierarchyAsync(
             ArrayOf<NodeId> typeIds,
             CancellationToken ct)
         {
+            // The visited set is not just an optimisation: a server answering
+            // HasSubtype with a cycle would otherwise recurse until the process
+            // runs out of stack.
+            return LoadTypeHierarchyCoreAsync(typeIds, [], ct);
+        }
+
+        private async ValueTask LoadTypeHierarchyCoreAsync(
+            ArrayOf<NodeId> typeIds,
+            HashSet<NodeId> visited,
+            CancellationToken ct)
+        {
+            ArrayOf<NodeId> pending = typeIds.Filter(id => !id.IsNull && visited.Add(id));
+            if (pending.Count == 0)
+            {
+                return;
+            }
+
             ArrayOf<INode> nodes = await GetReferencesAsync(
-                typeIds,
+                pending,
                 [ReferenceTypeIds.HasSubtype],
                 false,
                 false,
@@ -440,7 +444,10 @@ namespace Opc.Ua.Client
             .ConfigureAwait(false);
             if (nodes.Count > 0)
             {
-                await LoadTypeHierarchyAsync(nodes.ConvertAll(n => ToNodeId(n.NodeId)), ct)
+                await LoadTypeHierarchyCoreAsync(
+                        nodes.ConvertAll(n => ToNodeId(n.NodeId)),
+                        visited,
+                        ct)
                     .ConfigureAwait(false);
             }
         }
@@ -457,14 +464,61 @@ namespace Opc.Ua.Client
             {
                 return true;
             }
-            if (!m_refs.TryGet(subTypeId, out ArrayOf<ReferenceDescription> references))
+            // Iterative with a visited set: a server answering HasSubtype with
+            // a cycle would otherwise recurse until the stack overflows.
+            HashSet<NodeId>? visited = null;
+            NodeId current = subTypeId;
+            while (!current.IsNull)
             {
-                // block - we can throw here but user should load
-                references = GetOrAddReferencesAsync(subTypeId, default).AsTask().GetAwaiter()
-                    .GetResult();
+                if (!m_refs.TryGet(current, out ArrayOf<ReferenceDescription> references))
+                {
+                    // block - we can throw here but user should load
+                    references = GetOrAddReferencesAsync(current, default).AsTask()
+                        .GetAwaiter()
+                        .GetResult();
+                }
+                current = GetSuperTypeFromReferences(references);
+                if (current.IsNull)
+                {
+                    return false;
+                }
+                if (current == superTypeId)
+                {
+                    return true;
+                }
+                visited ??= [subTypeId];
+                if (!visited.Add(current))
+                {
+                    m_logger.CycleDetectedInTypeHierarchy(subTypeId);
+                    return false;
+                }
             }
-            subTypeId = GetSuperTypeFromReferences(references);
-            return !subTypeId.IsNull && IsTypeOf(subTypeId, superTypeId);
+            return false;
+        }
+
+        /// <summary>
+        /// Ensures every reference type mentioned by <paramref name="references"/>
+        /// has its super-type chain cached, so the synchronous
+        /// <see cref="IsTypeOf"/> used by the reference filter never has to
+        /// block on the network.
+        /// </summary>
+        /// <param name="references">The references about to be filtered.</param>
+        /// <param name="ct">Cancellation token.</param>
+        private async ValueTask EnsureSuperTypeChainsLoadedAsync(
+            ArrayOf<ReferenceDescription> references,
+            CancellationToken ct)
+        {
+            var seen = new HashSet<NodeId>();
+            for (int i = 0; i < references.Count; i++)
+            {
+                NodeId current = references[i].ReferenceTypeId;
+                while (!current.IsNull && seen.Add(current))
+                {
+                    ArrayOf<ReferenceDescription> typeReferences =
+                        await GetOrAddReferencesAsync(current, ct).ConfigureAwait(false);
+                    current = GetSuperTypeFromReferences(typeReferences);
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -784,6 +838,7 @@ namespace Opc.Ua.Client
                 return true;
             }
             NodeId current = subTypeId;
+            HashSet<NodeId>? visited = null;
             while (!current.IsNull)
             {
                 NodeId superType = await FindSuperTypeAsync(current, ct).ConfigureAwait(false);
@@ -794,6 +849,14 @@ namespace Opc.Ua.Client
                 if (superType == superTypeId)
                 {
                     return true;
+                }
+                // Guard against a server reporting a cyclic subtype relation,
+                // which would otherwise spin here forever.
+                visited ??= [subTypeId];
+                if (!visited.Add(superType))
+                {
+                    m_logger.CycleDetectedInTypeHierarchy(subTypeId);
+                    break;
                 }
                 current = superType;
             }
@@ -1155,9 +1218,16 @@ namespace Opc.Ua.Client
         private bool IsTypeHierarchyLoaded(ArrayOf<NodeId> typeIds)
         {
             var types = new Queue<NodeId>(typeIds.Filter(nodeId => !nodeId.IsNull).ToList());
+            // Cyclic HasSubtype answers would otherwise keep this queue
+            // non-empty forever.
+            var visited = new HashSet<NodeId>();
             while (types.Count > 0)
             {
                 NodeId typeId = types.Dequeue();
+                if (!visited.Add(typeId))
+                {
+                    continue;
+                }
                 if (!m_refs.TryGet(typeId, out ArrayOf<ReferenceDescription> references))
                 {
                     return false;
@@ -1229,6 +1299,13 @@ namespace Opc.Ua.Client
             this ILogger logger,
             ExpandedNodeId nodeId,
             RedactionWrapper<Exception> error);
+
+        [LoggerMessage(EventId = ClientEventIds.NodeCache + 3, Level = LogLevel.Warning,
+            Message = "Cycle detected while walking the type hierarchy of {NodeId}; " +
+                "the server reported a subtype relation that loops back on itself.")]
+        public static partial void CycleDetectedInTypeHierarchy(
+            this ILogger logger,
+            NodeId nodeId);
     }
 
 }

@@ -354,6 +354,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // treats the item as "configured to the loaded values" and
             // skips the create path until a real change arrives.
             m_currentOptions = m_options.CurrentValue;
+            // Abandoning the ctor change stamped BadOperationAbandoned on the
+            // item and left the monitoring mode at its default. The loaded item
+            // is healthy and already established on the server, so restore the
+            // loaded state - otherwise TryRequeue force-recreates it.
+            Error = ServiceResult.Good;
+            CurrentMonitoringMode = m_currentOptions.MonitoringMode;
             ClientHandle = state.ClientHandle;
             // Raise the global counter past the loaded handle, otherwise a
             // freshly started process mints handles from 1 again and the first
@@ -990,13 +996,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         diagnosticInfos, responseHeader);
                 }
 
-                Item.CurrentMonitoringMode = request.MonitoringMode;
-                Item.CurrentSamplingInterval = TimeSpan.FromMilliseconds(
-                    request.RequestedParameters.SamplingInterval);
-                Item.CurrentQueueSize = request.RequestedParameters.QueueSize;
-
                 if (ServiceResult.IsGood(error))
                 {
+                    // Only a successful create establishes server side state,
+                    // so publish the requested values only in that case -
+                    // otherwise the item advertises a monitoring mode, sampling
+                    // interval and queue size the server never accepted.
+                    Item.CurrentMonitoringMode = request.MonitoringMode;
                     Item.ServerId = result.MonitoredItemId;
                     Item.CurrentSamplingInterval =
                         TimeSpan.FromMilliseconds(result.RevisedSamplingInterval);

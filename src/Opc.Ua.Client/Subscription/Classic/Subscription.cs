@@ -398,6 +398,18 @@ namespace Opc.Ua.Client
         {
             if (disposing)
             {
+                if (m_dispatchContext.Value)
+                {
+                    // Called from one of this subscription's own notification
+                    // callbacks, which run on the message worker: blocking on
+                    // that worker here would deadlock. Stop the loop and let
+                    // the teardown finish once the callback returns.
+                    m_disposed = true;
+                    _ = ResetPublishTimerAndWorkerStateAsync();
+                    m_backgroundWork.Dispose();
+                    return;
+                }
+
                 // ResetPublishTimerAndWorkerState() owns disposing m_publishTimer and
                 // m_messageWorkerCts. Disposing them here first caused races where
                 // ResetPublishTimerAndWorkerStateAsync would observe a disposed CTS
@@ -1793,7 +1805,13 @@ namespace Opc.Ua.Client
 
                 // fill in any gaps in the queue
                 LinkedListNode<IncomingMessage>? node = m_incomingMessages.First;
-                if (node is not null)
+                // While the last processed sequence number has not been
+                // resynchronised with the server (transfer / restore from
+                // storage) there is no known predecessor to fill towards: the
+                // loop below would otherwise insert one placeholder per
+                // sequence number from 1 up to the server's current one -
+                // millions of them for a long-lived subscription.
+                if (node is not null && !m_resyncLastSequenceNumberProcessed)
                 {
                     //gaps between m_lastSequenceNumberProcessed and starting node
                     LinkedListNode<IncomingMessage> currentNode = node;
@@ -2330,7 +2348,15 @@ namespace Opc.Ua.Client
                 while (!ct.IsCancellationRequested && !m_disposed)
                 {
                     await m_messageWorkerEvent.WaitAsync(ct).ConfigureAwait(false);
-                    await OnMessageReceivedAsync(ct).ConfigureAwait(false);
+                    m_dispatchContext.Value = true;
+                    try
+                    {
+                        await OnMessageReceivedAsync(ct).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        m_dispatchContext.Value = false;
+                    }
                 }
             }
             catch (ObjectDisposedException)
@@ -3328,6 +3354,14 @@ namespace Opc.Ua.Client
         private readonly BackgroundTaskScope m_backgroundWork =
             new(nameof(Subscription), AmbientMessageContext.Telemetry);
         private bool m_disposed;
+
+        /// <summary>
+        /// True while the current asynchronous flow is dispatching one of this
+        /// subscription's notification callbacks, i.e. while it runs on the
+        /// message worker. Used so a Dispose from inside such a callback does
+        /// not block on the worker it is running on.
+        /// </summary>
+        private readonly AsyncLocal<bool> m_dispatchContext = new();
         private int m_recreateAfterTransferInProgress;
         private readonly Lock m_cache = new();
         private readonly LinkedList<NotificationMessage> m_messageCache = new();

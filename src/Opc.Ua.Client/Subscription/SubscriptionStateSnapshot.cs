@@ -154,6 +154,42 @@ namespace Opc.Ua.Client.Subscriptions
         public partial string? LogicalGroupId { get; init; }
 
         /// <summary>
+        /// Surrogate for <see cref="SubscriptionOptions.RecoveryPolicy"/>.
+        /// </summary>
+        [DataTypeField(Order = 40)]
+        public partial uint RecoveryPolicy { get; init; }
+
+        /// <summary>
+        /// Surrogate for
+        /// <see cref="SubscriptionOptions.DisableUnboundedItemMode"/>.
+        /// </summary>
+        [DataTypeField(Order = 41)]
+        public partial bool DisableUnboundedItemMode { get; init; }
+
+        /// <summary>
+        /// Surrogate for
+        /// <see cref="SubscriptionOptions.MaxMonitoredItemsPerPartition"/>.
+        /// Zero means "not set" (the option is nullable).
+        /// </summary>
+        [DataTypeField(Order = 42)]
+        public partial uint MaxMonitoredItemsPerPartition { get; init; }
+
+        /// <summary>
+        /// Surrogate for
+        /// <see cref="SubscriptionOptions.MaxPartitionCount"/>.
+        /// </summary>
+        [DataTypeField(Order = 43)]
+        public partial uint MaxPartitionCount { get; init; }
+
+        /// <summary>
+        /// Surrogate for
+        /// <see cref="SubscriptionOptions.SecondaryPartitionIdleTimeout"/>
+        /// in milliseconds.
+        /// </summary>
+        [DataTypeField(Order = 44)]
+        public partial int SecondaryPartitionIdleTimeoutMs { get; init; }
+
+        /// <summary>
         /// Zero-based partition index inside the
         /// <see cref="LogicalGroupId"/> group. <c>0</c> identifies the
         /// primary partition; consecutive indexes identify secondary
@@ -189,7 +225,15 @@ namespace Opc.Ua.Client.Subscriptions
                 PublishingEnabled = PublishingEnabled,
                 MaxNotificationsPerPublish = MaxNotificationsPerPublish,
                 MinLifetimeInterval = TimeSpan.FromMilliseconds(MinLifetimeIntervalMs),
-                SendInitialValuesOnTransfer = SendInitialValuesOnTransfer
+                SendInitialValuesOnTransfer = SendInitialValuesOnTransfer,
+                RecoveryPolicy = (SubscriptionRecoveryPolicy)RecoveryPolicy,
+                DisableUnboundedItemMode = DisableUnboundedItemMode,
+                MaxMonitoredItemsPerPartition = MaxMonitoredItemsPerPartition == 0
+                    ? null
+                    : MaxMonitoredItemsPerPartition,
+                MaxPartitionCount = MaxPartitionCount,
+                SecondaryPartitionIdleTimeout =
+                    TimeSpan.FromMilliseconds(SecondaryPartitionIdleTimeoutMs)
             };
         }
 
@@ -235,6 +279,14 @@ namespace Opc.Ua.Client.Subscriptions
                     int.MaxValue,
                     Math.Max(0, options.MinLifetimeInterval.TotalMilliseconds)),
                 SendInitialValuesOnTransfer = options.SendInitialValuesOnTransfer,
+                RecoveryPolicy = (uint)options.RecoveryPolicy,
+                DisableUnboundedItemMode = options.DisableUnboundedItemMode,
+                MaxMonitoredItemsPerPartition =
+                    options.MaxMonitoredItemsPerPartition ?? 0,
+                MaxPartitionCount = options.MaxPartitionCount,
+                SecondaryPartitionIdleTimeoutMs = (int)Math.Min(
+                    int.MaxValue,
+                    Math.Max(0, options.SecondaryPartitionIdleTimeout.TotalMilliseconds)),
                 MonitoredItems = monitoredItems
             };
         }
