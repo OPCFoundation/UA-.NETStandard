@@ -1038,6 +1038,14 @@ source; and `uav:select` filters on affordance kind, semantic identifier and typ
 tokens. The predicate set is closed — a filter carrying any other key is rejected
 rather than ignored — so a filter stays decidable by inspection.
 
+Present controls are validated before source acquisition, including in nested
+projections. `uav:sourceDigest`, `uav:routing`, and `uav:namePrefix` must have their
+declared string shapes; a non-string value is not treated as an omitted pin,
+route, or prefix. An explicit `uav:select` array and each filter must be non-empty.
+A type predicate contains one non-empty string or a non-empty array containing
+only non-empty strings, and a semantic predicate names an absolute IRI.
+Malformed controls produce an error rather than an unconstrained selection.
+
 Every member of `properties`, `actions` and `events` carries `tm:ref`. A member
 without one is defining an affordance, which is the one thing a projection
 document must not do.
@@ -1068,13 +1076,16 @@ group, by affordance kind in the fixed order `properties`, `actions`, `events`;
 within one kind, by ascending Unicode code point of the name the selection takes
 **in the view**; and, where two selections still compare equal, by ascending
 Unicode code point of the affordance's name **in the source**. The last key is
-what makes the order total: `uav:namePrefix` upper-cases the first character of
+what makes the order total: `uav:namePrefix` upper-cases the first Unicode scalar of
 the source name, so `serialNumber` and `SerialNumber` in one source both become
 `deviceSerialNumber` in the view and nothing before it separates them. The order
 is stated over names rather than over document order because `properties`,
 `actions` and `events` are JSON objects, which RFC 8259 defines as unordered — a
 rule that ranked selections by member position would let two conforming
 consumers resolve identical bytes into different views.
+
+Prefix capitalization is culture-invariant, handles supplementary characters as
+one scalar, and preserves the remainder of the source name unchanged.
 
 Materialization produces a `View` Node that `Organizes` the Nodes already
 materialized from the sources. The View creates **no** affordance Node, so

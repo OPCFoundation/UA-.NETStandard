@@ -141,14 +141,13 @@ namespace Opc.Ua.Wot
                 return null;
             }
 
-            var projection = new WotProjection
+            return new WotProjection
             {
-                Scenario = ReadScenario(document, diagnostics)
+                Scenario = ReadScenario(document, diagnostics),
+                Sources = ReadSources(document, diagnostics),
+                References = ReadReferences(document, diagnostics),
+                OrganizingLinks = ReadOrganizingLinks(document)
             };
-            projection.Sources = ReadSources(document, diagnostics);
-            projection.References = ReadReferences(document, diagnostics);
-            projection.OrganizingLinks = ReadOrganizingLinks(document);
-            return projection;
         }
 
         private static string ReadScenario(
@@ -256,7 +255,7 @@ namespace Opc.Ua.Wot
             }
 
             WotProjectionRouting routing = WotProjectionRouting.Source;
-            string? routingValue = GetString(entry, "uav:routing");
+            string? routingValue = ReadOptionalString(entry, "uav:routing", sourceName!, diagnostics);
             if (routingValue is not null)
             {
                 if (string.Equals(routingValue, "projection", StringComparison.Ordinal))
@@ -274,7 +273,7 @@ namespace Opc.Ua.Wot
                 }
             }
 
-            string? digest = GetString(entry, "uav:sourceDigest");
+            string? digest = ReadOptionalString(entry, "uav:sourceDigest", sourceName!, diagnostics);
             if (digest is not null && !IsSha256Digest(digest))
             {
                 diagnostics.Add(new WotDiagnostic(
@@ -309,7 +308,7 @@ namespace Opc.Ua.Wot
                 MediaType = mediaType!,
                 Routing = routing,
                 SourceDigest = digest,
-                NamePrefix = GetString(entry, "uav:namePrefix"),
+                NamePrefix = ReadOptionalString(entry, "uav:namePrefix", sourceName!, diagnostics),
                 SelectAll = selectAll,
                 Filters = ReadFilters(entry, sourceName!, diagnostics)
             };
@@ -324,12 +323,12 @@ namespace Opc.Ua.Wot
             {
                 return default;
             }
-            if (select.ValueKind != JsonValueKind.Array)
+            if (select.ValueKind != JsonValueKind.Array || select.GetArrayLength() == 0)
             {
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.ProjectionSelectorInvalid,
-                    "uav:select shall be an array of filter objects.",
+                    "uav:select shall be a non-empty array of filter objects.",
                     new WotLocation(reference: sourceName)));
                 return default;
             }
@@ -364,9 +363,11 @@ namespace Opc.Ua.Wot
             string? semanticId = null;
             var typeTokens = new List<string>();
             bool valid = true;
+            bool hasPredicate = false;
 
             foreach (JsonProperty member in filter.EnumerateObject())
             {
+                hasPredicate = true;
                 switch (member.Name)
                 {
                     case "uav:affordanceKind":
@@ -382,7 +383,8 @@ namespace Opc.Ua.Wot
                         }
                         break;
                     case "uav:semanticId":
-                        if (member.Value.ValueKind == JsonValueKind.String)
+                        if (member.Value.ValueKind == JsonValueKind.String &&
+                            IsAbsoluteIri(member.Value.GetString()!))
                         {
                             semanticId = member.Value.GetString();
                         }
@@ -392,12 +394,21 @@ namespace Opc.Ua.Wot
                             diagnostics.Add(new WotDiagnostic(
                                 WotDiagnosticSeverity.Error,
                                 WotDiagnosticCode.ProjectionSelectorInvalid,
-                                "uav:semanticId in a filter shall be a string.",
+                                "uav:semanticId in a filter shall be an absolute IRI string.",
                                 new WotLocation(reference: sourceName)));
                         }
                         break;
                     case "@type":
-                        AppendTypeTokens(member.Value, typeTokens);
+                        if (!TryAppendTypeTokens(member.Value, typeTokens))
+                        {
+                            valid = false;
+                            diagnostics.Add(new WotDiagnostic(
+                                WotDiagnosticSeverity.Error,
+                                WotDiagnosticCode.ProjectionSelectorInvalid,
+                                "@type in a filter shall be a non-empty string or a non-empty array " +
+                                "containing only non-empty strings.",
+                                new WotLocation(reference: sourceName)));
+                        }
                         break;
                     default:
                         // The predicate set is closed: a filter admits no key
@@ -413,6 +424,15 @@ namespace Opc.Ua.Wot
                             new WotLocation(reference: sourceName)));
                         break;
                 }
+            }
+            if (!hasPredicate)
+            {
+                valid = false;
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ProjectionSelectorInvalid,
+                    "A uav:select filter shall declare at least one predicate.",
+                    new WotLocation(reference: sourceName)));
             }
 
             return valid
@@ -582,7 +602,7 @@ namespace Opc.Ua.Wot
             }
         }
 
-        private static void AppendTypeTokens(JsonElement value, List<string> tokens)
+        private static bool TryAppendTypeTokens(JsonElement value, List<string> tokens)
         {
             if (value.ValueKind == JsonValueKind.String)
             {
@@ -590,24 +610,23 @@ namespace Opc.Ua.Wot
                 if (!string.IsNullOrEmpty(token))
                 {
                     tokens.Add(token!);
+                    return true;
                 }
-                return;
+                return false;
             }
-            if (value.ValueKind != JsonValueKind.Array)
+            if (value.ValueKind != JsonValueKind.Array || value.GetArrayLength() == 0)
             {
-                return;
+                return false;
             }
             foreach (JsonElement item in value.EnumerateArray())
             {
-                if (item.ValueKind == JsonValueKind.String)
+                if (item.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(item.GetString()))
                 {
-                    string? token = item.GetString();
-                    if (!string.IsNullOrEmpty(token))
-                    {
-                        tokens.Add(token!);
-                    }
+                    return false;
                 }
+                tokens.Add(item.GetString()!);
             }
+            return true;
         }
 
         private static string? GetString(JsonElement element, string name)
@@ -616,6 +635,28 @@ namespace Opc.Ua.Wot
                 value.ValueKind == JsonValueKind.String
                 ? value.GetString()
                 : null;
+        }
+
+        private static string? ReadOptionalString(
+            JsonElement element,
+            string name,
+            string sourceName,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (!element.TryGetProperty(name, out JsonElement value))
+            {
+                return null;
+            }
+            if (value.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(value.GetString()))
+            {
+                return value.GetString();
+            }
+            diagnostics.Add(new WotDiagnostic(
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.ProjectionManifestInvalid,
+                $"{name} shall be a non-empty string when present.",
+                new WotLocation(reference: sourceName)));
+            return null;
         }
 
         private static bool IsAbsoluteIri(string value)

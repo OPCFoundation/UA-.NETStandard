@@ -124,8 +124,8 @@ namespace Opc.Ua.Wot
                 return new WotConversionResult<WotDocument>(null, diagnostics);
             }
 
-            WotProjection? projection = WotProjection.Parse(document, diagnostics);
-            if (projection is null)
+            var projection = WotProjection.Parse(document, diagnostics);
+            if (projection is null || HasErrors(diagnostics))
             {
                 return new WotConversionResult<WotDocument>(null, diagnostics);
             }
@@ -205,8 +205,8 @@ namespace Opc.Ua.Wot
                     SeedSecurityDefinitions(projectionDocument);
                 var selection = new Selection(securityDefinitions);
 
-                var references = projection.References;
-                var referenceOwner = new int[references.Count];
+                ArrayOf<WotProjectionReference> references = projection.References;
+                int[] referenceOwner = new int[references.Count];
                 for (int jj = 0; jj < references.Count; jj++)
                 {
                     referenceOwner[jj] = FindSourceIndex(
@@ -381,9 +381,10 @@ namespace Opc.Ua.Wot
                 }
                 try
                 {
-                    WotProjection? nested =
+                    int errorsBeforeParse = CountErrors(diagnostics);
+                    var nested =
                         WotProjection.Parse(document, diagnostics);
-                    if (nested is null)
+                    if (nested is null || CountErrors(diagnostics) != errorsBeforeParse)
                     {
                         return null;
                     }
@@ -412,7 +413,7 @@ namespace Opc.Ua.Wot
                             diagnostics,
                             WotDiagnosticCode.ValidationError,
                             $"The nested resolved view '{href}' could not be parsed: " +
-                                exception.Message);
+                            exception.Message);
                         return null;
                     }
                     openDocuments.Add(resolvedView);
@@ -450,7 +451,7 @@ namespace Opc.Ua.Wot
             }
             var path = new HashSet<string>(StringComparer.Ordinal);
             var completed = new HashSet<string>(StringComparer.Ordinal);
-            var budget = new int[] { context.Options.MaxDocuments, 0 };
+            int[] budget = [context.Options.MaxDocuments, 0];
             for (int ii = 0; ii < projection.OrganizingLinks.Count; ii++)
             {
                 await WalkOrganizesAsync(
@@ -621,7 +622,7 @@ namespace Opc.Ua.Wot
         {
             int separator = reference.LastIndexOf('/');
             return separator >= 0 && separator + 1 < reference.Length
-                ? reference.Substring(separator + 1)
+                ? reference[(separator + 1)..]
                 : reference;
         }
 
@@ -821,7 +822,7 @@ namespace Opc.Ua.Wot
                 }
                 if (sourceRouting &&
                     (string.Equals(member.Name, "forms", StringComparison.Ordinal) ||
-                     string.Equals(member.Name, "security", StringComparison.Ordinal)))
+                        string.Equals(member.Name, "security", StringComparison.Ordinal)))
                 {
                     // A member selected under source routing shall not carry its
                     // own forms or security (Section 12.5); the source's own form
@@ -1006,8 +1007,9 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
-            string? carried = rootAnchor ?? WotAnchorScope.ReadTerm(
-                sourceDocument.RootElement, WotAnchorScope.IdentityTerm);
+            string? carried = rootAnchor ??
+                WotAnchorScope.ReadTerm(
+                    sourceDocument.RootElement, WotAnchorScope.IdentityTerm);
             if (carried is not null)
             {
                 target[WotAnchorScope.AnchorTerm] = carried;
@@ -1204,17 +1206,17 @@ namespace Opc.Ua.Wot
         private static IEnumerable<(WotAffordanceKind Kind, string Name, JsonElement Definition)>
             EnumerateAffordances(WotDocument document)
         {
-            foreach (var pair in EnumerateAffordanceMap(
+            foreach ((WotAffordanceKind Kind, string Name, JsonElement Definition) pair in EnumerateAffordanceMap(
                 document, "properties", WotAffordanceKind.Property))
             {
                 yield return pair;
             }
-            foreach (var pair in EnumerateAffordanceMap(
+            foreach ((WotAffordanceKind Kind, string Name, JsonElement Definition) pair in EnumerateAffordanceMap(
                 document, "actions", WotAffordanceKind.Action))
             {
                 yield return pair;
             }
-            foreach (var pair in EnumerateAffordanceMap(
+            foreach ((WotAffordanceKind Kind, string Name, JsonElement Definition) pair in EnumerateAffordanceMap(
                 document, "events", WotAffordanceKind.Event))
             {
                 yield return pair;
@@ -1352,7 +1354,7 @@ namespace Opc.Ua.Wot
             {
                 return CloneObject(definitions);
             }
-            return new JsonObject();
+            return [];
         }
 
         private static JsonNode UnionTypes(JsonNode? existing, JsonElement additional)
@@ -1402,7 +1404,8 @@ namespace Opc.Ua.Wot
         private static List<string> NamesFromNode(JsonNode node)
         {
             var names = new List<string>();
-            if (node is JsonValue value && value.TryGetValue(out string? single) &&
+            if (node is JsonValue value &&
+                value.TryGetValue(out string? single) &&
                 single is not null)
             {
                 names.Add(single);
@@ -1411,7 +1414,8 @@ namespace Opc.Ua.Wot
             {
                 foreach (JsonNode? entry in array)
                 {
-                    if (entry is JsonValue item && item.TryGetValue(out string? name) &&
+                    if (entry is JsonValue item &&
+                        item.TryGetValue(out string? name) &&
                         name is not null)
                     {
                         names.Add(name);
@@ -1443,7 +1447,8 @@ namespace Opc.Ua.Wot
 
         private static IEnumerable<string> NodeTokens(JsonNode? node)
         {
-            if (node is JsonValue value && value.TryGetValue(out string? single) &&
+            if (node is JsonValue value &&
+                value.TryGetValue(out string? single) &&
                 single is not null)
             {
                 yield return single;
@@ -1452,7 +1457,8 @@ namespace Opc.Ua.Wot
             {
                 foreach (JsonNode? entry in array)
                 {
-                    if (entry is JsonValue item && item.TryGetValue(out string? name) &&
+                    if (entry is JsonValue item &&
+                        item.TryGetValue(out string? name) &&
                         name is not null)
                     {
                         yield return name;
@@ -1741,7 +1747,8 @@ namespace Opc.Ua.Wot
             {
                 return name;
             }
-            return char.ToUpperInvariant(name[0]) + name[1..];
+            int length = char.IsSurrogatePair(name, 0) ? 2 : 1;
+            return name[..length].ToUpperInvariant() + name[length..];
         }
 
         private static string Qualify(string sourceName, string schemeName)
@@ -1885,6 +1892,7 @@ namespace Opc.Ua.Wot
         /// Writes a leaf value, preferring the parsed representation and
         /// falling back to the CLR types a projection can introduce.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         private static void WriteValue(Utf8JsonWriter writer, JsonValue value)
         {
             if (value.TryGetValue(out JsonElement element))
@@ -2034,8 +2042,10 @@ namespace Opc.Ua.Wot
 
             private readonly HashSet<string> m_takenProperties =
                 new(StringComparer.Ordinal);
+
             private readonly HashSet<string> m_takenActions =
                 new(StringComparer.Ordinal);
+
             private readonly HashSet<string> m_takenEvents =
                 new(StringComparer.Ordinal);
         }
