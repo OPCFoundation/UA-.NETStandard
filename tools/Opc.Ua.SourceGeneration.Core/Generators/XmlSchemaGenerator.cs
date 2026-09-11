@@ -453,7 +453,9 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
-            context.Template.AddReplacement(Tokens.Description, dataType.Description.Value);
+            context.Template.AddReplacement(
+                Tokens.Description,
+                dataType.Description.Value.AsXmlText());
 
             return context.Template.Render();
         }

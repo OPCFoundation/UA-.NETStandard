@@ -128,34 +128,16 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private bool WriteTemplate_NamespaceUriStrings(IWriteContext context)
+        private static bool WriteTemplate_NamespaceUriStrings(IWriteContext context)
         {
-            if (context.Target is not string uri)
+            if (context.Target is not NamespaceUriConstant constant)
             {
                 return false;
             }
 
-            for (int ii = 0; ii < m_context.ModelDesign.Namespaces.Length; ii++)
-            {
-                Namespace ns = m_context.ModelDesign.Namespaces[ii];
-
-                if (uri != ns.Value && uri != ns.XmlNamespace)
-                {
-                    continue;
-                }
-
-                context.Template.AddReplacement(Tokens.NamespaceUri, uri);
-                context.Template.AddReplacement(Tokens.CodeName, ns.Prefix);
-
-                if (uri != ns.XmlNamespace)
-                {
-                    context.Template.AddReplacement(Tokens.Name, ns.Name);
-                }
-                else
-                {
-                    context.Template.AddReplacement(Tokens.Name, ns.Name + "Xsd");
-                }
-            }
+            context.Template.AddReplacement(Tokens.NamespaceUri, constant.Uri);
+            context.Template.AddReplacement(Tokens.CodeName, constant.Prefix);
+            context.Template.AddReplacement(Tokens.Name, constant.Name);
 
             return context.Template.Render();
         }
@@ -190,9 +172,26 @@ namespace Opc.Ua.SourceGeneration
                 {
                     var variable = (VariableDesign)child;
 
-                    if (variable.DecodedValue is QualifiedName qname)
+                    if (variable.DecodedValue is QualifiedName qname &&
+                        !string.IsNullOrEmpty(qname.Name))
                     {
-                        browseNames[qname.Name] = qname.Name;
+                        // The default instance browse name is authored data, not a
+                        // symbolic name, so it can contain spaces and punctuation.
+                        // The constant name has to be a legal C# identifier while the
+                        // constant value stays the browse name verbatim.
+                        // Sanitizing can land on a constant name another node
+                        // already claimed ("Device Set" and "DeviceSet" both
+                        // yield "DeviceSet"), and this dictionary is keyed by
+                        // symbolic name everywhere else, so a hit here is not
+                        // necessarily a design error. Keep the entry that is
+                        // already there rather than overwriting it with a
+                        // different value or failing the whole model.
+                        string constantName = qname.Name.ToCSharpIdentifierPreserveCase();
+
+                        if (!browseNames.ContainsKey(constantName))
+                        {
+                            browseNames[constantName] = qname.Name;
+                        }
                     }
 
                     continue;
@@ -224,18 +223,59 @@ namespace Opc.Ua.SourceGeneration
             }
         }
 
-        private List<string> GetNamespaceUris()
+        private List<NamespaceUriConstant> GetNamespaceUris()
         {
-            List<string> namespaceUris = [];
+            List<NamespaceUriConstant> namespaceUris = [];
+
+            // Keyed by name *and* URI: two namespaces can legitimately sanitize
+            // to the same constant name (GetNameFromUri drops the host, so
+            // "http://a.org/UA/Robotics/" and "http://b.org/UA/Robotics/" both
+            // become "Robotics"). Suppressing the second one there would make
+            // every reference to it silently resolve to the first one's URI, so
+            // only an exact repeat of the same (name, URI) pair is dropped.
+            var emitted = new HashSet<(string Name, string Uri)>();
             for (int ii = 0; ii < m_context.ModelDesign.Namespaces.Length; ii++)
             {
-                namespaceUris.Add(m_context.ModelDesign.Namespaces[ii].Value);
-                if (!string.IsNullOrEmpty(m_context.ModelDesign.Namespaces[ii].XmlNamespace))
+                Namespace ns = m_context.ModelDesign.Namespaces[ii];
+
+                if (!string.IsNullOrEmpty(ns.Value) && emitted.Add((ns.Name, ns.Value)))
                 {
-                    namespaceUris.Add(m_context.ModelDesign.Namespaces[ii].XmlNamespace);
+                    namespaceUris.Add(new NamespaceUriConstant(ns.Name, ns.Prefix, ns.Value));
+                }
+
+                // Only emit the "...Xsd" companion constant when the XML namespace
+                // actually differs from the namespace URI. When they are equal the
+                // plain constant above already covers it - emitting both here used
+                // to produce two "...Xsd" constants and no plain one.
+                // GetConstantForXmlNamespace applies the same condition, so the
+                // name it references is always one that was emitted.
+                if (!string.IsNullOrEmpty(ns.XmlNamespace) &&
+                    !string.Equals(ns.XmlNamespace, ns.Value, StringComparison.Ordinal) &&
+                    emitted.Add((ns.Name + "Xsd", ns.XmlNamespace)))
+                {
+                    namespaceUris.Add(
+                        new NamespaceUriConstant(ns.Name + "Xsd", ns.Prefix, ns.XmlNamespace));
                 }
             }
             return namespaceUris;
+        }
+
+        /// <summary>
+        /// A single namespace URI constant to emit: the C# constant name, the
+        /// namespace prefix it belongs to and the URI value.
+        /// </summary>
+        private sealed class NamespaceUriConstant
+        {
+            public NamespaceUriConstant(string name, string prefix, string uri)
+            {
+                Name = name;
+                Prefix = prefix;
+                Uri = uri;
+            }
+
+            public string Name { get; }
+            public string Prefix { get; }
+            public string Uri { get; }
         }
 
         private readonly IGeneratorContext m_context;

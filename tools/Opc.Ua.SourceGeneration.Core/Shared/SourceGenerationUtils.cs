@@ -82,10 +82,25 @@ namespace Opc.Ua.SourceGeneration
             this string name,
             bool upperCamelCase = false)
         {
+            return ToCSharpIdentifierCore(name, upperCamelCase);
+        }
+
+        /// <summary>
+        /// Converts an authored name to a valid C# identifier but leaves the casing
+        /// of the name untouched. Used where the identifier is part of the public
+        /// surface of generated code and must keep the name the model author wrote.
+        /// </summary>
+        public static string ToCSharpIdentifierPreserveCase(this string name)
+        {
+            return ToCSharpIdentifierCore(name, null);
+        }
+
+        private static string ToCSharpIdentifierCore(string name, bool? upperCamelCase)
+        {
             string source = name?.TrimStart('@');
             if (string.IsNullOrEmpty(source))
             {
-                return upperCamelCase ? "Value" : "value";
+                return upperCamelCase == false ? "value" : "Value";
             }
 
             var buffer = new StringBuilder(source.Length);
@@ -105,9 +120,9 @@ namespace Opc.Ua.SourceGeneration
                 {
                     buffer.Append('_');
                 }
-                if (applyCasing && char.IsLetter(identifierCharacter))
+                if (applyCasing && upperCamelCase.HasValue && char.IsLetter(identifierCharacter))
                 {
-                    identifierCharacter = upperCamelCase ?
+                    identifierCharacter = upperCamelCase.Value ?
                         char.ToUpperInvariant(identifierCharacter) :
                         char.ToLowerInvariant(identifierCharacter);
                     applyCasing = false;
@@ -117,7 +132,7 @@ namespace Opc.Ua.SourceGeneration
 
             if (buffer.Length == 0)
             {
-                return upperCamelCase ? "Value" : "value";
+                return upperCamelCase == false ? "value" : "Value";
             }
 
             string identifier = buffer.ToString();
@@ -250,6 +265,38 @@ namespace Opc.Ua.SourceGeneration
                 .Replace("\u2028", "\\u2028", StringComparison.Ordinal)
                 .Replace("\u2029", "\\u2029", StringComparison.Ordinal);
             return $"\"{value}\"";
+        }
+
+        /// <summary>
+        /// Escapes a value so it can be written as XML character data. Used by the
+        /// schema generators, which write the BSD and XSD documents through plain
+        /// text templates rather than an <see cref="XmlWriter"/>.
+        /// </summary>
+        public static string AsXmlText(this string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return value ?? string.Empty;
+            }
+            return value
+                .Replace("&", "&amp;", StringComparison.Ordinal)
+                .Replace("<", "&lt;", StringComparison.Ordinal)
+                .Replace(">", "&gt;", StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Escapes a value so it can be written as the content of a double quoted
+        /// XML attribute.
+        /// </summary>
+        public static string AsXmlAttributeValue(this string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return value ?? string.Empty;
+            }
+            return value
+                .AsXmlText()
+                .Replace("\"", "&quot;", StringComparison.Ordinal);
         }
 
         /// <summary>

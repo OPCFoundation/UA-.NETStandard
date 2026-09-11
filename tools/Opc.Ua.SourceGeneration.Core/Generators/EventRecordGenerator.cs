@@ -676,10 +676,10 @@ namespace Opc.Ua.SourceGeneration
         /// Maps the emitted .NET type to the corresponding
         /// <c>EventRecordFieldReaders</c> helper method name. Used
         /// by the decoder template to emit positional reads.
-        /// Returns <c>null</c> for types without a matching reader —
-        /// the generated decoder falls back to a no-op default for
-        /// those fields (and notably the <c>Variant</c> fallback for
-        /// unmapped data types is not populated).
+        /// Every type <see cref="MapScalarDataType"/> can produce has a reader,
+        /// including the <c>Variant</c> fallback for data types with no more
+        /// specific projection - a declared record property that the decoder
+        /// never populates would read as null for every event.
         /// </summary>
         private string MapReaderMethod(DataTypeDesign dataType, string dotnetType)
         {
@@ -687,38 +687,115 @@ namespace Opc.Ua.SourceGeneration
             {
                 case "bool?":
                     return "GetNullableBool";
+                case "sbyte?":
+                    return "GetNullableSByte";
+                case "byte?":
+                    return "GetNullableByte";
+                case "short?":
+                    return "GetNullableInt16";
+                case "ushort?":
+                    return "GetNullableUInt16";
+                case "int?":
+                    return "GetNullableInt32";
+                case "uint?":
+                    return "GetNullableUInt32";
+                case "long?":
+                    return "GetNullableInt64";
+                case "ulong?":
+                    return "GetNullableUInt64";
+                case "float?":
+                    return "GetNullableFloat";
                 case "double?":
                     return "GetNullableDouble";
                 case "global::System.DateTime?":
                     return "GetNullableDateTime";
+                case "global::System.Guid?":
+                    return "GetNullableGuid";
                 case "string?":
                     return "GetString";
-                case "ushort?":
-                    return "GetUInt16";
-                case "uint?":
-                    return "GetNullableUInt32";
-                case "string[]?":
-                    return "GetStringArray";
+                case "global::System.Xml.XmlElement":
+                    return "GetXmlElement";
                 case "global::Opc.Ua.ByteString":
                     return "GetByteString";
                 case "global::Opc.Ua.NodeId":
                     return "GetNodeId";
-                case "global::Opc.Ua.NodeId[]?":
-                    return "GetNodeIdArray";
+                case "global::Opc.Ua.ExpandedNodeId":
+                    return "GetExpandedNodeId";
+                case "global::Opc.Ua.QualifiedName":
+                    return "GetQualifiedName";
                 case "global::Opc.Ua.LocalizedText":
                     return "GetLocalizedText";
                 case "global::Opc.Ua.StatusCode":
                     return "GetStatusCode";
+                case "global::Opc.Ua.Variant":
+                    return "GetVariant";
+                case "bool[]?":
+                    return "GetBoolArray";
+                case "sbyte[]?":
+                    return "GetSByteArray";
+                case "byte[]?":
+                    return "GetByteArray";
+                case "short[]?":
+                    return "GetInt16Array";
+                case "ushort[]?":
+                    return "GetUInt16Array";
+                case "int[]?":
+                    return "GetInt32Array";
+                case "uint[]?":
+                    return "GetUInt32Array";
+                case "long[]?":
+                    return "GetInt64Array";
+                case "ulong[]?":
+                    return "GetUInt64Array";
+                case "float[]?":
+                    return "GetFloatArray";
+                case "double[]?":
+                    return "GetDoubleArray";
+                case "global::System.DateTime[]?":
+                    return "GetDateTimeArray";
+                case "global::System.Guid[]?":
+                    return "GetGuidArray";
+                case "string[]?":
+                    return "GetStringArray";
+                case "global::System.Xml.XmlElement[]?":
+                    return "GetXmlElementArray";
+                case "global::Opc.Ua.ByteString[]?":
+                    return "GetByteStringArray";
+                case "global::Opc.Ua.NodeId[]?":
+                    return "GetNodeIdArray";
+                case "global::Opc.Ua.ExpandedNodeId[]?":
+                    return "GetExpandedNodeIdArray";
+                case "global::Opc.Ua.QualifiedName[]?":
+                    return "GetQualifiedNameArray";
                 case "global::Opc.Ua.LocalizedText[]?":
                     return "GetLocalizedTextArray";
+                case "global::Opc.Ua.StatusCode[]?":
+                    return "GetStatusCodeArray";
+                case "global::Opc.Ua.Variant[]?":
+                    return "GetVariantArray";
                 default:
-                    if (!dataType.IsStructure ||
-                        string.Equals(
+                    if (string.Equals(
                             dataType.SymbolicId?.Namespace,
                             Namespaces.OpcUa,
                             StringComparison.Ordinal) ||
-                        dotnetType == "global::Opc.Ua.Variant" ||
-                        dotnetType == "global::Opc.Ua.Variant[]?")
+                        dotnetType == null ||
+                        !dotnetType.StartsWith("global::", StringComparison.Ordinal))
+                    {
+                        return null;
+                    }
+
+                    // A model-local enumeration is transferred as its underlying
+                    // Int32. Without a reader the property is declared on the
+                    // record but dropped from the decoder, so every event reports
+                    // it as the enum's default rather than what the server sent.
+                    if (dataType.IsEnumeration)
+                    {
+                        return dotnetType.EndsWith("[]?", StringComparison.Ordinal)
+                            ? CoreUtils.Format("GetEnumArray<{0}>", dotnetType[..^3])
+                            : CoreUtils.Format("GetEnum<{0}>", dotnetType);
+                    }
+
+                    if (!dataType.IsStructure)
                     {
                         return null;
                     }

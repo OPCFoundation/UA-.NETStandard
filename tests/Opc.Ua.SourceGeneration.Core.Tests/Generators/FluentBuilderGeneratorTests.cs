@@ -643,6 +643,102 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .ToDictionary(c => c, c => Encoding.UTF8.GetString(fileSystem.Get(c)));
         }
 
+        /// <summary>
+        /// Regression: every generated instance wrapper declares Builder and
+        /// Node itself, so a child accessor sanitizing to one of those produced
+        /// a duplicate member (CS0102). The collision is reported with an
+        /// actionable message instead, the same way sibling collisions are.
+        /// </summary>
+        [TestCase("Node")]
+        [TestCase("Builder")]
+        public void EmitChildNamedAfterAWrapperMember_ReportsTheCollision(string childName)
+        {
+            InvalidOperationException ex = Assert.Throws<InvalidOperationException>(
+                () => GenerateWrapperWithChildNamed(childName));
+
+            Assert.That(ex.Message, Does.Contain(childName));
+            Assert.That(ex.Message, Does.Contain("already declares"));
+        }
+
+        /// <summary>
+        /// A child whose name does not collide still generates.
+        /// </summary>
+        [Test]
+        public void EmitChildWithANonCollidingName_Generates()
+        {
+            string builders = null;
+            Assert.DoesNotThrow(() => builders = GenerateWrapperWithChildNamed("Setpoint"));
+            Assert.That(builders, Does.Contain("Setpoint"));
+        }
+
+        private static string GenerateWrapperWithChildNamed(string childName)
+        {
+            const string namespaceUri = "http://test.org/UA/WrapperCollision/";
+            var targetNamespace = new Namespace
+            {
+                Value = namespaceUri,
+                Prefix = "WrapperCollision",
+                Name = "WrapperCollision"
+            };
+            var floatType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("Float", "http://opcfoundation.org/UA/"),
+                SymbolicId = new XmlQualifiedName("Float", "http://opcfoundation.org/UA/"),
+                BasicDataType = BasicDataType.Float
+            };
+            var child = new VariableDesign
+            {
+                SymbolicName = new XmlQualifiedName(childName, namespaceUri),
+                SymbolicId = new XmlQualifiedName("Device_" + childName, namespaceUri),
+                BrowseName = childName,
+                DataTypeNode = floatType,
+                DataType = floatType.SymbolicId,
+                ValueRank = ValueRank.Scalar
+            };
+            var root = new ObjectDesign
+            {
+                SymbolicName = new XmlQualifiedName("Device", namespaceUri),
+                SymbolicId = new XmlQualifiedName("Device", namespaceUri),
+                Hierarchy = new Hierarchy()
+            };
+            root.Hierarchy.Nodes[string.Empty] = new HierarchyNode
+            {
+                RelativePath = string.Empty,
+                Instance = root
+            };
+            root.Hierarchy.Nodes[childName] = new HierarchyNode
+            {
+                RelativePath = childName,
+                Instance = child
+            };
+
+            var model = new Mock<IModelDesign>();
+            model.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            model.Setup(m => m.Namespaces).Returns([targetNamespace]);
+            model.Setup(m => m.GetNodeDesigns()).Returns([root]);
+            model.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+
+            using var fileSystem = new VirtualFileSystem();
+            var context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = string.Empty,
+                ModelDesign = model.Object,
+                Telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error),
+                Options = new GeneratorOptions()
+            };
+            new FluentBuilderGenerator(context)
+            {
+                GenerateManagerWrappers = true,
+                EmitFluentAccessors = false
+            }.Emit();
+
+            return fileSystem.CreatedFiles
+                .Where(c => c.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal))
+                .Select(c => Encoding.UTF8.GetString(fileSystem.Get(c)))
+                .Single();
+        }
+
         private static string GenerateForDeclarationBackedModel()
         {
             const string namespaceUri = "http://test.org/UA/DeclarationBackedMethod/";

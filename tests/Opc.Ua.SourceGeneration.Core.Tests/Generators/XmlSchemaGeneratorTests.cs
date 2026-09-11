@@ -242,5 +242,80 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.Not.Null);
             m_mockFileSystem.Verify(fs => fs.OpenWrite(It.IsAny<string>()), Times.Once);
         }
+
+        /// <summary>
+        /// Regression: the DataType description went into xs:documentation
+        /// unescaped, so a description containing '&amp;' (the shipped OpenUsd
+        /// NodeSet has one) produced a non-well-formed Types.xsd.
+        /// </summary>
+        [Test]
+        public void Emit_DescriptionWithMarkupCharacters_EscapesTheDocumentation()
+        {
+            const string uri = "http://test.org/UA/";
+            var field = new Parameter
+            {
+                Name = "Value",
+                ValueRank = ValueRank.Scalar,
+                DataTypeNode = new DataTypeDesign
+                {
+                    SymbolicId = new System.Xml.XmlQualifiedName(
+                        "Int32", Types.Namespaces.OpcUa),
+                    SymbolicName = new System.Xml.XmlQualifiedName(
+                        "Int32", Types.Namespaces.OpcUa),
+                    BasicDataType = BasicDataType.Int32
+                }
+            };
+            var structure = new DataTypeDesign
+            {
+                SymbolicId = new System.Xml.XmlQualifiedName("TestDocumented", uri),
+                SymbolicName = new System.Xml.XmlQualifiedName("TestDocumented", uri),
+                BrowseName = "TestDocumented",
+                BasicDataType = BasicDataType.UserDefined,
+                IsStructure = true,
+                BaseType = new System.Xml.XmlQualifiedName(
+                    "Structure", Types.Namespaces.OpcUa),
+                BaseTypeNode = new DataTypeDesign
+                {
+                    SymbolicId = new System.Xml.XmlQualifiedName(
+                        "Structure", Types.Namespaces.OpcUa),
+                    SymbolicName = new System.Xml.XmlQualifiedName(
+                        "Structure", Types.Namespaces.OpcUa),
+                    BasicDataType = BasicDataType.Structure
+                },
+                Fields = [field],
+                Description = new Schema.Model.LocalizedText
+                {
+                    Value = "A&C <not an element>"
+                }
+            };
+            field.Parent = structure;
+
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([structure]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<Parameter>())).Returns(false);
+
+            using var fileSystem = new VirtualFileSystem();
+            m_context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = m_mockModelDesign.Object,
+                Telemetry = m_mockTelemetry.Object,
+                Options = new GeneratorOptions()
+            };
+
+            new XmlSchemaGenerator(m_context) { ValidateOutput = false }.Emit();
+
+            string schema = System.Text.Encoding.UTF8.GetString(
+                fileSystem.Get(Path.Combine("out", "Test.Types.xsd")));
+
+            Assert.That(
+                schema,
+                Does.Contain("A&amp;C &lt;not an element&gt;"));
+            Assert.That(
+                schema,
+                Does.Not.Contain("<xs:documentation>A&C"),
+                "the raw text makes the emitted schema non-well-formed");
+        }
     }
 }

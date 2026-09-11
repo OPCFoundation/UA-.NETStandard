@@ -64,6 +64,64 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
                 Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Regression: the preserve-case overload must sanitize the name into a
+        /// legal identifier without touching the casing the model author chose.
+        /// Used for constants whose name is part of the generated public API.
+        /// </summary>
+        [TestCase("Pump 1", "Pump1")]
+        [TestCase("pump", "pump")]
+        [TestCase("Pump-1", "Pump_1")]
+        [TestCase("1Pump", "_1Pump")]
+        [TestCase("class", "@class")]
+        [TestCase("", "Value")]
+        [TestCase(null, "Value")]
+        public void ToCSharpIdentifierPreserveCaseKeepsCasing(string input, string expected)
+        {
+            Assert.That(input.ToCSharpIdentifierPreserveCase(), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Regression: descriptions taken from a NodeSet go into BSD/XSD schema
+        /// documents as character data, so the XML markup characters have to be
+        /// escaped or the emitted schema is not well formed.
+        /// </summary>
+        [TestCase("A&C", "A&amp;C")]
+        [TestCase("a < b > c", "a &lt; b &gt; c")]
+        [TestCase("plain", "plain")]
+        [TestCase("", "")]
+        [TestCase(null, "")]
+        public void AsXmlTextEscapesMarkupCharacters(string input, string expected)
+        {
+            Assert.That(input.AsXmlText(), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Attribute values additionally need the double quote escaped.
+        /// </summary>
+        [TestCase("a\"b", "a&quot;b")]
+        [TestCase("A&C", "A&amp;C")]
+        public void AsXmlAttributeValueEscapesQuotes(string input, string expected)
+        {
+            Assert.That(input.AsXmlAttributeValue(), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Regression: NodeIdGenerator interpolated the string identifier into a
+        /// C# literal unescaped, so a PLC style id with a backslash produced
+        /// source that does not compile.
+        /// </summary>
+        [Test]
+        public void AsStringLiteralEscapesBackslashAndQuote()
+        {
+            Assert.That(
+                "PLC1\\DB10.Tag".AsStringLiteral(),
+                Is.EqualTo("\"PLC1\\\\DB10.Tag\""));
+            Assert.That(
+                "say \"hi\"".AsStringLiteral(),
+                Is.EqualTo("\"say \\\"hi\\\"\""));
+        }
+
         [Test]
         public void AsStringLiteralEscapesUnicodeLineSeparators()
         {

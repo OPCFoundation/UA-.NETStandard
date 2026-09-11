@@ -783,8 +783,163 @@ namespace Opc.Ua.Schema.Model
             {
                 return string.Empty;
             }
+            // Deliberately the authored name, not GetPropertyName: this produces
+            // a lower-camel name ("m_fieldNames"), so it cannot collide with the
+            // templates' own PascalCase m_ members ("m_FieldNames"), and callers
+            // pin the exact mapping of the authored characters.
             return field.Name.ToSafeSymbolName(true, "m_");
         }
+
+        /// <summary>
+        /// Returns the C# identifier of the property a structure field is
+        /// generated as. Structure field names are authored data, so they can be
+        /// C# keywords or collide with the members every generated data type
+        /// carries; neither would compile when used verbatim. The wire name is
+        /// unaffected - it is emitted from <see cref="Parameter.Name"/>.
+        /// </summary>
+        public static string GetPropertyName(this Parameter field)
+        {
+            if (string.IsNullOrEmpty(field?.Name))
+            {
+                return string.Empty;
+            }
+
+            string name = field.Name.ToCSharpIdentifierPreserveCase();
+            string bare = name.TrimStart('@');
+
+            // A member may not carry the name of its enclosing type, and the
+            // templates already occupy a fixed set of member names.
+            bool isReserved(string candidate)
+            {
+                return s_reservedDataTypeMembers.Contains(candidate) ||
+                    string.Equals(
+                        candidate,
+                        (field.Parent as DataTypeDesign)?.SymbolicName?.Name,
+                        StringComparison.Ordinal);
+            }
+
+            if (!isReserved(bare) && !CollidesWithEarlierSibling(field, bare))
+            {
+                return name;
+            }
+
+            return Disambiguate(field, bare, isReserved);
+        }
+
+        /// <summary>
+        /// True when an earlier sibling field of the same structure sanitizes to
+        /// the same identifier. Authored names that differ only in characters the
+        /// sanitizer drops ("Value Id" and "ValueId") would otherwise be emitted
+        /// as the same member twice. The first field declared keeps the plain
+        /// name so the result does not depend on which field is asked first.
+        /// </summary>
+        private static bool CollidesWithEarlierSibling(Parameter field, string bare)
+        {
+            foreach (Parameter sibling in (field.Parent as DataTypeDesign)?.Fields ?? [])
+            {
+                if (ReferenceEquals(sibling, field))
+                {
+                    return false;
+                }
+                if (string.IsNullOrEmpty(sibling?.Name))
+                {
+                    continue;
+                }
+                if (string.Equals(
+                    sibling.Name.ToCSharpIdentifierPreserveCase().TrimStart('@'),
+                    bare,
+                    StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Returns the C# identifier of the member a structure field is given in
+        /// the generated <c>{ClassName}Fields</c> enumeration. Same reasoning as
+        /// <see cref="GetPropertyName(Parameter)"/>, but the only name already
+        /// taken in that scope is <c>None</c>.
+        /// </summary>
+        public static string GetFieldsEnumMemberName(this Parameter field)
+        {
+            if (string.IsNullOrEmpty(field?.Name))
+            {
+                return string.Empty;
+            }
+
+            string name = field.Name.ToCSharpIdentifierPreserveCase();
+            string bare = name.TrimStart('@');
+
+            static bool isReserved(string candidate)
+            {
+                return string.Equals(candidate, "None", StringComparison.Ordinal);
+            }
+
+            if (!isReserved(bare) && !CollidesWithEarlierSibling(field, bare))
+            {
+                return name;
+            }
+
+            return Disambiguate(field, bare, isReserved);
+        }
+
+        /// <summary>
+        /// Appends "Field" - and then underscores - to a colliding name until it
+        /// is neither taken by a sibling field of the same structure nor itself
+        /// reserved. Siblings are compared on the identifier they generate as,
+        /// not on their authored name: "Encode Field" and "Encode" both want the
+        /// member "EncodeField", and comparing raw names would hand it out twice.
+        /// </summary>
+        private static string Disambiguate(
+            Parameter field,
+            string bare,
+            Func<string, bool> isReserved)
+        {
+            var taken = new HashSet<string>(StringComparer.Ordinal);
+            foreach (Parameter sibling in (field.Parent as DataTypeDesign)?.Fields ?? [])
+            {
+                if (sibling == null ||
+                    ReferenceEquals(sibling, field) ||
+                    string.IsNullOrEmpty(sibling.Name))
+                {
+                    continue;
+                }
+                taken.Add(sibling.Name);
+                taken.Add(sibling.Name.ToCSharpIdentifierPreserveCase().TrimStart('@'));
+            }
+
+            string candidate = bare + "Field";
+            while (taken.Contains(candidate) || isReserved(candidate))
+            {
+                candidate += "_";
+            }
+            return candidate;
+        }
+
+        private static readonly HashSet<string> s_reservedDataTypeMembers =
+            new(StringComparer.Ordinal)
+            {
+                "SwitchField",
+                "EncodingMask",
+                "EncodingMaskFieldNames",
+                "Reuse",
+                "TypeId",
+                "BinaryEncodingId",
+                "XmlEncodingId",
+                "JsonEncodingId",
+                "Encode",
+                "Decode",
+                "IsEqual",
+                "Equals",
+                "GetHashCode",
+                "GetType",
+                "ToString",
+                "Clone",
+                "MemberwiseClone",
+                "Initialize"
+            };
 
         /// <summary>
         /// Returns the field name of a child node.
@@ -1231,12 +1386,38 @@ namespace Opc.Ua.Schema.Model
                     {
                         floatValue = 0;
                     }
+                    // NaN and the infinities have no literal form in C# - they
+                    // format as "NaN" / "Infinity", which would not compile.
+                    if (float.IsNaN(floatValue))
+                    {
+                        return MakeReturnType("float.NaN");
+                    }
+                    if (float.IsPositiveInfinity(floatValue))
+                    {
+                        return MakeReturnType("float.PositiveInfinity");
+                    }
+                    if (float.IsNegativeInfinity(floatValue))
+                    {
+                        return MakeReturnType("float.NegativeInfinity");
+                    }
                     return MakeReturnType(CoreUtils.Format("(float){0}", floatValue));
                 case BasicDataType.Number:
                 case BasicDataType.Double:
                     if (decodedValue is not double doubleValue)
                     {
                         doubleValue = 0;
+                    }
+                    if (double.IsNaN(doubleValue))
+                    {
+                        return MakeReturnType("double.NaN");
+                    }
+                    if (double.IsPositiveInfinity(doubleValue))
+                    {
+                        return MakeReturnType("double.PositiveInfinity");
+                    }
+                    if (double.IsNegativeInfinity(doubleValue))
+                    {
+                        return MakeReturnType("double.NegativeInfinity");
                     }
                     return MakeReturnType(CoreUtils.Format("(double){0}", doubleValue));
                 case BasicDataType.String:
@@ -1896,14 +2077,27 @@ namespace Opc.Ua.Schema.Model
             {
                 if (parent.Parent == null && parent.Hierarchy != null)
                 {
+                    // The hierarchy is keyed by the path relative to the root, so
+                    // the root's own symbolic name has to come off the front.
+                    // Strip that exact prefix rather than everything up to the
+                    // first '_', which mangles the path whenever the root type's
+                    // name itself contains an underscore.
                     string relativePath = instance.SymbolicId.Name;
+                    string rootPrefix = parent.SymbolicId?.Name + "_";
 
-                    int index = relativePath.IndexOf('_', StringComparison.Ordinal);
-
-                    if (index != -1)
-
+                    if (rootPrefix.Length > 1 &&
+                        relativePath.StartsWith(rootPrefix, StringComparison.Ordinal))
                     {
-                        relativePath = relativePath[(index + 1)..];
+                        relativePath = relativePath[rootPrefix.Length..];
+                    }
+                    else
+                    {
+                        int index = relativePath.IndexOf('_', StringComparison.Ordinal);
+
+                        if (index != -1)
+                        {
+                            relativePath = relativePath[(index + 1)..];
+                        }
                     }
                     if (parent.Hierarchy.Nodes.TryGetValue(relativePath,
                         out HierarchyNode hierarchyNode) &&
@@ -2303,7 +2497,13 @@ namespace Opc.Ua.Schema.Model
             Namespace ns = GetNamespace(namespaces, namespaceUri);
             if (ns != null)
             {
-                if (!string.IsNullOrEmpty(ns.XmlNamespace))
+                // The "...Xsd" companion constant only exists when the XML
+                // namespace differs from the namespace URI - ConstantsGenerator
+                // emits it under exactly that condition. Referencing it whenever
+                // XmlNamespace is merely non-empty names a constant that was
+                // never declared (CS0117 in the generated sources).
+                if (!string.IsNullOrEmpty(ns.XmlNamespace) &&
+                    !string.Equals(ns.XmlNamespace, ns.Value, StringComparison.Ordinal))
                 {
                     return CoreUtils.Format("{1}.Namespaces.{0}Xsd", ns.Name, ns.Prefix);
                 }

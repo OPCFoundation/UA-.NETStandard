@@ -230,6 +230,468 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Reads an optional SByte event field.
+        /// </summary>
+        public static sbyte? GetNullableSByte(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out sbyte v) ? v : null;
+        }
+
+        /// <summary>
+        /// Reads an optional Byte event field.
+        /// </summary>
+        public static byte? GetNullableByte(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out byte v) ? v : null;
+        }
+
+        /// <summary>
+        /// Reads an optional Int16 event field.
+        /// </summary>
+        public static short? GetNullableInt16(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out short v) ? v : null;
+        }
+
+        /// <summary>
+        /// Reads an optional UInt16 event field.
+        /// </summary>
+        public static ushort? GetNullableUInt16(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ushort v) ? v : null;
+        }
+
+        /// <summary>
+        /// Reads an optional Int32 event field.
+        /// </summary>
+        public static int? GetNullableInt32(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out int v) ? v : null;
+        }
+
+        /// <summary>
+        /// Reads an optional Int64 event field.
+        /// </summary>
+        public static long? GetNullableInt64(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out long v) ? v : null;
+        }
+
+        /// <summary>
+        /// Reads an optional UInt64 event field.
+        /// </summary>
+        public static ulong? GetNullableUInt64(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ulong v) ? v : null;
+        }
+
+        /// <summary>
+        /// Reads an optional Float event field.
+        /// </summary>
+        public static float? GetNullableFloat(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out float v) ? v : null;
+        }
+
+        /// <summary>
+        /// Reads an optional Guid event field.
+        /// </summary>
+        public static Guid? GetNullableGuid(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out Uuid v) ? (Guid)v : null;
+        }
+
+        /// <summary>
+        /// Reads an XmlElement event field or returns <c>null</c>.
+        /// </summary>
+        public static System.Xml.XmlElement? GetXmlElement(
+            IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out XmlElement v)
+                ? (System.Xml.XmlElement?)v : null;
+        }
+
+        /// <summary>
+        /// Reads an ExpandedNodeId event field or returns its null value.
+        /// </summary>
+        public static ExpandedNodeId GetExpandedNodeId(
+            IReadOnlyList<Variant> fields, int index)
+        {
+            return index < fields.Count && fields[index].TryGetValue(out ExpandedNodeId v)
+                        ? v : ExpandedNodeId.Null;
+        }
+
+        /// <summary>
+        /// Reads a QualifiedName event field or returns its null value.
+        /// </summary>
+        public static QualifiedName GetQualifiedName(
+            IReadOnlyList<Variant> fields, int index)
+        {
+            return index < fields.Count && fields[index].TryGetValue(out QualifiedName v)
+                        ? v : QualifiedName.Null;
+        }
+
+        /// <summary>
+        /// Reads an event field as the raw variant it arrived as. Used for
+        /// fields whose data type has no more specific projection.
+        /// </summary>
+        public static Variant GetVariant(IReadOnlyList<Variant> fields, int index)
+        {
+            return index < fields.Count ? fields[index] : Variant.Null;
+        }
+
+        /// <summary>
+        /// Reads an optional Boolean array event field.
+        /// </summary>
+        public static bool[]? GetBoolArray(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ArrayOf<bool> v) ? v.ToArray() : null;
+        }
+
+        /// <summary>
+        /// Reads an optional SByte array event field.
+        /// </summary>
+        public static sbyte[]? GetSByteArray(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ArrayOf<sbyte> v) ? v.ToArray() : null;
+        }
+
+        /// <summary>
+        /// Reads an optional Byte array event field.
+        /// </summary>
+        public static byte[]? GetByteArray(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ArrayOf<byte> v) ? v.ToArray() : null;
+        }
+
+        /// <summary>
+        /// Reads an optional Int16 array event field.
+        /// </summary>
+        public static short[]? GetInt16Array(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ArrayOf<short> v) ? v.ToArray() : null;
+        }
+
+        /// <summary>
+        /// Reads an optional UInt16 array event field.
+        /// </summary>
+        public static ushort[]? GetUInt16Array(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ArrayOf<ushort> v) ? v.ToArray() : null;
+        }
+
+        /// <summary>
+        /// Reads an optional Int32 array event field.
+        /// </summary>
+        public static int[]? GetInt32Array(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ArrayOf<int> v) ? v.ToArray() : null;
+        }
+
+        /// <summary>
+        /// Reads an optional UInt32 array event field.
+        /// </summary>
+        public static uint[]? GetUInt32Array(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ArrayOf<uint> v) ? v.ToArray() : null;
+        }
+
+        /// <summary>
+        /// Reads an optional Int64 array event field.
+        /// </summary>
+        public static long[]? GetInt64Array(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ArrayOf<long> v) ? v.ToArray() : null;
+        }
+
+        /// <summary>
+        /// Reads an optional UInt64 array event field.
+        /// </summary>
+        public static ulong[]? GetUInt64Array(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ArrayOf<ulong> v) ? v.ToArray() : null;
+        }
+
+        /// <summary>
+        /// Reads an optional Float array event field.
+        /// </summary>
+        public static float[]? GetFloatArray(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ArrayOf<float> v) ? v.ToArray() : null;
+        }
+
+        /// <summary>
+        /// Reads an optional Double array event field.
+        /// </summary>
+        public static double[]? GetDoubleArray(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ArrayOf<double> v) ? v.ToArray() : null;
+        }
+
+        /// <summary>
+        /// Reads an optional DateTime array event field.
+        /// </summary>
+        public static DateTime[]? GetDateTimeArray(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            if (!fields[index].TryGetValue(out ArrayOf<DateTimeUtc> values))
+            {
+                return null;
+            }
+            var result = new DateTime[values.Count];
+            for (int ii = 0; ii < values.Count; ii++)
+            {
+                result[ii] = (DateTime)values[ii];
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Reads an optional Guid array event field.
+        /// </summary>
+        public static Guid[]? GetGuidArray(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            if (!fields[index].TryGetValue(out ArrayOf<Uuid> values))
+            {
+                return null;
+            }
+            var result = new Guid[values.Count];
+            for (int ii = 0; ii < values.Count; ii++)
+            {
+                result[ii] = (Guid)values[ii];
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Reads an optional ByteString array event field.
+        /// </summary>
+        public static ByteString[]? GetByteStringArray(
+            IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ArrayOf<ByteString> v) ? v.ToArray() : null;
+        }
+
+        /// <summary>
+        /// Reads an optional XmlElement array event field.
+        /// </summary>
+        public static System.Xml.XmlElement?[]? GetXmlElementArray(
+            IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            if (!fields[index].TryGetValue(out ArrayOf<XmlElement> values))
+            {
+                return null;
+            }
+            var result = new System.Xml.XmlElement?[values.Count];
+            for (int ii = 0; ii < values.Count; ii++)
+            {
+                result[ii] = (System.Xml.XmlElement?)values[ii];
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Reads an optional ExpandedNodeId array event field.
+        /// </summary>
+        public static ExpandedNodeId[]? GetExpandedNodeIdArray(
+            IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ArrayOf<ExpandedNodeId> v)
+                ? v.ToArray() : null;
+        }
+
+        /// <summary>
+        /// Reads an optional QualifiedName array event field.
+        /// </summary>
+        public static QualifiedName[]? GetQualifiedNameArray(
+            IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ArrayOf<QualifiedName> v)
+                ? v.ToArray() : null;
+        }
+
+        /// <summary>
+        /// Reads an optional StatusCode array event field.
+        /// </summary>
+        public static StatusCode[]? GetStatusCodeArray(
+            IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            return fields[index].TryGetValue(out ArrayOf<StatusCode> v) ? v.ToArray() : null;
+        }
+
+        /// <summary>
+        /// Reads an optional Variant array event field. Used for fields whose
+        /// element data type has no more specific projection.
+        /// </summary>
+        public static Variant[]? GetVariantArray(IReadOnlyList<Variant> fields, int index)
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            // NOTE: this only matches a field that arrived as a literal
+            // Variant[]. A field the generator has no specific projection for
+            // usually arrives as an array of a concrete built-in type
+            // (ExtensionObject[] for a structure array, String[] for a
+            // UriString array) and still reads back as null here. Wrapping
+            // those element-wise needs a non-reflective Variant conversion the
+            // stack does not expose yet - Variant(object) is deprecated and
+            // AOT-hostile.
+            return fields[index].TryGetValue(out ArrayOf<Variant> v) ? v.ToArray() : null;
+        }
+
+        /// <summary>
+        /// Reads an enumeration event field. An OPC UA enumeration is
+        /// transferred as its underlying Int32.
+        /// </summary>
+        /// <typeparam name="T">The generated enumeration type.</typeparam>
+        public static T GetEnum<T>(IReadOnlyList<Variant> fields, int index)
+            where T : struct, Enum
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return default;
+            }
+            return fields[index].TryGetValue(out int value)
+                ? (T)Enum.ToObject(typeof(T), value)
+                : default;
+        }
+
+        /// <summary>
+        /// Reads an optional enumeration array event field.
+        /// </summary>
+        /// <typeparam name="T">The generated enumeration type.</typeparam>
+        public static T[]? GetEnumArray<T>(IReadOnlyList<Variant> fields, int index)
+            where T : struct, Enum
+        {
+            if (index >= fields.Count || fields[index].IsNull)
+            {
+                return null;
+            }
+            if (!fields[index].TryGetValue(out ArrayOf<int> values))
+            {
+                return null;
+            }
+            var result = new T[values.Count];
+            for (int ii = 0; ii < result.Length; ii++)
+            {
+                result[ii] = (T)Enum.ToObject(typeof(T), values[ii]);
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Decodes an optional array of structured event fields.
         /// </summary>
         /// <typeparam name="T">The generated structured data type.</typeparam>

@@ -223,12 +223,12 @@ namespace Opc.Ua.SourceGeneration
             }
             else if (!string.IsNullOrEmpty(node.StringId))
             {
-                id = $"\"{node.StringId}\""; // TODO: Make string resource
+                id = node.StringId.AsStringLiteral(); // TODO: Make string resource
                 idType = "string";
             }
             else
             {
-                id = $"\"{node.SymbolicId.Name}\""; // TODO: Make string resource
+                id = node.SymbolicId.Name.AsStringLiteral(); // TODO: Make string resource
                 idType = "string";
             }
 

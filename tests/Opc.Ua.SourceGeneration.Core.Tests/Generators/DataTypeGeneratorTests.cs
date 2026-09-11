@@ -178,5 +178,132 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(capturedPath, Does.StartWith("C:\\output"));
             m_mockFileSystem.Verify(fs => fs.OpenWrite(It.IsAny<string>()), Times.Once);
         }
+
+        /// <summary>
+        /// Regression: a structure field named after a C# keyword produced
+        /// <c>public int event { ... }</c>, which does not compile. The property
+        /// identifier is escaped while the DataMember name - the wire name -
+        /// stays the authored one.
+        /// </summary>
+        [Test]
+        public void Emit_FieldNamedAfterAKeyword_EscapesThePropertyIdentifier()
+        {
+            string source = EmitStructureWithField("event", isUnion: false);
+
+            Assert.That(
+                source,
+                Does.Contain("@event"),
+                "the property identifier must be escaped");
+            Assert.That(
+                source,
+                Does.Contain("Name = \"event\""),
+                "the wire name stays the authored field name");
+        }
+
+        /// <summary>
+        /// Regression: a field whose name collides with a member the templates
+        /// emit on every generated data type (TypeId here) produced a duplicate
+        /// member. The property is renamed; the wire name is unaffected.
+        /// </summary>
+        [Test]
+        public void Emit_FieldNamedAfterAGeneratedMember_RenamesTheProperty()
+        {
+            string source = EmitStructureWithField("TypeId", isUnion: false);
+
+            Assert.That(source, Does.Contain("TypeIdField"));
+            Assert.That(
+                source,
+                Does.Contain("Name = \"TypeId\""),
+                "the wire name stays the authored field name");
+        }
+
+        /// <summary>
+        /// A union's switch enumeration, its case labels and the value it reads
+        /// and writes must all use the same escaped identifier.
+        /// </summary>
+        [Test]
+        public void Emit_UnionFieldNamedAfterAKeyword_IsConsistentAcrossTheType()
+        {
+            string source = EmitStructureWithField("event", isUnion: true);
+
+            Assert.That(
+                source,
+                Does.Contain("@event = 1"),
+                "the switch enumeration member is escaped");
+            Assert.That(
+                source,
+                Does.Contain("case TestUnionFields.@event:"),
+                "the case label uses the same identifier");
+            Assert.That(
+                source,
+                Does.Not.Contain("TestUnionFields.event:"),
+                "an unescaped keyword would not compile");
+        }
+
+        private string EmitStructureWithField(string fieldName, bool isUnion)
+        {
+            const string uri = "http://test.org/UA/";
+            string typeName = isUnion ? "TestUnion" : "TestStructure";
+
+            var int32 = new DataTypeDesign
+            {
+                SymbolicId = new System.Xml.XmlQualifiedName(
+                    "Int32", Types.Namespaces.OpcUa),
+                SymbolicName = new System.Xml.XmlQualifiedName(
+                    "Int32", Types.Namespaces.OpcUa),
+                BasicDataType = BasicDataType.Int32,
+                NumericId = 6,
+                NumericIdSpecified = true
+            };
+            var field = new Parameter
+            {
+                Name = fieldName,
+                ValueRank = ValueRank.Scalar,
+                DataType = int32.SymbolicId,
+                DataTypeNode = int32
+            };
+            var structure = new DataTypeDesign
+            {
+                SymbolicId = new System.Xml.XmlQualifiedName(typeName, uri),
+                SymbolicName = new System.Xml.XmlQualifiedName(typeName, uri),
+                BrowseName = typeName,
+                ClassName = typeName,
+                BasicDataType = BasicDataType.UserDefined,
+                IsStructure = true,
+                IsUnion = isUnion,
+                BaseType = new System.Xml.XmlQualifiedName(
+                    "Structure", Types.Namespaces.OpcUa),
+                BaseTypeNode = new DataTypeDesign
+                {
+                    SymbolicId = new System.Xml.XmlQualifiedName(
+                        "Structure", Types.Namespaces.OpcUa),
+                    SymbolicName = new System.Xml.XmlQualifiedName(
+                        "Structure", Types.Namespaces.OpcUa),
+                    BasicDataType = BasicDataType.Structure
+                },
+                Fields = [field]
+            };
+            field.Parent = structure;
+
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([structure]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<Parameter>())).Returns(false);
+            m_mockModelDesign.Setup(m => m.UseAllowSubtypes).Returns(true);
+
+            using var fileSystem = new VirtualFileSystem();
+            m_context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = m_mockModelDesign.Object,
+                Telemetry = m_mockTelemetry.Object,
+                Options = new GeneratorOptions()
+            };
+
+            new DataTypeGenerator(m_context).Emit();
+
+            return System.Text.Encoding.UTF8.GetString(
+                fileSystem.Get(Path.Combine("out", "Test.DataTypes.g.cs")));
+        }
     }
 }

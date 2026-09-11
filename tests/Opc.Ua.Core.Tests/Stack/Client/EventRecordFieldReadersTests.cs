@@ -205,5 +205,182 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     Is.Null);
             });
         }
+
+        /// <summary>
+        /// Regression: the generator selected these fields but had no reader for
+        /// their .NET type, so the generated decoder never populated them and
+        /// every event read back null. Decodes a real generated record through
+        /// its own StandardFields layout to prove the values arrive.
+        /// </summary>
+        [Test]
+        public void GeneratedDecoderPopulatesPreviouslyUnmappedFieldTypes()
+        {
+            QualifiedName[][] layout = AlarmConditionTypeRecord.Decoder.StandardFields;
+
+            int repeatCount = IndexOf(layout, BrowseNames.ReAlarmRepeatCount);
+            Assert.That(
+                repeatCount,
+                Is.GreaterThanOrEqualTo(0),
+                "ReAlarmRepeatCount must be part of the selected fields");
+
+            var fields = new Variant[layout.Length];
+            fields[repeatCount] = Variant.From((short)5);
+
+            AlarmConditionTypeRecord record = AlarmConditionTypeRecord.Decoder.Decode(fields);
+
+            Assert.That(record, Is.Not.Null);
+            Assert.That(
+                record.ReAlarmRepeatCount,
+                Is.EqualTo((short)5),
+                "an Int16 field used to have no reader and stayed null");
+        }
+
+        private static int IndexOf(QualifiedName[][] layout, string browseName)
+        {
+            for (int ii = 0; ii < layout.Length; ii++)
+            {
+                QualifiedName[] path = layout[ii];
+                if (path is { Length: 1 } &&
+                    string.Equals(path[0].Name, browseName, System.StringComparison.Ordinal))
+                {
+                    return ii;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// Regression: the generator declared and selected fields of these types
+        /// but had no reader to populate them, so e.g.
+        /// <c>AlarmConditionTypeRecord.ReAlarmRepeatCount</c> (an Int16) read as
+        /// null for every event.
+        /// </summary>
+        [Test]
+        public void NullableScalarReadersReturnTheFieldValue()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    EventRecordFieldReaders.GetNullableSByte([Variant.From((sbyte)-3)], 0),
+                    Is.EqualTo((sbyte)-3));
+                Assert.That(
+                    EventRecordFieldReaders.GetNullableByte([Variant.From((byte)3)], 0),
+                    Is.EqualTo((byte)3));
+                Assert.That(
+                    EventRecordFieldReaders.GetNullableInt16([Variant.From((short)-7)], 0),
+                    Is.EqualTo((short)-7));
+                Assert.That(
+                    EventRecordFieldReaders.GetNullableUInt16([Variant.From((ushort)7)], 0),
+                    Is.EqualTo((ushort)7));
+                Assert.That(
+                    EventRecordFieldReaders.GetNullableInt32([Variant.From(-11)], 0),
+                    Is.EqualTo(-11));
+                Assert.That(
+                    EventRecordFieldReaders.GetNullableInt64([Variant.From(-13L)], 0),
+                    Is.EqualTo(-13L));
+                Assert.That(
+                    EventRecordFieldReaders.GetNullableUInt64([Variant.From(13UL)], 0),
+                    Is.EqualTo(13UL));
+                Assert.That(
+                    EventRecordFieldReaders.GetNullableFloat([Variant.From(1.5f)], 0),
+                    Is.EqualTo(1.5f));
+            });
+        }
+
+        /// <summary>
+        /// The same readers return null for an absent or mismatched field rather
+        /// than a misleading zero.
+        /// </summary>
+        [Test]
+        public void NullableScalarReadersReturnNullForAnAbsentField()
+        {
+            Variant[] fields = [default];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(EventRecordFieldReaders.GetNullableInt16(fields, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetNullableInt16(fields, 1), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetNullableInt32(fields, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetNullableGuid(fields, 0), Is.Null);
+            });
+        }
+
+        /// <summary>
+        /// Regression: a field whose data type has no more specific projection
+        /// is emitted as a Variant property. It had no reader at all, so it was
+        /// never populated.
+        /// </summary>
+        [Test]
+        public void GetVariantReturnsTheFieldVerbatim()
+        {
+            Variant[] fields = [Variant.From(42), default];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(EventRecordFieldReaders.GetVariant(fields, 0), Is.EqualTo(fields[0]));
+                Assert.That(EventRecordFieldReaders.GetVariant(fields, 1).IsNull, Is.True);
+                Assert.That(
+                    EventRecordFieldReaders.GetVariant(fields, fields.Length).IsNull,
+                    Is.True);
+            });
+        }
+
+        /// <summary>
+        /// Regression: ExpandedNodeId and QualifiedName fields had no reader.
+        /// </summary>
+        [Test]
+        public void IdentifierReadersReturnTheFieldValue()
+        {
+            var expandedNodeId = new ExpandedNodeId("Tag", 0, "urn:test", 0);
+            var qualifiedName = new QualifiedName("Tag", 1);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    EventRecordFieldReaders.GetExpandedNodeId(
+                        [Variant.From(expandedNodeId)], 0),
+                    Is.EqualTo(expandedNodeId));
+                Assert.That(
+                    EventRecordFieldReaders.GetQualifiedName(
+                        [Variant.From(qualifiedName)], 0),
+                    Is.EqualTo(qualifiedName));
+                Assert.That(
+                    EventRecordFieldReaders.GetExpandedNodeId([default], 0),
+                    Is.EqualTo(ExpandedNodeId.Null));
+                Assert.That(
+                    EventRecordFieldReaders.GetQualifiedName([default], 0),
+                    Is.EqualTo(QualifiedName.Null));
+            });
+        }
+
+        /// <summary>
+        /// Regression: most array-valued event fields had no reader either.
+        /// </summary>
+        [Test]
+        public void ArrayReadersReturnTheFieldValues()
+        {
+            int[] integers = [1, 2, 3];
+            double[] doubles = [1.5, 2.5];
+            bool[] booleans = [true, false];
+            Variant[] absent = [default];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    EventRecordFieldReaders.GetInt32Array(
+                        [new Variant(integers.ToArrayOf())], 0),
+                    Is.EqualTo(integers));
+                Assert.That(
+                    EventRecordFieldReaders.GetDoubleArray(
+                        [new Variant(doubles.ToArrayOf())], 0),
+                    Is.EqualTo(doubles));
+                Assert.That(
+                    EventRecordFieldReaders.GetBoolArray(
+                        [new Variant(booleans.ToArrayOf())], 0),
+                    Is.EqualTo(booleans));
+                Assert.That(EventRecordFieldReaders.GetInt32Array(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetInt32Array(absent, 1), Is.Null);
+            });
+        }
     }
 }

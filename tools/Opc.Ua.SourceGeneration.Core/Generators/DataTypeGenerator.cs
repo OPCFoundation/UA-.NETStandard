@@ -785,13 +785,14 @@ namespace Opc.Ua.SourceGeneration
 
             if (context.Token == Tokens.ListOfSwitchFieldNames)
             {
+                // The wire name, kept verbatim.
                 context.Out.Write('"');
                 context.Out.Write(field.Name);
                 context.Out.Write('"');
             }
             else
             {
-                context.Out.Write(field.Name);
+                context.Out.Write(field.GetFieldsEnumMemberName());
                 context.Out.Write(" = ");
                 context.Out.Write(index.ToString(CultureInfo.InvariantCulture));
             }
@@ -814,14 +815,29 @@ namespace Opc.Ua.SourceGeneration
             {
                 if (context.Token == Tokens.ListOfEncodingMaskFieldNames)
                 {
+                    // The wire name, kept verbatim.
                     context.Out.Write('"');
                     context.Out.Write(field.Name);
                     context.Out.Write('"');
                 }
                 else
                 {
-                    context.Out.Write(field.Name);
-                    context.Out.Write(" = 0x{0:X}", 1 << index);
+                    // The binary encoding mask is 32 bits wide (OPC 10000-6
+                    // 5.2.7), so the 33rd optional field has no bit to occupy.
+                    // "1 << 32" wraps back to 1 in C#, which would silently give
+                    // it the first field's bit: fail the generation instead.
+                    if (index >= kEncodingMaskBits)
+                    {
+                        throw new InvalidOperationException(CoreUtils.Format(
+                            "Data type '{0}' declares more than {1} optional " +
+                            "fields. The binary encoding mask cannot address " +
+                            "field '{2}'.",
+                            (field.Parent as DataTypeDesign)?.SymbolicName?.Name,
+                            kEncodingMaskBits,
+                            field.Name));
+                    }
+                    context.Out.Write(field.GetFieldsEnumMemberName());
+                    context.Out.Write(" = 0x{0:X}", 1u << index);
                 }
                 context.Out.WriteLine(",");
             }
@@ -839,23 +855,26 @@ namespace Opc.Ua.SourceGeneration
 
             if (isUnion)
             {
-                context.Out.WriteLine($"case {dataType.SymbolicName.Name}Fields.{field.Name}:");
+                context.Out.WriteLine(
+                    $"case {dataType.SymbolicName.Name}Fields.{field.GetFieldsEnumMemberName()}:");
                 context.Out.WriteLine("{");
             }
 
             if (field.IsOptional)
             {
                 context.Out.WriteLine(
-                    $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields.{field.Name}) != 0) ");
+                    $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields." +
+                    $"{field.GetFieldsEnumMemberName()}) != 0) ");
             }
 
             string functionName = field.DataTypeNode.BasicDataType.ToString();
             string fieldName = isUnion ? $"fieldName ?? \"{field.Name}\"" : $"\"{field.Name}\"";
+            string valueName = field.GetPropertyName();
 
             if (field.ValueRank == ValueRank.OneOrMoreDimensions &&
                 field.DataTypeNode.SupportsMatrixOf())
             {
-                EmitMatrixWriteCall(context, field, fieldName);
+                EmitMatrixWriteCall(context, field, fieldName, valueName);
                 if (isUnion)
                 {
                     context.Out.WriteLine("break;");
@@ -903,7 +922,7 @@ namespace Opc.Ua.SourceGeneration
                         context.Out.WriteLine(
                             "encoder.WriteEnumeratedArray({0}, {1});",
                             fieldName,
-                            field.Name);
+                            valueName);
                         if (isUnion)
                         {
                             context.Out.WriteLine("break;");
@@ -924,7 +943,7 @@ namespace Opc.Ua.SourceGeneration
                             context.Out.WriteLine(
                                 "encoder.WriteEncodeableArray({0}, {1});",
                                 fieldName,
-                                field.Name);
+                                valueName);
                             if (isUnion)
                             {
                                 context.Out.WriteLine("break;");
@@ -942,7 +961,7 @@ namespace Opc.Ua.SourceGeneration
                         context.Out.WriteLine(
                             "encoder.WriteEncodeableArrayAsExtensionObjects({0}, {1});",
                             fieldName,
-                            field.Name);
+                            valueName);
                         if (isUnion)
                         {
                             context.Out.WriteLine("break;");
@@ -959,7 +978,7 @@ namespace Opc.Ua.SourceGeneration
                         context.Out.WriteLine(
                             "encoder.WriteEncodeableAsExtensionObject({0}, {1});",
                             fieldName,
-                            field.Name);
+                            valueName);
 
                         if (isUnion)
                         {
@@ -988,7 +1007,7 @@ namespace Opc.Ua.SourceGeneration
                 functionName = "Variant";
             }
 
-            context.Out.Write($"encoder.Write{functionName}({fieldName}, {field.Name}");
+            context.Out.Write($"encoder.Write{functionName}({fieldName}, {valueName}");
 
             context.Out.WriteLine(");");
 
@@ -1010,17 +1029,19 @@ namespace Opc.Ua.SourceGeneration
             bool isUnion = dataType.IsUnion;
             if (isUnion)
             {
-                context.Out.WriteLine($"case {dataType.SymbolicName.Name}Fields.{field.Name}:");
+                context.Out.WriteLine(
+                    $"case {dataType.SymbolicName.Name}Fields.{field.GetFieldsEnumMemberName()}:");
                 context.Out.WriteLine("{");
             }
 
             if (field.IsOptional)
             {
                 context.Out.WriteLine(
-                    $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields.{field.Name}) != 0) ");
+                    $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields." +
+                    $"{field.GetFieldsEnumMemberName()}) != 0) ");
             }
 
-            string valueName = field.Name;
+            string valueName = field.GetPropertyName();
             string fieldName = isUnion ? $"fieldName ?? \"{field.Name}\"" : $"\"{field.Name}\"";
 
             if (field.ValueRank == ValueRank.OneOrMoreDimensions &&
@@ -1172,14 +1193,15 @@ namespace Opc.Ua.SourceGeneration
         private static void EmitMatrixWriteCall(
             ILoadContext context,
             Parameter field,
-            string fieldName)
+            string fieldName,
+            string valueName)
         {
             if (IsConcreteEncodeableMatrix(field))
             {
                 context.Out.WriteLine(
                     "encoder.WriteEncodeableMatrix({0}, {1});",
                     fieldName,
-                    field.Name);
+                    valueName);
                 return;
             }
 
@@ -1191,7 +1213,7 @@ namespace Opc.Ua.SourceGeneration
                 context.Out.WriteLine(
                     "encoder.WriteVariant({0}, global::Opc.Ua.Variant.FromStructure({1}));",
                     fieldName,
-                    field.Name);
+                    valueName);
                 return;
             }
 
@@ -1201,7 +1223,7 @@ namespace Opc.Ua.SourceGeneration
             context.Out.WriteLine(
                 "encoder.WriteVariant({0}, global::Opc.Ua.Variant.From({1}));",
                 fieldName,
-                field.Name);
+                valueName);
         }
 
         /// <summary>
@@ -1358,14 +1380,16 @@ namespace Opc.Ua.SourceGeneration
             var dataType = (DataTypeDesign)field.Parent;
             if (dataType.IsUnion)
             {
-                context.Out.WriteLine($"case {dataType.SymbolicName.Name}Fields.{field.Name}:");
+                context.Out.WriteLine(
+                    $"case {dataType.SymbolicName.Name}Fields.{field.GetFieldsEnumMemberName()}:");
                 context.Out.WriteLine("{");
             }
 
             if (field.IsOptional)
             {
                 context.Out.WriteLine(
-                    $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields.{field.Name}) != 0) ");
+                    $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields." +
+                    $"{field.GetFieldsEnumMemberName()}) != 0) ");
             }
 
             if (IsFloatingPointScalar(field) ||
@@ -1414,14 +1438,16 @@ namespace Opc.Ua.SourceGeneration
             var dataType = (DataTypeDesign)field.Parent;
             if (dataType.IsUnion)
             {
-                context.Out.WriteLine($"case {dataType.SymbolicName.Name}Fields.{field.Name}:");
+                context.Out.WriteLine(
+                    $"case {dataType.SymbolicName.Name}Fields.{field.GetFieldsEnumMemberName()}:");
                 context.Out.WriteLine("{");
             }
 
             if (field.IsOptional)
             {
                 context.Out.WriteLine(
-                    $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields.{field.Name}) != 0) ");
+                    $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields." +
+                    $"{field.GetFieldsEnumMemberName()}) != 0) ");
             }
 
             if (field.DataTypeNode.NeedsCloning())
@@ -1553,6 +1579,11 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.BrowseNameLiteral,
                 field.Name,
                 m_logger);
+            // The wire name is authored data; the property identifier derived from
+            // it has to be a legal, non-colliding C# member name.
+            context.Template.AddReplacement(
+                Tokens.PropertyName,
+                field.GetPropertyName());
             context.Template.AddReplacement(
                 Tokens.EnumerationName,
                 field.EnsureUniqueEnumName());
@@ -1853,6 +1884,13 @@ namespace Opc.Ua.SourceGeneration
         }
 
         private const string kNamespaceTableContextVariable = "namespaceUris";
+
+        /// <summary>
+        /// Width of the binary encoding mask of a structure with optional
+        /// fields, and therefore the number of optional fields a structure can
+        /// carry. See OPC 10000-6 5.2.7.
+        /// </summary>
+        private const int kEncodingMaskBits = 32;
 
         private readonly Dictionary<string, Resource> m_initializers = [];
         private readonly IServiceMessageContext m_messageContext;

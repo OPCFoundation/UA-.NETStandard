@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Schema.Model;
 
 namespace Opc.Ua.SourceGeneration
@@ -101,6 +102,7 @@ namespace Opc.Ua.SourceGeneration
         public NodeManagerGenerator(IGeneratorContext context)
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
+            m_logger = context.Telemetry.CreateLogger<NodeManagerGenerator>();
         }
 
         /// <inheritdoc/>
@@ -128,7 +130,21 @@ namespace Opc.Ua.SourceGeneration
             {
                 EmitNodeManager(nsPrefix, targetNamespace, targetClass, typeStem, nsUriSymbol, fileStem)
             };
-            if (EmitFactory)
+            // The factory body is a call to the public (server, configuration)
+            // constructor. When that constructor is suppressed the manager cannot
+            // be built from those two arguments alone, so a factory would not
+            // compile - skip it and say so rather than emitting broken code.
+            if (EmitFactory && !EmitDefaultConstructor)
+            {
+                m_logger?.LogWarning(
+                    "Node manager '{ClassName}' suppresses the public " +
+                    "(IServerInternal, ApplicationConfiguration) constructor, so no " +
+                    "'{FactoryName}' is generated. Set GenerateFactory=false to " +
+                    "silence this, or allow the default constructor.",
+                    targetClass,
+                    factoryClass);
+            }
+            else if (EmitFactory)
             {
                 resources.Add(EmitFactoryFile(targetNamespace, targetClass, factoryClass, nsUriSymbol, fileStem));
             }
@@ -220,5 +236,6 @@ namespace Opc.Ua.SourceGeneration
         }
 
         private readonly IGeneratorContext m_context;
+        private readonly ILogger m_logger;
     }
 }

@@ -1308,6 +1308,42 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             ];
         }
 
+        /// <summary>
+        /// Regression: the copy-on-write clone in a typed VariableType's value
+        /// setter was cast to the data type's bare symbolic name. That only
+        /// resolves when the generated class happens to sit in the declaring
+        /// namespace - a cross-model structure produced CS0246.
+        /// </summary>
+        [Test]
+        public void GeneratedCopyOnWriteCastIsFullyQualified()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateStackTests.GenerateStack(
+                StackGenerationType.All,
+                telemetry,
+                out _);
+
+            string states = string.Join("\n", files.Values);
+
+            const string prefix = "CopyOnWrite ? (";
+            var castTypes = new List<string>();
+            for (int at = states.IndexOf(prefix, StringComparison.Ordinal);
+                at >= 0;
+                at = states.IndexOf(prefix, at + prefix.Length, StringComparison.Ordinal))
+            {
+                int start = at + prefix.Length;
+                int end = states.IndexOf(')', start);
+                castTypes.Add(states[start..end]);
+            }
+
+            Assert.That(castTypes, Is.Not.Empty, "the model must exercise a cloning value type");
+            Assert.That(
+                castTypes,
+                Is.All.StartsWith("global::"),
+                "every clone cast must name the type fully qualified: "
+                    + string.Join(", ", castTypes));
+        }
+
         private static Dictionary<string, string> GenerateFromNodeSet(
             string nodeSetResource,
             ITelemetryContext telemetry)

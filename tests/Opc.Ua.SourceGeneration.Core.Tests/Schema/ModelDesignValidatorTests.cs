@@ -423,6 +423,191 @@ namespace Opc.Ua.Schema.Model.Tests
             return Path.Combine(TestContext.CurrentContext.TestDirectory, "Resources", fileName);
         }
 
+        /// <summary>
+        /// Regression: the validator resolved a subtype against its base type's
+        /// already-validated state, so a base declared after its subtype in the
+        /// same design file failed to resolve. Declaration order inside a file
+        /// must not matter.
+        /// </summary>
+        [Test]
+        public void ValidateSubtypeDeclaredBeforeItsBaseTypeSucceeds()
+        {
+            const string path = "memory://out-of-order-design.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(SubtypeBeforeBaseDesign));
+            ModelDesignValidator validator = CreateValidator();
+
+            Assert.DoesNotThrow(() => validator.Validate([path], [], null));
+
+            NodeDesign derived = validator.GetNodeDesigns()
+                .First(n => n.SymbolicName?.Name == "DerivedType");
+            Assert.That(
+                ((TypeDesign)derived).BaseTypeNode?.SymbolicName?.Name,
+                Is.EqualTo("MiddleType"));
+        }
+
+        /// <summary>
+        /// Regression: an explicit NumericId was rejected when the same number
+        /// was already used by a node in another loaded namespace. A NodeId is
+        /// only unique within its own namespace.
+        /// </summary>
+        [Test]
+        public void ValidateExplicitNumericIdMatchingAStandardIdSucceeds()
+        {
+            const string path = "memory://numeric-id-design.xml";
+            // 58 is BaseObjectType in the standard namespace, which is always
+            // loaded alongside the target model.
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(ExplicitNumericIdDesign));
+            ModelDesignValidator validator = CreateValidator();
+
+            Assert.DoesNotThrow(() => validator.Validate([path], [], null));
+
+            NodeDesign node = validator.GetNodeDesigns()
+                .First(n => n.SymbolicName?.Name == "ReusesStandardId");
+            Assert.That(node.NumericId, Is.EqualTo(58u));
+        }
+
+        /// <summary>
+        /// Regression: an explicit ValueRank was overwritten by the shape of the
+        /// DefaultValue, so a scalar default on an array-ranked variable
+        /// silently downgraded the variable to a scalar.
+        /// </summary>
+        [Test]
+        public void ValidateExplicitValueRankSurvivesTheDefaultValueShape()
+        {
+            const string path = "memory://value-rank-design.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(ExplicitValueRankDesign));
+            ModelDesignValidator validator = CreateValidator();
+
+            validator.Validate([path], [], null);
+
+            var variable = (VariableTypeDesign)validator.GetNodeDesigns()
+                .First(n => n.SymbolicName?.Name == "ArrayVariableType");
+
+            Assert.That(
+                variable.ValueRank,
+                Is.EqualTo(ValueRank.Array),
+                "the authored ValueRank is the contract");
+        }
+
+        /// <summary>
+        /// Regression: an OptionSet's OptionSetValues stopped at bit 31 because
+        /// the bit was computed as a signed "1 &lt;&lt; 31", and bits 32-63 of a
+        /// 64 bit option set were never walked at all.
+        /// </summary>
+        [Test]
+        public void ValidateOptionSetEmitsValuesAboveBitThirty()
+        {
+            const string path = "memory://option-set-design.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(WideOptionSetDesign));
+            ModelDesignValidator validator = CreateValidator();
+
+            validator.Validate([path], [], null);
+
+            var optionSet = (DataTypeDesign)validator.GetNodeDesigns()
+                .First(n => n.SymbolicName?.Name == "WideOptionSet");
+
+            VariableDesign values = optionSet.Children.Items
+                .OfType<VariableDesign>()
+                .First(v => v.SymbolicName.Name == "OptionSetValues");
+
+            var decoded = (Opc.Ua.LocalizedText[])values.DecodedValue;
+
+            Assert.That(
+                decoded,
+                Has.Length.EqualTo(40),
+                "the 40th bit is the highest one used, so 40 entries are emitted");
+            Assert.That(decoded[31].Text, Is.EqualTo("BitThirtyOne"));
+            Assert.That(decoded[39].Text, Is.EqualTo("BitThirtyNine"));
+        }
+
+        private const string SubtypeBeforeBaseDesign =
+            """
+            <?xml version="1.0" encoding="utf-8" ?>
+            <opc:ModelDesign
+                xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+                xmlns:ua="http://opcfoundation.org/UA/"
+                xmlns="http://test.org/UA/Ordering/"
+                TargetNamespace="http://test.org/UA/Ordering/">
+              <opc:Namespaces>
+                <opc:Namespace Name="OpcUa" Prefix="Opc.Ua"
+                    XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+                    >http://opcfoundation.org/UA/</opc:Namespace>
+                <opc:Namespace Name="Ordering" Prefix="Ordering">http://test.org/UA/Ordering/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:ObjectType SymbolicName="DerivedType" BaseType="MiddleType" />
+              <opc:ObjectType SymbolicName="MiddleType" BaseType="RootType" />
+              <opc:ObjectType SymbolicName="RootType" BaseType="ua:BaseObjectType" />
+            </opc:ModelDesign>
+            """;
+
+        private const string ExplicitNumericIdDesign =
+            """
+            <?xml version="1.0" encoding="utf-8" ?>
+            <opc:ModelDesign
+                xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+                xmlns:ua="http://opcfoundation.org/UA/"
+                xmlns="http://test.org/UA/Ids/"
+                TargetNamespace="http://test.org/UA/Ids/">
+              <opc:Namespaces>
+                <opc:Namespace Name="OpcUa" Prefix="Opc.Ua"
+                    XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+                    >http://opcfoundation.org/UA/</opc:Namespace>
+                <opc:Namespace Name="Ids" Prefix="Ids">http://test.org/UA/Ids/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:ObjectType SymbolicName="ReusesStandardId" BaseType="ua:BaseObjectType"
+                  NumericId="58" />
+            </opc:ModelDesign>
+            """;
+
+        private const string ExplicitValueRankDesign =
+            """
+            <?xml version="1.0" encoding="utf-8" ?>
+            <opc:ModelDesign
+                xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+                xmlns:ua="http://opcfoundation.org/UA/"
+                xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+                xmlns="http://test.org/UA/Ranks/"
+                TargetNamespace="http://test.org/UA/Ranks/">
+              <opc:Namespaces>
+                <opc:Namespace Name="OpcUa" Prefix="Opc.Ua"
+                    XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+                    >http://opcfoundation.org/UA/</opc:Namespace>
+                <opc:Namespace Name="Ranks" Prefix="Ranks">http://test.org/UA/Ranks/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:VariableType SymbolicName="ArrayVariableType" BaseType="ua:BaseDataVariableType"
+                  DataType="ua:Int32" ValueRank="Array">
+                <opc:DefaultValue>
+                  <uax:Int32>0</uax:Int32>
+                </opc:DefaultValue>
+              </opc:VariableType>
+            </opc:ModelDesign>
+            """;
+
+        private const string WideOptionSetDesign =
+            """
+            <?xml version="1.0" encoding="utf-8" ?>
+            <opc:ModelDesign
+                xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+                xmlns:ua="http://opcfoundation.org/UA/"
+                xmlns="http://test.org/UA/Options/"
+                TargetNamespace="http://test.org/UA/Options/">
+              <opc:Namespaces>
+                <opc:Namespace Name="OpcUa" Prefix="Opc.Ua"
+                    XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+                    >http://opcfoundation.org/UA/</opc:Namespace>
+                <opc:Namespace Name="Options" Prefix="Options">http://test.org/UA/Options/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:DataType SymbolicName="WideOptionSet" BaseType="ua:UInt64" IsOptionSet="true">
+                <opc:Fields>
+                  <opc:Field Name="BitZero" Identifier="1" />
+                  <opc:Field Name="BitThirty" Identifier="1073741824" />
+                  <opc:Field Name="BitThirtyOne" Identifier="2147483648" />
+                  <opc:Field Name="BitThirtyNine" Identifier="549755813888" />
+                </opc:Fields>
+              </opc:DataType>
+            </opc:ModelDesign>
+            """;
+
         private const string UndefinedBaseTypeDesign =
             """
             <?xml version="1.0" encoding="utf-8" ?>

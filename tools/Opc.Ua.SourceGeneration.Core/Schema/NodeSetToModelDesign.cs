@@ -127,6 +127,14 @@ namespace Opc.Ua.Schema.Model
                 }
             }
 
+            if (m_nodeset.Models == null ||
+                m_nodeset.Models.Length == 0 ||
+                string.IsNullOrEmpty(m_nodeset.Models[0].ModelUri))
+            {
+                throw new InvalidDataException(
+                    $"NodeSet ({filePath}) does not declare a <Models> entry with a ModelUri.");
+            }
+
             m_settings.NamespaceTables[m_nodeset.Models[0].ModelUri] =
                 m_nodeset.NamespaceUris;
 
@@ -383,7 +391,13 @@ namespace Opc.Ua.Schema.Model
             {
                 XmlQualifiedName parentId = td1.BaseType;
 
-                while (parentId != null)
+                // A NodeSet can declare a type as its own subtype (the root
+                // reference types routinely carry an inverse HasSubtype to
+                // themselves). Without a visited set that walk never ends and
+                // the generator hangs instead of reporting bad input.
+                var visited = new HashSet<XmlQualifiedName>();
+
+                while (parentId != null && visited.Add(parentId))
                 {
                     if (parentId == td2.SymbolicId)
                     {
@@ -551,7 +565,8 @@ namespace Opc.Ua.Schema.Model
                 output.NumericIdSpecified = true;
             }
 
-            foreach (Export.Reference ii in input.References)
+            // <References> is optional in the schema.
+            foreach (Export.Reference ii in input.References ?? [])
             {
                 ReferenceNode reference = ImportReference(ii);
 
@@ -640,7 +655,9 @@ namespace Opc.Ua.Schema.Model
             }
             output.IsAbstract = input.IsAbstract;
 
-            foreach (Export.Reference ii in input.References)
+            // <References> is optional in the schema. A root type declares no
+            // base type and can legitimately arrive without one.
+            foreach (Export.Reference ii in input.References ?? [])
             {
                 ReferenceNode reference = ImportReference(ii);
 
@@ -903,7 +920,9 @@ namespace Opc.Ua.Schema.Model
             output.ModellingRule = ModellingRule.None;
             output.ModellingRuleSpecified = false;
 
-            foreach (Export.Reference ii in input.References)
+            // <References> is optional in the schema. An instance without one
+            // has no type definition either, which the check below reports.
+            foreach (Export.Reference ii in input.References ?? [])
             {
                 ReferenceNode reference = ImportReference(ii);
 
@@ -1253,70 +1272,25 @@ namespace Opc.Ua.Schema.Model
                 parent = ImportNode(parentNode);
             }
 
-            if (parentNode.References != null)
+            // A hierarchical reference on either side is what makes the child a
+            // child, so look for one on both sides before settling for a
+            // non-hierarchical one. Taking the parent's non-hierarchical
+            // reference first would shadow a perfectly good inverse HasComponent
+            // on the child and drop the node out of the parent's Children.
+            referenceType =
+                FindHierarchicalReference(parentNode.References, input.NodeId, forward: true) ??
+                FindHierarchicalReference(input.References, input.ParentNodeId, forward: false);
+
+            if (referenceType == null)
             {
-                foreach (Export.Reference reference in parentNode.References)
-                {
-                    if (reference.Value == input.NodeId && reference.IsForward)
-                    {
-                        NodeId referenceTypeId = ImportNodeId(reference.ReferenceType);
+                // The reference to look at on the parent side is its forward
+                // reference to this child - scanning the child for a reference
+                // to itself never matches anything.
+                referenceType =
+                    FindAnyReference(parentNode.References, input.NodeId, forward: true) ??
+                    FindAnyReference(input.References, input.ParentNodeId, forward: false);
 
-                        if (!IsTypeOf(referenceTypeId, ReferenceTypeIds.HierarchicalReferences))
-                        {
-                            continue;
-                        }
-
-                        referenceType = FindReferenceType(referenceTypeId);
-                    }
-                }
-
-                // check for non-hierarchical.
-                if (referenceType == null)
-                {
-                    foreach (Export.Reference reference in input.References)
-                    {
-                        if (reference.Value == input.NodeId && reference.IsForward)
-                        {
-                            NodeId referenceTypeId = ImportNodeId(reference.ReferenceType);
-                            referenceType = FindReferenceType(referenceTypeId);
-                        }
-                    }
-
-                    nonHierarchical = referenceType != null;
-                }
-            }
-
-            if (referenceType == null && input.References != null)
-            {
-                foreach (Export.Reference reference in input.References)
-                {
-                    if (reference.Value == input.ParentNodeId && !reference.IsForward)
-                    {
-                        NodeId referenceTypeId = ImportNodeId(reference.ReferenceType);
-
-                        if (!IsTypeOf(referenceTypeId, ReferenceTypeIds.HierarchicalReferences))
-                        {
-                            continue;
-                        }
-
-                        referenceType = FindReferenceType(referenceTypeId);
-                    }
-                }
-
-                // check for non-hierarchical.
-                if (referenceType == null)
-                {
-                    foreach (Export.Reference reference in input.References)
-                    {
-                        if (reference.Value == input.ParentNodeId && !reference.IsForward)
-                        {
-                            NodeId referenceTypeId = ImportNodeId(reference.ReferenceType);
-                            referenceType = FindReferenceType(referenceTypeId);
-                        }
-                    }
-
-                    nonHierarchical = referenceType != null;
-                }
+                nonHierarchical = referenceType != null;
             }
 
             if (referenceType == null)
@@ -1330,6 +1304,60 @@ namespace Opc.Ua.Schema.Model
             {
                 LinkChildToParent(parent, referenceType.SymbolicId, nodeId, child as InstanceDesign);
             }
+        }
+
+        /// <summary>
+        /// Returns the reference type of the last hierarchical reference in
+        /// <paramref name="references"/> that points at <paramref name="targetId"/>
+        /// in the requested direction, or <c>null</c> when there is none.
+        /// </summary>
+        private NodeDesign FindHierarchicalReference(
+            Export.Reference[] references,
+            string targetId,
+            bool forward)
+        {
+            return FindReference(references, targetId, forward, hierarchicalOnly: true);
+        }
+
+        /// <summary>
+        /// Same as <see cref="FindHierarchicalReference"/> but accepting any
+        /// reference type, hierarchical or not.
+        /// </summary>
+        private NodeDesign FindAnyReference(
+            Export.Reference[] references,
+            string targetId,
+            bool forward)
+        {
+            return FindReference(references, targetId, forward, hierarchicalOnly: false);
+        }
+
+        private NodeDesign FindReference(
+            Export.Reference[] references,
+            string targetId,
+            bool forward,
+            bool hierarchicalOnly)
+        {
+            NodeDesign referenceType = null;
+
+            foreach (Export.Reference reference in references ?? [])
+            {
+                if (reference.Value != targetId || reference.IsForward != forward)
+                {
+                    continue;
+                }
+
+                NodeId referenceTypeId = ImportNodeId(reference.ReferenceType);
+
+                if (hierarchicalOnly &&
+                    !IsTypeOf(referenceTypeId, ReferenceTypeIds.HierarchicalReferences))
+                {
+                    continue;
+                }
+
+                referenceType = FindReferenceType(referenceTypeId);
+            }
+
+            return referenceType;
         }
 
         private void LinkChildToParent(
@@ -1626,6 +1654,12 @@ namespace Opc.Ua.Schema.Model
                         continue;
                     }
 
+                    // A forward same-namespace hierarchical reference is already
+                    // expressed by the parent/child relationship the importer
+                    // builds, so it is not kept as an explicit reference.
+                    // (Keeping the ones whose target is not modelled as a child
+                    // was tried and regressed the OpenUsd/Robotics address space,
+                    // which then fails to start - see the audit note on this.)
                     if (!ii.IsForward)
                     {
                         bool found = false;
@@ -1792,7 +1826,14 @@ namespace Opc.Ua.Schema.Model
             };
         }
 
-        private static AccessRestrictions ToAccessRestrictions(AccessRestrictionType input)
+        /// <summary>
+        /// Maps a NodeSet AccessRestrictions bit mask onto the design schema's
+        /// enumeration. Returns <c>null</c> when the mask carries no restriction
+        /// the schema can express - notably the empty mask (which means "no
+        /// restrictions", not "encryption required") and a mask that only sets
+        /// ApplyRestrictionsToBrowse.
+        /// </summary>
+        private static AccessRestrictions? ToAccessRestrictions(AccessRestrictionType input)
         {
             if ((input & AccessRestrictionType.EncryptionRequired) != 0)
             {
@@ -1832,7 +1873,24 @@ namespace Opc.Ua.Schema.Model
                     return AccessRestrictions.SessionWithEncryptionAndApplyToBrowseRequired;
             }
 
-            return AccessRestrictions.EncryptionRequired;
+            // An unrecognised combination - a reserved or vendor bit set
+            // alongside a real restriction. Stay fail-closed: dropping the
+            // restriction because of a bit the schema cannot name would publish
+            // the node with no protection at all. Only a mask that demands
+            // nothing the schema can express maps to "unspecified".
+            const AccessRestrictionType restrictionBits =
+                AccessRestrictionType.SigningRequired |
+                AccessRestrictionType.EncryptionRequired |
+                AccessRestrictionType.SessionRequired;
+
+            if ((input & restrictionBits) != 0)
+            {
+                return (input & AccessRestrictionType.ApplyRestrictionsToBrowse) != 0
+                    ? AccessRestrictions.SessionWithEncryptionAndApplyToBrowseRequired
+                    : AccessRestrictions.SessionWithEncryptionRequired;
+            }
+
+            return null;
         }
 
         private void ImportPermissions(UANode input)
@@ -1845,9 +1903,12 @@ namespace Opc.Ua.Schema.Model
             }
 
             existing.RolePermissions = ToPermissionSet(input.RolePermissions);
-            existing.AccessRestrictions = input.AccessRestrictionsSpecified ?
-                ToAccessRestrictions((AccessRestrictionType)input.AccessRestrictions) : 0;
-            existing.AccessRestrictionsSpecified = input.AccessRestrictionsSpecified;
+
+            AccessRestrictions? restrictions = input.AccessRestrictionsSpecified
+                ? ToAccessRestrictions((AccessRestrictionType)input.AccessRestrictions)
+                : null;
+            existing.AccessRestrictions = restrictions ?? default;
+            existing.AccessRestrictionsSpecified = restrictions.HasValue;
         }
 
         private XmlQualifiedName BuildSymbolicId(UANode node)
@@ -1962,65 +2023,7 @@ namespace Opc.Ua.Schema.Model
                     }
                 }
 
-                if (node is UAInstance instance)
-                {
-                    // View nodes are independent address-space nodes even when an
-                    // exporter sets ParentNodeId to an organizing folder. ViewState
-                    // derives from NodeState (not BaseInstanceState) and therefore
-                    // cannot be added as an AddChild component. Keeping the parent
-                    // would absorb the view into the folder's Children, exclude it
-                    // from the top-level model items and make the generator emit an
-                    // invalid AddChild(...) call. Clearing the parent keeps the view
-                    // a standalone predefined node linked purely via Organizes
-                    // references (mirrors the DataTypeEncoding handling below and the
-                    // way DataType/ReferenceType type nodes are modelled).
-                    if (node is UAView)
-                    {
-                        instance.ParentNodeId = null;
-                    }
-
-                    // ensure parents are in the same namespace.
-                    if (instance.ParentNodeId != null)
-                    {
-                        NodeId parentId = ImportNodeId(instance.ParentNodeId);
-                        NodeId childId = ImportNodeId(instance.NodeId);
-
-                        if (parentId.NamespaceIndex != childId.NamespaceIndex)
-                        {
-                            instance.ParentNodeId = null;
-                        }
-                        else if (FindTarget(
-                            node,
-                            ReferenceTypeIds.HasTypeDefinition,
-                            false) == ObjectTypeIds.DataTypeEncodingType)
-                        {
-                            // DataTypeEncoding objects are independent address-space
-                            // nodes even when an exporter sets ParentNodeId to the
-                            // owning DataType. Keeping that parent absorbs the
-                            // encoding into DataType.Children, excludes it from the
-                            // top-level model items and prevents the NodeManager
-                            // generator from registering the encoding node.
-                            instance.ParentNodeId = null;
-                        }
-                    }
-
-                    // handle missing ParentNodeId when an inverse reference exists.
-                    else
-                    {
-                        foreach (Export.Reference ii in instance.References
-                            .Where(x => !x.IsForward))
-                        {
-                            NodeId referenceTypeId = ImportNodeId(ii.ReferenceType);
-
-                            if (referenceTypeId == ReferenceTypeIds.HasProperty ||
-                                referenceTypeId == ReferenceTypeIds.HasComponent)
-                            {
-                                instance.ParentNodeId = ii.Value;
-                                break;
-                            }
-                        }
-                    }
-                }
+                NormalizeParentNodeId(node);
 
                 XmlQualifiedName symbolicId = BuildSymbolicId(node);
 
@@ -2140,6 +2143,83 @@ namespace Opc.Ua.Schema.Model
             return dictionary;
         }
 
+        /// <summary>
+        /// Normalizes the <c>ParentNodeId</c> of an instance node so the symbolic
+        /// id derived from it is the one the model actually uses. Shared by the
+        /// import pass and by <see cref="GetImportedSymbols"/>, which must derive
+        /// the same ids.
+        /// </summary>
+        private void NormalizeParentNodeId(UANode node)
+        {
+            if (node is not UAInstance instance)
+            {
+                return;
+            }
+
+            // View nodes are independent address-space nodes even when an
+            // exporter sets ParentNodeId to an organizing folder. ViewState
+            // derives from NodeState (not BaseInstanceState) and therefore
+            // cannot be added as an AddChild component. Keeping the parent
+            // would absorb the view into the folder's Children, exclude it
+            // from the top-level model items and make the generator emit an
+            // invalid AddChild(...) call. Clearing the parent keeps the view
+            // a standalone predefined node linked purely via Organizes
+            // references (mirrors the DataTypeEncoding handling below and the
+            // way DataType/ReferenceType type nodes are modelled).
+            if (node is UAView)
+            {
+                instance.ParentNodeId = null;
+            }
+
+            // ensure parents are in the same namespace.
+            if (instance.ParentNodeId != null)
+            {
+                NodeId parentId = ImportNodeId(instance.ParentNodeId);
+                NodeId childId = ImportNodeId(instance.NodeId);
+
+                if (parentId.NamespaceIndex != childId.NamespaceIndex)
+                {
+                    instance.ParentNodeId = null;
+                }
+                else if (FindTarget(
+                    node,
+                    ReferenceTypeIds.HasTypeDefinition,
+                    false) == ObjectTypeIds.DataTypeEncodingType)
+                {
+                    // DataTypeEncoding objects are independent address-space
+                    // nodes even when an exporter sets ParentNodeId to the
+                    // owning DataType. Keeping that parent absorbs the
+                    // encoding into DataType.Children, excludes it from the
+                    // top-level model items and prevents the NodeManager
+                    // generator from registering the encoding node.
+                    instance.ParentNodeId = null;
+                }
+
+                return;
+            }
+
+            // handle missing ParentNodeId when an inverse reference exists.
+            // <References> is optional in the schema, so an instance can
+            // arrive with neither a parent nor a reference list.
+            if (instance.References == null)
+            {
+                return;
+            }
+
+            foreach (Export.Reference ii in instance.References
+                .Where(x => !x.IsForward))
+            {
+                NodeId referenceTypeId = ImportNodeId(ii.ReferenceType);
+
+                if (referenceTypeId == ReferenceTypeIds.HasProperty ||
+                    referenceTypeId == ReferenceTypeIds.HasComponent)
+                {
+                    instance.ParentNodeId = ii.Value;
+                    break;
+                }
+            }
+        }
+
         internal IEnumerable<NodesetImportedSymbol> GetImportedSymbols(string modelUri)
         {
             m_symbolicIds.Clear();
@@ -2166,22 +2246,12 @@ namespace Opc.Ua.Schema.Model
                     }
                 }
 
-                if (node is UAInstance instance &&
-                    instance.ParentNodeId == null &&
-                    instance.References != null)
-                {
-                    foreach (Export.Reference reference in instance.References
-                        .Where(reference => !reference.IsForward))
-                    {
-                        NodeId referenceTypeId = ImportNodeId(reference.ReferenceType);
-                        if (referenceTypeId == ReferenceTypeIds.HasProperty ||
-                            referenceTypeId == ReferenceTypeIds.HasComponent)
-                        {
-                            instance.ParentNodeId = reference.Value;
-                            break;
-                        }
-                    }
-                }
+                // Exactly the normalization Import() applies, so the symbolic ids
+                // the sidecar validator reports match the ones the import pass
+                // derives - View and DataTypeEncoding nodes with a ParentNodeId
+                // used to come out with a parent-qualified id here and a bare one
+                // there, which the validator reported as an UnknownSymbol.
+                NormalizeParentNodeId(node);
 
                 XmlQualifiedName symbolicId = BuildSymbolicId(node);
                 while (m_symbolicIds.Values.Any(existing => existing == symbolicId))
