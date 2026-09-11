@@ -108,7 +108,7 @@ namespace Opc.Ua.Server
             }
 
             QueuedSubscription subscriptionToPublish;
-            lock (m_subscriptionPublishLock)
+            lock (m_lock)
             {
                 // find the waiting subscription with the highest priority.
                 subscriptionToPublish = GetSubscriptionToPublish();
@@ -117,10 +117,7 @@ namespace Opc.Ua.Server
                 {
                     return Task.FromResult(subscriptionToPublish.Subscription);
                 }
-            }
 
-            lock (m_lock)
-            {
                 // check if queue is full.
                 if (m_queuedRequests.Count >= m_maxRequestCount)
                 {
@@ -150,8 +147,12 @@ namespace Opc.Ua.Server
         /// <returns>The list of subscriptions in the queue.</returns>
         public IList<ISubscription> Close()
         {
+            List<ISubscription> subscriptions;
+
             lock (m_lock)
             {
+                subscriptions = new List<ISubscription>(m_queuedSubscriptions.Count);
+
                 // TraceState("SESSION CLOSED");
 
                 // set any waiting publish requests to Status BadSessionClosed.
@@ -164,19 +165,21 @@ namespace Opc.Ua.Server
                 }
 
                 // tell the subscriptions that the session is closed.
-                var subscriptions = new List<ISubscription>(m_queuedSubscriptions.Count);
-
                 foreach (KeyValuePair<uint, QueuedSubscription> entry in m_queuedSubscriptions)
                 {
                     subscriptions.Add(entry.Value.Subscription);
-                    entry.Value.Subscription.SessionClosed();
                 }
 
                 // clear the queue.
                 m_queuedSubscriptions.Clear();
-
-                return subscriptions;
             }
+
+            foreach (ISubscription subscription in subscriptions)
+            {
+                subscription.SessionClosed();
+            }
+
+            return subscriptions;
         }
 
         /// <summary>
@@ -375,19 +378,19 @@ namespace Opc.Ua.Server
             if (m_queuedSubscriptions.TryGetValue(subscription.Id,
                 out QueuedSubscription queuedSubscription))
             {
-                queuedSubscription.Publishing = false;
-
-                if (moreNotifications)
+                lock (m_lock)
                 {
-                    lock (m_subscriptionPublishLock)
+                    queuedSubscription.Publishing = false;
+
+                    if (moreNotifications)
                     {
                         AssignSubscriptionToRequest(queuedSubscription);
                     }
-                }
-                else
-                {
-                    queuedSubscription.ReadyToPublish = false;
-                    queuedSubscription.Timestamp = DateTime.UtcNow;
+                    else
+                    {
+                        queuedSubscription.ReadyToPublish = false;
+                        queuedSubscription.Timestamp = DateTime.UtcNow;
+                    }
                 }
             }
         }
@@ -399,8 +402,11 @@ namespace Opc.Ua.Server
         {
             if (m_queuedSubscriptions.TryGetValue(subscription.Id, out QueuedSubscription queuedSubscription))
             {
-                queuedSubscription.Publishing = false;
-                queuedSubscription.ReadyToPublish = true;
+                lock (m_lock)
+                {
+                    queuedSubscription.Publishing = false;
+                    queuedSubscription.ReadyToPublish = true;
+                }
             }
         }
 
@@ -441,11 +447,14 @@ namespace Opc.Ua.Server
                 }
 
                 // assign subscription to request if one is available.
-                if (!subscription.Publishing)
+                if (!subscription.Publishing && !subscription.ReadyToPublish)
                 {
-                    lock (m_subscriptionPublishLock)
+                    lock (m_lock)
                     {
-                        AssignSubscriptionToRequest(subscription);
+                        if (!subscription.Publishing && !subscription.ReadyToPublish)
+                        {
+                            AssignSubscriptionToRequest(subscription);
+                        }
                     }
                 }
             }
@@ -564,10 +573,70 @@ namespace Opc.Ua.Server
                 TimeSpan timeOut = operationTimeout < DateTime.MaxValue ? operationTimeout.AddMilliseconds(500) - DateTime.UtcNow : TimeSpan.Zero;
                 if (operationTimeout < DateTime.MaxValue && timeOut.TotalMilliseconds > 0)
                 {
-                    m_cancellationTokenSource = new CancellationTokenSource(timeOut);
+                    m_cancellationTokenSource = CreateCancellationTokenSource(timeOut);
                     m_cancellationTokenRegistration2 = m_cancellationTokenSource.Token.Register(
                     () => Tcs.TrySetException(new ServiceResultException(StatusCodes.BadTimeout)));
                 }
+            }
+
+            private static CancellationTokenSource CreateCancellationTokenSource(TimeSpan delay)
+            {
+                // uint.MaxValue is reserved by the underlying timer for an infinite delay.
+                TimeSpan maximumTimerDelay = TimeSpan.FromMilliseconds(uint.MaxValue - 1u);
+                if (delay > maximumTimerDelay)
+                {
+                    delay = maximumTimerDelay;
+                }
+
+                // The .NET Framework CancellationTokenSource constructor only accepts
+                // delays up to int.MaxValue milliseconds. Timer supports the full range.
+                if (delay.TotalMilliseconds > int.MaxValue)
+                {
+                    return new TimerCancellationTokenSource(delay);
+                }
+
+                return new CancellationTokenSource(delay);
+            }
+
+            private sealed class TimerCancellationTokenSource : CancellationTokenSource
+            {
+                public TimerCancellationTokenSource(TimeSpan delay)
+                {
+                    Timer timer = new Timer(
+                        state =>
+                        {
+                            var source = (TimerCancellationTokenSource)state;
+                            try
+                            {
+                                source.Cancel();
+                            }
+                            catch (ObjectDisposedException)
+                            {
+                            }
+                        },
+                        this,
+                        delay,
+                        Timeout.InfiniteTimeSpan);
+                    m_timer = timer;
+                    m_timerRegistration = Token.Register(
+                        state => ((Timer)state).Dispose(),
+                        timer);
+                }
+
+                protected override void Dispose(bool disposing)
+                {
+                    if (disposing)
+                    {
+                        m_timerRegistration.Dispose();
+                        m_timer?.Dispose();
+                        m_timer = null;
+                    }
+
+                    base.Dispose(disposing);
+                }
+
+                private Timer m_timer;
+                private CancellationTokenRegistration m_timerRegistration;
             }
 
             public void Dispose()
@@ -663,7 +732,6 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
-        private readonly Lock m_subscriptionPublishLock = new();
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly ISession m_session;

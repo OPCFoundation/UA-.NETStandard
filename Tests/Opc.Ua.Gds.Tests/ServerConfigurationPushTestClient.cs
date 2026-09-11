@@ -106,6 +106,7 @@ namespace Opc.Ua.Gds.Tests
                     pkiRoot);
 
             // build the application configuration.
+#pragma warning disable CS0618 // Type or member is obsolete
             Config = await application
                 .Build(
                     "urn:localhost:opcfoundation.org:ServerConfigurationPushTestClient",
@@ -122,6 +123,7 @@ namespace Opc.Ua.Gds.Tests
                 .SetTraceMasks(Utils.TraceMasks.Error)
                 .CreateAsync()
                 .ConfigureAwait(false);
+#pragma warning restore CS0618 // Type or member is obsolete
 #endif
             // check the application certificate.
             bool haveAppCertificate = await application
@@ -178,10 +180,12 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        public string ReadLogFile()
+        internal string ReadLogFile()
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             return File.ReadAllText(
                 Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         private void CertificateValidator_CertificateValidation(

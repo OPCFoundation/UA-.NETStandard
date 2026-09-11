@@ -289,6 +289,7 @@ namespace Opc.Ua.Gds.Tests
                     gdsRoot);
 
             // build the application configuration.
+#pragma warning disable CS0618 // Type or member is obsolete
             ApplicationConfiguration config = await application
                 .Build(
                     "urn:localhost:opcfoundation.org:GlobalDiscoveryTestServer",
@@ -314,6 +315,7 @@ namespace Opc.Ua.Gds.Tests
                 .SetTraceMasks(519)
                 .CreateAsync()
                 .ConfigureAwait(false);
+#pragma warning restore CS0618 // Type or member is obsolete
 #endif
 
             config.ServerConfiguration.MaxTrustListSize = maxTrustListSize;

@@ -325,6 +325,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 // override logfile
                 if (logFile != null)
                 {
+#pragma warning disable CS0618 // Type or member is obsolete
                     string logFilePath = config.TraceConfiguration.OutputFilePath;
                     string filename = Path.GetFileNameWithoutExtension(logFilePath);
                     config.TraceConfiguration.OutputFilePath = logFilePath.Replace(
@@ -333,7 +334,6 @@ namespace Quickstarts.ConsoleReferenceClient
                         StringComparison.Ordinal
                     );
                     config.TraceConfiguration.DeleteOnLoad = true;
-#pragma warning disable CS0618 // Type or member is obsolete
                     config.TraceConfiguration.ApplySettings();
 #pragma warning restore CS0618 // Type or member is obsolete
                 }

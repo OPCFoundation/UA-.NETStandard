@@ -21,7 +21,7 @@ The Reference Server implementation supports the following OPC UA Server profile
   - Subscription management
   - MonitoredItem services
   - View services (Browse, BrowseNext, TranslateBrowsePathsToNodeIds)
-  - Attribute services (Read, Write, HistoryRead, HistoryUpdate)
+  - Attribute services (Read, Write, HistoryRead)
   - Query services
 
 ### Functional Facets
@@ -37,6 +37,10 @@ The Reference Server implementation supports the following OPC UA Server profile
   - Session management for redundant connections
   - See [Transfer Subscriptions documentation](TransferSubscription.md)
 
+- **[Historical Raw Data Server Facet (2022)](http://opcfoundation.org/UA-Profile/Server/HistoricalRawData2022)** - Raw historical reads for the Reference Server's historized static scalar nodes. Modified, at-time, annotation, and HistoryUpdate operations are not advertised.
+
+- **[Historical Aggregate Server Facet (2022)](http://opcfoundation.org/UA-Profile/Server/AggregateHistorical2022)** - Processed historical reads computed from the legacy raw archive through the existing aggregate calculators.
+
 ### Additional Features
 
 The server implementation also provides support for:
@@ -51,9 +55,8 @@ The server implementation also provides support for:
 The following server profiles/facets are **not yet fully supported**:
 
 - **Alarms & Conditions** - Only a limited set of alarms is currently implemented (`ExclusiveLevel`, `NonExclusiveLevel`, `OffNormal`)
-- **Historical Access** - Limited support for historical data access
+- **Historical Access updates** - Modified, at-time, annotation, insert, replace, update, and delete operations are not supported by the Reference Server's legacy history archive
 - **Events** - Limited event support
-- **Aggregates Server Facet** - Historical data aggregation
 - **Query Server Facet** - Advanced query capabilities
 
 ## Client Profiles

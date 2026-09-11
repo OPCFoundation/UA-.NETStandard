@@ -38,6 +38,11 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Test;
+using HistoryArchive = TestData.HistoryArchive;
+using HistoryDataReader = TestData.HistoryDataReader;
+using HistoryFile = TestData.HistoryFile;
+using ProcessedHistoryAdapter = TestData.ProcessedHistoryAdapter;
+using ProcessedHistoryContinuationState = TestData.ProcessedHistoryContinuationState;
 using Range = Opc.Ua.Range;
 
 namespace Quickstarts.ReferenceServer
@@ -45,7 +50,7 @@ namespace Quickstarts.ReferenceServer
     /// <summary>
     /// A node manager for a server that exposes several variables.
     /// </summary>
-    public class ReferenceNodeManager : CustomNodeManager2
+    public class ReferenceNodeManager : CustomNodeManager2, IConformanceContributor
     {
         /// <summary>
         /// Initializes the node manager.
@@ -62,9 +67,16 @@ namespace Quickstarts.ReferenceServer
                   Namespaces.ReferenceServer)
         {
             SystemContext.NodeIdFactory = this;
+            m_historyArchive = new HistoryArchive(server.Telemetry);
 
             // use suitable defaults if no configuration exists.
         }
+
+        /// <inheritdoc/>
+        public IReadOnlyList<QualifiedName> ConformanceUnits => s_conformanceUnits;
+
+        /// <inheritdoc/>
+        public IReadOnlyList<string> ServerProfiles => s_serverProfiles;
 
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -77,6 +89,7 @@ namespace Quickstarts.ReferenceServer
 
                 Utils.SilentDispose(m_simulationTimer);
                 m_simulationTimer = null;
+                Utils.SilentDispose(m_historyArchive);
             }
             base.Dispose(disposing);
         }
@@ -266,13 +279,45 @@ namespace Quickstarts.ReferenceServer
                             "Int16",
                             DataTypeIds.Int16,
                             ValueRanks.Scalar));
-                    variables.Add(
-                        CreateVariable(
-                            staticFolder,
-                            scalarStatic + "Int32",
-                            "Int32",
-                            DataTypeIds.Int32,
-                            ValueRanks.Scalar));
+                    BaseDataVariableState int32Static = CreateVariable(
+                        staticFolder,
+                        scalarStatic + "Int32",
+                        "Int32",
+                        DataTypeIds.Int32,
+                        ValueRanks.Scalar);
+                    const uint cttTestNodePermissions =
+                        (uint)PermissionType.Browse |
+                        (uint)PermissionType.Read |
+                        (uint)PermissionType.Write |
+                        (uint)PermissionType.ReadHistory |
+                        (uint)PermissionType.ReadRolePermissions;
+                    var anonymousPermissions = new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_Anonymous,
+                        Permissions = cttTestNodePermissions
+                    };
+                    var authenticatedPermissions = new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                        Permissions = cttTestNodePermissions
+                    };
+                    var securityAdminPermissions = new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                        Permissions = 0xFFFF
+                    };
+                    int32Static.RolePermissions =
+                    [
+                        anonymousPermissions,
+                        authenticatedPermissions,
+                        securityAdminPermissions
+                    ];
+                    int32Static.UserRolePermissions =
+                    [
+                        anonymousPermissions,
+                        authenticatedPermissions
+                    ];
+                    variables.Add(int32Static);
                     variables.Add(
                         CreateVariable(
                             staticFolder,
@@ -3713,12 +3758,47 @@ namespace Quickstarts.ReferenceServer
                     myCompanyInstructions.Value
                         = "A place for the vendor to describe their address-space.";
                     variables.Add(myCompanyInstructions);
+
+                    // Deterministic paired nodes used by the CTT aggregate tests.
+                    FolderState aggregatesFolder = CreateFolder(root, "Aggregates", "Aggregates");
+                    const string aggregates = "Aggregates_";
+                    variables.Add(CreateVariable(
+                        aggregatesFolder,
+                        aggregates + "Boolean",
+                        "Boolean",
+                        DataTypeIds.Boolean,
+                        ValueRanks.Scalar));
+                    variables.Add(CreateVariable(
+                        aggregatesFolder,
+                        aggregates + "Int32",
+                        "Int32",
+                        DataTypeIds.Int32,
+                        ValueRanks.Scalar));
+                    variables.Add(CreateVariable(
+                        aggregatesFolder,
+                        aggregates + "Float",
+                        "Float",
+                        DataTypeIds.Float,
+                        ValueRanks.Scalar));
+                    variables.Add(CreateVariable(
+                        aggregatesFolder,
+                        aggregates + "Double",
+                        "Double",
+                        DataTypeIds.Double,
+                        ValueRanks.Scalar));
+                    variables.Add(CreateVariable(
+                        aggregatesFolder,
+                        aggregates + "String",
+                        "String",
+                        DataTypeIds.String,
+                        ValueRanks.Scalar));
                 }
                 catch (Exception e)
                 {
                     m_logger.LogError(e, "Error creating the ReferenceNodeManager address space.");
                 }
 
+                EnableHistoryArchiving(root);
                 AddPredefinedNode(SystemContext, root);
 
                 if (m_simulationEnabled)
@@ -3730,6 +3810,100 @@ namespace Quickstarts.ReferenceServer
                     m_simulationTimer = new Timer(DoSimulation, null, m_simulationInterval, m_simulationInterval);
                 }
             }
+        }
+
+        /// <summary>
+        /// Enables legacy-history storage for deterministic CTT scalar nodes.
+        /// The archive remains the existing HistoryRecord/HistoryEntry layout.
+        /// </summary>
+        private void EnableHistoryArchiving(FolderState root)
+        {
+            var nodes = new List<BaseInstanceState>();
+            root.GetChildren(SystemContext, nodes);
+            EnableHistoryArchiving(nodes);
+        }
+
+        private void EnableHistoryArchiving(List<BaseInstanceState> nodes)
+        {
+            for (int ii = 0; ii < nodes.Count; ii++)
+            {
+                BaseInstanceState node = nodes[ii];
+                if (node is BaseVariableState variable &&
+                    IsHistoricalNode(variable.NodeId))
+                {
+                    variable.Historizing = true;
+                    variable.AccessLevel = (byte)(
+                        variable.AccessLevel | AccessLevels.HistoryRead);
+                    variable.UserAccessLevel = (byte)(
+                        variable.UserAccessLevel | AccessLevels.HistoryRead);
+
+                    BuiltInType dataType = TypeInfo.GetBuiltInType(variable.DataType);
+                    m_historyArchive.CreateRecord(variable.NodeId, dataType, true);
+                    InstallHistoricalConfiguration(variable);
+                }
+
+                var children = new List<BaseInstanceState>();
+                node.GetChildren(SystemContext, children);
+                EnableHistoryArchiving(children);
+            }
+        }
+
+        private bool IsHistoricalNode(NodeId nodeId)
+        {
+            if (nodeId?.Identifier is not string name)
+            {
+                return false;
+            }
+
+            for (int ii = 0; ii < s_historicalNodeNames.Length; ii++)
+            {
+                if (name == s_historicalNodeNames[ii])
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void InstallHistoricalConfiguration(BaseVariableState variable)
+        {
+            string identifier = (string)variable.NodeId.Identifier;
+            var configuration = new HistoricalDataConfigurationState(variable)
+            {
+                ReferenceTypeId = ReferenceTypes.HasHistoricalConfiguration
+            };
+            configuration.Create(
+                SystemContext,
+                new NodeId(identifier + "_HAConfiguration", NamespaceIndex),
+                new QualifiedName("HA Configuration", 0),
+                new LocalizedText("en", "HA Configuration"),
+                true);
+
+            configuration.Stepped.Value = false;
+            configuration.Definition.Value = string.Empty;
+            configuration.MaxTimeInterval.Value = 0;
+            configuration.MinTimeInterval.Value = 0;
+            configuration.ExceptionDeviation.Value = 0;
+            configuration.ExceptionDeviationFormat.Value = 0;
+            DateTime start = DateTime.UtcNow.AddSeconds(-10000);
+            configuration.StartOfArchive.Value = start;
+            configuration.StartOfOnlineArchive.Value = start;
+            configuration.ServerTimestampSupported.Value = true;
+            configuration.AggregateConfiguration.TreatUncertainAsBad.Value = true;
+            configuration.AggregateConfiguration.PercentDataBad.Value = 100;
+            configuration.AggregateConfiguration.PercentDataGood.Value = 100;
+            configuration.AggregateConfiguration.UseSlopedExtrapolation.Value = false;
+
+            variable.AddChild(configuration);
+            variable.AddReference(
+                ReferenceTypes.HasHistoricalConfiguration,
+                false,
+                configuration.NodeId);
+            configuration.AddReference(
+                ReferenceTypes.HasHistoricalConfiguration,
+                true,
+                variable.NodeId);
         }
 
         private ServiceResult OnWriteInterval(
@@ -4427,9 +4601,10 @@ namespace Quickstarts.ReferenceServer
             {
                 variable.ArrayDimensions = new ReadOnlyList<uint>([0]);
             }
-            else if (valueRank == ValueRanks.TwoDimensions)
+            else if (valueRank >= ValueRanks.TwoDimensions)
             {
-                variable.ArrayDimensions = new ReadOnlyList<uint>([0, 0]);
+                variable.ArrayDimensions = new ReadOnlyList<uint>(
+                    CreateFixedArrayDimensions(valueRank));
             }
 
             parent?.AddChild(variable);
@@ -4813,13 +4988,17 @@ namespace Quickstarts.ReferenceServer
         {
             Debug.Assert(m_generator != null, "Need a random generator!");
 
+            IList<uint> dimensions = variable.ValueRank >= ValueRanks.TwoDimensions
+                ? CreateFixedArrayDimensions(variable.ValueRank)
+                : [DefaultArrayLength];
+
             object value = null;
             for (int retryCount = 0; value == null && retryCount < 10; retryCount++)
             {
                 value = m_generator.GetRandom(
                     variable.DataType,
                     variable.ValueRank,
-                    [10],
+                    dimensions,
                     Server.TypeTree);
                 // skip Variant Null
                 if (value is Variant variant && variant.Value == null)
@@ -4829,6 +5008,16 @@ namespace Quickstarts.ReferenceServer
             }
 
             return value;
+        }
+
+        private static uint[] CreateFixedArrayDimensions(int valueRank)
+        {
+            var dimensions = new uint[valueRank];
+            for (int ii = 0; ii < valueRank; ii++)
+            {
+                dimensions[ii] = MultiDimensionalArrayLength;
+            }
+            return dimensions;
         }
 
         private void DoSimulation(object state)
@@ -4867,6 +5056,187 @@ namespace Quickstarts.ReferenceServer
             finally
             {
                 Interlocked.Decrement(ref m_simulationsRunning);
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override void HistoryReadRawModified(
+            ServerSystemContext context,
+            ReadRawModifiedDetails details,
+            TimestampsToReturn timestampsToReturn,
+            IList<HistoryReadValueId> nodesToRead,
+            IList<HistoryReadResult> results,
+            IList<ServiceResult> errors,
+            List<NodeHandle> nodesToProcess,
+            IDictionary<NodeId, NodeState> cache)
+        {
+            for (int ii = 0; ii < nodesToProcess.Count; ii++)
+            {
+                NodeHandle handle = nodesToProcess[ii];
+                NodeState source = ValidateNode(context, handle, cache);
+                if (source is not BaseVariableState variable)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                errors[handle.Index] = ReadRaw(
+                    context,
+                    variable,
+                    details,
+                    timestampsToReturn,
+                    nodesToRead[handle.Index],
+                    results[handle.Index]);
+            }
+        }
+
+        private ServiceResult ReadRaw(
+            ServerSystemContext context,
+            BaseVariableState variable,
+            ReadRawModifiedDetails details,
+            TimestampsToReturn timestampsToReturn,
+            HistoryReadValueId nodeToRead,
+            HistoryReadResult result)
+        {
+            if (variable.ValueRank == ValueRanks.Scalar &&
+                nodeToRead.ParsedIndexRange != NumericRange.Empty)
+            {
+                result.StatusCode = StatusCodes.BadIndexRangeNoData;
+                result.ContinuationPoint = null;
+                return ServiceResult.Good;
+            }
+
+            var data = new HistoryData();
+            HistoryDataReader reader;
+
+            if (nodeToRead.ContinuationPoint != null &&
+                nodeToRead.ContinuationPoint.Length > 0)
+            {
+                reader = context.OperationContext?.Session?
+                    .RestoreHistoryContinuationPoint(nodeToRead.ContinuationPoint)
+                    as HistoryDataReader;
+                if (reader == null || reader.VariableId != nodeToRead.NodeId)
+                {
+                    Utils.SilentDispose(reader);
+                    return StatusCodes.BadContinuationPointInvalid;
+                }
+            }
+            else
+            {
+                HistoryFile source = m_historyArchive.GetHistoryFile(variable.NodeId);
+                if (source == null)
+                {
+                    return StatusCodes.BadNotReadable;
+                }
+
+                reader = new HistoryDataReader(variable.NodeId, source);
+                reader.BeginReadRaw(
+                    context,
+                    details,
+                    timestampsToReturn,
+                    nodeToRead.ParsedIndexRange,
+                    nodeToRead.DataEncoding,
+                    data.DataValues);
+            }
+
+            bool complete = reader.NextReadRaw(
+                context,
+                timestampsToReturn,
+                nodeToRead.ParsedIndexRange,
+                nodeToRead.DataEncoding,
+                data.DataValues);
+            if (!complete)
+            {
+                context.OperationContext?.Session?
+                    .SaveHistoryContinuationPoint(reader.Id, reader);
+                result.ContinuationPoint = reader.Id.ToByteArray();
+            }
+            else
+            {
+                Utils.SilentDispose(reader);
+                result.ContinuationPoint = null;
+            }
+
+            result.StatusCode = complete && data.DataValues.Count == 0 && !details.ReturnBounds
+                ? StatusCodes.GoodNoData
+                : StatusCodes.Good;
+            result.HistoryData = new ExtensionObject(data);
+            return ServiceResult.Good;
+        }
+
+        /// <inheritdoc/>
+        protected override void HistoryReadProcessed(
+            ServerSystemContext context,
+            ReadProcessedDetails details,
+            TimestampsToReturn timestampsToReturn,
+            IList<HistoryReadValueId> nodesToRead,
+            IList<HistoryReadResult> results,
+            IList<ServiceResult> errors,
+            List<NodeHandle> nodesToProcess,
+            IDictionary<NodeId, NodeState> cache)
+        {
+            for (int ii = 0; ii < nodesToProcess.Count; ii++)
+            {
+                NodeHandle handle = nodesToProcess[ii];
+                NodeState source = ValidateNode(context, handle, cache);
+                if (source is not BaseVariableState variable)
+                {
+                    errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
+                    continue;
+                }
+
+                HistoryFile history = m_historyArchive.GetHistoryFile(variable.NodeId);
+                if (history == null)
+                {
+                    errors[handle.Index] = StatusCodes.BadNotReadable;
+                    continue;
+                }
+
+                errors[handle.Index] = ProcessedHistoryAdapter.Read(
+                    context,
+                    Server,
+                    variable.NodeId,
+                    history,
+                    details,
+                    details.AggregateType[handle.Index],
+                    m_historyArchive.GetAnnotationTimestamps(variable.NodeId),
+                    timestampsToReturn,
+                    nodesToRead[handle.Index],
+                    results[handle.Index]);
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override void HistoryReleaseContinuationPoints(
+            ServerSystemContext context,
+            IList<HistoryReadValueId> nodesToRead,
+            IList<ServiceResult> errors,
+            List<NodeHandle> nodesToProcess,
+            IDictionary<NodeId, NodeState> cache)
+        {
+            for (int ii = 0; ii < nodesToProcess.Count; ii++)
+            {
+                NodeHandle handle = nodesToProcess[ii];
+                NodeState source = ValidateNode(context, handle, cache);
+                if (source is not BaseVariableState)
+                {
+                    errors[handle.Index] = StatusCodes.BadContinuationPointInvalid;
+                    continue;
+                }
+
+                HistoryReadValueId nodeToRead = nodesToRead[handle.Index];
+                object continuation = context.OperationContext?.Session?
+                    .RestoreHistoryContinuationPoint(nodeToRead.ContinuationPoint);
+
+                bool valid = continuation is HistoryDataReader raw &&
+                    raw.VariableId == nodeToRead.NodeId;
+                valid |= continuation is ProcessedHistoryContinuationState processed &&
+                    processed.VariableId == nodeToRead.NodeId;
+
+                Utils.SilentDispose(continuation);
+                errors[handle.Index] = valid
+                    ? ServiceResult.Good
+                    : StatusCodes.BadContinuationPointInvalid;
             }
         }
 
@@ -4940,6 +5310,109 @@ namespace Quickstarts.ReferenceServer
         private bool m_simulationEnabled = true;
         private int m_simulationsRunning;
         private readonly List<BaseDataVariableState> m_dynamicNodes = [];
+        private readonly HistoryArchive m_historyArchive;
+
+        private const uint DefaultArrayLength = 10;
+        private const uint MultiDimensionalArrayLength = 3;
+
+        private static readonly QualifiedName[] s_conformanceUnits =
+        [
+            new("Address Space Atomicity"),
+            new("Address Space Base"),
+            new("Address Space Full Array Only"),
+            new("Address Space Method"),
+            new("Attribute Read"),
+            new("Base Info Base Types"),
+            new("Base Info Core Structure 2"),
+            new("Base Info Core Types Folders"),
+            new("Base Info Date DataTypes"),
+            new("Base Info Decimal DataType"),
+            new("Base Info GetMonitoredItems Method"),
+            new("Base Info Method Argument DataType"),
+            new("Base Info Method Capabilities"),
+            new("Base Info ResendData Method"),
+            new("Base Info SemanticChange Bit"),
+            new("Base Info Server Capabilities 2"),
+            new("Base Info Server Capabilities MaxMonitoredItemsQueueSize"),
+            new("Base Info Server Capabilities Subscriptions"),
+            new("Base Info ServerType"),
+            new("Base Info Type Information"),
+            new("Data Access DataItems"),
+            new("Discovery Find Servers Self"),
+            new("Discovery Get Endpoints"),
+            new("Discovery Register"),
+            new("Discovery Register2"),
+            new("Documentation - Core Capacities"),
+            new("Method Call"),
+            new("Monitor Basic"),
+            new("Monitor Items 2"),
+            new("Monitor Queueing"),
+            new("Monitor Triggering"),
+            new("Monitor Value Change V2"),
+            new("Monitored Items Deadband Filter"),
+            new("Protocol Reverse Connect Server"),
+            new("Protocol UA TCP"),
+            new("Push Model for Global Certificate and TrustList Management"),
+            new("Security Default ApplicationInstance Certificate"),
+            new("Security ECC Policy"),
+            new("Security Invalid user token"),
+            new("Security Policy Required"),
+            new("Security User Name Password 2"),
+            new("Security User X509"),
+            new("SecurityPolicy Support"),
+            new("Session Base"),
+            new("Session Cancel"),
+            new("Session General Service Behaviour"),
+            new("Session Multiple"),
+            new("Subscription Basic"),
+            new("Subscription Multiple"),
+            new("Subscription Publish Basic"),
+            new("Subscription PublishRequest Queue Overflow"),
+            new("Subscription Retransmission Queue"),
+            new("Subscription Transfer"),
+            new("Time Sync - Support"),
+            new("UA Binary Encoding"),
+            new("UA Secure Conversation"),
+            new("View Basic 2"),
+            new("View RegisterNodes"),
+            new("View TranslateBrowsePath"),
+            new("Aggregate Master Configuration"),
+            new("Attribute Historical Read"),
+            new("Base Info History Read Capabilities"),
+            new("Base Info History ReadData Capabilities"),
+            new("Historical Access Aggregates"),
+            new("Historical Access Read Raw")
+        ];
+
+        private static readonly string[] s_serverProfiles =
+        [
+            "http://opcfoundation.org/UA-Profile/Server/HistoricalRawData2022",
+            "http://opcfoundation.org/UA-Profile/Server/AggregateHistorical2022"
+        ];
+
+        private static readonly string[] s_historicalNodeNames =
+        [
+            "Scalar_Static_Boolean",
+            "Scalar_Static_SByte",
+            "Scalar_Static_Byte",
+            "Scalar_Static_Int16",
+            "Scalar_Static_UInt16",
+            "Scalar_Static_Int32",
+            "Scalar_Static_UInt32",
+            "Scalar_Static_Int64",
+            "Scalar_Static_UInt64",
+            "Scalar_Static_Float",
+            "Scalar_Static_Double",
+            "Scalar_Static_String",
+            "Scalar_Static_DateTime",
+            "Scalar_Static_Guid",
+            "Scalar_Static_ByteString",
+            "Aggregates_Boolean",
+            "Aggregates_Int32",
+            "Aggregates_Float",
+            "Aggregates_Double",
+            "Aggregates_String"
+        ];
 
         private static readonly bool[] s_booleanArray
             = [true, false, true, false, true, false, true, false, true];

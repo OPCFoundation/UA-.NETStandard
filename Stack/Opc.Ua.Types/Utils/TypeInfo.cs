@@ -1059,11 +1059,9 @@ namespace Opc.Ua
 
                         return null;
                     case DataTypes.BaseDataType:
-                        if (typeInfo.BuiltInType != BuiltInType.Variant)
-                        {
-                            return typeInfo;
-                        }
-                        break;
+                        // Every value is an instance of BaseDataType, including
+                        // Variant collections which contain arrays or matrices.
+                        return typeInfo;
                 }
             }
 

@@ -253,6 +253,103 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual((StatusCode)StatusCodes.BadCertificateUriInvalid, (StatusCode)ex.StatusCode);
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public void OpenSecureChannelPreservesCertificateTimeInvalid(bool expired)
+        {
+            DateTime notBefore = expired
+                ? DateTime.UtcNow.AddYears(-2)
+                : DateTime.UtcNow.AddDays(1);
+            DateTime notAfter = expired
+                ? DateTime.UtcNow.AddYears(-1)
+                : DateTime.UtcNow.AddYears(1);
+            using X509Certificate2 clientCert = CreateCertificateWithMultipleUris(
+                [kClientApplicationUri],
+                kClientSubjectName,
+                [Utils.GetHostName()],
+                ObjectTypeIds.RsaMinApplicationCertificateType,
+                notBefore,
+                notAfter);
+
+            ServiceResultException exception = NUnit.Framework.Assert
+                .ThrowsAsync<ServiceResultException>(async () =>
+                    await CreateSessionWithCustomCertificateAsync(
+                        clientCert,
+                        kClientApplicationUri).ConfigureAwait(false));
+
+            Assert.That(
+                exception.StatusCode,
+                Is.AnyOf(
+                    StatusCodes.BadCertificateTimeInvalid,
+                    StatusCodes.BadCertificateIssuerTimeInvalid));
+        }
+
+        [Test]
+        public void OpenSecureChannelPreservesCertificateUseNotAllowed()
+        {
+            using X509Certificate2 clientCert = CreateCertificateWithMultipleUris(
+                [kClientApplicationUri],
+                kClientSubjectName,
+                [Utils.GetHostName()],
+                ObjectTypeIds.RsaMinApplicationCertificateType,
+                keyUsage: X509KeyUsageFlags.DigitalSignature);
+
+            ServiceResultException exception = NUnit.Framework.Assert
+                .ThrowsAsync<ServiceResultException>(async () =>
+                    await CreateSessionWithCustomCertificateAsync(
+                        clientCert,
+                        kClientApplicationUri).ConfigureAwait(false));
+
+            Assert.AreEqual(
+                (StatusCode)StatusCodes.BadCertificateUseNotAllowed,
+                exception.StatusCode);
+        }
+
+        [Test]
+        [NonParallelizable]
+        public async Task OpenSecureChannelMasksUntrustedCertificateAsync()
+        {
+            string serverPkiRoot = Path.GetTempPath() +
+                Path.GetRandomFileName() +
+                Path.DirectorySeparatorChar;
+            var fixture = new ServerFixture<StandardServer>
+            {
+                AutoAccept = false,
+                AllNodeManagers = true,
+                SecurityNone = false
+            };
+
+            try
+            {
+                await fixture.LoadConfigurationAsync(serverPkiRoot).ConfigureAwait(false);
+                await fixture.StartAsync().ConfigureAwait(false);
+                using X509Certificate2 clientCert = CreateCertificateWithMultipleUris(
+                    [kClientApplicationUri],
+                    kClientSubjectName,
+                    [Utils.GetHostName()],
+                    ObjectTypeIds.RsaMinApplicationCertificateType);
+
+                ServiceResultException exception = NUnit.Framework.Assert
+                    .ThrowsAsync<ServiceResultException>(async () =>
+                        await CreateSessionWithCustomCertificateAsync(
+                            clientCert,
+                            kClientApplicationUri,
+                            fixture).ConfigureAwait(false));
+
+                Assert.AreEqual(
+                    (StatusCode)StatusCodes.BadSecurityChecksFailed,
+                    exception.StatusCode);
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+                if (Directory.Exists(serverPkiRoot))
+                {
+                    Directory.Delete(serverPkiRoot, true);
+                }
+            }
+        }
+
         #region Helper Methods
 
         /// <summary>
@@ -260,7 +357,8 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         private async Task<Client.ISession> CreateSessionWithCustomCertificateAsync(
             X509Certificate2 clientCertificate,
-            string clientApplicationUri)
+            string clientApplicationUri,
+            ServerFixture<StandardServer> serverFixture = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ILogger logger = telemetry.CreateLogger<CreateSessionApplicationUriValidationTests>();
@@ -309,7 +407,7 @@ namespace Opc.Ua.Server.Tests
                     .ConfigureAwait(false);
 
                 // Get server endpoint with RSA-compatible security policy
-                EndpointDescription endpoint = m_serverFixture.Server.GetEndpoints()
+                EndpointDescription endpoint = (serverFixture ?? m_serverFixture).Server.GetEndpoints()
                     .FirstOrDefault(e => e.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
                         e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256);
 
@@ -383,10 +481,13 @@ namespace Opc.Ua.Server.Tests
             IList<string> applicationUris,
             string subjectName,
             IList<string> domainNames,
-            NodeId certificateType = default)
+            NodeId certificateType = default,
+            DateTime? notBefore = null,
+            DateTime? notAfter = null,
+            X509KeyUsageFlags? keyUsage = null)
         {
-            DateTime notBefore = DateTime.Today.AddDays(-1);
-            DateTime notAfter = DateTime.Today.AddYears(1);
+            DateTime effectiveNotBefore = notBefore ?? DateTime.Today.AddDays(-1);
+            DateTime effectiveNotAfter = notAfter ?? DateTime.Today.AddYears(1);
 
             // Default to RSA if not specified
             certificateType ??= ObjectTypeIds.RsaSha256ApplicationCertificateType;
@@ -397,9 +498,15 @@ namespace Opc.Ua.Server.Tests
             // Build the certificate with the custom SAN extension
             ICertificateBuilder builder = CertificateBuilder
                 .Create(subjectName)
-                .SetNotBefore(notBefore)
-                .SetNotAfter(notAfter)
+                .SetNotBefore(effectiveNotBefore)
+                .SetNotAfter(effectiveNotAfter)
                 .AddExtension(subjectAltName);
+
+            if (keyUsage.HasValue)
+            {
+                builder = builder.AddExtension(
+                    new X509KeyUsageExtension(keyUsage.Value, true));
+            }
 
             // Create certificate based on type
             if (certificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType ||

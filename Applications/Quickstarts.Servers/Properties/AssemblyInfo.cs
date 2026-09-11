@@ -28,5 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.CompilerServices;
 
 [assembly: CLSCompliant(false)]
+[assembly: InternalsVisibleTo("Opc.Ua.Server.Tests")]

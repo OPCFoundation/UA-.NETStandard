@@ -233,46 +233,29 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            // determine whether a transition occurs at the StartTime
-            double lastValue = double.NaN;
-
-            if (slice.EarlyBound != null && StatusCode.IsGood(slice.EarlyBound.Value.StatusCode))
-            {
-                try
-                {
-                    lastValue = CastToDouble(slice.EarlyBound.Value);
-                }
-                catch (Exception)
-                {
-                    lastValue = double.NaN;
-                }
-            }
+            // The first non-bad value is a transition when no previous non-bad value exists.
+            LinkedListNode<DataValue> previousValue = slice.NonBadEarlyBound;
+            bool hasLastValue = previousValue != null;
+            object lastValue = previousValue?.Value.Value;
 
             // count the transitions.
             int count = 0;
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (!IsGood(values[ii]))
+                if (StatusCode.IsBad(values[ii].StatusCode))
                 {
                     continue;
                 }
 
-                double nextValue;
-                try
-                {
-                    nextValue = CastToDouble(values[ii]);
-                }
-                catch (Exception)
-                {
-                    continue;
-                }
+                object nextValue = values[ii].Value;
 
-                if (!double.IsNaN(lastValue) && lastValue != nextValue)
+                if (!hasLastValue || !Utils.IsEqual(lastValue, nextValue))
                 {
                     count++;
                 }
 
+                hasLastValue = true;
                 lastValue = nextValue;
             }
 

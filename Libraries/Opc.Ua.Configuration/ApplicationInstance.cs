@@ -248,7 +248,9 @@ namespace Opc.Ua.Configuration
                 ApplicationType = ApplicationType,
                 ApplicationUri = applicationUri,
                 ProductUri = productUri,
+#pragma warning disable CS0618 // Type or member is obsolete
                 TraceConfiguration = new TraceConfiguration { TraceMasks = Utils.TraceMasks.None },
+#pragma warning restore CS0618 // Type or member is obsolete
                 TransportQuotas = new TransportQuotas()
             };
 

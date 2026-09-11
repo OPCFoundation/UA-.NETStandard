@@ -95,32 +95,65 @@ namespace TestData
         {
             m_request = request;
 
-            // initialize start and end.
-            m_startTime = m_request.StartTime;
-            m_endTime = m_request.EndTime;
+            bool startSpecified = m_request.StartTime != DateTime.MinValue;
+            bool endSpecified = m_request.EndTime != DateTime.MinValue;
 
-            if (m_endTime == DateTime.MinValue)
+            // Part 11: a request with only StartTime is forward and a request
+            // with only EndTime is reverse. DateTime.MinValue means that the
+            // corresponding time was not specified.
+            m_isForward = startSpecified &&
+                (!endSpecified || m_request.StartTime <= m_request.EndTime);
+            m_isOneSided = startSpecified != endSpecified;
+
+            if (!startSpecified)
             {
+                m_startTime = m_request.EndTime;
+                m_endTime = DateTime.MinValue;
+            }
+            else if (!endSpecified)
+            {
+                m_startTime = m_request.StartTime;
                 m_endTime = DateTime.MaxValue;
             }
-
-            // check the direction.
-            m_isForward = m_startTime < m_endTime;
-            m_position = -1;
-
-            // get first bound.
-            if (m_request.ReturnBounds)
+            else
             {
-                DataValue value = m_source.FirstRaw(
+                m_startTime = m_request.StartTime;
+                m_endTime = m_request.EndTime;
+            }
+
+            m_position = -1;
+            m_complete = false;
+            m_pendingValue = null;
+
+            // Position the cursor at the requested boundary. When bounds are
+            // requested, first look on the opposite side of the boundary.
+            DataValue value = m_source.FirstRaw(
+                m_startTime,
+                m_request.ReturnBounds ? !m_isForward : m_isForward,
+                m_request.IsReadModified,
+                out m_position);
+
+            // A missing leading bound must not prevent values inside the
+            // requested domain from being returned.
+            if (value == null && m_request.ReturnBounds)
+            {
+                value = m_source.FirstRaw(
                     m_startTime,
-                    !m_isForward,
+                    m_isForward,
                     m_request.IsReadModified,
                     out m_position);
+            }
 
-                if (value != null)
-                {
-                    AddValue(timestampsToReturn, indexRange, dataEncoding, values, value);
-                }
+            if (value == null)
+            {
+                m_complete = true;
+                return;
+            }
+
+            m_complete = IsAtOrPastEnd(value.ServerTimestamp);
+            if (!m_complete || m_request.ReturnBounds)
+            {
+                AddValue(timestampsToReturn, indexRange, dataEncoding, values, value);
             }
         }
 
@@ -140,40 +173,92 @@ namespace TestData
             QualifiedName dataEncoding,
             DataValueCollection values)
         {
+            if (m_complete)
+            {
+                return true;
+            }
+
             while (true)
             {
                 // check for limit.
                 if (m_request.NumValuesPerNode > 0 && values.Count >= m_request.NumValuesPerNode)
                 {
+                    // For a one-sided request the count defines the end of the
+                    // time domain, so no continuation point is required.
+                    if (m_isOneSided)
+                    {
+                        return true;
+                    }
+
+                    // Look ahead before returning a continuation point. Without
+                    // this check an exact page boundary produces a spurious empty
+                    // final page. The source position is advanced by NextRaw, so
+                    // retain a qualifying value for the next page.
+                    DataValue nextValue = m_source.NextRaw(
+                        m_lastTime,
+                        m_isForward,
+                        m_request.IsReadModified,
+                        ref m_position);
+
+                    if (nextValue == null)
+                    {
+                        m_complete = true;
+                        return true;
+                    }
+
+                    if (IsAtOrPastEnd(nextValue.ServerTimestamp) && !m_request.ReturnBounds)
+                    {
+                        m_complete = true;
+                        return true;
+                    }
+
+                    m_pendingValue = nextValue;
                     return false;
                 }
 
-                DataValue value = m_source.NextRaw(
-                    m_lastTime,
-                    m_isForward,
-                    m_request.IsReadModified,
-                    ref m_position);
+                DataValue value;
+
+                if (m_pendingValue != null)
+                {
+                    value = m_pendingValue;
+                    m_pendingValue = null;
+                }
+                else
+                {
+                    value = m_source.NextRaw(
+                        m_lastTime,
+                        m_isForward,
+                        m_request.IsReadModified,
+                        ref m_position);
+                }
 
                 // no more data.
                 if (value == null)
                 {
+                    m_complete = true;
                     return true;
                 }
 
                 // check for bound.
-                if ((m_isForward && value.ServerTimestamp >= m_endTime) ||
-                    (!m_isForward && value.ServerTimestamp <= m_endTime))
+                if (IsAtOrPastEnd(value.ServerTimestamp))
                 {
                     if (m_request.ReturnBounds)
                     {
                         AddValue(timestampsToReturn, indexRange, dataEncoding, values, value);
-                        return true;
                     }
+                    m_complete = true;
+                    return true;
                 }
 
                 // add value.
                 AddValue(timestampsToReturn, indexRange, dataEncoding, values, value);
             }
+        }
+
+        private bool IsAtOrPastEnd(DateTime timestamp)
+        {
+            return (m_isForward && timestamp >= m_endTime) ||
+                (!m_isForward && timestamp <= m_endTime);
         }
 
         /// <summary>
@@ -244,7 +329,10 @@ namespace TestData
         private DateTime m_startTime;
         private DateTime m_endTime;
         private bool m_isForward;
+        private bool m_isOneSided;
+        private bool m_complete;
         private int m_position;
         private DateTime m_lastTime;
+        private DataValue m_pendingValue;
     }
 }

@@ -1670,6 +1670,11 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
+                    // Capture the time immediately before reading the attribute. Values
+                    // produced by the read use their source timestamp as the server
+                    // timestamp; cached/static values receive a fresh server timestamp.
+                    DateTime readTime = DateTime.UtcNow;
+
                     // read the attribute value.
                     errors[ii] = handle.Node.ReadAttribute(
                         systemContext,
@@ -1678,24 +1683,26 @@ namespace Opc.Ua.Server
                         nodeToRead.DataEncoding,
                         value);
 
-                    // Set timestamps after ReadAttribute to ensure consistency
-                    // For Value attributes, match ServerTimestamp to SourceTimestamp
-                    // For other attributes, just ensure ServerTimestamp is set
+                    // Set timestamps after ReadAttribute. ServerTimestamp reflects
+                    // when the Server verified the value. A value whose
+                    // SourceTimestamp was produced as part of this read (e.g.
+                    // ServerStatus children) keeps ServerTimestamp aligned with
+                    // SourceTimestamp; a stored/static value is verified now, so
+                    // ServerTimestamp is stamped with the current read time.
                     if (nodeToRead.AttributeId == Attributes.Value)
                     {
                         if (value.SourceTimestamp == DateTime.MinValue)
                         {
-                            value.SourceTimestamp = DateTime.UtcNow;
+                            value.SourceTimestamp = readTime;
                         }
-                        value.ServerTimestamp = value.SourceTimestamp;
+                        value.ServerTimestamp = value.SourceTimestamp >= readTime
+                            ? value.SourceTimestamp
+                            : readTime;
                     }
-                    else
+                    else if (value.ServerTimestamp == DateTime.MinValue)
                     {
                         // For non-value attributes, only ServerTimestamp is relevant
-                        if (value.ServerTimestamp == DateTime.MinValue)
-                        {
-                            value.ServerTimestamp = DateTime.UtcNow;
-                        }
+                        value.ServerTimestamp = readTime;
                     }
 #if DEBUG
                     if (nodeToRead.AttributeId == Attributes.Value)
@@ -2512,7 +2519,7 @@ namespace Opc.Ua.Server
             }
 
             // check timestamps to return.
-            if (timestampsToReturn is < TimestampsToReturn.Source or > TimestampsToReturn.Neither)
+            if (timestampsToReturn is < TimestampsToReturn.Source or >= TimestampsToReturn.Neither)
             {
                 throw new ServiceResultException(StatusCodes.BadTimestampsToReturnInvalid);
             }
@@ -2525,7 +2532,7 @@ namespace Opc.Ua.Server
                 if (readRawModifiedDetails.StartTime == DateTime.MinValue &&
                     readRawModifiedDetails.EndTime == DateTime.MinValue)
                 {
-                    throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                    throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
                 }
 
                 // if one is null the num values must be provided.
@@ -2534,7 +2541,7 @@ namespace Opc.Ua.Server
                 {
                     if (readRawModifiedDetails.NumValuesPerNode == 0)
                     {
-                        throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                        throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
                     }
                 }
 

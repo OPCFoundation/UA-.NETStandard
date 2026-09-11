@@ -34,6 +34,36 @@ If the Client accepts the connection, a secure connection requires that the Clie
 
 The auto-reconnect behavior on the Server is essential to any real application, because Clients close the Socket when the SecureChannel is closed. According to the specification a Server needs to abort the auto-reconnect if it receives a *BadTcpMessageTypeInvalid* code, because that is the error it will receive from peers that have not been upgraded to support the *ReverseHello*. Because of this a Client can use the same error code to tell the Server to stop reconnecting, if a user has rejected the connection. However, in this implementation, only if the Server is configured for a single connection it applies an extended timeout before reconnecting to the Client to reduce the overall traffic. In other configurations the Server keeps sending the *ReverseHello* messages at the configured time interval.
 
+## Sharing a listener across multiple Servers
+
+A reverse connect listener stays bound for the lifetime of its *ReverseConnectManager*. Seeing the listener port remain in the `LISTENING` state after a Session was established is expected and required: the listening socket has to stay open so that further Servers, and the automatic re-connects of the Servers which are already connected, can reach the Client. The port is released when the manager is disposed.
+
+Use **one shared** *ReverseConnectManager* for all Servers which connect to the same Client Url. A separate manager per Server cannot reuse the same host and port. Register or wait for every Server separately, using the *EndpointUrl* of that Server and, preferably, its *ServerUri*:
+
+``` csharp
+using var reverseConnectManager = new ReverseConnectManager(telemetry);
+reverseConnectManager.AddEndpoint(new Uri("opc.tcp://client-host:65300"));
+reverseConnectManager.StartService(
+    new ReverseConnectClientConfiguration {
+        HoldTime = 15000,
+        WaitTimeout = 20000
+    });
+
+ITransportWaitingConnection connectionA = await reverseConnectManager.WaitForConnectionAsync(
+    new Uri("opc.tcp://server-a:62541/Server"),
+    "urn:server-a:UA:Server").ConfigureAwait(false);
+
+ITransportWaitingConnection connectionB = await reverseConnectManager.WaitForConnectionAsync(
+    new Uri("opc.tcp://server-b:62541/Server"),
+    "urn:server-b:UA:Server").ConfigureAwait(false);
+```
+
+Each returned *ITransportWaitingConnection* is passed to the session factory of the corresponding Server.
+
+*HoldTime* controls how long an incoming *ReverseHello* which does not match any registration yet is held open before it is rejected. This matters when several Servers connect before the application has registered a waiting connection for each of them: every held connection waits for the remainder of its own hold time, also when a registration for a different Server arrives in the meantime. A Server whose hold time expires without a matching registration is rejected and reconnects on its next *ReverseHello* interval.
+
+*WaitTimeout* is the default timeout of `WaitForConnectionAsync` when no cancellation token is passed. Choose it large enough to cover the *ReverseHello* interval of the Server.
+
 ## Configuration Extensions
 
 This configuration sample shows the configuration setting for a reverse connection on port 65300.

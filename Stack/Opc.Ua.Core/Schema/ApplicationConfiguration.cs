@@ -77,7 +77,9 @@ namespace Opc.Ua
             DisableHiResClock = template.DisableHiResClock;
             CertificateValidator = template.CertificateValidator;
             TransportQuotas = template.TransportQuotas;
+#pragma warning disable CS0618 // Type or member is obsolete
             TraceConfiguration = template.TraceConfiguration;
+#pragma warning restore CS0618 // Type or member is obsolete
             m_extensions = template.m_extensions;
             m_extensionObjects = template.m_extensionObjects;
             SourceFilePath = template.SourceFilePath;
@@ -240,6 +242,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The trace configuration.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 11)]
+        [Obsolete("Use ITelemetryContext and ILogger-based diagnostics instead.")]
         public TraceConfiguration TraceConfiguration { get; set; }
 
         /// <summary>

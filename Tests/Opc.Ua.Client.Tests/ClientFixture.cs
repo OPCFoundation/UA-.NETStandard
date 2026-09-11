@@ -129,6 +129,7 @@ namespace Opc.Ua.Client.Tests
                     pkiRoot);
 
             // build the application configuration.
+#pragma warning disable CS0618 // Type or member is obsolete
             Config = await application
                 .Build(
                     "urn:localhost:opcfoundation.org:" + clientName,
@@ -151,6 +152,7 @@ namespace Opc.Ua.Client.Tests
                 .SetOutputFilePath(Path.Combine(pkiRoot, "Logs", "Opc.Ua.Client.Tests.log.txt"))
                 .CreateAsync()
                 .ConfigureAwait(false);
+#pragma warning restore CS0618 // Type or member is obsolete
 
             // check the application certificate.
             bool haveAppCertificate = await application

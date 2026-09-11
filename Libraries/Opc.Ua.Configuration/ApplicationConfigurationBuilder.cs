@@ -1078,24 +1078,33 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use ITelemetryContext and ILogger-based diagnostics instead.")]
         public IApplicationConfigurationBuilderTraceConfiguration SetOutputFilePath(
             string outputFilePath)
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             ApplicationConfiguration.TraceConfiguration.OutputFilePath = outputFilePath;
+#pragma warning restore CS0618 // Type or member is obsolete
             return this;
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use ITelemetryContext and ILogger-based diagnostics instead.")]
         public IApplicationConfigurationBuilderTraceConfiguration SetDeleteOnLoad(bool deleteOnLoad)
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             ApplicationConfiguration.TraceConfiguration.DeleteOnLoad = deleteOnLoad;
+#pragma warning restore CS0618 // Type or member is obsolete
             return this;
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use ITelemetryContext and ILogger-based diagnostics instead.")]
         public IApplicationConfigurationBuilderTraceConfiguration SetTraceMasks(int traceMasks)
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             ApplicationConfiguration.TraceConfiguration.TraceMasks = traceMasks;
+#pragma warning restore CS0618 // Type or member is obsolete
             return this;
         }
 

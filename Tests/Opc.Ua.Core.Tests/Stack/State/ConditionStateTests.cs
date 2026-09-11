@@ -203,6 +203,43 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.That(condition.ConfirmedState.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
         }
 
+        [Test]
+        public void EmptyAcknowledgeAndConfirmCommentsPreserveExistingComment()
+        {
+            var condition = new TestableAcknowledgeableConditionState();
+            condition.Create(m_context, new NodeId(1), "AckCondition", null, true);
+            condition.BranchId.Value = NodeId.Null;
+            condition.SetEnableState(m_context, true);
+            var existingComment = new LocalizedText("en", "existing comment");
+            condition.SetComment(m_context, existingComment, "tester");
+            condition.SetAcknowledgedState(m_context, false);
+
+            ServiceResult acknowledge = condition.CallAcknowledge(
+                m_context,
+                new byte[] { 1 },
+                LocalizedText.Null);
+
+            Assert.That(ServiceResult.IsGood(acknowledge), Is.True);
+            Assert.That(condition.Comment.Value, Is.EqualTo(existingComment));
+
+            ServiceResult confirm = condition.CallConfirm(
+                m_context,
+                new byte[] { 2 },
+                new LocalizedText((string)null, (string)null));
+
+            Assert.That(ServiceResult.IsGood(confirm), Is.True);
+            Assert.That(condition.Comment.Value, Is.EqualTo(existingComment));
+
+            condition.SetAcknowledgedState(m_context, false);
+            var replacement = new LocalizedText("en", "replacement comment");
+            ServiceResult replacementResult = condition.CallAcknowledge(
+                m_context,
+                new byte[] { 3 },
+                replacement);
+            Assert.That(ServiceResult.IsGood(replacementResult), Is.True);
+            Assert.That(condition.Comment.Value, Is.EqualTo(replacement));
+        }
+
         /// <summary>
         /// Test that SetShelvingState updates the timestamp and clears change masks.
         /// </summary>
@@ -252,6 +289,31 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             // Verify that change masks were cleared (indicating subscribers were notified)
             Assert.That(alarm.ActiveState.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+        }
+
+        private sealed class TestableAcknowledgeableConditionState
+            : AcknowledgeableConditionState
+        {
+            public TestableAcknowledgeableConditionState()
+                : base(null)
+            {
+            }
+
+            public ServiceResult CallAcknowledge(
+                ISystemContext context,
+                byte[] eventId,
+                LocalizedText comment)
+            {
+                return OnAcknowledgeCalled(context, null, NodeId, eventId, comment);
+            }
+
+            public ServiceResult CallConfirm(
+                ISystemContext context,
+                byte[] eventId,
+                LocalizedText comment)
+            {
+                return OnConfirmCalled(context, null, NodeId, eventId, comment);
+            }
         }
 
         /// <summary>
