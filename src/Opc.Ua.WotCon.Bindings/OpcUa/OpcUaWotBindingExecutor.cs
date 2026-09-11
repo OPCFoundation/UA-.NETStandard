@@ -74,6 +74,14 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             {
                 throw new ArgumentNullException(nameof(context));
             }
+            if (form.Addressing.BrowsePathTarget is not null &&
+                (m_options.TimeProvider is null ||
+                    m_options.BrowsePathRefreshInterval <= TimeSpan.Zero ||
+                    m_options.BrowsePathRefreshInterval.TotalMilliseconds > uint.MaxValue - 1))
+            {
+                throw new InvalidOperationException(
+                    "Browse-path maintenance requires a clock and a positive timer-compatible refresh interval.");
+            }
             if (m_options.ConstrainedSessionFactory is null &&
                 m_options.SessionFactory is null &&
                 !HasBuiltInSelection(m_options))
@@ -87,8 +95,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 endpoint, floor, form, cancellationToken).ConfigureAwait(false);
             try
             {
-                EnforceSecurityFloor(session, form, floor);
-                EnforceExactSecurity(session, form);
+                EnforceSessionSecurity(session, form);
             }
             catch (ServiceResultException)
             {
@@ -99,6 +106,12 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 throw;
             }
             return new OpcUaWotBindingChannel(session, m_options.DisposeSession, form, context, m_options);
+        }
+
+        internal static void EnforceSessionSecurity(ISession session, WotCompiledForm form)
+        {
+            EnforceSecurityFloor(session, form, form.SecurityFloor);
+            EnforceExactSecurity(session, form);
         }
 
         /// <summary>
@@ -121,6 +134,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// false negative that reads as "no endpoint is strong enough" even when
         /// the Server offers one.
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<ISession> ConnectAsync(
             string endpoint,
             WotSecurityFloor? floor,
@@ -178,9 +192,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 .EndpointDiscovery!(request.EndpointUrl, cancellationToken)
                 .ConfigureAwait(false);
             EndpointDescription? selected = OpcUaWotEndpointSelector.Select(
-                discovered, request.MinimumSecurity, request.SecurityRequirements);
-            if (selected is null)
-            {
+                discovered, request.MinimumSecurity, request.SecurityRequirements) ??
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityModeRejected,
                     "None of the " +
@@ -189,7 +201,6 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                     $"'{form.AffordanceName}'. A client shall fail and " +
                     "report rather than discard an exact constraint or fall below its floor " +
                     "(WoT Binding Section 5.7.1).");
-            }
             return await m_options
                 .SelectedEndpointSessionFactory!(selected, request, cancellationToken)
                 .ConfigureAwait(false);
@@ -253,15 +264,12 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             {
                 return;
             }
-            EndpointDescription? description = session.ConfiguredEndpoint?.Description;
-            if (description is null)
-            {
+            EndpointDescription? description = (session.ConfiguredEndpoint?.Description) ??
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityModeRejected,
                     $"The '{form.AffordanceName}' form states the security floor {floor}, but the " +
                     "session does not report the endpoint it selected, so the floor cannot be " +
                     "shown to hold.");
-            }
             if (!OpcUaWotEndpointSelector.Satisfies(description, floor))
             {
                 throw new ServiceResultException(

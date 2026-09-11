@@ -18,6 +18,7 @@ This document starts with the bindings that ship today and how to register them,
   - [Intentionally unsupported operations](#intentionally-unsupported-operations)
   - [Transport security](#transport-security)
   - [Operation coverage (OPC UA executor)](#operation-coverage-opc-ua-executor)
+  - [Portable browse-path targets](#portable-browse-path-targets)
   - [Event field selection (`tm:ref` and `uav:eventSelectClauses`)](#event-field-selection-tmref-and-uaveventselectclauses)
   - [Constraining an `auto` endpoint selection (`uav:minimumSecurity`)](#constraining-an-auto-endpoint-selection-uavminimumsecurity)
 - [Adding your own binding](#adding-your-own-binding)
@@ -325,12 +326,26 @@ The executable bindings fail closed and never downgrade a secure form to an inse
 | `readproperty` | `Read` service (`ISession.ReadValueAsync`). |
 | `writeproperty` | `Write` service; the mapped `StatusCode` is preserved. |
 | `observeproperty` | A native data-change `MonitoredItem` (`AttributeId = Value`, queue size 1) on a dedicated `Subscription`; no client-side polling. |
-| `invokeaction` | `Call` service; the method NodeId is `uav:id` and its owner object is resolved from `uav:componentOf`. |
+| `invokeaction` | `Call` service; the Method is selected by its source NodeId or browse path, independently of the form's `uav:callObjectId` receiver. Legacy scalar form-scoped `uav:componentOf` remains a compatibility spelling. |
 | `subscribeevent` | A native event `MonitoredItem` (`AttributeId = EventNotifier`) whose `EventFilter` select clauses are the compiled `WotEventSelection` of WoT Binding Section 6.1: the eight mandatory `BaseEventType` fields (`EventId`, `EventType`, `SourceNode`, `SourceName`, `Time`, `ReceiveTime`, `Message`, `Severity`) when the affordance states no selection, and otherwise the selection resolved from the EventType definition it links to with `tm:ref`, overlaid by the `uav:eventSelectClauses` it states. Every selected field is delivered in `WotNotification.EventFields`, keyed by its browse path — an empty path supplies `ConditionId` — with the event's own `Time` / `ReceiveTime` as the source / server timestamp. |
 
 Both subscription kinds share one code path: a dedicated `Subscription` is created per channel subscription, its `MonitoredItem` is disposed and the subscription removed from the session (`ISession.RemoveSubscriptionAsync`) when the returned `IWotSubscription` is disposed, so no session or subscription is leaked — including when creation fails partway through.
 
-A compiled form's NodeId (`uav:id`, and `uav:componentOf` for actions) is resolved with `NodeId.Parse` for the plain `ns=` / `i=` / `s=` / `g=` / `b=` forms; a portable NodeId carrying an `nsu=` namespace URI is parsed as an `ExpandedNodeId` and resolved against the connected session's namespace table, since `NodeId.Parse` alone cannot resolve a namespace URI without one.
+A compiled form's NodeId and explicit Call receiver are resolved against the connected Session's namespace table. Portable `nsu=` identifiers retain their namespace-URI meaning; legacy plain NodeId forms remain supported where applicable.
+
+### Portable browse-path targets
+
+An OPC UA form may use `uav:browsePath` without a target NodeId. The binder
+captures its original scoped namespace context and inherited anchor, preserves
+the endpoint resource path, and translates against the actual Session before a
+source operation. Missing, partial, remote, ambiguous, wrong-class, or
+inconsistent simultaneous targets fail before that operation.
+
+Path-based native subscriptions revalidate addressing after Session configuration
+changes and on their configured maintenance interval. They keep native value and
+event delivery, and dispose their maintenance alongside the native subscription.
+See [OPC UA browse-path targets](WotBrowsePathTargets.md) for syntax, authoring
+examples, limits, source-ownership rules, and consumer effects.
 
 ### Event field selection (`tm:ref` and `uav:eventSelectClauses`)
 

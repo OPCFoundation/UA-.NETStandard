@@ -218,6 +218,17 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         public TimeSpan ObserveInterval { get; set; } = TimeSpan.FromSeconds(1);
 
         /// <summary>
+        /// Gets or sets the maximum interval between revalidations of active browse-path targets.
+        /// Session configuration changes also trigger revalidation. Values remain native notifications.
+        /// </summary>
+        public TimeSpan BrowsePathRefreshInterval { get; set; } = TimeSpan.FromSeconds(10);
+
+        /// <summary>
+        /// Gets or sets the clock used for browse-path target maintenance.
+        /// </summary>
+        public TimeProvider TimeProvider { get; set; } = TimeProvider.System;
+
+        /// <summary>
         /// Gets or sets the bounded monitored-item queue size requested for
         /// event subscriptions, so a burst of events cannot grow the server-side
         /// queue without bound. Property observe monitored items always request

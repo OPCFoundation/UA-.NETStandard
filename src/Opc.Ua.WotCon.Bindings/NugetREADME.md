@@ -20,4 +20,9 @@ The base package targets `net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`
 
 OPC 10101 target mapping is protocol-neutral and authored on property affordances: `uav:mapToNodeId`, `uav:mapToType`, and `uav:mapByFieldPath` are validated centrally before protocol planning.
 
+OPC UA source forms also support portable `uav:browsePath` targets. Context and
+anchors are captured before planning; native translation, NodeClass validation,
+and simultaneous NodeId agreement are enforced before execution. Path-based
+observations revalidate addressing without replacing native notification delivery.
+
 See the [WoT protocol bindings guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WotBindings.md).

@@ -112,6 +112,33 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             form = resolved;
 
             string? nodeId = ResolveNodeId(form, out bool nodeIdInPath);
+            if (!form.TryGetBrowsePath(context, out WotBrowsePathTarget? pathTarget, out string? pathError))
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.InvalidFieldValue, pathError!,
+                    form.Pointer(WotBrowsePathTarget.PathTerm), WotBrowsePathTarget.PathTerm));
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
+            if (pathTarget is not null &&
+                (pathTarget.Path.Length > context.Bounds.MaxUriLength ||
+                    pathTarget.Elements.Count > context.Bounds.MaxBrowsePathElements))
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.InvalidFieldValue,
+                    "The browse path exceeds the configured addressing bounds.",
+                    pathTarget.JsonPointer, WotBrowsePathTarget.PathTerm));
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
+            if (pathTarget is not null &&
+                form.FormElement.TryGetProperty("uav:id", out System.Text.Json.JsonElement declaredId) &&
+                (declaredId.ValueKind != System.Text.Json.JsonValueKind.String ||
+                    string.IsNullOrWhiteSpace(declaredId.GetString())))
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.InvalidFieldValue, "A declared target NodeId must be a non-empty string.",
+                    form.Pointer("uav:id"), "uav:id"));
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
             WotEndpointDescriptor endpoint;
             string? authority;
             if (!string.IsNullOrEmpty(form.Href) && TryParseUri(form.Href!, out Uri uri))
@@ -142,17 +169,31 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
 
-            if (string.IsNullOrEmpty(nodeId))
+            if (string.IsNullOrEmpty(nodeId) && pathTarget is null)
             {
                 diagnostics.Add(WotBindingDiagnostic.Error(
                     WotBindingDiagnosticCode.MissingRequiredField,
-                    "An OPC UA form requires uav:id or a NodeId in the href path.",
+                    "An OPC UA form requires a NodeId or a resolvable uav:browsePath.",
                     form.Pointer("uav:id"), "uav:id"));
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
 
-            ImmutableDictionary<string, string> metadata = ImmutableDictionary<string, string>.Empty
-                .Add("nodeId", nodeId!);
+            ImmutableDictionary<string, string> metadata = ImmutableDictionary<string, string>.Empty;
+            if (!string.IsNullOrEmpty(nodeId))
+            {
+                metadata = metadata.Add("nodeId", nodeId!);
+            }
+            if (pathTarget is not null && ResolveHrefNodeId(form.Href, out _) is { } hrefTarget)
+            {
+                if (string.IsNullOrWhiteSpace(hrefTarget))
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.InvalidFieldValue, "A declared href NodeId must not be empty.",
+                        form.Pointer("href"), "href"));
+                    return WotBindingCompilation.Unsupported([.. diagnostics]);
+                }
+                metadata = metadata.Add("pathHrefNodeId", hrefTarget);
+            }
             metadata = AddIfPresent(form, "uav:componentOf", "componentOf", metadata);
             if (!TryCompileCallReceiver(form, diagnostics, ref metadata))
             {
@@ -169,7 +210,11 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             {
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
-            var addressing = new WotAddressingDescriptor(nodeId!, metadata);
+            var addressing = new WotAddressingDescriptor(nodeId ?? string.Empty, metadata);
+            if (pathTarget is not null)
+            {
+                addressing = addressing.WithBrowsePathTarget(pathTarget);
+            }
             ImmutableArray<WotCredentialReference> security = ResolveSecurity(form, context, authority, diagnostics);
             if (!TryResolveSecurityRequirements(
                 form, context, authority, diagnostics, out ArrayOf<WotOpcUaSecurityRequirement> exact,
@@ -821,12 +866,14 @@ namespace Opc.Ua.WotCon.Bindings.Planners
 
         private static string? ResolveNodeId(WotAffordanceForm form, out bool nodeIdInPath)
         {
+            string? hrefTarget = ResolveHrefNodeId(form.Href, out nodeIdInPath);
+            return form.TryGetString("uav:id", out string id) && !string.IsNullOrEmpty(id) ? id : hrefTarget;
+        }
+
+        private static string? ResolveHrefNodeId(string? href, out bool nodeIdInPath)
+        {
             nodeIdInPath = false;
-            if (form.TryGetString("uav:id", out string id) && !string.IsNullOrEmpty(id))
-            {
-                return id;
-            }
-            if (!string.IsNullOrEmpty(form.Href) && TryParseUri(form.Href!, out Uri uri))
+            if (!string.IsNullOrEmpty(href) && TryParseUri(href!, out Uri uri))
             {
                 string query = uri.Query.TrimStart('?');
                 if (query.StartsWith("id=", StringComparison.OrdinalIgnoreCase))
@@ -834,7 +881,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                     return Uri.UnescapeDataString(query[3..]);
                 }
                 string path = Uri.UnescapeDataString(uri.AbsolutePath.Trim('/'));
-                if (ExpandedNodeId.TryParse(path, out _))
+                if (!string.IsNullOrEmpty(path) && ExpandedNodeId.TryParse(path, out _))
                 {
                     nodeIdInPath = true;
                     return path;

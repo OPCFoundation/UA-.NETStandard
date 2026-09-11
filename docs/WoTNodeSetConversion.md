@@ -575,6 +575,10 @@ semantic normal forms to be equal.
 
 ## Model and platform vocabulary (Section 6)
 
+For execution of a form's source browse path, see
+[OPC UA browse-path targets](WotBrowsePathTargets.md). Runtime resolution is
+separate from preserving model annotations during NodeSet conversion.
+
 The WoT Binding Section 6 model- and platform-vocabulary terms
 (composition, containment, naming, semantics, inheritance) and the
 anchored browse-path term of Section 5.1.4 are **readable annotations**:

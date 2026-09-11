@@ -65,7 +65,7 @@ namespace Opc.Ua.WotCon.Bindings
     /// form in the originating document. Binders read protocol vocabulary terms
     /// from <see cref="FormElement"/>; the object performs no transport I/O.
     /// </summary>
-    public sealed class WotAffordanceForm
+    public sealed partial class WotAffordanceForm
     {
         /// <summary>
         /// Initializes a new immutable affordance form.
@@ -378,7 +378,12 @@ namespace Opc.Ua.WotCon.Bindings
                     JsonPointer,
                     FormElement,
                     AffordanceElement,
-                    TargetMapping);
+                    TargetMapping)
+                {
+                    BrowsePathTarget = BrowsePathTarget,
+                    BrowsePathError = BrowsePathError,
+                    HasBrowsePathCapture = HasBrowsePathCapture
+                };
             }
             return true;
         }

@@ -49,6 +49,11 @@ namespace Opc.Ua.WotCon.Bindings
         public int MaxUriLength { get; set; } = 2048;
 
         /// <summary>
+        /// Gets or sets the maximum number of native steps in an OPC UA browse-path target.
+        /// </summary>
+        public int MaxBrowsePathElements { get; set; } = 64;
+
+        /// <summary>
         /// Gets or sets the maximum accepted MQTT topic length.
         /// </summary>
         public int MaxTopicLength { get; set; } = 65535;

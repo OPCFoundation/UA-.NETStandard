@@ -164,9 +164,26 @@ namespace Opc.Ua.WotCon.Bindings
         public string Target { get; }
 
         /// <summary>
+        /// Gets the portable OPC UA browse-path target, when the form declares one.
+        /// </summary>
+        public WotBrowsePathTarget? BrowsePathTarget { get; private init; }
+
+        /// <summary>
         /// Gets binding-specific addressing metadata.
         /// </summary>
         public ImmutableDictionary<string, string> Metadata { get; }
+
+        /// <summary>
+        /// Attaches immutable path addressing without replacing a separately declared target NodeId.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public WotAddressingDescriptor WithBrowsePathTarget(WotBrowsePathTarget target)
+        {
+            return new WotAddressingDescriptor(Target, Metadata)
+            {
+                BrowsePathTarget = target ?? throw new ArgumentNullException(nameof(target))
+            };
+        }
     }
 
     /// <summary>

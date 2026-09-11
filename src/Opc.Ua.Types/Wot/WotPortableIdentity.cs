@@ -192,10 +192,11 @@ namespace Opc.Ua.Wot
                 {
                     return false;
                 }
-                identifier = value.Substring(delimiter + 1);
+                identifier = value[(delimiter + 1)..];
             }
             return HasIdentifierType(identifier) &&
-                NodeId.TryParse(identifier, out NodeId parsed) && parsed.NamespaceIndex == 0;
+                NodeId.TryParse(identifier, out NodeId parsed) &&
+                parsed.NamespaceIndex == 0;
         }
 
         /// <summary>
@@ -252,7 +253,7 @@ namespace Opc.Ua.Wot
                 int delimiter = value.IndexOf(';', 4);
                 qualifiedName = new WotBrowsePathElement(
                     CoreUtils.UnescapeUri(value.AsSpan(4, delimiter - 4)),
-                    value.Substring(delimiter + 1));
+                    value[(delimiter + 1)..]);
                 return true;
             }
             int colon = value.IndexOf(':', StringComparison.Ordinal);
@@ -262,11 +263,11 @@ namespace Opc.Ua.Wot
                 return true;
             }
             if (!document.TryGetContextPrefix(
-                value.Substring(0, colon), out string namespaceUri, carryingNode))
+                value[..colon], out string namespaceUri, carryingNode))
             {
                 return false;
             }
-            qualifiedName = new WotBrowsePathElement(namespaceUri, value.Substring(colon + 1));
+            qualifiedName = new WotBrowsePathElement(namespaceUri, value[(colon + 1)..]);
             return true;
         }
 
@@ -279,6 +280,9 @@ namespace Opc.Ua.Wot
         /// what it is relative to; without one it names a sequence of steps from
         /// nowhere. Either kind is unresolvable when an element uses a numeric
         /// NamespaceIndex, which is never persisted.
+        /// This is an annotation portability check: Root and a final folder
+        /// separator remain valid here. A native operation additionally needs
+        /// the complete target validated by <see cref="WotBrowsePathTarget"/>.
         /// </remarks>
         /// <param name="path">The authored browse path.</param>
         /// <param name="anchored">
@@ -296,14 +300,30 @@ namespace Opc.Ua.Wot
             {
                 return false;
             }
-            foreach (string element in SplitPath(path))
+            try
             {
-                if (!IsPortableQualifiedName(element))
+                var parsed = RelativePathFormatter.ParsePortable(
+                    path, new NamespaceTable(), static _ => "urn:wot:lexical-prefix", 1024);
+                if (parsed.Elements.Count == 0)
                 {
                     return false;
                 }
+                for (int index = 0; index < parsed.Elements.Count; index++)
+                {
+                    RelativePathFormatter.Element element = parsed.Elements[index];
+                    if ((element.TargetName.IsNull || string.IsNullOrEmpty(element.TargetName.Name)) &&
+                        (index != parsed.Elements.Count - 1 ||
+                            element.ElementType != RelativePathFormatter.ElementType.AnyHierarchical))
+                    {
+                        return false;
+                    }
+                }
+                return true;
             }
-            return true;
+            catch (ServiceResultException)
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -346,7 +366,7 @@ namespace Opc.Ua.Wot
 #if NET6_0_OR_GREATER
             return ByteString.From(SHA256.HashData(encoded));
 #else
-            using SHA256 algorithm = SHA256.Create();
+            using var algorithm = SHA256.Create();
             return ByteString.From(algorithm.ComputeHash(encoded));
 #endif
         }
@@ -445,45 +465,13 @@ namespace Opc.Ua.Wot
             {
                 int delimiter = browseName.IndexOf(';', 4);
                 return delimiter >= 0 && delimiter + 1 < browseName.Length
-                    ? browseName.Substring(delimiter + 1)
+                    ? browseName[(delimiter + 1)..]
                     : null;
             }
             int colon = browseName.IndexOf(':', StringComparison.Ordinal);
             return colon >= 0 && colon + 1 < browseName.Length
-                ? browseName.Substring(colon + 1)
+                ? browseName[(colon + 1)..]
                 : browseName;
-        }
-
-        private static List<string> SplitPath(string path)
-        {
-            var elements = new List<string>();
-            var current = new StringBuilder();
-            bool started = path.Length != 0 && path[0] != '/';
-            for (int ii = 0; ii < path.Length; ii++)
-            {
-                char character = path[ii];
-                if (character == '&' && ii + 1 < path.Length)
-                {
-                    current.Append(path[++ii]);
-                    continue;
-                }
-                if (character == '/')
-                {
-                    if (started)
-                    {
-                        elements.Add(current.ToString());
-                        current.Clear();
-                    }
-                    started = true;
-                    continue;
-                }
-                current.Append(character);
-            }
-            if (current.Length != 0)
-            {
-                elements.Add(current.ToString());
-            }
-            return elements;
         }
 
         /// <summary>

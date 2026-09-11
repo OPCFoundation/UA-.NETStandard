@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Immutable;
 using System.Text.Json;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Bindings
 {
@@ -52,8 +53,12 @@ namespace Opc.Ua.WotCon.Bindings
             ImmutableArray<WotAffordanceForm>.Builder forms = ImmutableArray.CreateBuilder<WotAffordanceForm>();
             try
             {
-                var options = new JsonDocumentOptions { MaxDepth = maxJsonDepth <= 0 ? 64 : maxJsonDepth };
-                using var json = JsonDocument.Parse(document, options);
+                var options = new WotNodeSetConverterOptions
+                {
+                    MaxJsonDepth = maxJsonDepth <= 0 ? 64 : maxJsonDepth,
+                    MaxJsonDocumentSize = Math.Max(1, document.Length)
+                };
+                using var json = WotDocument.Parse(document, options);
                 JsonElement root = json.RootElement;
                 if (root.ValueKind != JsonValueKind.Object)
                 {
@@ -61,9 +66,9 @@ namespace Opc.Ua.WotCon.Bindings
                 }
 
                 ImmutableArray<string> thingSecurity = ReadSecurity(root);
-                Collect(root, "properties", WotAffordanceKind.Property, thingSecurity, forms);
-                Collect(root, "actions", WotAffordanceKind.Action, thingSecurity, forms);
-                Collect(root, "events", WotAffordanceKind.Event, thingSecurity, forms);
+                Collect(json, "properties", WotAffordanceKind.Property, thingSecurity, forms);
+                Collect(json, "actions", WotAffordanceKind.Action, thingSecurity, forms);
+                Collect(json, "events", WotAffordanceKind.Event, thingSecurity, forms);
             }
             catch (JsonException)
             {
@@ -74,13 +79,13 @@ namespace Opc.Ua.WotCon.Bindings
         }
 
         private static void Collect(
-            JsonElement root,
+            WotDocument document,
             string collection,
             WotAffordanceKind kind,
             ImmutableArray<string> thingSecurity,
             ImmutableArray<WotAffordanceForm>.Builder forms)
         {
-            if (!root.TryGetProperty(collection, out JsonElement affordances) ||
+            if (!document.RootElement.TryGetProperty(collection, out JsonElement affordances) ||
                 affordances.ValueKind != JsonValueKind.Object)
             {
                 return;
@@ -140,7 +145,7 @@ namespace Opc.Ua.WotCon.Bindings
                         security,
                         formPointer,
                         formElement,
-                        affordanceElement));
+                        affordanceElement).WithBrowsePathCapture(document));
                 }
             }
         }
