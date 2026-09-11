@@ -136,6 +136,25 @@ namespace Opc.Ua.SourceGeneration
                     Is.False);
                 Assert.That(comparer.Equals(null, null), Is.True);
                 Assert.That(comparer.Equals(null, ["a"]), Is.False);
+                Assert.That(comparer.Equals(["a"], null), Is.False);
+            });
+        }
+
+        /// <summary>
+        /// Roslyn compares the previous run's output, which can be absent, so
+        /// the hash has to tolerate a null set rather than throwing inside the
+        /// incremental pipeline.
+        /// </summary>
+        [Test]
+        public void SetComparerHandlesNull()
+        {
+            IEqualityComparer<ImmutableHashSet<string>> comparer =
+                IncrementalValueComparers.ForSet<string>();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(comparer.GetHashCode(null), Is.Zero);
+                Assert.That(comparer.GetHashCode(ImmutableHashSet<string>.Empty), Is.Zero);
             });
         }
     }

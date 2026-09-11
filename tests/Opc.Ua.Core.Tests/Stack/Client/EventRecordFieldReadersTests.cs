@@ -26,6 +26,7 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+using System;
 using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Stack.Client
@@ -440,5 +441,235 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Assert.That(EventRecordFieldReaders.GetVariantArray(absent, 1), Is.Null);
             });
         }
+
+        /// <summary>
+        /// Every nullable scalar reader round-trips the value it is given, and
+        /// reports null for a null field and for an index past the end. The
+        /// generator picks these by .NET type name, so a reader that silently
+        /// failed to match its Variant would leave a record property default
+        /// for every event.
+        /// </summary>
+        [Test]
+        public void NullableScalarReadersRoundTripTheirValue()
+        {
+            Variant[] absent = [Variant.Null];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    EventRecordFieldReaders.GetNullableSByte([Variant.From((sbyte)-1)], 0),
+                    Is.EqualTo((sbyte)-1));
+                Assert.That(
+                    EventRecordFieldReaders.GetNullableByte([Variant.From((byte)2)], 0),
+                    Is.EqualTo((byte)2));
+                Assert.That(
+                    EventRecordFieldReaders.GetNullableInt16([Variant.From((short)-3)], 0),
+                    Is.EqualTo((short)-3));
+                Assert.That(
+                    EventRecordFieldReaders.GetNullableUInt16([Variant.From((ushort)4)], 0),
+                    Is.EqualTo((ushort)4));
+                Assert.That(
+                    EventRecordFieldReaders.GetNullableInt32([Variant.From(-5)], 0),
+                    Is.EqualTo(-5));
+                Assert.That(
+                    EventRecordFieldReaders.GetNullableInt64([Variant.From(-6L)], 0),
+                    Is.EqualTo(-6L));
+                Assert.That(
+                    EventRecordFieldReaders.GetNullableUInt64([Variant.From(7UL)], 0),
+                    Is.EqualTo(7UL));
+                Assert.That(
+                    EventRecordFieldReaders.GetNullableFloat([Variant.From(8.5f)], 0),
+                    Is.EqualTo(8.5f));
+                Assert.That(
+                    EventRecordFieldReaders.GetNullableGuid(
+                        [Variant.From(new Uuid(s_guid))], 0),
+                    Is.EqualTo(s_guid));
+
+                Assert.That(EventRecordFieldReaders.GetNullableSByte(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetNullableByte(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetNullableInt16(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetNullableUInt16(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetNullableInt32(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetNullableInt64(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetNullableUInt64(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetNullableFloat(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetNullableGuid(absent, 0), Is.Null);
+
+                Assert.That(EventRecordFieldReaders.GetNullableInt32(absent, 1), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetNullableGuid(absent, 1), Is.Null);
+            });
+        }
+
+        /// <summary>
+        /// The non-nullable scalar readers return the type's own null value
+        /// rather than throwing when the field is absent.
+        /// </summary>
+        [Test]
+        public void ReferenceScalarReadersRoundTripTheirValue()
+        {
+            Variant[] absent = [Variant.Null];
+            var nodeId = new NodeId(42u, 1);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    EventRecordFieldReaders.GetExpandedNodeId(
+                        [Variant.From((ExpandedNodeId)nodeId)], 0),
+                    Is.EqualTo((ExpandedNodeId)nodeId));
+                Assert.That(
+                    EventRecordFieldReaders.GetQualifiedName(
+                        [Variant.From(new QualifiedName("name", 1))], 0).Name,
+                    Is.EqualTo("name"));
+
+                Assert.That(
+                    EventRecordFieldReaders.GetExpandedNodeId(absent, 1),
+                    Is.EqualTo(ExpandedNodeId.Null));
+                Assert.That(
+                    EventRecordFieldReaders.GetQualifiedName(absent, 1),
+                    Is.EqualTo(QualifiedName.Null));
+            });
+        }
+
+        /// <summary>
+        /// Every array reader round-trips its elements and reports null for an
+        /// absent field.
+        /// </summary>
+        [Test]
+        public void ArrayReadersRoundTripTheirElements()
+        {
+            Variant[] absent = [Variant.Null];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    EventRecordFieldReaders.GetSByteArray(
+                        [Variant.From(new sbyte[] { -1, 2 }.ToArrayOf())], 0),
+                    Is.EqualTo(new sbyte[] { -1, 2 }));
+                Assert.That(
+                    EventRecordFieldReaders.GetByteArray(
+                        [Variant.From(new byte[] { 1, 2 }.ToArrayOf())], 0),
+                    Is.EqualTo(new byte[] { 1, 2 }));
+                Assert.That(
+                    EventRecordFieldReaders.GetInt16Array(
+                        [Variant.From(new short[] { -1, 2 }.ToArrayOf())], 0),
+                    Is.EqualTo(new short[] { -1, 2 }));
+                Assert.That(
+                    EventRecordFieldReaders.GetUInt16Array(
+                        [Variant.From(new ushort[] { 1, 2 }.ToArrayOf())], 0),
+                    Is.EqualTo(new ushort[] { 1, 2 }));
+                Assert.That(
+                    EventRecordFieldReaders.GetUInt32Array(
+                        [Variant.From(new uint[] { 1, 2 }.ToArrayOf())], 0),
+                    Is.EqualTo(new uint[] { 1, 2 }));
+                Assert.That(
+                    EventRecordFieldReaders.GetInt64Array(
+                        [Variant.From(new long[] { -1, 2 }.ToArrayOf())], 0),
+                    Is.EqualTo(new long[] { -1, 2 }));
+                Assert.That(
+                    EventRecordFieldReaders.GetUInt64Array(
+                        [Variant.From(new ulong[] { 1, 2 }.ToArrayOf())], 0),
+                    Is.EqualTo(new ulong[] { 1, 2 }));
+                Assert.That(
+                    EventRecordFieldReaders.GetFloatArray(
+                        [Variant.From(s_floats.ToArrayOf())], 0),
+                    Is.EqualTo(s_floats));
+                Assert.That(
+                    EventRecordFieldReaders.GetGuidArray(
+                        [Variant.From(new[] { new Uuid(s_guid) }.ToArrayOf())], 0),
+                    Is.EqualTo(new[] { s_guid }));
+                Assert.That(
+                    EventRecordFieldReaders.GetDateTimeArray(
+                        [Variant.From(new[] { new DateTimeUtc(s_when) }.ToArrayOf())], 0),
+                    Is.EqualTo(new[] { s_when }));
+                Assert.That(
+                    EventRecordFieldReaders.GetStatusCodeArray(
+                        [Variant.From(
+                            new StatusCode[] { StatusCodes.BadTimeout }.ToArrayOf())],
+                        0),
+                    Is.EqualTo(new StatusCode[] { StatusCodes.BadTimeout }));
+                Assert.That(
+                    EventRecordFieldReaders.GetQualifiedNameArray(
+                        [Variant.From(new[] { new QualifiedName("n", 1) }.ToArrayOf())], 0),
+                    Has.Length.EqualTo(1));
+                Assert.That(
+                    EventRecordFieldReaders.GetExpandedNodeIdArray(
+                        [Variant.From(
+                            new[] { (ExpandedNodeId)new NodeId(1u, 1) }.ToArrayOf())],
+                        0),
+                    Has.Length.EqualTo(1));
+                Assert.That(
+                    EventRecordFieldReaders.GetByteStringArray(
+                        [Variant.From(
+                            new[] { new ByteString(new byte[] { 1 }) }.ToArrayOf())],
+                        0),
+                    Has.Length.EqualTo(1));
+
+                Assert.That(EventRecordFieldReaders.GetSByteArray(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetByteArray(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetInt16Array(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetUInt16Array(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetUInt32Array(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetInt64Array(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetUInt64Array(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetFloatArray(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetGuidArray(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetDateTimeArray(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetStatusCodeArray(absent, 0), Is.Null);
+                Assert.That(
+                    EventRecordFieldReaders.GetQualifiedNameArray(absent, 0), Is.Null);
+                Assert.That(
+                    EventRecordFieldReaders.GetExpandedNodeIdArray(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetByteStringArray(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetXmlElementArray(absent, 0), Is.Null);
+                Assert.That(EventRecordFieldReaders.GetXmlElement(absent, 0), Is.Null);
+            });
+        }
+
+        /// <summary>
+        /// A model-local enumeration is transferred as its underlying Int32.
+        /// </summary>
+        [Test]
+        public void EnumReadersConvertFromTheUnderlyingInt32()
+        {
+            Variant[] absent = [Variant.Null];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    EventRecordFieldReaders.GetEnum<TestEnum>([Variant.From(2)], 0),
+                    Is.EqualTo(TestEnum.Second));
+                Assert.That(
+                    EventRecordFieldReaders.GetEnum<TestEnum>(absent, 0),
+                    Is.EqualTo(TestEnum.None));
+                Assert.That(
+                    EventRecordFieldReaders.GetEnum<TestEnum>(absent, 1),
+                    Is.EqualTo(TestEnum.None));
+
+                Assert.That(
+                    EventRecordFieldReaders.GetEnumArray<TestEnum>(
+                        [Variant.From(s_enumValues.ToArrayOf())], 0),
+                    Is.EqualTo(new[] { TestEnum.First, TestEnum.Second }));
+                Assert.That(
+                    EventRecordFieldReaders.GetEnumArray<TestEnum>(absent, 0), Is.Null);
+                Assert.That(
+                    EventRecordFieldReaders.GetEnumArray<TestEnum>(absent, 1), Is.Null);
+            });
+        }
+
+        private enum TestEnum
+        {
+            None = 0,
+            First = 1,
+            Second = 2
+        }
+
+        private static readonly float[] s_floats = [1.5f, 2.5f];
+        private static readonly int[] s_enumValues = [1, 2];
+
+        private static readonly Guid s_guid =
+            new("6F9619FF-8B86-D011-B42D-00C04FC964FF");
+
+        private static readonly DateTime s_when =
+            new(2026, 8, 12, 10, 30, 0, DateTimeKind.Utc);
     }
 }
