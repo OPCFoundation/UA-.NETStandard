@@ -91,37 +91,43 @@ namespace Opc.Ua.Client.AliasNames.Refresh
                 return;
             }
 
-            Subscription subscription;
+            Subscription? subscription = null;
             bool ownsSubscription = false;
-            if (Options.SharedSubscription != null)
-            {
-                subscription = Options.SharedSubscription;
-            }
-            else
-            {
-                subscription = new Subscription(client.Session.MessageContext.Telemetry)
-                {
-                    DisplayName = Options.SubscriptionDisplayName,
-                    PublishingEnabled = true,
-                    PublishingInterval = (int)Options.PublishingIntervalMs
-                };
-                client.Session.AddSubscription(subscription);
-                await subscription.CreateAsync(ct).ConfigureAwait(false);
-                ownsSubscription = true;
-            }
-
-            var item = new MonitoredItem(subscription.DefaultItem)
-            {
-                StartNodeId = lastChangeId,
-                AttributeId = Attributes.Value,
-                DisplayName = "LastChange",
-                SamplingInterval = (int)Options.SamplingIntervalMs,
-                QueueSize = 1,
-                DiscardOldest = true,
-                MonitoringMode = MonitoringMode.Reporting
-            };
+            MonitoredItem? item = null;
             try
             {
+                if (Options.SharedSubscription != null)
+                {
+                    subscription = Options.SharedSubscription;
+                }
+                else
+                {
+                    subscription = new Subscription(client.Session.MessageContext.Telemetry)
+                    {
+                        DisplayName = Options.SubscriptionDisplayName,
+                        PublishingEnabled = true,
+                        PublishingInterval = (int)Options.PublishingIntervalMs
+                    };
+                    client.Session.AddSubscription(subscription);
+
+                    // Claim ownership before the first await that can fail:
+                    // CreateAsync throwing must still tear the registration
+                    // down, otherwise the subscription this cleanup exists to
+                    // prevent is exactly what a failed start leaves behind.
+                    ownsSubscription = true;
+                    await subscription.CreateAsync(ct).ConfigureAwait(false);
+                }
+
+                item = new MonitoredItem(subscription.DefaultItem)
+                {
+                    StartNodeId = lastChangeId,
+                    AttributeId = Attributes.Value,
+                    DisplayName = "LastChange",
+                    SamplingInterval = (int)Options.SamplingIntervalMs,
+                    QueueSize = 1,
+                    DiscardOldest = true,
+                    MonitoringMode = MonitoringMode.Reporting
+                };
                 item.Notification += OnNotification;
                 subscription.AddItem(item);
                 await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
@@ -131,17 +137,20 @@ namespace Opc.Ua.Client.AliasNames.Refresh
                 // Do not leave a half-built subscription behind: the caller
                 // retries StartAsync on every resolve, and each failed attempt
                 // would otherwise add another subscription to the session.
-                item.Notification -= OnNotification;
-                try
+                if (item != null && subscription != null)
                 {
-                    subscription.RemoveItem(item);
+                    item.Notification -= OnNotification;
+                    try
+                    {
+                        subscription.RemoveItem(item);
+                    }
+                    catch (Exception cleanupException)
+                        when (cleanupException is not OutOfMemoryException)
+                    {
+                        // Best-effort cleanup.
+                    }
                 }
-                catch (Exception cleanupException)
-                    when (cleanupException is not OutOfMemoryException)
-                {
-                    // Best-effort cleanup.
-                }
-                if (ownsSubscription)
+                if (ownsSubscription && subscription != null)
                 {
                     try
                     {

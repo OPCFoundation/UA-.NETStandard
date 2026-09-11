@@ -550,14 +550,34 @@ namespace Opc.Ua.Client
             {
                 return await GetOrAddReferencesAsync(nodeId, ct).ConfigureAwait(false);
             }
-            catch (ServiceResultException sre) when (!ct.IsCancellationRequested)
+            catch (ServiceResultException sre) when (IsPerNodeBrowseFailure(sre.StatusCode))
             {
-                // A cancelled operation is not "this node has no references":
-                // swallowing it would hand the caller a silently incomplete
-                // result, so only a genuine per-node failure is absorbed.
                 m_logger.ReferencesUnavailableForNode(nodeId, sre.StatusCode);
                 return ArrayOf<ReferenceDescription>.Empty;
             }
+        }
+
+        /// <summary>
+        /// Whether a status is one Browse reports for a single node rather
+        /// than for the whole call. Only those may be absorbed as "this node
+        /// contributes no references": a session, channel or timeout failure
+        /// says nothing about the node and swallowing it would hand the caller
+        /// a silently incomplete result for every remaining input as well.
+        /// </summary>
+        private static bool IsPerNodeBrowseFailure(StatusCode statusCode)
+        {
+            return statusCode == StatusCodes.BadNodeIdInvalid ||
+                statusCode == StatusCodes.BadNodeIdUnknown ||
+                statusCode == StatusCodes.BadNodeClassInvalid ||
+                statusCode == StatusCodes.BadReferenceTypeIdInvalid ||
+                statusCode == StatusCodes.BadBrowseDirectionInvalid ||
+                statusCode == StatusCodes.BadUserAccessDenied ||
+                statusCode == StatusCodes.BadSecurityModeInsufficient ||
+                statusCode == StatusCodes.BadViewIdUnknown ||
+                statusCode == StatusCodes.BadViewParameterMismatch ||
+                statusCode == StatusCodes.BadViewVersionInvalid ||
+                statusCode == StatusCodes.BadNotReadable ||
+                statusCode == StatusCodes.BadNotSupported;
         }
 
         /// <inheritdoc/>

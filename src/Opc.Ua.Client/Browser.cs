@@ -354,15 +354,16 @@ namespace Opc.Ua.Client
             {
                 // Release the continuation point before propagating: returning
                 // the partial list here would hand the caller a silently
-                // truncated result that looks like a complete browse.
+                // truncated result that looks like a complete browse. The
+                // release is best effort - cancellation is often caused by the
+                // very session or channel it would travel on, and letting that
+                // failure out would replace the cancellation the caller is
+                // waiting to see.
                 session = Session;
                 if (session != null)
                 {
-                    (_, _) = await BrowseNextAsync(
-                    session,
-                    continuationPoint,
-                    true,
-                    default).ConfigureAwait(false);
+                    await session.ReleaseContinuationPointAsync(continuationPoint)
+                        .ConfigureAwait(false);
                 }
                 throw;
             }

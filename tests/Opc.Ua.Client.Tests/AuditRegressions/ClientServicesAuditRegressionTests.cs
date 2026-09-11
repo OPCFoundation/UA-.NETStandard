@@ -366,6 +366,54 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
         }
 
         /// <summary>
+        /// Tolerating an un-browsable node must not extend to a failure of the
+        /// call itself: absorbing a session or channel error as "this node has
+        /// no references" would hand the caller a silently incomplete result
+        /// for every remaining input too.
+        /// </summary>
+        [Test]
+        public void BulkNodeCacheReadsStillSurfaceAServiceLevelFailure()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var context = new Mock<INodeCacheContext>();
+            context.SetupGet(c => c.NamespaceUris).Returns(new NamespaceTable());
+            context.SetupGet(c => c.ServerUris).Returns(new StringTable());
+            context
+                .Setup(c => c.FetchReferencesAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadSessionClosed));
+            context
+                .Setup(c => c.FetchNodesAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((RequestHeader _, ArrayOf<NodeId> ids, bool _, CancellationToken _)
+                    => new ResultSet<Node>
+                    {
+                        Results = ids
+                            .ConvertAll(id => new Node { NodeId = id, NodeClass = NodeClass.Object })
+                            .ToList(),
+                        Errors = ids.ConvertAll(_ => ServiceResult.Good).ToList()
+                    });
+
+            using var nodeCache = new NodeCache(context.Object, telemetry);
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await nodeCache
+                    .GetNodesAsync(new NodeId[] { new("A", 2) }.ToArrayOf(), default)
+                    .ConfigureAwait(false));
+
+            Assert.That(
+                ex!.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadSessionClosed),
+                "a dead session must not be reported as a node without references");
+        }
+
+        /// <summary>
         /// The browse path walker climbs supertypes when a name is not found,
         /// and that climb had no cycle guard: against a server whose HasSubtype
         /// chain loops back on itself it never reached Null and spun forever.

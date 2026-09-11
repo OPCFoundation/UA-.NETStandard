@@ -107,28 +107,38 @@ namespace Opc.Ua.Client.Subscriptions
                 throw new ArgumentNullException(nameof(logical));
             }
             List<(ISubscription Source, SubscriptionState State, PublishState Mask)> replay;
+            bool serialised;
             lock (m_bindLock)
             {
-                if (Interlocked.CompareExchange(ref m_logical, logical, null) != null)
+                if (m_logical != null)
                 {
                     throw new InvalidOperationException(
                         "PartitionForwardingHandler is already bound to a logical subscription.");
                 }
                 replay = [.. m_pendingStateChanges];
                 m_pendingStateChanges.Clear();
+
+                // Take the gate BEFORE publishing the wrapper, and do both
+                // under the bind lock. A live state change either arrives
+                // before the publish - in which case it blocks on the bind
+                // lock and is buffered or, after the publish, queues on the
+                // gate the replay already holds - or after it, and queues on
+                // that same gate. Either way it cannot reach the user handler
+                // ahead of the replayed states. Wait(0) never blocks, so
+                // holding the bind lock across it cannot deadlock.
+                serialised = replay.Count != 0 && m_serialise.Wait(0);
+                Interlocked.Exchange(ref m_logical, logical);
             }
 
             // Replay the state changes the partition raised before the wrapper
             // existed (notably the initial Opened, which the partition's state
             // manager fires from inside its own constructor). Fire-and-forget,
-            // matching how the partition raises them. The gate is taken here,
-            // before anything live can queue behind it, so a state change the
-            // partition raises right after the bind cannot overtake the
-            // replayed ones; if it is busy the replay simply queues like any
-            // other dispatch.
+            // matching how the partition raises them. If the gate was already
+            // held by an in-flight dispatch the replay simply queues like any
+            // other one, and the ordering above is the best that can be had
+            // without stalling the binder.
             if (replay.Count != 0)
             {
-                bool serialised = m_serialise.Wait(0);
                 _ = ReplayStateChangesAsync(logical, replay, serialised);
             }
         }
