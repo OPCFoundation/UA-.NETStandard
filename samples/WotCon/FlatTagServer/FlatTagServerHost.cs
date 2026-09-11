@@ -35,6 +35,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Samples;
 
 namespace FlatTagServer
 {
@@ -44,9 +45,10 @@ namespace FlatTagServer
     public static class FlatTagServerHost
     {
         /// <summary>
-        /// Builds a host from explicit options.
+        /// Builds, but does not start, a flat-tag source host from explicit options,
+        /// warning for enabled certificate-trust or unsecured-endpoint exceptions.
         /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentNullException">The options argument is null.</exception>
         public static IHost Build(FlatTagServerOptions options)
         {
             if (options is null)
@@ -60,7 +62,8 @@ namespace FlatTagServer
         }
 
         /// <summary>
-        /// Builds and runs a host from explicit options.
+        /// Runs the flat-tag source host with the supplied policies until shutdown or cancellation
+        /// and disposes the host afterward.
         /// </summary>
         public static async Task RunAsync(
             FlatTagServerOptions options,
@@ -71,17 +74,37 @@ namespace FlatTagServer
         }
 
         /// <summary>
-        /// Builds and runs a host from command-line configuration.
+        /// Parses sample switches and forwarded host settings before running the flat-tag source.
+        /// Certificate auto-acceptance and SecurityPolicy None are independent default-false opt-ins.
+        /// Stores the command result in Environment.ExitCode.
         /// </summary>
         public static async Task RunAsync(
             string[] args,
             CancellationToken cancellationToken = default)
         {
-            HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-            FlatTagServerOptions options = FromConfiguration(builder.Configuration);
-            Configure(builder, options);
-            using IHost host = builder.Build();
-            await host.RunAsync(cancellationToken).ConfigureAwait(false);
+            Environment.ExitCode = await WotSampleCommandLine.InvokeAsync(
+                args,
+                "Flat-tag source server. Trusted certificates and encrypted channels by default.",
+                [
+                    "endpoint", "host", "port", "namespace", "applicationName", "pkiRoot", "instanceName",
+                    "manufacturer", "serialNumber", "productInstanceUri", "pump2Manufacturer", "pump2SerialNumber",
+                    "pump2ProductInstanceUri", "differentialPressure", "fluidTemperature", "massFlow", "level",
+                    "cavitation", "bearingTemperature", "pumpPowerInput", "pumpEfficiency", "numberOfStarts",
+                    "motorOverheat", "pump2DifferentialPressure", "pump2FluidTemperature", "pump2MassFlow",
+                    "pump2Level", "pump2Cavitation", "pump2BearingTemperature", "pump2PumpPowerInput",
+                    "pump2PumpEfficiency", "pump2NumberOfStarts", "pump2MotorOverheat"
+                ],
+                management: false,
+                async (builder, autoAccept, securityNone, _, ct) =>
+                {
+                    FlatTagServerOptions options = FromConfiguration(builder.Configuration);
+                    options.AutoAcceptUntrustedCertificates = autoAccept;
+                    options.IncludeUnsecurePolicyNone = securityNone;
+                    Configure(builder, options);
+                    using IHost host = builder.Build();
+                    await host.RunAsync(ct).ConfigureAwait(false);
+                },
+                cancellationToken).ConfigureAwait(false);
         }
 
         private static void Configure(
@@ -89,6 +112,9 @@ namespace FlatTagServer
             FlatTagServerOptions options)
         {
             Validate(options);
+            SampleCommandLine.WriteSecurityWarnings(
+                Console.Error, options.AutoAcceptUntrustedCertificates,
+                options.IncludeUnsecurePolicyNone, "client", "--security-none");
             builder.Logging.ClearProviders();
             builder.Logging.AddConsole();
             builder.Services.AddSingleton(options);
@@ -108,8 +134,8 @@ namespace FlatTagServer
                     {
                         server.PkiRoot = options.PkiRoot;
                     }
-                    server.AutoAcceptUntrustedCertificates = true;
-                    server.IncludeUnsecurePolicyNone = true;
+                    server.AutoAcceptUntrustedCertificates = options.AutoAcceptUntrustedCertificates;
+                    server.IncludeUnsecurePolicyNone = options.IncludeUnsecurePolicyNone;
                     server.EndpointUrls.Add(endpoint);
                 })
                 .AddNodeManager<FlatTagNodeManagerFactory>();

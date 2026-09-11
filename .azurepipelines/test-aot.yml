@@ -78,34 +78,30 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/set-version.ps1
-  - task: DotNetCoreCLI@2
-    displayName: Publish AoT Tests ${{ parameters.configuration }}
-    inputs:
-      command: publish
-      publishWebProjects: false
-      projects: $(file)
-      arguments: '--configuration ${{ parameters.configuration }}'
-      zipAfterPublish: false
-      modifyOutputPath: false
   - task: PowerShell@2
-    displayName: Run AoT Tests
+    displayName: Publish and independently observe native execution
     inputs:
       pwsh: true
       targetType: inline
       script: |
-        $publishDir = Get-ChildItem -Path "$(folder)/bin/${{ parameters.configuration }}/net10.0/*/publish" -Directory | Select-Object -First 1
-        if (-not $publishDir) {
-          Write-Error "No publish directory found."
-          exit 1
-        }
-        # Derive the executable name from the discovered project so this step
-        # works for every Opc.Ua.Aot.Tests*.csproj matrix entry.
-        $exeName = [System.IO.Path]::GetFileNameWithoutExtension("$(file)")
-        if ($IsWindows) {
-          $exe = Join-Path $publishDir.FullName "$exeName.exe"
-        } else {
-          $exe = Join-Path $publishDir.FullName $exeName
-        }
-        Write-Host "Running: $exe"
-        & $exe
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $arch = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+        $rid = if ($IsWindows) { "win-$arch" } elseif ($IsMacOS) { "osx-$arch" } else { "linux-$arch" }
+        ./.azurepipelines/assurance/native.ps1 -Project '$(file)' -RuntimeIdentifier $rid `
+          -Configuration '${{ parameters.configuration }}' `
+          -WorkDirectory '$(Build.SourcesDirectory)/.assurance/aot-$(Build.BuildId)-$(System.JobAttempt)-$(System.JobId)' `
+          -OutputPath '$(Build.SourcesDirectory)/.assurance/aot-public-$(System.JobId)/native-proof.json'
+        exit $LASTEXITCODE
+  - task: PowerShell@2
+    displayName: Record native proof without claiming definition-chain verification
+    condition: succeededOrFailed()
+    inputs:
+      pwsh: true
+      targetType: filePath
+      filePath: ./.azurepipelines/assurance/write-job.ps1
+      arguments: -Project "$(file)" -ResultsPath "$(Build.SourcesDirectory)/.assurance/aot-public-$(System.JobId)/native-proof.json" -Kind native-aot -OutputPath "$(Build.SourcesDirectory)/.assurance/aot-public-$(System.JobId)/evidence.job.json" -Workflow azure-pipelines.yml -Configuration "${{ parameters.configuration }}"
+  - task: PublishPipelineArtifact@1
+    displayName: Publish sanitized native proof only
+    condition: succeededOrFailed()
+    inputs:
+      targetPath: '$(Build.SourcesDirectory)/.assurance/aot-public-$(System.JobId)'
+      artifact: 'assurance-native-aot-$(Build.BuildId)-$(System.JobAttempt)-$(System.JobId)'

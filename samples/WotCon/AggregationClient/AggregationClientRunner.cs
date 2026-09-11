@@ -39,6 +39,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Samples;
 using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Client;
 
@@ -50,11 +51,15 @@ namespace AggregationClient
     public static partial class AggregationClientRunner
     {
         /// <summary>
-        /// Builds the client host used by the workflow.
+        /// Builds, but does not start, the workflow client host with automatic certificate acceptance disabled
+        /// and SignAndEncrypt/Basic256Sha256 selected by default, warning for explicitly enabled relaxations.
         /// </summary>
         public static IHost BuildHost(AggregationClientOptions options)
         {
             Validate(options);
+            SampleCommandLine.WriteSecurityWarnings(
+                Console.Error, options.AutoAcceptUntrustedCertificates,
+                options.UseSecurityPolicyNone, "server", "--security-none");
             HostApplicationBuilder builder = Host.CreateApplicationBuilder();
             builder.Logging.ClearProviders();
             builder.Logging.AddConsole();
@@ -72,18 +77,23 @@ namespace AggregationClient
                     {
                         client.PkiRoot = options.PkiRoot;
                     }
-                    client.AutoAcceptUntrustedCertificates = true;
+                    client.AutoAcceptUntrustedCertificates = options.AutoAcceptUntrustedCertificates;
                     client.Session = new ManagedSessionOptions
                     {
                         SessionName = "AggregationClient",
-                        SessionTimeout = TimeSpan.FromSeconds(60)
+                        SessionTimeout = TimeSpan.FromSeconds(60),
+                        IdentityProvider = options.IdentityProvider
                     };
                 })
                 .AddDiscoveryAndConnect(discovery =>
                 {
                     discovery.DiscoveryUrl = options.AggregationEndpoint;
-                    discovery.SecurityMode = MessageSecurityMode.None;
-                    discovery.SecurityPolicyUri = SecurityPolicies.None;
+                    discovery.SecurityMode = options.UseSecurityPolicyNone
+                        ? MessageSecurityMode.None
+                        : MessageSecurityMode.SignAndEncrypt;
+                    discovery.SecurityPolicyUri = options.UseSecurityPolicyNone
+                        ? SecurityPolicies.None
+                        : SecurityPolicies.Basic256Sha256;
                 })
                 .AddWotRegistryClient();
             return builder.Build();
@@ -91,6 +101,7 @@ namespace AggregationClient
 
         /// <summary>
         /// Loads the linked documents, refreshes the registry and exercises the selected pump workflow.
+        /// Browses and reads both pumps, adding source-verified control and alarm round trips only when requested.
         /// </summary>
         public static async Task<AggregationClientResult> RunAsync(
             AggregationClientOptions options,
@@ -152,6 +163,15 @@ namespace AggregationClient
             }
         }
 
+        /// <summary>
+        /// Replaces exact source-endpoint placeholders only in form href values at the document root
+        /// or within its properties, actions, and events, and returns the resulting UTF-8 JSON.
+        /// </summary>
+        /// <param name="content">Registry document JSON that may contain source-endpoint placeholders.</param>
+        /// <param name="options">Source A and Source B endpoint replacements.</param>
+        /// <returns>
+        /// UTF-8 content, preserving the original text when no supported href placeholder is replaced.
+        /// </returns>
         internal static byte[] SubstituteEndpoints(string content, AggregationClientOptions options)
         {
             if (content.IndexOf("${SOURCE_A_ENDPOINT}", StringComparison.Ordinal) < 0 &&
@@ -605,6 +625,10 @@ namespace AggregationClient
 
         private sealed class ManifestEntry
         {
+            /// <summary>
+            /// Stores the document kind, registry identities, file path, and prerequisite resources
+            /// read from one document-manifest entry.
+            /// </summary>
             public ManifestEntry(
                 string documentKind,
                 string groupId,
@@ -619,14 +643,29 @@ namespace AggregationClient
                 DependsOn = dependsOn;
             }
 
+            /// <summary>
+            /// Gets the manifest document-kind name converted to a WoT registry kind before loading.
+            /// </summary>
             public string DocumentKind { get; }
 
+            /// <summary>
+            /// Gets the registry group into which the document is loaded.
+            /// </summary>
             public string GroupId { get; }
 
+            /// <summary>
+            /// Gets the document path combined with the configured document directory when locating the source file.
+            /// </summary>
             public string Path { get; }
 
+            /// <summary>
+            /// Gets the resource identifier used for registry loading and dependency ordering.
+            /// </summary>
             public string ResourceId { get; }
 
+            /// <summary>
+            /// Gets the prerequisite resource identifiers used to order the manifest's document loads.
+            /// </summary>
             public List<string> DependsOn { get; }
         }
     }

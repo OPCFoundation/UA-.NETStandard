@@ -49,35 +49,35 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Opc.Ua.Network.Fuzz.Corpus\Testcases.Tcp\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Link>Testcases\Tcp\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\Opc.Ua.Network.Fuzz.Corpus\Testcases.Chunks\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Link>Testcases\Chunks\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\Opc.Ua.Network.Fuzz.Corpus\Testcases.Keys\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Link>Testcases\Keys\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\Opc.Ua.Network.Fuzz.Corpus\Testcases.Tcp.Hello\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Link>Testcases\Tcp.Hello\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\Opc.Ua.Network.Fuzz.Corpus\Testcases.Tcp.Ack\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Link>Testcases\Tcp.Ack\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\Opc.Ua.Network.Fuzz.Corpus\Testcases.Tcp.Err\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Link>Testcases\Tcp.Err\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\Opc.Ua.Network.Fuzz.Corpus\Testcases.Tcp.Rhe\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Link>Testcases\Tcp.Rhe\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\Opc.Ua.Network.Fuzz.Corpus\Testcases.Tcp.AsymHdr\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Link>Testcases\Tcp.AsymHdr\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Assets\**">

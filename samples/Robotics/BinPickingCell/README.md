@@ -54,8 +54,19 @@ default. The endpoint URL and port are configurable through
 `--host <name>` and `--port <number>`; the anonymous operator role is
 mapped in code so the demo client can connect without user credentials.
 
-`--insecure` is a demo convenience: it accepts any client certificate
-and does not enforce trust. Do not use it in production.
+By default, provision and trust both application certificates before connecting.
+`--insecure` is a development-only alias for `--auto-accept` (also `--autoaccept`
+and `-a`): it accepts **untrusted client certificates**, with a warning on stderr.
+It does not bypass other certificate checks or disable message security.
+SecurityPolicy None is not exposed. Omission or explicit `false` (including
+`--insecure=false`) keeps trust enforcement; JSON/configuration cannot enable the
+sample flag. Do not use auto-accept in production.
+
+`--help` exits without creating a host, touching PKI or extracting the USD stage.
+Unknown or malformed switches fail on stderr. Named options override positional
+`key=value` settings, then forwarded host arguments and normal JSON/environment
+configuration. Forward other host switches after the sample's `--`, for example
+`--auto-accept=false -- --Logging:LogLevel:Default Warning`.
 
 ## Inference-location option
 
@@ -91,12 +102,13 @@ same pipeline out of any known order.
 | `--inferenceLocation OnServer\|EdgeOffServer` | Selects the perception path. `OnServer` is the default. |
 | `--captureOnStartup true\|false` | Whether the capture-proof hosted service captures a still on startup and writes it to disk (see below). Default `true`. |
 | `--artifactDirectory <path>` | Where the capture-proof hosted service writes its still. Defaults to a temp path chosen by the host. |
-| `--insecure` | Demo-only, per the note above. |
+| `--auto-accept`, `--autoaccept`, `-a`, `--insecure` | Default false. Trust-only development opt-in; accepts explicit `false`. |
 
 The parser accepts `OnServer`, `EdgeOffServer`, `OffServer`,
 `on-server`, `off-server` and their case-insensitive variants for
-`--inferenceLocation`. Unknown values silently fall back to `OnServer`
-rather than failing to start.
+`--inferenceLocation`. Unknown values fail with a diagnostic instead of silently
+selecting a different inference path. Ports must be in 1–65535 and
+`--captureOnStartup` requires `true` or `false`.
 
 ## What the cell publishes
 

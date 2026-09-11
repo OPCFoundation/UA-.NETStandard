@@ -47,6 +47,10 @@ x-server-image: &server-image
     context: ../../..
     dockerfile: samples/Redundancy/RedundantServer/Dockerfile
   image: opcua-redundant-server
+  labels:
+    org.opcfoundation.sample.posture: isolated-insecure-demo
+  # OPC UA opt-ins are independent of HA_INSECURE / CLIENT_INSECURE.
+  command: ["--port", "62543", "--auto-accept", "--security-none"]
 
 x-client-image: &client-image
   build:
@@ -86,7 +90,6 @@ x-coordinated-client-env: &coordinated-client-env
   CLIENT_INSECURE: "true"
 
 services:
-  # ----- SERVER: eventual, active/active, scalable (profile: server-eventual) -----
   server:
     <<: *server-image
     profiles: ["server-eventual"]
@@ -114,9 +117,9 @@ services:
       - -c
       - |
         export HA_NODE_ID="$${HA_NODE_ID:-$$(hostname)}"
-        exec dotnet RedundantServer.dll --port 62543
+        exec dotnet RedundantServer.dll "$$@"
+      - redundant-server
 
-  # ----- SERVER: strong, active/passive 3-node Raft (profile: server-strong) -----
   server-a:
     <<: *server-image
     profiles: ["server-strong"]
@@ -127,7 +130,6 @@ services:
       default:
         aliases:
           - server
-    command: ["--port", "62543"]
     environment:
       <<: *strong-server-env
       HA_HOST: server-a
@@ -140,7 +142,6 @@ services:
     <<: *server-image
     profiles: ["server-strong"]
     hostname: server-b
-    command: ["--port", "62543"]
     environment:
       <<: *strong-server-env
       HA_HOST: server-b
@@ -153,7 +154,6 @@ services:
     <<: *server-image
     profiles: ["server-strong"]
     hostname: server-c
-    command: ["--port", "62543"]
     environment:
       <<: *strong-server-env
       HA_HOST: server-c
@@ -162,7 +162,6 @@ services:
       HA_RAFT_PEERS: "tcp://server-a:6560,tcp://server-b:6560"
       HA_REDUNDANT_PEERS: "urn:localhost:OPCFoundation:RedundantServer:replica-a|RedundantServer replica-a|opc.tcp://server-a:62543/RedundantServer,urn:localhost:OPCFoundation:RedundantServer:replica-b|RedundantServer replica-b|opc.tcp://server-b:62543/RedundantServer"
 
-  # ----- CLIENT: independent managed clients, scalable (profile: client-independent) -----
   client:
     <<: *client-image
     profiles: ["client-independent"]
@@ -171,7 +170,6 @@ services:
     environment:
       CLIENT_MODE: independent
 
-  # ----- CLIENT: coordinated 3-node replica set (profile: client-coordinated) -----
   # Exactly one client is active; the others are standby and take over on leader loss,
   # continuing from the shared session state. Fixed odd Raft quorum (3), not --scale-able.
   client-a:

@@ -54,6 +54,7 @@
   <ItemGroup>
     <Compile Include="..\Opc.Ua.Aot.Tests\AotServerFixture.cs" Link="AotServerFixture.cs" />
     <Compile Include="..\Opc.Ua.Aot.Tests\AotTestFixture.cs" Link="AotTestFixture.cs" />
+    <Compile Include="..\Opc.Ua.Aot.Tests\NativeAssuranceHooks.cs" Link="NativeAssuranceHooks.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Opc.Ua.Aot.Tests\Quickstarts.ReferenceServer.Config.xml"

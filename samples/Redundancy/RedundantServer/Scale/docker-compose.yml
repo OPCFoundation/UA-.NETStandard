@@ -12,7 +12,12 @@ services:
       context: ../../../..
       dockerfile: samples/Redundancy/RedundantServer/Dockerfile
     image: opcua-redundant-server
+    labels:
+      org.opcfoundation.sample.posture: isolated-insecure-demo
+    command: ["--port", "62543", "--auto-accept", "--security-none"]
     environment:
+      # Separate from the explicit OPC UA demo arguments above.
+      HA_INSECURE: ${HA_INSECURE:-true}
       HA_MODE: aa
       HA_CONSISTENCY: eventual
       HA_PEER_DISCOVERY: dns
@@ -24,7 +29,8 @@ services:
       - |
         export HA_HOST="$$(hostname)"
         export HA_NODE_ID="$${HA_NODE_ID:-$$(hostname)}"
-        exec dotnet RedundantServer.dll --port 62543
+        exec dotnet RedundantServer.dll "$$@"
+      - redundant-server
 
   # Independent managed clients: each opts into WithServerRedundancy and fails over on its own,
   # so this scales to any count with --scale client=N (no shared client store needed). A

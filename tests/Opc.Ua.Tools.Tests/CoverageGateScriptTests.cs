@@ -807,7 +807,7 @@ namespace Opc.Ua.Tools.Tests
             string repoRoot,
             string? pathRules = null)
         {
-            string scriptPath = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "check-coverage.ps1");
+            string scriptPath = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "coverage", "check.ps1");
             string thresholdsPath = Path.Combine(workingDirectory, "coverage-thresholds.json");
             File.WriteAllText(
                 thresholdsPath,
@@ -873,7 +873,7 @@ namespace Opc.Ua.Tools.Tests
             string? current = TestContext.CurrentContext.TestDirectory;
             while (!string.IsNullOrWhiteSpace(current))
             {
-                if (File.Exists(Path.Combine(current, ".azurepipelines", "check-coverage.ps1")))
+                if (File.Exists(Path.Combine(current, ".azurepipelines", "coverage", "check.ps1")))
                 {
                     return current;
                 }

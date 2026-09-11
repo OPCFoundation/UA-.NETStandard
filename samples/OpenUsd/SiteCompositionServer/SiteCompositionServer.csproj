@@ -20,6 +20,10 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\..\Common\SampleCommandLine.cs" Link="SampleCommandLine.cs" />
   </ItemGroup>
   <!-- The site shell: ground, buildings and the operator camera. The machines
        themselves are composed from the subordinate servers at runtime, so this

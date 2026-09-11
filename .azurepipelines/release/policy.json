@@ -1,0 +1,180 @@
+{
+  "schemaVersion": 1,
+  "id": "opcua-current-release",
+  "version": "1.0.0",
+  "currentMajor": 2,
+  "stage": "required",
+  "requiredChannel": "stable",
+  "publisherBoundaryVerified": false,
+  "evidenceSchemaVersion": 2,
+  "evidenceSchema": ".azurepipelines/release/evidence.schema.json",
+  "artifactCatalog": ".azurepipelines/release/artifacts.json",
+  "assuranceProfiles": ".azurepipelines/assurance/profiles.json",
+  "groups": ["nuget", "containers", "pump"],
+  "deferredReleaseLines": ["1.5"],
+  "verification": {
+    "bundleSchema": ".azurepipelines/release/verification-bundle.schema.json",
+    "recordSchema": ".azurepipelines/release/verification-record.schema.json",
+    "bootstrapSchema": ".azurepipelines/release/trusted-policy-snapshot.schema.json",
+    "predicateType": "https://opcfoundation.org/attestations/release-record/v1",
+    "bootstrapAuthority": "github:OPCFoundation/UA-.NETStandard:.github/workflows/release.yml:release",
+    "bootstrapDigestEnvironment": "OPCUA_RELEASE_TRUST_POLICY_SHA256",
+    "bootstrapPlacement": "outside-all-candidate-inputs-with-independent-protected-digest",
+    "productionRootsConfigured": false,
+    "productionToolPinsConfigured": false,
+    "serializedRecordsAreTrusted": false,
+    "testTrustCliOverride": false,
+    "keyRotation": "new-protected-checkpoint-with-approved-issuer-root-and-definition-pins",
+    "revocation": "current-protected-checkpoint-and-record-revocations-required-at-every-evaluation",
+    "localControls": [
+      "EVIDENCE_SCHEMA", "ARTIFACT_MEMBERSHIP", "ARTIFACT_INTEGRITY", "INVENTORY_COMPLETE", "INPUT_IDENTITY"
+    ],
+    "recordControls": {
+      "release-intent": ["RELEASE_INTENT"],
+      "producer": ["SOURCE_IDENTITY", "PRODUCER_IDENTITY", "PROVENANCE_VERIFIED"],
+      "artifact-signatures": ["SIGNATURE_VERIFIED"],
+      "assurance": ["ASSURANCE_COMPLETE"],
+      "public-review": ["PUBLIC_EVIDENCE_SAFE"],
+      "producer-qualification": ["PRODUCER_NOT_READY"],
+      "publication-boundary": ["PUBLISHER_BOUNDARY"]
+    },
+    "checkpointControls": ["POLICY_IDENTITY", "EVIDENCE_FRESHNESS"],
+    "nugetSymbols": "production-signature-backend-unresolved-never-covered-by-normal-package-verification"
+  },
+  "classification": {
+    "versionSource": "embedded-nuspec-or-verified-image-version",
+    "stable": "major-2-without-prerelease-and-protected-stable-intent",
+    "preview": "major-2-with-prerelease-and-protected-preview-intent",
+    "development": "no-official-release-intent",
+    "invalidIntent": "incomplete-never-downgrade-to-development",
+    "intentBinding": ["repository", "sourceSha", "group", "version", "artifactSetDigest"],
+    "insufficientSignals": ["workflow_dispatch", "PublicRelease", "latest", "release-tag", "configuration"]
+  },
+  "enforcement": {
+    "requiredStable": "block-on-any-unmet-new-control",
+    "previewAndDevelopment": "report-new-controls",
+    "baselineControls": "unchanged",
+    "unknownSchemaOrMalformedEvidence": "incomplete",
+    "allowDispatchOverride": false,
+    "allowHistoricalPolicyDowngrade": false,
+    "allowGroupMemberOmission": false,
+    "crossGroupAtomicity": false,
+    "allowExceptions": false
+  },
+  "controls": [
+    {"code": "EVIDENCE_SCHEMA", "requirement": "Valid v2 companion; v1 alone is incomplete."},
+    {"code": "SOURCE_IDENTITY", "requirement": "Actual clean tracked checkout bound to authenticated build records."},
+    {"code": "PRODUCER_IDENTITY", "requirement": "Verify definition SHA, run, attempt, job and actual tools independently."},
+    {"code": "POLICY_IDENTITY", "requirement": "Use the protected current policy and matching catalog/profile byte digests."},
+    {"code": "RELEASE_INTENT", "requirement": "Official release intent is authorized and matches actual version and subjects."},
+    {"code": "ARTIFACT_MEMBERSHIP", "requirement": "Resolve and verify every declared group member and applicable variant."},
+    {"code": "ARTIFACT_INTEGRITY", "requirement": "Verify archive/OCI bytes, digests, scope and subject relationships."},
+    {"code": "INVENTORY_COMPLETE", "requirement": "Reconcile actual shipped contents and final resolved target graphs."},
+    {"code": "PROVENANCE_VERIFIED", "requirement": "Verify external provenance and its actual build/source/subject binding."},
+    {"code": "SIGNATURE_VERIFIED", "requirement": "Verify applicable author signatures and OCI subjects, not tool exit alone."},
+    {"code": "ASSURANCE_COMPLETE", "requirement": "All profile jobs and applicable targets/inputs have verified real results."},
+    {"code": "INPUT_IDENTITY", "requirement": "Verify frozen catalog, profile, graph, target and corpus identities."},
+    {"code": "EVIDENCE_FRESHNESS", "requirement": "Reject stale, cross-source, cross-subject, revoked or superseded evidence."},
+    {"code": "PUBLIC_EVIDENCE_SAFE", "requirement": "Whitelist and review every public payload and transitive document."},
+    {"code": "PRODUCER_NOT_READY", "requirement": "Producer integration and negative-case/retrieval validation are complete."},
+    {"code": "PUBLISHER_BOUNDARY", "requirement": "Administrator-verified official publication isolation is demonstrated."}
+  ],
+  "identityAndFreshness": {
+    "digest": "sha256-of-exact-file-bytes",
+    "source": "actual-checkout-sha-not-controller-or-event-substitution",
+    "independentAssurance": "same-source-and-inputs-with-authenticated-run-attempt",
+    "definitions": "protected-approved-immutable-revisions",
+    "policy": "current-protected-policy-at-eligibility-evaluation",
+    "artifacts": "exact-subject-digests-and-complete-group",
+    "reruns": "new-attempt-new-immutable-record-no-mixing",
+    "time": "real-producer-times-no-fixed-age-substitute-for-identity",
+    "revocations": "recheck-at-promotion",
+    "approvedProducerRecords": [],
+    "verifiedToolPins": []
+  },
+  "producerReadiness": [
+    {
+      "id": "nuget",
+      "workflow": ".github/workflows/nuget-publish.yml",
+      "status": "incomplete",
+      "pending": ["verified-signed-package-release", "symbol-verification", "trusted-producer-record", "public-retrieval-review"]
+    },
+    {
+      "id": "containers",
+      "workflow": ".github/workflows/docker-image.yml",
+      "status": "incomplete",
+      "pending": ["verified-platform-inventory", "reviewed-signing", "trusted-producer-record", "isolated-registry-transport"]
+    },
+    {
+      "id": "pump",
+      "workflow": ".github/workflows/docker-image.yml",
+      "status": "incomplete",
+      "pending": ["verified-platform-inventory", "reviewed-signing", "trusted-producer-record", "isolated-registry-transport"]
+    },
+    {
+      "id": "actions-tests",
+      "workflow": ".github/workflows/buildandtest.yml",
+      "status": "incomplete",
+      "pending": ["authenticated-live-profile-runs", "trusted-definition-and-tool-pins", "qualification-review"]
+    },
+    {
+      "id": "azure-tests",
+      "workflow": ".azurepipelines/test.yml",
+      "status": "incomplete",
+      "pending": ["external-definition-chain", "authenticated-framework-scope", "real-result-and-input-identities"]
+    },
+    {
+      "id": "codeql",
+      "workflow": ".github/workflows/codeql-analysis.yml",
+      "status": "incomplete",
+      "pending": ["authenticated-live-analysis", "reviewed-finding-population", "trusted-producer-record"]
+    },
+    {
+      "id": "aot",
+      "workflow": ".azurepipelines/test-aot.yml",
+      "status": "incomplete",
+      "pending": ["authenticated-native-execution", "trusted-compiler-and-definition-pins", "qualification-review"]
+    }
+  ],
+  "graduation": {
+    "status": "incomplete",
+    "verificationRecords": [],
+    "requiredChecks": [
+      "reviewed-protected-policy-and-controller",
+      "authenticated-producer-definition-and-tool-pins",
+      "complete-nuget-containers-pump-verifications",
+      "negative-tests-and-real-result-counts",
+      "administrator-inventory-of-all-official-writers",
+      "external-azure-definitions-and-credentials-reviewed",
+      "ordinary-source-and-old-workflow-write-authority-isolated",
+      "current-line-changes-leave-1.5-delivery-unaffected",
+      "verified-public-retrieval-and-owned-controlled-retention",
+      "authorized-non-production-bypass-and-recovery-exercises"
+    ],
+    "recordRequirements": [
+      "scoped-groups-and-destinations",
+      "approved-principal-and-ref-restrictions",
+      "immutable-policy-controller-and-definition-identities",
+      "administrator-reviewer-and-approval-time",
+      "verification-results-and-evidence-digests",
+      "limitations-and-revalidation-triggers"
+    ],
+    "activation": "official-writer-access-requires-current-authenticated-records-not-a-boolean-toggle"
+  },
+  "publicEvidence": {
+    "whitelistVersion": "1",
+    "fieldWhitelist": "release-evidence.schema.json-declared-properties-only",
+    "documentTypes": [
+      "archive-manifest", "artifact-catalog", "policy", "profile",
+      "sbom", "inventory", "provenance", "assurance-summary", "input-manifest",
+      "source-record", "producer-record", "release-intent", "signature-verification"
+    ],
+    "requiresTransitivePayloadReview": true,
+    "allowRawFindings": false,
+    "allowRawTestLogs": false,
+    "allowRestrictedInputNamesPathsOrDigests": false,
+    "allowSecretsOrUnsanitizedBuildArguments": false,
+    "destinations": ["github-release-assets", "ghcr-referrers"],
+    "retention": "foundation-approved-owner-and-access-rules-no-fixed-year-promise"
+  }
+}

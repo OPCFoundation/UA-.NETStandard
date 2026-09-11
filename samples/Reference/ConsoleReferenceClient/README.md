@@ -7,6 +7,23 @@ Some of these parameters are explained in more detail below.
 
 To see all available parameters call console reference client with the parameter `-h`.
 
+## Explicit test-mode consent
+
+`--testall` (alias `--ea`) is an isolated endpoint-interoperability test mode, not
+an ordinary client connection. It tests the server's advertised endpoints,
+including None endpoints with no message security, and accepts unknown server
+trust (`BadCertificateUntrusted` only). **This trust allowance is part of
+`--testall`, even with `--autoaccept=false`.** Other certificate errors remain
+rejected. A warning is written to standard error before application
+configuration, certificate checks, or connections begin.
+
+Omit `--testall` to use the ordinary client path; `--testall=false` does not enable
+the test mode. `--autoaccept` (`-a`) separately controls untrusted application
+certificate acceptance on that ordinary path, while `--nosecurity` (`--nsec`)
+requests None or the least-secure available endpoint. Provision certificate
+trust instead of enabling these development conveniences for normal use.
+Help and parse errors do not start the client or emit the test-mode warning.
+
 ## Supported transport profiles
 
 The client picks the wire transport automatically from the `serverUrl`
@@ -85,10 +102,11 @@ The client will start a reverse connect listener on the specified endpoint (e.g.
 
 2. In a separate terminal, start the server with reverse connect to the client:
    ```bash
-   dotnet ConsoleReferenceServer.dll --rc=opc.tcp://localhost:65300 -a
+   dotnet ConsoleReferenceServer.dll --rc=opc.tcp://localhost:65300
    ```
 
 The server will establish a reverse connection to the client endpoint, and the client will use this connection to communicate with the server.
+Provision trust for both applications first; reverse connect does not require auto-acceptance.
 
 ### How to specify User Identity
 #### Username & Password

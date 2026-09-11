@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -48,12 +48,13 @@ using Opc.Ua.Security.Certificates;
 namespace Quickstarts.ConsoleReferenceClient
 {
     /// <summary>
-    /// The program.
+    /// Runs the console reference client's browsing, reading, subscription, and export demonstrations.
     /// </summary>
     public static class Program
     {
         /// <summary>
-        /// Main entry point.
+        /// Prints library information, parses the requested operations and connection options,
+        /// and invokes the console reference client workflow.
         /// </summary>
         /// <exception cref="ErrorExitException"></exception>
         public static Task<int> Main(string[] args)
@@ -149,7 +150,11 @@ namespace Quickstarts.ConsoleReferenceClient
             };
             var verboseOption = new Option<bool>("--verbose", "-v") { Description = "Verbose output" };
             var subscribeOption = new Option<bool>("--subscribe", "-s") { Description = "Subscribe" };
-            var testallEndpointsOption = new Option<bool>("--testall", "--ea") { Description = "Test All Endpoints" };
+            var testallEndpointsOption = new Option<bool>("--testall", "--ea")
+            {
+                Description = "test all advertised endpoints, including None; accepts unknown server trust "
+                    + "(BadCertificateUntrusted only), even with --autoaccept=false; isolated testing only"
+            };
             var reverseConnectOption = new Option<string>("--reverseconnect", "--rc")
             {
                 Description = "Connect using the reverse connect endpoint. (e.g. --rc opc.tcp://localhost:65300)"
@@ -258,6 +263,14 @@ namespace Quickstarts.ConsoleReferenceClient
                 // serverUrlArgument has DefaultValueFactory so GetValue returns non-null at runtime.
                 var serverUrl = new Uri(parseResult.GetValue(serverUrlArgument)!);
                 bool testallEndpoints = parseResult.GetValue(testallEndpointsOption);
+                if (testallEndpoints)
+                {
+                    Console.Error.WriteLine(
+                        "WARNING: --testall (--ea) tests all advertised endpoints, including None with no message "
+                        + "security, and accepts unknown server trust (BadCertificateUntrusted only), even with "
+                        + "--autoaccept=false. Other certificate errors remain rejected. "
+                        + "Use only for isolated testing.");
+                }
 
                 ReverseConnectManager? reverseConnectManager = null;
                 using var telemetry = new ConsoleTelemetry();

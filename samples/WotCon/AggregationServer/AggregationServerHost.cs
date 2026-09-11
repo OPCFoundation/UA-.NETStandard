@@ -28,8 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
@@ -38,6 +38,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Client.Discovery;
+using Opc.Ua.Samples;
+using Opc.Ua.Server.Hosting;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Bindings.OpcUa;
 using Opc.Ua.WotCon.Server;
@@ -50,9 +53,10 @@ namespace AggregationServer
     public static class AggregationServerHost
     {
         /// <summary>
-        /// Builds a host from explicit options.
+        /// Builds, but does not start, the aggregation server and upstream-client host from explicit options,
+        /// warning for enabled certificate-trust, unsecured-channel, or anonymous-management exceptions.
         /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentNullException">The options argument is null.</exception>
         public static IHost Build(AggregationServerOptions options)
         {
             if (options is null)
@@ -66,7 +70,8 @@ namespace AggregationServer
         }
 
         /// <summary>
-        /// Builds and runs a host from explicit options.
+        /// Runs the aggregation host with the supplied policies until shutdown or cancellation
+        /// and disposes the host afterward.
         /// </summary>
         public static async Task RunAsync(
             AggregationServerOptions options,
@@ -77,26 +82,39 @@ namespace AggregationServer
         }
 
         /// <summary>
-        /// Builds and runs a host from command-line configuration.
+        /// Parses sample switches and forwarded host settings before running the aggregation server.
+        /// Certificate auto-acceptance, unsecured channels, and anonymous management
+        /// are separate default-false opt-ins.
+        /// Stores the command result in Environment.ExitCode.
         /// </summary>
         public static async Task RunAsync(
             string[] args,
             CancellationToken cancellationToken = default)
         {
-            HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-            var options = new AggregationServerOptions
-            {
-                EndpointUrl = builder.Configuration["endpoint"],
-                Host = builder.Configuration["host"] ?? "localhost",
-                Port = ReadPort(builder.Configuration),
-                ApplicationName =
-                    builder.Configuration["applicationName"] ?? "AggregationServer",
-                PkiRoot = builder.Configuration["pkiRoot"],
-                MaximumDocumentBytes = ReadMaximumDocumentBytes(builder.Configuration)
-            };
-            Configure(builder, options);
-            using IHost host = builder.Build();
-            await host.RunAsync(cancellationToken).ConfigureAwait(false);
+            Environment.ExitCode = await WotSampleCommandLine.InvokeAsync(
+                args,
+                "WoT aggregation server. Registry changes require authenticated SecurityAdmin on an encrypted channel.",
+                ["endpoint", "host", "port", "applicationName", "pkiRoot", "maximumDocumentBytes"],
+                management: true,
+                async (builder, autoAccept, securityNone, anonymousManagement, ct) =>
+                {
+                    var options = new AggregationServerOptions
+                    {
+                        EndpointUrl = builder.Configuration["endpoint"],
+                        Host = builder.Configuration["host"] ?? "localhost",
+                        Port = ReadPort(builder.Configuration),
+                        ApplicationName = builder.Configuration["applicationName"] ?? "AggregationServer",
+                        PkiRoot = builder.Configuration["pkiRoot"],
+                        MaximumDocumentBytes = ReadMaximumDocumentBytes(builder.Configuration),
+                        AutoAcceptUntrustedCertificates = autoAccept,
+                        IncludeUnsecurePolicyNone = securityNone,
+                        AllowAnonymousManagement = anonymousManagement
+                    };
+                    Configure(builder, options);
+                    using IHost host = builder.Build();
+                    await host.RunAsync(ct).ConfigureAwait(false);
+                },
+                cancellationToken).ConfigureAwait(false);
         }
 
         private static void Configure(
@@ -104,6 +122,9 @@ namespace AggregationServer
             AggregationServerOptions options)
         {
             Validate(options);
+            SampleCommandLine.WriteSecurityWarnings(
+                Console.Error, options.AutoAcceptUntrustedCertificates,
+                options.IncludeUnsecurePolicyNone, "client and upstream server", "--security-none");
             builder.Logging.ClearProviders();
             builder.Logging.AddConsole();
             builder.Services.AddSingleton(options);
@@ -112,7 +133,7 @@ namespace AggregationServer
                 $"opc.tcp://{options.Host}:{options.Port}/AggregationServer";
             IOpcUaBuilder opcUa = builder.Services.AddOpcUa();
             opcUa.AddOpcTcpTransport();
-            opcUa.AddServer(server =>
+            IOpcUaServerBuilder serverBuilder = opcUa.AddServer(server =>
             {
                 server.ApplicationName = options.ApplicationName;
                 server.ApplicationUri =
@@ -122,39 +143,48 @@ namespace AggregationServer
                 {
                     server.PkiRoot = options.PkiRoot;
                 }
-                server.AutoAcceptUntrustedCertificates = true;
-                server.IncludeUnsecurePolicyNone = true;
+                server.AutoAcceptUntrustedCertificates = options.AutoAcceptUntrustedCertificates;
+                server.IncludeUnsecurePolicyNone = options.IncludeUnsecurePolicyNone;
                 server.EndpointUrls.Add(endpoint);
             });
+            options.ConfigureAuthentication?.Invoke(serverBuilder);
             opcUa.AddWotRegistryServer(registry =>
             {
                 registry.AutoRefresh = false;
                 registry.Bounds.MaxDocumentBytes = options.MaximumDocumentBytes;
-                registry.ManagementAccess = new WotManagementAccessPolicy
+                if (options.AllowAnonymousManagement)
                 {
-                    MinimumSecurityMode = MessageSecurityMode.None,
-                    AllowAnonymous = true,
-                    RequiredRoleId = ObjectIds.WellKnownRole_Anonymous
-                };
+                    registry.ManagementAccess = new WotManagementAccessPolicy
+                    {
+                        MinimumSecurityMode = options.IncludeUnsecurePolicyNone
+                            ? MessageSecurityMode.None
+                            : MessageSecurityMode.SignAndEncrypt,
+                        AllowAnonymous = true,
+                        RequiredRoleId = ObjectIds.WellKnownRole_Anonymous
+                    };
+                    Console.Error.WriteLine(
+                        "WARNING: --allow-anonymous-management permits anonymous registry changes "
+                        + "(isolated demo only).");
+                }
             });
 
             opcUa.AddClient(client =>
             {
-                client.ApplicationName = $"{options.ApplicationName}.Upstream";
+                client.ApplicationName = options.ApplicationName;
                 client.ApplicationUri =
-                    $"urn:localhost:OPCFoundation:{options.ApplicationName}.Upstream";
+                    $"urn:localhost:OPCFoundation:{options.ApplicationName}";
                 client.ProductUri = "uri:opcfoundation.org:AggregationServer";
                 if (!string.IsNullOrWhiteSpace(options.PkiRoot))
                 {
-                    client.PkiRoot = Path.Combine(options.PkiRoot, "upstream");
+                    client.PkiRoot = options.PkiRoot;
                 }
-                client.AutoAcceptUntrustedCertificates = true;
+                client.AutoAcceptUntrustedCertificates = options.AutoAcceptUntrustedCertificates;
                 client.Session = new ManagedSessionOptions
                 {
                     SessionName = $"{options.ApplicationName}.Upstream",
                     SessionTimeout = TimeSpan.FromSeconds(60)
                 };
-            }).AddManagedClientPool();
+            }).AddDiscovery().AddManagedClientPool();
 
             opcUa.AddHttpWotBinding();
             opcUa.AddModbusWotBinding();
@@ -165,30 +195,58 @@ namespace AggregationServer
             // at its secure default.
             opcUa.AddWotEndpointPolicy(new WotEndpointPolicy { AllowLoopback = true });
 
-            builder.Services.AddSingleton<IWotBindingExecutor>(serviceProvider =>
+            builder.Services.AddSingleton<OpcUaWotBindingOptions>(serviceProvider =>
             {
                 IManagedSessionPool pool =
                     serviceProvider.GetRequiredService<IManagedSessionPool>();
-                return new OpcUaWotBindingExecutor(new OpcUaWotBindingOptions
+                IOpcUaDiscoveryService discovery =
+                    serviceProvider.GetRequiredService<IOpcUaDiscoveryService>();
+                async ValueTask<ArrayOf<EndpointDescription>> DiscoverAsync(string url, CancellationToken ct)
+                {
+                    ArrayOf<EndpointDescription> endpoints = await discovery.GetEndpointsAsync(url, ct: ct)
+                        .ConfigureAwait(false);
+                    MessageSecurityMode mode = options.IncludeUnsecurePolicyNone
+                        ? MessageSecurityMode.None
+                        : MessageSecurityMode.SignAndEncrypt;
+                    string policy = options.IncludeUnsecurePolicyNone
+                        ? SecurityPolicies.None
+                        : SecurityPolicies.Basic256Sha256;
+                    var eligible = new List<EndpointDescription>();
+                    foreach (EndpointDescription endpoint in endpoints)
+                    {
+                        if (endpoint.SecurityMode == mode && endpoint.SecurityPolicyUri == policy)
+                        {
+                            eligible.Add(endpoint);
+                        }
+                    }
+                    return eligible.ToArray();
+                }
+
+                async ValueTask<ISession> ConnectAsync(EndpointDescription endpoint, CancellationToken ct)
+                {
+                    string key = $"{endpoint.EndpointUrl}|{endpoint.SecurityMode}|{endpoint.SecurityPolicyUri}";
+                    return await pool.GetOrConnectAsync(
+                        key, new ConfiguredEndpoint(null, endpoint, null), ct).ConfigureAwait(false);
+                }
+
+                return new OpcUaWotBindingOptions
                 {
                     DisposeSession = false,
+                    EndpointDiscovery = DiscoverAsync,
+                    SelectedEndpointSessionFactory = (endpoint, _, ct) => ConnectAsync(endpoint, ct),
                     SessionFactory = async (url, ct) =>
                     {
-                        var endpointDescription = new EndpointDescription
-                        {
-                            EndpointUrl = url,
-                            SecurityMode = MessageSecurityMode.None,
-                            SecurityPolicyUri = SecurityPolicies.None
-                        };
-                        var configuredEndpoint = new ConfiguredEndpoint(
-                            null,
-                            endpointDescription,
-                            null);
-                        return await pool.GetOrConnectAsync(url, configuredEndpoint, ct)
-                            .ConfigureAwait(false);
+                        ArrayOf<EndpointDescription> endpoints = await DiscoverAsync(url, ct).ConfigureAwait(false);
+                        EndpointDescription endpoint = OpcUaWotEndpointSelector.Select(endpoints, null) ??
+                            throw new ServiceResultException(
+                                StatusCodes.BadSecurityPolicyRejected,
+                                "No upstream endpoint matches the sample's configured security policy and mode.");
+                        return await ConnectAsync(endpoint, ct).ConfigureAwait(false);
                     }
-                });
+                };
             });
+            builder.Services.AddSingleton<IWotBindingExecutor>(serviceProvider =>
+                new OpcUaWotBindingExecutor(serviceProvider.GetRequiredService<OpcUaWotBindingOptions>()));
         }
 
         private static int ReadPort(ConfigurationManager configuration)

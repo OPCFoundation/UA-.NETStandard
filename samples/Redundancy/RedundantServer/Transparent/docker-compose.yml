@@ -30,7 +30,11 @@ services:
       dockerfile: samples/Redundancy/RedundantServer/Dockerfile
     image: opcua-redundant-server
     hostname: server-a
+    labels:
+      org.opcfoundation.sample.posture: isolated-insecure-demo
     environment:
+      # HA record/gossip opt-out does not enable OPC UA trust or SecurityPolicy None.
+      HA_INSECURE: ${HA_INSECURE:-true}
       # Advertise the shared virtual endpoint (the load balancer host). The host
       # is a DNS name, so the listener binds to all interfaces in this container
       # while returning opc.tcp://lb:62543/... to clients.
@@ -46,7 +50,7 @@ services:
       HA_PKI_ROOT: /shared/pki
       HA_GOSSIP_PORT: "4840"
       HA_GOSSIP_PEERS: server-b:4840
-    command: ["--port", "62543"]
+    command: ["--port", "62543", "--auto-accept", "--security-none"]
     volumes:
       - shared-pki:/shared/pki
     # server-a seeds the shared certificate; report healthy once the PKI store is
@@ -63,7 +67,10 @@ services:
       dockerfile: samples/Redundancy/RedundantServer/Dockerfile
     image: opcua-redundant-server
     hostname: server-b
+    labels:
+      org.opcfoundation.sample.posture: isolated-insecure-demo
     environment:
+      HA_INSECURE: ${HA_INSECURE:-true}
       HA_HOST: lb
       HA_NODE_ID: replica-b
       HA_MODE: aa
@@ -73,7 +80,7 @@ services:
       HA_PKI_ROOT: /shared/pki
       HA_GOSSIP_PORT: "4840"
       HA_GOSSIP_PEERS: server-a:4840
-    command: ["--port", "62543"]
+    command: ["--port", "62543", "--auto-accept", "--security-none"]
     volumes:
       - shared-pki:/shared/pki
     depends_on:

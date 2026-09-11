@@ -22,6 +22,9 @@
     <ProjectReference Include="..\..\..\src\Opc.Ua.WotCon.Server\Opc.Ua.WotCon.Server.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\..\Common\SampleCommandLine.cs" Link="SampleCommandLine.cs" />
+    <Compile Include="..\FlatTagServer\WotSampleCommandLine.cs" Link="WotSampleCommandLine.cs" />
+    <PackageReference Include="System.CommandLine" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
   </ItemGroup>

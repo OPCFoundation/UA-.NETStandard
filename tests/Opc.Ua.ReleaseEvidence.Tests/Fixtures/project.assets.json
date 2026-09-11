@@ -1,0 +1,32 @@
+{
+  "version": 3,
+  "targets": {
+    "net8.0": {
+      "Contoso.Dependency/1.2.3": {
+        "type": "package",
+        "dependencies": {},
+        "compile": { "lib/net8.0/Contoso.Dependency.dll": {} },
+        "runtime": { "lib/net8.0/Contoso.Dependency.dll": {} }
+      }
+    },
+    "net10.0": {
+      "Contoso.Dependency/2.3.4": {
+        "type": "package",
+        "dependencies": {},
+        "compile": { "lib/net10.0/Contoso.Dependency.dll": {} },
+        "runtime": { "lib/net10.0/Contoso.Dependency.dll": {} }
+      }
+    }
+  },
+  "libraries": {
+    "Contoso.Dependency/1.2.3": {
+      "type": "package", "path": "contoso.dependency/1.2.3",
+      "files": ["lib/net8.0/Contoso.Dependency.dll", "contoso.dependency.nuspec"]
+    },
+    "Contoso.Dependency/2.3.4": {
+      "type": "package", "path": "contoso.dependency/2.3.4",
+      "files": ["lib/net10.0/Contoso.Dependency.dll", "contoso.dependency.nuspec"]
+    }
+  },
+  "packageFolders": {}
+}

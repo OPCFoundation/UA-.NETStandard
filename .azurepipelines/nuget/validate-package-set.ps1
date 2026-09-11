@@ -1,3 +1,32 @@
+# ========================================================================
+# Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+#
+# OPC Foundation MIT License 1.00
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation
+# files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following
+# conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+#
+# The complete license agreement can be found here:
+# http://opcfoundation.org/License/MIT/1.00/
+# ========================================================================
+
 <#
 .SYNOPSIS
     Validates a directory of signed NuGet packages and writes a deterministic manifest.
@@ -17,6 +46,9 @@ param(
     [string]$ManifestPath,
 
     [string]$ExpectedVersion,
+
+    # Optional companion only; the existing v1 archives remain byte-for-byte compatible.
+    [string]$MetadataPath,
 
     [switch]$RequireDebug,
 
@@ -61,6 +93,18 @@ function Get-PackageIdentity {
         return [pscustomobject]@{
             Id = [string]$metadata.id
             Version = [string]$metadata.version
+            Scopes = [ordered]@{
+                tfms = @($archive.Entries.FullName | ForEach-Object {
+                    if ($_ -match '^(?:lib|ref)/([^/]+)/') { $Matches[1] }
+                } | Sort-Object -Unique)
+                rids = @($archive.Entries.FullName | ForEach-Object {
+                    if ($_ -match '^runtimes/([^/]+)/') { $Matches[1] }
+                } | Sort-Object -Unique)
+                roslyn = @($archive.Entries.FullName | ForEach-Object {
+                    if ($_ -match '/(roslyn[0-9.]+)/') { $Matches[1] }
+                } | Sort-Object -Unique)
+                platforms = @()
+            }
         }
     }
     finally {
@@ -80,6 +124,7 @@ if ($packages.Count -eq 0) {
 }
 
 $archives = @()
+$metadataRecords = @()
 foreach ($package in $packages) {
     $identity = Get-PackageIdentity -Package $package
     $type = if ($package.Name.EndsWith(
@@ -104,6 +149,17 @@ foreach ($package in $packages) {
         type = $type
         file = $package.Name
         sha256 = (Get-FileHash -LiteralPath $package.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+    }
+    $metadataRecords += [ordered]@{
+        kind = if ($type -eq 'symbols') { 'nuget-symbols' } else { 'nuget-package' }
+        id = $identity.Id
+        version = $identity.Version
+        configuration = if ($identity.Id.EndsWith('.Debug', [StringComparison]::OrdinalIgnoreCase)) {
+            'Debug'
+        } else { 'Release' }
+        digest = 'sha256:' + $archives[-1].sha256
+        scopes = $identity.Scopes
+        size = $package.Length
     }
 }
 
@@ -167,6 +223,19 @@ $manifest = [ordered]@{
 }
 $manifest | ConvertTo-Json -Depth 5 |
     Set-Content -LiteralPath $ManifestPath -Encoding utf8NoBOM
+
+if ($MetadataPath) {
+    $metadataDirectory = Split-Path -Parent $MetadataPath
+    if ($metadataDirectory) {
+        New-Item -ItemType Directory -Force -Path $metadataDirectory | Out-Null
+    }
+    [ordered]@{
+        schemaVersion = 1
+        scopeSource = 'archive-layout-only'
+        signatureVerification = if ($VerifySignatures) { 'nupkg-only' } else { 'not-performed' }
+        artifacts = $metadataRecords
+    } | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $MetadataPath -Encoding utf8NoBOM
+}
 
 Write-Host (
     "Validated $($manifest.packageCount) package(s), " +

@@ -30,14 +30,21 @@
 using System;
 using System.Globalization;
 using System.Threading;
-using Microsoft.Extensions.Hosting;
+using AggregationClient;
+using Opc.Ua.Samples;
 using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Client;
-using AggregationClient;
 
-try
+return await WotSampleCommandLine.InvokeAsync(
+    args,
+    "WoT document loader. Trusted certificates and encrypted channels by default.",
+    [
+        "timeoutSeconds", "exerciseControls", "aggregationEndpoint", "sourceAEndpoint", "sourceBEndpoint",
+        "applicationName", "pkiRoot", "documentsDirectory"
+    ],
+    management: false,
+    async (builder, autoAccept, securityNone, _, cancellationToken) =>
 {
-    HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
     string? timeoutText = builder.Configuration["timeoutSeconds"];
     int timeoutSeconds = 480;
     if (timeoutText is not null &&
@@ -63,12 +70,15 @@ try
         ApplicationName = builder.Configuration["applicationName"] ??
             "AggregationClient",
         PkiRoot = builder.Configuration["pkiRoot"],
+        AutoAcceptUntrustedCertificates = autoAccept,
+        UseSecurityPolicyNone = securityNone,
         ExerciseControls = exerciseControls,
         DocumentsDirectory = builder.Configuration["documentsDirectory"] ??
             System.IO.Path.Combine(AppContext.BaseDirectory, "Documents")
     };
 
-    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+    timeout.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
     AggregationClientResult result = await AggregationClientRunner
         .RunAsync(options, timeout.Token)
         .ConfigureAwait(false);
@@ -123,10 +133,4 @@ try
     {
         Console.WriteLine($"WOT_AGGREGATION_CONTROLS_OK sourcePumpPairs={result.Controls.Count}");
     }
-}
-catch (Exception ex)
-{
-    Console.Error.WriteLine(ex);
-    Console.Error.WriteLine(ex.StackTrace);
-    Environment.ExitCode = 1;
-}
+}).ConfigureAwait(false);

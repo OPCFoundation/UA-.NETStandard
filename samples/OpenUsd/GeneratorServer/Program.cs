@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.CommandLine;
 using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
@@ -38,14 +39,64 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Generators;
+using Opc.Ua.Samples;
 using Opc.Ua.Server.Fluent;
 
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+Option<bool> autoAcceptOption = SampleCommandLine.CreateAutoAcceptOption("--autoaccept", "-a");
+Option<string> portOption = SampleCommandLine.CreateInt32ConfigurationOption(
+    "--port", "Endpoint port (default 62543).", 1, 65535);
+Option<string> generatorsOption = SampleCommandLine.CreateInt32ConfigurationOption(
+    "--generators", "Number of generator sets (default 2).", 1, 100);
+var hostOption = new Option<string>("--host") { Description = "Endpoint host (default 0.0.0.0)." };
+var faultsOption = new Option<string>("--faults") { Description = "Inject faults: true or false (default true)." };
+faultsOption.Validators.Add(result =>
+{
+    if (!bool.TryParse(result.GetValueOrDefault<string>(), out _))
+    {
+        result.AddError("--faults expects true or false.");
+    }
+});
+Argument<string[]> configurationArgument = SampleCommandLine.CreateConfigurationArgument();
+(string[] sampleArguments, string[] forwardedArguments) = SampleCommandLine.SplitHostArguments(args);
+var command = new RootCommand("OPC UA Generator Server: trusted certificates and secure endpoints.")
+{
+    autoAcceptOption,
+    portOption,
+    hostOption,
+    generatorsOption,
+    faultsOption,
+    configurationArgument
+};
+command.Validators.Add(result =>
+{
+    if (SampleCommandLine.GetHostArgumentError(forwardedArguments) is string error)
+    {
+        result.AddError(error);
+    }
+});
+ParseResult? parsed = null;
+command.SetAction(result => parsed = result);
+int exitCode = await SampleCommandLine.InvokeAsync(
+    command, sampleArguments, Console.Out, Console.Error).ConfigureAwait(false);
+if (parsed is null)
+{
+    return exitCode;
+}
+bool autoAccept = parsed.GetValue(autoAcceptOption);
+SampleCommandLine.WriteSecurityWarnings(Console.Error, autoAccept, false, "client", string.Empty);
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(SampleCommandLine.GetHostArguments(
+    parsed, forwardedArguments, configurationArgument, portOption, hostOption, generatorsOption, faultsOption));
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62543;
+int port = 62543;
+if (builder.Configuration["port"] is string configuredPort &&
+    (!int.TryParse(configuredPort, out port) || port is < 1 or > 65535))
+{
+    Console.Error.WriteLine("The configured port must be an integer between 1 and 65535. Use --help.");
+    return 1;
+}
 
 if (!TryReadGeneratorCount(builder.Configuration["generators"], out int generatorCount, out string? error))
 {
@@ -61,7 +112,13 @@ string host = builder.Configuration["host"] is { Length: > 0 } h ? h : "0.0.0.0"
 // A set running to its datasheet cannot protect-trip, so by default the last set
 // develops faults on a slow rotation to exercise the alarm path. Pass
 // --faults false for a purely healthy plant.
-bool injectFaults = !bool.TryParse(builder.Configuration["faults"], out bool f) || f;
+bool injectFaults = true;
+if (builder.Configuration["faults"] is string configuredFaults &&
+    !bool.TryParse(configuredFaults, out injectFaults))
+{
+    Console.Error.WriteLine("The configured faults setting must be true or false. Use --help.");
+    return 1;
+}
 
 builder.Services.Configure<GeneratorDeviceIntegrationOptions>(options =>
 {
@@ -77,7 +134,8 @@ builder.Services
         o.ApplicationUri = "urn:localhost:OPCFoundation:GeneratorServer";
         o.ProductUri = "uri:opcfoundation.org:GeneratorServer";
         // Sample convenience only; never auto-accept untrusted certificates in production.
-        o.AutoAcceptUntrustedCertificates = true;
+        o.AutoAcceptUntrustedCertificates = autoAccept;
+        o.IncludeUnsecurePolicyNone = false;
         o.PkiRoot = Path.Combine(AppContext.BaseDirectory, "pki");
         o.RejectSHA1Certificates = true;
         o.MinCertificateKeySize = 2048;
@@ -126,7 +184,8 @@ static bool TryReadGeneratorCount(string? value, out int generatorCount, out str
     if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) ||
         parsed < minCount || parsed > maxCount)
     {
-        error = FormattableString.Invariant($"Invalid --generators value '{value}'. Specify an integer between {minCount} and {maxCount}.");
+        error = FormattableString.Invariant(
+            $"Invalid --generators value '{value}'. Specify an integer between {minCount} and {maxCount}.");
         return false;
     }
 

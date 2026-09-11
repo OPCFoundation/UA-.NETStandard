@@ -1,8 +1,44 @@
 ## Contributing
 
-We strongly encourage community participation and contribution to this project. First, please fork the repository and commit your changes there. Once happy with your changes you can generate a 'pull request'.
+We strongly encourage community participation and contribution to this project.
+For ordinary changes, fork the repository, commit your changes there and open a
+pull request. For security-sensitive contributions, follow the confidential
+process below before making a report or change public.
 
 You must agree to the contributor license agreement before we can accept your changes. The CLA and "I AGREE" button is automatically displayed when you perform the pull request. You can preview CLA [here](https://opcfoundation.org/license/cla/ContributorLicenseAgreementv1.0.pdf).
+
+### Security-sensitive contributions
+
+For an undisclosed vulnerability or security concern, follow
+[SECURITY.md](SECURITY.md#reporting-a-vulnerability) before opening a public issue
+or pull request. The Foundation Security WG coordinates assessment, disclosure and
+public fixes. Do not upload sensitive reproduction inputs, exploit details, case
+records or logs to public discussions or CI artifacts. This applies to obsolete
+APIs and older versions too; no GCVE, CVE or GHSA identifier is needed for intake.
+Triage is separate from remediation/backport decisions under the
+[maintenance matrix](SECURITY.md#supported-versions).
+
+The [Security Stewardship annex](docs/SecurityStewardship.md) describes secure-development
+and vulnerability-handling records, community information-sharing and developers'
+voluntary Article 15 reporting. These build on the existing confidential process,
+not a new public disclosure channel.
+
+### Validation and release evidence
+
+Describe the validation actually performed and any applicable checks not run;
+only check PR checklist items that you have verified. Documentation-only changes
+need local link and whitespace checks, not a build. Existing required CI checks
+still apply.
+
+Changes affecting release assurance follow the [Release Evidence contract](docs/ReleaseEvidence.md).
+The contract is **active** for current `master`/2.0, with controls required for
+in-scope stable releases. Missing/failed evidence or required production setup
+blocks stable publication; the policy setting does not prove publisher isolation.
+Preview/development release channels retain advisory applicability for these
+controls, not a different contract maturity mode. Do not weaken existing mandatory
+signing, build, test or security checks. The
+[administrator setup checklist](plans/ReleaseEvidenceAdministration.md) separates
+initial integration and platform qualification from the configured operating guide.
 
 ### Continuous integration on your pull request
 

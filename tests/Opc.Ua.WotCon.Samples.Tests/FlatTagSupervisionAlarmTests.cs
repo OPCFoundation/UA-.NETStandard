@@ -77,6 +77,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             m_source = await SourceConnection.StartAsync(timeout.Token).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Stops the shared flat-tag source and releases its client connection after the fixture completes.
+        /// </summary>
         [OneTimeTearDown]
         public async Task OneTimeTearDownAsync()
         {
@@ -215,6 +218,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             await CompleteOperatorAttentionAsync(source.Session, alarm, timeout.Token).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that an event identifier from another pump cannot acknowledge the first pump's alarm.
+        /// </summary>
         [Test]
         public async Task AnEventIdFromAnotherPumpCannotAcknowledgeAnAlarmAsync()
         {
@@ -243,6 +249,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies each pump's manufacturer, serial number, and product-instance URI retain their expected OPC UA
+        /// types.
+        /// </summary>
         [TestCase("Pump1", "SN-001")]
         [TestCase("Pump2", "SN-002")]
         public async Task BothPumpsExposeTypedIdentityPropertiesAsync(string pumpName, string serialNumber)
@@ -459,8 +469,14 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 Session = session;
             }
 
+            /// <summary>
+            /// Gets the managed session connected directly to the flat-tag source under test.
+            /// </summary>
             public ManagedSession Session { get; }
 
+            /// <summary>
+            /// Starts an isolated source server and connects after its transport and server state are ready.
+            /// </summary>
             public static async Task<SourceConnection> StartAsync(
                 CancellationToken cancellationToken)
             {
@@ -477,6 +493,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                     EndpointUrl = endpointUrl,
                     SourceNamespaceUri = FlatTagServerOptions.SourceANamespaceUri,
                     ApplicationName = "FlatTagAlarmSource" + id,
+                    IncludeUnsecurePolicyNone = true,
                     InstanceName = "SourceA",
                     PkiRoot = Path.Combine(root, "Server", "pki"),
                     Values = new FlatTagValues { Cavitation = false }
@@ -517,6 +534,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 }
             }
 
+            /// <summary>
+            /// Stops the client and source hosts and attempts to remove their temporary test state.
+            /// </summary>
             public async ValueTask DisposeAsync()
             {
                 await StopAsync(m_clientHost).ConfigureAwait(false);

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.CommandLine;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -40,161 +41,214 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Identity;
+using Opc.Ua.Samples;
 
-try
+Option<bool> autoAcceptOption = SampleCommandLine.CreateAutoAcceptOption();
+Argument<string[]> configurationArgument = SampleCommandLine.CreateConfigurationArgument();
+(string[] sampleArguments, string[] forwardedArguments) = SampleCommandLine.SplitHostArguments(args);
+Option<string>[] hostOptions =
+[
+    new("--endpoint") { Description = "Registrar discovery URL (SignAndEncrypt/Basic256Sha256)." },
+    new("--pkiRoot") { Description = "Persistent application PKI root." },
+    new("--anonymous") { Description = "Use an anonymous identity to demonstrate denied ticket administration." }
+];
+hostOptions[2].Validators.Add(result =>
 {
-    HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
-    builder.Logging.ClearProviders();
-    builder.Logging.AddConsole();
-    builder.Logging.SetMinimumLevel(LogLevel.Error);
-
-    string endpoint = builder.Configuration["endpoint"] ??
-        "opc.tcp://localhost:62560/OnboardingRegistrar";
-    string pkiRoot = builder.Configuration["pkiRoot"] ??
-        Path.Combine(
-            Path.GetTempPath(),
-            "opcua-onboarding-demo",
-            "client-pki");
-    bool useAnonymous = bool.TryParse(
-        builder.Configuration["anonymous"],
-        out bool anonymous) && anonymous;
-    IClientIdentityProvider? identityProvider = null;
-    if (!useAnonymous)
+    if (!bool.TryParse(result.GetValueOrDefault<string>(), out _))
     {
-        string userName = GetRequiredEnvironmentVariable("ONBOARDING_DEMO_USER");
-        string password = GetRequiredEnvironmentVariable("ONBOARDING_DEMO_PASSWORD");
-        var passwordStore = new InMemorySecretStore();
-        var passwordId = new SecretIdentifier(
-            "onboarding-demo-password",
-            passwordStore.StoreType);
-        byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
+        result.AddError("--anonymous must be true or false.");
+    }
+});
+var command = new RootCommand(
+    "Onboarding ticket administration. Pre-provision peer trust; --auto-accept is controlled bootstrap consent only.")
+{
+    autoAcceptOption, configurationArgument
+};
+foreach (Option<string> option in hostOptions)
+{
+    command.Add(option);
+}
+command.Validators.Add(result =>
+{
+    string? error = SampleCommandLine.GetHostArgumentError(forwardedArguments);
+    if (error is not null)
+    {
+        result.AddError(error);
+    }
+});
+command.SetAction(async (result, cancellationToken) =>
+{
+
+    try
+    {
+        HostApplicationBuilder builder = Host.CreateApplicationBuilder(
+            SampleCommandLine.GetHostArguments(result, forwardedArguments, configurationArgument, hostOptions));
+        bool autoAccept = result.GetValue(autoAcceptOption);
+        SampleCommandLine.WriteSecurityWarnings(Console.Error, autoAccept, false, "registrar", string.Empty);
+        if (autoAccept)
+        {
+            Console.Error.WriteLine(
+                "WARNING: controlled bootstrap only: independently verify the registrar endpoint, certificate " +
+                "fingerprint and application URI before sending administrator credentials or tickets.");
+        }
+        builder.Logging.ClearProviders();
+        builder.Logging.AddConsole();
+        builder.Logging.SetMinimumLevel(LogLevel.Error);
+
+        string endpoint = builder.Configuration["endpoint"] ??
+            "opc.tcp://localhost:62560/OnboardingRegistrar";
+        string pkiRoot = builder.Configuration["pkiRoot"] ??
+            Path.Combine(
+                Path.GetTempPath(),
+                "opcua-onboarding-demo",
+                "client-pki");
+        string? anonymousText = builder.Configuration["anonymous"];
+        bool useAnonymous = false;
+        if (anonymousText is not null && !bool.TryParse(anonymousText, out useAnonymous))
+        {
+            throw new ArgumentException("anonymous must be true or false.");
+        }
+        IClientIdentityProvider? identityProvider = null;
+        if (!useAnonymous)
+        {
+            string userName = GetRequiredEnvironmentVariable("ONBOARDING_DEMO_USER");
+            string password = GetRequiredEnvironmentVariable("ONBOARDING_DEMO_PASSWORD");
+            var passwordStore = new InMemorySecretStore();
+            var passwordId = new SecretIdentifier(
+                "onboarding-demo-password",
+                passwordStore.StoreType);
+            byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
+            try
+            {
+                await passwordStore.SetAsync(
+                        passwordId,
+                        passwordBytes,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(passwordBytes);
+            }
+            identityProvider = new UserNamePasswordIdentityProvider(
+                userName,
+                new SecretRegistry(passwordStore),
+                passwordId);
+        }
+
+        IOpcUaClientBuilder clientBuilder = builder.Services
+            .AddOpcUa()
+            .AddClient(options =>
+            {
+                options.ApplicationName = "OnboardingClient";
+                options.ApplicationUri =
+                    "urn:localhost:OPCFoundation:OnboardingClient";
+                options.ProductUri =
+                    "uri:opcfoundation.org:UA-.NETStandard:OnboardingClient";
+                options.PkiRoot = pkiRoot;
+                options.AutoAcceptUntrustedCertificates = autoAccept;
+                options.RejectSHA1SignedCertificates = true;
+                options.MinimumCertificateKeySize = 2048;
+                options.Session = new ManagedSessionOptions
+                {
+                    SessionName = "OnboardingClient",
+                    SessionTimeout = TimeSpan.FromSeconds(60)
+                };
+            })
+            .AddDiscoveryAndConnect(options =>
+            {
+                options.DiscoveryUrl = endpoint;
+                options.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+                options.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+            });
+        if (identityProvider != null)
+        {
+            clientBuilder.AddIdentityProvider(identity => identity.Add(identityProvider));
+        }
+        clientBuilder
+            .AddGdsClient()
+            .AddOnboardingClient();
+
+        using IHost host = builder.Build();
+        await host.StartAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await passwordStore.SetAsync(
-                    passwordId,
-                    passwordBytes,
-                    CancellationToken.None)
+            Func<CancellationToken, Task<ManagedSession>> connect =
+                host.Services.GetRequiredService<
+                    Func<CancellationToken, Task<ManagedSession>>>();
+            ManagedSession session = await connect(cancellationToken)
                 .ConfigureAwait(false);
+            await using (session.ConfigureAwait(false))
+            {
+                Console.WriteLine("Server namespaces:");
+                for (int i = 0; i < session.NamespaceUris.Count; i++)
+                {
+                    Console.WriteLine($"  ns={i}: {session.NamespaceUris.GetString((uint)i)}");
+                }
+                NodeId registrarId = ExpandedNodeId.ToNodeId(
+                    Opc.Ua.Onboarding.ObjectIds.DeviceRegistrar_Administration,
+                    session.NamespaceUris);
+                if (registrarId.IsNull)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdUnknown,
+                        "The server did not publish the OPC 10000-21 namespace.");
+                }
+
+                Func<NodeId, CancellationToken, ValueTask<OnboardingClient>>
+                    createOnboardingClient = host.Services.GetRequiredService<
+                        Func<NodeId, CancellationToken, ValueTask<OnboardingClient>>>();
+                OnboardingClient onboarding = await createOnboardingClient(
+                        registrarId,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                ArrayOf<ByteString> tickets =
+                [
+                    new ByteString(Encoding.UTF8.GetBytes("demo-ticket-one")),
+                new ByteString(Encoding.UTF8.GetBytes("demo-ticket-two"))
+                ];
+
+                ArrayOf<StatusCode> registered = await onboarding
+                    .RegisterTicketsAsync(tickets, cancellationToken)
+                    .ConfigureAwait(false);
+                RequireStatus(registered, 0, StatusCodes.Good, "register ticket one");
+                RequireStatus(registered, 1, StatusCodes.Good, "register ticket two");
+                Console.WriteLine(
+                    $"REGISTER {registered[0]} {registered[1]}");
+
+                ArrayOf<StatusCode> removed = await onboarding
+                    .UnregisterTicketsAsync([tickets[0]], cancellationToken)
+                    .ConfigureAwait(false);
+                RequireStatus(removed, 0, StatusCodes.Good, "unregister ticket one");
+                Console.WriteLine($"UNREGISTER {removed[0]}");
+
+                ArrayOf<StatusCode> removedAgain = await onboarding
+                    .UnregisterTicketsAsync([tickets[0]], cancellationToken)
+                    .ConfigureAwait(false);
+                RequireStatus(
+                    removedAgain,
+                    0,
+                    StatusCodes.BadNotFound,
+                    "unregister ticket one again");
+                Console.WriteLine($"UNREGISTER_AGAIN {removedAgain[0]}");
+                Console.WriteLine("ONBOARDING_DEMO_OK");
+            }
         }
         finally
         {
-            CryptographicOperations.ZeroMemory(passwordBytes);
+            await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
         }
-        identityProvider = new UserNamePasswordIdentityProvider(
-            userName,
-            new SecretRegistry(passwordStore),
-            passwordId);
+        return 0;
     }
-
-    IOpcUaClientBuilder clientBuilder = builder.Services
-        .AddOpcUa()
-        .AddClient(options =>
-        {
-            options.ApplicationName = "OnboardingClient";
-            options.ApplicationUri =
-                "urn:localhost:OPCFoundation:OnboardingClient";
-            options.ProductUri =
-                "uri:opcfoundation.org:UA-.NETStandard:OnboardingClient";
-            options.PkiRoot = pkiRoot;
-            options.AutoAcceptUntrustedCertificates = true;
-            options.RejectSHA1SignedCertificates = true;
-            options.MinimumCertificateKeySize = 2048;
-            options.Session = new ManagedSessionOptions
-            {
-                SessionName = "OnboardingClient",
-                SessionTimeout = TimeSpan.FromSeconds(60)
-            };
-        })
-        .AddDiscoveryAndConnect(options =>
-        {
-            options.DiscoveryUrl = endpoint;
-            options.SecurityMode = MessageSecurityMode.SignAndEncrypt;
-            options.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
-        });
-    if (identityProvider != null)
+    catch (Exception ex)
     {
-        clientBuilder.AddIdentityProvider(identity => identity.Add(identityProvider));
+        Console.Error.WriteLine(ex);
+        return 1;
     }
-    clientBuilder
-        .AddGdsClient()
-        .AddOnboardingClient();
+});
 
-    using IHost host = builder.Build();
-    await host.StartAsync(CancellationToken.None).ConfigureAwait(false);
-    try
-    {
-        Func<CancellationToken, Task<ManagedSession>> connect =
-            host.Services.GetRequiredService<
-                Func<CancellationToken, Task<ManagedSession>>>();
-        ManagedSession session = await connect(CancellationToken.None)
-            .ConfigureAwait(false);
-        await using (session.ConfigureAwait(false))
-        {
-            Console.WriteLine("Server namespaces:");
-            for (int i = 0; i < session.NamespaceUris.Count; i++)
-            {
-                Console.WriteLine($"  ns={i}: {session.NamespaceUris.GetString((uint)i)}");
-            }
-            NodeId registrarId = ExpandedNodeId.ToNodeId(
-                Opc.Ua.Onboarding.ObjectIds.DeviceRegistrar_Administration,
-                session.NamespaceUris);
-            if (registrarId.IsNull)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadNodeIdUnknown,
-                    "The server did not publish the OPC 10000-21 namespace.");
-            }
-
-            Func<NodeId, CancellationToken, ValueTask<OnboardingClient>>
-                createOnboardingClient = host.Services.GetRequiredService<
-                    Func<NodeId, CancellationToken, ValueTask<OnboardingClient>>>();
-            OnboardingClient onboarding = await createOnboardingClient(
-                    registrarId,
-                    CancellationToken.None)
-                .ConfigureAwait(false);
-            ArrayOf<ByteString> tickets =
-            [
-                new ByteString(Encoding.UTF8.GetBytes("demo-ticket-one")),
-                new ByteString(Encoding.UTF8.GetBytes("demo-ticket-two"))
-            ];
-
-            ArrayOf<StatusCode> registered = await onboarding
-                .RegisterTicketsAsync(tickets)
-                .ConfigureAwait(false);
-            RequireStatus(registered, 0, StatusCodes.Good, "register ticket one");
-            RequireStatus(registered, 1, StatusCodes.Good, "register ticket two");
-            Console.WriteLine(
-                $"REGISTER {registered[0]} {registered[1]}");
-
-            ArrayOf<StatusCode> removed = await onboarding
-                .UnregisterTicketsAsync([tickets[0]])
-                .ConfigureAwait(false);
-            RequireStatus(removed, 0, StatusCodes.Good, "unregister ticket one");
-            Console.WriteLine($"UNREGISTER {removed[0]}");
-
-            ArrayOf<StatusCode> removedAgain = await onboarding
-                .UnregisterTicketsAsync([tickets[0]])
-                .ConfigureAwait(false);
-            RequireStatus(
-                removedAgain,
-                0,
-                StatusCodes.BadNotFound,
-                "unregister ticket one again");
-            Console.WriteLine($"UNREGISTER_AGAIN {removedAgain[0]}");
-            Console.WriteLine("ONBOARDING_DEMO_OK");
-        }
-    }
-    finally
-    {
-        await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
-    }
-    return 0;
-}
-catch (Exception ex)
-{
-    Console.Error.WriteLine(ex);
-    return 1;
-}
+return await SampleCommandLine.InvokeAsync(
+    command, sampleArguments, Console.Out, Console.Error).ConfigureAwait(false);
 
 static string GetRequiredEnvironmentVariable(string name)
 {

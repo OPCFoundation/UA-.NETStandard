@@ -1,6 +1,8 @@
 **/.classpath
 **/.dockerignore
 **/.env
+**/.env.*
+**/*.env
 **/.git
 **/.gitignore
 **/.project
@@ -19,6 +21,20 @@
 **/node_modules
 **/npm-debug.log
 **/obj
+**/TestResults
+**/pki
+**/*.pfx
+**/*.p12
+**/*.pem
+**/*.key
+**/.assurance-validation
+**/.testagent
+**/.copilot
+**/container-evidence
+# set-version.ps1 installs NBGV here; keep tools/Opc.Ua.* and shared build targets.
+tools/.store
+tools/nbgv
+tools/nbgv.exe
 **/secrets.dev.yaml
 **/values.dev.yaml
 README.md

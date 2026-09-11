@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.ReleaseEvidence.Tests" />
+    <!-- Reuse the installed SDK's NuGet parser; this build-only tool is never shipped in stack packages. -->
+    <Reference Include="NuGet.Versioning" HintPath="$(MSBuildBinPath)\NuGet.Versioning.dll" Private="true" />
+    <PackageReference Include="CycloneDX.Core" PrivateAssets="all" />
+    <PackageReference Include="System.CommandLine" PrivateAssets="all" />
+    <PackageReference Include="JsonSchema.Net" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Schemas\spdx-2.3.schema.json"
+                      LogicalName="Opc.Ua.ReleaseEvidence.Schemas.spdx-2.3.schema.json" />
+    <None Update="Schemas\spdx-2.3.schema.json;Schemas\spdx-2.3.LICENSE.txt;Schemas\spdx-2.3.provenance.json"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

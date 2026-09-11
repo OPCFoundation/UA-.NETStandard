@@ -1,0 +1,128 @@
+# ========================================================================
+# Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+#
+# OPC Foundation MIT License 1.00
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation
+# files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following
+# conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+#
+# The complete license agreement can be found here:
+# http://opcfoundation.org/License/MIT/1.00/
+# ========================================================================
+
+param([Parameter(Mandatory)][string] $Scenario)
+$ErrorActionPreference = 'Stop'
+$root = Split-Path (Split-Path (Split-Path $PSScriptRoot))
+$fixture = Join-Path (Split-Path $PSScriptRoot) "obj/assurance-$([guid]::NewGuid().ToString('N'))"
+$null = New-Item -ItemType Directory -Path $fixture
+try {
+    $kind = 'trx'
+    $expected = 'failed'
+    $total = 1
+    $executed = 1
+    $passed = 1
+    $skipped = 0
+    $outcome = 'Completed'
+    $caseOutcome = 'Passed'
+    $omittedSkipCounter = $false
+    $strictSkipped = $false
+    switch ($Scenario) {
+        'missing-trx' { $expected = 'missing' }
+        'zero-trx' { $total = 0; $executed = 0; $passed = 0 }
+        'ignored-trx' { $executed = 0; $passed = 0; $skipped = 1; $caseOutcome = 'NotExecuted' }
+        'aborted-trx' { $outcome = 'Aborted' }
+        'valid-trx' { $expected = 'completed' }
+        'vstest-omitted-skip-counter' { $total = 2; $omittedSkipCounter = $true; $expected = 'completed' }
+        'vstest-omitted-skip-counter-strict' { $total = 2; $omittedSkipCounter = $true; $strictSkipped = $true }
+        'vstest-contradictory-skip-counter' { $total = 2; $omittedSkipCounter = $true; $skipped = 2 }
+        'inconsistent-trx' { $total = 2 }
+        'missing-mtp' { $kind = 'mtp-trx'; $expected = 'missing' }
+        'valid-mtp' { $kind = 'mtp-trx'; $expected = 'completed' }
+        'missing-sarif' { $kind = 'sarif'; $expected = 'missing' }
+        'valid-sarif' { $kind = 'sarif'; $expected = 'completed' }
+        'failed-sarif' { $kind = 'sarif' }
+        'producer-record' { $expected = 'completed' }
+        default { throw 'Unknown test scenario.' }
+    }
+    if ($kind -eq 'sarif' -and $expected -ne 'missing') {
+        $success = $Scenario -ne 'failed-sarif'
+        @{version='2.1.0'; runs=@(@{
+            tool=@{driver=@{name='CodeQL';version='2.22.0'}}
+            invocations=@(@{executionSuccessful=$success})
+            results=@(@{message=@{text='RESTRICTED_SENTINEL'};ruleId='private-rule'})
+        })} | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'results.sarif')
+    }
+    elseif ($expected -ne 'missing') {
+        $results = if ($total -gt 0) {
+            "<UnitTestResult testId='case-1' outcome='$caseOutcome'><Output><StdOut>RESTRICTED_SENTINEL</StdOut></Output></UnitTestResult>"
+        } else { '' }
+        if ($omittedSkipCounter) {
+            $results += "<UnitTestResult testId='case-2' testName='explicit-fixture' outcome='NotExecuted' />"
+        }
+        @"
+<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+<Results>$results</Results><ResultSummary outcome="$outcome">
+<Counters total="$total" executed="$executed" passed="$passed" failed="0" notExecuted="$skipped" />
+</ResultSummary></TestRun>
+"@ | Set-Content (Join-Path $fixture 'results.trx')
+    }
+    $output = Join-Path $fixture 'summary.json'
+    & pwsh -NoProfile -File (Join-Path $root '.azurepipelines/assurance/results.ps1') `
+        -ResultsPath $fixture -Kind $kind -OutputPath $output -Enforce -RequireNoSkipped:$strictSkipped
+    $code = $LASTEXITCODE
+    if (-not (Test-Path $output)) { throw 'Result producer did not emit its public summary.' }
+    $text = Get-Content $output -Raw
+    $actual = $text | ConvertFrom-Json
+    if ($actual.status -ne $expected) { throw "Expected $expected, got $($actual.status)." }
+    if (($code -eq 0) -ne ($expected -eq 'completed')) { throw 'Gate exit does not match result status.' }
+    if ($text.Contains('RESTRICTED_SENTINEL') -or $text.Contains('private-rule')) { throw 'Private result leaked.' }
+    if ($expected -eq 'completed' -and $kind -ne 'sarif' -and $actual.counts.executed -ne 1) {
+        throw 'Executed count must come from the result document.'
+    }
+    if ($Scenario -eq 'vstest-omitted-skip-counter' -and
+        ($actual.counts.total -ne 2 -or $actual.counts.skipped -ne 1 -or $actual.counts.passed -ne 1)) {
+        throw 'Actual skipped result entries must remain visible and must never be counted as passed.'
+    }
+    if ($Scenario -eq 'producer-record') {
+        # Synthetic CI metadata stays inside this disposable fixture. Nothing is
+        # published and the source identity must still be observed from git.
+        $sha = (& git -C $root rev-parse HEAD).Trim()
+        $env:GITHUB_ACTIONS = 'true'
+        $env:GITHUB_RUN_ID = 'fixture-123'
+        $env:GITHUB_RUN_ATTEMPT = '2'
+        $env:GITHUB_JOB = 'fixture-job'
+        $env:GITHUB_WORKFLOW_SHA = $sha
+        $recordPath = Join-Path $fixture 'public/security.job.json'
+        & pwsh -NoProfile -File (Join-Path $root '.azurepipelines/assurance/write-job.ps1') `
+            -Project 'tests/Opc.Ua.Core.Security.Tests/Opc.Ua.Core.Security.Tests.csproj' `
+            -ResultsPath $fixture -OutputPath $recordPath -Workflow '.github/workflows/buildandtest.yml'
+        if ($LASTEXITCODE -ne 0) { throw 'Job producer failed.' }
+        $record = Get-Content $recordPath -Raw | ConvertFrom-Json
+        if ($record.sourceSha -cne $sha -or $record.producer.runId -ne 'fixture-123' -or
+            $record.producer.attempt -ne 2 -or $record.counts.executed -ne 1 -or
+            -not (Test-Path (Join-Path (Split-Path $recordPath) $record.resultDocument))) {
+            throw 'Producer lost observed source/run/result identity.'
+        }
+    }
+    exit 0
+}
+finally {
+    Remove-Item $fixture -Recurse -Force
+}

@@ -27,10 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.CommandLine;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Positioning.Server.Hosting;
+using Opc.Ua.Samples;
 using Robotics;
 
 // Self-contained OPC UA server exposing an OPC 40010 Robotics MotionDeviceSystem
@@ -39,12 +42,50 @@ using Robotics;
 // live: each Axis' ActualPosition articulates one joint, the cell emergency-stop
 // drives a safety visual, a gripper tool is composed dynamically, and the robots
 // compose recursively (system -> devices -> axes).
-HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+Option<bool> autoAcceptOption = SampleCommandLine.CreateAutoAcceptOption("--autoaccept", "-a", "--insecure");
+Option<string> portOption = SampleCommandLine.CreateInt32ConfigurationOption(
+    "--port", "Endpoint port (default 62830).", 1, 65535);
+var hostOption = new Option<string>("--host") { Description = "Endpoint host (default 0.0.0.0)." };
+Argument<string[]> configurationArgument = SampleCommandLine.CreateConfigurationArgument();
+(string[] sampleArguments, string[] forwardedArguments) = SampleCommandLine.SplitHostArguments(args);
+var command = new RootCommand(
+    "OPC UA Minimal Robot Server: --insecure is a trust-only alias; endpoints retain message security.")
+{
+    autoAcceptOption,
+    portOption,
+    hostOption,
+    configurationArgument
+};
+command.Validators.Add(result =>
+{
+    if (SampleCommandLine.GetHostArgumentError(forwardedArguments) is string error)
+    {
+        result.AddError(error);
+    }
+});
+ParseResult? parsed = null;
+command.SetAction(result => parsed = result);
+int exitCode = await SampleCommandLine.InvokeAsync(
+    command, sampleArguments, Console.Out, Console.Error).ConfigureAwait(false);
+if (parsed is null)
+{
+    return exitCode;
+}
+bool autoAccept = parsed.GetValue(autoAcceptOption);
+SampleCommandLine.WriteSecurityWarnings(Console.Error, autoAccept, false, "client", string.Empty);
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(SampleCommandLine.GetHostArguments(
+    parsed, forwardedArguments, configurationArgument, portOption, hostOption));
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62830;
+int port = 62830;
+if (builder.Configuration["port"] is string configuredPort &&
+    (!int.TryParse(configuredPort, out port) || port is < 1 or > 65535))
+{
+    Console.Error.WriteLine("The configured port must be an integer between 1 and 65535. Use --help.");
+    return 1;
+}
 
 // Bind host for the OPC UA endpoint. Defaults to 0.0.0.0 so the server is reachable
 // from outside a container; override with --host / host env var (e.g. "localhost").
@@ -62,7 +103,8 @@ IPositioningServerBuilder positioning = builder.Services
         o.ApplicationName = "MinimalRobotServer";
         o.ApplicationUri = "urn:localhost:OPCFoundation:MinimalRobotServer";
         o.ProductUri = "uri:opcfoundation.org:MinimalRobotServer";
-        o.AutoAcceptUntrustedCertificates = true;
+        o.AutoAcceptUntrustedCertificates = autoAccept;
+        o.IncludeUnsecurePolicyNone = false;
         o.EndpointUrls.Add($"opc.tcp://{host}:{port}/MinimalRobotServer");
     })
     .AddRobotics()
@@ -83,3 +125,4 @@ positioning
 
 using IHost app = builder.Build();
 await app.RunAsync().ConfigureAwait(false);
+return 0;

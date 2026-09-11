@@ -1,0 +1,18 @@
+<Project>
+  <PropertyGroup>
+    <PackageId>Fixture.Generator</PackageId>
+    <PackageId Condition="'$(Configuration)' == 'Debug'">Fixture.Generator.Debug</PackageId>
+    <PackageVersion>2.0.0</PackageVersion>
+    <IsPackable>true</IsPackable>
+    <IncludeSymbols>false</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <ProjectAssetsFile>$(MSBuildThisFileDirectory)project.assets.json</ProjectAssetsFile>
+    <TargetPath>$(MSBuildThisFileDirectory)bin\$(TargetFramework)\Generator.dll</TargetPath>
+    <AssemblyName>Generator</AssemblyName>
+    <RoslynApiVersion>4.14</RoslynApiVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="Contributor.csproj" />
+  </ItemGroup>
+</Project>

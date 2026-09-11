@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:opcfoundation:release:readiness-progress:1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "policyPath", "records"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "readiness-progress" },
+    "policyPath": { "const": ".azurepipelines/release/policy.json" },
+    "records": {
+      "type": "array", "minItems": 1, "maxItems": 64,
+      "items": { "$ref": "#/$defs/record" }
+    }
+  },
+  "$defs": {
+    "opaqueRecord": {
+      "type": "string", "pattern": "^record:[a-z0-9][a-z0-9-]{0,63}$"
+    },
+    "label": { "type": "string", "pattern": "^[a-z][a-z0-9.-]{0,95}$" },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,7})?(Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id", "category", "status", "responsibleFunction", "groups", "destinations",
+        "limitations", "revalidationTriggers"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/label" },
+        "category": { "enum": ["graduation", "stewardship"] },
+        "status": { "enum": ["pending", "submitted", "revoked"] },
+        "responsibleFunction": {
+          "enum": [
+            "programme-approval", "security-wg", "stack-maintenance", "infrastructure-response",
+            "authority-liaison", "community-communications", "release-assurance"
+          ]
+        },
+        "groups": {
+          "type": "array", "uniqueItems": true,
+          "items": { "enum": ["nuget", "containers", "pump"] }
+        },
+        "destinations": {
+          "type": "array", "uniqueItems": true,
+          "items": { "enum": ["nuget.org", "github-packages", "github-release-assets", "ghcr"] }
+        },
+        "limitations": {
+          "type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true,
+          "items": { "$ref": "#/$defs/label" }
+        },
+        "revalidationTriggers": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": {
+            "enum": [
+              "policy-change", "controller-change", "producer-change", "tool-change", "grant-change",
+              "owner-change", "scope-change", "revocation", "reporting-guidance-change", "review-due"
+            ]
+          }
+        },
+        "policyDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "controllerSha": { "type": "string", "pattern": "^([a-f0-9]{40}|[a-f0-9]{64})$" },
+        "evidenceRecord": { "$ref": "#/$defs/opaqueRecord" },
+        "approvalRecord": { "$ref": "#/$defs/opaqueRecord" },
+        "reviewerAuthorityRecord": { "$ref": "#/$defs/opaqueRecord" },
+        "primaryAssignmentRecord": { "$ref": "#/$defs/opaqueRecord" },
+        "deputyAssignmentRecord": { "$ref": "#/$defs/opaqueRecord" },
+        "reviewedAt": { "$ref": "#/$defs/timestamp" },
+        "revalidateAfter": { "$ref": "#/$defs/timestamp" }
+      }
+    }
+  }
+}
