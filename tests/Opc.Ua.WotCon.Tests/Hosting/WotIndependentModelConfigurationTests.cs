@@ -170,6 +170,65 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         }
 
         [Test]
+        public async Task IndependentReviewRegistryFailureDoesNotPublishAModeFingerprintAsync()
+        {
+            var services = new ServiceCollection();
+            var host = new FakeWotProjectionHost();
+            services.AddSingleton<IWotProjectionHost>(host);
+            services.AddSingleton<IWotViewProjectionHost>(new InMemoryWotViewProjectionHost());
+            services.AddOpcUa().AddWotRegistryServer(options =>
+                options.DocumentSetMode = WotDocumentSetMode.IndependentReadableModels);
+            using ServiceProvider provider = services.BuildServiceProvider();
+            IWotRegistryService registry = provider.GetRequiredService<IWotRegistryService>();
+            await AddModelAsync(registry, "first", 1).ConfigureAwait(false);
+            await AddModelAsync(registry, "second", 2).ConfigureAwait(false);
+            WotMaterializationCoordinator coordinator = provider.GetRequiredService<WotMaterializationCoordinator>();
+            WotRefreshResult initial = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            Assert.That(initial.Results, Has.Length.EqualTo(2));
+            Assert.That(initial.Results.Select(result => result.Outcome), Is.All.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(host.AddCount, Is.EqualTo(1));
+            WotProjectionDocument active = host.Operations.Single().Document!;
+            Assert.That(active.Sources, Has.Length.EqualTo(1));
+            using var originalSource = new MemoryStream(active.Sources[0].NodeSetXml, writable: false);
+            byte[] sourceBytes = originalSource.ToArray();
+            var context = new SystemContext(NUnitTelemetryContext.Create())
+            {
+                NamespaceUris = new NamespaceTable(),
+                ServerUris = new StringTable(["urn:test:local"]),
+                EncodeableFactory = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()).Factory
+            };
+            var nodes = new NodeStateCollection();
+            UANodeSet.Read(originalSource)!.Import(context, nodes);
+            BaseObjectTypeState[] roots = nodes.OfType<BaseObjectTypeState>().ToArray();
+            Assert.That(roots, Has.Length.EqualTo(2));
+            Assert.That(roots.Select(node => context.NamespaceUris.GetString(node.NodeId.NamespaceIndex)),
+                Is.All.EqualTo("urn:test:shared"));
+            BaseObjectTypeState first = roots.Single(node => node.BrowseName.Name == "first");
+            BaseObjectTypeState second = roots.Single(node => node.BrowseName.Name == "second");
+            Assert.That(second.SuperTypeId, Is.EqualTo(first.NodeId));
+
+            WotRefreshResult stable = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+            Assert.That(stable.Results, Has.Length.EqualTo(2));
+            Assert.That(stable.Results.Select(result => result.Outcome), Is.All.EqualTo(WoTOutcomeEnum.Unchanged));
+            WotNodeSetConverterOptions options = provider.GetRequiredService<WotNodeSetConverterOptions>();
+            options.DocumentSetMode = WotDocumentSetMode.PartitionReconstruction;
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                WotRefreshResult failed = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+                Assert.That(failed.Results, Has.Length.EqualTo(2));
+                Assert.That(failed.Results.Select(result => result.Outcome), Is.All.EqualTo(WoTOutcomeEnum.Failed));
+                Assert.That(failed.Results.Any(result =>
+                    result.Message?.Contains("namespace table", StringComparison.Ordinal) == true), Is.True);
+                Assert.That(host.AddCount, Is.EqualTo(1));
+                Assert.That(host.ShadowCount, Is.Zero);
+                Assert.That(host.Operations, Has.Count.EqualTo(1));
+                using var retained = new MemoryStream(host.Operations.Single().Document!.Sources[0].NodeSetXml,
+                    writable: false);
+                Assert.That(retained.ToArray(), Is.EqualTo(sourceBytes));
+            }
+        }
+
+        [Test]
         public void DirectConsumersRejectUndefinedModes()
         {
             var options = new WotNodeSetConverterOptions { DocumentSetMode = (WotDocumentSetMode)99 };

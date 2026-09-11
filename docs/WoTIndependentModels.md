@@ -57,15 +57,23 @@ provenance are retained rather than reconstructed through NodeState import/expor
 
 Repeated model declarations must agree on their metadata and RequiredModels.
 Equivalent shared Nodes can be deduplicated, but conflicting facts, duplicate
-root ownership and ambiguous source hrefs fail. RequiredModel constraints stay
-with their declaring model. ServerUris tables must agree; independent server
-table synthesis is not part of this mode.
+root ownership and ambiguous source hrefs fail. Root admission includes effective
+generated identities as well as authored `uav:id` values; equivalent non-root
+context copies do not permit two documents to claim one root. RequiredModel
+constraints stay with their declaring model. ServerUris tables must agree;
+independent server table synthesis is not part of this mode. As in ordinary
+NodeSet export/import, the header omits local server zero: its entries declare
+remote server indexes `1..ServerUris.Length`. Do not insert a fake local entry.
 
 Standard namespace-bearing values are decoded and re-encoded with the stack's
 XML codec and mapping tables, including Arguments, DataValues, nested Variants,
 arrays and matrices. Decoding must consume the understood value completely;
 undeclared indexes, unknown attributes/fields and lossy codec results fail with
 `NamespaceRebaseUnsupported` and the source href/NodeId.
+Understood value identities are validated even when no namespace relocation is
+necessary. The lossless import path preserves a typed null String distinctly
+from an empty String, including nested typed values, and retains String content.
+These checks do not change the ordinary XML decoder's compatibility behavior.
 
 For registered structured XML values, supply the existing message-context seam:
 
@@ -83,7 +91,8 @@ indexes is important for nested structure field definitions.
 
 Opaque XML values and binary ExtensionObject bodies are **not** heuristically
 rewritten. They can remain untouched when no namespace-table change is needed;
-otherwise import fails rather than claiming a safe rebase. Supplying a factory
+their understood outer identities are still checked for declared indexes.
+Otherwise import fails rather than claiming a safe rebase. Supplying a factory
 does not turn an opaque binary body into an XML-decoded value.
 
 ## Authority and bounds

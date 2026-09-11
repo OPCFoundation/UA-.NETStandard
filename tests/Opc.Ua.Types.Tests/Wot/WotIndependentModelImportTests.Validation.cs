@@ -380,8 +380,8 @@ namespace Opc.Ua.Types.Tests.Wot
             UANodeSet a = CreatePartition("urn:test:a");
             UANodeSet b = CreateValuePartition(
                 "<uax:ExpandedNodeId><uax:Identifier>svr=1;ns=1;i=42</uax:Identifier></uax:ExpandedNodeId>");
-            a.ServerUris = ["urn:server:local", "urn:server:remote"];
-            b.ServerUris = ["urn:server:local", "urn:server:remote"];
+            a.ServerUris = ["urn:server:remote"];
+            b.ServerUris = ["urn:server:remote"];
             b.Items![0].References = [new Reference { ReferenceType = "i=35", Value = "svr=1;ns=1;i=99" }];
 
             WotConversionResult<UANodeSet> result =

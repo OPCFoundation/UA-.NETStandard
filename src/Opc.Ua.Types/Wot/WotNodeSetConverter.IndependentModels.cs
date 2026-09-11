@@ -92,8 +92,13 @@ namespace Opc.Ua.Wot
                         uris.Add(uri);
                     }
                 }
-                string? root = GetUavString(documents.Entries[index].Document, "id");
-                if (root is not null && !owners.Add(NormalizeExpandedNodeId(root)))
+                string? root = GetIndependentRootIdentity(
+                    documents.Entries[index].Document, part, cancellationToken);
+                if (root is null)
+                {
+                    ReportIndependentConflict("An independent document has no identifiable converted root.", index);
+                }
+                else if (!owners.Add(NormalizeExpandedNodeId(root)))
                 {
                     ReportIndependentConflict("Independent documents claim the same root identity.", index);
                 }
@@ -177,16 +182,13 @@ namespace Opc.Ua.Wot
                                 StatusCodes.BadNodeIdInvalid, "An owned Node has no identity.");
                         }
                         RemapIndependentNode(node, remapping);
-                        if (changed)
+                        if (node is UAVariable { Value: { } value } variable)
                         {
-                            if (node is UAVariable { Value: { } value } variable)
-                            {
-                                variable.Value = part.RebaseValue(value, target, valueContext);
-                            }
-                            else if (node is UAVariableType { Value: { } typeValue } variableType)
-                            {
-                                variableType.Value = part.RebaseValue(typeValue, target, valueContext);
-                            }
+                            variable.Value = part.RebaseValue(value, target, valueContext, changed);
+                        }
+                        else if (node is UAVariableType { Value: { } typeValue } variableType)
+                        {
+                            variableType.Value = part.RebaseValue(typeValue, target, valueContext, changed);
                         }
                     }
                     part.NamespaceUris = namespaces;
@@ -211,6 +213,36 @@ namespace Opc.Ua.Wot
                     message,
                     new WotLocation(reference: documents.Entries[index].Href)));
             }
+        }
+
+        private static string? GetIndependentRootIdentity(
+            WotDocument document,
+            UANodeSet part,
+            CancellationToken cancellationToken)
+        {
+            string? authored = GetUavString(document, "id");
+            if (authored is not null)
+            {
+                return authored;
+            }
+            var identityContext = new UANodeSet
+            {
+                Models = [new ModelTableEntry { ModelUri = DeriveModelUri(document) }],
+                NamespaceUris = part.NamespaceUris is null ? null : (string[])part.NamespaceUris.Clone()
+            };
+            string generated = NormalizeExpandedNodeId(
+                ToPortableNodeId(GenerateRootNodeId(document, identityContext), identityContext.NamespaceUris)!);
+            INodeSetAliasResolver aliases = NodeSetDeclaredAliases.FromNodeSet(part, WotNodeSetAliases.Instance);
+            foreach (UANode node in part.Items ?? [])
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string? actual = ToPortableNodeId(ResolveArchivedAlias(node.NodeId, aliases), part.NamespaceUris);
+                if (actual is not null && NormalizeExpandedNodeId(actual) == generated)
+                {
+                    return actual;
+                }
+            }
+            return null;
         }
 
         private static void RemapIndependentModel(
@@ -451,6 +483,10 @@ namespace Opc.Ua.Wot
             {
                 context.NamespaceUris.GetIndexOrAppend(uri);
             }
+            if (context.ServerUris.Count == 0)
+            {
+                context.ServerUris.Update([string.Empty]);
+            }
             foreach (string uri in target.ServerUris ?? [])
             {
                 context.ServerUris.GetIndexOrAppend(uri);
@@ -495,7 +531,7 @@ namespace Opc.Ua.Wot
                     throw new ServiceResultException(
                         StatusCodes.BadNodeIdInvalid, "A local identity names a remote server.");
                 }
-                if (value.ServerIndex != 0 && value.ServerIndex >= serverCount)
+                if (value.ServerIndex > serverCount)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadNodeIdInvalid, "An expanded identity uses an undeclared server index.");

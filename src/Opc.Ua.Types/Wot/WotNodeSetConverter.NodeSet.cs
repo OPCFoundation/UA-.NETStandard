@@ -2160,9 +2160,11 @@ namespace Opc.Ua.Wot
         /// Builds the identifier of the Node a document projects as its root.
         /// </summary>
         private static string GenerateRootNodeId(
-            WotDocument document, UANodeSet nodeSet, string rootLocal)
+            WotDocument document, UANodeSet nodeSet, string? rootLocal = null)
         {
             string modelUri = GeneratedNamespaceUri(nodeSet);
+            rootLocal ??= LocalName(GetUavString(document, "browseName")) ??
+                SanitizeName(document.Title) ?? "Thing";
             return GenerateNodeId(nodeSet, new ArrayOf<WotBrowsePathElement>(
                 [DocumentPathElement(document, document.RootElement, modelUri, rootLocal)]));
         }

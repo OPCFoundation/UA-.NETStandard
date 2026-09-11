@@ -264,6 +264,11 @@ namespace Opc.Ua
         public bool UseReversibleEncoding => true;
 
         /// <summary>
+        /// Preserves explicit null and whitespace String values during lossless value rewriting.
+        /// </summary>
+        internal bool PreserveStringValues { get; set; }
+
+        /// <summary>
         /// Pushes a namespace onto the namespace stack.
         /// </summary>
         public void PushNamespace(string namespaceUri)
@@ -430,7 +435,7 @@ namespace Opc.Ua
 
         private void WriteString(string? fieldName, string? value, bool isArrayElement)
         {
-            if (BeginField(fieldName, value == null, true, isArrayElement))
+            if (BeginField(fieldName, value == null, true, isArrayElement || PreserveStringValues))
             {
                 // check the length.
                 if (Context.MaxStringLength > 0 && Context.MaxStringLength < value!.Length)
@@ -438,7 +443,7 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
-                if (!string.IsNullOrWhiteSpace(value))
+                if (PreserveStringValues || !string.IsNullOrWhiteSpace(value))
                 {
                     m_writer.WriteString(value);
                 }
@@ -1795,6 +1800,18 @@ namespace Opc.Ua
                             "Don't know how to encode extension object body with type '{0}'.",
                             extensionObject));
                 }
+            }
+        }
+
+        /// <summary>
+        /// Maps NodeSet tables with their implicit local server at index zero.
+        /// </summary>
+        internal void SetNodeSetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
+        {
+            SetMappingTables(namespaceUris, serverUris);
+            if (m_serverMappings is { Length: > 0 })
+            {
+                m_serverMappings[0] = 0;
             }
         }
 

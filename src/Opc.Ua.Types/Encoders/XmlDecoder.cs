@@ -296,6 +296,11 @@ namespace Opc.Ua
         /// </summary>
         internal bool RequireCompleteValue { get; set; }
 
+        /// <summary>
+        /// Allows opaque bodies during validation when their source tables are unchanged.
+        /// </summary>
+        internal bool AllowOpaqueValues { get; set; }
+
         /// <inheritdoc/>
         public void PushNamespace(string namespaceUri)
         {
@@ -563,7 +568,7 @@ namespace Opc.Ua
             {
                 string? value = SafeReadString();
 
-                if (value != null)
+                if (value != null && !RequireCompleteValue)
                 {
                     value = value.Trim();
                 }
@@ -678,7 +683,7 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true) && MoveToElement(null!))
             {
-                if (RequireCompleteValue)
+                if (RequireCompleteValue && !AllowOpaqueValues)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadNotSupported, "An opaque XmlElement cannot be namespace-rebased.");
@@ -2198,7 +2203,10 @@ namespace Opc.Ua
                         case "Double":
                             return ReadDouble(typeName);
                         case "String":
-                            return ReadString(typeName) ?? string.Empty;
+                            string? text = ReadString(typeName);
+                            return text is null && RequireCompleteValue
+                                ? Variant.CreateDefault(TypeInfo.Scalars.String)
+                                : new Variant(text ?? string.Empty);
                         case "DateTime":
                             return ReadDateTime(typeName);
                         case "Guid":
@@ -2314,7 +2322,7 @@ namespace Opc.Ua
             // check for binary encoded body.
             if (m_reader.LocalName == "ByteString" && m_reader.NamespaceURI == Namespaces.OpcUaXsd)
             {
-                if (RequireCompleteValue)
+                if (RequireCompleteValue && !AllowOpaqueValues)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadNotSupported, "An opaque binary ExtensionObject cannot be namespace-rebased.");
@@ -2362,7 +2370,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (RequireCompleteValue)
+            if (RequireCompleteValue && !AllowOpaqueValues)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadNotSupported,
@@ -2850,6 +2858,18 @@ namespace Opc.Ua
                         fieldName!,
                         xe.Message);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Maps NodeSet tables with their implicit local server at index zero.
+        /// </summary>
+        internal void SetNodeSetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
+        {
+            SetMappingTables(namespaceUris, serverUris);
+            if (m_serverMappings is { Length: > 0 })
+            {
+                m_serverMappings[0] = 0;
             }
         }
 

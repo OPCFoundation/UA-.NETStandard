@@ -38,16 +38,19 @@ namespace Opc.Ua.Export
         internal System.Xml.XmlElement RebaseValue(
             System.Xml.XmlElement source,
             UANodeSet target,
-            IServiceMessageContext context)
+            IServiceMessageContext context,
+            bool rebase)
         {
             using XmlDecoder decoder = CreateDecoder(context, source);
             decoder.RequireCompleteValue = true;
+            decoder.AllowOpaqueValues = !rebase;
             Variant value = decoder.ReadVariant(null);
-            if (value.IsNull)
+            if (!rebase || value.IsNull)
             {
                 return source;
             }
             using XmlEncoder encoder = target.CreateEncoder(context);
+            encoder.PreserveStringValues = true;
             encoder.WriteVariantValue(null, value);
             var document = new XmlDocument { XmlResolver = null };
             document.LoadInnerXml(encoder.CloseAndReturnText()!);
@@ -66,19 +69,24 @@ namespace Opc.Ua.Export
         private XmlEncoder CreateEncoder(IServiceMessageContext context)
         {
             var encoder = new XmlEncoder(context);
-            encoder.SetMappingTables(
+            encoder.SetNodeSetMappingTables(
                 new NamespaceTable([Namespaces.OpcUa, .. NamespaceUris ?? []]),
-                new StringTable(ServerUris ?? []));
+                CreateServerMappingTable(context));
             return encoder;
         }
 
         private XmlDecoder CreateDecoder(IServiceMessageContext context, System.Xml.XmlElement source)
         {
             var decoder = new XmlDecoder(WrapAsVariant(source), context);
-            decoder.SetMappingTables(
+            decoder.SetNodeSetMappingTables(
                 new NamespaceTable([Namespaces.OpcUa, .. NamespaceUris ?? []]),
-                new StringTable(ServerUris ?? []));
+                CreateServerMappingTable(context));
             return decoder;
+        }
+
+        private StringTable CreateServerMappingTable(IServiceMessageContext context)
+        {
+            return new StringTable([context.ServerUris.GetString(0) ?? string.Empty, .. ServerUris ?? []]);
         }
     }
 }
