@@ -49,6 +49,12 @@ namespace Opc.Ua.Wot
     /// once.
     /// </para>
     /// <para>
+    /// Native contexts also retain non-type identities, so a supplied node of
+    /// the wrong class cannot become an absent type. Conflicting native type
+    /// or declaration facts make the declaration context incomplete in either
+    /// document order; consistent repetitions do not.
+    /// </para>
+    /// <para>
     /// An instance of this type is mutated only while it is being built. It is
     /// safe to share for reading once building has finished.
     /// </para>
@@ -75,7 +81,7 @@ namespace Opc.Ua.Wot
             {
                 throw new ArgumentNullException(nameof(document));
             }
-            AddNativeTypes(document);
+            AddNativeNodes(document);
             foreach (JsonElement definition in WotNodeSetConverter.ReadDataTypeDefinitionOccurrences(
                 document.RootElement))
             {
@@ -203,15 +209,17 @@ namespace Opc.Ua.Wot
         /// </summary>
         public ArrayOf<(WotResolvedNode Node, WotBrowsePathElement BrowseName)> GetNativeTypes()
         {
-            var types = new List<(WotResolvedNode Node, WotBrowsePathElement BrowseName)>();
-            foreach (Entry entry in m_types.Values)
-            {
-                if (entry.NativeNode is { } node)
-                {
-                    types.Add((node, entry.NativeBrowseName));
-                }
-            }
-            return types.ToArrayOf();
+            return GetNativeNodes(typesOnly: true);
+        }
+
+        /// <summary>
+        /// Gets all held native identities for the owning node-resolution
+        /// adapter, including non-types that must not be mistaken for absence
+        /// when a type is requested.
+        /// </summary>
+        public ArrayOf<(WotResolvedNode Node, WotBrowsePathElement BrowseName)> GetNativeNodes()
+        {
+            return GetNativeNodes(typesOnly: false);
         }
 
         /// <summary>
@@ -228,7 +236,20 @@ namespace Opc.Ua.Wot
                 : [];
         }
 
-        private void AddNativeTypes(WotDocument document)
+        private ArrayOf<(WotResolvedNode Node, WotBrowsePathElement BrowseName)> GetNativeNodes(bool typesOnly)
+        {
+            var nodes = new List<(WotResolvedNode Node, WotBrowsePathElement BrowseName)>();
+            foreach (Entry entry in m_types.Values)
+            {
+                if (entry.NativeNode is { } node && (!typesOnly || node.NodeClass != WotExpectedNodeClass.Any))
+                {
+                    nodes.Add((node, entry.NativeBrowseName));
+                }
+            }
+            return nodes.ToArrayOf();
+        }
+
+        private void AddNativeNodes(WotDocument document)
         {
             if (!document.TryGetEnvelope(out _) &&
                 (!document.TryGetNativeProjection(out JsonElement projection) ||
@@ -252,10 +273,6 @@ namespace Opc.Ua.Wot
             }
             foreach (UANode node in nodes.Values)
             {
-                if (node is not UAType)
-                {
-                    continue;
-                }
                 WotResolvedNode resolved = WotNodeSetConverter.DescribeNativeType(node, nodeSet);
                 var parents = new List<string>();
                 foreach (Reference reference in references.GetReferences(node))
@@ -266,17 +283,54 @@ namespace Opc.Ua.Wot
                             WotNodeSetConverter.ToPortableNodeId(reference.Value, nodeSet.NamespaceUris)!));
                     }
                 }
-                ArrayOf<WotTypeDeclaration> declarations = WotNodeSetConverter.DescribeNativeTypeDeclarations(
-                    node, nodeSet, references, nodes, out string? detail);
+                ArrayOf<WotTypeDeclaration> declarations = [];
+                string? detail;
+                if (node is UAType)
+                {
+                    declarations = WotNodeSetConverter.DescribeNativeTypeDeclarations(
+                        node, nodeSet, references, nodes, out detail);
+                }
+                else
+                {
+                    detail = $"The native identity '{resolved.NodeId}' is held by a non-type node.";
+                }
                 var name = QualifiedName.Parse(node.BrowseName ??
-                    throw new FormatException($"The native type '{resolved.NodeId}' has no BrowseName."));
+                    throw new FormatException($"The native node '{resolved.NodeId}' has no BrowseName."));
                 string namespaceUri = name.NamespaceIndex == 0
                     ? WotVocabulary.OpcUaNamespace
                     : nodeSet.NamespaceUris![name.NamespaceIndex - 1];
-                m_types.TryAdd(resolved.NodeId, new Entry(
+                AddNativeEntry(resolved.NodeId, new Entry(
                     declarations, parents.ToArrayOf(), NativeNode: resolved,
                     NativeBrowseName: new WotBrowsePathElement(namespaceUri, name.Name!), Detail: detail));
                 AddAlias(resolved.NodeId, resolved.NodeId);
+            }
+        }
+
+        private void AddNativeEntry(string identity, Entry entry)
+        {
+            if (!m_types.TryGetValue(identity, out Entry previous) || previous.NativeNode is null)
+            {
+                m_types[identity] = entry;
+                return;
+            }
+
+            // Compare the type/declaration facts this index owns, not storage
+            // carrier bytes, aliases, residue or unrelated NodeSet attributes.
+            var parents = new HashSet<string>([.. previous.Supertypes], StringComparer.Ordinal);
+            var declarations = new HashSet<WotTypeDeclaration>([.. previous.Declarations]);
+            if (previous.NativeNode != entry.NativeNode ||
+                previous.NativeBrowseName != entry.NativeBrowseName ||
+                !parents.SetEquals([.. entry.Supertypes]) ||
+                !declarations.SetEquals([.. entry.Declarations]))
+            {
+                m_types[identity] = previous with
+                {
+                    Detail = $"Conflicting native type or declaration facts are held for '{identity}'."
+                };
+            }
+            else if (previous.Detail is null && entry.Detail is not null)
+            {
+                m_types[identity] = previous with { Detail = entry.Detail };
             }
         }
 

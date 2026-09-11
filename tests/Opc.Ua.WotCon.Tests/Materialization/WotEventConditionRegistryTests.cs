@@ -189,6 +189,183 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
         }
 
+        [Test]
+        public async Task ResidualRegistryStandardIdentityPreservesItsNodeClassAsync(
+            [Values(false, true)] bool archive,
+            [Values("object", "objectType", "absent", "none")] string sourceKind)
+        {
+            using var registry = new RegistryContext();
+            UANodeSet source = NativeGraph();
+            if (sourceKind == "object")
+            {
+                source.Items = [.. source.Items!.Select(node => node.NodeId == "i=2782"
+                    ? new UAObject { NodeId = "i=2782", BrowseName = "ConditionType" } : node)];
+            }
+            else if (sourceKind == "absent")
+            {
+                source.Items = [.. source.Items!.Where(node => node.NodeId != "i=2782")];
+            }
+            using WotDocument document = ResidualNativeContext(source, archive, "urn:residual:class");
+            if (sourceKind != "none")
+            {
+                await registry.StoreAsync("native", document, WoTDocumentKindEnum.ThingModel).ConfigureAwait(false);
+            }
+            using WotDocument consumer = ResidualStandardConditionConsumer();
+            WotResource resource = await registry.StoreAsync(
+                "device", consumer, WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
+            var converter = new WotNodeSetDocumentConverter();
+
+            WotConversionOutput result = await converter.ConvertAsync(
+                resource, ByteString.From(consumer.Utf8Json.Span), registry.Service.Current,
+                registry.Contents, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.Succeeded, Is.EqualTo(sourceKind != "object"), string.Join("; ", result.Errors));
+            var resolver = new SnapshotWotNodeResolver(registry.Service.Current, registry.Contents);
+            WotResolvedNode? node = await resolver.ResolveByNodeIdAsync("i=2782").ConfigureAwait(false);
+            WotTypeDeclarationSet? declarations = await resolver.ResolveDeclarationsAsync(
+                "i=2782", WotDeclarationScope.Effective).ConfigureAwait(false);
+            if (sourceKind is "none" or "absent")
+            {
+                Assert.That(node, Is.Null);
+                Assert.That(declarations, Is.Null);
+            }
+            else
+            {
+                Assert.That(node, Is.Not.Null);
+                Assert.That(node!.Value.NodeId, Is.EqualTo("i=2782"));
+                Assert.That(node.Value.NodeClass, Is.EqualTo(sourceKind == "object"
+                    ? WotExpectedNodeClass.Any : WotExpectedNodeClass.ObjectType));
+                Assert.That(declarations, Is.Not.Null);
+                Assert.That(declarations!.IsComplete, Is.EqualTo(sourceKind == "objectType"));
+            }
+            if (sourceKind == "object")
+            {
+                Assert.That(declarations!.Detail, Is.Not.Empty);
+                Assert.That(result.NodeSet, Is.Null);
+                Assert.That(result.Errors.Any(error => error.Contains(
+                    "/events/alarm/uav:conditionTypeId", StringComparison.Ordinal)), Is.True);
+            }
+            else
+            {
+                Assert.That(result.Errors, Is.Empty);
+                Assert.That(result.NodeSet!.Items!.OfType<UAObjectType>().Single().References!
+                    .Single(reference => reference.ReferenceType == "HasSubtype").Value, Is.EqualTo("i=2782"));
+            }
+        }
+
+        [Test]
+        public async Task ResidualRegistryStandardIdentityRejectsConflictingClassesInEitherOrderAsync(
+            [Values(false, true)] bool archive,
+            [Values(false, true)] bool reverse)
+        {
+            using var registry = new RegistryContext();
+            UANodeSet wrongClass = NativeGraph();
+            wrongClass.Items = [.. wrongClass.Items!.Select(node => node.NodeId == "i=2782"
+                ? new UAObject { NodeId = "i=2782", BrowseName = "ConditionType" } : node)];
+            using WotDocument valid = ResidualNativeContext(NativeGraph(), archive, "urn:residual:valid");
+            using WotDocument wrong = ResidualNativeContext(wrongClass, archive, "urn:residual:wrong");
+            await registry.StoreAsync(
+                "first", reverse ? wrong : valid, WoTDocumentKindEnum.ThingModel).ConfigureAwait(false);
+            await registry.StoreAsync(
+                "second", reverse ? valid : wrong, WoTDocumentKindEnum.ThingModel).ConfigureAwait(false);
+            using WotDocument consumer = ResidualStandardConditionConsumer();
+            WotResource resource = await registry.StoreAsync(
+                "device", consumer, WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
+            var converter = new WotNodeSetDocumentConverter();
+
+            WotConversionOutput result = await converter.ConvertAsync(
+                resource, ByteString.From(consumer.Utf8Json.Span), registry.Service.Current,
+                registry.Contents, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.Succeeded, Is.False);
+            Assert.That(result.NodeSet, Is.Null);
+            Assert.That(result.Errors.Any(error => error.Contains(
+                "/events/alarm/uav:conditionTypeId", StringComparison.Ordinal)), Is.True);
+            var resolver = new SnapshotWotNodeResolver(registry.Service.Current, registry.Contents);
+            WotTypeDeclarationSet? declarations = await resolver.ResolveDeclarationsAsync(
+                "i=2782", WotDeclarationScope.Effective).ConfigureAwait(false);
+            Assert.That(declarations, Is.Not.Null);
+            Assert.That(declarations!.IsComplete, Is.False);
+            Assert.That(declarations.Detail, Does.Contain("Conflicting native"));
+        }
+
+        [Test]
+        public async Task ResidualRegistryDeclarationsRejectConflictsInEitherOrderAsync(
+            [Values(false, true)] bool archive,
+            [Values(false, true)] bool reverse,
+            [Values("dataType", "rank", "consistent")] string fact)
+        {
+            using var registry = new RegistryContext();
+            UANodeSet other = NativeGraph();
+            UAVariable changed = other.Items!.OfType<UAVariable>().Single();
+            changed.DataType = fact == "dataType" ? "i=12" : "i=15";
+            changed.ValueRank = fact == "rank" ? 1 : -1;
+            other.Items = [other.Items![0], .. other.Items!.Skip(1).Reverse()];
+            using WotDocument first = ResidualNativeContext(NativeGraph(), archive, "urn:residual:first");
+            using WotDocument second = ResidualNativeContext(other, archive, "urn:residual:second");
+            await registry.StoreAsync(
+                "first", reverse ? second : first, WoTDocumentKindEnum.ThingModel).ConfigureAwait(false);
+            await registry.StoreAsync(
+                "second", reverse ? first : second, WoTDocumentKindEnum.ThingModel).ConfigureAwait(false);
+            using WotDocument definition = TypeDocument(QueryId, "v:CustomAlarm", ["i=2782"], eventType: true);
+            await registry.StoreAsync("custom", definition, WoTDocumentKindEnum.ThingModel).ConfigureAwait(false);
+            using WotDocument consumer = Consumer(selection: true);
+            WotResource resource = await registry.StoreAsync(
+                "device", consumer, WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
+            var converter = new WotNodeSetDocumentConverter();
+            bool consistent = fact == "consistent";
+
+            WotConversionOutput result = await converter.ConvertAsync(
+                resource, ByteString.From(consumer.Utf8Json.Span), registry.Service.Current,
+                registry.Contents, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.Succeeded, Is.EqualTo(consistent), string.Join("; ", result.Errors));
+            var resolver = new SnapshotWotNodeResolver(registry.Service.Current, registry.Contents);
+            WotTypeDeclarationSet? declarations = await resolver.ResolveDeclarationsAsync(
+                "i=2041", WotDeclarationScope.Effective).ConfigureAwait(false);
+            Assert.That(declarations, Is.Not.Null);
+            Assert.That(declarations!.IsComplete, Is.EqualTo(consistent));
+            if (consistent)
+            {
+                WotTypeDeclaration field = declarations.Declarations.ToArray()!
+                    .Single(value => value.NodeId == "i=2042");
+                Assert.That(field.DeclaringTypeNodeId, Is.EqualTo("i=2041"));
+                Assert.That(field.DataType, Is.EqualTo("i=15"));
+                Assert.That(field.ValueRank, Is.EqualTo(-1));
+                Assert.That(result.Errors, Is.Empty);
+                AssertTargets(result.NodeSet!);
+            }
+            else
+            {
+                Assert.That(declarations.Detail, Does.Contain("Conflicting native"));
+                Assert.That(result.NodeSet, Is.Null);
+                Assert.That(result.Errors.Any(error => error.Contains(
+                    "/events/alarm/uav:eventSelectClauses", StringComparison.Ordinal)), Is.True);
+            }
+        }
+
+        private static WotDocument ResidualStandardConditionConsumer()
+        {
+            using WotDocument original = Consumer();
+            JsonObject json = JsonNode.Parse(original.Utf8Json.Span)!.AsObject();
+            json["events"]!["alarm"]!["uav:conditionTypeId"] = "i=2782";
+            json["events"]!["alarm"]!.AsObject().Remove("uav:conditionType");
+            return Parse(json);
+        }
+
+        private static WotDocument ResidualNativeContext(UANodeSet source, bool archive, string id)
+        {
+            using WotDocument exported = WotNodeSetConverter.FromNodeSet(
+                source, options: new WotNodeSetConverterOptions
+                {
+                    PreservationMode = WotNodeSetPreservationMode.Always
+                });
+            JsonObject root = JsonNode.Parse(exported.Utf8Json.Span)!.AsObject();
+            root.Remove(archive ? "uav:nodes" : "uav:nodeSet");
+            root["@id"] = id;
+            return Parse(root);
+        }
+
         private static void AssertTargets(UANodeSet nodeSet)
         {
             UANode[] nodes = nodeSet.Items ?? throw new AssertionException("Conversion returned no native nodes.");

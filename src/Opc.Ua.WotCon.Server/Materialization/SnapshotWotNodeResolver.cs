@@ -326,7 +326,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                 }
 
-                foreach ((WotResolvedNode node, WotBrowsePathElement name) in built.Declarations.GetNativeTypes())
+                foreach ((WotResolvedNode node, WotBrowsePathElement name) in built.Declarations.GetNativeNodes())
                 {
                     built.ByNodeId[node.NodeId] = node;
                     if (name.NamespaceUri is null || string.IsNullOrEmpty(name.Name))
