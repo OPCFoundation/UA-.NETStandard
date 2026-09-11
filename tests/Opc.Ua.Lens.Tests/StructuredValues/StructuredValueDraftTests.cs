@@ -486,6 +486,83 @@ public sealed class StructuredValueDraftTests
         factory.Verify(value => value.Create(context.Session.Object), Times.Once);
     }
 
+    [Test]
+    public async Task NestedOptionSetAndMatrixEditsShareTheParentTransactionAndNativeEncodingAsync()
+    {
+        using var context = new StructuredValueTestContext();
+        StructuredValueTestContext.NativeOptionSet flagsType = context.RegisterOptionSet(
+            "Flags", [new EnumField { Name = "Enabled", Value = 0 }]);
+        var flags = (OptionSet)flagsType.Type.CreateInstance();
+        flags.Value = ByteString.From([0x80]);
+        flags.ValidBits = ByteString.From([0xFF]);
+        StructureField cells = StructuredValueTestContext.Field("Cells", DataTypeIds.Int32, rank: 2);
+        cells.ArrayDimensions = [2u, 3u];
+        StructuredValueTestContext.NativeType type = context.Register(
+            "EditorParent", StructureType.Structure,
+            [StructuredValueTestContext.Field("Flags", flagsType.DataTypeId), cells]);
+        IEncodeable original = type.Type.CreateInstance();
+        var source = (IStructure)original;
+        source["Flags"] = Variant.FromStructure(flags);
+        source["Cells"] = Variant.From(((ArrayOf<int>)[1, 2, 3, 4, 5, 6]).ToMatrix([2, 3]));
+        StructuredValueDraft parent = await context.Service.OpenAsync(
+            type.DataTypeId, type.Definition, Variant.FromStructure(original)).ConfigureAwait(false);
+        StructuredValueDraft bitDraft = await context.Service.OpenAsync(
+            flagsType.DataTypeId, flagsType.Definition, parent.Fields[0].Value).ConfigureAwait(false);
+        Assert.That(bitDraft.TryCommitOptionSet([new(0, true, false)],
+            out Variant editedFlags, out string? error), Is.True, error);
+        StructuredArrayDraft matrixDraft = await context.Service.OpenArrayAsync(
+            cells.DataType, cells.ValueRank, cells.ArrayDimensions, parent.Fields[1].Value,
+            isStructureField: true).ConfigureAwait(false);
+        StructuredArrayValue reshaped = matrixDraft.Reshape(matrixDraft.InitialValue, [2, 2], allowResize: true);
+        Assert.That(matrixDraft.TryCommit(reshaped, out Variant editedCells, out error), Is.True, error);
+
+        Variant invalidShape = Variant.From(((ArrayOf<int>)[1, 2, 3, 4, 5, 6]).ToMatrix([3, 2]));
+        Assert.That(parent.TryCommit([new("Flags", editedFlags), new("Cells", invalidShape)],
+            out Variant failed, out error), Is.False);
+        Assert.That(failed.IsNull, Is.True);
+        Assert.That(error, Does.Contain("Cells").And.Contain("declared maximum"));
+        Assert.That(flags.Value, Is.EqualTo(ByteString.From([0x80])));
+        Assert.That(flags.ValidBits, Is.EqualTo(ByteString.From([0xFF])));
+
+        Assert.That(parent.TryCommit([new("Flags", editedFlags), new("Cells", editedCells)],
+            out Variant committed, out error), Is.True, error);
+        IStructure result = ReadStructure(context.RoundTrip(committed), context.MessageContext);
+        Assert.That(result["Flags"].TryGetValue<OptionSet>(out OptionSet? encodedFlags, context.MessageContext),
+            Is.True);
+        Assert.That(encodedFlags!.Value, Is.EqualTo(ByteString.From([0x81])));
+        Assert.That(encodedFlags.ValidBits, Is.EqualTo(ByteString.From([0xFE])));
+        Assert.That(result["Cells"].TryGetValue(out MatrixOf<int> encodedCells), Is.True);
+        Assert.That(encodedCells.Dimensions, Is.EqualTo(s_reshapedDimensions));
+        Assert.That(encodedCells.ToArrayOf(), Is.EqualTo((ArrayOf<int>)[1, 2, 3, 4]));
+        Assert.That(source["Cells"].TryGetValue(out MatrixOf<int> untouched), Is.True);
+        Assert.That(untouched.Dimensions, Is.EqualTo(s_originalDimensions));
+        Assert.That(untouched.ToArrayOf(), Is.EqualTo((ArrayOf<int>)[1, 2, 3, 4, 5, 6]));
+        Assert.That(flags.Value, Is.EqualTo(ByteString.From([0x80])));
+    }
+
+    [Test]
+    public async Task FreshDefaultStructureMatrixFieldCanBeCreatedWithoutImportingAValueAsync()
+    {
+        using var context = new StructuredValueTestContext();
+        StructuredValueTestContext.NativeType type = context.Register(
+            "FreshMatrix", StructureType.Structure,
+            [StructuredValueTestContext.Field("Cells", DataTypeIds.Int32, rank: 2)]);
+        StructuredValueDraft parent = await context.Service.OpenAsync(
+            type.DataTypeId, type.Definition, Variant.Null).ConfigureAwait(false);
+        StructuredArrayDraft matrix = await context.Service.OpenArrayAsync(
+            DataTypeIds.Int32, 2, [], parent.Fields[0].Value, isStructureField: true).ConfigureAwait(false);
+        Assert.That(matrix.InitialValue.IsNull, Is.True);
+        StructuredArrayValue created = matrix.Reshape(matrix.InitialValue, [1, 2], allowResize: true);
+        created = matrix.WithElements(created, [Variant.From(7), Variant.From(8)]);
+        Assert.That(matrix.TryCommit(created, out Variant cells, out string? error), Is.True, error);
+        Assert.That(parent.TryCommit([new("Cells", cells)], out Variant committed, out error), Is.True, error);
+
+        IStructure result = ReadStructure(context.RoundTrip(committed), context.MessageContext);
+        Assert.That(result["Cells"].TryGetValue(out MatrixOf<int> encoded), Is.True);
+        Assert.That(encoded.Dimensions, Is.EqualTo(s_freshDimensions));
+        Assert.That(encoded.ToArrayOf(), Is.EqualTo((ArrayOf<int>)[7, 8]));
+    }
+
     private static Task<StructuredValueDraft> OpenArgumentAsync(StructuredValueTestContext context, Argument value)
     {
         return context.Service.OpenAsync(
@@ -507,6 +584,10 @@ public sealed class StructuredValueDraftTests
         Assert.That(body, Is.InstanceOf<IStructure>());
         return (IStructure)body!;
     }
+
+    private static readonly int[] s_reshapedDimensions = [2, 2];
+    private static readonly int[] s_originalDimensions = [2, 3];
+    private static readonly int[] s_freshDimensions = [1, 2];
 
     private sealed class CodecOnlyValue : IEncodeable
     {

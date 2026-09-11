@@ -335,7 +335,97 @@ public sealed class ModelInspectorBackendTests
         }
     }
 
-    private static void ConfigureVariableReads(StructuredValueTestContext context)
+    [Test]
+    public async Task MatrixWriteRechecksDimensionMetadataAndRetainsTheInspectedSnapshotAsync()
+    {
+        using var context = new StructuredValueTestContext();
+        ArrayOf<uint> dimensions = [2u, 3u];
+        ConfigureVariableReads(context, 2, () => dimensions);
+        context.Session.SetupGet(value => value.TypeTree).Returns(new TypeTable(context.MessageContext.NamespaceUris));
+        ArrayOf<WriteValue> sent = default;
+        context.Session.Setup(value => value.WriteAsync(
+            It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()))
+            .Callback((RequestHeader? _, ArrayOf<WriteValue> values, CancellationToken _) => sent = values)
+            .ReturnsAsync(new WriteResponse { ResponseHeader = new ResponseHeader(), Results = [StatusCodes.Good] });
+        var backend = new SessionModelInspectorBackend(context.Service);
+        await using (backend.ConfigureAwait(false))
+        {
+            await backend.BindAsync(context.Session.Object, CancellationToken.None).ConfigureAwait(false);
+            ModelInspection inspection = await backend.ReadAsync("i=2258", false, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(inspection.ArrayDimensions, Is.EqualTo((ArrayOf<uint>)[2u, 3u]));
+            dimensions = [3u, 2u];
+            Variant candidate = Variant.From(((ArrayOf<int>)[8, 9, 10]).ToMatrix([1, 3]));
+
+            await Assert.ThatAsync(() => backend.WriteAsync(inspection, candidate, CancellationToken.None),
+                Throws.TypeOf<ServiceResultException>().With.Message.Contains("dimensions changed"))
+                .ConfigureAwait(false);
+            Assert.That(sent.IsNull, Is.True);
+            Assert.That(inspection.ArrayDimensions, Is.EqualTo((ArrayOf<uint>)[2u, 3u]));
+
+            dimensions = [2u, 3u];
+            Assert.That(await backend.WriteAsync(inspection, candidate, CancellationToken.None).ConfigureAwait(false),
+                Is.EqualTo(StatusCodes.Good));
+            Assert.That(sent.Count, Is.EqualTo(1));
+            Assert.That(sent[0].NodeId, Is.EqualTo(inspection.NodeId));
+            Assert.That(sent[0].Value.WrappedValue, Is.EqualTo(candidate));
+            context.Session.Verify(value => value.WriteAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+    }
+
+    [Test]
+    public async Task MatrixExceedingDeclaredDimensionsIsRejectedBeforeWriteAsync()
+    {
+        using var context = new StructuredValueTestContext();
+        ConfigureVariableReads(context, 2, () => (ArrayOf<uint>)[2u, 3u]);
+        var backend = new SessionModelInspectorBackend(context.Service);
+        await using (backend.ConfigureAwait(false))
+        {
+            await backend.BindAsync(context.Session.Object, CancellationToken.None).ConfigureAwait(false);
+            ModelInspection inspection = await backend.ReadAsync("i=2258", false, CancellationToken.None)
+                .ConfigureAwait(false);
+            Variant oversized = Variant.From(((ArrayOf<int>)[1, 2, 3, 4, 5, 6]).ToMatrix([3, 2]));
+
+            await Assert.ThatAsync(() => backend.WriteAsync(inspection, oversized, CancellationToken.None),
+                Throws.TypeOf<ServiceResultException>().With.Message.Contains("declared maximum"))
+                .ConfigureAwait(false);
+            context.Session.Verify(value => value.WriteAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task InvalidOrDeniedDimensionMetadataCannotBecomeUnboundedArrayEvidenceAsync(bool denied)
+    {
+        using var context = new StructuredValueTestContext();
+        ConfigureVariableReads(context, 2);
+        Func<ArrayOf<ReadValueId>, CancellationToken, ValueTask<ReadResponse>> reader = context.Reader;
+        context.Reader = (ids, token) => ids[0].AttributeId == Attributes.ArrayDimensions
+            ? ValueTask.FromResult(StructuredValueTestContext.Reply(
+                Variant.From("invalid dimensions"), denied ? StatusCodes.BadUserAccessDenied : StatusCodes.Good))
+            : reader(ids, token);
+        var backend = new SessionModelInspectorBackend(context.Service);
+        await using (backend.ConfigureAwait(false))
+        {
+            await backend.BindAsync(context.Session.Object, CancellationToken.None).ConfigureAwait(false);
+            await Assert.ThatAsync(() => backend.ReadAsync("i=2258", false, CancellationToken.None),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(denied ? StatusCodes.BadUserAccessDenied : StatusCodes.BadDecodingError))
+                .ConfigureAwait(false);
+            context.Session.Verify(value => value.WriteAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+    }
+
+    private static void ConfigureVariableReads(
+        StructuredValueTestContext context,
+        int valueRank = ValueRanks.Scalar,
+        Func<ArrayOf<uint>>? dimensions = null)
     {
         context.Reader = (ids, _) => ValueTask.FromResult(ids[0].AttributeId switch
         {
@@ -344,14 +434,17 @@ public sealed class ModelInspectorBackendTests
                 Variant.From(new LocalizedText("Test value")),
                 Variant.From(new QualifiedName("TestValue"))),
             Attributes.Value => Reply(
-                Variant.From(7),
+                valueRank == ValueRanks.Scalar
+                    ? Variant.From(7)
+                    : Variant.From(((ArrayOf<int>)[1, 2, 3, 4, 5, 6]).ToMatrix([2, 3])),
                 Variant.From(DataTypeIds.Int32),
-                Variant.From(ValueRanks.Scalar),
+                Variant.From(valueRank),
                 Variant.From((byte)AccessLevels.CurrentWrite)),
             Attributes.DataType => Reply(
                 Variant.From(DataTypeIds.Int32),
-                Variant.From(ValueRanks.Scalar),
+                Variant.From(valueRank),
                 Variant.From((byte)AccessLevels.CurrentWrite)),
+            Attributes.ArrayDimensions => Reply(Variant.From(dimensions?.Invoke() ?? ArrayOf<uint>.Empty)),
             Attributes.BrowseName => Reply(Variant.From(new QualifiedName("Int32"))),
             Attributes.DataTypeDefinition => StructuredValueTestContext.Reply(
                 Variant.Null, StatusCodes.BadAttributeIdInvalid),

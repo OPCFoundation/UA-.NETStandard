@@ -142,6 +142,49 @@ namespace Opc.Ua.PubSub.Tests.Security
             Assert.That(app.Connections, Has.Count.EqualTo(1));
         }
 
+        [Test]
+        public async Task ExplicitKeyProviderBuildsASecuredApplicationWithoutInventingAnSksEndpointAsync()
+        {
+            PubSubConfigurationDataType configuration = SecuredConfiguration();
+            configuration.Connections[0].WriterGroups[0].SecurityKeyServices = [];
+            StaticSecurityKeyProvider keys = CreateKeyProvider(DemoGroup);
+            var resolver = new PubSubSecurityWrapperResolver([keys], NUnitTelemetryContext.Create());
+            Assert.That(resolver.SecurityGroupIds, Is.EqualTo((ArrayOf<string>)[DemoGroup]));
+            IPubSubApplication app = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+                .WithApplicationId("out-of-band-keys")
+                .UseConfiguration(configuration)
+                .UseAllStandardEncoders()
+                .AddTransportFactory(new StubTransportFactory())
+                .WithSecurityWrapperResolver(resolver)
+                .Build();
+            await using (app.ConfigureAwait(false))
+            {
+                Assert.That(app.Connections, Has.Count.EqualTo(1));
+                PubSubConfigurationDataType retained = app.GetConfiguration();
+                WriterGroupDataType group = retained.Connections[0].WriterGroups[0];
+                Assert.That(group.SecurityMode, Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+                Assert.That(group.SecurityGroupId, Is.EqualTo(DemoGroup));
+                Assert.That(group.SecurityKeyServices.IsEmpty, Is.True);
+            }
+        }
+
+        [Test]
+        public void UnregisteredGroupCannotBuildASecuredApplicationWithoutAnSksEndpoint()
+        {
+            PubSubConfigurationDataType configuration = SecuredConfiguration();
+            configuration.Connections[0].WriterGroups[0].SecurityKeyServices = [];
+            var builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+                .WithApplicationId("unknown-out-of-band-keys")
+                .UseConfiguration(configuration)
+                .UseAllStandardEncoders()
+                .AddTransportFactory(new StubTransportFactory())
+                .AddSecurityKeyProvider(CreateKeyProvider("another-group"));
+
+            Assert.That(() => builder.Build(), Throws.TypeOf<PubSubConfigurationException>());
+            Assert.That(configuration.Connections[0].WriterGroups[0].SecurityMode,
+                Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+        }
+
         private static PubSubConfigurationDataType SecuredConfiguration()
         {
             return new PubSubConfigurationDataType

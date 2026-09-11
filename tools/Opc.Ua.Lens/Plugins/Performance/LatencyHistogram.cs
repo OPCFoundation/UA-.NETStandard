@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -28,50 +28,54 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using Opc.Ua;
 
 namespace UaLens.Plugins.Performance;
 
 /// <summary>
-/// Fixed-bucket log-spaced latency histogram suitable for ~10k ops/sec
-/// sustained recording.  Buckets cover 1 µs ‒ 10 s at a 10^0.1 step
-/// (so each bucket is ~26 % wider than the previous one, 80 buckets
-/// total).  Each <see cref="Record"/> call costs an integer log + a
-/// single <see cref="System.Threading.Interlocked.Increment(ref long)"/>;
-/// percentile / mean queries do a one-pass scan over the counters and
-/// are safe to call concurrently with <see cref="Record"/>.
+/// Bounded, thread-safe counters for observed operation latencies. Seventy
+/// log-spaced buckets cover latencies below 10 seconds; the final bucket
+/// counts all latencies at or above 10 seconds. No individual samples are retained.
 /// </summary>
 internal sealed class LatencyHistogram
 {
-    /// <summary>Lowest bucket edge in milliseconds (1 µs).</summary>
-    public const double MinMs = 0.001;
+    /// <summary>
+    /// Total recorded samples, including the overflow bucket.
+    /// </summary>
+    public long Count
+    {
+        get
+        {
+            lock (m_gate)
+            {
+                return m_count;
+            }
+        }
+    }
 
-    /// <summary>Highest bucket edge in milliseconds (10 s).</summary>
-    public const double MaxMs = 10_000.0;
+    /// <summary>
+    /// Samples at or above <see cref="MaxMs"/>.
+    /// </summary>
+    public long Overflow
+    {
+        get
+        {
+            lock (m_gate)
+            {
+                return m_buckets[^1];
+            }
+        }
+    }
 
-    /// <summary>Log-spacing step: 10^0.1 per bucket.</summary>
-    public const double Step = 0.1;
-
-    /// <summary>Number of buckets (40 decades fit into 80 0.1-decade steps).</summary>
-    public const int BucketCount = 80;
-
-    private readonly long[] m_buckets = new long[BucketCount];
-    private long m_count;
-    private long m_overflow;
-    private double m_maxMs;
-    private readonly object m_maxLock = new();
-
-    /// <summary>Total recorded samples (including ones that overflowed the top bucket).</summary>
-    public long Count => System.Threading.Interlocked.Read(ref m_count);
-
-    /// <summary>Samples that exceeded <see cref="MaxMs"/> and saturated into the last bucket.</summary>
-    public long Overflow => System.Threading.Interlocked.Read(ref m_overflow);
-
-    /// <summary>Highest latency observed since the last <see cref="Reset"/>, in ms.</summary>
+    /// <summary>
+    /// Highest latency observed since the last reset, in milliseconds.
+    /// </summary>
     public double MaxMsObserved
     {
         get
         {
-            lock (m_maxLock)
+            lock (m_gate)
             {
                 return m_maxMs;
             }
@@ -79,153 +83,134 @@ internal sealed class LatencyHistogram
     }
 
     /// <summary>
-    /// Record a latency sample in milliseconds.  Values &lt; <see cref="MinMs"/>
-    /// land in the bottom bucket; values &gt;= <see cref="MaxMs"/> land in
-    /// the top bucket and bump the <see cref="Overflow"/> counter.
-    /// Thread-safe.
+    /// Record a finite, nonnegative latency. The first bucket includes zero
+    /// and sub-microsecond measurements; overflow has no finite upper bound.
     /// </summary>
     public void Record(double latencyMs)
     {
-        if (double.IsNaN(latencyMs) || latencyMs < 0)
-        {
-            return;
-        }
         int idx = BucketIndex(latencyMs);
-        if (idx >= BucketCount - 1)
+        lock (m_gate)
         {
-            System.Threading.Interlocked.Increment(ref m_overflow);
-            idx = BucketCount - 1;
-        }
-        System.Threading.Interlocked.Increment(ref m_buckets[idx]);
-        System.Threading.Interlocked.Increment(ref m_count);
-        // Track max as well — used for the histogram axis caption.
-        lock (m_maxLock)
-        {
-            if (latencyMs > m_maxMs)
-            {
-                m_maxMs = latencyMs;
-            }
+            m_buckets[idx]++;
+            m_count++;
+            m_meanMs += (latencyMs - m_meanMs) / m_count;
+            m_maxMs = Math.Max(m_maxMs, latencyMs);
         }
     }
 
     /// <summary>
-    /// Returns the latency in ms at the given percentile (0..1).  Linear
-    /// interpolation across the bucket containing the cumulative target;
-    /// the bucket edges are log-spaced.  Returns 0 when no samples have
-    /// been recorded.
+    /// Returns a bucket upper-bound percentile estimate, capped by the observed
+    /// maximum. Overflow percentiles use that maximum, not an invented bucket edge.
     /// </summary>
     public double GetPercentile(double p)
     {
-        if (p <= 0)
+        lock (m_gate)
         {
-            return 0;
+            return BenchmarkDistribution.GetPercentile(m_buckets, m_count, m_maxMs, p);
         }
-
-        if (p >= 1)
-        {
-            p = 1;
-        }
-
-        long total = System.Threading.Interlocked.Read(ref m_count);
-        if (total == 0)
-        {
-            return 0;
-        }
-
-        long target = (long)Math.Ceiling(p * total);
-        if (target <= 0)
-        {
-            target = 1;
-        }
-
-        long cumulative = 0;
-        for (int i = 0; i < BucketCount; i++)
-        {
-            long c = System.Threading.Interlocked.Read(ref m_buckets[i]);
-            cumulative += c;
-            if (cumulative >= target)
-            {
-                return BucketUpperMs(i);
-            }
-        }
-        return MaxMs;
     }
 
-    /// <summary>Resets all counters and the observed maximum.</summary>
+    /// <summary>
+    /// Resets the counters, measured mean and observed maximum together.
+    /// </summary>
     public void Reset()
     {
-        for (int i = 0; i < BucketCount; i++)
+        lock (m_gate)
         {
-            System.Threading.Interlocked.Exchange(ref m_buckets[i], 0);
-        }
-        System.Threading.Interlocked.Exchange(ref m_count, 0);
-        System.Threading.Interlocked.Exchange(ref m_overflow, 0);
-        lock (m_maxLock)
-        {
+            Array.Clear(m_buckets);
+            m_count = 0;
+            m_meanMs = 0;
             m_maxMs = 0;
         }
     }
 
     /// <summary>
-    /// Snapshot the per-bucket counts into <paramref name="destination"/>.
-    /// Caller-supplied buffer of length <see cref="BucketCount"/> to avoid
-    /// per-frame allocations in the UI render loop.  Returns the total
-    /// count across buckets (matches <see cref="Count"/> at snapshot time).
+    /// Copies a consistent snapshot into a caller-owned rendering buffer.
     /// </summary>
-    public long Snapshot(long[] destination)
+    public long Snapshot(Span<long> destination)
     {
-        if (destination is null)
-        {
-            throw new ArgumentNullException(nameof(destination));
-        }
-
         if (destination.Length < BucketCount)
         {
             throw new ArgumentException(
                 $"destination must have at least {BucketCount} entries.", nameof(destination));
         }
-        long total = 0;
-        for (int i = 0; i < BucketCount; i++)
+        lock (m_gate)
         {
-            long c = System.Threading.Interlocked.Read(ref m_buckets[i]);
-            destination[i] = c;
-            total += c;
+            m_buckets.AsSpan().CopyTo(destination);
+            return m_count;
         }
-        return total;
     }
 
-    /// <summary>Lower edge in ms of bucket <paramref name="i"/>.</summary>
-    public static double BucketLowerMs(int i) =>
-        MinMs * Math.Pow(10.0, i * Step);
-
-    /// <summary>Upper edge in ms of bucket <paramref name="i"/>.</summary>
-    public static double BucketUpperMs(int i) =>
-        MinMs * Math.Pow(10.0, (i + 1) * Step);
+    /// <summary>
+    /// Freezes genuine counts and measured moments without retaining sample arrays.
+    /// </summary>
+    public BenchmarkDistribution Capture()
+    {
+        lock (m_gate)
+        {
+            return new BenchmarkDistribution(new ArrayOf<long>(m_buckets), m_meanMs, m_maxMs);
+        }
+    }
 
     /// <summary>
-    /// Bucket index for a given latency in ms.  Saturates at
-    /// <see cref="BucketCount"/> - 1 for over-range samples; clamps to 0
-    /// for values &lt;= <see cref="MinMs"/>.
+    /// Inclusive lower edge in milliseconds. The first bucket starts at zero.
+    /// </summary>
+    public static double BucketLowerMs(int i)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(i);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(i, BucketCount);
+        return i == 0 ? 0 : MinMs * Math.Pow(10.0, i * Step);
+    }
+
+    /// <summary>
+    /// Exclusive upper edge in milliseconds; overflow is unbounded.
+    /// </summary>
+    public static double BucketUpperMs(int i)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(i);
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(i, BucketCount);
+        return i == BucketCount - 1 ? double.PositiveInfinity : MinMs * Math.Pow(10.0, (i + 1) * Step);
+    }
+
+    /// <summary>
+    /// Finds the bucket for a finite nonnegative sample, including exact edges.
     /// </summary>
     public static int BucketIndex(double latencyMs)
     {
+        if (!double.IsFinite(latencyMs) || latencyMs < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(latencyMs));
+        }
         if (latencyMs <= MinMs)
         {
             return 0;
         }
-
-        double decade = Math.Log10(latencyMs / MinMs);
-        int idx = (int)(decade / Step);
-        if (idx < 0)
-        {
-            return 0;
-        }
-
-        if (idx >= BucketCount)
+        if (latencyMs >= MaxMs)
         {
             return BucketCount - 1;
         }
 
+        int idx = Math.Clamp((int)(Math.Log10(latencyMs / MinMs) / Step), 0, BucketCount - 2);
+        // Correct logarithm rounding at an exact bucket edge.
+        while (idx > 0 && latencyMs < BucketLowerMs(idx))
+        {
+            idx--;
+        }
+        while (idx < BucketCount - 2 && latencyMs >= BucketUpperMs(idx))
+        {
+            idx++;
+        }
         return idx;
     }
+
+    public const double MinMs = 0.001;
+    public const double MaxMs = 10_000.0;
+    public const double Step = 0.1;
+    public const int BucketCount = 71;
+
+    private readonly Lock m_gate = new();
+    private readonly long[] m_buckets = new long[BucketCount];
+    private long m_count;
+    private double m_meanMs;
+    private double m_maxMs;
 }

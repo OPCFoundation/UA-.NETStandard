@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using Opc.Ua;
 using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
@@ -149,12 +150,14 @@ internal sealed partial class PerformanceView : UserControl
 
         Plot plot = m_histogramPlot.Plot;
         ApplyDarkTheme(plot, "Latency distribution (log buckets, ms)", "latency (ms)", "count");
-        // Build 80 bars at log-spaced positions.
         var bars = new List<Bar>(LatencyHistogram.BucketCount);
         for (int i = 0; i < LatencyHistogram.BucketCount; i++)
         {
-            double lo = LatencyHistogram.BucketLowerMs(i);
-            double hi = LatencyHistogram.BucketUpperMs(i);
+            double lo = Math.Max(LatencyHistogram.MinMs, LatencyHistogram.BucketLowerMs(i));
+            // Overflow is an open-ended category, displayed in one labeled slot.
+            double hi = i == LatencyHistogram.BucketCount - 1
+                ? LatencyHistogram.MaxMs * Math.Pow(10, LatencyHistogram.Step)
+                : LatencyHistogram.BucketUpperMs(i);
             double mid = (lo + hi) / 2.0;
             bars.Add(new Bar
             {
@@ -213,7 +216,7 @@ internal sealed partial class PerformanceView : UserControl
 
         plot.Axes.SetLimitsX(
             Math.Log10(LatencyHistogram.MinMs),
-            Math.Log10(LatencyHistogram.MaxMs));
+            Math.Log10(LatencyHistogram.MaxMs) + LatencyHistogram.Step);
         plot.Axes.Margins(0, 0.1);
         m_histogramPlot.Refresh();
     }
@@ -265,7 +268,7 @@ internal sealed partial class PerformanceView : UserControl
         // Refresh histogram bars.
         if (m_histogramBars is not null && m_histogramBarList is not null)
         {
-            long[] snapshot = m_vm.GetHistogramSnapshot();
+            ArrayOf<long> snapshot = m_vm.GetHistogramSnapshot();
             for (int i = 0; i < LatencyHistogram.BucketCount && i < m_histogramBarList.Count; i++)
             {
                 m_histogramBarList[i].Value = snapshot[i];
@@ -275,17 +278,17 @@ internal sealed partial class PerformanceView : UserControl
         // Move percentile markers.
         if (m_p50Line is not null)
         {
-            m_p50Line.X = Math.Log10(Math.Max(LatencyHistogram.MinMs, m_vm.P50Ms));
+            m_p50Line.X = Math.Log10(Math.Clamp(m_vm.P50Ms, LatencyHistogram.MinMs, LatencyHistogram.MaxMs));
         }
 
         if (m_p95Line is not null)
         {
-            m_p95Line.X = Math.Log10(Math.Max(LatencyHistogram.MinMs, m_vm.P95Ms));
+            m_p95Line.X = Math.Log10(Math.Clamp(m_vm.P95Ms, LatencyHistogram.MinMs, LatencyHistogram.MaxMs));
         }
 
         if (m_p99Line is not null)
         {
-            m_p99Line.X = Math.Log10(Math.Max(LatencyHistogram.MinMs, m_vm.P99Ms));
+            m_p99Line.X = Math.Log10(Math.Clamp(m_vm.P99Ms, LatencyHistogram.MinMs, LatencyHistogram.MaxMs));
         }
 
         // Autoscale the Y axis on the histogram so the tallest bar fills.

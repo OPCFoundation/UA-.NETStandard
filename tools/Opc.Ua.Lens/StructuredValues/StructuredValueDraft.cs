@@ -62,7 +62,8 @@ internal sealed class StructuredValueDraft
         Action ensureCurrent,
         IEncodeable? adapter = null,
         IServiceMessageContext? context = null,
-        IEnumeratedType? enumeration = null)
+        IEnumeratedType? enumeration = null,
+        StructuredOptionSetValue? optionSet = null)
     {
         DataTypeId = dataTypeId;
         Definition = CoreUtils.Clone(definition)!;
@@ -72,12 +73,27 @@ internal sealed class StructuredValueDraft
         m_adapter = adapter is null ? null : CoreUtils.Clone(adapter);
         m_context = context;
         m_enumeration = enumeration;
+        OptionSet = optionSet;
     }
 
     public NodeId DataTypeId { get; }
     public DataTypeDefinition Definition { get; }
     public Variant InitialValue { get; }
     public ArrayOf<StructuredValueField> Fields { get; }
+    public StructuredOptionSetValue? OptionSet { get; }
+
+    public static StructuredValueDraft ForOptionSet(
+        NodeId dataTypeId,
+        EnumDefinition definition,
+        Variant initialValue,
+        IServiceMessageContext context,
+        Action ensureCurrent)
+    {
+        ArgumentNullException.ThrowIfNull(ensureCurrent);
+        var optionSet = new StructuredOptionSetValue(dataTypeId, definition, initialValue, context);
+        return new StructuredValueDraft(
+            dataTypeId, definition, initialValue, [], ensureCurrent, context: context, optionSet: optionSet);
+    }
 
     public static StructuredValueDraft ForEnumeration(
         NodeId dataTypeId,
@@ -204,7 +220,33 @@ internal sealed class StructuredValueDraft
             committed = Variant.From(new EnumValue(value, m_enumeration));
             return true;
         }
-        catch (ServiceResultException ex)
+        catch (Exception ex) when (ex is ServiceResultException or OperationCanceledException)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    public bool TryCommitOptionSet(
+        ArrayOf<StructuredOptionBitEdit> edits, out Variant committed, out string? error)
+    {
+        committed = Variant.Null;
+        error = null;
+        try
+        {
+            m_ensureCurrent();
+            if (OptionSet is null)
+            {
+                error = "The value is not an OptionSet.";
+                return false;
+            }
+            Variant candidate = OptionSet.WithBits(edits);
+            m_ensureCurrent();
+            committed = candidate;
+            return true;
+        }
+        catch (Exception ex) when (ex is ServiceResultException or ArgumentException or
+            InvalidOperationException or OverflowException or OperationCanceledException)
         {
             error = ex.Message;
             return false;
@@ -325,7 +367,8 @@ internal sealed class StructuredValueDraft
             return true;
         }
         catch (Exception ex) when (ex is ServiceResultException or ArgumentException or
-            InvalidOperationException or KeyNotFoundException or FormatException or OverflowException or IOException)
+            InvalidOperationException or KeyNotFoundException or FormatException or OverflowException or
+            IOException or OperationCanceledException)
         {
             error = ex.Message;
             return false;
@@ -455,6 +498,18 @@ internal sealed class StructuredValueDraft
         {
             error = $"Expected {expected} (rank {rank}), not {value.TypeInfo}.";
             return false;
+        }
+        if (!value.TypeInfo.IsScalar)
+        {
+            try
+            {
+                StructuredArrayValue.Read(value, context).Validate(rank, field.Definition.ArrayDimensions, context);
+            }
+            catch (ServiceResultException ex)
+            {
+                error = ex.Message;
+                return false;
+            }
         }
         if (field.TypeInfo.BuiltInType == BuiltInType.Null)
         {

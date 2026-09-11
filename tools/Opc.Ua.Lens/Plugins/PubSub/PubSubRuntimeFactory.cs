@@ -70,7 +70,7 @@ internal interface IPubSubRuntimeFactory
         CancellationToken cancellationToken);
 }
 
-internal sealed class PubSubRuntimeFactory : IPubSubRuntimeFactory
+internal sealed class PubSubRuntimeFactory : IPubSubRuntimeFactory, IPubSubCommissioningCatalog
 {
     public PubSubRuntimeFactory(
         ITelemetryContext telemetry,
@@ -85,6 +85,13 @@ internal sealed class PubSubRuntimeFactory : IPubSubRuntimeFactory
         foreach (IPubSubTransportProvider provider in transportProviders)
         {
             ArgumentNullException.ThrowIfNull(provider);
+            if (provider.Profiles.IsNull || provider.Profiles.Count == 0 ||
+                provider.Profiles.Contains(profile => !Enum.IsDefined(profile)) ||
+                provider.Profiles.ToList().Distinct().Count() != provider.Profiles.Count)
+            {
+                throw new ArgumentException("A transport must declare distinct implemented profiles.",
+                    nameof(transportProviders));
+            }
             AddProvider(m_transports, provider.Id, provider);
         }
         foreach (IPubSubKeyProviderResolver provider in keyProviders)
@@ -99,12 +106,25 @@ internal sealed class PubSubRuntimeFactory : IPubSubRuntimeFactory
         }
     }
 
+    public PubSubProviderCatalog Catalog => new(
+        [.. m_transports.Values.SelectMany(provider => provider.Profiles.ToList()
+            .Select(profile => new PubSubTransportChoice(provider.Id, profile)))],
+        [.. m_keys.Values.Select(provider =>
+            new PubSubKeyProviderChoice(provider.Id, provider.KeySource, provider.SecurityKeyServiceEndpoint))],
+        [.. m_adapters.Values.Select(provider => new PubSubAdapterChoice(provider.Id, provider.UsesPrimarySession))]);
+
     public ArrayOf<PubSubPrerequisite> Inspect(PubSubConfiguration configuration, bool primarySessionAvailable)
     {
         List<PubSubPrerequisite> issues = PubSubConfigurationValidation.Inspect(configuration).ToList();
         if (issues.Count == 0)
         {
-            var validator = new PubSubConfigurationValidator([configuration.TransportProfileUri]);
+            var validator = new PubSubConfigurationValidator([configuration.TransportProfileUri])
+            {
+                RegisteredSecurityGroupIds = configuration.KeySource == PubSubKeySource.ConfiguredProvider &&
+                    m_keys.TryGetValue(configuration.SecurityProviderId, out IPubSubKeyProviderResolver? registered) &&
+                    registered.KeySource == PubSubKeySource.ConfiguredProvider
+                        ? [configuration.SecurityGroupId] : default
+            };
             PubSubConfigurationValidationResult validation = validator.Validate(
                 PubSubStackConfiguration.Build(configuration));
             foreach (PubSubConfigurationIssue issue in validation.Issues.ToList().Where(
@@ -127,15 +147,28 @@ internal sealed class PubSubRuntimeFactory : IPubSubRuntimeFactory
         {
             issues.Add(transport.Inspect(configuration));
         }
-        if (configuration.SecurityMode != MessageSecurityMode.None &&
-            !m_keys.ContainsKey(configuration.SecurityProviderId))
+        if (configuration.SecurityMode != MessageSecurityMode.None)
         {
-            issues.Add(new PubSubPrerequisite("Security", PubSubReadiness.RequiresConfiguration,
-                "The key/SKS provider is not registered. Configure authority trust, credentials and group access."));
+            if (configuration.SecurityProviderId is null ||
+                !m_keys.TryGetValue(configuration.SecurityProviderId, out IPubSubKeyProviderResolver? keys))
+            {
+                issues.Add(new PubSubPrerequisite("Security", PubSubReadiness.RequiresConfiguration,
+                    "The key/SKS provider is not registered. " +
+                    "Configure authority trust, credentials and group access."));
+            }
+            else if (keys.KeySource != configuration.KeySource ||
+                !string.Equals(keys.SecurityKeyServiceEndpoint, configuration.SecurityKeyServiceEndpoint,
+                    StringComparison.Ordinal))
+            {
+                issues.Add(new PubSubPrerequisite("Security", PubSubReadiness.RequiresConfiguration,
+                    "The key source and SKS endpoint must match the registered provider; " +
+                    "changing text cannot retarget it."));
+            }
         }
         if (configuration.UsesServerAdapter)
         {
-            if (!m_adapters.TryGetValue(configuration.AdapterProviderId, out IPubSubAdapterProvider? adapter))
+            if (configuration.AdapterProviderId is null ||
+                !m_adapters.TryGetValue(configuration.AdapterProviderId, out IPubSubAdapterProvider? adapter))
             {
                 issues.Add(new PubSubPrerequisite("UA adapter", PubSubReadiness.RequiresConfiguration,
                     "The selected server-session adapter provider is not registered."));
@@ -208,10 +241,14 @@ internal sealed class PubSubRuntimeFactory : IPubSubRuntimeFactory
                         "The selected key provider belongs to a different security group.");
                 }
                 PubSubSecurityKey key = await keys.Provider.GetCurrentKeyAsync(cancellationToken).ConfigureAwait(false);
-                if (key.IsExpired(m_clock))
+                cancellationToken.ThrowIfCancellationRequested();
+                if (key.TokenId == 0 || key.IssuedAt > DateTimeUtc.From(m_clock.GetUtcNow()) ||
+                    key.IsExpired(m_clock) ||
+                    key.SigningKey.Length != 32 || key.EncryptingKey.Length is not (16 or 32) ||
+                    key.KeyNonce.Length != 4)
                 {
                     throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed,
-                        "The configured key/SKS provider returned an expired current token.");
+                        "The configured key provider returned an inactive or invalid AES-CTR token.");
                 }
                 builder.AddSecurityKeyProvider(keys.Provider);
             }
@@ -346,8 +383,7 @@ internal sealed class PubSubRuntimeFactory : IPubSubRuntimeFactory
                 DataSetMetaDataType metadata = stackConfiguration.Connections[0]
                     .ReaderGroups[0].DataSetReaders[0].DataSetMetaData;
                 application.MetaDataRegistry.Register(new DataSetMetaDataKey(
-                    PublisherId.From(PubSubStackConfiguration.PublisherVariant(
-                        configuration, configuration.PublisherFilter)),
+                    PublisherId.From(PubSubIdentity.Filter(configuration)),
                     configuration.IsJson ? (ushort)0 : configuration.WriterGroupId,
                     configuration.DataSetWriterId,
                     metadata.DataSetClassId,

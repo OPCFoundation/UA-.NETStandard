@@ -38,6 +38,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -56,10 +57,11 @@ internal sealed partial class CompanionPlugin : ObservableObject, IPlugin, IWork
     public CompanionPlugin(
         PluginHost host,
         CompanionWorkspace? workspace = null,
-        ArrayOf<ICompanionProvider> providers = default)
+        ArrayOf<ICompanionProvider> providers = default,
+        TimeProvider? timeProvider = null)
     {
         m_host = host ?? throw new ArgumentNullException(nameof(host));
-        m_workspace = workspace ?? new CompanionWorkspace(providers, host.Telemetry);
+        m_workspace = workspace ?? new CompanionWorkspace(providers, host.Telemetry, timeProvider);
         Providers = [.. m_workspace.Providers];
         m_title = string.Create(CultureInfo.InvariantCulture, $"Companions {Interlocked.Increment(ref s_number)}");
         m_selectedProvider = Providers.FirstOrDefault();
@@ -76,6 +78,11 @@ internal sealed partial class CompanionPlugin : ObservableObject, IPlugin, IWork
     public ObservableCollection<CompanionValue> Values { get; } = [];
 
     public ObservableCollection<CompanionOperation> Operations { get; } = [];
+
+    public ObservableCollection<CompanionInputEditor> InputFields { get; } = [];
+
+    public string PreparationSummary => PreparedOperation?.Summary ??
+        "Prepare the selected task to review its target and effect. No operation is executed by preparation.";
 
     Control? IPlugin.View => m_view ??= new CompanionView { DataContext = this };
 
@@ -168,6 +175,68 @@ internal sealed partial class CompanionPlugin : ObservableObject, IPlugin, IWork
         Operations.Clear();
         SelectedOperation = null;
         OperationInput = string.Empty;
+        InvalidatePreparation();
+    }
+
+    partial void OnSelectedOperationChanged(CompanionOperation? value)
+    {
+        m_selectionVersion++;
+        OperationInput = string.Empty;
+        InputFields.Clear();
+        if (value is not null)
+        {
+            foreach (CompanionInputDefinition field in value.Inputs)
+            {
+                InputFields.Add(new CompanionInputEditor(field, InputChanged, PickPackageAsync));
+            }
+        }
+        InvalidatePreparation();
+    }
+
+    private void InputChanged()
+    {
+        m_selectionVersion++;
+        InvalidatePreparation();
+    }
+
+    private async Task<string?> PickPackageAsync()
+    {
+        string? path = null;
+        await PresentOperationAsync("Select package", async () =>
+        {
+            IStorageProvider storage = TopLevel.GetTopLevel(m_view)?.StorageProvider ??
+                throw new InvalidOperationException("Open the Companion Tasks view to choose a package file.");
+            IReadOnlyList<IStorageFile> files = await storage.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Select a local software package",
+                AllowMultiple = false
+            }).ConfigureAwait(true);
+            if (files.Count == 0)
+            {
+                return;
+            }
+            using IStorageFile file = files[0];
+            path = file.TryGetLocalPath() ??
+                throw new InvalidOperationException("The selected file must have an absolute local path.");
+            Status = "Package path selected. Enter its independently supplied SHA-256 before preparing.";
+        }).ConfigureAwait(true);
+        return path;
+    }
+
+    partial void OnOperationInputChanged(string value)
+    {
+        m_selectionVersion++;
+        InvalidatePreparation();
+    }
+
+    private void InvalidatePreparation(bool discardWorkspace = true)
+    {
+        PreparedOperation = null;
+        ConfirmLocalSample = false;
+        if (discardWorkspace)
+        {
+            m_workspace.DiscardPreparation();
+        }
     }
 
     private bool CanDiscover()
@@ -180,9 +249,15 @@ internal sealed partial class CompanionPlugin : ObservableObject, IPlugin, IWork
         return !IsBusy && !IsOffline && SelectedTarget is not null;
     }
 
-    private bool CanRunTask()
+    private bool CanPrepareTask()
     {
         return CanInspect() && SelectedOperation is not null;
+    }
+
+    private bool CanRunTask()
+    {
+        return CanPrepareTask() && PreparedOperation is { } prepared &&
+            (prepared.Operation.Safety != CompanionOperationSafety.SampleMutation || ConfirmLocalSample);
     }
 
     [RelayCommand(CanExecute = nameof(CanDiscover))]
@@ -190,6 +265,7 @@ internal sealed partial class CompanionPlugin : ObservableObject, IPlugin, IWork
     {
         return PresentOperationAsync("Discover", async () =>
         {
+            InvalidatePreparation();
             CompanionDescriptor provider = SelectedProvider ??
                 throw new InvalidOperationException("Select a companion model first.");
             int version = m_selectionVersion;
@@ -233,6 +309,7 @@ internal sealed partial class CompanionPlugin : ObservableObject, IPlugin, IWork
     {
         return PresentOperationAsync("Inspect", async () =>
         {
+            InvalidatePreparation();
             CompanionTarget target = SelectedTarget ?? throw new InvalidOperationException("Select an instance.");
             int version = m_selectionVersion;
             CompanionInspection inspection = await m_workspace.InspectAsync(target, cancellationToken)
@@ -252,17 +329,52 @@ internal sealed partial class CompanionPlugin : ObservableObject, IPlugin, IWork
         });
     }
 
-    [RelayCommand(CanExecute = nameof(CanRunTask))]
-    private Task RunTaskAsync(CancellationToken cancellationToken)
+    [RelayCommand(CanExecute = nameof(CanPrepareTask))]
+    private Task PrepareTaskAsync(CancellationToken cancellationToken)
     {
-        return PresentOperationAsync("Run task", async () =>
+        return PresentOperationAsync("Prepare task", async () =>
         {
             CompanionTarget target = SelectedTarget ?? throw new InvalidOperationException("Select an instance.");
             CompanionOperation operation = SelectedOperation ??
                 throw new InvalidOperationException("Inspect the instance and select an operation.");
             int version = m_selectionVersion;
-            CompanionOperationResult result = await m_workspace.ExecuteAsync(
-                target, operation.Id, OperationInput, ConfirmLocalSample, cancellationToken).ConfigureAwait(true);
+            InvalidatePreparation();
+            CompanionOperationDraft draft = operation.HasTypedInput
+                ? await m_workspace.PrepareTaskAsync(
+                    target, operation.Id, new ArrayOf<CompanionValue>(
+                        InputFields.Select(field => field.Capture()).ToArray()), cancellationToken).ConfigureAwait(true)
+                : await m_workspace.PrepareAsync(
+                    target, operation.Id, OperationInput, cancellationToken).ConfigureAwait(true);
+            if (version == m_selectionVersion)
+            {
+                PreparedOperation = draft;
+                Status = "Prepared for one execution. Review the target and effect, then explicitly Run.";
+            }
+        });
+    }
+
+    [RelayCommand(CanExecute = nameof(CanRunTask))]
+    private Task RunTaskAsync(CancellationToken cancellationToken)
+    {
+        return PresentOperationAsync("Run task", async () =>
+        {
+            CompanionOperationDraft draft = PreparedOperation ??
+                throw new InvalidOperationException("Prepare the selected operation before running it.");
+            bool confirmed = ConfirmLocalSample;
+            int version = m_selectionVersion;
+            int presentationVersion = m_presentationVersion;
+            InvalidatePreparation(discardWorkspace: false);
+            var progress = new Progress<CompanionTaskProgress>(update =>
+            {
+                if (IsBusy && version == m_selectionVersion && presentationVersion == m_presentationVersion)
+                {
+                    Status = update.Percent is { } percent
+                        ? $"{update.Phase} ({percent}%)"
+                        : update.Phase;
+                }
+            });
+            CompanionOperationResult result = await m_workspace.ExecuteTaskAsync(
+                draft, confirmed, progress, cancellationToken).ConfigureAwait(true);
             if (version == m_selectionVersion)
             {
                 SetValues(result.Values);
@@ -282,6 +394,7 @@ internal sealed partial class CompanionPlugin : ObservableObject, IPlugin, IWork
 
     private async Task PresentOperationAsync(string operation, Func<Task> run)
     {
+        m_presentationVersion++;
         IsBusy = true;
         Status = operation + "...";
         try
@@ -290,12 +403,14 @@ internal sealed partial class CompanionPlugin : ObservableObject, IPlugin, IWork
         }
         catch (OperationCanceledException)
         {
+            InvalidatePreparation();
             Status = operation + " canceled.";
         }
         catch (Exception exception) when (exception is ServiceResultException or ArgumentException or
             InvalidOperationException or IOException or NotSupportedException or TimeoutException or
             JsonException or UnauthorizedAccessException)
         {
+            InvalidatePreparation();
             CompanionPluginLog.OperationFailed(m_host.Log, operation, exception);
             Status = exception is ServiceResultException service
                 ? $"{operation}: {service.StatusCode}"
@@ -323,6 +438,7 @@ internal sealed partial class CompanionPlugin : ObservableObject, IPlugin, IWork
         Values.Clear();
         Operations.Clear();
         SelectedOperation = null;
+        InvalidatePreparation();
     }
 
     [ObservableProperty]
@@ -335,11 +451,13 @@ internal sealed partial class CompanionPlugin : ObservableObject, IPlugin, IWork
     private string m_status = "Connect the primary server, then discover supported companion instances.";
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(DiscoverCommand), nameof(InspectCommand), nameof(RunTaskCommand))]
+    [NotifyCanExecuteChangedFor(
+        nameof(DiscoverCommand), nameof(InspectCommand), nameof(PrepareTaskCommand), nameof(RunTaskCommand))]
     private bool m_isOffline = true;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(DiscoverCommand), nameof(InspectCommand), nameof(RunTaskCommand))]
+    [NotifyCanExecuteChangedFor(
+        nameof(DiscoverCommand), nameof(InspectCommand), nameof(PrepareTaskCommand), nameof(RunTaskCommand))]
     private bool m_isBusy;
 
     [ObservableProperty]
@@ -347,17 +465,23 @@ internal sealed partial class CompanionPlugin : ObservableObject, IPlugin, IWork
     private CompanionDescriptor? m_selectedProvider;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(InspectCommand), nameof(RunTaskCommand))]
+    [NotifyCanExecuteChangedFor(nameof(InspectCommand), nameof(PrepareTaskCommand), nameof(RunTaskCommand))]
     private CompanionTarget? m_selectedTarget;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(RunTaskCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PrepareTaskCommand), nameof(RunTaskCommand))]
     private CompanionOperation? m_selectedOperation;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PreparationSummary))]
+    [NotifyCanExecuteChangedFor(nameof(RunTaskCommand))]
+    private CompanionOperationDraft? m_preparedOperation;
 
     [ObservableProperty]
     private string m_operationInput = string.Empty;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RunTaskCommand))]
     private bool m_confirmLocalSample;
 
     private readonly PluginHost m_host;
@@ -365,6 +489,7 @@ internal sealed partial class CompanionPlugin : ObservableObject, IPlugin, IWork
     private CompanionView? m_view;
     private string? m_restoredTarget;
     private int m_selectionVersion;
+    private int m_presentationVersion;
     private static int s_number;
 }
 

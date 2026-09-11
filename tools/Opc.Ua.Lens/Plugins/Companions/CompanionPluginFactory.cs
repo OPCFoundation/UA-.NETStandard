@@ -40,11 +40,15 @@ namespace UaLens.Plugins.Companions;
 /// </summary>
 internal sealed class CompanionPluginFactory
 {
-    public CompanionPluginFactory(ArrayOf<ICompanionProvider> providers = default)
+    public CompanionPluginFactory(
+        ArrayOf<ICompanionProvider> providers = default,
+        TimeProvider? timeProvider = null,
+        ICompanionPackageReader? packages = null)
     {
+        m_timeProvider = timeProvider ?? TimeProvider.System;
         m_providers = providers.IsNull
             ? [
-                new DeviceCompanionProvider(),
+                new DeviceCompanionProvider(packages, m_timeProvider),
                 new Isa95CompanionProvider(),
                 new WotCompanionProvider(),
                 new RegistryCompanionProvider(),
@@ -59,8 +63,9 @@ internal sealed class CompanionPluginFactory
     public CompanionPlugin Create(PluginHost host)
     {
         ArgumentNullException.ThrowIfNull(host);
-        return new CompanionPlugin(host, providers: m_providers);
+        return new CompanionPlugin(host, providers: m_providers, timeProvider: m_timeProvider);
     }
 
     private readonly ArrayOf<ICompanionProvider> m_providers;
+    private readonly TimeProvider m_timeProvider;
 }

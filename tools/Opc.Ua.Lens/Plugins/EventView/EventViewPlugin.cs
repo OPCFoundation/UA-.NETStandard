@@ -145,7 +145,9 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
     /// </summary>
     private readonly SemaphoreSlim m_gate = new(1, 1);
 
-    /// <summary>UI-thread-only. Events collected while the display is paused.</summary>
+    /// <summary>
+    /// UI-thread-only. Events collected while the display is paused.
+    /// </summary>
     private readonly List<EventLogEntry> m_pausedBuffer = [];
 
     // CA2213: m_subscription is disposed via ReleaseSubscriptionAsync (from
@@ -221,10 +223,14 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
     [ObservableProperty]
     private string m_subscriptionStatus = "○ Subscription: not created";
 
-    /// <summary>UI-thread-only.  Newest entries inserted at index 0.</summary>
+    /// <summary>
+    /// UI-thread-only. Newest entries inserted at index 0.
+    /// </summary>
     public ObservableCollection<EventLogEntry> Events { get; } = new();
 
-    /// <summary>UI-thread-only.  Sources displayed in the left panel.</summary>
+    /// <summary>
+    /// UI-thread-only. Sources displayed in the left panel.
+    /// </summary>
     public ObservableCollection<EventSourceVm> EventSources { get; } = new();
 
     public EventViewPlugin(PluginHost host)
@@ -513,19 +519,30 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
         }
         else if (item.NodeClass == NodeClass.Variable)
         {
-            var writeDlg = new WriteValueDialog(node, session);
-            if (owner is not null)
-            {
-                await writeDlg.ShowDialog(owner).ConfigureAwait(true);
-            }
-            else
-            {
-                writeDlg.Show();
-            }
+            await ShowWriteValueDialogAsync(node, session, owner).ConfigureAwait(true);
         }
         else
         {
             m_log.TriggerNotActionable(item.NodeId, item.NodeClass);
+        }
+    }
+
+    private static async Task ShowWriteValueDialogAsync(NodeViewModel node, ManagedSession session, Window? owner)
+    {
+        var dialog = new WriteValueDialog(node, session);
+        await using (dialog.ConfigureAwait(false))
+        {
+            if (owner is not null)
+            {
+                await dialog.ShowDialog(owner).ConfigureAwait(true);
+            }
+            else
+            {
+                var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                dialog.Closed += (_, _) => closed.TrySetResult();
+                dialog.Show();
+                await closed.Task.ConfigureAwait(true);
+            }
         }
     }
 
@@ -906,7 +923,9 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
         });
     }
 
-    /// <summary>UI-thread-only. Bounds the visible log, counting overflow as dropped.</summary>
+    /// <summary>
+    /// UI-thread-only. Bounds the visible log, counting overflow as dropped.
+    /// </summary>
     private void TrimEvents()
     {
         while (Events.Count > MaxLogEntries)
@@ -916,7 +935,9 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
         }
     }
 
-    /// <summary>UI-thread-only. Bounds the paused backlog, counting overflow as dropped.</summary>
+    /// <summary>
+    /// UI-thread-only. Bounds the paused backlog, counting overflow as dropped.
+    /// </summary>
     private void TrimPausedBuffer()
     {
         while (m_pausedBuffer.Count > MaxLogEntries)

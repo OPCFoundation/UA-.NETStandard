@@ -66,6 +66,7 @@ internal sealed record ReverseConnectionProfile
             EndpointUrl is null || EndpointUrl.Length > 2048 ||
             !Uri.TryCreate(ListenerUrl, UriKind.Absolute, out Uri? listener) ||
             !Uri.TryCreate(EndpointUrl, UriKind.Absolute, out Uri? endpoint) ||
+            !listener.IsWellFormedOriginalString() || !endpoint.IsWellFormedOriginalString() ||
             string.IsNullOrEmpty(listener.Host) || string.IsNullOrEmpty(endpoint.Host) ||
             !string.IsNullOrEmpty(listener.UserInfo) || !string.IsNullOrEmpty(endpoint.UserInfo) ||
             !string.IsNullOrEmpty(listener.Query) || !string.IsNullOrEmpty(endpoint.Query) ||
@@ -100,7 +101,11 @@ internal sealed record ReverseConnectionProfile
 
     public bool MatchesPeer(string serverUri, Uri endpointUrl)
     {
-        return string.Equals(ServerUri, serverUri, StringComparison.Ordinal) &&
+        return endpointUrl is not null && endpointUrl.IsAbsoluteUri &&
+            endpointUrl.IsWellFormedOriginalString() && endpointUrl.AbsoluteUri.Length <= 2048 &&
+            string.IsNullOrEmpty(endpointUrl.UserInfo) && string.IsNullOrEmpty(endpointUrl.Query) &&
+            string.IsNullOrEmpty(endpointUrl.Fragment) &&
+            string.Equals(ServerUri, serverUri, StringComparison.Ordinal) &&
             ConnectionProfile.EndpointUrlsMatch(EndpointUrl, endpointUrl.AbsoluteUri);
     }
 
@@ -122,6 +127,8 @@ internal sealed record ConnectionTransportCapability(
     bool ReverseRegistered,
     string Prerequisites)
 {
+    public bool RequiresListenerTls => Scheme is "wss" or "opc.wss";
+
     public override string ToString()
     {
         return $"{Scheme}: forward {(ForwardRegistered ? "registered" : "not registered")}; " +
@@ -146,7 +153,7 @@ internal sealed class ConnectionTransportCatalog : ITransportChannelBindings
         };
         foreach (string scheme in additionalSchemes)
         {
-            schemes.Add(scheme);
+            schemes.Add(ValidateScheme(scheme));
         }
         var ordered = new List<string>(schemes);
         ordered.Sort(StringComparer.Ordinal);
@@ -162,41 +169,55 @@ internal sealed class ConnectionTransportCatalog : ITransportChannelBindings
             var result = new List<ConnectionTransportCapability>();
             foreach (string scheme in m_schemes)
             {
-                bool reverse = scheme is "opc.tcp" or "wss" or "opc.wss" &&
-                    Bindings.HasListenerFactory(scheme) && Bindings.HasChannelFactory(scheme);
-                result.Add(new ConnectionTransportCapability(
-                    scheme,
-                    Bindings.HasChannelFactory(scheme),
-                    reverse,
-                    scheme switch
-                    {
-                        "opc.tcp" =>
-                            "UA-TCP. Reverse mode also needs server configuration and inbound firewall access.",
-                        "https" or "opc.https" =>
-                            "UA-binary HTTPS profiles; server HTTPS endpoint, OS TLS support " +
-                            "and trusted TLS chain required.",
-                        "wss" or "opc.wss" or "opc.wss+json" =>
-                            "Configured WSS binding and platform TLS/WebSocket support; " +
-                            "reverse WSS also needs listener TLS.",
-                        "opc.quic" =>
-                            "Optional QUIC binding, compatible runtime/native platform and UDP access required.",
-                        _ => "Host-registered binding; verify its platform prerequisites externally."
-                    }));
+                result.Add(GetCapability(scheme));
             }
             return [.. result];
         }
     }
 
+    public ConnectionTransportCapability GetCapability(string scheme)
+    {
+        scheme = ValidateScheme(scheme);
+        bool forward = Bindings.HasChannelFactory(scheme);
+        bool reverse = scheme is "opc.tcp" or "wss" or "opc.wss" &&
+            forward && Bindings.HasListenerFactory(scheme);
+        return new ConnectionTransportCapability(
+            scheme,
+            forward,
+            reverse,
+            scheme switch
+            {
+                "opc.tcp" =>
+                    "UA-TCP. Reverse mode also needs the server's reverse target and inbound firewall access.",
+                "https" or "opc.https" =>
+                    "UA-binary HTTPS endpoint, platform TLS support and a trusted TLS chain are required. " +
+                    "This workflow does not support reverse HTTPS.",
+                "wss" or "opc.wss" =>
+                    "Registered WSS binding, platform TLS/WebSocket support and trusted TLS chains are required. " +
+                    "Reverse WSS also needs an explicit listener certificate and peer validator.",
+                "opc.wss+json" =>
+                    "Registered JSON WebSocket binding and its authentication flow are required; " +
+                    "registration alone does not make an OpenAPI endpoint usable by the UA-binary session flow.",
+                "opc.quic" =>
+                    "Optional QUIC binding, compatible platform and UDP access are required; " +
+                    "reverse mode is not supported by this workflow.",
+                _ => "Host-registered binding; verify its platform and network prerequisites externally. " +
+                    "Reverse mode is not supported by this workflow."
+            });
+    }
+
     public void RequireForward(string endpointUrl)
     {
         if (!Uri.TryCreate(endpointUrl, UriKind.Absolute, out Uri? endpoint) ||
-            endpointUrl.Length > 2048 || string.IsNullOrEmpty(endpoint.Host) ||
+            endpointUrl.Length > 2048 || !endpoint.IsWellFormedOriginalString() ||
+            endpointUrl.AsSpan().IndexOfAny('\r', '\n', '\t') >= 0 ||
+            string.IsNullOrEmpty(endpoint.Host) || endpoint.Port == 0 ||
             !string.IsNullOrEmpty(endpoint.UserInfo) || !string.IsNullOrEmpty(endpoint.Query) ||
             !string.IsNullOrEmpty(endpoint.Fragment))
         {
             throw new ArgumentException("Enter a bounded endpoint URL without embedded credentials or query strings.");
         }
-        if (!Bindings.HasChannelFactory(endpoint.Scheme))
+        if (!Bindings.HasChannelFactory(ValidateScheme(endpoint.Scheme)))
         {
             throw new NotSupportedException("No client transport is registered for the selected endpoint scheme.");
         }
@@ -214,11 +235,61 @@ internal sealed class ConnectionTransportCatalog : ITransportChannelBindings
 
     public void RequireReverse(ReverseConnectionProfile profile)
     {
+        ArgumentNullException.ThrowIfNull(profile);
         profile.Validate();
         RequireForward(profile.EndpointUrl);
         if (!Bindings.HasListenerFactory(new Uri(profile.ListenerUrl).Scheme))
         {
             throw new NotSupportedException("No reverse listener transport is registered for this scheme.");
+        }
+    }
+
+    /// <summary>
+    /// Checks safe setup intent and named registrations without acquiring keys,
+    /// creating a channel, starting a listener or expanding certificate trust.
+    /// </summary>
+    public void RequireSetup(
+        ConnectionSetupSelection setup,
+        ConnectionConfigurationCatalog configurations,
+        ConnectionProfile? selectedProfile = null)
+    {
+        ArgumentNullException.ThrowIfNull(setup);
+        ArgumentNullException.ThrowIfNull(configurations);
+        RequireForward(setup.EndpointUrl);
+        if (selectedProfile is not null)
+        {
+            selectedProfile.Validate();
+            if (!ConnectionProfile.EndpointUrlsMatch(setup.EndpointUrl, selectedProfile.EndpointUrl) ||
+                setup.ReverseConnection != selectedProfile.ReverseConnection ||
+                !string.Equals(setup.ApplicationIdentityId, selectedProfile.ApplicationIdentityId,
+                    StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "The setup differs from the explicitly selected endpoint, direction or application identity.");
+            }
+            string? unavailable = GetSessionProfileUnavailableReason(new EndpointDescription(
+                selectedProfile.EndpointUrl)
+            {
+                TransportProfileUri = selectedProfile.TransportProfileUri
+            });
+            if (unavailable is not null)
+            {
+                throw new NotSupportedException(unavailable);
+            }
+        }
+        if (setup.ApplicationIdentityId is { } application)
+        {
+            ConnectionReference.Validate(application);
+            configurations.ResolveApplication(application).ValidateConfiguration(selectedProfile?.SecurityPolicyUri);
+        }
+        if (setup.ReverseConnection is { } reverse)
+        {
+            RequireReverse(reverse);
+            reverse.Validate(setup.EndpointUrl, selectedProfile?.ServerApplicationUri);
+            if (reverse.TlsConfigurationId is { } tls)
+            {
+                configurations.ResolveTls(tls);
+            }
         }
     }
 
@@ -233,6 +304,15 @@ internal sealed class ConnectionTransportCatalog : ITransportChannelBindings
         registry.RegisterChannelFactory(new HttpsTransportChannelFactory());
         registry.RegisterChannelFactory(new OpcHttpsTransportChannelFactory());
         return registry;
+    }
+
+    private static string ValidateScheme(string scheme)
+    {
+        if (string.IsNullOrEmpty(scheme) || scheme.Length > 128 || !Uri.CheckSchemeName(scheme))
+        {
+            throw new ArgumentException("A bounded URI scheme name is required, not a URL or provider path.");
+        }
+        return scheme.ToLowerInvariant();
     }
 
     private readonly ArrayOf<string> m_schemes;
@@ -277,6 +357,22 @@ internal sealed class ConfiguredApplicationIdentity
 
     public CertificateIdentityReference Certificate { get; }
 
+    public void ValidateConfiguration(string? securityPolicy = null)
+    {
+        Source.CreateIdentifier(Certificate);
+        Source.ResolvePasswordSource(Certificate.PasswordSourceId);
+        if (securityPolicy is not null)
+        {
+            Source.RequireCryptoProvider(CryptoPurpose.ApplicationInstanceKey, securityPolicy);
+        }
+        else if (Source.CryptoProviderName is not null && Source.CryptoProviders is null)
+        {
+            throw new ConnectionIdentityException(
+                ConnectionIdentityFailure.RequiresConfiguration,
+                "The application-key crypto provider registry is absent. No alternate key will be selected.");
+        }
+    }
+
     public async Task<ApplicationConfiguration> CreateAsync(string securityPolicy, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -304,7 +400,8 @@ internal sealed class ConfiguredApplicationIdentity
                     error.StatusCode == StatusCodes.BadCertificateUseNotAllowed
                     ? ConnectionIdentityFailure.Denied
                     : ConnectionIdentityFailure.Unavailable,
-                "The application-key provider could not load the selected key. Check device/store access and permissions.");
+                "The application-key provider could not load the selected key. " +
+                "Check device/store access and permissions.");
         }
         catch (Exception error) when (error is System.IO.IOException
             or InvalidOperationException or NotSupportedException or ArgumentException or FormatException)

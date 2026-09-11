@@ -73,6 +73,10 @@ internal interface IPubSubKeyProviderResolver
 {
     string Id { get; }
 
+    PubSubKeySource KeySource => PubSubKeySource.ConfiguredProvider;
+
+    string SecurityKeyServiceEndpoint => string.Empty;
+
     ValueTask<PubSubKeyProviderLease> AcquireAsync(string securityGroupId, CancellationToken cancellationToken);
 }
 
@@ -191,7 +195,7 @@ internal sealed class PubSubAdapterLease : IAsyncDisposable
 
 /// <summary>
 /// Direct/injectable seam for configured MQTT credentials, DTLS contexts, Ethernet channels,
-/// and other installed AOT-compatible bindings. Workspace data cannot load a provider.
+/// and other installed bindings. Workspace data cannot load a provider.
 /// </summary>
 internal sealed class ConfiguredPubSubTransportProvider : IPubSubTransportProvider
 {
@@ -243,16 +247,37 @@ internal sealed class ConfiguredPubSubKeyProvider : IPubSubKeyProviderResolver
     public ConfiguredPubSubKeyProvider(
         string id,
         Func<string, CancellationToken, ValueTask<PubSubKeyProviderLease>> acquire)
+        : this(id, string.Empty, acquire)
+    {
+    }
+
+    public ConfiguredPubSubKeyProvider(
+        string id,
+        string securityKeyServiceEndpoint,
+        Func<string, CancellationToken, ValueTask<PubSubKeyProviderLease>> acquire)
     {
         if (string.IsNullOrEmpty(id) || !PubSubConfigurationValidation.IsProviderReference(id))
         {
             throw new ArgumentException("A registered provider identifier is required.", nameof(id));
         }
+        ArgumentNullException.ThrowIfNull(securityKeyServiceEndpoint);
+        if (securityKeyServiceEndpoint.Length > 0 &&
+            !PubSubConfigurationValidation.IsKeyServiceEndpoint(securityKeyServiceEndpoint))
+        {
+            throw new ArgumentException("A non-secret SKS endpoint is required.", nameof(securityKeyServiceEndpoint));
+        }
         Id = id;
+        SecurityKeyServiceEndpoint = securityKeyServiceEndpoint;
         m_acquire = acquire ?? throw new ArgumentNullException(nameof(acquire));
     }
 
     public string Id { get; }
+
+    public PubSubKeySource KeySource => SecurityKeyServiceEndpoint.Length == 0
+        ? PubSubKeySource.ConfiguredProvider
+        : PubSubKeySource.SecurityKeyService;
+
+    public string SecurityKeyServiceEndpoint { get; }
 
     public ValueTask<PubSubKeyProviderLease> AcquireAsync(string securityGroupId, CancellationToken cancellationToken)
     {

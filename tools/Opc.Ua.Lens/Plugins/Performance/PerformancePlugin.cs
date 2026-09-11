@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -81,23 +81,28 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
     private readonly LatencyHistogram m_histogram = new();
     private readonly long[] m_histogramScratch = new long[LatencyHistogram.BucketCount];
     private readonly ConcurrentQueue<(double seconds, double opsPerSec)> m_throughputQueue = new();
-    // CA2213: m_runner.StopAsync() in DisposeAsync awaits the runner's task
-    // loop to drain; runner's own DisposeAsync (via IAsyncDisposable) is
-    // semantically equivalent, but the analyzer can't see the lifecycle.
-#pragma warning disable CA2213
     private BenchmarkRunner? m_runner;
-#pragma warning restore CA2213
     private PerformanceView? m_view;
 
     private DispatcherTimer? m_aggregationTimer;
     private long m_lastAggregationOps;
     private long m_runStartTicks;
     private TimeSpan m_runDuration;
+    private BenchmarkConfiguration? m_runConfiguration;
+    private string m_runNotes = string.Empty;
+    private readonly Lock m_finishGate = new();
+    private BenchmarkRun? m_pendingRun;
+    private string? m_pendingError;
+    private bool m_isDisposed;
 
-    /// <summary>Total ops completed in the current run.</summary>
+    /// <summary>
+    /// Total ops completed in the current run.
+    /// </summary>
     private long m_totalOps;
 
-    /// <summary>Errors observed in the current run.</summary>
+    /// <summary>
+    /// Errors observed in the current run.
+    /// </summary>
     private long m_errorOps;
 
     [ObservableProperty]
@@ -164,6 +169,10 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RunCommand))]
     [NotifyCanExecuteChangedFor(nameof(StopCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ResetCommand))]
+    [NotifyCanExecuteChangedFor(nameof(LoadResultsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PickTargetCommand))]
+    [NotifyPropertyChangedFor(nameof(ConfigurationEditable))]
     private bool isRunning;
 
     [ObservableProperty]
@@ -188,62 +197,67 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
     private string m_errorsText = "0";
 
     /// <summary>
-    /// When true the "RUNS" history list highlights the most recent 3
-    /// entries and <see cref="CompareStatus"/> describes the selection;
-    /// when false the list is shown un-highlighted and the status text
-    /// is cleared.  Drawing an overlay on top of the live histogram is
-    /// intentionally not implemented — the comparison surface is the
-    /// history list itself.
+    /// Legacy workspace display preference. It only highlights the latest three
+    /// rows and is independent of the chosen baseline and selected comparison.
     /// </summary>
     [ObservableProperty]
     private bool m_compareLast3;
 
     /// <summary>
-    /// Human-readable summary of which runs the user is currently
-    /// comparing, e.g. <c>"Comparing runs 4–6 of 6"</c>.  Empty when
-    /// <see cref="CompareLast3"/> is false or fewer than 2 runs exist.
+    /// Maximum retained runs; the oldest is evicted.
     /// </summary>
-    [ObservableProperty]
-    private string m_compareStatus = string.Empty;
-
-    /// <summary>Maximum entries retained in <see cref="RunHistory"/>; oldest drops off.</summary>
-    public const int MaxHistorySize = 64;
+    public const int MaxHistorySize = BenchmarkHistory.Capacity;
 
     /// <summary>
-    /// Aggregate stats from completed runs, in chronological order.
-    /// Capped at <see cref="MaxHistorySize"/>; bound to the history
-    /// ListBox in the view and round-tripped through CSV by
-    /// <see cref="SaveResultsAsync"/> / <see cref="LoadResultsAsync"/>.
+    /// Completed snapshots, newest first, including genuine distributions when captured.
     /// </summary>
-    public ObservableCollection<BenchmarkRunRow> RunHistory { get; } = [];
+    public ReadOnlyObservableCollection<BenchmarkRunRow> RunHistory => History.Runs;
 
-    /// <summary>Current p50 latency in milliseconds — read by the view to drive the marker line.</summary>
+    public BenchmarkHistory History { get; }
+    public bool ConfigurationEditable => !IsRunning && !m_isDisposed;
+
+    /// <summary>
+    /// Current p50 latency in milliseconds — read by the view to drive the marker line.
+    /// </summary>
     public double P50Ms { get; private set; }
 
-    /// <summary>Current p95 latency in milliseconds — read by the view to drive the marker line.</summary>
+    /// <summary>
+    /// Current p95 latency in milliseconds — read by the view to drive the marker line.
+    /// </summary>
     public double P95Ms { get; private set; }
 
-    /// <summary>Current p99 latency in milliseconds — read by the view to drive the marker line.</summary>
+    /// <summary>
+    /// Current p99 latency in milliseconds — read by the view to drive the marker line.
+    /// </summary>
     public double P99Ms { get; private set; }
 
-    /// <summary>Total histogram samples — used by the view to skip Y autoscale when empty.</summary>
+    /// <summary>
+    /// Total histogram samples — used by the view to skip Y autoscale when empty.
+    /// </summary>
     public long HistogramTotal => m_histogram.Count;
 
-    /// <summary>Flag the view consumes to clear its DataLogger after a Reset.</summary>
+    /// <summary>
+    /// Flag the view consumes to clear its DataLogger after a Reset.
+    /// </summary>
     public bool WasReset { get; set; }
 
-    /// <summary>Static items for the Mode dropdown (compiled bindings).</summary>
+    /// <summary>
+    /// Static items for the Mode dropdown (compiled bindings).
+    /// </summary>
     public IReadOnlyList<BenchmarkMode> ModeOptions { get; } =
         new[] { BenchmarkMode.Write, BenchmarkMode.Call };
 
-    /// <summary>Static items for the Value-generator dropdown.</summary>
+    /// <summary>
+    /// Static items for the Value-generator dropdown.
+    /// </summary>
     public IReadOnlyList<ValueGenerator> GeneratorOptions { get; } =
         new[] { ValueGenerator.Random, ValueGenerator.Sequential, ValueGenerator.Fixed };
 
-    public PerformancePlugin(PluginHost host)
+    public PerformancePlugin(PluginHost host, BenchmarkHistory? history = null)
     {
         m_host = host ?? throw new ArgumentNullException(nameof(host));
         m_log = host.Log;
+        History = history ?? new BenchmarkHistory();
         int n = System.Threading.Interlocked.Increment(ref s_nextNumber);
         m_title = $"Performance {n}";
     }
@@ -288,35 +302,47 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
     {
         RunCommand.NotifyCanExecuteChanged();
         StopCommand.NotifyCanExecuteChanged();
+        PickTargetCommand.NotifyCanExecuteChanged();
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (m_runner is { } r)
+        m_isDisposed = true;
+        if (m_runner is not null)
         {
             try
             {
-                await r.StopAsync().ConfigureAwait(false);
+                await m_runner.DisposeAsync().ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (
+                ex is ServiceResultException or IOException or TimeoutException or OperationCanceledException)
             {
                 PerformancePluginLog.StopFailed(m_log, Title, ex);
             }
+            m_runner.OnSample -= HandleSample;
+            m_runner.OnFinished -= HandleFinished;
+            m_runner = null;
         }
         m_aggregationTimer?.Stop();
     }
 
-    /// <summary>Human-readable description of the configured Target (or "(no Target)").</summary>
+    /// <summary>
+    /// Human-readable description of the configured Target (or "(no Target)").
+    /// </summary>
     public string TargetDescription => Target is null
         ? "(no Target — pick a Variable or Method first)"
         : Target.DisplayName;
 
-    /// <summary>NodeId of the configured target as a mono-spaced string for the toolbar label.</summary>
+    /// <summary>
+    /// NodeId of the configured target as a mono-spaced string for the toolbar label.
+    /// </summary>
     public string TargetNodeIdText => Target is null
         ? "(no target selected)"
         : Target.NodeId.ToString() ?? "(null)";
 
-    /// <summary>Short summary used by the Settings dialog button label.</summary>
+    /// <summary>
+    /// Short summary used by the Settings dialog button label.
+    /// </summary>
     public string EffectiveDurationText
     {
         get
@@ -374,7 +400,9 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
         }
     }
 
-    [RelayCommand]
+    private bool CanPickTarget() => ConfigurationEditable && m_host.Connection.Session is not null;
+
+    [RelayCommand(CanExecute = nameof(CanPickTarget))]
     private async Task PickTargetAsync()
     {
         if (m_host.Connection.Session is not { } session)
@@ -412,10 +440,10 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
                 Title: $"Pick {label} for Performance target",
                 AcceptedClasses: accepted,
                 Header: $"Browse the address space and pick a {label} to use as the Performance target."));
-            NodeId? pickedId = owner is null
-                ? await picker.ShowDialog<NodeId?>(new Window()).ConfigureAwait(true)
-                : await picker.ShowDialog<NodeId?>(owner).ConfigureAwait(true);
-            if (!pickedId.HasValue || pickedId.Value.IsNull)
+            NodeId pickedId = owner is null
+                ? await picker.ShowDialog<NodeId>(new Window()).ConfigureAwait(true)
+                : await picker.ShowDialog<NodeId>(owner).ConfigureAwait(true);
+            if (pickedId.IsNull)
             {
                 Status = "● Pick target cancelled.";
                 return;
@@ -425,7 +453,7 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
             hint = new NodeViewModel(
                 m_host.Browser,
                 NodeId.Null,
-                pickedId.Value,
+                pickedId,
                 picker.PickedDisplay,
                 picker.PickedNodeClass);
         }
@@ -444,40 +472,66 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
     }
 
     private bool CanRun() =>
-        !IsRunning
+        ConfigurationEditable
         && Target is not null
         && m_host.Connection.Session is not null;
 
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task RunAsync()
     {
-        if (m_host.Connection.Session is not { } session || Target is null)
+        if (m_host.Connection.Session is not { } session || Target is not { } runTarget)
         {
+            Status = "● Select a target and connect before running a benchmark.";
             return;
         }
-        // Verify mode matches the Target.
-        if (Target.Mode != Mode)
+        if (!ConfigurationEditable)
         {
-            Status = $"● Target is a {Target.Mode} Target — switch the Mode combo to match.";
+            throw new InvalidOperationException("Stop the active workload before starting another benchmark.");
+        }
+        // Verify mode matches the Target.
+        if (runTarget.Mode != Mode)
+        {
+            Status = $"● Target is a {runTarget.Mode} target - switch the Mode combo to match.";
             return;
         }
 
+        BenchmarkConfiguration configuration;
+        try
+        {
+            configuration = BenchmarkConfiguration.Capture(
+                session, runTarget, Generator, TargetRate, UnboundedBurst, EffectiveDuration);
+        }
+        catch (FormatException ex)
+        {
+            Status = $"● Invalid workload: {ex.Message}";
+            PerformancePluginLog.RunFailed(m_log, ex.Message);
+            return;
+        }
+        if (m_runner is { } previous)
+        {
+            await previous.DisposeAsync().ConfigureAwait(true);
+            previous.OnSample -= HandleSample;
+            previous.OnFinished -= HandleFinished;
+        }
         Reset();
-        m_runStartTicks = Stopwatch.GetTimestamp();
-        m_runDuration = EffectiveDuration;
+        m_runConfiguration = configuration;
+        m_runDuration = TimeSpan.FromSeconds(configuration.DurationSeconds);
+        m_runNotes = string.Format(CultureInfo.InvariantCulture,
+            "mode={0}; gen={1}; burst={2}; target={3}",
+            configuration.Mode, configuration.Generator, configuration.UnboundedBurst, runTarget.DisplayName);
         m_runner = new BenchmarkRunner(
             session,
-            Target,
-            Generator,
-            TargetRate,
-            UnboundedBurst,
+            runTarget,
+            configuration.Generator,
+            configuration.TargetRate,
+            configuration.UnboundedBurst,
             m_runDuration);
         m_runner.OnSample += HandleSample;
         m_runner.OnFinished += HandleFinished;
-        m_runner.Start();
-
         IsRunning = true;
         Status = "● Running…";
+        m_runStartTicks = Stopwatch.GetTimestamp();
+        m_runner.Start();
 
         m_aggregationTimer?.Stop();
         m_aggregationTimer = new DispatcherTimer(
@@ -486,9 +540,8 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
             (_, _) => OnAggregationTick());
         m_aggregationTimer.Start();
         PerformancePluginLog.RunStarted(
-            m_log, Mode, TargetRate, UnboundedBurst, DurationSeconds, Target.DisplayName);
-
-        await Task.CompletedTask.ConfigureAwait(true);
+            m_log, configuration.Mode, configuration.TargetRate, configuration.UnboundedBurst,
+            configuration.DurationSeconds, runTarget.DisplayName);
     }
 
     private bool CanStop() => IsRunning;
@@ -501,14 +554,18 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
             Status = "● Stopping…";
             await r.StopAsync().ConfigureAwait(true);
         }
-        IsRunning = false;
-        m_aggregationTimer?.Stop();
-        Status = "● Stopped";
+        CompletePendingRun();
     }
 
-    [RelayCommand]
+    private bool CanReset() => ConfigurationEditable;
+
+    [RelayCommand(CanExecute = nameof(CanReset))]
     private void Reset()
     {
+        if (!ConfigurationEditable)
+        {
+            throw new InvalidOperationException("Stop the workload before resetting live statistics.");
+        }
         m_histogram.Reset();
         System.Threading.Interlocked.Exchange(ref m_totalOps, 0);
         System.Threading.Interlocked.Exchange(ref m_errorOps, 0);
@@ -594,7 +651,7 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
             }
             Status = $"● Stats exported: {file.Name}";
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
             Status = $"● Export failed: {ex.Message}";
             PerformancePluginLog.ExportFailed(m_log, ex);
@@ -620,11 +677,12 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
         {
             Title = "Save benchmark run history",
             SuggestedFileName = string.Format(CultureInfo.InvariantCulture,
-                "ualens-perf-runs-{0:yyyyMMdd-HHmmss}.csv", DateTime.UtcNow),
-            DefaultExtension = "csv",
+                "ualens-perf-runs-{0:yyyyMMdd-HHmmss}.json", DateTime.UtcNow),
+            DefaultExtension = "json",
             FileTypeChoices =
             [
-                new FilePickerFileType("CSV") { Patterns = ["*.csv"] }
+                new FilePickerFileType("Performance comparison JSON") { Patterns = ["*.json"] },
+                new FilePickerFileType("Legacy CSV (aggregates only)") { Patterns = ["*.csv"] }
             ]
         };
         IStorageFile? file = await storage.SaveFilePickerAsync(opts).ConfigureAwait(true);
@@ -635,30 +693,39 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
 
         try
         {
+            bool aggregateCsv = file.Name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase);
+            string content = ExportResults(aggregateCsv);
             Stream s = await file.OpenWriteAsync().ConfigureAwait(true);
             await using (s.ConfigureAwait(false))
             {
+                if (s.CanSeek)
+                {
+                    s.SetLength(0);
+                }
                 var w = new StreamWriter(s, new UTF8Encoding(false));
                 await using (w.ConfigureAwait(false))
                 {
-                    await w.WriteLineAsync(BenchmarkRun.CsvHeader).ConfigureAwait(true);
-                    foreach (BenchmarkRunRow row in RunHistory)
-                    {
-                        await w.WriteLineAsync(row.Run.ToCsvRow()).ConfigureAwait(true);
-                    }
+                    await w.WriteAsync(content).ConfigureAwait(true);
                 }
             }
             Status = string.Format(CultureInfo.InvariantCulture,
-                "● Saved {0} run(s) to {1}.", RunHistory.Count, file.Name);
+                "● Saved {0} run(s) to {1}.{2}", RunHistory.Count, file.Name,
+                aggregateCsv
+                    ? " CSV omits configuration, elapsed time, selections and histograms."
+                    : " Comparison evidence and distributions retained.");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (
+            ex is IOException or UnauthorizedAccessException or NotSupportedException or
+                FormatException or JsonException)
         {
             Status = $"● Save failed: {ex.Message}";
             PerformancePluginLog.SaveFailed(m_log, ex);
         }
     }
 
-    [RelayCommand]
+    private bool CanLoadResults() => ConfigurationEditable;
+
+    [RelayCommand(CanExecute = nameof(CanLoadResults))]
     private async Task LoadResultsAsync()
     {
         Window? owner = GetOwnerWindow();
@@ -679,7 +746,7 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
             AllowMultiple = false,
             FileTypeFilter =
             [
-                new FilePickerFileType("CSV") { Patterns = ["*.csv"] }
+                new FilePickerFileType("Performance results") { Patterns = ["*.json", "*.csv"] }
             ]
         };
         IReadOnlyList<IStorageFile> files = await storage.OpenFilePickerAsync(opts).ConfigureAwait(true);
@@ -689,155 +756,78 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
         }
 
         IStorageFile file = files[0];
-        var parsed = new List<BenchmarkRun>();
-        int skipped = 0;
         try
         {
             Stream s = await file.OpenReadAsync().ConfigureAwait(true);
             await using (s.ConfigureAwait(false))
             {
-                var r = new StreamReader(s, Encoding.UTF8);
-                using (r)
-                {
-                    bool first = true;
-                    while (await r.ReadLineAsync().ConfigureAwait(true) is { } line)
-                    {
-                        if (first)
-                        {
-                            first = false;
-                            // Tolerate either an exact header or a CSV
-                            // file that omits it — fall through and
-                            // attempt to parse the first row.
-                            if (line.StartsWith("timestamp_utc", StringComparison.OrdinalIgnoreCase))
-                            {
-                                continue;
-                            }
-                        }
-                        if (string.IsNullOrWhiteSpace(line))
-                        {
-                            continue;
-                        }
-                        BenchmarkRun? run = BenchmarkRun.TryParseCsvRow(line);
-                        if (run is null)
-                        {
-                            skipped++;
-                            continue;
-                        }
-                        parsed.Add(run);
-                    }
-                }
+                BenchmarkArchive archive = await BenchmarkArchiveCodec.ReadAsync(s).ConfigureAwait(true);
+                ImportResults(archive);
             }
+            Status += $" File: {file.Name}.";
         }
-        catch (Exception ex)
+        catch (Exception ex) when (
+            ex is IOException or UnauthorizedAccessException or NotSupportedException or FormatException or
+                JsonException or DecoderFallbackException or InvalidOperationException)
         {
             Status = $"● Load failed: {ex.Message}";
             PerformancePluginLog.LoadFailed(m_log, ex);
-            return;
         }
+    }
 
-        // Keep only the most recent MaxHistorySize rows when the file
-        // is bigger than our in-memory cap.
-        if (parsed.Count > MaxHistorySize)
-        {
-            parsed.RemoveRange(0, parsed.Count - MaxHistorySize);
-        }
+    public string ExportResults(bool aggregateCsv = false)
+    {
+        BenchmarkArchive archive = History.Capture();
+        return aggregateCsv ? BenchmarkArchiveCodec.SerializeCsv(archive) : BenchmarkArchiveCodec.Serialize(archive);
+    }
 
-        RunHistory.Clear();
-        foreach (BenchmarkRun run in parsed)
+    public void ImportResults(string content)
+    {
+        try
         {
-            RunHistory.Add(new BenchmarkRunRow(run));
+            ImportResults(BenchmarkArchiveCodec.Parse(content));
         }
-        RefreshHighlights();
-        Status = skipped == 0
-            ? string.Format(CultureInfo.InvariantCulture,
-                "● Loaded {0} run(s) from {1}.", parsed.Count, file.Name)
-            : string.Format(CultureInfo.InvariantCulture,
-                "● Loaded {0} run(s) from {1} (skipped {2} malformed).",
-                parsed.Count, file.Name, skipped);
+        catch (Exception ex) when (ex is FormatException or JsonException or InvalidOperationException)
+        {
+            Status = $"● Load failed: {ex.Message}";
+            PerformancePluginLog.LoadFailed(m_log, ex);
+            throw;
+        }
+    }
+
+    private void ImportResults(BenchmarkArchive archive)
+    {
+        if (!ConfigurationEditable)
+        {
+            throw new InvalidOperationException("Stop the workload before importing benchmark history.");
+        }
+        History.Replace(archive);
+        Status = string.Format(CultureInfo.InvariantCulture,
+            "● Loaded {0} run(s). {1} {2}", RunHistory.Count,
+            archive.IsLegacyCsv
+                ? "Legacy CSV: configuration, timing and distributions are missing."
+                : "Results only; workload settings were not changed and no run was started.",
+            History.RetentionNotice);
     }
 
     /// <summary>
-    /// Build a <see cref="BenchmarkRun"/> from the live aggregate
-    /// counters and the current histogram contents.  Called on the UI
-    /// thread when a run finishes, so values stay consistent for the
-    /// snapshot.
+    /// Freezes results after the runner has drained, before posting to the UI.
     /// </summary>
     private BenchmarkRun SnapshotCurrentRun()
     {
-        long total = System.Threading.Interlocked.Read(ref m_totalOps);
+        BenchmarkRunner runner = m_runner ?? throw new InvalidOperationException("No runner owns this snapshot.");
+        BenchmarkConfiguration configuration = m_runConfiguration
+            ?? throw new InvalidOperationException("The run configuration was not captured.");
         long errors = System.Threading.Interlocked.Read(ref m_errorOps);
-        double elapsed = m_runDuration.TotalSeconds > 0
-            ? m_runDuration.TotalSeconds
-            : (Stopwatch.GetTimestamp() - m_runStartTicks) / (double)Stopwatch.Frequency;
-        double achieved = elapsed > 0.001 ? total / elapsed : 0.0;
-        long[] snap = new long[LatencyHistogram.BucketCount];
-        m_histogram.Snapshot(snap);
-        double mean = ComputeMeanLatencyMs(snap);
-        double p90 = m_histogram.GetPercentile(0.90);
-        string notes = string.Format(CultureInfo.InvariantCulture,
-            "mode={0}; gen={1}; burst={2}; target={3}",
-            Mode, Generator, UnboundedBurst,
-            Target?.DisplayName ?? "(none)");
-        return new BenchmarkRun
-        {
-            TimestampUtc = DateTime.UtcNow,
-            TargetRate = UnboundedBurst ? 0 : TargetRate,
-            AchievedRate = achieved,
-            TotalOps = total,
-            MeanLatencyMs = mean,
-            P50Ms = P50Ms,
-            P90Ms = p90,
-            P99Ms = P99Ms,
-            ErrorCount = errors,
-            Notes = notes
-        };
-    }
-
-    private static double ComputeMeanLatencyMs(long[] snap)
-    {
-        long total = 0;
-        double sum = 0;
-        for (int i = 0; i < snap.Length; i++)
-        {
-            long c = snap[i];
-            if (c == 0)
-            {
-                continue;
-            }
-            double mid = (LatencyHistogram.BucketLowerMs(i)
-                + LatencyHistogram.BucketUpperMs(i)) / 2.0;
-            sum += mid * c;
-            total += c;
-        }
-        return total > 0 ? sum / total : 0.0;
+        return BenchmarkRun.Create(
+            configuration, m_histogram.Capture(), errors, runner.Elapsed,
+            DateTime.UtcNow, runner.Completion, m_runNotes);
     }
 
     /// <summary>
-    /// Apply the "Compare last 3" highlight flag to the matching
-    /// <see cref="BenchmarkRunRow"/> entries and update
-    /// <see cref="CompareStatus"/> accordingly.  Safe to call on the
-    /// UI thread whenever <see cref="RunHistory"/> or
-    /// <see cref="CompareLast3"/> changes.
+    /// Preserves the old workspace preference without presenting highlighting as comparison.
     /// </summary>
-    private void RefreshHighlights()
-    {
-        int count = RunHistory.Count;
-        int highlightStart = CompareLast3 ? Math.Max(0, count - 3) : count;
-        for (int i = 0; i < count; i++)
-        {
-            RunHistory[i].IsHighlighted = CompareLast3 && i >= highlightStart;
-        }
-        if (!CompareLast3 || count < 2)
-        {
-            CompareStatus = string.Empty;
-            return;
-        }
-        int firstOneBased = highlightStart + 1;
-        CompareStatus = string.Format(CultureInfo.InvariantCulture,
-            "Comparing runs {0}–{1} of {2}.", firstOneBased, count, count);
-    }
-
-    partial void OnCompareLast3Changed(bool value) => RefreshHighlights();
+    partial void OnCompareLast3Changed(bool value) => History.HighlightLatestThree = value;
 
     private static Window? GetOwnerWindow()
     {
@@ -861,26 +851,49 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
 
     private void HandleFinished(string? error)
     {
-        Dispatcher.UIThread.Post(() =>
+        if (m_isDisposed)
         {
-            IsRunning = false;
-            m_aggregationTimer?.Stop();
-            OnAggregationTick(); // final refresh
-            BenchmarkRun run = SnapshotCurrentRun();
-            RunHistory.Add(new BenchmarkRunRow(run));
-            while (RunHistory.Count > MaxHistorySize)
-            {
-                RunHistory.RemoveAt(0);
-            }
-            RefreshHighlights();
-            Status = error is null ? "● Run complete" : $"● Run failed: {error}";
-            if (m_log.IsEnabled(LogLevel.Information))
-            {
-                long total = System.Threading.Interlocked.Read(ref m_totalOps);
-                long errors = System.Threading.Interlocked.Read(ref m_errorOps);
-                PerformancePluginLog.RunFinished(m_log, total, errors);
-            }
-        });
+            return;
+        }
+        BenchmarkRun run = SnapshotCurrentRun();
+        lock (m_finishGate)
+        {
+            m_pendingRun = run;
+            m_pendingError = error;
+        }
+        Dispatcher.UIThread.Post(CompletePendingRun);
+    }
+
+    private void CompletePendingRun()
+    {
+        BenchmarkRun? run;
+        string? error;
+        lock (m_finishGate)
+        {
+            run = m_pendingRun;
+            error = m_pendingError;
+            m_pendingRun = null;
+            m_pendingError = null;
+        }
+        if (run is null || m_isDisposed)
+        {
+            return;
+        }
+        IsRunning = false;
+        m_aggregationTimer?.Stop();
+        UpdateStatsTexts(run.ElapsedSeconds ?? throw new InvalidOperationException("The run elapsed time is missing."));
+        History.Add(run);
+        Status = run.Completion switch
+        {
+            BenchmarkCompletion.Completed => "● Run complete",
+            BenchmarkCompletion.Stopped => "● Stopped; issued operations drained and partial results retained.",
+            _ => $"● Run failed: {error}"
+        };
+        if (error is not null)
+        {
+            PerformancePluginLog.RunFailed(m_log, error);
+        }
+        PerformancePluginLog.RunFinished(m_log, run.TotalOps, run.ErrorCount);
     }
 
     private void OnAggregationTick()
@@ -917,7 +930,7 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
         P95Ms = m_histogram.GetPercentile(0.95);
         P99Ms = m_histogram.GetPercentile(0.99);
         TotalOpsText = total.ToString("N0", CultureInfo.InvariantCulture);
-        MeanRateText = elapsedSec > 0.1
+        MeanRateText = elapsedSec > 0
             ? (total / elapsedSec).ToString("N0", CultureInfo.InvariantCulture)
             : "0";
         P50Text = total > 0 ? P50Ms.ToString("F2", CultureInfo.InvariantCulture) : "—";
@@ -929,7 +942,9 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
         ErrorsText = errors.ToString("N0", CultureInfo.InvariantCulture);
     }
 
-    /// <summary>Dequeue a throughput sample for the view to plot.</summary>
+    /// <summary>
+    /// Dequeue a throughput sample for the view to plot.
+    /// </summary>
     public bool TryDequeueThroughput(out double seconds, out double opsPerSec)
     {
         if (m_throughputQueue.TryDequeue(out var p))
@@ -943,11 +958,13 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
         return false;
     }
 
-    /// <summary>Snapshot the latency histogram for rendering.  Reuses an internal buffer.</summary>
-    public long[] GetHistogramSnapshot()
+    /// <summary>
+    /// Snapshot the latency histogram for rendering.  Reuses an internal buffer.
+    /// </summary>
+    public ArrayOf<long> GetHistogramSnapshot()
     {
         m_histogram.Snapshot(m_histogramScratch);
-        return m_histogramScratch;
+        return new ArrayOf<long>(m_histogramScratch);
     }
 
     partial void OnUnboundedBurstChanged(bool value) => OnPropertyChanged(nameof(RateEditable));
@@ -968,22 +985,23 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
     public Task RestoreStateAsync(JsonElement state, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        PerformanceStateDto? dto;
         try
         {
-            dto = state.Deserialize(PerformanceStateJsonContext.Default.PerformanceStateDto);
+            if (!ConfigurationEditable)
+            {
+                throw new InvalidOperationException("Stop the workload before restoring configuration.");
+            }
+            PerformanceStateDto dto = state.Deserialize(PerformanceStateJsonContext.Default.PerformanceStateDto)
+                ?? throw new JsonException("Performance configuration cannot be null.");
+            PerformanceRestoredState restored = PerformanceState.Validate(dto);
+            ApplyRestoredState(restored);
         }
-        catch (JsonException ex)
+        catch (Exception ex) when (ex is JsonException or FormatException or InvalidOperationException)
         {
+            Status = $"● Restore failed: {ex.Message}";
             PerformancePluginLog.RestoreFailed(m_log, ex);
             throw;
         }
-        if (dto is null)
-        {
-            throw new JsonException("Performance configuration cannot be null.");
-        }
-        PerformanceRestoredState restored = PerformanceState.Validate(dto);
-        ApplyRestoredState(restored);
         return Task.CompletedTask;
     }
 
@@ -999,8 +1017,8 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
         CompareLast3 = restored.CompareLast3;
         Target = restored.Target;
         Status = Target is null
-            ? "● Configuration restored — pick a target to run."
-            : $"● Configuration restored: {Target.DisplayName}";
+            ? "● Configuration restored - pick a target; explicit Run is required."
+            : $"● Configuration restored: {Target.DisplayName}. Explicit Run is required.";
     }
 }
 
@@ -1009,9 +1027,10 @@ internal static partial class PerformancePluginLog
     [LoggerMessage(
         EventId = UaLensEventIds.PerformanceRunStarted,
         Level = LogLevel.Information,
-        Message = "Performance run started — mode={Mode} rate={Rate} burst={Burst} duration={DurationSeconds}s target={Target}.")]
+        Message = "Performance run started - mode={Mode} rate={Rate} burst={Burst} " +
+            "duration={DurationSeconds}s target={Target}.")]
     public static partial void RunStarted(
-        ILogger logger, BenchmarkMode mode, double rate, bool burst, int durationSeconds, string target);
+        ILogger logger, BenchmarkMode mode, double rate, bool burst, double durationSeconds, string target);
 
     [LoggerMessage(
         EventId = UaLensEventIds.PerformanceRunFinished,
@@ -1048,4 +1067,10 @@ internal static partial class PerformancePluginLog
         Level = LogLevel.Warning,
         Message = "Performance could not restore its saved configuration.")]
     public static partial void RestoreFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(
+        EventId = UaLensEventIds.PerformanceRunFailed,
+        Level = LogLevel.Warning,
+        Message = "Performance run failed: {Reason}")]
+    public static partial void RunFailed(ILogger logger, string reason);
 }

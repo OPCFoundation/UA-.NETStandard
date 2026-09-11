@@ -51,19 +51,26 @@ namespace UaLens.Views;
 /// replacement.  On OK parses via <see cref="VariantParser"/> and calls
 /// <c>session.WriteAsync</c>; surfaces the resulting status code inline.
 /// </summary>
-internal sealed partial class WriteValueDialog : Window
+internal sealed partial class WriteValueDialog : Window, IAsyncDisposable
 {
     private readonly NodeViewModel m_node;
-    private readonly ManagedSession m_session;
+    private readonly ISession m_session;
     private NodeId m_dataType = NodeId.Null;
     private int m_valueRank = ValueRanks.Scalar;
+    private ArrayOf<uint> m_arrayDimensions;
     private DataTypeDefinition? m_definition;
     private bool m_loaded;
 
-    public WriteValueDialog(NodeViewModel node, ManagedSession session)
+    public WriteValueDialog(
+        NodeViewModel node,
+        ISession session,
+        IStructuredValueService? values = null,
+        CancellationToken cancellationToken = default)
     {
-        m_node = node;
-        m_session = session;
+        m_node = node ?? throw new ArgumentNullException(nameof(node));
+        m_session = session ?? throw new ArgumentNullException(nameof(session));
+        m_values = values ?? (m_ownedValues = new SessionStructuredValueService(session));
+        m_lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         InitializeComponent();
 
         this.RequiredControl<TextBlock>("NodeIdLabel").Text = node.NodeId.ToString() ?? string.Empty;
@@ -71,9 +78,25 @@ internal sealed partial class WriteValueDialog : Window
         var ok = this.RequiredControl<Button>("OkButton");
         var cancel = this.RequiredControl<Button>("CancelButton");
         var import = this.RequiredControl<Button>("ImportButton");
-        ok.Click += async (_, _) => await OnWriteAsync().ConfigureAwait(true);
+        ok.Click += async (_, _) =>
+        {
+            if (!m_writeTask.IsCompleted)
+            {
+                return;
+            }
+            m_writeTask = OnWriteAsync();
+            await m_writeTask.ConfigureAwait(true);
+        };
         cancel.Click += (_, _) => Close();
-        import.Click += async (_, _) => await OnImportAsync().ConfigureAwait(true);
+        import.Click += async (_, _) =>
+        {
+            if (!m_importTask.IsCompleted)
+            {
+                return;
+            }
+            m_importTask = OnImportAsync();
+            await m_importTask.ConfigureAwait(true);
+        };
 
         WireOverride(
             this.RequiredControl<CheckBox>("StatusOverride"),
@@ -87,7 +110,37 @@ internal sealed partial class WriteValueDialog : Window
 
         // Defer the read until after the window is shown so the dialog
         // appears immediately with a "loading…" placeholder.
-        Opened += async (_, _) => await LoadCurrentAsync().ConfigureAwait(true);
+        Opened += async (_, _) =>
+        {
+            m_loadTask = LoadCurrentAsync();
+            await m_loadTask.ConfigureAwait(true);
+        };
+        Closed += async (_, _) => await StopAsync().ConfigureAwait(true);
+    }
+
+    public Task StopAsync()
+    {
+        return m_shutdown ??= StopCoreAsync();
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        return new ValueTask(StopAsync());
+    }
+
+    private async Task StopCoreAsync()
+    {
+        m_lifetime.Cancel();
+        await this.RequiredControl<ComplexValueEditor>("ComplexEditor").StopAsync().ConfigureAwait(true);
+        try
+        {
+            await Task.WhenAll(m_loadTask, m_writeTask, m_importTask).ConfigureAwait(true);
+        }
+        finally
+        {
+            m_ownedValues?.Dispose();
+            m_lifetime.Dispose();
+        }
     }
 
     private static void WireOverride(CheckBox toggle, Control partner)
@@ -112,11 +165,13 @@ internal sealed partial class WriteValueDialog : Window
             [
                 new ReadValueId { NodeId = m_node.NodeId, AttributeId = Attributes.Value },
                 new ReadValueId { NodeId = m_node.NodeId, AttributeId = Attributes.DataType },
-                new ReadValueId { NodeId = m_node.NodeId, AttributeId = Attributes.ValueRank }
+                new ReadValueId { NodeId = m_node.NodeId, AttributeId = Attributes.ValueRank },
+                new ReadValueId { NodeId = m_node.NodeId, AttributeId = Attributes.ArrayDimensions }
             ];
             ReadResponse resp = await m_session.ReadAsync(null, 0, TimestampsToReturn.Neither,
-                ids, CancellationToken.None).ConfigureAwait(true);
-            if (!StatusCode.IsGood(resp.ResponseHeader.ServiceResult) || resp.Results.Count != 3)
+                ids, m_lifetime.Token).ConfigureAwait(true);
+            m_lifetime.Token.ThrowIfCancellationRequested();
+            if (!StatusCode.IsGood(resp.ResponseHeader.ServiceResult) || resp.Results.Count != 4)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadDecodingError, "The current-value read did not return all requested attributes.");
@@ -130,12 +185,15 @@ internal sealed partial class WriteValueDialog : Window
             }
 
             if (!resp.Results[1].WrappedValue.TryGetValue(out NodeId dataType) ||
-                !resp.Results[2].WrappedValue.TryGetValue(out int valueRank))
+                !resp.Results[2].WrappedValue.TryGetValue(out int valueRank) ||
+                !resp.Results[3].WrappedValue.TryGetValue(out ArrayOf<uint> dimensions))
             {
-                throw new ServiceResultException(StatusCodes.BadDecodingError, "Invalid DataType or ValueRank.");
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError, "Invalid DataType, ValueRank or ArrayDimensions.");
             }
             m_dataType = dataType;
             m_valueRank = valueRank;
+            m_arrayDimensions = CoreUtils.Clone(dimensions);
             dataTypeLbl.Text = $"{m_dataType}    rank={m_valueRank}";
 
             DataValue current = resp.Results[0];
@@ -145,26 +203,16 @@ internal sealed partial class WriteValueDialog : Window
             // concrete starting point.
             valueText.Text = formatted;
 
-            // If the resolved DataType is a Structure or Enum and we are
-            // editing a scalar, swap the primitive TextBox for the
-            // structured editor.  The TextBox stays available as a fallback
-            // when the server doesn't expose DataTypeDefinition.
-            if (m_valueRank == ValueRanks.Scalar
-                || m_valueRank == ValueRanks.ScalarOrOneDimension
-                || m_valueRank == ValueRanks.Any)
+            m_definition = await m_values.ResolveAsync(m_dataType, m_lifetime.Token).ConfigureAwait(true);
+            if (m_definition is StructureDefinition or EnumDefinition ||
+                StructuredArrayValue.RequiresEditor(m_valueRank, current.WrappedValue))
             {
-                DataTypeDefinition? def = await ComplexValueIO
-                    .GetDataTypeDefinitionAsync(m_dataType, m_session, CancellationToken.None)
+                await complexEditor.InitializeValueAsync(
+                    m_dataType, m_definition, m_values, current.WrappedValue,
+                    m_valueRank, m_arrayDimensions, m_lifetime.Token)
                     .ConfigureAwait(true);
-                if (def is StructureDefinition or EnumDefinition)
-                {
-                    m_definition = def;
-                    await complexEditor.InitializeAsync(
-                        m_dataType, def, ComplexValueIO.ForSession(m_session), current.WrappedValue)
-                        .ConfigureAwait(true);
-                    complexEditor.IsVisible = true;
-                    valueText.IsVisible = false;
-                }
+                complexEditor.IsVisible = true;
+                valueText.IsVisible = false;
             }
             m_loaded = true;
         }
@@ -182,17 +230,26 @@ internal sealed partial class WriteValueDialog : Window
         {
             (byte[] bytes, UaLens.Connection.EncodingFormat fmt, string name) =
                 await UaLens.Views.EncodedValueIO.LoadAsync(this).ConfigureAwait(true);
+            m_lifetime.Token.ThrowIfCancellationRequested();
             if (bytes.Length == 0)
             {
-                return;
+                if (string.IsNullOrEmpty(name))
+                {
+                    return;
+                }
+                throw new ServiceResultException(StatusCodes.BadDecodingError, "The imported value file is empty.");
             }
             DataValue dv = UaLens.Connection.DataValueCodec.DecodeDataValue(
                 bytes, fmt, m_session.MessageContext);
-            if (m_definition is not null)
+            if (m_definition is not null || StructuredArrayValue.RequiresEditor(m_valueRank, dv.WrappedValue))
             {
-                await this.RequiredControl<ComplexValueEditor>("ComplexEditor").InitializeAsync(
-                    m_dataType, m_definition, ComplexValueIO.ForSession(m_session), dv.WrappedValue)
+                ComplexValueEditor editor = this.RequiredControl<ComplexValueEditor>("ComplexEditor");
+                await editor.InitializeValueAsync(
+                    m_dataType, m_definition, m_values, dv.WrappedValue,
+                    m_valueRank, m_arrayDimensions, m_lifetime.Token)
                     .ConfigureAwait(true);
+                editor.IsVisible = true;
+                valueText.IsVisible = false;
             }
             valueText.Text = FormatVariant(dv.WrappedValue);
             result.Text = $"Loaded value from {name} ({fmt}).";
@@ -263,15 +320,18 @@ internal sealed partial class WriteValueDialog : Window
                     Value = dataValue
                 }
             ];
-            WriteResponse resp = await m_session.WriteAsync(null, writes, CancellationToken.None).ConfigureAwait(true);
-            StatusCode sc = resp.Results.Count > 0 ? resp.Results[0] : StatusCodes.BadInternalError;
+            m_lifetime.Token.ThrowIfCancellationRequested();
+            WriteResponse resp = await m_session.WriteAsync(null, writes, m_lifetime.Token).ConfigureAwait(true);
+            StatusCode sc = !StatusCode.IsGood(resp.ResponseHeader.ServiceResult)
+                ? resp.ResponseHeader.ServiceResult
+                : resp.Results.Count == 1 ? resp.Results[0] : StatusCodes.BadDecodingError;
             if (StatusCode.IsGood(sc))
             {
                 result.Text = $"Write OK: {sc}";
                 result.Foreground = (Application.Current?.FindResource("AccentGreen") as IBrush)
                     ?? Brushes.Transparent;
                 // Close after a short delay so the user sees the success.
-                await Task.Delay(450).ConfigureAwait(true);
+                await Task.Delay(450, m_lifetime.Token).ConfigureAwait(true);
                 Close();
             }
             else
@@ -399,4 +459,12 @@ internal sealed partial class WriteValueDialog : Window
     {
         AvaloniaXamlLoader.Load(this);
     }
+
+    private readonly IStructuredValueService m_values;
+    private readonly SessionStructuredValueService? m_ownedValues;
+    private readonly CancellationTokenSource m_lifetime;
+    private Task m_loadTask = Task.CompletedTask;
+    private Task m_writeTask = Task.CompletedTask;
+    private Task m_importTask = Task.CompletedTask;
+    private Task? m_shutdown;
 }

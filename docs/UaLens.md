@@ -134,6 +134,20 @@ selection is constrained to the registered bindings and actual platform support.
 Ordinary Connect goes directly to endpoint/security selection. Configure listeners
 and application identity through connection settings.
 
+Connection setup shows the selected binding's forward/reverse support, named
+application-key and listener-TLS registrations, expected peer and outstanding
+network/trust prerequisites. **Discover endpoints** is an explicit forward
+operation; reverse mode uses **Start listener**, then **Wait / discover**.
+**Use setup** saves the selected intent without creating a channel or listener.
+Saved profiles stay pinned to their exact endpoint, application URI, security and
+user-token policy; unavailable registrations remain visible instead of selecting
+an unrelated default.
+
+Reverse waits and startup can be canceled independently. Stop prevents new
+listener leases while existing work drains; the primary reverse session must be
+released before its listener is disposed. Discovery and a registered certificate
+provider do not prove current certificate trust, private-key access or reachability.
+
 See [Identity Providers](IdentityProviders.md), [Crypto Provider](CryptoProvider.md),
 [Reverse Connect](ReverseConnect.md) and [Transports](Transports.md).
 
@@ -201,7 +215,7 @@ The catalog provides seventeen tool kinds:
 | Companion Tasks | Typed DI, ISA-95, WoT/xRegistry, Robotics, Vision, AI and OpenUSD discovery/inspection, with bounded guided operations |
 | Historian | Raw, processed, at-time and modified reads; cancellation, export, and explicitly requested updates/deletion |
 | Subscription Bench | Variable pool, both live scaling sliders, aggregate rates/counts, shared defaults, shrinking and Stop cleanup |
-| Performance | Explicit write/call workloads, rate/duration, run history, CSV, and comparison of up to the last three runs |
+| Performance | Explicit write/call workloads, selected baselines, metric/configuration/distribution comparison, bounded history, JSON and legacy CSV |
 | File System | File/directory browsing, transfers, creation, rename, and deletion |
 | Certificate Manager | Local application/trusted/issuer/rejected store management |
 | GDS Discovery | Discovery endpoints and saved favorites |
@@ -236,7 +250,7 @@ intentionally terminate a connection.
 | Inspect or edit a custom value | Models, or a Write/Call dialog | Explicit Read, metadata refresh, Write or Call |
 | Explain recovery or transfer | Continuity Lab | Start observation, then the selected step |
 | Receive a published dataset | PubSub | Explicit Start with interface/broker/security configuration |
-| Inspect an industry model | Companion Tasks | Discover, Inspect, then an offered task |
+| Inspect an industry model | Companion Tasks | Discover, Inspect, Prepare, review, then explicitly Run an offered task |
 | Use X.509, issued tokens or hardware keys | Connection identity selection | Connect after provider selection |
 | Accept a configured reverse connection | Connection setup | Explicit listener/wait and Connect |
 
@@ -282,9 +296,29 @@ starts from a separate local draft and does not itself write to the server.*
 
 Edits use a separate draft. A rejected or canceled draft cannot modify the original
 value or write to the server. Nested fields, optional presence, unions and supported
-arrays retain their type semantics. Matrix dimensions are preserved; creating
-different matrix shapes requires suitable typed input. OptionSets are not presented
-as a complete bit-field editor.
+arrays retain their type semantics.
+
+OptionSet editors expose named bits without discarding unnamed bits. Unsigned
+OptionSets retain their Byte, UInt16, UInt32 or UInt64 wire width. Concrete
+Structure-backed OptionSets keep separate Value and ValidBits controls; changing
+one does not imply changing the other. Null and empty masks remain distinct.
+A missing native type adapter or incompatible width is an explicit editing error.
+
+The shared array/matrix editor is available in Models and the Write/Call dialogs,
+including for a new value whose declared rank establishes the shape. Enter
+comma-separated dimensions, then select **Apply shape / create matrix**.
+Reshaping preserves flattened row-major order. Adding or dropping elements requires
+**Allow resizing / discarding trailing elements**; new elements receive typed
+defaults. Rank, declared dimension maxima, checked products and the session's
+encoding limits are validated before commit. The editor supports up to 32 dimensions
+and 65,536 elements, subject to lower session limits. Pending or rejected shape
+changes cannot silently commit the previous shape.
+
+Null and empty one-dimensional arrays have different wire encodings. Null/empty
+matrix fields retain their raw structure encoding; standalone matrix Variants
+require a nonempty valid shape. A fresh matrix can be created without importing
+an existing value. Metadata refresh, cancellation or session changes invalidate
+the draft rather than letting it write through stale type information.
 
 Schema preview/export uses the stack's schema provider. Missing definitions are
 reported explicitly; denied reads, canceled resolution and connection failures
@@ -297,6 +331,37 @@ They do not require a server-side `DataTypeDefinition`. Unresolved custom data
 types are reported as unavailable rather than exported as an untyped success.
 
 See [Complex Types](ComplexTypes.md) and [Schema Generation](SchemaGeneration.md).
+
+### Performance comparisons
+
+Configure a Write or Call target, rate or bounded-concurrency burst, generator and
+duration, then explicitly **Run**. Settings, target identity and available
+endpoint/security evidence are captured at the start; changing later settings
+does not rewrite a completed run's evidence. **Stop** cancels scheduling and waits
+for issued operations to settle before retaining a partial result. Throughput uses
+actual elapsed time, including that drain, rather than the requested duration.
+
+Open **Compare runs**, select any retained row and choose **Use as baseline**.
+Select another row to compare throughput, completed operations, errors, elapsed
+time and latency. Absolute differences are selected minus baseline; relative
+differences use the baseline. A zero baseline with a nonzero difference is shown
+as unavailable, not infinity. Target, generator, rate, duration, concurrency,
+argument signature and security differences are shown separately. Matching
+captured settings does not control server load or establish equivalent environments.
+
+Each newly captured run retains 71 fixed latency-bucket counts, not individual
+samples. The last bucket contains latencies at or above ten seconds. Distribution
+comparisons use each run's observed sample count and show percentage-point
+differences; percentile values are bucket estimates. Missing legacy distributions
+are labeled missing, never reconstructed from percentiles.
+
+**Save results** writes versioned JSON retaining selections, configuration evidence
+and distributions, or legacy aggregate-only CSV when that format is selected.
+**Load results** validates the complete bounded file before replacing history; it
+does not change workload settings or start a run. Import is limited to 4 Mi
+characters and 4,096 records; history retains the newest 64. If a selected baseline
+is evicted it is cleared explicitly, not replaced with a different run.
+**Highlight latest 3** only highlights rows and is independent of comparison.
 
 ### Continuity Lab and diagnostics
 
@@ -365,6 +430,41 @@ metadata, source/sink, security and Action facilities. Configurations save safe
 references, not raw broker credentials or SKS key material. No runtime or publisher
 is started by application DI registration or workspace restore.
 
+Choose an offline preset from the registered transport/profile catalog, then set
+the endpoint/interface or broker and review the prerequisites. Presets neither
+choose a destination nor supply credentials. The **Dataset / adapters** tab edits
+ordered scalar fields, field/dataset UUIDs, metadata versions, portable UA mappings
+and supported content masks. UADP retains the selected numeric publisher width;
+JSON uses canonical numeric identities and supports UUIDs. Ambiguous numeric or
+UUID-looking string identities are rejected for JSON rather than silently remapped.
+
+Received scalar metadata can populate an offline reader configuration. Adoption
+clears publication, write-back, responder and UA target mappings. Arrays, custom
+types and promoted fields require a shared schema/encoding context and are reported
+as unsupported by this scalar commissioning form, not flattened into a different
+schema.
+
+**Validate draft** checks the current form; **Apply configuration** updates the
+reviewed intent. Field, mask, identity or adapter edits revoke Start authorization.
+**Import configuration** validates the entire file before changing the document,
+rejects duplicate/unknown properties, and cannot overwrite newer edits made while
+the file is being read. **Export applied configuration** replaces a local JSON file
+atomically. Files are limited to 65,536 JSON characters and 196,608 UTF-8 bytes;
+fields are limited to 32. Import and restore never start network work.
+
+Select either a registered out-of-band key provider or the registered provider's
+pinned SKS endpoint and security group. A typed endpoint cannot retarget a provider.
+The active token's ID, issuance, expiry and key sizes are checked before runtime
+construction; missing or invalid material never falls back to unsecured traffic.
+Provider registration is not SKS enrollment or key generation.
+
+Action input forms preserve scalar types and ordering and allow at most 16
+transient inputs. Each invocation requires fresh consent and supports explicit
+cancellation. Results retain stack-provided request/correlation evidence; rejected,
+uncorrelated or malformed responses cannot leave a previous success displayed.
+Write-back requires complete, positionally mapped fields with matching names,
+types and good quality before calling the configured UA writer.
+
 Reaching a sample cap is not the same as completing its final send. The runtime
 finishes the final publication before stopping its writer. A synthetic UDP loopback
 also gets a bounded two-second local receive drain; expiry is recorded explicitly
@@ -375,6 +475,8 @@ require their registered transport/provider and platform prerequisites. Kafka us
 the managed backend in the native app; the optional Confluent backend is not a
 NativeAOT substitute. DTLS, Ethernet, SKS, brokers and advanced adapter scenarios
 do not install their own external infrastructure.
+DTLS remains gated when the installed stack configuration validator rejects its
+endpoint scheme, even if a host transport provider is registered.
 
 For a self-contained source use the repository's
 [Console Reference PubSub Client](../samples/PubSub/ConsoleReferencePubSubClient/README.md)
@@ -388,14 +490,35 @@ uses actual typed instances, not just namespace presence. Inspection is read-onl
 The task list is populated by the selected instance; an arbitrary operation name
 cannot be executed without a current inspection.
 
+Choose an offered task and enter any required input, then select **Prepare selected
+task**. Preparation is read-only: it rechecks the offered operation and displays
+the exact target, endpoint and effect. The prepared request captures its input
+without displaying raw input or endpoint query strings in the summary.
+Review it and explicitly **Run selected task**.
+
+Typed task forms expose named inputs instead of accepting an arbitrary method
+payload. Boolean and numeric fields retain their types, and file inputs use an
+explicit local-file picker. Changing any field discards the corresponding
+preparation and confirmation. Domain-specific review evidence is shown without
+serializing the input into a saved workspace.
+
+Preparation is single-use and expires after five minutes. Run rechecks the current
+session, identity, namespace mapping, endpoint/security profile and offered operation.
+A changed selection/input, discovery/inspection, rebind, failed preparation or Stop
+invalidates the earlier preparation. Starting Run consumes it even if cancellation,
+authorization or provider execution fails. Preparing an overlapping request cannot
+make an earlier request executable again. No operation is automatically replayed
+after reconnect.
+
 Sample mutations additionally require a loopback endpoint and explicit confirmation
 that it is a repository sample. Loopback alone does not prove a server is safe to
-mutate. Confirmation and operation input are not saved and are cleared when the
-connection changes. File exports require an explicit destination.
+mutate. Confirm only after preparing the specific request. Preparation, confirmation
+and operation input are never saved, and confirmation is cleared when the request
+changes or is attempted. File exports require an explicit destination.
 
 | Family | Guided scope | Intentional limit |
 |---|---|---|
-| DI | Device identity/topology, parameters and software-update state; explicit sample preparation | No firmware installation or complete update-state orchestration |
+| DI | Identity, bounded update observation, SHA-256-verified package preparation/upload, separate sample install/confirm and advertised abort/resume methods | Repository samples only; device-specific installation, trust and power-cycle behavior are not inferred |
 | ISA-95 | Typed V1/V2 resources and job inspection; explicit sample job storage | Jobs are not automatically started |
 | WoT / xRegistry | Asset/document/version/model inspection; explicit compatible sample registration/refresh | No overwrite of existing versions; server AutoRefresh policy applies |
 | Robotics | Published device-system/controller/axis topology and telemetry | No physical actuation or Robot Intent commanding |
@@ -407,6 +530,20 @@ The AI sample request is offered only for a loopback backend with egress disable
 both the UA server and backend restrictions are rechecked before invocation.
 Responses and displays are bounded. A response that requires a separate transfer
 workflow is not silently downloaded.
+
+DI package preparation snapshots at most 64 MiB from an explicitly selected local
+file and checks the independently supplied SHA-256. Run uploads those verified
+bytes, not a reopened file that could have changed after review. Upload does not
+install; a returned completion state-machine NodeId remains separate evidence
+requiring observation. Installation rechecks the state and method permissions
+before calling the typed software-update client. Returned method success is kept
+distinct from the subsequently observed device state.
+
+The opt-in [pump software-update simulator](../samples/DI/PumpDeviceIntegrationServer/README.md#software-update-simulator)
+provides an in-memory test target. Existing sample actions remain loopback-only;
+the desktop does not provide a blanket switch for firmware operations on arbitrary
+deployments. An optional recovery method is offered only when the server exposes
+it as executable; its actual response remains authoritative.
 
 OpenUSD export uses an unused destination, advertised assets and digest checks with
 bounded asset counts and sizes. Metadata inspection alone is not proof that an
@@ -465,7 +602,7 @@ PubSub, connection-provider and companion modules.
 | Alarms and Conditions | Real condition source, event support and operator permissions; acknowledgement and confirmation are explicit state changes |
 | X.509 / issued identity | Existing certificate with usable key, or configured token authority/provider; no automatic OAuth or PKI provisioning |
 | Durable transfer / failover | Compatible server storage, same-user transfer and configured redundancy; the Quickstarts store requires graceful shutdown and excludes issued-token persistence |
-| Structured values | Exposed type definitions or registered schemas; opaque values stay read-only, and OptionSets/new matrix shapes need suitable typed input |
+| Structured values | Exposed definitions or registered schemas; named bits and matrix creation retain wire semantics and declared bounds; opaque values stay read-only |
 | PubSub | Explicit network interface or broker and matching security/key providers; restoring a workspace never starts traffic |
 | Reverse connect | Registered binding/listener, expected server identity, trust and firewall permissions; unknown peers are not accepted |
 | Diagnostic evidence | Server counters may require authorization; absent evidence is not zero and unsynchronized clocks do not prove end-to-end latency |

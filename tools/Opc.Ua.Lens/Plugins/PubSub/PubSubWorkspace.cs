@@ -141,6 +141,16 @@ internal sealed class PubSubWorkspace : IAsyncDisposable
         }
     }
 
+    public ArrayOf<PubSubPrerequisite> InspectConfiguration(PubSubConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        lock (m_gate)
+        {
+            ObjectDisposedException.ThrowIf(m_closed, this);
+            return m_factory.Inspect(configuration, m_primarySession is { Connected: true });
+        }
+    }
+
     public async Task ConfigureAsync(PubSubConfiguration configuration, CancellationToken cancellationToken = default)
     {
         PubSubConfigurationValidation.RequireValid(configuration, requireEndpoint: false);
@@ -150,6 +160,10 @@ internal sealed class PubSubWorkspace : IAsyncDisposable
         {
             ObjectDisposedException.ThrowIf(m_closed, this);
             cancellationToken.ThrowIfCancellationRequested();
+            if (!m_run.IsCompleted)
+            {
+                throw new InvalidOperationException("Another workload started while configuration was being applied.");
+            }
             m_configuration = configuration;
             m_observations = new PubSubObservationStore(configuration.RetainedMessages, m_clock);
             m_discovery = [];
@@ -307,7 +321,10 @@ internal sealed class PubSubWorkspace : IAsyncDisposable
                     },
                     timeout,
                     token).ConfigureAwait(false);
-                token.ThrowIfCancellationRequested();
+                lock (m_gate)
+                {
+                    RequireActiveOperation(runtime, token);
+                }
                 ArrayOf<PubSubDiscoveryRow> rows = DescribeDiscovery(result);
                 lock (m_gate)
                 {
@@ -334,27 +351,53 @@ internal sealed class PubSubWorkspace : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(request);
         RequireTimeout(timeout);
+        lock (m_gate)
+        {
+            m_action = null;
+        }
         if (!authorized)
         {
+            m_observations.RecordEvidence("Action", StatusCodes.BadUserAccessDenied,
+                "The Action was not sent because this invocation was not authorized.");
             throw new InvalidOperationException("Explicit confirmation is required for each Action invocation.");
         }
         if (request.Target is null || request.ResponseAddress is null ||
             request.Target.DataSetWriterId == 0 || request.Target.ActionTargetId == 0 ||
             request.Target.ActionName is null || request.Target.ActionName.Length > 64 ||
-            request.InputFields.Count > PubSubConfigurationValidation.MaxFields ||
-            request.InputFields.Contains(field => field is null || string.IsNullOrEmpty(field.Name) ||
-                field.Name.Length > 64 || PubSubValueDisplay.Create(field).Truncated) ||
+            PubSubConfigurationValidation.HasControlCharacters(request.Target.ActionName) ||
             request.ResponseAddress.Length > 256 ||
             request.ResponseAddress.IndexOfAny(['*', '+', '#', '\r', '\n', '\0']) >= 0)
         {
+            m_observations.RecordEvidence("Action", StatusCodes.BadInvalidArgument,
+                "The Action was not sent because its target or response address is invalid.");
             throw new ArgumentException(
                 "Use an explicit bounded Action target, scalar inputs and response topic.", nameof(request));
         }
+        try
+        {
+            PubSubActionInputs.Validate(request.InputFields);
+        }
+        catch (ArgumentException)
+        {
+            m_observations.RecordEvidence("Action", StatusCodes.BadInvalidArgument,
+                "The Action was not sent because its scalar input vector is invalid.");
+            throw;
+        }
+        request = request with
+        {
+            InputFields = request.InputFields.ConvertAll(field => field with { Value = field.Value.Copy() })
+        };
         return ExecuteAsync(async (runtime, configuration, observations, token) =>
         {
             if (!configuration.ReceiveEnabled)
             {
                 throw new InvalidOperationException("Enable reception to await the correlated Action response.");
+            }
+            if (request.ResponseAddress != configuration.ActionResponseTopic ||
+                (configuration.Profile is PubSubProfile.KafkaJson or PubSubProfile.KafkaUadp &&
+                 !PubSubConfigurationValidation.IsKafkaTopic(request.ResponseAddress)))
+            {
+                throw new ArgumentException("Use the configured and reviewed Action response topic.", nameof(request));
             }
             int inputBudget = 256 + (request.Target.ActionName.Length + request.ResponseAddress.Length) * 6;
             foreach (DataSetField field in request.InputFields)
@@ -372,13 +415,27 @@ internal sealed class PubSubWorkspace : IAsyncDisposable
                     Target = request.Target with { ConnectionName = PubSubStackConfiguration.ConnectionName },
                     TimeoutHint = timeout.TotalMilliseconds
                 }, timeout, token).ConfigureAwait(false);
-            token.ThrowIfCancellationRequested();
+            lock (m_gate)
+            {
+                RequireActiveOperation(runtime, token);
+            }
             if (response.RequestId == 0 || response.CorrelationData.IsNull || response.CorrelationData.Length == 0 ||
                 response.CorrelationData.Length > 64 ||
-                response.OutputFields.Count > PubSubConfigurationValidation.MaxFields)
+                response.Target is null || response.Target.DataSetWriterId != request.Target.DataSetWriterId ||
+                response.Target.ActionTargetId != request.Target.ActionTargetId ||
+                !Enum.IsDefined(response.ActionState))
             {
                 throw new ServiceResultException(StatusCodes.BadDecodingError,
                     "The Action result did not contain bounded correlation/output evidence.");
+            }
+            try
+            {
+                PubSubActionInputs.Validate(response.OutputFields, PubSubConfigurationValidation.MaxFields);
+            }
+            catch (ArgumentException)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError,
+                    "The Action result contained invalid or unsupported scalar output fields.");
             }
             var result = new PubSubActionResult(
                 response.RequestId,

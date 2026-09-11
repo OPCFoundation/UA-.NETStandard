@@ -48,7 +48,7 @@ internal static class PubSubStackConfiguration
         }
         builder.AddConnection(ConnectionName, connection =>
         {
-            connection.WithPublisherId(PublisherVariant(configuration, configuration.LocalPublisherId))
+            connection.WithPublisherId(PubSubIdentity.Local(configuration))
                 .WithTransportProfile(configuration.TransportProfileUri)
                 .WithAddress(configuration.Endpoint, configuration.NetworkInterface);
             if (configuration.Publication != PubSubPublication.Disabled)
@@ -61,11 +61,14 @@ internal static class PubSubStackConfiguration
                         .WithSecurity(
                             configuration.SecurityMode, configuration.SecurityGroupId, SecurityEndpoints(configuration))
                         .WithMessageSettings(configuration.IsJson
-                            ? new JsonWriterGroupMessageDataType { NetworkMessageContentMask = (uint)JsonNetworkMask }
+                            ? new JsonWriterGroupMessageDataType
+                            {
+                                NetworkMessageContentMask = (uint)configuration.JsonNetworkMask
+                            }
                             : new UadpWriterGroupMessageDataType
                             {
                                 DataSetOrdering = DataSetOrderingType.AscendingWriterId,
-                                NetworkMessageContentMask = (uint)UadpNetworkMask
+                                NetworkMessageContentMask = (uint)configuration.UadpNetworkMask
                             })
                         .WithTransportSettings(configuration.IsBroker
                             ? new BrokerWriterGroupTransportDataType { QueueName = configuration.Topic }
@@ -75,15 +78,15 @@ internal static class PubSubStackConfiguration
                             writer.WithDataSetWriterId(configuration.DataSetWriterId)
                                 .WithDataSetName(DataSetName)
                                 .WithKeyFrameCount(1)
-                                .WithFieldContentMask(FieldMask(configuration))
+                                .WithFieldContentMask(configuration.EffectiveFieldMask)
                                 .WithMessageSettings(configuration.IsJson
                                     ? new JsonDataSetWriterMessageDataType
                                     {
-                                        DataSetMessageContentMask = (uint)JsonDataSetMask
+                                        DataSetMessageContentMask = (uint)configuration.JsonDataSetMask
                                     }
                                     : new UadpDataSetWriterMessageDataType
                                     {
-                                        DataSetMessageContentMask = (uint)UadpDataSetMask
+                                        DataSetMessageContentMask = (uint)configuration.UadpDataSetMask
                                     });
                             if (configuration.IsBroker)
                             {
@@ -106,23 +109,23 @@ internal static class PubSubStackConfiguration
                     .AddDataSetReader(ReaderName, reader =>
                     {
                         reader.WithFilter(
-                                PublisherVariant(configuration, configuration.PublisherFilter),
+                                PubSubIdentity.Filter(configuration),
                                 configuration.WriterGroupId,
                                 configuration.DataSetWriterId)
-                            .WithFieldContentMask(FieldMask(configuration))
+                            .WithFieldContentMask(configuration.EffectiveFieldMask)
                             .WithMessageReceiveTimeout(5000)
                             .WithMirrorSubscribedDataSet(ReaderName)
                             .WithDataSetMetaData(DataSetName, dataSet => ConfigureFields(dataSet, configuration))
                             .WithMessageSettings(configuration.IsJson
                                 ? new JsonDataSetReaderMessageDataType
                                 {
-                                    NetworkMessageContentMask = (uint)JsonNetworkMask,
-                                    DataSetMessageContentMask = (uint)JsonDataSetMask
+                                    NetworkMessageContentMask = (uint)configuration.JsonNetworkMask,
+                                    DataSetMessageContentMask = (uint)configuration.JsonDataSetMask
                                 }
                                 : new UadpDataSetReaderMessageDataType
                                 {
-                                    NetworkMessageContentMask = (uint)UadpNetworkMask,
-                                    DataSetMessageContentMask = (uint)UadpDataSetMask
+                                    NetworkMessageContentMask = (uint)configuration.UadpNetworkMask,
+                                    DataSetMessageContentMask = (uint)configuration.UadpDataSetMask
                                 });
                         if (configuration.IsBroker)
                         {
@@ -139,7 +142,7 @@ internal static class PubSubStackConfiguration
         PubSubConfigurationDataType result = builder.Build();
         foreach (PublishedDataSetDataType dataSet in result.PublishedDataSets)
         {
-            BoundMetadata(dataSet.DataSetMetaData);
+            BoundMetadata(dataSet.DataSetMetaData, configuration);
         }
         foreach (ReaderGroupDataType group in result.Connections[0].ReaderGroups)
         {
@@ -148,7 +151,7 @@ internal static class PubSubStackConfiguration
                 reader.SecurityMode = group.SecurityMode;
                 reader.SecurityGroupId = group.SecurityGroupId;
                 reader.SecurityKeyServices = group.SecurityKeyServices;
-                BoundMetadata(reader.DataSetMetaData);
+                BoundMetadata(reader.DataSetMetaData, configuration);
             }
         }
         return result;
@@ -159,7 +162,7 @@ internal static class PubSubStackConfiguration
         DataSetMetaDataType metadata = PubSubConfigurationBuilder.Create()
             .AddPublishedDataSet(DataSetName, dataSet => ConfigureFields(dataSet, configuration))
             .Build().PublishedDataSets[0].DataSetMetaData;
-        BoundMetadata(metadata);
+        BoundMetadata(metadata, configuration);
         return metadata;
     }
 
@@ -174,19 +177,12 @@ internal static class PubSubStackConfiguration
 
     private static void ConfigureFields(PublishedDataSetBuilder builder, PubSubConfiguration configuration)
     {
-        builder.WithoutFieldIds().WithConfigurationVersion(
+        builder.WithoutFieldIds().WithDataSetClassId(new Uuid(configuration.DataSetClassId)).WithConfigurationVersion(
             configuration.MetadataMajorVersion, configuration.MetadataMinorVersion);
         foreach (PubSubFieldConfiguration field in configuration.Fields)
         {
             builder.AddField(field.Name, (byte)field.Type, new NodeId((uint)field.Type));
         }
-    }
-
-    private static DataSetFieldContentMask FieldMask(PubSubConfiguration configuration)
-    {
-        return configuration.RawDataEncoding
-            ? DataSetFieldContentMask.RawData
-            : DataSetFieldContentMask.StatusCode | DataSetFieldContentMask.SourceTimestamp;
     }
 
     private static string MetadataTopic(PubSubConfiguration configuration)
@@ -197,13 +193,18 @@ internal static class PubSubStackConfiguration
 
     private static string[] SecurityEndpoints(PubSubConfiguration configuration)
     {
-        return configuration.SecurityMode == MessageSecurityMode.None ? [] : [configuration.SecurityKeyServiceEndpoint];
+        return configuration.SecurityMode == MessageSecurityMode.None ||
+            configuration.KeySource != PubSubKeySource.SecurityKeyService
+            ? []
+            : [configuration.SecurityKeyServiceEndpoint];
     }
 
-    private static void BoundMetadata(DataSetMetaDataType metadata)
+    private static void BoundMetadata(DataSetMetaDataType metadata, PubSubConfiguration configuration)
     {
-        foreach (FieldMetaData field in metadata.Fields)
+        for (int i = 0; i < metadata.Fields.Count; i++)
         {
+            FieldMetaData field = metadata.Fields[i];
+            field.DataSetFieldId = new Uuid(configuration.Fields[i].FieldId);
             if (field.BuiltInType == (byte)BuiltInType.String || field.BuiltInType == (byte)BuiltInType.ByteString)
             {
                 field.MaxStringLength = PubSubConfigurationValidation.MaxValueCharacters;
@@ -215,22 +216,4 @@ internal static class PubSubStackConfiguration
     public const string DataSetName = "UaLens Data";
     public const string ReaderName = "UaLens Reader";
 
-    private const UadpNetworkMessageContentMask UadpNetworkMask =
-        UadpNetworkMessageContentMask.PublisherId | UadpNetworkMessageContentMask.GroupHeader |
-        UadpNetworkMessageContentMask.WriterGroupId | UadpNetworkMessageContentMask.PayloadHeader |
-        UadpNetworkMessageContentMask.NetworkMessageNumber | UadpNetworkMessageContentMask.SequenceNumber;
-
-    private const UadpDataSetMessageContentMask UadpDataSetMask =
-        UadpDataSetMessageContentMask.Status | UadpDataSetMessageContentMask.SequenceNumber |
-        UadpDataSetMessageContentMask.Timestamp | UadpDataSetMessageContentMask.MajorVersion |
-        UadpDataSetMessageContentMask.MinorVersion;
-
-    private const JsonNetworkMessageContentMask JsonNetworkMask =
-        JsonNetworkMessageContentMask.NetworkMessageHeader | JsonNetworkMessageContentMask.DataSetMessageHeader |
-        JsonNetworkMessageContentMask.PublisherId;
-
-    private const JsonDataSetMessageContentMask JsonDataSetMask =
-        JsonDataSetMessageContentMask.DataSetWriterId | JsonDataSetMessageContentMask.SequenceNumber |
-        JsonDataSetMessageContentMask.Status | JsonDataSetMessageContentMask.Timestamp |
-        JsonDataSetMessageContentMask.MetaDataVersion;
 }

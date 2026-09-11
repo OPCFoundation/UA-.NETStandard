@@ -229,6 +229,47 @@ public sealed class ModelInspectorStateTests
         }
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task OptionSetsAndFreshTypedMatricesEnableLocalEditingWithoutArmingWritesAsync(bool matrix)
+    {
+        using var context = new StructuredValueTestContext();
+        Mock<IModelInspectorBackend> backend = Backend(context);
+        ModelInspection inspection = Inspection(context) with
+        {
+            DataType = matrix ? DataTypeIds.Int32 : DataTypeIds.UInt32,
+            ValueRank = matrix ? 2 : ValueRanks.Scalar,
+            Value = new DataValue(matrix ? Variant.Null : Variant.From(0x80000000u)),
+            Definition = matrix ? null : new EnumDefinition
+            {
+                IsOptionSet = true,
+                Fields = [new EnumField { Name = "Enabled", Value = 0 }]
+            },
+            ArrayDimensions = matrix ? (ArrayOf<uint>)[2u, 3u] : default
+        };
+        backend.Setup(item => item.ReadAsync(
+            inspection.PortableTarget, false, It.IsAny<CancellationToken>())).ReturnsAsync(inspection);
+        var plugin = new ModelInspectorPlugin(
+            backend.Object, () => context.Session.Object, () => null, context.MessageContext.Telemetry)
+        {
+            Target = inspection.PortableTarget
+        };
+        await using (plugin.ConfigureAwait(false))
+        {
+            await plugin.ReadCommand.ExecuteAsync(null).ConfigureAwait(false);
+            Assert.That(plugin.ReadState, Is.EqualTo(ModelReadState.Available));
+            Assert.That(plugin.CanEdit, Is.True);
+            Assert.That(plugin.IsStructuredValue, Is.True);
+            Assert.That(plugin.CanWrite, Is.False);
+            plugin.EditingEnabled = true;
+            Assert.That(plugin.CanEditDraft, Is.True);
+            Assert.That(plugin.CanWrite, Is.False);
+            Assert.That(plugin.DefinitionPreview, Does.Not.Contain("read-only limitation"));
+            backend.Verify(item => item.WriteAsync(
+                It.IsAny<ModelInspection>(), It.IsAny<Variant>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+    }
+
     [TestCase(true)]
     [TestCase(false)]
     public async Task ReadFailuresAreDistinctFromAuthoritativeMissingSchemaAndRetryWorksAsync(bool denied)

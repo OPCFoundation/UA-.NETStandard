@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
@@ -83,16 +84,25 @@ internal sealed class ReverseConnectionService : IAsyncDisposable
     public async Task StartAsync(ReverseConnectionProfile profile, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(profile);
+        ct.ThrowIfCancellationRequested();
         profile.Validate();
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        await EnterOperationAsync(cancellation.Token).ConfigureAwait(false);
+        lock (m_gate)
+        {
+            ObjectDisposedException.ThrowIf(m_disposed, this);
+            if (m_stopRequests != 0)
+            {
+                throw new InvalidOperationException(
+                    "Wait for listener Stop to finish before starting another listener.");
+            }
+            m_starts.Add(cancellation);
+        }
+        bool entered = false;
         try
         {
-            lock (m_gate)
-            {
-                ObjectDisposedException.ThrowIf(m_disposed, this);
-                m_cancelStart = cancellation.CancelAsync;
-            }
+            await EnterOperationAsync(cancellation.Token).ConfigureAwait(false);
+            entered = true;
+            cancellation.Token.ThrowIfCancellationRequested();
             if (m_runtime is not null)
             {
                 if (Snapshot.Profile == profile && Snapshot.Phase is
@@ -114,6 +124,12 @@ internal sealed class ReverseConnectionService : IAsyncDisposable
                 lock (m_gate)
                 {
                     ObjectDisposedException.ThrowIf(m_disposed, this);
+                    cancellation.Token.ThrowIfCancellationRequested();
+                    if (m_stopRequests != 0)
+                    {
+                        throw new OperationCanceledException(
+                            "Listener startup was superseded by Stop.", cancellation.Token);
+                    }
                     m_runtime = runtime;
                     installed = true;
                     SetSnapshot(ReverseConnectionPhase.Listening, profile);
@@ -141,9 +157,12 @@ internal sealed class ReverseConnectionService : IAsyncDisposable
         {
             lock (m_gate)
             {
-                m_cancelStart = null;
+                m_starts.Remove(cancellation);
             }
-            ExitOperation();
+            if (entered)
+            {
+                ExitOperation();
+            }
         }
     }
 
@@ -154,6 +173,10 @@ internal sealed class ReverseConnectionService : IAsyncDisposable
         lock (m_gate)
         {
             ObjectDisposedException.ThrowIf(m_disposed, this);
+            if (m_stopRequests != 0)
+            {
+                throw new InvalidOperationException("The reverse listener is stopping; no new lease may be acquired.");
+            }
             if (m_runtime is null || Snapshot.Profile != profile ||
                 Snapshot.Phase is not (ReverseConnectionPhase.Listening or ReverseConnectionPhase.Waiting))
             {
@@ -174,15 +197,16 @@ internal sealed class ReverseConnectionService : IAsyncDisposable
         CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        using ReverseConnectionLease lease = Acquire(profile);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        ReverseConnectionLease lease;
         lock (m_gate)
         {
             if (m_cancelWait is not null)
             {
                 throw new InvalidOperationException("A reverse-discovery wait is already active.");
             }
+            lease = Acquire(profile);
             m_cancelWait = cancellation.CancelAsync;
             m_waitCompleted = completed.Task;
             SetSnapshot(ReverseConnectionPhase.Waiting, profile);
@@ -191,6 +215,7 @@ internal sealed class ReverseConnectionService : IAsyncDisposable
         {
             ITransportWaitingConnection connection =
                 await lease.Runtime.WaitAsync(cancellation.Token).ConfigureAwait(false);
+            cancellation.Token.ThrowIfCancellationRequested();
             if (!profile.MatchesPeer(connection.ServerUri, connection.EndpointUrl))
             {
                 throw new ServiceResultException(
@@ -227,10 +252,15 @@ internal sealed class ReverseConnectionService : IAsyncDisposable
 
     public async Task StopAsync(CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
         Task? disposal;
         lock (m_gate)
         {
             disposal = m_disposeTask;
+            if (disposal is null)
+            {
+                m_stopRequests++;
+            }
         }
         if (disposal is not null)
         {
@@ -244,6 +274,13 @@ internal sealed class ReverseConnectionService : IAsyncDisposable
         catch (ObjectDisposedException) when (m_disposeTask is not null)
         {
             await m_disposeTask.WaitAsync(ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (m_gate)
+            {
+                m_stopRequests--;
+            }
         }
     }
 
@@ -267,13 +304,12 @@ internal sealed class ReverseConnectionService : IAsyncDisposable
 
     private async Task StopInternalAsync(CancellationToken ct, bool disposing = false)
     {
+        ct.ThrowIfCancellationRequested();
         Task cancellation;
         Task wait;
         lock (m_gate)
         {
-            cancellation = Task.WhenAll(
-                m_cancelStart?.Invoke() ?? Task.CompletedTask,
-                m_cancelWait?.Invoke() ?? Task.CompletedTask);
+            cancellation = CancelOperations();
             wait = m_waitCompleted;
         }
         AggregateException? cancellationFailure = null;
@@ -352,9 +388,7 @@ internal sealed class ReverseConnectionService : IAsyncDisposable
         Task cancellation;
         lock (m_gate)
         {
-            cancellation = Task.WhenAll(
-                m_cancelStart?.Invoke() ?? Task.CompletedTask,
-                m_cancelWait?.Invoke() ?? Task.CompletedTask);
+            cancellation = CancelOperations();
         }
         AggregateException? cancellationFailure = null;
         try
@@ -422,6 +456,20 @@ internal sealed class ReverseConnectionService : IAsyncDisposable
         }
     }
 
+    private Task CancelOperations()
+    {
+        var cancellations = new List<Task>(m_starts.Count + 1);
+        foreach (CancellationTokenSource starting in m_starts)
+        {
+            cancellations.Add(starting.CancelAsync());
+        }
+        if (m_cancelWait is not null)
+        {
+            cancellations.Add(m_cancelWait());
+        }
+        return Task.WhenAll(cancellations);
+    }
+
     private void ExitOperation(bool entered = true)
     {
         bool dispose;
@@ -459,15 +507,16 @@ internal sealed class ReverseConnectionService : IAsyncDisposable
     private readonly IReverseConnectionRuntimeFactory m_factory;
     private readonly SemaphoreSlim m_operations = new(1, 1);
     private readonly Lock m_gate = new();
+    private readonly HashSet<CancellationTokenSource> m_starts = [];
     private ReverseConnectionSnapshot m_snapshot = new(ReverseConnectionPhase.Stopped, null);
     private IReverseConnectionRuntime? m_runtime;
     private Func<Task>? m_cancelWait;
-    private Func<Task>? m_cancelStart;
     private Task m_waitCompleted = Task.CompletedTask;
     private Task? m_disposeTask;
     private TaskCompletionSource? m_leasesDrained;
     private int m_leases;
     private int m_operationUsers;
+    private int m_stopRequests;
     private bool m_disposed;
     private bool m_shutdownComplete;
 }

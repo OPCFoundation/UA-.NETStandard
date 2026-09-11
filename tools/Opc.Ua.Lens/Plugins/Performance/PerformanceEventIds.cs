@@ -42,4 +42,5 @@ internal static partial class UaLensEventIds
     public const int PerformanceSaveFailed = 2104;
     public const int PerformanceLoadFailed = 2105;
     public const int PerformanceRestoreFailed = 2106;
+    public const int PerformanceRunFailed = 2107;
 }

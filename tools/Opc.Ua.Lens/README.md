@@ -35,6 +35,17 @@ unavailable, unsupported and unauthorized operations. X.509, issued-token and
 hardware-backed identities use explicitly configured providers; reverse connect
 keeps listener, peer, security and identity requirements visible.
 
+Models and the Write/Call dialogs share named-bit OptionSet and dimension-aware
+array/matrix editors. Performance compares a chosen baseline with real retained
+latency distributions and configuration evidence. Companion Tasks use an explicit,
+single-use **Prepare / Review / Run** flow; preparations and confirmation are never
+part of saved workspaces.
+
+PubSub commissioning includes registered offline presets, ordered scalar fields,
+identity/content-mask editing and atomic configuration import/export. Transport
+setup presents forward/reverse readiness and preserves pinned security intent.
+Both workflows require explicit Start/Connect; saved configuration is not consent.
+
 One primary connection is shared by documents; GDS tools can retain independent
 secondary connections. Local certificate management and discovery are available
 offline. Workspaces preserve safe configuration, not credentials or running jobs.
@@ -74,3 +85,19 @@ on a development reference server. Secure connection probes require the
 `UALENS_SECURE_PROBE_ENDPOINT` environment variable and their explicit NUnit
 selector. Headless probes are not a substitute for opening and exercising the
 desktop.
+
+The opt-in `StructuredEditorDialogTests` fixture exercises the real Models,
+Write and Call windows with mocked services, without network or certificate-store
+access. Run it on an interactive desktop using:
+
+```powershell
+$env:CustomTestTarget = 'net10.0'
+dotnet test tests\Opc.Ua.Lens.Tests\Opc.Ua.Lens.Tests.csproj -c Release -f net10.0 `
+  --filter FullyQualifiedName~StructuredEditorDialogTests
+```
+
+`CommissioningDialogTests` exercises the real PubSub selectors and transport
+readiness dialog without network activity. The
+`CompiledViewTemplateBindsRealTypedEditorsAndHidesTheRawInputAsync` test checks the
+typed companion form. These are explicitly selected desktop probes, not ordinary
+headless-suite prerequisites.

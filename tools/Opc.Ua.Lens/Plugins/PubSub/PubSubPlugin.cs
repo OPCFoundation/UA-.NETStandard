@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -64,6 +65,7 @@ internal sealed partial class PubSubPlugin : ObservableObject, IPlugin, IWorkspa
         m_title = string.Create(CultureInfo.InvariantCulture, $"PubSub {Interlocked.Increment(ref s_number)}");
         m_refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         m_refreshTimer.Tick += OnRefresh;
+        InitializeCommissioning(runtimeFactory);
         LoadConfiguration(m_workspace.Configuration);
         RefreshPresentation();
     }
@@ -76,7 +78,7 @@ internal sealed partial class PubSubPlugin : ObservableObject, IPlugin, IWorkspa
 
     public bool CanConfigure => !IsBusy && !IsRunning;
 
-    public ObservableCollection<PubSubProfile> Profiles { get; } = new(Enum.GetValues<PubSubProfile>());
+    public ObservableCollection<PubSubProfile> Profiles { get; } = [];
 
     public ObservableCollection<PubSubPublication> PublicationModes { get; } =
         new(Enum.GetValues<PubSubPublication>());
@@ -148,7 +150,7 @@ internal sealed partial class PubSubPlugin : ObservableObject, IPlugin, IWorkspa
         PubSubConfiguration restored = PubSubStateCodec.Restore(state);
         await m_workspace.ConfigureAsync(restored, cancellationToken).ConfigureAwait(true);
         ClearAuthorizations();
-        ActionInputs = "[]";
+        ClearActionInputs();
         LoadConfiguration(restored);
         RefreshPresentation();
         Status = "Configuration restored offline. No traffic, listener, publication, Action or UA write was resumed.";
@@ -158,6 +160,17 @@ internal sealed partial class PubSubPlugin : ObservableObject, IPlugin, IWorkspa
     {
         m_refreshTimer.Stop();
         m_refreshTimer.Tick -= OnRefresh;
+        PropertyChanged -= OnDocumentDraftChanged;
+        FieldDrafts.CollectionChanged -= OnFieldCollectionChanged;
+        foreach (PubSubFieldDraft field in FieldDrafts)
+        {
+            field.PropertyChanged -= OnEditorChanged;
+        }
+        foreach (PubSubMaskOption option in NetworkMaskOptions.Concat(DataSetMaskOptions).Concat(FieldMaskOptions))
+        {
+            option.PropertyChanged -= OnEditorChanged;
+        }
+        ClearActionInputs();
         await m_workspace.DisposeAsync().ConfigureAwait(false);
     }
 
@@ -181,6 +194,7 @@ internal sealed partial class PubSubPlugin : ObservableObject, IPlugin, IWorkspa
     {
         return PresentAsync(async () =>
         {
+            ClearAuthorizations();
             PubSubConfiguration draft = CreateDraft();
             await m_workspace.ConfigureAsync(draft, cancellationToken).ConfigureAwait(true);
             ClearAuthorizations();
@@ -193,6 +207,7 @@ internal sealed partial class PubSubPlugin : ObservableObject, IPlugin, IWorkspa
     {
         return PresentAsync(async () =>
         {
+            ClearAuthorizations();
             PubSubConfiguration draft = PubSubStateCodec.Parse(AdvancedConfiguration);
             await m_workspace.ConfigureAsync(draft, cancellationToken).ConfigureAwait(true);
             ClearAuthorizations();
@@ -205,16 +220,15 @@ internal sealed partial class PubSubPlugin : ObservableObject, IPlugin, IWorkspa
     {
         return PresentAsync(async () =>
         {
+            var authorization = new PubSubStartAuthorization(
+                AllowUnsecured, AllowPublication, AllowWriteBack, AllowResponder, AllowAnonymousBroker);
+            ClearAuthorizations();
             if (CreateDraft() != m_workspace.Configuration)
             {
                 throw new InvalidOperationException(
                     "Apply and review the changed configuration before authorizing Start.");
             }
-            await m_workspace.StartAsync(
-                new PubSubStartAuthorization(
-                    AllowUnsecured, AllowPublication, AllowWriteBack, AllowResponder, AllowAnonymousBroker),
-                cancellationToken).ConfigureAwait(true);
-            ClearAuthorizations();
+            await m_workspace.StartAsync(authorization, cancellationToken).ConfigureAwait(true);
         });
     }
 
@@ -236,7 +250,7 @@ internal sealed partial class PubSubPlugin : ObservableObject, IPlugin, IWorkspa
         }
     }
 
-    [RelayCommand(CanExecute = nameof(CanOperate), FlowExceptionsToTaskScheduler = true)]
+    [RelayCommand(CanExecute = nameof(CanOperate), FlowExceptionsToTaskScheduler = true, IncludeCancelCommand = true)]
     private Task DiscoverAsync(CancellationToken cancellationToken)
     {
         return PresentAsync(async () =>
@@ -255,7 +269,7 @@ internal sealed partial class PubSubPlugin : ObservableObject, IPlugin, IWorkspa
         });
     }
 
-    [RelayCommand(CanExecute = nameof(CanOperate), FlowExceptionsToTaskScheduler = true)]
+    [RelayCommand(CanExecute = nameof(CanOperate), FlowExceptionsToTaskScheduler = true, IncludeCancelCommand = true)]
     private Task InvokeActionAsync(CancellationToken cancellationToken)
     {
         return PresentAsync(async () =>
@@ -271,7 +285,9 @@ internal sealed partial class PubSubPlugin : ObservableObject, IPlugin, IWorkspa
                     ActionTargetId = configuration.ActionTargetId,
                     ActionName = configuration.ActionName
                 },
-                InputFields = PubSubActionInputs.Parse(ActionInputs),
+                InputFields = UseAdvancedActionInputs
+                    ? PubSubActionInputs.Parse(ActionInputs)
+                    : PubSubActionInputs.Create([.. ActionInputDrafts.Select(input => input.ToDraft())]),
                 ResponseAddress = configuration.ActionResponseTopic
             }, authorized, TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(true);
         });
@@ -302,7 +318,7 @@ internal sealed partial class PubSubPlugin : ObservableObject, IPlugin, IWorkspa
 
     private PubSubConfiguration CreateDraft()
     {
-        return m_workspace.Configuration with
+        return ExtendDraft(m_workspace.Configuration with
         {
             Profile = Profile,
             Endpoint = Endpoint,
@@ -324,7 +340,7 @@ internal sealed partial class PubSubPlugin : ObservableObject, IPlugin, IWorkspa
             PublisherFilter = PublisherFilter,
             WriterGroupId = WriterGroupId,
             DataSetWriterId = DataSetWriterId
-        };
+        });
     }
 
     private void LoadConfiguration(PubSubConfiguration configuration)
@@ -349,12 +365,16 @@ internal sealed partial class PubSubPlugin : ObservableObject, IPlugin, IWorkspa
         PublisherFilter = configuration.PublisherFilter;
         WriterGroupId = configuration.WriterGroupId;
         DataSetWriterId = configuration.DataSetWriterId;
+        LoadCommissioning(configuration);
         AdvancedConfiguration = PubSubStateCodec.Format(configuration);
         ConfigurationSummary = string.Create(CultureInfo.InvariantCulture,
             $"{configuration.Publication} → {configuration.Endpoint}; {configuration.SecurityMode}; " +
             $"{configuration.PublishingIntervalMs} ms, {configuration.DurationSeconds} s, " +
             $"≤{configuration.MaxPublishedMessages} source samples/UA operations. " +
-            $"Local sink: {!configuration.WriteBackEnabled}. Responder: {configuration.ActionResponderEnabled}.");
+            $"Local sink: {!configuration.WriteBackEnabled}. Responder: {configuration.ActionResponderEnabled}. " +
+            $"Local publisher {PubSubIdentity.Describe(configuration, true)}; " +
+            $"received publisher {PubSubIdentity.Describe(configuration, false)}; " +
+            $"fields {configuration.Fields.Count}.");
         ActionTarget = string.Create(CultureInfo.InvariantCulture,
             $"Action {configuration.ActionName}; " +
             $"writer {configuration.ActionWriterId}, target {configuration.ActionTargetId}.");
@@ -411,7 +431,8 @@ internal sealed partial class PubSubPlugin : ObservableObject, IPlugin, IWorkspa
         ArrayOf<IAsyncRelayCommand> commands =
         [
             StartCommand, StopCommand, DiscoverCommand, InspectConfigurationCommand,
-            InvokeActionCommand, ApplyConfigurationCommand, ApplyAdvancedConfigurationCommand
+            InvokeActionCommand, ApplyConfigurationCommand, ApplyAdvancedConfigurationCommand,
+            ApplyPresetCommand, ApplyMetadataCommand, ImportFileCommand, ExportFileCommand
         ];
         foreach (IAsyncRelayCommand command in commands)
         {
@@ -464,14 +485,20 @@ internal sealed partial class PubSubPlugin : ObservableObject, IPlugin, IWorkspa
     [NotifyPropertyChangedFor(nameof(CanConfigure))]
     [NotifyCanExecuteChangedFor(nameof(StartCommand), nameof(ApplyConfigurationCommand),
         nameof(ApplyAdvancedConfigurationCommand), nameof(StopCommand), nameof(DiscoverCommand),
-        nameof(InspectConfigurationCommand), nameof(InvokeActionCommand))]
+        nameof(InspectConfigurationCommand), nameof(InvokeActionCommand), nameof(ApplyPresetCommand),
+        nameof(ApplyMetadataCommand), nameof(AddFieldCommand), nameof(RemoveFieldCommand),
+        nameof(MoveFieldUpCommand), nameof(MoveFieldDownCommand), nameof(ValidateConfigurationCommand),
+        nameof(ImportFileCommand), nameof(ExportFileCommand))]
     private bool m_isBusy;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsOffline), nameof(CanConfigure))]
     [NotifyCanExecuteChangedFor(nameof(StartCommand), nameof(ApplyConfigurationCommand),
         nameof(ApplyAdvancedConfigurationCommand), nameof(StopCommand), nameof(DiscoverCommand),
-        nameof(InspectConfigurationCommand), nameof(InvokeActionCommand))]
+        nameof(InspectConfigurationCommand), nameof(InvokeActionCommand), nameof(ApplyPresetCommand),
+        nameof(ApplyMetadataCommand), nameof(AddFieldCommand), nameof(RemoveFieldCommand),
+        nameof(MoveFieldUpCommand), nameof(MoveFieldDownCommand), nameof(ValidateConfigurationCommand),
+        nameof(ImportFileCommand), nameof(ExportFileCommand))]
     private bool m_isRunning;
 
     [ObservableProperty]
@@ -523,10 +550,10 @@ internal sealed partial class PubSubPlugin : ObservableObject, IPlugin, IWorkspa
     private int m_maxPublishedMessages = 100;
 
     [ObservableProperty]
-    private ushort m_localPublisherId = 2;
+    private ulong m_localPublisherId = 2;
 
     [ObservableProperty]
-    private ushort m_publisherFilter = 1;
+    private ulong m_publisherFilter = 1;
 
     [ObservableProperty]
     private ushort m_writerGroupId = 100;

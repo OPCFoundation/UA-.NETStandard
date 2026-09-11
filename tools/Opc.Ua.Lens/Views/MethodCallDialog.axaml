@@ -56,7 +56,7 @@
               <TextBox Grid.Column="1" Text="{CompiledBinding ValueText, Mode=TwoWay}"
                        FontFamily="Cascadia Mono, Consolas, monospace" />
               <Button Grid.Column="2" Content="🧩"
-                      ToolTip.Tip="Edit as structured value"
+                      ToolTip.Tip="Edit typed value, named bits, array or matrix"
                       Padding="6,2" Margin="6,0,0,0"
                       IsVisible="{CompiledBinding IsComplex}"
                       Command="{CompiledBinding EditComplexCommand}" />
@@ -102,4 +102,3 @@
     </StackPanel>
   </Grid>
 </Window>
-

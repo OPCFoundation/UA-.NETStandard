@@ -69,7 +69,8 @@ internal sealed class NodeInteractionController
         tree.ShowEventsRequested += async n =>
             await m_vm.AddPluginAsync(PluginKind.EventView, seedEventSource: n).ConfigureAwait(true);
         tree.ShowAlarmsRequested += async node => await OpenNodeToolAsync(PluginKind.Alarms, node).ConfigureAwait(true);
-        tree.InspectModelRequested += async node => await OpenNodeToolAsync(PluginKind.Models, node).ConfigureAwait(true);
+        tree.InspectModelRequested += async node =>
+            await OpenNodeToolAsync(PluginKind.Models, node).ConfigureAwait(true);
         tree.PerfRequested += async _ =>
             await m_vm.AddPluginAsync(PluginKind.Performance, seedPickTarget: true).ConfigureAwait(true);
         tree.AddToBenchRequested += async n =>
@@ -409,7 +410,10 @@ internal sealed class NodeInteractionController
             return;
         }
         var dlg = new WriteValueDialog(node, session);
-        await dlg.ShowDialog(m_window).ConfigureAwait(true);
+        await using (dlg.ConfigureAwait(false))
+        {
+            await dlg.ShowDialog(m_window).ConfigureAwait(true);
+        }
     }
 
     private async Task ExportValueAsync(NodeViewModel node)

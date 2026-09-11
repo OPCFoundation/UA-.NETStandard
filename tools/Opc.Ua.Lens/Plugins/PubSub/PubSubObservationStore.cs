@@ -75,7 +75,14 @@ internal sealed record PubSubMetadataRow(
     string Name,
     uint MajorVersion,
     uint MinorVersion,
-    string Fields);
+    string Fields)
+{
+    public PubSubMetadataSchema? Schema { get; init; }
+
+    public string Commissioning => Schema is { CanApply: true }
+        ? "Scalar schema available. Stop, select and apply to create read-only intent; review content masks separately."
+        : Schema?.Prerequisite ?? "No commissioning schema is available.";
+}
 
 internal sealed record PubSubEvidence(DateTimeOffset Timestamp, string Area, StatusCode Status, string Detail);
 
@@ -292,10 +299,14 @@ internal sealed class PubSubObservationStore : ISubscribedDataSetSink, IReceived
                 change.Key.WriterGroupId,
                 change.Key.DataSetWriterId,
                 PubSubValueDisplay.Bound(metadata.Name, 96),
-                metadata.ConfigurationVersion.MajorVersion,
-                metadata.ConfigurationVersion.MinorVersion,
+                metadata.ConfigurationVersion?.MajorVersion ?? 0,
+                metadata.ConfigurationVersion?.MinorVersion ?? 0,
                 string.Join(", ", metadata.Fields.ToList().Select(field =>
-                    PubSubValueDisplay.Bound(field.Name, 64) + ": " + ((BuiltInType)field.BuiltInType).ToString())));
+                    field is null ? "(invalid field)" :
+                    PubSubValueDisplay.Bound(field.Name, 64) + ": " + ((BuiltInType)field.BuiltInType).ToString())))
+            {
+                Schema = PubSubMetadataSchema.Create(change.Key, metadata)
+            };
             m_metadataUpdates++;
         }
     }
@@ -488,9 +499,35 @@ internal static class PubSubValueDisplay
             truncated = bytes.Length > length;
             value = truncated ? Variant.Null : new Variant(new ByteString(bytes.Span.ToArray()));
         }
+        else if (value.TryGetValue(out NodeId nodeId))
+        {
+            text = nodeId.ToString();
+        }
+        else if (value.TryGetValue(out ExpandedNodeId expandedNodeId))
+        {
+            text = expandedNodeId.ToString();
+        }
+        else if (value.TryGetValue(out StatusCode statusCode))
+        {
+            text = statusCode.ToString();
+        }
+        else if (value.TryGetValue(out QualifiedName qualifiedName))
+        {
+            text = qualifiedName.ToString();
+        }
+        else if (value.TryGetValue(out LocalizedText localizedText))
+        {
+            text = localizedText.ToString();
+        }
         else
         {
             text = "Value received; structured/array display is not expanded by this bounded viewer.";
+            value = Variant.Null;
+            truncated = true;
+        }
+        if (text.Length > PubSubConfigurationValidation.MaxValueCharacters)
+        {
+            text = Bound(text, PubSubConfigurationValidation.MaxValueCharacters);
             value = Variant.Null;
             truncated = true;
         }

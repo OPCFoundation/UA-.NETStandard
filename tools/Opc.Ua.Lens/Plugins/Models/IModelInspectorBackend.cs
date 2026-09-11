@@ -64,7 +64,10 @@ internal sealed record ModelInspection(
     DataValue Value,
     bool CanWrite,
     bool CanCall,
-    DataTypeDefinition? Definition);
+    DataTypeDefinition? Definition)
+{
+    public ArrayOf<uint> ArrayDimensions { get; init; }
+}
 
 internal sealed record ModelSchemaPreview(bool Available, string Text, string MediaType, string Extension);
 

@@ -254,7 +254,7 @@ internal sealed class ConnectionController
         ArrayOf<EndpointDescription> endpoints = default;
         if (profile.ReverseConnection is not null)
         {
-            var dialog = new ConnectionSetupDialog(m_vm.Connection, setup, pinned: true);
+            var dialog = new ConnectionSetupDialog(m_vm.Connection, setup, pinned: true, selectedProfile: profile);
             if (await dialog.PromptAsync(m_window, cancellationToken).ConfigureAwait(true) is null)
             {
                 return;
@@ -401,7 +401,8 @@ internal sealed class ConnectionController
                 : m_setup ?? new ConnectionSetupSelection(
                     profile?.EndpointUrl ?? m_vm.EndpointUrl, profile?.ReverseConnection, profile?.ApplicationIdentityId);
             var dialog = new ConnectionSetupDialog(
-                m_vm.Connection, initial, pinned: m_vm.RestoredConnectionProfile is not null);
+                m_vm.Connection, initial, pinned: m_vm.RestoredConnectionProfile is not null,
+                selectedProfile: m_vm.RestoredConnectionProfile);
             ConnectionSetupSelection? selected = await dialog.PromptAsync(m_window).ConfigureAwait(true);
             if (selected is not null)
             {

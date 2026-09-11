@@ -29,10 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Text.Json;
 using Opc.Ua;
 using Opc.Ua.PubSub.Encoding;
+using UaLens.StructuredValues;
 
 namespace UaLens.Plugins.PubSub;
 
@@ -43,46 +43,41 @@ internal static class PubSubActionInputs
     public static ArrayOf<DataSetField> Parse(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
-        if (json.Length > 8192)
+        if (json.Length > MaxInputCharacters)
         {
             throw new JsonException("Action inputs are limited to 8192 characters.");
         }
         List<PubSubActionInputDraft> inputs = JsonSerializer.Deserialize(
             json, PubSubJsonContext.Default.ListPubSubActionInputDraft)
             ?? throw new JsonException("An Action input array is required.");
-        if (inputs.Count > 16)
+        return Create([.. inputs]);
+    }
+
+    public static ArrayOf<DataSetField> Create(ArrayOf<PubSubActionInputDraft> inputs)
+    {
+        if (inputs.IsNull || inputs.Count > MaxInputs)
         {
             throw new JsonException("At most 16 scalar Action inputs are supported.");
         }
         var fields = new DataSetField[inputs.Count];
         var names = new HashSet<string>(StringComparer.Ordinal);
+        int characters = 0;
         for (int i = 0; i < fields.Length; i++)
         {
             PubSubActionInputDraft input = inputs[i];
             if (input is null || string.IsNullOrWhiteSpace(input.Name) || input.Name.Length > 64 ||
+                PubSubConfigurationValidation.HasControlCharacters(input.Name) ||
                 !names.Add(input.Name) || input.Text is null || input.Text.Length > 512)
             {
                 throw new JsonException("Use unique names and bounded scalar input text.");
             }
-            Variant value = input.Type switch
+            characters += input.Name.Length + input.Text.Length;
+            if (characters > MaxInputCharacters || !IsSupportedType(input.Type) ||
+                !StructuredScalarValue.TryParse(input.Type, input.Text, Variant.Null, out Variant value, out _) ||
+                !IsSupportedValue(value))
             {
-                BuiltInType.Boolean when bool.TryParse(input.Text, out bool result) => new Variant(result),
-                BuiltInType.Int32 when int.TryParse(input.Text, CultureInfo.InvariantCulture, out int result) =>
-                    new Variant(result),
-                BuiltInType.UInt32 when uint.TryParse(input.Text, CultureInfo.InvariantCulture, out uint result) =>
-                    new Variant(result),
-                BuiltInType.Int64 when long.TryParse(input.Text, CultureInfo.InvariantCulture, out long result) =>
-                    new Variant(result),
-                BuiltInType.UInt64 when ulong.TryParse(input.Text, CultureInfo.InvariantCulture, out ulong result) =>
-                    new Variant(result),
-                BuiltInType.Double when double.TryParse(
-                    input.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double result) &&
-                    double.IsFinite(result) =>
-                    new Variant(result),
-                BuiltInType.String => new Variant(input.Text),
-                _ => throw new JsonException(
-                    "Use Boolean, Int32, UInt32, Int64, UInt64, finite Double, or String input text.")
-            };
+                throw new JsonException("An Action input is invalid, nonfinite, too large or not a supported scalar.");
+            }
             fields[i] = new DataSetField
             {
                 Name = input.Name,
@@ -92,4 +87,44 @@ internal static class PubSubActionInputs
         }
         return fields;
     }
+
+    public static void Validate(ArrayOf<DataSetField> fields, int maximum = MaxInputs)
+    {
+        if (fields.IsNull || fields.Count > maximum)
+        {
+            throw new ArgumentException("A bounded Action field vector is required.", nameof(fields));
+        }
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (DataSetField field in fields)
+        {
+            if (field is null || string.IsNullOrWhiteSpace(field.Name) || field.Name.Length > 64 ||
+                PubSubConfigurationValidation.HasControlCharacters(field.Name) || !names.Add(field.Name) ||
+                field.FieldIndex != -1 || !Enum.IsDefined(field.Encoding) || !IsSupportedValue(field.Value) ||
+                PubSubValueDisplay.Create(field).Truncated)
+            {
+                throw new ArgumentException("Action fields must have unique names and bounded scalar values.",
+                    nameof(fields));
+            }
+        }
+    }
+
+    public static bool IsSupportedType(BuiltInType type)
+    {
+        return type is >= BuiltInType.Boolean and <= BuiltInType.ByteString or
+            BuiltInType.NodeId or BuiltInType.QualifiedName or BuiltInType.LocalizedText;
+    }
+
+    public static bool IsSupportedValue(Variant value)
+    {
+        return !value.IsNull && value.TypeInfo.IsScalar && IsSupportedType(value.TypeInfo.BuiltInType) &&
+            (!value.TryGetValue(out float single) || float.IsFinite(single)) &&
+            (!value.TryGetValue(out double number) || double.IsFinite(number)) &&
+            (!value.TryGetValue(out string text) || text.Length <= PubSubConfigurationValidation.MaxValueCharacters) &&
+            (!value.TryGetValue(out ByteString bytes) || bytes.Length <= 128) &&
+            (!value.TryGetValue(out NodeId node) || node.NamespaceIndex == 0) &&
+            (!value.TryGetValue(out QualifiedName name) || name.NamespaceIndex == 0);
+    }
+
+    public const int MaxInputs = 16;
+    public const int MaxInputCharacters = 8192;
 }

@@ -46,6 +46,7 @@ internal sealed class MatchedReverseTransportBindings : ITransportBindingRegistr
     {
         m_inner = inner ?? throw new ArgumentNullException(nameof(inner));
         m_profile = profile ?? throw new ArgumentNullException(nameof(profile));
+        profile.Validate();
     }
 
     public ITransportListener? CreateListener(string uriScheme, ITelemetryContext telemetry)
@@ -111,6 +112,7 @@ internal sealed class MatchedReverseListener : ITransportListener
     {
         m_inner = inner ?? throw new ArgumentNullException(nameof(inner));
         m_profile = profile ?? throw new ArgumentNullException(nameof(profile));
+        profile.Validate();
         inner.ConnectionWaiting += OnConnectionWaitingAsync;
     }
 
@@ -132,10 +134,22 @@ internal sealed class MatchedReverseListener : ITransportListener
         ITransportListenerCallback callback,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(baseAddress);
+        ArgumentNullException.ThrowIfNull(settings);
+        ct.ThrowIfCancellationRequested();
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref m_disposed), this);
         if (!ConnectionProfile.EndpointUrlsMatch(baseAddress.AbsoluteUri, m_profile.ListenerUrl))
         {
             throw new InvalidOperationException(
                 "The reverse listener address differs from the explicitly selected address.");
+        }
+        if (!settings.ReverseConnectListener ||
+            (baseAddress.Scheme is "wss" or "opc.wss" &&
+                (settings.ServerCertificates is null || settings.CertificateValidator is null)))
+        {
+            throw new InvalidOperationException(
+                "The selected binding requires reverse-listener mode " +
+                "and explicit WSS TLS certificates and validation.");
         }
         return m_inner.OpenAsync(baseAddress, settings, callback, ct);
     }
@@ -147,6 +161,9 @@ internal sealed class MatchedReverseListener : ITransportListener
 
     public void CertificateUpdate(ICertificateValidatorEx validator, ICertificateRegistry serverCertificates)
     {
+        ArgumentNullException.ThrowIfNull(validator);
+        ArgumentNullException.ThrowIfNull(serverCertificates);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref m_disposed), this);
         m_inner.CertificateUpdate(validator, serverCertificates);
     }
 
@@ -160,31 +177,64 @@ internal sealed class MatchedReverseListener : ITransportListener
         m_inner.UpdateChannelLastActiveTime(globalChannelId);
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        m_inner.ConnectionWaiting -= OnConnectionWaitingAsync;
-        await m_inner.DisposeAsync().ConfigureAwait(false);
+        TaskCompletionSource? started = null;
+        Task disposal;
+        lock (m_gate)
+        {
+            if (m_disposal is null)
+            {
+                m_disposed = true;
+                started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                m_disposal = DisposeCoreAsync(started.Task);
+            }
+            disposal = m_disposal;
+        }
+        started?.TrySetResult();
+        return new ValueTask(disposal);
     }
 
     private async Task OnConnectionWaitingAsync(object sender, ConnectionWaitingEventArgs args)
     {
-        if (!m_profile.MatchesPeer(args.ServerUri, args.EndpointUrl))
+        args.Accepted = false;
+        if (Volatile.Read(ref m_disposed) || !m_profile.MatchesPeer(args.ServerUri, args.EndpointUrl))
         {
-            args.Accepted = false;
             return;
         }
         ConnectionWaitingHandlerAsync? handlers = ConnectionWaiting;
         if (handlers is null)
         {
-            args.Accepted = false;
             return;
         }
-        foreach (ConnectionWaitingHandlerAsync handler in handlers.GetInvocationList())
+        bool completed = false;
+        try
         {
-            await handler(this, args).ConfigureAwait(false);
+            foreach (ConnectionWaitingHandlerAsync handler in handlers.GetInvocationList())
+            {
+                await handler(this, args).ConfigureAwait(false);
+            }
+            completed = true;
         }
+        finally
+        {
+            if (!completed || Volatile.Read(ref m_disposed))
+            {
+                args.Accepted = false;
+            }
+        }
+    }
+
+    private async Task DisposeCoreAsync(Task started)
+    {
+        await started.ConfigureAwait(false);
+        m_inner.ConnectionWaiting -= OnConnectionWaitingAsync;
+        await m_inner.DisposeAsync().ConfigureAwait(false);
     }
 
     private readonly ITransportListener m_inner;
     private readonly ReverseConnectionProfile m_profile;
+    private readonly Lock m_gate = new();
+    private Task? m_disposal;
+    private bool m_disposed;
 }

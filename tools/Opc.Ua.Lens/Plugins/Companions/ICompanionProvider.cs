@@ -61,6 +61,50 @@ internal interface ICompanionProvider
 }
 
 /// <summary>
+/// Prepares typed domain input without mutation, then executes that immutable
+/// preparation. The workspace still owns authorization and session freshness.
+/// </summary>
+internal interface IPreparedCompanionProvider : ICompanionProvider
+{
+    ValueTask<CompanionTaskInput> PrepareInputAsync(
+        CompanionContext context,
+        CompanionTarget target,
+        string operationId,
+        ArrayOf<CompanionValue> inputs,
+        CancellationToken cancellationToken);
+
+    ValueTask<CompanionOperationResult> ExecutePreparedAsync(
+        CompanionContext context,
+        CompanionTarget target,
+        string operationId,
+        CompanionTaskInput input,
+        IProgress<CompanionTaskProgress>? progress,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Immutable domain-owned input and non-secret evidence shown during preflight.
+/// </summary>
+internal abstract class CompanionTaskInput
+{
+    public abstract string Review { get; }
+}
+
+internal sealed record CompanionTaskProgress(string Phase, int? Percent = null);
+
+/// <summary>
+/// One scalar input offered by a typed companion task.
+/// </summary>
+internal sealed record CompanionInputDefinition(
+    string Name,
+    string DisplayName,
+    BuiltInType DataType,
+    string Hint,
+    bool Required = true,
+    bool IsFileSource = false,
+    bool IsMultiline = false);
+
+/// <summary>
 /// Borrowed operation context with explicit discovery and result bounds.
 /// </summary>
 internal sealed class CompanionContext
@@ -125,7 +169,12 @@ internal sealed record CompanionOperation(
     string Id,
     string DisplayName,
     CompanionOperationSafety Safety,
-    string? InputHint = null);
+    string? InputHint = null)
+{
+    public ArrayOf<CompanionInputDefinition> Inputs { get; init; }
+
+    public bool HasTypedInput => !Inputs.IsNull;
+}
 
 /// <summary>
 /// Current values and permitted guided operations for an instance.

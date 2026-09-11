@@ -409,7 +409,7 @@ public sealed class PubSubControlledRuntimeTests
         var keys = new Mock<IPubSubSecurityKeyProvider>(MockBehavior.Strict);
         keys.SetupGet(provider => provider.SecurityGroupId).Returns("other-group");
         var owner = new CountingOwner();
-        var resolver = new ConfiguredPubSubKeyProvider("keys",
+        var resolver = new ConfiguredPubSubKeyProvider("keys", "opc.tcp://localhost:4840/Sks",
             (_, _) => ValueTask.FromResult(new PubSubKeyProviderLease(keys.Object, owner)));
         var factory = new PubSubRuntimeFactory(DefaultTelemetry.Create(static _ => { }), keyProviders: [resolver]);
         PubSubConfiguration configuration = PubSubTestRuntime.Configuration with

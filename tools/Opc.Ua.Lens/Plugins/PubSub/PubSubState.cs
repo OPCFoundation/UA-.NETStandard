@@ -46,17 +46,16 @@ internal static class PubSubStateCodec
     public static JsonElement Capture(PubSubConfiguration configuration)
     {
         PubSubConfigurationValidation.RequireValid(configuration, requireEndpoint: false);
-        return JsonSerializer.SerializeToElement(
+        JsonElement state = JsonSerializer.SerializeToElement(
             new PubSubDocumentState(1, configuration),
             PubSubJsonContext.Default.PubSubDocumentState);
+        RequireShape(state);
+        return state;
     }
 
     public static PubSubConfiguration Restore(JsonElement state)
     {
-        if (state.GetRawText().Length > MaxConfigurationCharacters)
-        {
-            throw new JsonException("The PubSub configuration exceeds the document limit.");
-        }
+        RequireShape(state);
         PubSubDocumentState saved = state.Deserialize(PubSubJsonContext.Default.PubSubDocumentState)
             ?? throw new JsonException("The PubSub document is missing.");
         if (saved.Version != 1 || saved.Configuration is null)
@@ -69,7 +68,13 @@ internal static class PubSubStateCodec
 
     public static string Format(PubSubConfiguration configuration)
     {
-        return JsonSerializer.Serialize(configuration, PubSubJsonContext.Default.PubSubConfiguration);
+        PubSubConfigurationValidation.RequireValid(configuration, requireEndpoint: false);
+        string json = JsonSerializer.Serialize(configuration, PubSubJsonContext.Default.PubSubConfiguration);
+        if (json.Length > MaxConfigurationCharacters)
+        {
+            throw new JsonException("The PubSub configuration exceeds the document limit.");
+        }
+        return json;
     }
 
     public static PubSubConfiguration Parse(string configuration)
@@ -79,11 +84,48 @@ internal static class PubSubStateCodec
         {
             throw new JsonException("The PubSub configuration exceeds the document limit.");
         }
-        PubSubConfiguration parsed = JsonSerializer.Deserialize(
-            configuration, PubSubJsonContext.Default.PubSubConfiguration)
+        using JsonDocument document = JsonDocument.Parse(configuration, new JsonDocumentOptions { MaxDepth = 16 });
+        RequireShape(document.RootElement);
+        PubSubConfiguration parsed = document.RootElement.Deserialize(PubSubJsonContext.Default.PubSubConfiguration)
             ?? throw new JsonException("A typed PubSub configuration is required.");
         Validate(parsed);
         return parsed;
+    }
+
+    private static void RequireShape(JsonElement state)
+    {
+        if (state.ValueKind != JsonValueKind.Object || state.GetRawText().Length > MaxConfigurationCharacters)
+        {
+            throw new JsonException("A bounded PubSub configuration object is required.");
+        }
+        RejectDuplicateProperties(state, 0);
+    }
+
+    private static void RejectDuplicateProperties(JsonElement element, int depth)
+    {
+        if (depth > 16)
+        {
+            throw new JsonException("The PubSub configuration exceeds the nesting limit.");
+        }
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                if (!names.Add(property.Name))
+                {
+                    throw new JsonException("Duplicate configuration properties are not allowed.");
+                }
+                RejectDuplicateProperties(property.Value, depth + 1);
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement item in element.EnumerateArray())
+            {
+                RejectDuplicateProperties(item, depth + 1);
+            }
+        }
     }
 
     private static void Validate(PubSubConfiguration configuration)

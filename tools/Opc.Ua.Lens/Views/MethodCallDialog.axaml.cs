@@ -256,14 +256,9 @@ internal sealed partial class MethodCallDialog : Window, IAsyncDisposable
         for (int i = 0; i < m_arguments.Count && i < Inputs.Count; i++)
         {
             Argument a = m_arguments[i];
-            if (a.ValueRank != ValueRanks.Scalar
-                && a.ValueRank != ValueRanks.ScalarOrOneDimension
-                && a.ValueRank != ValueRanks.Any)
-            {
-                continue;
-            }
             DataTypeDefinition? def = await m_values.ResolveAsync(a.DataType, m_lifetime.Token).ConfigureAwait(true);
-            if (def is StructureDefinition or EnumDefinition)
+            if (def is StructureDefinition or EnumDefinition ||
+                StructuredArrayValue.RequiresEditor(a.ValueRank, Inputs[i].CachedVariant))
             {
                 Inputs[i].Definition = def;
                 Inputs[i].IsComplex = true;
@@ -430,12 +425,13 @@ internal sealed partial class MethodCallDialog : Window, IAsyncDisposable
     private async Task OnEditComplexArgAsync(MethodArgRow row)
     {
         var statusLbl = this.RequiredControl<TextBlock>("ResultStatus");
-        if (row.Definition is null)
+        if (!row.IsComplex)
         {
-            return;
+            throw new InvalidOperationException("No typed editor is available for this argument.");
         }
         var dlg = new ComplexValueElementDialog(
-            row.Argument.DataType, row.Definition, m_values, row.CachedVariant);
+            row.Argument.DataType, row.Definition, m_values, row.CachedVariant,
+            row.Argument.ValueRank, row.Argument.ArrayDimensions, m_lifetime.Token);
         m_nestedDialog = dlg;
         try
         {

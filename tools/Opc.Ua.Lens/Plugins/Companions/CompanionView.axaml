@@ -92,11 +92,37 @@
               </ComboBox.ItemTemplate>
             </ComboBox>
             <TextBox Text="{CompiledBinding OperationInput, Mode=TwoWay}"
+                     IsVisible="{CompiledBinding !SelectedOperation.HasTypedInput}"
                      PlaceholderText="{CompiledBinding SelectedOperation.InputHint}"
                      MaxLength="65536" AutomationProperties.Name="Operation input or destination" />
+            <ItemsControl ItemsSource="{CompiledBinding InputFields}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="vm:CompanionInputEditor">
+                  <StackPanel Spacing="4" Margin="0,0,0,8">
+                    <TextBlock Text="{CompiledBinding Definition.DisplayName}" TextWrapping="Wrap" />
+                    <TextBox Text="{CompiledBinding Text, Mode=TwoWay}"
+                             IsVisible="{CompiledBinding !IsBoolean}"
+                             AcceptsReturn="{CompiledBinding Definition.IsMultiline}"
+                             MaxHeight="120" TextWrapping="Wrap"
+                             PlaceholderText="{CompiledBinding Definition.Hint}" MaxLength="65536"
+                             AutomationProperties.Name="{CompiledBinding Definition.DisplayName}" />
+                    <CheckBox IsChecked="{CompiledBinding Checked, Mode=TwoWay}"
+                              IsVisible="{CompiledBinding IsBoolean}"
+                              Content="{CompiledBinding Definition.Hint}" />
+                    <Button Content="Choose local file..." Command="{CompiledBinding PickFileCommand}"
+                            IsVisible="{CompiledBinding Definition.IsFileSource}"
+                            HorizontalAlignment="Left" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Button Content="Prepare selected task" Command="{CompiledBinding PrepareTaskCommand}"
+                    HorizontalAlignment="Left" AutomationProperties.Name="Prepare companion task" />
+            <TextBlock Text="{CompiledBinding PreparationSummary}" TextWrapping="Wrap"
+                       AutomationProperties.Name="Companion task preflight" />
             <CheckBox IsChecked="{CompiledBinding ConfirmLocalSample, Mode=TwoWay}"
                       Content="I confirm this loopback server is a repository sample." />
-            <TextBlock Text="Sample actions can change server state. Confirmation is never saved."
+            <TextBlock Text="Sample actions can change server state. Prepare first, then confirm for this execution. Preparation and confirmation are never saved."
                        TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" FontSize="11" />
             <Button Content="Run selected task" Command="{CompiledBinding RunTaskCommand}"
                     HorizontalAlignment="Left" />
