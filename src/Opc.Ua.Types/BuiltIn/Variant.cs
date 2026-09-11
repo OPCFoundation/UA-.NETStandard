@@ -648,6 +648,7 @@ namespace Opc.Ua
             m_typeInfo = TypeInfo.Arrays.Variant;
         }
 
+
         /// <summary>
         /// Creates a new variant with a <see cref="bool"/>-matrix value
         /// </summary>
@@ -1074,19 +1075,27 @@ namespace Opc.Ua
                     BuiltInType.UInt16 or
                     BuiltInType.Int32 or
                     BuiltInType.UInt32 or
+                    BuiltInType.StatusCode => m_union.Int32,
+                    // Float and Double must not hash their raw bits: -0.0 equals
+                    // +0.0 and every NaN equals every other NaN under Equals.
+                    BuiltInType.Float => m_union.Float.GetHashCode(),
+                    BuiltInType.Double => m_union.Double.GetHashCode(),
+                    BuiltInType.Enumeration => m_union.Int32,
                     BuiltInType.DateTime or
-                    BuiltInType.StatusCode or
-                    BuiltInType.Float => m_union.Int32,
-                    BuiltInType.Enumeration or
                     BuiltInType.Int64 or
-                    BuiltInType.UInt64 or
-                    BuiltInType.Double => m_union.UInt64.GetHashCode(),
+                    BuiltInType.UInt64 => m_union.UInt64.GetHashCode(),
                     BuiltInType.QualifiedName when IsPackedScalar => GetQualifiedName().GetHashCode(),
                     BuiltInType.NodeId when IsPackedScalar => GetNodeId().GetHashCode(),
                     BuiltInType.ByteString when IsPackedScalar => GetByteString().GetHashCode(),
                     BuiltInType.LocalizedText when IsPackedScalar => GetLocalizedText().GetHashCode(),
                     _ => m_value?.GetHashCode() ?? 0
                 };
+            }
+            if (TypeInfo.IsArray && TypeInfo.BuiltInType == BuiltInType.Byte)
+            {
+                // A byte array compares equal to a ByteString, so it must hash
+                // the same way as ByteString does.
+                return ReadOnlySpan.ComputeHash32(GetByteArray().Span);
             }
             return m_value?.GetHashCode() ?? 0;
         }
@@ -1972,7 +1981,8 @@ namespace Opc.Ua
         /// </param>
         public bool TryGetValue(out EnumValue value)
         {
-            if (TypeInfo.BuiltInType is BuiltInType.Int32 or BuiltInType.Enumeration)
+            if (TypeInfo.IsScalar &&
+                TypeInfo.BuiltInType is BuiltInType.Int32 or BuiltInType.Enumeration)
             {
                 value = new EnumValue(m_union.Int32, m_value);
                 return true;
@@ -2378,6 +2388,12 @@ namespace Opc.Ua
                 value = default;
                 return false;
             }
+            if (v.IsNull)
+            {
+                // Preserve the difference between a null and an empty array.
+                value = default;
+                return true;
+            }
             var buffer = new T[v.Count];
             for (int ii = 0; ii < v.Count; ii++)
             {
@@ -2779,6 +2795,12 @@ namespace Opc.Ua
                 value = default;
                 return false;
             }
+            if (v.IsNull)
+            {
+                // Preserve the difference between a null and an empty matrix.
+                value = default;
+                return true;
+            }
             var buffer = new T[v.Count];
             for (int ii = 0; ii < v.Count; ii++)
             {
@@ -3061,9 +3083,17 @@ namespace Opc.Ua
                 switch (TypeInfo.BuiltInType)
                 {
                     case BuiltInType.SByte:
+                        value = new decimal(m_union.SByte);
+                        return true;
                     case BuiltInType.Byte:
+                        value = new decimal(m_union.Byte);
+                        return true;
                     case BuiltInType.Int16:
+                        value = new decimal(m_union.Int16);
+                        return true;
                     case BuiltInType.UInt16:
+                        value = new decimal(m_union.UInt16);
+                        return true;
                     case BuiltInType.Int32:
                         value = new decimal(m_union.Int32);
                         return true;
@@ -5883,6 +5913,12 @@ namespace Opc.Ua
             {
                 return this;
             }
+            if (TypeInfo.BuiltInType == BuiltInType.Enumeration && TypeInfo.IsScalar)
+            {
+                // An enumeration is an Int32 on the wire, so convert through it
+                // rather than rejecting every target type.
+                return new Variant(GetEnumeration().Value).ConvertTo(targetType);
+            }
             if (TypeInfo.IsScalar)
             {
                 switch (targetType)
@@ -7307,34 +7343,17 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static Variant operator &(Variant lhs, Variant rhs)
         {
-            if (!lhs.TypeInfo.IsScalar ||
-                !rhs.TypeInfo.IsScalar)
+            if (lhs.TypeInfo.IsScalar &&
+                lhs.TypeInfo.BuiltInType == BuiltInType.Boolean &&
+                rhs.TypeInfo.IsScalar &&
+                rhs.TypeInfo.BuiltInType == BuiltInType.Boolean)
             {
-                return default;
+                return lhs.m_union.Boolean && rhs.m_union.Boolean;
             }
-            Union rhsUnion = rhs.IsPackedScalar ? default : rhs.m_union;
-            switch (lhs.TypeInfo.BuiltInType)
+            if (TryGetIntegerBits(lhs, out ulong lhsBits) &&
+                TryGetIntegerBits(rhs, out ulong rhsBits))
             {
-                case BuiltInType.Boolean:
-                    return lhs.m_union.Boolean && rhsUnion.Boolean;
-                case BuiltInType.Byte:
-                    return lhs.m_union.Byte & rhsUnion.Byte;
-                case BuiltInType.SByte:
-                    return lhs.m_union.SByte & rhsUnion.SByte;
-                case BuiltInType.Int16:
-                    return lhs.m_union.Int16 & rhsUnion.Int16;
-                case BuiltInType.UInt16:
-                    return lhs.m_union.UInt16 & rhsUnion.UInt16;
-                case BuiltInType.Enumeration:
-                    return new EnumValue(lhs.m_union.Int32 & rhsUnion.Int32, lhs.m_value);
-                case BuiltInType.Int32:
-                    return lhs.m_union.Int32 & rhsUnion.Int32;
-                case BuiltInType.UInt32:
-                    return lhs.m_union.UInt32 & rhsUnion.UInt32;
-                case BuiltInType.Int64:
-                    return lhs.m_union.Int64 & rhsUnion.Int64;
-                case BuiltInType.UInt64:
-                    return lhs.m_union.UInt64 & rhsUnion.UInt64;
+                return FromIntegerBits(lhs.m_typeInfo, lhsBits & rhsBits, lhs.m_value);
             }
             return default;
         }
@@ -7342,36 +7361,61 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static Variant operator |(Variant lhs, Variant rhs)
         {
-            if (!lhs.TypeInfo.IsScalar ||
-                !rhs.TypeInfo.IsScalar)
+            if (lhs.TypeInfo.IsScalar &&
+                lhs.TypeInfo.BuiltInType == BuiltInType.Boolean &&
+                rhs.TypeInfo.IsScalar &&
+                rhs.TypeInfo.BuiltInType == BuiltInType.Boolean)
             {
-                return default;
+                return lhs.m_union.Boolean || rhs.m_union.Boolean;
             }
-            Union rhsUnion = rhs.IsPackedScalar ? default : rhs.m_union;
-            switch (lhs.TypeInfo.BuiltInType)
+            if (TryGetIntegerBits(lhs, out ulong lhsBits) &&
+                TryGetIntegerBits(rhs, out ulong rhsBits))
             {
-                case BuiltInType.Boolean:
-                    return lhs.m_union.Boolean || rhsUnion.Boolean;
-                case BuiltInType.Byte:
-                    return lhs.m_union.Byte | rhsUnion.Byte;
-                case BuiltInType.SByte:
-                    return lhs.m_union.SByte | rhsUnion.SByte;
-                case BuiltInType.Int16:
-                    return lhs.m_union.Int16 | rhsUnion.Int16;
-                case BuiltInType.UInt16:
-                    return lhs.m_union.UInt16 | rhsUnion.UInt16;
-                case BuiltInType.Enumeration:
-                    return new EnumValue(lhs.m_union.Int32 | rhsUnion.Int32, lhs.m_value);
-                case BuiltInType.Int32:
-                    return lhs.m_union.Int32 | rhsUnion.Int32;
-                case BuiltInType.UInt32:
-                    return lhs.m_union.UInt32 | rhsUnion.UInt32;
-                case BuiltInType.Int64:
-                    return lhs.m_union.Int64 | rhsUnion.Int64;
-                case BuiltInType.UInt64:
-                    return lhs.m_union.UInt64 | rhsUnion.UInt64;
+                return FromIntegerBits(lhs.m_typeInfo, lhsBits | rhsBits, lhs.m_value);
             }
             return default;
+        }
+
+        /// <summary>
+        /// Reads the two's complement bits of an integer scalar through the union
+        /// field that matches its built in type, so that the operand's own type
+        /// - not the left hand operand's type - decides how it is read.
+        /// </summary>
+        private static bool TryGetIntegerBits(Variant value, out ulong bits)
+        {
+            bits = 0;
+            switch (value.GetNumericScalar(out long signed, out ulong unsigned, out _))
+            {
+                case NumericKind.Signed:
+                    bits = unchecked((ulong)signed);
+                    return true;
+                case NumericKind.Unsigned:
+                    bits = unsigned;
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Narrows the result of a bitwise operation back into the type of the
+        /// left hand operand instead of widening it to Int32.
+        /// </summary>
+        private static Variant FromIntegerBits(TypeInfo typeInfo, ulong bits, object? source)
+        {
+            return typeInfo.BuiltInType switch
+            {
+                BuiltInType.SByte => new Variant(unchecked((sbyte)bits)),
+                BuiltInType.Byte => new Variant(unchecked((byte)bits)),
+                BuiltInType.Int16 => new Variant(unchecked((short)bits)),
+                BuiltInType.UInt16 => new Variant(unchecked((ushort)bits)),
+                BuiltInType.Int32 => new Variant(unchecked((int)bits)),
+                BuiltInType.UInt32 => new Variant(unchecked((uint)bits)),
+                BuiltInType.Int64 => new Variant(unchecked((long)bits)),
+                BuiltInType.UInt64 => new Variant(bits),
+                BuiltInType.Enumeration => new Variant(
+                    new EnumValue(unchecked((int)bits), source)),
+                _ => default
+            };
         }
 
         /// <inheritdoc/>
@@ -7382,6 +7426,17 @@ namespace Opc.Ua
                 return 0;
             }
             TypeInfo ourTypeInfo = IsNull ? other.TypeInfo : TypeInfo;
+            if (!IsNull && !other.IsNull &&
+                (m_typeInfo.BuiltInType != other.m_typeInfo.BuiltInType ||
+                 m_typeInfo.ValueRank != other.m_typeInfo.ValueRank) &&
+                !IsConvertible(TypeInfo, other.TypeInfo))
+            {
+                // Values of unrelated built-in types are only comparable when both
+                // sides are numeric scalars. Never compare the raw union payload of
+                // two different representations.
+                return TryCompareNumericTo(other, out int numericResult) ?
+                    numericResult : int.MinValue;
+            }
             Union otherUnion = other.IsPackedScalar ? default : other.m_union;
             if (ourTypeInfo.IsScalar)
             {
@@ -7392,7 +7447,7 @@ namespace Opc.Ua
                     case BuiltInType.Boolean:
                         return m_union.Boolean.CompareTo(otherUnion.Boolean);
                     case BuiltInType.Enumeration:
-                        return m_union.UInt64.CompareTo(otherUnion.UInt64);
+                        return m_union.Int32.CompareTo(otherUnion.Int32);
                     case BuiltInType.Int64:
                     case BuiltInType.DateTime:
                         return m_union.Int64.CompareTo(otherUnion.Int64);
@@ -7441,25 +7496,32 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static bool operator <(Variant left, Variant right)
         {
-            return left.CompareTo(right) < 0;
+            // int.MinValue is CompareTo's "not comparable" sentinel and must not
+            // be read as an ordinary negative result - it is its own negation,
+            // so both directions would report "less than".
+            int result = left.CompareTo(right);
+            return result is not int.MinValue and < 0;
         }
 
         /// <inheritdoc/>
         public static bool operator <=(Variant left, Variant right)
         {
-            return left.CompareTo(right) <= 0;
+            int result = left.CompareTo(right);
+            return result is not int.MinValue and <= 0;
         }
 
         /// <inheritdoc/>
         public static bool operator >(Variant left, Variant right)
         {
-            return left.CompareTo(right) > 0;
+            int result = left.CompareTo(right);
+            return result is not int.MinValue and > 0;
         }
 
         /// <inheritdoc/>
         public static bool operator >=(Variant left, Variant right)
         {
-            return left.CompareTo(right) >= 0;
+            int result = left.CompareTo(right);
+            return result is not int.MinValue and >= 0;
         }
 
         /// <summary>
@@ -7475,7 +7537,15 @@ namespace Opc.Ua
             }
             if (ValueIsValueType && other.ValueIsValueType)
             {
-                return m_union.UInt64 == other.m_union.UInt64;
+                if (m_typeInfo.BuiltInType == other.m_typeInfo.BuiltInType ||
+                    IsConvertible(TypeInfo, other.TypeInfo))
+                {
+                    // Same representation - use the strict typed comparison so that
+                    // e.g. StatusCode compares its code and not its symbolic id.
+                    return Equals(other);
+                }
+                // Numeric scalars of different widths compare by numeric value.
+                return TryCompareNumericTo(other, out int numericResult) && numericResult == 0;
             }
             if (IsPackedQualifiedName && other.IsPackedQualifiedName)
             {
@@ -7504,10 +7574,26 @@ namespace Opc.Ua
             {
                 return true;
             }
+            if (IsNull || other.IsNull)
+            {
+                // Decide the null versus typed case once, symmetrically.
+                // Comparing a null variant against a typed one used to give a
+                // different answer depending on which side it was written on:
+                // Variant(0).Equals(Null) was true while Null.Equals(Variant(0))
+                // was false, because the accessors hand out default(T) for a
+                // null variant. Only a typed variant whose reference payload is
+                // absent -- such as the null bodied ExtensionObject a null
+                // variant round trips to -- equals the null variant. A numeric,
+                // boolean or status code zero is a value, not an absent one, and
+                // must stay unequal: it hashes to zero like the null variant, so
+                // letting it compare equal collapses both into one bucket of
+                // every Dictionary and HashSet keyed on Variant.
+                Variant typed = IsNull ? other : this;
+                return !typed.ValueIsValueType && typed.ValueIsDefaultOrNull;
+            }
 
-            // Ensure we compare against a null variant correctly below.
-            TypeInfo ourTypeInfo = IsNull ? other.m_typeInfo : m_typeInfo;
-            TypeInfo otherTypeInfo = other.IsNull ? ourTypeInfo : other.m_typeInfo;
+            TypeInfo ourTypeInfo = m_typeInfo;
+            TypeInfo otherTypeInfo = other.m_typeInfo;
 
             if ((ourTypeInfo.ValueRank != otherTypeInfo.ValueRank ||
                 ourTypeInfo.BuiltInType != otherTypeInfo.BuiltInType) &&
@@ -7515,6 +7601,19 @@ namespace Opc.Ua
             {
                 return false;
             }
+            if (ourTypeInfo.ValueRank == 0 || otherTypeInfo.ValueRank == 0)
+            {
+                // A null MatrixOf carries no dimensions, so its type info
+                // reports value rank zero. The accessors below cannot read a
+                // matrix payload out of that, which made such a variant unequal
+                // even to an identical one, so compare the payloads directly.
+                return ourTypeInfo.ValueRank == otherTypeInfo.ValueRank &&
+                    ourTypeInfo.BuiltInType == otherTypeInfo.BuiltInType &&
+                    (m_value is null
+                        ? other.m_value is null
+                        : m_value.Equals(other.m_value));
+            }
+
             if (ourTypeInfo.IsScalar)
             {
                 switch (ourTypeInfo.BuiltInType)
@@ -7817,10 +7916,135 @@ namespace Opc.Ua
                     case BuiltInType.UInt64:
                     case BuiltInType.Int64:
                     case BuiltInType.DateTime:
+                    case BuiltInType.StatusCode:
                         return true;
                 }
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Classification of a numeric scalar payload for cross type comparison.
+        /// </summary>
+        private enum NumericKind
+        {
+            /// <summary> Not a numeric scalar. </summary>
+            None,
+
+            /// <summary> Signed integer payload. </summary>
+            Signed,
+
+            /// <summary> Unsigned integer payload. </summary>
+            Unsigned,
+
+            /// <summary> Floating point payload. </summary>
+            Real
+        }
+
+        /// <summary>
+        /// Reads the numeric payload of a scalar variant through the union field
+        /// that matches its built in type. Reading a narrow value through a wider
+        /// union field zero extends it and turns negative values positive.
+        /// </summary>
+        private NumericKind GetNumericScalar(out long signed, out ulong unsigned, out double real)
+        {
+            signed = 0;
+            unsigned = 0;
+            real = 0;
+            if (!m_typeInfo.IsScalar)
+            {
+                return NumericKind.None;
+            }
+            switch (m_typeInfo.BuiltInType)
+            {
+                case BuiltInType.SByte:
+                    signed = m_union.SByte;
+                    return NumericKind.Signed;
+                case BuiltInType.Int16:
+                    signed = m_union.Int16;
+                    return NumericKind.Signed;
+                case BuiltInType.Enumeration:
+                case BuiltInType.Int32:
+                    signed = m_union.Int32;
+                    return NumericKind.Signed;
+                case BuiltInType.Int64:
+                    signed = m_union.Int64;
+                    return NumericKind.Signed;
+                case BuiltInType.Byte:
+                    unsigned = m_union.Byte;
+                    return NumericKind.Unsigned;
+                case BuiltInType.UInt16:
+                    unsigned = m_union.UInt16;
+                    return NumericKind.Unsigned;
+                case BuiltInType.UInt32:
+                    unsigned = m_union.UInt32;
+                    return NumericKind.Unsigned;
+                case BuiltInType.UInt64:
+                    unsigned = m_union.UInt64;
+                    return NumericKind.Unsigned;
+                case BuiltInType.Float:
+                    real = m_union.Float;
+                    return NumericKind.Real;
+                case BuiltInType.Double:
+                    real = m_union.Double;
+                    return NumericKind.Real;
+            }
+            return NumericKind.None;
+        }
+
+        /// <summary>
+        /// Compares two numeric scalars of unrelated built in types by value.
+        /// Returns false when either side is not a numeric scalar, or when a
+        /// floating point operand is NaN and therefore not ordered.
+        /// </summary>
+        private bool TryCompareNumericTo(Variant other, out int result)
+        {
+            result = 0;
+            NumericKind ours = GetNumericScalar(out long ourSigned, out ulong ourUnsigned, out double ourReal);
+            NumericKind theirs = other.GetNumericScalar(
+                out long theirSigned, out ulong theirUnsigned, out double theirReal);
+            if (ours == NumericKind.None || theirs == NumericKind.None)
+            {
+                return false;
+            }
+            if (ours == NumericKind.Real || theirs == NumericKind.Real)
+            {
+                double lhs = ours switch
+                {
+                    NumericKind.Signed => ourSigned,
+                    NumericKind.Unsigned => ourUnsigned,
+                    _ => ourReal
+                };
+                double rhs = theirs switch
+                {
+                    NumericKind.Signed => theirSigned,
+                    NumericKind.Unsigned => theirUnsigned,
+                    _ => theirReal
+                };
+                if (double.IsNaN(lhs) || double.IsNaN(rhs))
+                {
+                    return false;
+                }
+                result = lhs.CompareTo(rhs);
+                return true;
+            }
+            if (ours == NumericKind.Signed)
+            {
+                if (theirs == NumericKind.Signed)
+                {
+                    result = ourSigned.CompareTo(theirSigned);
+                    return true;
+                }
+                result = ourSigned < 0 ? -1 : ((ulong)ourSigned).CompareTo(theirUnsigned);
+                return true;
+            }
+            if (theirs == NumericKind.Signed)
+            {
+                result = theirSigned < 0 ? 1 : ourUnsigned.CompareTo((ulong)theirSigned);
+                return true;
+            }
+            result = ourUnsigned.CompareTo(theirUnsigned);
+            return true;
         }
 
         /// <summary>
@@ -7987,10 +8211,11 @@ namespace Opc.Ua
                         return GetDataValueArray().ConvertAll(v => new Variant(v));
                     case BuiltInType.DiagnosticInfo:
                         return [];
+                    case BuiltInType.Enumeration:
+                        return GetEnumerationArray().ConvertAll(v => new Variant(v));
                     case BuiltInType.Number:
                     case BuiltInType.Integer:
                     case BuiltInType.UInteger:
-                    case BuiltInType.Enumeration:
                     case BuiltInType.Variant:
                         return GetVariantArray(); // TODO: Variant arrays with variant matrix/arrays
                 }
@@ -8049,10 +8274,11 @@ namespace Opc.Ua
                         return GetDataValueMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
                     case BuiltInType.DiagnosticInfo:
                         return [];
+                    case BuiltInType.Enumeration:
+                        return GetEnumerationMatrix().ConvertAll(v => new Variant(v)).ToArrayOf();
                     case BuiltInType.Number:
                     case BuiltInType.Integer:
                     case BuiltInType.UInteger:
-                    case BuiltInType.Enumeration:
                     case BuiltInType.Variant:
                         return GetVariantMatrix().ToArrayOf(); // TODO: Variant matrices with variant matrix/arrays
                 }
@@ -8134,10 +8360,11 @@ namespace Opc.Ua
                         return new Variant(items.ConvertAll(v => v.GetDataValue()));
                     case BuiltInType.DiagnosticInfo:
                         return default;
+                    case BuiltInType.Enumeration:
+                        return new Variant(items.ConvertAll(v => v.GetEnumeration()));
                     case BuiltInType.Number:
                     case BuiltInType.Integer:
                     case BuiltInType.UInteger:
-                    case BuiltInType.Enumeration:
                     case BuiltInType.Variant:
                         return new Variant(items);
                 }

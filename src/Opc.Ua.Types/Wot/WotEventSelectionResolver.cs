@@ -740,16 +740,22 @@ namespace Opc.Ua.Wot
             bool hasData = false;
             int maxDepth = Math.Max(1, scope.Context.Options.MaxDepth);
 
+            // A chained reference is written in the context of the document
+            // that declares the definition carrying it, not in the context of
+            // the document that started the chain.
+            WotDocument context = document;
+
             for (int depth = 0; depth < maxDepth; depth++)
             {
-                JsonElement? located = await ResolveReferenceTargetAsync(
-                        document, current, where, scope, cancellationToken)
+                ResolvedDefinition located = await ResolveReferenceTargetAsync(
+                        context, current, where, scope, cancellationToken)
                     .ConfigureAwait(false);
-                if (located is null)
+                if (!located.Found)
                 {
                     return null;
                 }
-                JsonElement definition = located.Value;
+                JsonElement definition = located.Definition;
+                context = located.Owner ?? context;
                 if (!seen.Add(current))
                 {
                     AddError(

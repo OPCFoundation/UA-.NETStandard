@@ -433,12 +433,11 @@ namespace Opc.Ua
             if (BeginField(fieldName, value == null, true, isArrayElement))
             {
                 // check the length.
-                if (Context.MaxStringLength > 0 && Context.MaxStringLength < value!.Length)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
+                EncodingLimits.CheckStringLength(Context.MaxStringLength, value);
 
-                if (!string.IsNullOrWhiteSpace(value))
+                // A whitespace only string is still a value - writing nothing
+                // would turn it into an empty string on the wire.
+                if (!string.IsNullOrEmpty(value))
                 {
                     m_writer.WriteString(value);
                 }
@@ -542,6 +541,15 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, value.IsEmpty, true, isArrayElement))
             {
+                // WriteRaw bypasses every check the writer would otherwise make,
+                // so validate the body first. Writing unparsable (or injected)
+                // markup would produce a document no decoder can read.
+                if (!value.IsValid)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingError,
+                        "XmlElement body is not well formed XML.");
+                }
                 m_writer.WriteRaw(value.OuterXml ?? string.Empty);
                 EndField(fieldName);
             }
@@ -1650,7 +1658,7 @@ namespace Opc.Ua
         {
             CheckAndIncrementNestingLevel();
 
-            if (BeginField("Matrix", values.IsNull, true, true))
+            if (BeginField(fieldName, values.IsNull, true, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
                 if (!values.IsNull)
@@ -1659,7 +1667,7 @@ namespace Opc.Ua
                     WriteEncodeableArray("Elements", values.ToArrayOf(), encodeableTypeId);
                 }
                 PopNamespace();
-                EndField("Matrix");
+                EndField(fieldName);
             }
 
             m_nestingLevel--;

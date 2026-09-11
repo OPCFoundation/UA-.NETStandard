@@ -337,8 +337,17 @@ namespace Opc.Ua.Export
         /// </summary>
         private static bool IsAliasedAttribute(string localName)
         {
-            return string.Equals(localName, "DataType", StringComparison.Ordinal) ||
-                string.Equals(localName, "ReferenceType", StringComparison.Ordinal);
+            // An alias may stand in for any NodeId valued attribute of the
+            // NodeSet schema, not just DataType and ReferenceType.
+            return localName switch
+            {
+                "DataType" or
+                "ReferenceType" or
+                "NodeId" or
+                "ParentNodeId" or
+                "MethodDeclarationId" => true,
+                _ => false
+            };
         }
 
         /// <summary>

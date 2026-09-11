@@ -223,6 +223,12 @@ namespace Opc.Ua
             int position = (int)m_writer.BaseStream.Position;
             m_writer.Flush();
             m_writer.Dispose();
+
+            // Clear the reference so a following Dispose() does not flush a
+            // writer that is already disposed - which throws for every owned
+            // stream that is not a MemoryStream.
+            m_writer = null!;
+            m_closed = true;
             return position;
         }
 
@@ -523,14 +529,10 @@ namespace Opc.Ua
                 return;
             }
 
-            if (Context.MaxStringLength > 0 && Context.MaxStringLength < value.Length)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    "MaxStringLength {0} < {1}",
-                    Context.MaxStringLength,
-                    value.Length);
-            }
+            // The limit applies to the encoded length on the wire, which is what
+            // BinaryDecoder.ReadString checks. Counting UTF-16 chars here would
+            // let a non ASCII string encode and fail to decode.
+            EncodingLimits.CheckStringLength(Context.MaxStringLength, value);
 
             int maxByteCount = Encoding.UTF8.GetMaxByteCount(value.Length);
 
@@ -1037,9 +1039,23 @@ namespace Opc.Ua
             else
             {
                 using var encoder = new BinaryEncoder(Context);
+
+                // The nested encoder writes the same payload the seekable path
+                // writes inline, so it must see the same namespace/server
+                // mappings and continue this encoder's nesting budget.
+                encoder.m_namespaceMappings = m_namespaceMappings;
+                encoder.m_serverMappings = m_serverMappings;
+                encoder.m_nestingLevel = m_nestingLevel;
+
                 encoder.WriteEncodeable(encodeable);
-                bytes = ByteString.From(encoder.CloseAndReturnBuffer());
-                WriteByteString(null, bytes);
+                byte[] body = encoder.CloseAndReturnBuffer() ?? [];
+
+                // The body length is not a ByteString on the wire: the seekable
+                // path above and BinaryDecoder.ReadExtensionObject both write
+                // and read a plain Int32 length without applying
+                // MaxByteStringLength, so do not apply it here either.
+                WriteInt32(null, body.Length);
+                WriteBytes(body);
             }
         }
 

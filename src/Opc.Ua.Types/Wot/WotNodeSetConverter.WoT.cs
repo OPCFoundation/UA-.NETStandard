@@ -1366,6 +1366,12 @@ namespace Opc.Ua.Wot
                     eventSelections);
             }
 
+            // An affordance may name an owner that the document only declares
+            // later, so at that point the owner's Node did not exist yet and
+            // the forward component Reference could not be added. Every Node is
+            // materialized now, so the missing direction can be restored.
+            ReconcileOwnedComponents(items);
+
             // Section 5.2.1: every affordance is now a Node, so a member that
             // names an instance declaration of the bound type can be matched
             // against it and populate it rather than stand beside it. The pass
@@ -1580,6 +1586,69 @@ namespace Opc.Ua.Wot
         /// Adds the forward component reference from the owning Variable, so the
         /// child hangs where the document says rather than being orphaned.
         /// </summary>
+        /// <summary>
+        /// Adds the forward component Reference for every inverse component
+        /// Reference whose owner could not be found when the child was
+        /// materialized, because the document declares the owner later.
+        /// </summary>
+        private static void ReconcileOwnedComponents(List<UANode> items)
+        {
+            var byId = new Dictionary<string, UANode>(StringComparer.Ordinal);
+            foreach (UANode node in items)
+            {
+                if (!string.IsNullOrEmpty(node.NodeId))
+                {
+                    byId[node.NodeId!] = node;
+                }
+            }
+
+            foreach (UANode node in items)
+            {
+                if (node.References is null || string.IsNullOrEmpty(node.NodeId))
+                {
+                    continue;
+                }
+
+                foreach (Reference reference in node.References)
+                {
+                    if (reference.IsForward ||
+                        string.IsNullOrEmpty(reference.Value) ||
+                        !IsComponentReference(reference.ReferenceType) ||
+                        !byId.TryGetValue(reference.Value!, out UANode? owner))
+                    {
+                        continue;
+                    }
+
+                    bool present = false;
+                    foreach (Reference existing in owner.References ?? [])
+                    {
+                        if (existing.IsForward &&
+                            string.Equals(
+                                existing.Value, node.NodeId, StringComparison.Ordinal) &&
+                            IsComponentReference(existing.ReferenceType))
+                        {
+                            present = true;
+                            break;
+                        }
+                    }
+                    if (present)
+                    {
+                        continue;
+                    }
+
+                    var references = new List<Reference>(owner.References ?? [])
+                    {
+                        new Reference
+                        {
+                            ReferenceType = reference.ReferenceType,
+                            IsForward = true,
+                            Value = node.NodeId
+                        }
+                    };
+                    owner.References = [.. references];
+                }
+            }
+        }
         private static void AddOwnedComponent(
             List<UANode> items,
             string owner,
@@ -1946,6 +2015,21 @@ namespace Opc.Ua.Wot
                 {
                     attached = [];
                     conditionMethods[actsOn] = attached;
+                }
+                if (attached.Contains(nodeId))
+                {
+                    // The Condition Method's identifier is derived from the
+                    // standard BrowseName, so two actions naming the same
+                    // uav:conditionAction on the same event would synthesize
+                    // two Methods with the same NodeId and BrowseName.
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.ValidationError,
+                        "Two actions name the Condition Method '" + conditionAction +
+                        "' on event '" + actsOn + "'.",
+                        WotLocation.FromPointer(
+                            "/actions/" + EscapeJsonPointerToken(key))));
+                    return;
                 }
                 attached.Add(nodeId);
             }
@@ -2607,8 +2691,20 @@ namespace Opc.Ua.Wot
             {
                 return [modelUri];
             }
-            if (!uris.Contains(modelUri))
+
+            // The model's own namespace has to be the first entry: the
+            // generated BrowseNames are written in namespace index 1 and
+            // GeneratedNamespaceUri reads entry zero, so a model URI that the
+            // @context happens to bind to a later prefix would otherwise name
+            // a different namespace than the Nodes are generated into.
+            int existing = uris.IndexOf(modelUri);
+            if (existing < 0)
             {
+                uris.Insert(0, modelUri);
+            }
+            else if (existing > 0)
+            {
+                uris.RemoveAt(existing);
                 uris.Insert(0, modelUri);
             }
             return [.. uris];
@@ -4151,9 +4247,12 @@ namespace Opc.Ua.Wot
                 if (uavId.StartsWith(marker, StringComparison.Ordinal))
                 {
                     int semicolon = uavId.IndexOf(';', marker.Length);
+                    // The nsu= form is percent escaped, like every other place
+                    // the converter reads one.
                     string ns = semicolon < 0
-                        ? uavId.Substring(marker.Length)
-                        : uavId.Substring(marker.Length, semicolon - marker.Length);
+                        ? CoreUtils.UnescapeUri(uavId.AsSpan(marker.Length))
+                        : CoreUtils.UnescapeUri(
+                            uavId.AsSpan(marker.Length, semicolon - marker.Length));
                     if (ns.Length > 0)
                     {
                         return ns;
@@ -4207,10 +4306,35 @@ namespace Opc.Ua.Wot
             return mapped ??
                 defined ??
                 annotated ??
+                InferredDataTypeIdentity(document, schema, nodeSet) ??
                 WotVocabulary.MapJsonTypeToDataType(
                     GetElementString(schema, "type"),
                     GetElementString(schema, "contentEncoding"),
                     GetElementString(schema, "format"));
+        }
+
+        /// <summary>
+        /// Gets the identity of the DataType a schema's <c>uav:dataTypeName</c>
+        /// names, which is the one inference materializes for it.
+        /// </summary>
+        /// <remarks>
+        /// Without this the inferred DataType is created but nothing is typed
+        /// with it: the Variable keeps the built-in the json type implies and
+        /// the new DataType is orphaned in the address space.
+        /// </remarks>
+        private static string? InferredDataTypeIdentity(
+            WotDocument document,
+            JsonElement schema,
+            UANodeSet nodeSet)
+        {
+            string? name = GetElementString(schema, "uav:dataTypeName");
+            if (name is null || name.StartsWith("ua:", StringComparison.Ordinal))
+            {
+                return null;
+            }
+            // Inference is the lowest ranked channel, so a name that does not
+            // resolve is simply not used and reported where it is materialized.
+            return DeriveDataTypeNodeId(document, name, nodeSet, []);
         }
 
         /// <summary>

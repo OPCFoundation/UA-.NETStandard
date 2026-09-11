@@ -188,7 +188,8 @@ namespace Opc.Ua
             {
                 return false;
             }
-            return XNode.DeepEquals(other, AsXElement());
+            XElement? ours = AsXElement();
+            return ours != null && XNode.DeepEquals(other, ours);
         }
 
         /// <inheritdoc/>
@@ -228,7 +229,21 @@ namespace Opc.Ua
             {
                 return IsEmpty;
             }
-            return XNode.DeepEquals(other.AsXElement(), AsXElement());
+            if (IsEmpty)
+            {
+                return false;
+            }
+            XElement? ours = AsXElement();
+            XElement? theirs = other.AsXElement();
+            if (ours == null || theirs == null)
+            {
+                // At least one document is malformed and cannot be compared
+                // structurally. Compare the raw text instead - two different
+                // malformed documents must not report equality while hashing
+                // differently.
+                return string.Equals(m_outerXml, other.m_outerXml, StringComparison.Ordinal);
+            }
+            return XNode.DeepEquals(theirs, ours);
         }
 
         /// <inheritdoc/>
@@ -252,7 +267,27 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            return m_outerXml?.GetHashCode(StringComparison.Ordinal) ?? 0;
+            if (IsEmpty)
+            {
+                return 0;
+            }
+
+            XElement? element = AsXElement();
+            if (element == null)
+            {
+                // A malformed document is compared by its raw text, so hash it
+                // the same way.
+                return m_outerXml!.GetHashCode(StringComparison.Ordinal);
+            }
+
+            // Equals compares structurally through XNode.DeepEquals, which
+            // ignores attribute order and the spelling of an empty element, so
+            // the hash may only use properties DeepEquals requires to match.
+            // Hashing the raw text put two equal elements in different buckets.
+            var hash = new HashCode();
+            hash.Add(element.Name);
+            hash.Add(element.Value, StringComparer.Ordinal);
+            return hash.ToHashCode();
         }
 
         /// <inheritdoc/>

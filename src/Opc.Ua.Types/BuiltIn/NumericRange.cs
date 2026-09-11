@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Globalization;
+using System.Text;
 using System.Text.Json.Serialization;
 using Opc.Ua.Types;
 
@@ -361,6 +362,23 @@ namespace Opc.Ua
                     return string.Empty;
                 }
 
+                NumericRange[]? subRanges = m_subRanges;
+                if (subRanges is { Length: > 0 })
+                {
+                    // A multidimensional range must round trip through its text
+                    // form, so every dimension has to be written out.
+                    var builder = new StringBuilder();
+                    for (int ii = 0; ii < subRanges.Length; ii++)
+                    {
+                        if (ii > 0)
+                        {
+                            builder.Append(',');
+                        }
+                        builder.Append(subRanges[ii].ToString(null, formatProvider));
+                    }
+                    return builder.ToString();
+                }
+
                 if (m_end < 0)
                 {
                     return string.Format(formatProvider, "{0}", m_begin);
@@ -413,6 +431,18 @@ namespace Opc.Ua
                         {
                             range = Null;
                             return result;
+                        }
+
+                        // An empty dimension (",1:2" or "1:2,,3:4") is a syntax
+                        // error, not a null range. Reject it here instead of
+                        // letting the constructor below throw.
+                        if (subrange.IsNull)
+                        {
+                            range = Null;
+                            return ServiceResult.Create(
+                                StatusCodes.BadIndexRangeInvalid,
+                                "NumericRange has an empty dimension ({0}).",
+                                textToParse);
                         }
 
                         subranges.Add(subrange);
@@ -2329,7 +2359,8 @@ namespace Opc.Ua
         public StatusCode ApplyRange(ref ArrayOf<ByteString> value)
         {
             StatusCode statusCode = SliceArrayOf(ref value);
-            if (Dimensions == 1)
+            // A null range leaves the value untouched (Dimensions == 0).
+            if (IsNull || Dimensions == 1)
             {
                 return statusCode;
             }
@@ -2368,7 +2399,8 @@ namespace Opc.Ua
             ref ArrayOf<ByteString> value,
             ArrayOf<ByteString> slice)
         {
-            if (Dimensions == 1)
+            // A null range leaves the value untouched (Dimensions == 0).
+            if (IsNull || Dimensions == 1)
             {
                 return UpdateArrayOf(ref value, slice);
             }
@@ -2416,7 +2448,8 @@ namespace Opc.Ua
         public StatusCode ApplyRange(ref ArrayOf<string> value)
         {
             StatusCode statusCode = SliceArrayOf(ref value);
-            if (Dimensions == 1)
+            // A null range leaves the value untouched (Dimensions == 0).
+            if (IsNull || Dimensions == 1)
             {
                 return statusCode;
             }
@@ -2455,7 +2488,8 @@ namespace Opc.Ua
             ref ArrayOf<string> value,
             ArrayOf<string> slice)
         {
-            if (Dimensions == 1)
+            // A null range leaves the value untouched (Dimensions == 0).
+            if (IsNull || Dimensions == 1)
             {
                 return UpdateArrayOf(ref value, slice);
             }
@@ -2504,6 +2538,13 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public StatusCode ApplyRange<T>(ref ArrayOf<T> value)
         {
+            // A null range leaves the value untouched (Dimensions == 0), as in
+            // every sibling overload. Testing the dimension count first rejected
+            // it with BadIndexRangeNoData before SliceArrayOf could say Good.
+            if (IsNull)
+            {
+                return StatusCodes.Good;
+            }
             if (Dimensions != 1)
             {
                 return StatusCodes.BadIndexRangeNoData;
@@ -2521,6 +2562,12 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public StatusCode UpdateRange<T>(ref ArrayOf<T> value, ArrayOf<T> slice)
         {
+            // A null range leaves the value untouched (Dimensions == 0), as in
+            // every sibling overload.
+            if (IsNull)
+            {
+                return StatusCodes.Good;
+            }
             if (Dimensions != 1)
             {
                 return StatusCodes.BadIndexRangeNoData;

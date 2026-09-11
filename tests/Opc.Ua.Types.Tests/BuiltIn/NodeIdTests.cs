@@ -1033,7 +1033,48 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             NodeId a = NodeId.Null;
             var b = new NodeId(42u);
-            Assert.That(a.CompareTo(b), Is.EqualTo(1));
+
+            // A null NodeId sorts before any value, and the comparison must be
+            // antisymmetric: both directions used to return +1.
+            Assert.That(a.CompareTo(b), Is.EqualTo(-1));
+            Assert.That(b.CompareTo(a), Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void CompareToNullIsAntisymmetricForEveryIdentifierType()
+        {
+            // Only the reverse direction of a namespace zero numeric id was
+            // covered. For every other shape the un-null-checked comparisons
+            // below returned -1 as well, so both directions said "less than"
+            // and the comparer was not even transitive - a SortedSet<NodeId>
+            // could no longer find the NodeId.Null it had just inserted.
+            NodeId[] values =
+            [
+                new NodeId(42u),
+                new NodeId(42u, 2),
+                new NodeId("abc", 0),
+                new NodeId(Guid.NewGuid(), 0),
+                new NodeId(new ByteString(new byte[] { 1, 2 }), 0)
+            ];
+
+            Assert.Multiple(() =>
+            {
+                foreach (NodeId value in values)
+                {
+                    Assert.That(
+                        NodeId.Null.CompareTo(value),
+                        Is.LessThan(0),
+                        $"{value} must sort after the null node id");
+                    Assert.That(
+                        value.CompareTo(NodeId.Null),
+                        Is.GreaterThan(0),
+                        $"{value} must sort after the null node id");
+                }
+
+                var set = new SortedSet<NodeId>(values) { NodeId.Null };
+                Assert.That(set.Contains(NodeId.Null), Is.True);
+                Assert.That(set, Has.Count.EqualTo(values.Length + 1));
+            });
         }
 
         [Test]
@@ -1110,7 +1151,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CompareToStringNullWithValue()
         {
             NodeId nullId = NodeId.Null;
-            Assert.That(nullId.CompareTo("something"), Is.EqualTo(1));
+            Assert.That(nullId.CompareTo("something"), Is.EqualTo(-1));
         }
 
         [Test]
@@ -1136,7 +1177,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             NodeId nullId = NodeId.Null;
             Assert.That(nullId.CompareTo(0u), Is.Zero);
-            Assert.That(nullId.CompareTo(5u), Is.EqualTo(1));
+            Assert.That(nullId.CompareTo(5u), Is.EqualTo(-1));
         }
 
         [Test]
@@ -1162,7 +1203,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             NodeId nullId = NodeId.Null;
             Assert.That(nullId.CompareTo(Guid.Empty), Is.Zero);
-            Assert.That(nullId.CompareTo(Guid.NewGuid()), Is.EqualTo(1));
+            Assert.That(nullId.CompareTo(Guid.NewGuid()), Is.EqualTo(-1));
         }
 
         [Test]
@@ -1188,7 +1229,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             NodeId nullId = NodeId.Null;
             Assert.That(nullId.CompareTo(ByteString.Empty), Is.Zero);
-            Assert.That(nullId.CompareTo(new ByteString(new byte[] { 1 })), Is.EqualTo(1));
+            Assert.That(nullId.CompareTo(new ByteString(new byte[] { 1 })), Is.EqualTo(-1));
         }
 
         [Test]
@@ -1217,7 +1258,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // non-null nodeId vs null
             var nodeId = new NodeId(42u);
-            Assert.That(nodeId.CompareTo((object)null), Is.EqualTo(-1));
+            Assert.That(nodeId.CompareTo((object)null), Is.EqualTo(1));
         }
 
         [Test]

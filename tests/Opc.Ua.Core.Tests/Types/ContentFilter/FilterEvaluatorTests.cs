@@ -399,9 +399,24 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         }
 
         [Test]
-        public void EqualsWithDifferentNumericTypesReturnsFalse()
+        public void EqualsConvertsBetweenNumericTypes()
         {
-            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From(42), Variant.From((double)42.0));
+            // Part 4 7.4.1 converts the operands to a common type before the
+            // comparison, so an Int32 and a Double naming the same number are
+            // equal. The raw union comparison this used to do reported false
+            // for every Float or Double operand, and true for a negative Int32
+            // only when the other operand happened to share its low bytes.
+            Ua.ContentFilter filter = BuildBinaryFilter(
+                FilterOperator.Equals, Variant.From(42), Variant.From((double)42.0));
+            bool result = filter.Evaluate(m_filterContext, m_target);
+            Assert.That(result, Is.True);
+        }
+
+        [Test]
+        public void EqualsWithDifferentNumericValuesReturnsFalse()
+        {
+            Ua.ContentFilter filter = BuildBinaryFilter(
+                FilterOperator.Equals, Variant.From(42), Variant.From((double)42.5));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
         }

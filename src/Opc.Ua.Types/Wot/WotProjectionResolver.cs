@@ -1534,7 +1534,11 @@ namespace Opc.Ua.Wot
                 return href;
             }
             if (!TrySplitBase(
-                    baseHref, out string scheme, out string? authority, out string basePath))
+                    baseHref,
+                    out string scheme,
+                    out string? authority,
+                    out string basePath,
+                    out string baseQuery))
             {
                 return href;
             }
@@ -1549,9 +1553,15 @@ namespace Opc.Ua.Wot
             {
                 return prefix + href;
             }
-            if (href.StartsWith('?') || href.StartsWith('#'))
+            if (href.StartsWith('?'))
             {
+                // RFC 3986 5.3: a query only reference replaces the base query.
                 return prefix + basePath + href;
+            }
+            if (href.StartsWith('#'))
+            {
+                // A fragment only reference keeps the base query.
+                return prefix + basePath + baseQuery + href;
             }
             string merged = MergePath(basePath, href, authority is not null);
             return prefix + RemoveDotSegments(merged);
@@ -1582,11 +1592,28 @@ namespace Opc.Ua.Wot
             string baseHref,
             out string scheme,
             out string? authority,
-            out string path)
+            out string path,
+            out string query)
         {
             scheme = string.Empty;
             authority = null;
             path = string.Empty;
+            query = string.Empty;
+
+            // RFC 3986 5.2.1 discards the base's fragment and 5.2.2 merges
+            // against its path only, so neither may stay inside the path.
+            int fragment = baseHref.IndexOf('#', StringComparison.Ordinal);
+            if (fragment >= 0)
+            {
+                baseHref = baseHref[..fragment];
+            }
+            int queryStart = baseHref.IndexOf('?', StringComparison.Ordinal);
+            if (queryStart >= 0)
+            {
+                query = baseHref[queryStart..];
+                baseHref = baseHref[..queryStart];
+            }
+
             int colon = baseHref.IndexOf(':', StringComparison.Ordinal);
             if (colon <= 0)
             {
