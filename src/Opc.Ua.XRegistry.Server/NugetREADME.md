@@ -59,3 +59,22 @@ options.GroupsAttributeName = "groups";
 options.ResourcesAttributeName = "resources";
 options.ResourceDocumentAttributeName = "schema";
 ```
+
+## Opt-in transactional endpoint
+
+`Protocol.XRegistryTransactionalEndpoint` adds an atomic generation provider for
+upgraded bridge deployments without changing the existing registration managers.
+It preserves explicit-zero and arbitrary-width HTTP epoch guards, prepares responses
+before publication, and retains caller-scoped operation outcomes. Register it with
+`AddXRegistryTransactions`; inject `IXRegistryTransactionStore` to select persistence.
+
+`InMemoryXRegistryTransactionStore` does not advertise durable replay.
+`FileXRegistryTransactionStore` provides exclusive local writer ownership, staged
+durable publication and fail-closed recovery. All native writers in an opted-in
+deployment must route through the same endpoint.
+An initialization marker distinguishes pristine storage from missing previously
+committed data; missing data or recovery artifacts never start an empty registry.
+
+The provider qualifies supported model features rather than silently coercing
+unsupported domain semantics. See the repository's `docs/XRegistryBridge.md` for
+the model profile, native/HTTP semantic differences and deployment limits.
