@@ -170,7 +170,17 @@ namespace Opc.Ua
 
             public bool IsEnabled(LogLevel logLevel)
             {
-                return Tracing.IsEnabled();
+                // Log() writes when either the trace mask or a Tracing handler
+                // lets the message through, so both have to be considered here.
+                // Reporting only the handler makes every source-generated log
+                // call short-circuit, and nothing reaches the trace file when no
+                // handler is subscribed - the usual case.
+                //
+                // The event id is not available at this point, so the mask is the
+                // one GetTraceMask derives from the level alone; a call whose
+                // event id carries its own mask is filtered exactly in Log().
+                return Tracing.IsEnabled() ||
+                    (m_provider.TraceMask & GetTraceMask(default, logLevel)) != 0;
             }
 
             public void Log<TState>(
@@ -416,8 +426,12 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Debug.WriteLine("Could not write to trace file. Error={0}", e.Message);
-                        Debug.WriteLine("FilePath={1}", traceFileName);
+                        // Interpolated, not a format string: WriteLine(string,
+                        // string) is the better overload for two string
+                        // arguments, so the second would be taken as a category
+                        // and the placeholder printed verbatim.
+                        Debug.WriteLine($"Could not write to trace file. Error={e.Message}");
+                        Debug.WriteLine($"FilePath={traceFileName}");
                     }
                 }
             }

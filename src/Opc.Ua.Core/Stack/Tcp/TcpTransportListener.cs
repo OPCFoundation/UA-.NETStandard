@@ -1117,6 +1117,11 @@ namespace Opc.Ua.Bindings
                                 ((IPEndPoint)e!.AcceptSocket!.RemoteEndPoint!).Address);
                         }
                         isBlocked = true;
+
+                        // No channel ever takes this socket, and disposing the
+                        // SocketAsyncEventArgs below does not close it, so the
+                        // connection would stay open until the process exits.
+                        e!.AcceptSocket!.Dispose();
                     }
                 }
 
@@ -1168,7 +1173,13 @@ namespace Opc.Ua.Bindings
                     }
 
                     ConcurrentDictionary<uint, TcpListenerChannel>? channels = m_channels;
-                    if (channels != null && !isBlocked)
+                    if (channels == null && !isBlocked)
+                    {
+                        // the listener is shutting down; nothing will take
+                        // ownership of the accepted socket.
+                        e.AcceptSocket?.Dispose();
+                    }
+                    else if (channels != null && !isBlocked)
                     {
                         // TODO: .Count is flagged as hotpath, implement separate counter
                         int channelCount = channels.Count;

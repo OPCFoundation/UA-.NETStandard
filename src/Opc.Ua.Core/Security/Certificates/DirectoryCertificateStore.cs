@@ -337,10 +337,14 @@ namespace Opc.Ua
 
                 DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
                 int entries = 0;
+
                 foreach (Certificate certificate in certificates)
                 {
-                    // limit the number of certificates added per call.
-                    if (maxCertificates != 0 && entries >= maxCertificates)
+                    // Limit the number of certificates added per call. A maximum
+                    // of zero or less keeps no history at all, so this stops
+                    // before the first one - and the trim below then discards
+                    // whatever the store already held.
+                    if (entries >= maxCertificates)
                     {
                         break;
                     }
@@ -377,6 +381,8 @@ namespace Opc.Ua
                     entries++;
                 }
 
+                // Keep the newest maxCertificates entries and discard the rest;
+                // with a maximum of zero or less that discards everything.
                 entries = 0;
                 foreach (Entry entry in m_certificates.Values
                     .OrderByDescending(e => e.LastWriteTimeUtc))
@@ -463,9 +469,14 @@ namespace Opc.Ua
                                             out byte[]? newContent) &&
                                         newContent != null)
                                     {
+                                        // FileMode.Create, not OpenOrCreate: the
+                                        // rewritten PEM is shorter than the one
+                                        // it replaces, and without truncating,
+                                        // the tail of the removed certificate
+                                        // stays in the file and parses again.
                                         var writer = new BinaryWriter(
                                             entry.CertificateFile
-                                                .Open(FileMode.OpenOrCreate, FileAccess.Write));
+                                                .Open(FileMode.Create, FileAccess.Write));
                                         try
                                         {
                                             writer.Write(newContent);

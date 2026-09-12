@@ -574,12 +574,16 @@ namespace Opc.Ua.Bindings
                     {
                         encoder.WriteUInt32(null, messageType | TcpMessageType.Abort);
 
-                        // replace the body in the chunk with an error message.
+                        // Replace the body in the chunk with an error message.
+                        // The encoder is bounded by the room the chunk has for a
+                        // body, not by what the chunk currently holds: an error
+                        // body is at least eight bytes and the offending chunk
+                        // can be shorter than that.
                         using (
                             var errorEncoder = new BinaryEncoder(
                                 chunkArray,
                                 chunkToProcess.Offset,
-                                chunkToProcess.Count,
+                                maxPayloadSize,
                                 Quotas.MessageContext))
                         {
                             WriteErrorMessageBody(

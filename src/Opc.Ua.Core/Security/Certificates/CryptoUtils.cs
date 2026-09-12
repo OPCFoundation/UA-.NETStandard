@@ -778,28 +778,42 @@ namespace Opc.Ua
             byte[] dataArray = data.Array ??
                 throw new ArgumentNullException(nameof(data), "Data array must not be null.");
 
-            int paddingSize = dataArray[data.Offset + data.Count - 1];
-            int paddingByteSize = 1;
+            int paddingByteSize = blockSize > byte.MaxValue ? 2 : 1;
 
-            if (blockSize > byte.MaxValue)
+            if (data.Count < paddingByteSize)
             {
-                paddingSize <<= 8;
-                paddingSize += dataArray[data.Offset + data.Count - 2];
-                paddingByteSize = 2;
+                throw new CryptographicException("Invalid padding.");
             }
 
-            int notvalid = paddingSize < data.Count ? 0 : 1;
-            int start = data.Offset + data.Count - paddingSize - paddingByteSize;
+            // the plain text ends at this index; the padding count byte(s) are
+            // the last bytes before it.
+            int end = data.Offset + data.Count;
 
-            for (int ii = data.Offset; ii < data.Count - paddingByteSize && ii < paddingSize; ii++)
+            int paddingSize = dataArray[end - 1];
+
+            if (paddingByteSize == 2)
             {
-                if (start < 0 || start + ii >= data.Count)
+                paddingSize <<= 8;
+                paddingSize += dataArray[end - 2];
+            }
+
+            // the filler bytes precede the count byte(s) and must all repeat the
+            // low byte of the count (see AddPadding).
+            int start = end - paddingSize - paddingByteSize;
+
+            int notvalid = paddingSize + paddingByteSize > data.Count ? 1 : 0;
+
+            for (int ii = 0; ii < paddingSize; ii++)
+            {
+                int index = start + ii;
+
+                if (index < data.Offset || index >= end)
                 {
                     notvalid |= 1;
                     continue;
                 }
 
-                notvalid |= dataArray[start + ii] ^ (paddingSize & 0xFF);
+                notvalid |= dataArray[index] ^ (paddingSize & 0xFF);
             }
 
             if (notvalid != 0)
@@ -807,7 +821,7 @@ namespace Opc.Ua
                 throw new CryptographicException("Invalid padding.");
             }
 
-            return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count - paddingSize - paddingByteSize);
+            return new ArraySegment<byte>(dataArray, 0, start);
         }
 
         /// <summary>
@@ -1728,14 +1742,17 @@ namespace Opc.Ua
                 }
             }
 
-            if (!signOnly)
-            {
-                data = RemovePadding(data, iv.Length);
-            }
-
+            // Checked before the padding is inspected: padding on a message that
+            // failed its signature is attacker-chosen, and reporting the two
+            // failures apart would make the padding check an oracle.
             if (isNotValid != 0)
             {
                 throw new CryptographicException("Invalid signature.");
+            }
+
+            if (!signOnly)
+            {
+                data = RemovePadding(data, iv.Length);
             }
 
             return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count);

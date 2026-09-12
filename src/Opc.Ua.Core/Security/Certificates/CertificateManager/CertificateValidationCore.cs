@@ -78,6 +78,13 @@ namespace Opc.Ua
         private volatile TrustListState m_state;
 
         /// <summary>
+        /// Outstanding references. One is held by whoever created the core (the
+        /// cache); each in-flight use takes another through
+        /// <see cref="TryAddRef"/>.
+        /// </summary>
+        private int m_refCount = 1;
+
+        /// <summary>
         /// Initializes a new instance of the
         /// <see cref="CertificateValidationCore"/> class.
         /// </summary>
@@ -95,9 +102,50 @@ namespace Opc.Ua
             UseValidatedCertificates = false;
         }
 
+        /// <summary>
+        /// Takes a reference for a caller that is about to use the core, or
+        /// returns <see langword="false"/> when the last reference has already
+        /// been released.
+        /// </summary>
+        /// <remarks>
+        /// A core is cached by <see cref="CertificateManager"/> and evicted when
+        /// the trust list changes. Validations already running on it must keep it
+        /// alive until they finish, otherwise the eviction tears down the
+        /// semaphore and the trust-list stores underneath them.
+        /// </remarks>
+        public bool TryAddRef()
+        {
+            int current = Volatile.Read(ref m_refCount);
+
+            while (current > 0)
+            {
+                int observed = Interlocked.CompareExchange(
+                    ref m_refCount, current + 1, current);
+
+                if (observed == current)
+                {
+                    return true;
+                }
+
+                current = observed;
+            }
+
+            return false;
+        }
+
         /// <inheritdoc/>
+        /// <remarks>
+        /// Releases one reference. The core is torn down when the last one goes,
+        /// so an eviction while validations are in flight only takes the cache's
+        /// reference and the teardown happens when they complete.
+        /// </remarks>
         public void Dispose()
         {
+            if (Interlocked.Decrement(ref m_refCount) != 0)
+            {
+                return;
+            }
+
             InternalResetValidatedCertificates();
 
             TrustListState state = m_state;
@@ -336,10 +384,16 @@ namespace Opc.Ua
             // Publish the new immutable trust-list state. Application
             // certificates are carried forward; they are changed only by
             // UpdateAsync.
+            //
+            // The certificates listed on the trust list itself (the
+            // <TrustedCertificates> configuration element, or
+            // SecurityConfiguration.AddTrustedPeer) are trusted in addition to
+            // whatever the store holds, so they travel with the state.
             m_state = new TrustListState(
                 trustedCertificateStore,
                 issuerCertificateStore,
-                m_state.ApplicationCertificates);
+                m_state.ApplicationCertificates,
+                trustedStore?.TrustedCertificates ?? default);
         }
 
         /// <summary>
@@ -1330,6 +1384,43 @@ namespace Opc.Ua
                 }
             }
 
+            // check the certificates listed on the trust list itself. These are
+            // configured alongside the store, not inside it, so a peer trusted
+            // only this way is not found above.
+            for (int ii = 0; ii < state.ExplicitTrustedCertificates.Count; ii++)
+            {
+                CertificateIdentifier trusted = state.ExplicitTrustedCertificates[ii];
+
+                // avoid the store I/O a resolve can cost when the identifier
+                // already says which certificate it means.
+                if (!string.IsNullOrEmpty(trusted.Thumbprint) &&
+                    !string.Equals(
+                        trusted.Thumbprint,
+                        certificate.Thumbprint,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                using Certificate? resolved = await CertificateIdentifierResolver
+                    .ResolveAsync(
+                        trusted,
+                        registry: null,
+                        needPrivateKey: false,
+                        applicationUri: null,
+                        m_telemetry,
+                        ct)
+                    .ConfigureAwait(false);
+
+                if (resolved != null &&
+                    Utils.IsEqual(resolved.RawData, certificate.RawData))
+                {
+                    return new CertificateIssuerReference(
+                        resolved.AddRef(),
+                        trusted.ValidationOptions);
+                }
+            }
+
             // not a trusted.
             return null;
         }
@@ -1870,7 +1961,8 @@ namespace Opc.Ua
         private sealed record TrustListState(
             CertificateStoreIdentifier? TrustedStore,
             CertificateStoreIdentifier? IssuerStore,
-            ArrayOf<Certificate> ApplicationCertificates);
+            ArrayOf<Certificate> ApplicationCertificates,
+            ArrayOf<CertificateIdentifier> ExplicitTrustedCertificates = default);
     }
 
     /// <summary>
