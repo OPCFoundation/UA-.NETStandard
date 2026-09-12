@@ -109,6 +109,10 @@ namespace Opc.Ua.Wot
                     {
                         continue;
                     }
+                    if (!ValidateDefinitionMembers(definition, pointer))
+                    {
+                        continue;
+                    }
                     if (index.GraphIds.ContainsKey(graphId))
                     {
                         DataTypeError("A DataType graph node has more than one complete definition.", pointer);
@@ -139,7 +143,10 @@ namespace Opc.Ua.Wot
                     }
                     index.GraphIds.Add(graphId, entry);
                     AddIdentity(index.NativeIds, nativeId, entry, pointer);
-                    AddIdentity(index.Names, QualifiedTypeName(name), entry, pointer);
+                    if (!index.Names.TryAdd(entry.Name, entry))
+                    {
+                        index.Names[entry.Name] = null;
+                    }
                 }
             }
 
@@ -151,6 +158,41 @@ namespace Opc.Ua.Wot
                     DataTypeError(
                         "More than one DataType definition claims the same native identity or name.", pointer);
                 }
+            }
+
+            private bool ValidateDefinitionMembers(JsonElement value, string pointer)
+            {
+                if (value.ValueKind == JsonValueKind.Object)
+                {
+                    var members = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (JsonProperty member in value.EnumerateObject())
+                    {
+                        string location = pointer + "/" + EscapePointer(member.Name);
+                        if (!members.Add(member.Name))
+                        {
+                            DataTypeError("A complete DataType definition contains a duplicate member.", location);
+                            return false;
+                        }
+                        if (!ValidateDefinitionMembers(member.Value, location))
+                        {
+                            return false;
+                        }
+                    }
+                }
+                else if (value.ValueKind == JsonValueKind.Array)
+                {
+                    int index = 0;
+                    foreach (JsonElement item in value.EnumerateArray())
+                    {
+                        if (!ValidateDefinitionMembers(
+                            item, pointer + "/" + index.ToString(CultureInfo.InvariantCulture)))
+                        {
+                            return false;
+                        }
+                        index++;
+                    }
+                }
+                return true;
             }
 
             private void RewriteDataTypeReferences(ReferenceCarriage carriage)
@@ -234,7 +276,7 @@ namespace Opc.Ua.Wot
                 {
                     return;
                 }
-                Dictionary<string, DataTypeEntry> identities;
+                DataTypeEntry? definition;
                 if (name)
                 {
                     if (!WotPortableIdentity.TryResolveQualifiedName(identity, carriage.Owner.Document,
@@ -243,17 +285,64 @@ namespace Opc.Ua.Wot
                         return;
                     }
                     identity = QualifiedTypeName(qualified);
-                    identities = index.Names;
+                    if (index.Names.TryGetValue(identity, out definition))
+                    {
+                        if (definition is null)
+                        {
+                            definition = term == "uav:dataTypeSubtypeOf"
+                                ? null
+                                : FindDefinitiveCarriageType(carriage, index);
+                            if (definition is null || definition.Name != identity)
+                            {
+                                DataTypeError("The DataType name is ambiguous without a matching definitive identity.",
+                                    carriage.SourcePointer);
+                                return;
+                            }
+                        }
+                        CarryDataType(definition);
+                    }
                 }
                 else
                 {
                     identity = WotNodeSetConverter.NormalizeExpandedNodeId(identity);
-                    identities = index.NativeIds;
+                    if (index.NativeIds.TryGetValue(identity, out definition))
+                    {
+                        CarryDataType(definition);
+                    }
                 }
-                if (identities.TryGetValue(identity, out DataTypeEntry? definition))
+            }
+
+            private DataTypeEntry? FindDefinitiveCarriageType(ReferenceCarriage carriage, DataTypeIndex index)
+            {
+                if (index.Locations.TryGetValue(carriage.SourcePointer, out DataTypeEntry? located))
                 {
-                    CarryDataType(definition);
+                    return located;
                 }
+                foreach (string term in s_nativeDataTypeReferences)
+                {
+                    if (ReadString(carriage.Value[term]) is string nativeId &&
+                        index.NativeIds.TryGetValue(
+                            WotNodeSetConverter.NormalizeExpandedNodeId(nativeId), out DataTypeEntry? definition))
+                    {
+                        return definition;
+                    }
+                }
+                JsonElement original = OriginalElement(carriage);
+                foreach (string term in s_dataTypeReferences)
+                {
+                    if (original.ValueKind == JsonValueKind.Object &&
+                        original.TryGetProperty(term, out JsonElement reference) &&
+                        ElementString(reference, "@id") is string graphId)
+                    {
+                        DataTypeEntry? definition = FindGraphDefinition(
+                            carriage.Owner, reference, graphId, carriage.SourcePointer, out _);
+                        if (definition is not null)
+                        {
+                            return definition;
+                        }
+                    }
+                }
+                return null;
             }
 
             private void CarryBaseReference(
@@ -328,6 +417,10 @@ namespace Opc.Ua.Wot
                         return;
                     }
                     CarryDataType(selected);
+                }
+                else if (name is not null && index.Names.ContainsKey(name))
+                {
+                    DataTypeError("The base DataType name is ambiguous without a definitive identity.", pointer);
                 }
             }
 
@@ -441,7 +534,8 @@ namespace Opc.Ua.Wot
             private JsonObject ResolvedDefinition(DataTypeEntry entry)
             {
                 var scopes = new JsonObject();
-                var result = (JsonObject)ResolveFacts(entry.Definition, entry.Definition, null, string.Empty)!;
+                var result = (JsonObject)ResolveFacts(
+                    entry.Definition, entry.Definition, null, string.Empty, graphReference: true)!;
                 result["@id"] = entry.GraphId;
                 result["uav:dataTypeId"] = entry.NativeId;
                 return new JsonObject
@@ -450,7 +544,9 @@ namespace Opc.Ua.Wot
                     ["scopes"] = scopes
                 };
 
-                JsonNode? ResolveFacts(JsonElement value, JsonElement context, string? term, string pointer)
+                JsonNode? ResolveFacts(
+                    JsonElement value, JsonElement context, string? term, string pointer,
+                    bool indexMap = false, bool graphReference = false)
                 {
                     if (value.ValueKind == JsonValueKind.Object)
                     {
@@ -459,6 +555,12 @@ namespace Opc.Ua.Wot
                         bool unknownTerms = false;
                         foreach (JsonProperty member in value.EnumerateObject())
                         {
+                            string location = pointer + "/" + EscapePointer(member.Name);
+                            if (indexMap)
+                            {
+                                resolved[member.Name] = ResolveFacts(member.Value, value, null, location);
+                                continue;
+                            }
                             if (member.Name == "@context")
                             {
                                 continue;
@@ -466,19 +568,21 @@ namespace Opc.Ua.Wot
                             bool localized = member.Name is "title" or "description" or "uav:fieldDescription" or
                                 "uav:enumDisplayName" or "uav:enumDescription";
                             resolved[member.Name] = WotDocument.IsSemanticBoundary(member.Name) ||
+                                WotNodeSetConverter.IsLiteralSchemaMember(member.Name) ||
                                 localized ||
                                 member.Name is "titles" or "descriptions"
                                 ? CloneNode(member.Value)
-                                : ResolveFacts(member.Value, value, member.Name,
-                                    pointer + "/" + EscapePointer(member.Name));
+                                : ResolveFacts(member.Value, value, member.Name, location,
+                                    WotNodeSetConverter.IsSchemaDeclarationMap(member.Name),
+                                    member.Name == "@id" ? graphReference :
+                                        Array.IndexOf(s_dataTypeReferences, member.Name) >= 0);
                             if (localized)
                             {
                                 languages[member.Name] = JsonValue.Create(
                                     WotNodeSetConverter.GetDeclaredLocale(entry.Owner.Document, value, member.Name));
                             }
-                            unknownTerms |= !member.Name.StartsWith("uav:", StringComparison.Ordinal) &&
-                                member.Name is not ("@id" or "@type" or "title" or "description" or
-                                    "titles" or "descriptions");
+                            unknownTerms |= !WotDocument.IsSemanticBoundary(member.Name) &&
+                                !IsKnownDefinitionFact(member.Name);
                         }
                         if (unknownTerms || languages.Count != 0)
                         {
@@ -507,7 +611,8 @@ namespace Opc.Ua.Wot
                         foreach (JsonElement item in value.EnumerateArray())
                         {
                             resolved.Add(ResolveFacts(item, context, term,
-                                pointer + "/" + index.ToString(CultureInfo.InvariantCulture)));
+                                pointer + "/" + index.ToString(CultureInfo.InvariantCulture),
+                                graphReference: graphReference));
                             index++;
                         }
                         return resolved;
@@ -520,6 +625,12 @@ namespace Opc.Ua.Wot
                                 text, entry.Owner.Document, context, out WotBrowsePathElement name))
                         {
                             return JsonValue.Create(QualifiedTypeName(name));
+                        }
+                        if (term == "@id" && graphReference)
+                        {
+                            FindGraphDefinition(
+                                entry.Owner, context, text, entry.Pointer + pointer, out string graphId);
+                            return JsonValue.Create(graphId);
                         }
                         if (term is "@id" or "@type")
                         {
@@ -543,6 +654,25 @@ namespace Opc.Ua.Wot
                     }
                     return CloneNode(value);
                 }
+            }
+
+            private static bool IsKnownDefinitionFact(string term)
+            {
+                return term is "@id" or "@type" or "title" or "titles" or "description" or "descriptions" or
+                    "uav:dataTypeName" or "uav:dataTypeId" or "uav:dataTypeSubtypeOf" or "uav:dataTypeDefinition" or
+                    "uav:fieldDataTypeDefinition" or "uav:fieldDataTypeId" or "uav:fieldDataTypeName" or
+                    "uav:isAbstract" or "uav:structureType" or "uav:fields" or "uav:fieldName" or
+                    "uav:fieldDescription" or "uav:enumFields" or "uav:enumName" or "uav:enumValue" or
+                    "uav:enumDisplayName" or "uav:enumDescription" or "uav:isOptionSet" or "uav:isOptional" or
+                    "uav:allowSubtypes" or "uav:maxStringLength" or "uav:valueRank" or "uav:arrayDimensions" or
+                    "uav:fieldOrder" or "uav:hasDefaultEncoding" or "uav:defaultEncodings" or
+                    "uav:defaultEncodingId" or "uav:binaryEncodingId" or "uav:xmlEncodingId" or "uav:jsonEncodingId" or
+                    "uav:externalSchema" or "$ref" or "tm:ref" or "type" or "format" or "contentEncoding" or
+                    "minimum" or "maximum" or "exclusiveMinimum" or "exclusiveMaximum" or "multipleOf" or
+                    "minLength" or "maxLength" or "pattern" or "items" or "minItems" or "maxItems" or "uniqueItems" or
+                    "properties" or "required" or "additionalProperties" or "minProperties" or "maxProperties" or
+                    "oneOf" or "anyOf" or "allOf" or "not" or "if" or "then" or "else" or
+                    "const" or "default" or "enum" or "examples" or "readOnly" or "writeOnly";
             }
 
             private JsonElement OriginalElement(ReferenceCarriage carriage)
@@ -589,7 +719,7 @@ namespace Opc.Ua.Wot
                 public Dictionary<string, DataTypeEntry> GraphIds { get; } = new(StringComparer.Ordinal);
                 public Dictionary<string, DataTypeEntry> Locations { get; } = new(StringComparer.Ordinal);
                 public Dictionary<string, DataTypeEntry> NativeIds { get; } = new(StringComparer.Ordinal);
-                public Dictionary<string, DataTypeEntry> Names { get; } = new(StringComparer.Ordinal);
+                public Dictionary<string, DataTypeEntry?> Names { get; } = new(StringComparer.Ordinal);
             }
 
             private sealed record DataTypeEntry(
@@ -606,6 +736,8 @@ namespace Opc.Ua.Wot
 
             private static readonly string[] s_dataTypeReferences =
                 ["uav:dataTypeDefinition", "uav:fieldDataTypeDefinition", "uav:dataTypeSubtypeOf"];
+
+            private static readonly string[] s_nativeDataTypeReferences = ["uav:dataTypeId", "uav:fieldDataTypeId"];
         }
     }
 }

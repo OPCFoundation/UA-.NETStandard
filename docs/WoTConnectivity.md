@@ -1166,6 +1166,18 @@ metadata remains literal. Distinct graph nodes cannot claim one native
 DataType identity. Malformed definition containers and reference shapes fail
 explicitly rather than disappearing during carriage.
 
+Definition discovery distinguishes declaration-map names from annotation
+predicates. Literal `const`, `default`, `enum` and `examples` values cannot
+declare a DataType or provide a local definition target; fields with those
+names remain valid. Repeated definition members are diagnosed before mutable
+carriage. Ambiguous qualified names require a definitive graph or native
+identity, but do not invalidate otherwise unambiguous references. An ambiguous
+base reference must identify the base itself; the subtype's own identity does
+not disambiguate it. Reuse compares known local references by their indexed
+graph targets and recognizes standard
+schema facets without treating irrelevant prefix aliases as different facts.
+Unknown semantic terms retain their context even when prefixed with `uav:`.
+
 Known schema references (`$ref`, a source definition's `tm:ref`, and
 `uav:externalSchema`) retain their original document location. Relative external
 references become origin-relative absolute references where that location is

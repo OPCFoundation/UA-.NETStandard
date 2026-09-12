@@ -279,13 +279,18 @@ namespace Opc.Ua.Wot
             Visit(root);
             return names;
 
-            void Visit(JsonElement element)
+            void Visit(JsonElement element, bool indexMap = false)
             {
                 if (element.ValueKind == JsonValueKind.Object)
                 {
                     foreach (JsonProperty member in element.EnumerateObject())
                     {
-                        if (WotDocument.IsSemanticBoundary(member.Name))
+                        if (indexMap)
+                        {
+                            Visit(member.Value);
+                            continue;
+                        }
+                        if (WotDocument.IsSemanticBoundary(member.Name) || IsLiteralSchemaMember(member.Name))
                         {
                             continue;
                         }
@@ -294,7 +299,7 @@ namespace Opc.Ua.Wot
                         {
                             names.Add((element, member.Value.GetString()!));
                         }
-                        Visit(member.Value);
+                        Visit(member.Value, IsSchemaDeclarationMap(member.Name));
                     }
                 }
                 else if (element.ValueKind == JsonValueKind.Array)
@@ -610,23 +615,29 @@ namespace Opc.Ua.Wot
             return ReadDataTypeDefinitionLocations(root).ToArrayOf(entry => entry.Definition);
         }
 
-        internal static ArrayOf<(JsonElement Definition, string Pointer)> ReadDataTypeDefinitionLocations(JsonElement root)
+        internal static ArrayOf<(JsonElement Definition, string Pointer)> ReadDataTypeDefinitionLocations(
+            JsonElement root)
         {
             var definitions = new List<(JsonElement Definition, string Pointer)>();
             Visit(root, string.Empty);
             return definitions.ToArrayOf();
 
-            void Visit(JsonElement element, string pointer)
+            void Visit(JsonElement element, string pointer, bool indexMap = false)
             {
                 if (element.ValueKind == JsonValueKind.Object)
                 {
                     foreach (JsonProperty member in element.EnumerateObject())
                     {
-                        if (WotDocument.IsSemanticBoundary(member.Name))
+                        string location = pointer + "/" + EscapePointerToken(member.Name);
+                        if (indexMap)
+                        {
+                            Visit(member.Value, location);
+                            continue;
+                        }
+                        if (WotDocument.IsSemanticBoundary(member.Name) || IsLiteralSchemaMember(member.Name))
                         {
                             continue;
                         }
-                        string location = pointer + "/" + EscapePointerToken(member.Name);
                         if (member.Name is "uav:dataTypeDefinition" or "uav:fieldDataTypeDefinition" &&
                             member.Value.ValueKind == JsonValueKind.Object)
                         {
@@ -653,7 +664,7 @@ namespace Opc.Ua.Wot
                         {
                             definitions.Add((member.Value, location));
                         }
-                        Visit(member.Value, location);
+                        Visit(member.Value, location, IsSchemaDeclarationMap(member.Name));
                     }
                 }
                 else if (element.ValueKind == JsonValueKind.Array)
@@ -666,6 +677,17 @@ namespace Opc.Ua.Wot
                     }
                 }
             }
+        }
+
+        internal static bool IsSchemaDeclarationMap(string member)
+        {
+            return member is "properties" or "actions" or "events" or "schemaDefinitions" or "uriVariables" or
+                "$defs" or "definitions" or "patternProperties";
+        }
+
+        internal static bool IsLiteralSchemaMember(string member)
+        {
+            return member is "const" or "default" or "enum" or "examples";
         }
 
         private static void AddDataTypeDefinition(
