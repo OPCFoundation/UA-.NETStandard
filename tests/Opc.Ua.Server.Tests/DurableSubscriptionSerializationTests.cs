@@ -42,12 +42,13 @@ namespace Opc.Ua.Server.Tests
     /// serialization in <see cref="SubscriptionStore"/> and
     /// <see cref="DurableMonitoredItemQueueFactory"/>.
     /// Tests call the internal encode/decode methods directly.
+    /// Persistor cleanup clears the process-wide batch directory.
     /// </summary>
     [TestFixture]
     [Category("Server")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    [Parallelizable]
+    [NonParallelizable]
     public class DurableSubscriptionSerializationTests
     {
         private ServiceMessageContext m_context;
