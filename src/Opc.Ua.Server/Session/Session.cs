@@ -1182,14 +1182,14 @@ namespace Opc.Ua.Server
                                     cancellationToken).ConfigureAwait(false))
                             {
                                 throw new ServiceResultException(
-                                    StatusCodes.BadIdentityTokenRejected,
+                                    StatusCodes.BadUserSignatureInvalid,
                                     "Invalid user signature!");
                             }
                         }
                         else
                         {
                             throw new ServiceResultException(
-                                StatusCodes.BadIdentityTokenRejected,
+                                StatusCodes.BadUserSignatureInvalid,
                                 "Invalid user signature!");
                         }
                     }

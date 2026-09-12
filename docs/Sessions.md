@@ -1106,6 +1106,11 @@ lock out the application owning an unactivated session; genuine invalid
 signatures and identity credentials still count toward that application's
 lockout threshold.
 
+Certificate user tokens require proof of possession when their token policy
+requires signing, even on a `None` SecureChannel. A missing, empty or incorrect
+user-token signature is rejected with `BadUserSignatureInvalid`, as specified
+by OPC UA Part 4, 5.7.3.3. Only a policy without signing accepts an absent signature.
+
 Closed sessions do not accept browse continuation points. A pending
 continuation remains caller-owned until its mirror write and local
 admission succeed. If the session closes during persistence, the late

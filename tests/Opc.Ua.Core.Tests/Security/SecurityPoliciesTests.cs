@@ -253,6 +253,32 @@ namespace Opc.Ua.Core.Tests.Security
         }
 
         [Test]
+        public void MissingSignatureIsAcceptedOnlyWithoutSigning(
+            [Values(SecurityPolicies.None, SecurityPolicies.Basic256Sha256,
+                SecurityPolicies.Aes128_Sha256_RsaOaep, SecurityPolicies.Aes256_Sha256_RsaPss)] string policyUri,
+            [Values("null", "missing", "empty")] string signatureKind)
+        {
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=Missing Signature")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            SignatureData? signature = signatureKind switch
+            {
+                "null" => null,
+                "missing" => new SignatureData(),
+                _ => new SignatureData
+                {
+                    Algorithm = SecurityAlgorithms.RsaSha256,
+                    Signature = ByteString.Empty
+                }
+            };
+
+            Assert.That(SecurityPolicies.Default.VerifySignatureData(
+                signature!, policyUri, certificate, [1, 2, 3]),
+                Is.EqualTo(policyUri == SecurityPolicies.None));
+        }
+
+        [Test]
         public void UnsupportedPoliciesThrowExpectedServiceResultExceptions()
         {
             ILogger logger = NUnitTelemetryContext.Create().CreateLogger<SecurityPoliciesTests>();

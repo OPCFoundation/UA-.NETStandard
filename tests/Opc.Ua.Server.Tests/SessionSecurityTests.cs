@@ -471,7 +471,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
         }
 
+        [TestCase("null")]
         [TestCase("missing")]
+        [TestCase("empty")]
         [TestCase("wrong")]
         [TestCase("valid")]
         public async Task CertificateUserPolicyVerifiesProofOnNoneChannelAsync(string proof)
@@ -506,13 +508,21 @@ namespace Opc.Ua.Server.Tests
                 m_clientCertificate.RawData,
                 channel.ClientChannelCertificate,
                 created.ClientNonce.ToArray());
-            SignatureData userSignature = proof == "missing"
-                ? new SignatureData()
-                : await SecurityPolicies.Default.CreateSignatureDataAsync(
+            SignatureData userSignature = proof switch
+            {
+                "null" => null!,
+                "missing" => new SignatureData(),
+                "empty" => new SignatureData
+                {
+                    Algorithm = SecurityAlgorithms.RsaSha256,
+                    Signature = ByteString.Empty
+                },
+                _ => await SecurityPolicies.Default.CreateSignatureDataAsync(
                     policy,
                     proof == "valid" ? m_clientCertificate : m_otherClientCertificate,
                     dataToSign,
-                    CancellationToken.None).ConfigureAwait(false);
+                    CancellationToken.None).ConfigureAwait(false)
+            };
 
             if (proof == "valid")
             {
@@ -530,7 +540,7 @@ namespace Opc.Ua.Server.Tests
                     await created.Result.Session.ValidateBeforeActivateAsync(
                         created.Context, signature, identity, userSignature, CancellationToken.None)
                         .ConfigureAwait(false))!;
-                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserSignatureInvalid));
             }
         }
 
