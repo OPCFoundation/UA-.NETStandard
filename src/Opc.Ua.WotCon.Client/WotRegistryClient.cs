@@ -52,7 +52,7 @@ namespace Opc.Ua.WotCon.Client
     /// proxy is reused directly rather than re-resolved per call.
     /// </para>
     /// </summary>
-    public sealed class WotRegistryClient : XRegistryClient
+    public sealed partial class WotRegistryClient : XRegistryClient
     {
         /// <summary>
         /// The well-known reserved group id that always holds Thing
@@ -192,6 +192,8 @@ namespace Opc.Ua.WotCon.Client
                 throw new ArgumentException("Group id is required.", nameof(groupId));
             }
             NodeId groupNodeId = await Proxy.CreateGroupAsync(groupId, ct).ConfigureAwait(false);
+            groupId = await WotProvisioningContract.ReadAssignedIdentifierAsync(Session, groupNodeId, "GroupId", ct)
+                .ConfigureAwait(false);
             bool distinct = await UsesDistinctHierarchyAsync(ct).ConfigureAwait(false);
             return await OpenGroupClientAsync(Session, groupNodeId, groupId, Telemetry, ct, distinct)
                 .ConfigureAwait(false);
@@ -213,6 +215,8 @@ namespace Opc.Ua.WotCon.Client
             }
             (NodeId groupNodeId, bool created) = await Proxy
                 .GetOrCreateGroupAsync(groupId, ct).ConfigureAwait(false);
+            groupId = await WotProvisioningContract.ReadAssignedIdentifierAsync(Session, groupNodeId, "GroupId", ct)
+                .ConfigureAwait(false);
             bool distinct = await UsesDistinctHierarchyAsync(ct).ConfigureAwait(false);
             WotRegistryGroupClient group = await OpenGroupClientAsync(
                 Session, groupNodeId, groupId, Telemetry, ct, distinct).ConfigureAwait(false);

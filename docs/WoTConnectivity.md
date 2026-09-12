@@ -635,7 +635,71 @@ Returning `null` is the contract's way of declining and is not an error. **No im
 Two persistence back-ends are provided:
 
 * `InMemoryWotRegistryStore` — volatile; the registry starts empty.
-* `FileWotRegistryStore` — durable; metadata is written with a **bounded atomic replace** (write-to-temp then `File.Replace`), one blob per version, content-addressed directories. Invalid documents are stored with their failure state so a restart restores exactly the last observed contents.
+* `FileWotRegistryStore` — durable; metadata is written with a **bounded atomic replace** (write-to-temp then `File.Replace`), one blob per version, content-addressed directories. Typed resources reject missing, ambiguous, changed or wrong-kind source authority before replacing bytes, independently of optional validation policies.
+
+#### Exact authority and typed provisioning
+
+The stock service implements the additive `IWotTypedRegistryService` capability and
+the six generated draft provisioning Methods. A group is keyed by `(Kind, exact CatalogUri)`;
+a resource by `(owning group, exact ThingId/ModelId)`. TD and TM groups can share
+the same catalogue URI. Case, scheme, query, fragment, trailing slash and escaped
+bytes remain significant; `Uri` is used for validation, not canonicalization.
+New groups use `td.` / `tm.` readable domains and the bounded
+[xRegistry allocator](XRegistry.md#source-derived-identifier-allocation). Resources
+use the same allocator within their owning group. Names, slugs and hashes are
+never a substitute for authoritative identity.
+
+The existing nested immutable Group/Resource records are the durable allocation
+map. Manifest schema **5** adds exact CatalogUri and explicit authority-presence
+markers, and validates ownership, duplicate assignments/authorities, kind,
+source identity and exact default-Version references on recovery. Schema 3/4
+remain readable: missing legacy catalogue authority stays explicitly unbound,
+not reconstructed from a Name. An explicit configured binding can establish an
+unambiguous legacy catalogue without renaming its assigned IDs. Incomplete or
+contradictory legacy authority cannot be used for typed provisioning.
+
+`CreateDocumentGroup(Kind, CatalogUri)` and `GetOrCreateDocumentGroup` return the
+assigned GroupId. Group-specific `CreateThingDescriptionResource(ThingId, VersionId,
+RequestFileOpen)` / `CreateThingModelResource(ModelId, VersionId, RequestFileOpen)`
+return distinct logical Resource and exact Version NodeIds plus both assigned IDs.
+Their GetOrCreate forms additionally report independent CreatedResource and
+CreatedVersion flags. Metadata, mapping and structure are committed before return.
+Typed Create with an empty VersionId allocates the next Version; GetOrCreate with
+an empty VersionId selects the current default. Creating a new Version does not
+silently select it as default.
+
+RequestFileOpen=false opens nothing and returns zero. When true, the actual
+session-owned exact-Version write handle is prepared before durable commit, using
+the existing file manager. Its staged bytes initially equal committed content,
+its position is zero, and it does not request erase or append. A clean Close
+changes neither bytes nor epochs. Dirty Close validates exact source identity
+and kind before committing. Open/preparation failure cannot leave a new allocation.
+
+Inherited xRegistry signatures and legacy 1.02 model identities are unchanged.
+Already provisioned generic identifiers resolve normally. New generic names
+require `WotRegistryServerOptions.IdentityBindings`, supplied through direct
+construction or `AddWotRegistryServer`:
+
+```csharp
+options.IdentityBindings.Groups =
+[
+    new("models", WoTDocumentKindEnum.ThingModel, "https://contoso.org/models/")
+];
+options.IdentityBindings.Resources =
+[
+    new("models", "pump", "https://contoso.org/models/Pump")
+];
+```
+
+These are explicit aliases, not naming conventions. Generic Methods return the
+actual assigned identities; aliases cannot allocate a second entity for an
+already mapped authority. Missing or contradictory authority is
+`Bad_InvalidArgument`. Existing unbound programmatic snapshots remain a legacy
+compatibility surface, not a claim of typed document-write conformance.
+Custom services may implement `IWotTypedRegistryService` additively. The native
+atomic requested-file-open path currently requires the stock transactional
+service; other providers receive `Bad_NotSupported` before mutation rather than
+a post-commit or authority-dropping fallback.
 
 #### Keeping the document bytes in a shared store
 
@@ -932,7 +996,8 @@ not by copying the source document. The readable surface tracks the current
 `Opc.Ua.WotCon.Client` ships a registry client surface alongside the existing `WotConnectivityClient`. `WotRegistryClient` **derives from the shared xRegistry `XRegistryClient`** — the WoT registry model subtypes the xRegistry base model, so it is a *domain client* in the sense of [xRegistry — Extending for a domain registry](XRegistry.md#extending-for-a-domain-registry) and inherits the base group/resource lifecycle, `Session` and `RegistryNodeId`. The registry root is not the provisional well-known `65000`: the browse-resolved `WoTRegistry` NodeId is passed to the base constructor. The generated `WoTRegistryTypeClient` / xRegistry `GroupTypeClient` / `ResourceTypeClient` proxies are still *composed* rather than inherited, so a typed proxy is reused directly instead of being re-resolved per call:
 
 * `WotRegistryClient.ForServerAsync(session, telemetry, ct)` resolves the well-known `WoTRegistry` object (a `HasComponent` child of the `Server` object) via `TranslateBrowsePaths`, exactly like `WotConnectivityClient.ForServerAsync` resolves `WoTAssetConnectionManagement`. Both now share the same internal `TranslateBrowsePaths` helper. The resolved NodeId is surfaced as the inherited `RegistryNodeId`.
-* `CreateThingDescriptionGroupAsync` / `CreateThingModelGroupAsync` and their `GetOrCreate…` counterparts call the inherited xRegistry `CreateGroup`/`GetOrCreateGroup` Methods. The wire protocol has no "kind" argument, so the returned `WotRegistryGroupClient` discovers whether the server materialised a `ThingDescriptionGroupType` or a `ThingModelGroupType` from the created group's reported `TypeDefinition` — this works against any conformant server regardless of its own group-naming convention. `ThingModelsGroupId`/`ThingDescriptionsGroupId` expose the two well-known reserved group ids.
+* `CreateDocumentGroupAsync(kind, catalogUri)` / `GetOrCreateDocumentGroupAsync` use the generated typed Methods. Group-specific typed resource entrypoints accept exact ThingId/ModelId; `CreateDocumentResourceAsync` / `GetOrCreateDocumentResourceAsync` select the receiver's typed Method. Every typed call verifies its namespace-qualified receiver, complete scalar argument layout and Executable/UserExecutable attributes. There is no generic fallback.
+* The older `CreateThingDescriptionGroupAsync` / `CreateThingModelGroupAsync` conveniences and their GetOrCreate counterparts retain the inherited generic signatures and therefore require the corresponding explicit server binding for a new group. They discover the returned type and read the actual assigned GroupId instead of treating the supplied alias as an allocation.
 * `WotRegistryGroupClient.CreateResourceAsync` / `GetOrCreateResourceAsync` call the group's `CreateResource` / `GetOrCreateResource` Methods and return a `WotRegistryResourceClient` plus the server-assigned version id.
 * `WotRegistryResourceClient.UploadNewVersionAsync(ByteString | Stream, …)` uploads a new document version through the inherited `FileType` `Open(Write|EraseExisting)` → `Write` → `Close` primitives (the same `FileTypeClientExtensions` used elsewhere in this package); closing the write handle commits the buffer as a new resource version. `DownloadAsync` reads the active/default version back through the shared xRegistry `ResourceTypeClientExtensions.ReadDocumentAsync` helper — a WoT document resource *is* an xRegistry `ResourceType`, so the shared helper applies directly to the generated proxy — and `DownloadToAsync` streams it into a caller-owned `Stream`. `ValidateAsync`, `SetEnabledAsync`, `SetDefaultVersionAsync` and `DeleteAsync` call the matching document Methods.
 * `WotRegistryClient.RefreshAsync` / `RefreshAllAsync` call the generated `Refresh` Method and return a typed `WotRegistryRefreshResult` (`Summary`, `Results`, `NewGeneration`, `HasFailures`, `EnsureSuccess()`).
@@ -942,12 +1007,14 @@ not by copying the source document. The readable surface tracks the current
 WotRegistryClient registry = await WotRegistryClient.ForServerAsync(
     session, session.MessageContext.Telemetry, ct);
 
-WotRegistryGroupClient group = await registry.CreateThingDescriptionGroupAsync(ct);
-(WotRegistryResourceClient resource, string versionId, bool created) =
-    await group.GetOrCreateResourceAsync("sensor01", ct: ct);
-
-await resource.UploadNewVersionAsync(
-    ByteString.From(File.ReadAllBytes("sensor01.td.json")), ct: ct);
+(WotRegistryGroupClient group, _) = await registry.GetOrCreateDocumentGroupAsync(
+    WoTDocumentKindEnum.ThingDescription, "https://contoso.org/plant/things/", ct);
+WotRegistryResourceAllocation allocation = await group.CreateThingDescriptionResourceAsync(
+    "urn:plant:sensor01", requestFileOpen: true, ct: ct);
+// The document must retain this exact id. The returned handle belongs to this exact Version.
+ByteString document = ByteString.From(await File.ReadAllBytesAsync("sensor01.td.json", ct));
+await allocation.Version.Proxy.WriteAsync(allocation.FileHandle, document, ct);
+await allocation.Version.Proxy.CloseAsync(allocation.FileHandle, ct);
 
 WotRegistryRefreshResult refresh = await registry.RefreshAllAsync(ct: ct);
 refresh.EnsureSuccess();
@@ -981,8 +1048,9 @@ The generated successor surface includes typed provisioning Methods, canonical
 capability snapshots, origin/dependency/plan Structures, event-binding descriptors
 and projection-group declarations. Generated classes and enum members are not
 runtime support discovery: a client must check the applicable server capability
-before using an optional contract. Runtime work for the complete successor
-provisioning, transaction, dependency and event-mode contracts is not yet complete.
+before using an optional contract. Stock typed provisioning is implemented as
+described above; this does not certify the complete successor transaction,
+dependency, event-mode or profile contracts.
 In particular, `All = 2` is a selector-only value, not a document kind: snapshot,
 creation, upload and executable-plan boundaries reject it.
 

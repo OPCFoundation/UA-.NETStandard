@@ -108,6 +108,30 @@ Registration commits Resource and Version structural identity before the create 
 When `RequestFileOpen` is true, a later dirty `Close` is a separate mutation; it updates the Version
 but does not repeat the create operation or its events.
 
+### Source-derived identifier allocation
+
+`XRegistryIdentifier` constructs readable tokens from source identities, never from
+document bytes or content digests. URI authority parsing discards query and fragment
+text even when there is no slash after the authority. Readable path labels are
+percent-decoded, but that lossy operation must never change the registry's exact
+authority key.
+
+A domain registry first reuses its durable exact-authority mapping. For a new
+allocation, the helper compares occupied identifiers case-insensitively. It tries
+the readable token, then SHA-256 suffixes of 8, 16, 32 and 64 lowercase hexadecimal
+digits over the original UTF-8 identity. Each suffix reserves its space within
+the 128-character limit. Full-hash collisions use positive decimal ordinals;
+the default declared bound is 1,024, with explicit failure on exhaustion.
+The overload accepting `ArrayOf<string>` also accepts a readable domain prefix
+and a finite ordinal bound. Candidate construction alone is not a transaction:
+the domain service commits mapping, allocation and structure together.
+
+The shared projection engine supports preparing a preserving exact-Version write
+reservation before a domain's durable structural commit. It uses the same file
+provider and session-handle lifecycle as normal reconciliation, which adopts the
+prepared entry after commit. Providers opt in through
+`IXRegistryProjectedPreservingResourceFile`; no second content store is introduced.
+
 ### File open modes
 
 The handle returned by `CreateResource` / `GetOrCreateResource` is opened with **EraseExisting**

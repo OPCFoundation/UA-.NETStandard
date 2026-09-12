@@ -40,7 +40,7 @@ namespace Opc.Ua.XRegistry.Server
     /// <summary>
     /// Projects immutable xRegistry snapshots into a stable browseable group/resource tree.
     /// </summary>
-    public sealed class XRegistryProjectionEngine : IDisposable
+    public sealed partial class XRegistryProjectionEngine : IDisposable
     {
         /// <summary>
         /// Initializes a new projection engine.
@@ -183,6 +183,10 @@ namespace Opc.Ua.XRegistry.Server
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                foreach (ResourceEntry prepared in m_preparedVersions.Values)
+                {
+                    CaptureFile(prepared);
+                }
                 foreach (GroupEntry group in m_groups.Values)
                 {
                     foreach (ResourceEntry resource in group.Resources.Values)
@@ -400,6 +404,11 @@ namespace Opc.Ua.XRegistry.Server
                 return;
             }
             m_disposed = true;
+            foreach (ResourceEntry prepared in m_preparedVersions.Values)
+            {
+                prepared.File?.Dispose();
+            }
+            m_preparedVersions.Clear();
             foreach (GroupEntry group in m_groups.Values)
             {
                 foreach (ResourceEntry resource in group.Resources.Values)
@@ -732,6 +741,7 @@ namespace Opc.Ua.XRegistry.Server
 
         private void ApplyGroupProperties(GroupState node, IXRegistryProjectionGroup group)
         {
+            node.DisplayName = new LocalizedText(group.Name);
             SetValue(node.GroupId, group.GroupId);
             SetValue(node.Xid, group.Xid);
             SetValue(node.Epoch, (uint)group.Epoch);
@@ -1029,8 +1039,6 @@ namespace Opc.Ua.XRegistry.Server
             node.AddVersions(m_context.SystemContext);
             ResourceVersionsState versionsFolder = node.Versions!;
             versionsFolder.NodeId = VersionsFolderNodeId(groupId, resourceId);
-            versionsFolder.BrowseName = new QualifiedName(
-                "Versions", m_context.ModelNamespaceIndex);
             versionsFolder.ReferenceTypeId = ReferenceTypeIds.HasComponent;
 
             var logical = new LogicalResourceEntry(node, versionsFolder, groupId, resourceId);
@@ -1251,7 +1259,7 @@ namespace Opc.Ua.XRegistry.Server
         {
             return context is SessionSystemContext
             {
-                OperationContext: Opc.Ua.Server.OperationContext { Session.IsClosing: true }
+                OperationContext: Ua.Server.OperationContext { Session.IsClosing: true }
             };
         }
 
@@ -1300,11 +1308,37 @@ namespace Opc.Ua.XRegistry.Server
             string resourceId = version.ResourceId;
             string versionId = version.VersionId;
 
-            // The strategy uses the group node to determine the domain type (TD/TM).
-            // We find the group entry via m_groups, then pass its GroupState.
             GroupState groupNode = m_groups.TryGetValue(groupId, out GroupEntry? ge)
                 ? ge.Node
                 : logical.LogicalNode.Parent as GroupState ?? new GroupState(null);
+            NodeId versionNodeId = VersionNodeId(groupId, resourceId, versionId);
+            ResourceEntry entry = m_preparedVersions.Remove(versionNodeId, out ResourceEntry? prepared)
+                ? prepared
+                : CreateVersionEntry(groupNode, version, eventSnapshot);
+            ResourceState node = entry.Node;
+            ApplyVersionProperties(entry, version, eventSnapshot);
+            m_strategy.ConfigureResourceNode(node, version);
+
+            logical.VersionsFolder.AddChild(node);
+            logical.LogicalNode.AddReference(ReferenceTypeIds.HasNotifier, false, versionNodeId);
+            node.AddReference(ReferenceTypeIds.HasNotifier, true, logical.LogicalNode.NodeId);
+
+            await m_context.AddNodeAsync(node, ct).ConfigureAwait(false);
+            m_resourcesByXid[version.Xid] = node;
+            await SyncLabelPropertiesAsync(
+                node.Labels!, VersionNodeIdPath(groupId, resourceId, versionId), version.Labels, ct)
+                .ConfigureAwait(false);
+            return entry;
+        }
+
+        private ResourceEntry CreateVersionEntry(
+            GroupState groupNode,
+            IXRegistryProjectionResource version,
+            XRegistryProjectionEventSnapshot? eventSnapshot)
+        {
+            string groupId = version.GroupId;
+            string resourceId = version.ResourceId;
+            string versionId = version.VersionId;
             ResourceState node = m_strategy.CreateResourceNode(groupNode, version);
             NodeId versionNodeId = VersionNodeId(groupId, resourceId, versionId);
             node.ReferenceTypeId = ReferenceTypeIds.Organizes;
@@ -1345,20 +1379,6 @@ namespace Opc.Ua.XRegistry.Server
             m_context.SystemContext.AssignInstanceChildNodeIds(node);
             LinkMethodArguments(node, m_context.SystemContext);
 
-            // Wire into the Versions folder and notifier chain.
-            logical.VersionsFolder.AddChild(node);
-            logical.LogicalNode.AddReference(
-                ReferenceTypeIds.HasNotifier, false, versionNodeId);
-            node.AddReference(
-                ReferenceTypeIds.HasNotifier, true, logical.LogicalNode.NodeId);
-
-            await m_context.AddNodeAsync(node, ct).ConfigureAwait(false);
-            m_resourcesByXid[version.Xid] = node;
-            await SyncLabelPropertiesAsync(
-                node.Labels!,
-                VersionNodeIdPath(groupId, resourceId, versionId),
-                version.Labels,
-                ct).ConfigureAwait(false);
             return entry;
         }
 
@@ -1368,6 +1388,7 @@ namespace Opc.Ua.XRegistry.Server
             XRegistryProjectionEventSnapshot? eventSnapshot)
         {
             ResourceState node = logical.LogicalNode;
+            node.DisplayName = new LocalizedText(defaultVersion.Name);
             SetValue(node.ResourceId, defaultVersion.ResourceId);
             node.BrowseName = new QualifiedName(
                 defaultVersion.ResourceId,
@@ -1420,6 +1441,7 @@ namespace Opc.Ua.XRegistry.Server
             IXRegistryProjectionResource version,
             XRegistryProjectionEventSnapshot? eventSnapshot)
         {
+            entry.Node.DisplayName = new LocalizedText(version.Name);
             SetValue(entry.Node.ResourceId, version.ResourceId);
             entry.Node.BrowseName = new QualifiedName(
                 version.VersionId,

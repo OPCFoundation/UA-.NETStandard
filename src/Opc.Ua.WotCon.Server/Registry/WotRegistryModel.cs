@@ -512,9 +512,14 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string Description { get; }
 
         /// <summary>
-        /// Gets the WoT Thing id parsed from the default document (TD only).
+        /// Gets the established exact source identity (ThingId or ModelId).
         /// </summary>
         public string? ThingId { get; }
+
+        /// <summary>
+        /// Gets the immutable source identity, independently of the selected Version.
+        /// </summary>
+        public string? SourceId => ThingId;
 
         /// <summary>
         /// Gets the WoT title parsed from the default document.
@@ -581,6 +586,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Creates a copy of this resource with selected fields replaced.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public WotResource With(
             ImmutableArray<WotResourceVersion>? versions = null,
             string? defaultVersionId = null,
@@ -604,6 +610,12 @@ namespace Opc.Ua.WotCon.Server.Registry
             bool clearValidation = false,
             bool clearRootNodeId = false)
         {
+            if (ThingId is not null &&
+                thingId is not null &&
+                !string.Equals(ThingId, thingId, StringComparison.Ordinal))
+            {
+                throw new ArgumentException("A Resource's source identity is immutable.", nameof(thingId));
+            }
             return new WotResource(
                 GroupId,
                 ResourceId,
@@ -689,7 +701,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 RootNodeId,
                 Name,
                 Description,
-                documentId,
+                ThingId ?? documentId,
                 title,
                 Labels)
             {
@@ -721,12 +733,14 @@ namespace Opc.Ua.WotCon.Server.Registry
             string? name = null,
             string? description = null,
             long epoch = 0,
-            ImmutableSortedDictionary<string, string>? labels = null)
+            ImmutableSortedDictionary<string, string>? labels = null,
+            string? catalogUri = null)
         {
             GroupId = groupId ?? throw new ArgumentNullException(nameof(groupId));
             Kind = WotDocumentKinds.RequireDocument(kind, nameof(kind));
             Resources = resources ?? ImmutableDictionary<string, WotResource>.Empty;
-            Name = name ?? groupId;
+            CatalogUri = catalogUri;
+            Name = catalogUri ?? name ?? groupId;
             Description = description ?? string.Empty;
             Epoch = epoch;
             Labels = labels ?? WotLabels.Empty;
@@ -746,6 +760,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets the document kind shared by all resources in this group.
         /// </summary>
         public WoTDocumentKindEnum Kind { get; }
+
+        /// <summary>
+        /// Gets the exact catalogue authority, or null for an explicitly unbound legacy group.
+        /// </summary>
+        public string? CatalogUri { get; }
 
         /// <summary>
         /// Gets the resources keyed by resourceid.
@@ -781,7 +800,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             ImmutableDictionary<string, WotResource> resources,
             long epoch)
         {
-            return new WotResourceGroup(GroupId, Kind, resources, Name, Description, epoch, Labels);
+            return new WotResourceGroup(GroupId, Kind, resources, Name, Description, epoch, Labels, CatalogUri);
         }
 
         /// <summary>
@@ -791,7 +810,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             ImmutableSortedDictionary<string, string> labels,
             long epoch)
         {
-            return new WotResourceGroup(GroupId, Kind, Resources, Name, Description, epoch, labels);
+            return new WotResourceGroup(GroupId, Kind, Resources, Name, Description, epoch, labels, CatalogUri);
         }
     }
 

@@ -86,6 +86,14 @@ namespace Opc.Ua.WotCon.Tests
 
             var options = new WotRegistryServerOptions
             {
+                IdentityBindings = Registry.WotRegistryTestAuthorities.ForResources(
+                    "dup-res", "new-res", "recover-pending", "multi", "reader-alias", "pinned-read",
+                    "session-discard", "session-readers", "late-open", "unscoped-pin", "late-create",
+                    "cancel-discard", "delete-logical", "delete-version", "collision-delete", "delete-switched",
+                    "existing-res", "td-01", "retry-placeholder", "atomic-retry", "bulk-version",
+                    "version-titles", "model-titles", "replace", "retained-client", "collision", "validate-version",
+                    "bad-doc", "dep-td", "session-create", "race-0", "race-1", "race-2", "race-3", "race-4",
+                    "race-5", "race-6", "race-7", "race-8", "race-9", "race-10", "race-11"),
                 AutoRefresh = false,
                 ManagementAccess = new WotManagementAccessPolicy
                 {
@@ -95,7 +103,7 @@ namespace Opc.Ua.WotCon.Tests
                 }
             };
 
-            m_registry = new WotRegistryService();
+            m_registry = new WotRegistryService(null, options.Bounds, options.IdentityBindings);
             m_converter = new FakeWotDocumentConverter();
             m_projectionHost = new PausableProjectionHost(
                 new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle));
@@ -104,7 +112,7 @@ namespace Opc.Ua.WotCon.Tests
                 m_projectionHost,
                 documentConverter: m_converter);
             var factory = new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator);
-            Opc.Ua.Server.NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+            Ua.Server.NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
                 .AddAsync(factory, callerContext: null)
                 .ConfigureAwait(false);
             m_nodeManager = (WotRegistryNodeManager)registration.NodeManager;
@@ -250,7 +258,7 @@ namespace Opc.Ua.WotCon.Tests
             await reusedCreate.UploadNewVersionAsync(
                     ByteString.From(TestMaterialization.Td("urn:recover-pending")))
                 .ConfigureAwait(false);
-            WotResource stored = m_registry.Current.FindResource(
+            WotResource stored = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "recover-pending")!;
 
@@ -292,14 +300,14 @@ namespace Opc.Ua.WotCon.Tests
                         ? v1NodeId
                         : string.Empty,
                     Is.EqualTo(
-                        "WoTRegistry/groups/thingdescriptions/resources/multi/versions/v1"));
+                        $"WoTRegistry/groups/{group.GroupId}/resources/{v1.ResourceId}/versions/v1"));
                 Assert.That(
                     v2.ResourceNodeId.TryGetValue(out string v2NodeId)
                         ? v2NodeId
                         : string.Empty,
                     Is.EqualTo(
-                        "WoTRegistry/groups/thingdescriptions/resources/multi/versions/v2"));
-                WotResource stored = m_registry.Current.FindResource(
+                        $"WoTRegistry/groups/{group.GroupId}/resources/{v2.ResourceId}/versions/v2"));
+                WotResource stored = FindResource(
                     WotRegistryGroups.ThingDescriptions,
                     "multi")!;
                 Assert.That(stored.Versions.Select(version => version.VersionId),
@@ -363,7 +371,8 @@ namespace Opc.Ua.WotCon.Tests
                 .ConfigureAwait(false);
             byte[] document = TestMaterialization.Td("urn:reader-alias", "original");
             await version.Proxy.UploadAsync(ByteString.From(document)).ConfigureAwait(false);
-            WotRegistryResourceClient logical = await group.OpenResourceAsync("reader-alias").ConfigureAwait(false);
+            WotRegistryResourceClient logical = await group.OpenResourceAsync(AssignedResourceId("reader-alias"))
+                .ConfigureAwait(false);
             uint reader = await logical.Proxy.OpenAsync(1).ConfigureAwait(false);
             try
             {
@@ -398,7 +407,8 @@ namespace Opc.Ua.WotCon.Tests
             byte[] secondDocument = TestMaterialization.Td("urn:pinned-read", "second");
             await secondVersion.Proxy.UploadAsync(ByteString.From(secondDocument)).ConfigureAwait(false);
             await firstVersion.SetDefaultVersionAsync("v1", expectedEpoch: 0).ConfigureAwait(false);
-            WotRegistryResourceClient logical = await group.OpenResourceAsync("pinned-read").ConfigureAwait(false);
+            WotRegistryResourceClient logical = await group.OpenResourceAsync(AssignedResourceId("pinned-read"))
+                .ConfigureAwait(false);
             await WaitForPublishedDefaultAsync(logical, "v1").ConfigureAwait(false);
             uint first = await logical.Proxy.OpenAsync(1).ConfigureAwait(false);
             uint second = 0;
@@ -438,7 +448,7 @@ namespace Opc.Ua.WotCon.Tests
             byte[] original = TestMaterialization.Td("urn:session-discard", "original");
             await version.Proxy.UploadAsync(ByteString.From(original)).ConfigureAwait(false);
             WotRegistryResourceClient writer = logical
-                ? await group.OpenResourceAsync("session-discard").ConfigureAwait(false)
+                ? await group.OpenResourceAsync(AssignedResourceId("session-discard")).ConfigureAwait(false)
                 : version;
             uint handle = await writer.Proxy.OpenAsync(6).ConfigureAwait(false);
             await writer.Proxy.WriteAsync(
@@ -456,15 +466,14 @@ namespace Opc.Ua.WotCon.Tests
                     .ConfigureAwait(false);
                 (WotRegistryGroupClient otherGroup, _) = await otherClient.GetOrCreateThingDescriptionGroupAsync()
                     .ConfigureAwait(false);
-                WotRegistryResourceClient survivor = await otherGroup.OpenResourceAsync("session-discard")
+                WotRegistryResourceClient survivor = await otherGroup
+                    .OpenResourceAsync(AssignedResourceId("session-discard"))
                     .ConfigureAwait(false);
 
                 await m_session.CloseAsync().ConfigureAwait(false);
                 byte[]? downloaded = null;
-                Assert.That(async () =>
-                {
-                    downloaded = await survivor.Proxy.DownloadAllAsync().ConfigureAwait(false);
-                }, Throws.Nothing);
+                Assert.That(async () => downloaded = await survivor.Proxy.DownloadAllAsync()
+                    .ConfigureAwait(false), Throws.Nothing);
                 Assert.That(downloaded, Is.EqualTo(original));
                 if (logical)
                 {
@@ -492,7 +501,8 @@ namespace Opc.Ua.WotCon.Tests
                 .ConfigureAwait(false);
             byte[] secondDocument = TestMaterialization.Td("urn:session-readers", "second");
             await secondVersion.Proxy.UploadAsync(ByteString.From(secondDocument)).ConfigureAwait(false);
-            WotRegistryResourceClient logical = await group.OpenResourceAsync("session-readers").ConfigureAwait(false);
+            WotRegistryResourceClient logical = await group.OpenResourceAsync(AssignedResourceId("session-readers"))
+                .ConfigureAwait(false);
             await firstVersion.SetDefaultVersionAsync("v1", expectedEpoch: 0).ConfigureAwait(false);
             await WaitForPublishedDefaultAsync(logical, "v1").ConfigureAwait(false);
             uint firstPin = await logical.Proxy.OpenAsync(1).ConfigureAwait(false);
@@ -565,7 +575,7 @@ namespace Opc.Ua.WotCon.Tests
             await version.Proxy.UploadAsync(ByteString.From(TestMaterialization.Td("urn:late-open")))
                 .ConfigureAwait(false);
             WotRegistryResourceClient resource = logical
-                ? await group.OpenResourceAsync("late-open").ConfigureAwait(false)
+                ? await group.OpenResourceAsync(AssignedResourceId("late-open")).ConfigureAwait(false)
                 : version;
             FileState file = m_nodeManager.FindPredefinedNode<FileState>(resource.ResourceNodeId)!;
             OpenMethodStateMethodCallHandler original = file.Open!.OnCall!;
@@ -624,7 +634,8 @@ namespace Opc.Ua.WotCon.Tests
                 .ConfigureAwait(false);
             await version.Proxy.UploadAsync(ByteString.From(TestMaterialization.Td("urn:unscoped-pin")))
                 .ConfigureAwait(false);
-            WotRegistryResourceClient logical = await group.OpenResourceAsync("unscoped-pin").ConfigureAwait(false);
+            WotRegistryResourceClient logical = await group.OpenResourceAsync(AssignedResourceId("unscoped-pin"))
+                .ConfigureAwait(false);
             uint handle = await logical.Proxy.OpenAsync(6).ConfigureAwait(false);
             FileState file = m_nodeManager.FindPredefinedNode<FileState>(logical.ResourceNodeId)!;
 
@@ -712,7 +723,8 @@ namespace Opc.Ua.WotCon.Tests
                 .ConfigureAwait(false);
             byte[] original = TestMaterialization.Td("urn:cancel-discard", "original");
             await version.Proxy.UploadAsync(ByteString.From(original)).ConfigureAwait(false);
-            WotRegistryResourceClient logical = await group.OpenResourceAsync("cancel-discard").ConfigureAwait(false);
+            WotRegistryResourceClient logical = await group.OpenResourceAsync(AssignedResourceId("cancel-discard"))
+                .ConfigureAwait(false);
             uint handle = await logical.Proxy.OpenAsync(6).ConfigureAwait(false);
             await logical.Proxy.WriteAsync(
                 handle, ByteString.From(TestMaterialization.Td("urn:cancel-discard", "uncommitted")))
@@ -720,11 +732,9 @@ namespace Opc.Ua.WotCon.Tests
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 
-            await Assert.ThatAsync(async () =>
-            {
-                await m_nodeManager.SessionClosingAsync(
-                    null!, m_session.SessionId, deleteSubscriptions: true, cancellation.Token).ConfigureAwait(false);
-            }, Throws.Nothing).ConfigureAwait(false);
+            await Assert.ThatAsync(async () => await m_nodeManager.SessionClosingAsync(
+                    null!, m_session.SessionId, deleteSubscriptions: true, cancellation.Token)
+                        .ConfigureAwait(false), Throws.Nothing).ConfigureAwait(false);
             byte[] downloaded = await logical.Proxy.DownloadAllAsync().ConfigureAwait(false);
 
             Assert.That(downloaded, Is.EqualTo(original));
@@ -743,16 +753,16 @@ namespace Opc.Ua.WotCon.Tests
             _ = await CreateCommittedVersionsAsync(group, "delete-logical")
                 .ConfigureAwait(false);
             WotRegistryResourceClient logical = await group
-                .OpenResourceAsync("delete-logical")
+                .OpenResourceAsync(AssignedResourceId("delete-logical"))
                 .ConfigureAwait(false);
-            WotResource before = m_registry.Current.FindResource(
+            WotResource before = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "delete-logical")!;
 
             await logical.DeleteAsync(checked((uint)before.MetaEpoch)).ConfigureAwait(false);
 
             Assert.That(
-                m_registry.Current.FindResource(
+                FindResource(
                     WotRegistryGroups.ThingDescriptions,
                     "delete-logical"),
                 Is.Null);
@@ -769,7 +779,7 @@ namespace Opc.Ua.WotCon.Tests
                     group,
                     "delete-version")
                 .ConfigureAwait(false);
-            WotResource before = m_registry.Current.FindResource(
+            WotResource before = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "delete-version")!;
 
@@ -777,7 +787,7 @@ namespace Opc.Ua.WotCon.Tests
                     checked((uint)before.FindVersion("v2")!.Epoch))
                 .ConfigureAwait(false);
 
-            WotResource stored = m_registry.Current.FindResource(
+            WotResource stored = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "delete-version")!;
             Assert.Multiple(() =>
@@ -792,6 +802,7 @@ namespace Opc.Ua.WotCon.Tests
         public async Task DeletingVersionWhoseIdMatchesResourceIdUsesExactVersionRole()
         {
             const string ResourceId = "collision-delete";
+            const string VersionId = "urn.collision-delete";
             WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
             WotRegistryGroupClient group = await client
                 .CreateThingDescriptionGroupAsync()
@@ -800,35 +811,36 @@ namespace Opc.Ua.WotCon.Tests
                 await CreateCommittedVersionsAsync(
                     group,
                     ResourceId,
-                    secondVersionId: ResourceId)
+                    secondVersionId: VersionId)
                 .ConfigureAwait(false);
-            WotResource before = m_registry.Current.FindResource(
+            Assert.That(exactVersion.ResourceId, Is.EqualTo(VersionId));
+            WotResource before = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 ResourceId)!;
 
             await exactVersion.DeleteAsync(
-                    checked((uint)before.FindVersion(ResourceId)!.Epoch))
+                    checked((uint)before.FindVersion(VersionId)!.Epoch))
                 .ConfigureAwait(false);
 
-            WotResource afterVersionDelete = m_registry.Current.FindResource(
+            WotResource afterVersionDelete = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 ResourceId)!;
             Assert.Multiple(() =>
             {
                 Assert.That(afterVersionDelete.DefaultVersionId, Is.EqualTo("v1"));
-                Assert.That(afterVersionDelete.FindVersion(ResourceId), Is.Null);
+                Assert.That(afterVersionDelete.FindVersion(VersionId), Is.Null);
                 Assert.That(afterVersionDelete.FindVersion("v1"), Is.Not.Null);
             });
 
             // Use the logical resource node (not a version node) for resource-level delete.
             WotRegistryResourceClient logical = await group
-                .OpenResourceAsync(ResourceId)
+                .OpenResourceAsync(AssignedResourceId(ResourceId))
                 .ConfigureAwait(false);
             await logical.DeleteAsync(checked((uint)afterVersionDelete.MetaEpoch))
                 .ConfigureAwait(false);
 
             Assert.That(
-                m_registry.Current.FindResource(
+                FindResource(
                     WotRegistryGroups.ThingDescriptions,
                     ResourceId),
                 Is.Null);
@@ -846,7 +858,7 @@ namespace Opc.Ua.WotCon.Tests
                     group,
                     "delete-switched")
                 .ConfigureAwait(false);
-            WotResource beforeSwitch = m_registry.Current.FindResource(
+            WotResource beforeSwitch = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "delete-switched")!;
 
@@ -855,11 +867,11 @@ namespace Opc.Ua.WotCon.Tests
                     checked((uint)beforeSwitch.MetaEpoch))
                 .ConfigureAwait(false);
 
-            WotResource afterSwitch = m_registry.Current.FindResource(
+            WotResource afterSwitch = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "delete-switched")!;
             WotRegistryResourceClient logical = await group
-                .OpenResourceAsync("delete-switched")
+                .OpenResourceAsync(AssignedResourceId("delete-switched"))
                 .ConfigureAwait(false);
             // In the new hierarchy, the logical resource has a stable NodeId
             // that does not change with SetDefaultVersion.
@@ -868,7 +880,7 @@ namespace Opc.Ua.WotCon.Tests
             await v1.DeleteAsync(
                     checked((uint)afterSwitch.FindVersion("v1")!.Epoch))
                 .ConfigureAwait(false);
-            WotResource afterOldDefaultDelete = m_registry.Current.FindResource(
+            WotResource afterOldDefaultDelete = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "delete-switched")!;
             Assert.Multiple(() =>
@@ -883,7 +895,7 @@ namespace Opc.Ua.WotCon.Tests
                 .ConfigureAwait(false);
 
             Assert.That(
-                m_registry.Current.FindResource(
+                FindResource(
                     WotRegistryGroups.ThingDescriptions,
                     "delete-switched"),
                 Is.Null);
@@ -915,9 +927,9 @@ namespace Opc.Ua.WotCon.Tests
         {
             WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
 
-            (_, bool firstCreated) = await client.GetOrCreateGroupAsync("My Group")
+            (_, bool firstCreated) = await client.GetOrCreateGroupAsync("MyGroup")
                 .ConfigureAwait(false);
-            (_, bool secondCreated) = await client.GetOrCreateGroupAsync("My Group")
+            (_, bool secondCreated) = await client.GetOrCreateGroupAsync("MyGroup")
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -935,14 +947,13 @@ namespace Opc.Ua.WotCon.Tests
                 .CreateThingDescriptionGroupAsync()
                 .ConfigureAwait(false);
 
-            Task[] tasks = Enumerable.Range(0, 12)
+            Task[] tasks = [.. Enumerable.Range(0, 12)
                 .Select(i => group.Proxy
                     .GetOrCreateResourceAsync(
                         "race-" + i.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         string.Empty,
                         requestFileOpen: true)
-                    .AsTask())
-                .ToArray();
+                    .AsTask())];
 
             Assert.That(
                 async () => await Task.WhenAll(tasks).ConfigureAwait(false),
@@ -972,7 +983,7 @@ namespace Opc.Ua.WotCon.Tests
             WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
             (_, WotRegistryResourceClient resource) = await CreateGroupAndResourceAsync(client)
                 .ConfigureAwait(false);
-            WotResource before = m_registry.Current.FindResource(
+            WotResource before = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "td-01")!;
             string defaultVersionId = before.DefaultVersionId!;
@@ -980,7 +991,7 @@ namespace Opc.Ua.WotCon.Tests
             byte[] second = Encoding.UTF8.GetBytes(MakeThingDescriptionStringV2("td-01"));
             await resource.UploadNewVersionAsync(ByteString.From(second)).ConfigureAwait(false);
 
-            WotResource after = m_registry.Current.FindResource(
+            WotResource after = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "td-01")!;
             WotResourceVersion newVersion = after.Versions.Single(
@@ -1015,7 +1026,7 @@ namespace Opc.Ua.WotCon.Tests
             await retry.UploadNewVersionAsync(
                     ByteString.From(MakeThingDescriptionBytes("retry-placeholder")))
                 .ConfigureAwait(false);
-            WotResource stored = m_registry.Current.FindResource(
+            WotResource stored = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "retry-placeholder")!;
 
@@ -1053,7 +1064,7 @@ namespace Opc.Ua.WotCon.Tests
                 .UploadNewVersionAndGetResultAsync(ByteString.From(contentA))
                 .ConfigureAwait(false);
 
-            WotResource stored = m_registry.Current.FindResource(
+            WotResource stored = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "atomic-retry")!;
             WotResourceVersion placeholder = stored.FindVersion(placeholderId)!;
@@ -1064,8 +1075,8 @@ namespace Opc.Ua.WotCon.Tests
                 .ConfigureAwait(false);
             ushort ns = m_session.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
             var expectedAllocatedNodeId = new NodeId(
-                $"WoTRegistry/groups/{WotRegistryGroups.ThingDescriptions}/resources/" +
-                $"atomic-retry/versions/{uploadA.VersionId}",
+                $"WoTRegistry/groups/{group.GroupId}/resources/" +
+                $"{clientA.ResourceId}/versions/{uploadA.VersionId}",
                 ns);
 
             Assert.Multiple(() =>
@@ -1111,15 +1122,15 @@ namespace Opc.Ua.WotCon.Tests
                             MakeThingDescriptionStringV2("bulk-version"))))
                 }.ToArrayOf(),
                 refresh: false).ConfigureAwait(false);
-            WotResource stored = m_registry.Current.FindResource(
+            WotResource stored = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "bulk-version")!;
             WotResourceVersion uploaded = stored.Versions.Single(version =>
                 !string.Equals(version.VersionId, v1Id, StringComparison.Ordinal));
             ushort ns = m_session.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
             var expectedNodeId = new NodeId(
-                $"WoTRegistry/groups/{WotRegistryGroups.ThingDescriptions}/resources/" +
-                $"bulk-version/versions/{uploaded.VersionId}",
+                $"WoTRegistry/groups/{group.GroupId}/resources/" +
+                $"{stored.ResourceId}/versions/{uploaded.VersionId}",
                 ns);
 
             Assert.Multiple(() =>
@@ -1178,7 +1189,7 @@ namespace Opc.Ua.WotCon.Tests
                     v2.ResourceNodeId,
                     BrowseNames.BaseUri)
                 .ConfigureAwait(false);
-            WotResource stored = m_registry.Current.FindResource(
+            WotResource stored = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "version-titles")!;
 
@@ -1245,7 +1256,7 @@ namespace Opc.Ua.WotCon.Tests
                 Assert.That(v1ModelVersion, Is.EqualTo("1.0.0"));
                 Assert.That(v2ModelVersion, Is.EqualTo("2.0.0"));
                 Assert.That(
-                    m_registry.Current.FindResource(
+                    FindResource(
                         WotRegistryGroups.ThingModels,
                         "model-titles")!.Title,
                     Is.EqualTo("urn:model-titles-second"));
@@ -1275,7 +1286,7 @@ namespace Opc.Ua.WotCon.Tests
             byte[] replacement = TestMaterialization.Td("urn:replace", "v2-replaced");
             await v2.Proxy.UploadAsync(ByteString.From(replacement)).ConfigureAwait(false);
 
-            WotResource stored = m_registry.Current.FindResource(
+            WotResource stored = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "replace")!;
             ByteString storedV1 = await m_registry.ReadContentAsync(
@@ -1316,7 +1327,7 @@ namespace Opc.Ua.WotCon.Tests
             WotRegistryUploadResult uploaded = await second
                 .UploadNewVersionAndGetResultAsync(ByteString.From(thirdContent))
                 .ConfigureAwait(false);
-            WotResource stored = m_registry.Current.FindResource(
+            WotResource stored = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "retained-client")!;
             ByteString storedContent = await m_registry
@@ -1341,8 +1352,9 @@ namespace Opc.Ua.WotCon.Tests
                 .CreateThingDescriptionGroupAsync()
                 .ConfigureAwait(false);
             (WotRegistryResourceClient collidingVersion, _) = await group
-                .CreateResourceAsync("collision", "collision")
+                .CreateResourceAsync("collision", "urn.collision")
                 .ConfigureAwait(false);
+            Assert.That(collidingVersion.ResourceId, Is.EqualTo(collidingVersion.VersionId));
             await collidingVersion.Proxy.UploadAsync(
                 ByteString.From(TestMaterialization.Td("urn:collision", "old")))
                 .ConfigureAwait(false);
@@ -1356,7 +1368,7 @@ namespace Opc.Ua.WotCon.Tests
                 .ConfigureAwait(false);
 
             WotRegistryResourceClient opened = await group
-                .OpenResourceAsync("collision")
+                .OpenResourceAsync(AssignedResourceId("collision"))
                 .ConfigureAwait(false);
 
             // In the new hierarchy, OpenResource returns the stable logical
@@ -1403,23 +1415,24 @@ namespace Opc.Ua.WotCon.Tests
             (WotRegistryResourceClient v2, _) = await group
                 .CreateResourceAsync("validate-version", "v2")
                 .ConfigureAwait(false);
-            await v2.Proxy.UploadAsync(ByteString.From(TestMaterialization.InvalidJson()))
+            await v2.Proxy.UploadAsync(
+                ByteString.From(Encoding.UTF8.GetBytes(MakeThingDescriptionStringV2("validate-version"))))
                 .ConfigureAwait(false);
             await v2.SetDefaultVersionAsync("v1", expectedEpoch: 0).ConfigureAwait(false);
 
             WoTValidationOutcomeDataType outcome = await v2.ValidateAsync().ConfigureAwait(false);
-            WotResource stored = m_registry.Current.FindResource(
+            WotResource stored = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "validate-version")!;
 
             Assert.Multiple(() =>
             {
-                Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+                Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
                 Assert.That(stored.DefaultVersionId, Is.EqualTo("v1"));
                 Assert.That(stored.FindVersion("v1")!.Validation, Is.Null);
                 Assert.That(
                     stored.FindVersion("v2")!.Validation!.FormatOutcome,
-                    Is.EqualTo(WoTOutcomeEnum.Failed));
+                    Is.EqualTo(WoTOutcomeEnum.Success));
             });
         }
 
@@ -1496,7 +1509,7 @@ namespace Opc.Ua.WotCon.Tests
             }
 
             Assert.That(ex, Is.Null, "A valid label add must succeed without exception.");
-            WotResource? stored = m_registry.Current.FindResource(
+            WotResource? stored = FindResource(
                 WotRegistryGroups.ThingDescriptions, "td-01");
             Assert.That(stored, Is.Not.Null);
             WotResourceVersion version = stored!.DefaultVersion!;
@@ -1509,14 +1522,13 @@ namespace Opc.Ua.WotCon.Tests
         {
             WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
             WotRegistryGroupClient group;
-            WotRegistryResourceClient resource;
-            (group, resource) = await CreateGroupAndResourceAsync(client)
+            (group, _) = await CreateGroupAndResourceAsync(client)
                 .ConfigureAwait(false);
 
             // MetaLabels lives on the logical Resource node, not the Version
             // node returned by CreateResource. Open the logical resource.
             WotRegistryResourceClient logical = await group
-                .OpenResourceAsync("td-01")
+                .OpenResourceAsync(AssignedResourceId("td-01"))
                 .ConfigureAwait(false);
 
             NodeId labelsNodeId = await BrowseForChildNodeIdAsync(
@@ -1534,7 +1546,7 @@ namespace Opc.Ua.WotCon.Tests
                 new Variant("plant-1"),
                 new Variant(0u)).ConfigureAwait(false);
 
-            WotResource stored = m_registry.Current.FindResource(
+            WotResource stored = FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "td-01")!;
             Assert.That(stored.MetaLabels["owner"], Is.EqualTo("plant-1"));
@@ -1665,7 +1677,7 @@ namespace Opc.Ua.WotCon.Tests
             try
             {
                 _ = await client
-                    .OpenGroupAsync(WotRegistryClient.ThingDescriptionsGroupId)
+                    .OpenGroupAsync(group.GroupId)
                     .ConfigureAwait(false);
             }
             catch (ServiceResultException sre)
@@ -1796,7 +1808,7 @@ namespace Opc.Ua.WotCon.Tests
             WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
             _ = await CreateGroupAndResourceAsync(client, resourceId: "bad-doc")
                 .ConfigureAwait(false);
-            m_converter.MarkInvalid("bad-doc");
+            m_converter.MarkInvalid(AssignedResourceId("bad-doc"));
 
             var observed = new HashSet<WotMaterializationEventKind>();
             m_coordinator.Event += (_, e) =>
@@ -1932,6 +1944,17 @@ namespace Opc.Ua.WotCon.Tests
             return WotRegistryClient.ForServerAsync(m_session, m_telemetry);
         }
 
+        private WotResource? FindResource(string groupId, string resourceAlias)
+        {
+            return Registry.WotRegistryTestAuthorities.FindResource(m_registry.Current, groupId, resourceAlias);
+        }
+
+        private string AssignedResourceId(string resourceAlias)
+        {
+            return FindResource(WotRegistryGroups.ThingDescriptions, resourceAlias)?.ResourceId ??
+                throw new InvalidOperationException("The fixture resource authority has not been provisioned.");
+        }
+
         private static async ValueTask<(
             WotRegistryResourceClient V1,
             WotRegistryResourceClient V2)> CreateCommittedVersionsAsync(
@@ -1984,8 +2007,14 @@ namespace Opc.Ua.WotCon.Tests
             string padding = new('x', 300);
             return
                 "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "\"@type\":\"uav:object\",\"id\":\"urn:" + id + "\",\"title\":\"" + id + "\"," +
-                "\"description\":\"" + padding + "\"}";
+                "\"@type\":\"uav:object\",\"id\":\"urn:" +
+                id +
+                "\",\"title\":\"" +
+                id +
+                "\"," +
+                "\"description\":\"" +
+                padding +
+                "\"}";
         }
 
         private static string MakeThingDescriptionStringV2(string id)
@@ -1993,8 +2022,14 @@ namespace Opc.Ua.WotCon.Tests
             string padding = new('y', 300);
             return
                 "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "\"@type\":\"uav:object\",\"id\":\"urn:" + id + "\",\"title\":\"" + id + "-v2\"," +
-                "\"description\":\"" + padding + "\"}";
+                "\"@type\":\"uav:object\",\"id\":\"urn:" +
+                id +
+                "\",\"title\":\"" +
+                id +
+                "-v2\"," +
+                "\"description\":\"" +
+                padding +
+                "\"}";
         }
 
         private static byte[] ThingDescriptionWithMetadata(
@@ -2004,8 +2039,14 @@ namespace Opc.Ua.WotCon.Tests
         {
             return Encoding.UTF8.GetBytes(
                 "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "\"@type\":\"uav:object\",\"id\":\"" + id + "\"," +
-                "\"title\":\"" + title + "\",\"base\":\"" + baseUri + "\"}");
+                "\"@type\":\"uav:object\",\"id\":\"" +
+                id +
+                "\"," +
+                "\"title\":\"" +
+                title +
+                "\",\"base\":\"" +
+                baseUri +
+                "\"}");
         }
 
         private static byte[] ThingModelWithMetadata(
@@ -2015,9 +2056,14 @@ namespace Opc.Ua.WotCon.Tests
         {
             return Encoding.UTF8.GetBytes(
                 "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "\"@type\":\"tm:ThingModel\",\"id\":\"" + id + "\"," +
-                "\"title\":\"" + title + "\",\"version\":{\"model\":\"" +
-                modelVersion + "\"}}");
+                "\"@type\":\"tm:ThingModel\",\"id\":\"" +
+                id +
+                "\"," +
+                "\"title\":\"" +
+                title +
+                "\",\"version\":{\"model\":\"" +
+                modelVersion +
+                "\"}}");
         }
 
         /// <summary>
@@ -2126,7 +2172,7 @@ namespace Opc.Ua.WotCon.Tests
                     StatusCodes.BadNoMatch,
                     $"Child '{name}' was not found below '{parent}'.");
             }
-            NodeId nodeId = ExpandedNodeId.ToNodeId(
+            var nodeId = ExpandedNodeId.ToNodeId(
                 response.Results[0].Targets[0].TargetId,
                 m_session.NamespaceUris);
             DataValue value = await m_session.ReadValueAsync(nodeId).ConfigureAwait(false);

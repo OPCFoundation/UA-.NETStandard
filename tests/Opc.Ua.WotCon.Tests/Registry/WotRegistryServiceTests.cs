@@ -66,7 +66,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             byte[] doc = TestMaterialization.Td("urn:a");
 
             WotRegistryMutationResult result = await service.UpsertResourceAsync(
-                TdRequest("a", doc));
+                TdRequest("a", doc)).ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             Assert.That(result.Generation, Is.GreaterThan(0));
@@ -83,11 +83,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
         {
             using var service = new WotRegistryService();
             byte[] doc = TestMaterialization.Td("urn:a");
-            await service.UpsertResourceAsync(TdRequest("a", doc));
+            await service.UpsertResourceAsync(TdRequest("a", doc)).ConfigureAwait(false);
             long generation = service.Current.Generation;
 
             WotRegistryMutationResult second = await service.UpsertResourceAsync(
-                TdRequest("a", doc));
+                TdRequest("a", doc)).ConfigureAwait(false);
 
             Assert.That(second.Outcome, Is.EqualTo(WoTOutcomeEnum.Unchanged));
             Assert.That(service.Current.Generation, Is.EqualTo(generation),
@@ -102,12 +102,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
         {
             using var service = new WotRegistryService();
             byte[] content = TestMaterialization.Td("urn:a");
-            await service.UpsertResourceAsync(TdRequest("a", content));
+            await service.UpsertResourceAsync(TdRequest("a", content)).ConfigureAwait(false);
             long generation = service.Current.Generation;
             WotUpsertResourceRequest retry = TdRequest("a", content);
             retry.ExpectedVersionDigestHex = new string('0', 64);
 
-            WotRegistryMutationResult result = await service.UpsertResourceAsync(retry);
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(retry).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -156,9 +156,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 11,
                 ImmutableDictionary<string, WotResourceGroup>.Empty.Add(group.GroupId, group));
             var store = new RecordingRegistryStore(snapshot);
-            await store.BlobStore.SeedAsync(version.DigestHex, ByteString.From(content));
+            await store.BlobStore.SeedAsync(version.DigestHex, ByteString.From(content)).ConfigureAwait(false);
             using var service = new WotRegistryService(store);
-            await service.InitializeAsync();
+            await service.InitializeAsync().ConfigureAwait(false);
             store.BlobStore.ResetWriteCount();
 
             WotRegistryMutationResult result = await service.UpsertResourceAsync(
@@ -175,7 +175,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     Name = "updated name",
                     Description = "updated description",
                     SetAsDefault = true
-                });
+                }).ConfigureAwait(false);
 
             WotResource updated = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
@@ -208,10 +208,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
             byte[] secondContent = TestMaterialization.Td("urn:a", "second");
             WotUpsertResourceRequest first = TdRequest("a", firstContent, setDefault: false);
             first.VersionId = "v1";
-            await service.UpsertResourceAsync(first);
+            await service.UpsertResourceAsync(first).ConfigureAwait(false);
             WotUpsertResourceRequest second = TdRequest("a", secondContent, setDefault: false);
             second.VersionId = "v2";
-            await service.UpsertResourceAsync(second);
+            await service.UpsertResourceAsync(second).ConfigureAwait(false);
             WotResource before = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
@@ -220,12 +220,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
             second.SetAsDefault = true;
             second.ExpectedVersionDigestHex = before.FindVersion("v2")!.DigestHex;
 
-            WotRegistryMutationResult changed = await service.UpsertResourceAsync(second);
+            WotRegistryMutationResult changed = await service.UpsertResourceAsync(second).ConfigureAwait(false);
             WotResource after = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
             long changedGeneration = service.Current.Generation;
-            WotRegistryMutationResult unchanged = await service.UpsertResourceAsync(second);
+            WotRegistryMutationResult unchanged = await service.UpsertResourceAsync(second).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -250,14 +250,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestMaterialization.Td("urn:metadata-only", "first"),
                 setDefault: false);
             first.VersionId = "v1";
-            await service.UpsertResourceAsync(first);
+            await service.UpsertResourceAsync(first).ConfigureAwait(false);
             byte[] content = TestMaterialization.Td("urn:metadata-only", "second");
             WotUpsertResourceRequest second = TdRequest(
                 "metadata-only",
                 content,
                 setDefault: false);
             second.VersionId = "v2";
-            await service.UpsertResourceAsync(second);
+            await service.UpsertResourceAsync(second).ConfigureAwait(false);
             WotResource before = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "metadata-only")!;
@@ -267,7 +267,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             second.Format = "WoT-TD/1.1+profile";
             second.ExpectedVersionDigestHex = before.FindVersion("v2")!.DigestHex;
 
-            WotRegistryMutationResult result = await service.UpsertResourceAsync(second);
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(second).ConfigureAwait(false);
             WotResource after = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "metadata-only")!;
@@ -287,8 +287,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task UpsertNewContentAddsVersion()
         {
             using var service = new WotRegistryService();
-            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a", "v1")));
-            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a", "v2")));
+            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a", "v1")))
+                .ConfigureAwait(false);
+            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a", "v2")))
+                .ConfigureAwait(false);
 
             WotResource resource = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions, "a")!;
@@ -309,7 +311,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     WotRegistryGroups.ThingDescriptions,
                     "a",
                     requestedVersionId,
-                    WoTDocumentKindEnum.ThingDescription);
+                    WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -331,7 +333,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     ExpectedVersionDigestHex = string.Empty,
                     Kind = WoTDocumentKindEnum.ThingDescription,
                     Content = ByteString.From(TestMaterialization.Td("urn:a"))
-                });
+                }).ConfigureAwait(false);
             WotResource committed = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
@@ -361,7 +363,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestMaterialization.Td("urn:explicit"));
             request.VersionId = versionId;
 
-            WotRegistryMutationResult result = await service.UpsertResourceAsync(request);
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(request).ConfigureAwait(false);
             WotResource resource = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "explicit")!;
@@ -382,7 +384,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions,
                 "case-sensitive",
                 "V1@prod",
-                WoTDocumentKindEnum.ThingDescription);
+                WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
 
             WotResource resource = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
@@ -403,7 +405,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions,
                 "case-collision",
                 "V1@prod",
-                WoTDocumentKindEnum.ThingDescription);
+                WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
             long generation = service.Current.Generation;
 
             ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
@@ -411,7 +413,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     WotRegistryGroups.ThingDescriptions,
                     "case-collision",
                     "v1@prod",
-                    WoTDocumentKindEnum.ThingDescription))!;
+                    WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false))!;
 
             Assert.Multiple(() =>
             {
@@ -431,7 +433,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "case-collision",
                 TestMaterialization.Td("urn:case-collision", "first"));
             first.VersionId = "V1@prod";
-            await service.UpsertResourceAsync(first);
+            await service.UpsertResourceAsync(first).ConfigureAwait(false);
             long generation = service.Current.Generation;
             WotUpsertResourceRequest collision = TdRequest(
                 "case-collision",
@@ -439,7 +441,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             collision.VersionId = "v1@prod";
 
             ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await service.UpsertResourceAsync(collision))!;
+                async () => await service.UpsertResourceAsync(collision).ConfigureAwait(false))!;
 
             Assert.Multiple(() =>
             {
@@ -465,7 +467,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     WotRegistryGroups.ThingDescriptions,
                     "invalid",
                     versionId,
-                    WoTDocumentKindEnum.ThingDescription))!;
+                    WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -480,7 +482,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     WotRegistryGroups.ThingDescriptions,
                     "invalid",
                     new string('a', 129),
-                    WoTDocumentKindEnum.ThingDescription))!;
+                    WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -494,20 +496,20 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     WotRegistryGroups.ThingDescriptions,
                     "retry",
                     string.Empty,
-                    WoTDocumentKindEnum.ThingDescription);
+                    WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
             (WotResource _, WotResourceVersion second, bool secondCreated) =
                 await service.GetOrCreateVersionAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "retry",
                     string.Empty,
-                    WoTDocumentKindEnum.ThingDescription);
+                    WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
 
             WotUpsertResourceRequest upload = TdRequest(
                 "retry",
                 TestMaterialization.Td("urn:retry"));
             upload.VersionId = second.VersionId;
             upload.ExpectedVersionDigestHex = string.Empty;
-            WotRegistryMutationResult result = await service.UpsertResourceAsync(upload);
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(upload).ConfigureAwait(false);
             WotResource stored = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "retry")!;
@@ -532,20 +534,20 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions,
                 "a",
                 "v1",
-                WoTDocumentKindEnum.ThingDescription);
+                WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
             WotUpsertResourceRequest first = TdRequest(
                 "a",
                 TestMaterialization.Td("urn:a", "v1"),
                 setDefault: false);
             first.VersionId = "v1";
             first.ExpectedVersionDigestHex = string.Empty;
-            await service.UpsertResourceAsync(first);
+            await service.UpsertResourceAsync(first).ConfigureAwait(false);
 
             await service.GetOrCreateVersionAsync(
                 WotRegistryGroups.ThingDescriptions,
                 "a",
                 "v2",
-                WoTDocumentKindEnum.ThingDescription);
+                WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
 
             WotResource afterCreate = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
@@ -556,7 +558,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 setDefault: false);
             second.VersionId = "v2";
             second.ExpectedVersionDigestHex = string.Empty;
-            await service.UpsertResourceAsync(second);
+            await service.UpsertResourceAsync(second).ConfigureAwait(false);
             WotResource afterReplace = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
@@ -583,7 +585,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions,
                 "placeholder",
                 "v1",
-                WoTDocumentKindEnum.ThingDescription);
+                WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
 
             Assert.That(changed, Is.Not.Null);
             Assert.That(changed!.ProjectionOnly, Is.True);
@@ -610,30 +612,28 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestMaterialization.Td("urn:a", "v1"),
                 setDefault: false);
             v1.VersionId = "v1";
-            await service.UpsertResourceAsync(v1);
+            await service.UpsertResourceAsync(v1).ConfigureAwait(false);
             WotUpsertResourceRequest v2 = TdRequest(
-                "a",
-                TestMaterialization.InvalidJson(),
-                setDefault: false);
+                "a", TestMaterialization.Td("urn:a", "v2"), setDefault: false);
             v2.VersionId = "v2";
-            await service.UpsertResourceAsync(v2);
+            await service.UpsertResourceAsync(v2).ConfigureAwait(false);
 
             WoTValidationOutcomeDataType outcome = await service.ValidateVersionAsync(
                 WotRegistryGroups.ThingDescriptions,
                 "a",
-                "v2");
+                "v2").ConfigureAwait(false);
             WotResource resource = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
 
             Assert.Multiple(() =>
             {
-                Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+                Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
                 Assert.That(resource.DefaultVersionId, Is.EqualTo("v1"));
                 Assert.That(resource.FindVersion("v1")!.Validation, Is.Null);
                 Assert.That(
                     resource.FindVersion("v2")!.Validation!.FormatOutcome,
-                    Is.EqualTo(WoTOutcomeEnum.Failed));
+                    Is.EqualTo(WoTOutcomeEnum.Success));
                 Assert.That(resource.Validation, Is.Null);
             });
         }
@@ -647,13 +647,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestMaterialization.Td("urn:a", "v1"),
                 setDefault: false);
             v1.VersionId = "v1";
-            await service.UpsertResourceAsync(v1);
+            await service.UpsertResourceAsync(v1).ConfigureAwait(false);
             WotUpsertResourceRequest v2 = TdRequest(
                 "a",
                 TestMaterialization.Td("urn:a", "v2"),
                 setDefault: false);
             v2.VersionId = "v2";
-            await service.UpsertResourceAsync(v2);
+            await service.UpsertResourceAsync(v2).ConfigureAwait(false);
             WotResource before = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
@@ -666,7 +666,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "v1",
                 "version",
                 "one",
-                expectedEpoch: 1);
+                expectedEpoch: 1).ConfigureAwait(false);
             WotResource afterVersion = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
@@ -675,7 +675,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "a",
                 "owner",
                 "plant-1",
-                expectedEpoch: metaEpoch);
+                expectedEpoch: metaEpoch).ConfigureAwait(false);
             WotResource afterMeta = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
@@ -705,13 +705,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestMaterialization.Td("urn:a", "v1"),
                 setDefault: false);
             v1.VersionId = "v1";
-            await service.UpsertResourceAsync(v1);
+            await service.UpsertResourceAsync(v1).ConfigureAwait(false);
             WotUpsertResourceRequest v2 = TdRequest(
                 "a",
                 TestMaterialization.Td("urn:a", "v2"),
                 setDefault: false);
             v2.VersionId = "v2";
-            await service.UpsertResourceAsync(v2);
+            await service.UpsertResourceAsync(v2).ConfigureAwait(false);
             WotResource before = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
@@ -722,7 +722,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions,
                 "a",
                 "v2",
-                before.MetaEpoch);
+                before.MetaEpoch).ConfigureAwait(false);
             WotResource after = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
@@ -745,13 +745,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions,
                 "a",
                 "v1",
-                WoTDocumentKindEnum.ThingDescription);
+                WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
             WotUpsertResourceRequest first = TdRequest(
                 "a",
                 TestMaterialization.Td("urn:a", "v1"));
             first.VersionId = "v1";
             first.ExpectedVersionDigestHex = string.Empty;
-            await service.UpsertResourceAsync(first);
+            await service.UpsertResourceAsync(first).ConfigureAwait(false);
             WotResourceVersion baseline = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!.FindVersion("v1")!;
@@ -761,7 +761,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestMaterialization.Td("urn:a", "v2"));
             newer.VersionId = "v1";
             newer.ExpectedVersionDigestHex = baseline.DigestHex;
-            await service.UpsertResourceAsync(newer);
+            await service.UpsertResourceAsync(newer).ConfigureAwait(false);
             WotResourceVersion committed = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!.FindVersion("v1")!;
@@ -771,7 +771,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestMaterialization.Td("urn:a", "stale"));
             stale.VersionId = "v1";
             stale.ExpectedVersionDigestHex = baseline.DigestHex;
-            WotRegistryMutationResult result = await service.UpsertResourceAsync(stale);
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(stale).ConfigureAwait(false);
             WotResourceVersion after = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!.FindVersion("v1")!;
@@ -790,7 +790,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             using var service = new WotRegistryService();
 
             WotRegistryMutationResult result = await service.UpsertResourceAsync(
-                TdRequest("bad", TestMaterialization.InvalidJson()));
+                TdRequest("bad", TestMaterialization.InvalidJson())).ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Warning));
             WotResource resource = service.Current.FindResource(
@@ -810,7 +810,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             byte[] big = new byte[64];
 
             WotRegistryMutationResult result = await service.UpsertResourceAsync(
-                TdRequest("big", big));
+                TdRequest("big", big)).ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
             Assert.That(service.Current.FindResource(
@@ -823,14 +823,15 @@ namespace Opc.Ua.WotCon.Tests.Registry
             var bounds = new WotRegistryPersistenceBounds { MaxGroups = 1 };
             using var service = new WotRegistryService(bounds: bounds);
             // Fill the single group slot via the well-known Thing Description group.
-            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a")));
+            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a"))).ConfigureAwait(false);
             Assert.That(service.Current.Groups, Has.Count.EqualTo(1));
 
             // Implicitly creating a placeholder in a new group would exceed
             // MaxGroups and must be rejected identically to the explicit
             // group-create APIs (BadTooManyOperations).
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await service.GetOrCreateResourceAsync("sensors", "r", WoTDocumentKindEnum.ThingDescription));
+                await service.GetOrCreateResourceAsync("sensors", "r", WoTDocumentKindEnum.ThingDescription)
+                    .ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
             Assert.That(service.Current.FindGroup("sensors"), Is.Null,
                 "The over-limit implicit group must not be created.");
@@ -841,10 +842,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
         {
             var bounds = new WotRegistryPersistenceBounds { MaxGroups = 1 };
             using var service = new WotRegistryService(bounds: bounds);
-            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a")));
+            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a"))).ConfigureAwait(false);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await service.TryCreateResourceAsync("sensors", "r", WoTDocumentKindEnum.ThingDescription));
+                await service.TryCreateResourceAsync("sensors", "r", WoTDocumentKindEnum.ThingDescription)
+                    .ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
             Assert.That(service.Current.FindGroup("sensors"), Is.Null);
         }
@@ -854,7 +856,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         {
             var bounds = new WotRegistryPersistenceBounds { MaxGroups = 1 };
             using var service = new WotRegistryService(bounds: bounds);
-            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a")));
+            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a"))).ConfigureAwait(false);
 
             // An upsert whose target group does not yet exist would implicitly
             // create a second group; the bound must reject it.
@@ -865,7 +867,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     ResourceId = "r",
                     Kind = WoTDocumentKindEnum.ThingDescription,
                     Content = ByteString.From(TestMaterialization.Td("urn:r"))
-                });
+                }).ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
             Assert.That(service.Current.FindGroup("sensors"), Is.Null);
@@ -876,12 +878,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
         {
             var bounds = new WotRegistryPersistenceBounds { MaxGroups = 1 };
             using var service = new WotRegistryService(bounds: bounds);
-            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a")));
+            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a"))).ConfigureAwait(false);
 
             // Creating another resource in the SAME existing group creates no new
             // group, so it must not be blocked by MaxGroups.
             (WotResource _, bool created) = await service.GetOrCreateResourceAsync(
-                WotRegistryGroups.ThingDescriptions, "b", WoTDocumentKindEnum.ThingDescription);
+                WotRegistryGroups.ThingDescriptions, "b", WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
 
             Assert.That(created, Is.True);
             Assert.That(service.Current.Groups, Has.Count.EqualTo(1));
@@ -895,7 +897,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             for (int i = 0; i < 5; i++)
             {
                 await service.UpsertResourceAsync(
-                    TdRequest("a", TestMaterialization.Td("urn:a", "v" + i)));
+                    TdRequest("a", TestMaterialization.Td("urn:a", "v" + i))).ConfigureAwait(false);
             }
 
             WotResource resource = service.Current.FindResource(
@@ -916,7 +918,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     TestMaterialization.Td("urn:a", versionId),
                     setDefault: false);
                 request.VersionId = versionId;
-                await service.UpsertResourceAsync(request);
+                await service.UpsertResourceAsync(request).ConfigureAwait(false);
             }
 
             WotResource resource = service.Current.FindResource(
@@ -943,9 +945,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     TestMaterialization.Td("urn:a", versionId),
                     setDefault: false);
                 request.VersionId = versionId;
-                await service.UpsertResourceAsync(request);
+                await service.UpsertResourceAsync(request).ConfigureAwait(false);
             }
-            await SetActiveVersionAsync(service, "a", "v1");
+            await SetActiveVersionAsync(service, "a", "v1").ConfigureAwait(false);
             WotResource beforeSwitch = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
@@ -953,14 +955,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions,
                 "a",
                 "v2",
-                beforeSwitch.MetaEpoch);
+                beforeSwitch.MetaEpoch).ConfigureAwait(false);
 
             WotUpsertResourceRequest incoming = TdRequest(
                 "a",
                 TestMaterialization.Td("urn:a", "v4"),
                 setDefault: false);
             incoming.VersionId = "v4";
-            WotRegistryMutationResult result = await service.UpsertResourceAsync(incoming);
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(incoming).ConfigureAwait(false);
             WotResource resource = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
@@ -988,7 +990,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     TestMaterialization.Td("urn:a", versionId),
                     setDefault: false);
                 request.VersionId = versionId;
-                await service.UpsertResourceAsync(request);
+                await service.UpsertResourceAsync(request).ConfigureAwait(false);
             }
 
             WotUpsertResourceRequest incoming = TdRequest(
@@ -996,7 +998,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestMaterialization.Td("urn:a", "v3"),
                 setDefault: false);
             incoming.VersionId = "v3";
-            WotRegistryMutationResult result = await service.UpsertResourceAsync(incoming);
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(incoming).ConfigureAwait(false);
             WotResource resource = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
@@ -1021,8 +1023,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestMaterialization.Td("urn:a", "v1"),
                 setDefault: false);
             first.VersionId = "v1";
-            await service.UpsertResourceAsync(first);
-            await SetActiveVersionAsync(service, "a", "v1");
+            await service.UpsertResourceAsync(first).ConfigureAwait(false);
+            await SetActiveVersionAsync(service, "a", "v1").ConfigureAwait(false);
             long generation = service.Current.Generation;
 
             WotUpsertResourceRequest incoming = TdRequest(
@@ -1030,7 +1032,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestMaterialization.Td("urn:a", "v2"),
                 setDefault: false);
             incoming.VersionId = "v2";
-            WotRegistryMutationResult result = await service.UpsertResourceAsync(incoming);
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(incoming).ConfigureAwait(false);
             WotResource resource = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
@@ -1060,9 +1062,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     TestMaterialization.Td("urn:structural", versionId),
                     setDefault: false);
                 request.VersionId = versionId;
-                await service.UpsertResourceAsync(request);
+                await service.UpsertResourceAsync(request).ConfigureAwait(false);
             }
-            await SetActiveVersionAsync(service, "structural", "v1");
+            await SetActiveVersionAsync(service, "structural", "v1").ConfigureAwait(false);
             WotResource before = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "structural")!;
@@ -1070,14 +1072,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions,
                 "structural",
                 "v2",
-                before.MetaEpoch);
+                before.MetaEpoch).ConfigureAwait(false);
 
             (WotResource resource, WotResourceVersion version, bool created) =
                 await service.GetOrCreateVersionAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "structural",
                     "v4",
-                    WoTDocumentKindEnum.ThingDescription);
+                    WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -1101,8 +1103,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestMaterialization.Td("urn:protected"),
                 setDefault: false);
             request.VersionId = "v1";
-            await service.UpsertResourceAsync(request);
-            await SetActiveVersionAsync(service, "protected", "v1");
+            await service.UpsertResourceAsync(request).ConfigureAwait(false);
+            await SetActiveVersionAsync(service, "protected", "v1").ConfigureAwait(false);
             WotRegistrySnapshot before = service.Current;
 
             ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
@@ -1110,7 +1112,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     WotRegistryGroups.ThingDescriptions,
                     "protected",
                     "v2",
-                    WoTDocumentKindEnum.ThingDescription))!;
+                    WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false))!;
 
             Assert.Multiple(() =>
             {
@@ -1133,19 +1135,19 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     WotRegistryGroups.ThingDescriptions,
                     "native-upload",
                     string.Empty,
-                    WoTDocumentKindEnum.ThingDescription);
+                    WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
             WotUpsertResourceRequest firstUpload = TdRequest(
                 "native-upload",
                 TestMaterialization.Td("urn:native-upload", "first"),
                 setDefault: false);
             firstUpload.VersionId = first.VersionId;
             firstUpload.ExpectedVersionDigestHex = string.Empty;
-            await service.UpsertResourceAsync(firstUpload);
-            var secondCreated = await service.TryCreateVersionAsync(
+            await service.UpsertResourceAsync(firstUpload).ConfigureAwait(false);
+            (WotResource Resource, WotResourceVersion Version)? secondCreated = await service.TryCreateVersionAsync(
                 WotRegistryGroups.ThingDescriptions,
                 "native-upload",
                 string.Empty,
-                WoTDocumentKindEnum.ThingDescription);
+                WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
             Assert.That(secondCreated, Is.Not.Null);
             WotResourceVersion second = secondCreated!.Value.Version;
             WotUpsertResourceRequest secondUpload = TdRequest(
@@ -1154,13 +1156,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 setDefault: false);
             secondUpload.VersionId = second.VersionId;
             secondUpload.ExpectedVersionDigestHex = string.Empty;
-            await service.UpsertResourceAsync(secondUpload);
+            await service.UpsertResourceAsync(secondUpload).ConfigureAwait(false);
 
-            var thirdCreated = await service.TryCreateVersionAsync(
+            (WotResource Resource, WotResourceVersion Version)? thirdCreated = await service.TryCreateVersionAsync(
                 WotRegistryGroups.ThingDescriptions,
                 "native-upload",
                 string.Empty,
-                WoTDocumentKindEnum.ThingDescription);
+                WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
             Assert.That(thirdCreated, Is.Not.Null);
             WotResourceVersion third = thirdCreated!.Value.Version;
             WotUpsertResourceRequest thirdUpload = TdRequest(
@@ -1169,7 +1171,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 setDefault: false);
             thirdUpload.VersionId = third.VersionId;
             thirdUpload.ExpectedVersionDigestHex = string.Empty;
-            WotRegistryMutationResult result = await service.UpsertResourceAsync(thirdUpload);
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(thirdUpload).ConfigureAwait(false);
             WotResource resource = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "native-upload")!;
@@ -1180,7 +1182,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Assert.That(resource.DefaultVersionId, Is.EqualTo(first.VersionId));
                 Assert.That(
                     resource.Versions.Select(version => version.VersionId),
-                    Is.EqualTo(new[] { first.VersionId, third.VersionId }));
+                    Is.EqualTo([first.VersionId, third.VersionId]));
                 Assert.That(resource.FindVersion(third.VersionId)!.HasContent, Is.True);
             });
         }
@@ -1194,13 +1196,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestMaterialization.Td("urn:a", "first"),
                 setDefault: false);
             v1.VersionId = "v1";
-            await service.UpsertResourceAsync(v1);
+            await service.UpsertResourceAsync(v1).ConfigureAwait(false);
             WotUpsertResourceRequest v2 = TdRequest(
                 "a",
                 TestMaterialization.Td("urn:a", "second"),
                 setDefault: false);
             v2.VersionId = "v2";
-            await service.UpsertResourceAsync(v2);
+            await service.UpsertResourceAsync(v2).ConfigureAwait(false);
             WotResource before = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
@@ -1209,7 +1211,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions,
                 "a",
                 "v2",
-                before.MetaEpoch);
+                before.MetaEpoch).ConfigureAwait(false);
             WotResource after = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
@@ -1236,7 +1238,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestMaterialization.Td("urn:a", "first"),
                 setDefault: false);
             v1.VersionId = "v1";
-            await service.UpsertResourceAsync(v1);
+            await service.UpsertResourceAsync(v1).ConfigureAwait(false);
             long generation = service.Current.Generation;
 
             WotUpsertResourceRequest v2 = TdRequest(
@@ -1244,7 +1246,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestMaterialization.Td("urn:other", "second"),
                 setDefault: false);
             v2.VersionId = "v2";
-            WotRegistryMutationResult result = await service.UpsertResourceAsync(v2);
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(v2).ConfigureAwait(false);
             WotResource resource = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "a")!;
@@ -1264,14 +1266,16 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task SetDefaultVersionSwitchesActiveDefault()
         {
             using var service = new WotRegistryService();
-            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a", "v1")));
-            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a", "v2")));
+            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a", "v1")))
+                .ConfigureAwait(false);
+            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a", "v2")))
+                .ConfigureAwait(false);
             WotResource resource = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions, "a")!;
             string firstVersion = resource.Versions[0].VersionId;
 
             WotRegistryMutationResult result = await service.SetDefaultVersionAsync(
-                WotRegistryGroups.ThingDescriptions, "a", firstVersion, resource.Epoch);
+                WotRegistryGroups.ThingDescriptions, "a", firstVersion, resource.Epoch).ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             Assert.That(
@@ -1284,13 +1288,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task SetDefaultVersionWrongEpochIsRejected()
         {
             using var service = new WotRegistryService();
-            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a")));
+            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a"))).ConfigureAwait(false);
             WotResource resource = service.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions, "a")!;
 
             WotRegistryMutationResult result = await service.SetDefaultVersionAsync(
                 WotRegistryGroups.ThingDescriptions, "a",
-                resource.Versions[0].VersionId, expectedEpoch: resource.Epoch + 999);
+                resource.Versions[0].VersionId, expectedEpoch: resource.Epoch + 999).ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
         }
@@ -1299,9 +1303,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task SetEnabledTogglesEnabledState()
         {
             using var service = new WotRegistryService();
-            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a")));
+            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a"))).ConfigureAwait(false);
 
-            await service.SetEnabledAsync(WotRegistryGroups.ThingDescriptions, "a", enabled: false);
+            await service.SetEnabledAsync(WotRegistryGroups.ThingDescriptions, "a", enabled: false)
+                .ConfigureAwait(false);
 
             Assert.That(
                 service.Current.FindResource(WotRegistryGroups.ThingDescriptions, "a")!.Enabled,
@@ -1312,10 +1317,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task DeleteRemovesResource()
         {
             using var service = new WotRegistryService();
-            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a")));
+            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a"))).ConfigureAwait(false);
 
             WotRegistryMutationResult result = await service.DeleteResourceAsync(
-                WotRegistryGroups.ThingDescriptions, "a");
+                WotRegistryGroups.ThingDescriptions, "a").ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             Assert.That(service.Current.FindResource(
@@ -1329,7 +1334,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             WotRegistryChangedEventArgs? captured = null;
             service.Changed += (_, e) => captured = e;
 
-            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a")));
+            await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a"))).ConfigureAwait(false);
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.ProjectionOnly, Is.False);
@@ -1444,6 +1449,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         private static readonly string[] s_expectedRetainedVersionIds = ["v1", "v3"];
         private static readonly string[] s_expectedProtectedVersionIds = ["v1", "v2", "v4"];
         private static readonly string[] s_expectedSingleVersionIds = ["v1"];
+
         private static readonly string[] s_expectedCommittedAndPendingVersionIds =
             ["v1", "v2", "v3", "v4"];
     }

@@ -42,7 +42,7 @@ namespace Opc.Ua.WotCon.Client
     /// generated <see cref="GroupTypeClient"/> proxy shared by
     /// both group subtypes.
     /// </summary>
-    public sealed class WotRegistryGroupClient
+    public sealed partial class WotRegistryGroupClient
     {
         internal WotRegistryGroupClient(
             ISession session,
@@ -111,6 +111,8 @@ namespace Opc.Ua.WotCon.Client
             (NodeId resourceNodeId, string versionIdOut, _) = await Proxy
                 .CreateResourceAsync(resourceId, versionId ?? string.Empty, requestFileOpen: false, ct)
                 .ConfigureAwait(false);
+            resourceId = await WotProvisioningContract.ReadAssignedIdentifierAsync(
+                Session, resourceNodeId, "ResourceId", ct).ConfigureAwait(false);
             return (
                 OpenResourceClient(
                     resourceNodeId,
@@ -139,6 +141,8 @@ namespace Opc.Ua.WotCon.Client
             (NodeId resourceNodeId, string versionIdOut, _, bool created) = await Proxy
                 .GetOrCreateResourceAsync(resourceId, versionId ?? string.Empty, requestFileOpen: false, ct)
                 .ConfigureAwait(false);
+            resourceId = await WotProvisioningContract.ReadAssignedIdentifierAsync(
+                Session, resourceNodeId, "ResourceId", ct).ConfigureAwait(false);
             WotRegistryResourceClient resource = OpenResourceClient(
                 resourceNodeId,
                 resourceId,

@@ -60,6 +60,7 @@ namespace Opc.Ua.WotCon.Client
         /// <param name="notFoundMessage">Message to report when the child
         /// cannot be resolved.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <param name="requireUnique">Rejects ambiguous qualified children when true.</param>
         /// <exception cref="ServiceResultException">The child could not be resolved.</exception>
         public static async ValueTask<NodeId> ResolveChildAsync(
             ISession session,
@@ -69,7 +70,8 @@ namespace Opc.Ua.WotCon.Client
             string targetName,
             StatusCode notFoundStatus,
             string notFoundMessage,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool requireUnique = false)
         {
             List<NodeId> targets = await ResolveTargetsAsync(
                     session,
@@ -83,6 +85,11 @@ namespace Opc.Ua.WotCon.Client
             {
                 throw new ServiceResultException(notFoundStatus, notFoundMessage);
             }
+            if (requireUnique && targets.Count != 1)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadBrowseNameDuplicated, "The qualified child does not resolve unambiguously.");
+            }
             return targets[0];
         }
 
@@ -93,6 +100,7 @@ namespace Opc.Ua.WotCon.Client
         /// the Resource is a unique child of the Group, so no disambiguation is
         /// needed — the first (and only) candidate is returned directly.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static async ValueTask<NodeId> ResolveLogicalResourceAsync(
             ISession session,
             NodeId groupNode,
@@ -150,7 +158,6 @@ namespace Opc.Ua.WotCon.Client
             string notFoundMessage,
             CancellationToken ct)
         {
-
             NodeId selected = NodeId.Null;
             foreach (NodeId candidate in candidates)
             {
@@ -233,7 +240,7 @@ namespace Opc.Ua.WotCon.Client
                 {
                     continue;
                 }
-                NodeId candidate = ExpandedNodeId.ToNodeId(
+                var candidate = ExpandedNodeId.ToNodeId(
                     reference.NodeId,
                     session.NamespaceUris);
                 if (!candidate.IsNull)
@@ -250,15 +257,15 @@ namespace Opc.Ua.WotCon.Client
                 NodeId candidate,
                 CancellationToken ct)
         {
-                NodeId resourceIdNode = NodeId.Null;
-                NodeId isDefaultNode = NodeId.Null;
-                List<ReferenceDescription> references = await BrowseReferencesAsync(
-                    session,
-                    candidate,
-                    Ua.ReferenceTypeIds.HierarchicalReferences,
-                    ct).ConfigureAwait(false);
-                foreach (ReferenceDescription reference in references)
-                {
+            NodeId resourceIdNode = NodeId.Null;
+            NodeId isDefaultNode = NodeId.Null;
+            List<ReferenceDescription> references = await BrowseReferencesAsync(
+                session,
+                candidate,
+                Ua.ReferenceTypeIds.HierarchicalReferences,
+                ct).ConfigureAwait(false);
+            foreach (ReferenceDescription reference in references)
+            {
                 string? name = reference.BrowseName.Name;
                 if (!string.Equals(
                         name,
@@ -271,7 +278,7 @@ namespace Opc.Ua.WotCon.Client
                 {
                     continue;
                 }
-                NodeId child = ExpandedNodeId.ToNodeId(
+                var child = ExpandedNodeId.ToNodeId(
                     reference.NodeId,
                     session.NamespaceUris);
                 if (string.Equals(
@@ -411,7 +418,7 @@ namespace Opc.Ua.WotCon.Client
                 {
                     continue;
                 }
-                NodeId nodeId = ExpandedNodeId.ToNodeId(
+                var nodeId = ExpandedNodeId.ToNodeId(
                     target.TargetId,
                     session.NamespaceUris);
                 if (!nodeId.IsNull)

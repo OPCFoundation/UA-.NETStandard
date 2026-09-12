@@ -527,7 +527,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     File.ReadAllBytes(ManifestPath));
                 Assert.That(
                     manifest.RootElement.GetProperty("SchemaVersion").GetInt32(),
-                    Is.EqualTo(4));
+                    Is.EqualTo(5));
                 Assert.That(resource.DefaultVersionId, Is.EqualTo("v1"));
                 Assert.That(resource.Versions, Has.Length.EqualTo(1));
                 Assert.That(resource.Versions[0].HasContent, Is.False);
@@ -906,13 +906,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
             await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             File.WriteAllBytes(
                 ManifestPath,
-                WithSchemaVersion(File.ReadAllBytes(ManifestPath), schemaVersion: 5));
+                WithSchemaVersion(File.ReadAllBytes(ManifestPath), schemaVersion: 6));
             var store = new FileWotRegistryStore(m_root);
 
             NotSupportedException error = Assert.ThrowsAsync<NotSupportedException>(
                 async () => await store.LoadAsync().ConfigureAwait(false));
 
-            Assert.That(error.Message, Does.Contain("schema 5"));
+            Assert.That(error.Message, Does.Contain("schema 6"));
         }
 
         [Test]
@@ -2408,7 +2408,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         private static byte[] WithSchemaVersion(byte[] manifest, int schemaVersion)
         {
             string json = Encoding.UTF8.GetString(manifest);
-            const string current = "\"SchemaVersion\": 4";
+            const string current = "\"SchemaVersion\": 5";
             Assert.That(json, Does.Contain(current));
             int index = json.IndexOf(current, StringComparison.Ordinal);
             return Encoding.UTF8.GetBytes(

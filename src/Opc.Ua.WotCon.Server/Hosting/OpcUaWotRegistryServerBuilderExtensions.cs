@@ -162,8 +162,12 @@ namespace Microsoft.Extensions.DependencyInjection
                     : resourceStore is null
                         ? new FileWotRegistryStore(options.StorageFolder!)
                         : new FileWotRegistryStore(options.StorageFolder!, resourceStore);
-                return new WotRegistryService(store, options.Bounds);
+                return new WotRegistryService(store, options.Bounds, options.IdentityBindings);
             });
+
+            services.TryAddSingleton(sp =>
+                sp.GetRequiredService<IWotRegistryService>() as IWotTypedRegistryService ??
+                throw new InvalidOperationException("The registered registry does not support typed provisioning."));
 
             services.TryAddSingleton<IWotProjectionHost>(sp =>
                 new LifecycleWotProjectionHost(

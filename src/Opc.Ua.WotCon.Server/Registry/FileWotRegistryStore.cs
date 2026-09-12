@@ -654,6 +654,19 @@ namespace Opc.Ua.WotCon.Server.Registry
 
             foreach (GroupDto group in manifest.Groups ?? [])
             {
+                group.AuthorityEstablished = group.CatalogUri is not null;
+                foreach (ResourceDto resource in group.Resources ?? [])
+                {
+                    resource.AuthorityEstablished = WotRegistryIdentity.IsAbsoluteUri(resource.ThingId);
+                }
+            }
+            if (manifest.SchemaVersion == 4)
+            {
+                manifest.SchemaVersion = CurrentSchemaVersion;
+                return manifest;
+            }
+            foreach (GroupDto group in manifest.Groups ?? [])
+            {
                 foreach (ResourceDto resource in group.Resources ?? [])
                 {
                     string? defaultVersionId =
@@ -727,7 +740,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             var loadedBlobs = new Dictionary<string, long>(StringComparer.Ordinal);
             ImmutableDictionary<string, WotResourceGroup>.Builder groups =
                 ImmutableDictionary.CreateBuilder<string, WotResourceGroup>();
-            var identities = new HashSet<string>(StringComparer.Ordinal)
+            var identities = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 RegistryXid,
                 RegistryNodeIdPath
@@ -737,6 +750,14 @@ namespace Opc.Ua.WotCon.Server.Registry
                 foreach (GroupDto groupDto in manifest.Groups)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    if (groupDto.AuthorityEstablished is null ||
+                        groupDto.AuthorityEstablished.Value != (groupDto.CatalogUri is not null) ||
+                        (groupDto.AuthorityEstablished.Value &&
+                            (!WotRegistryIdentity.IsAbsoluteUri(groupDto.CatalogUri) ||
+                                !string.Equals(groupDto.Name, groupDto.CatalogUri, StringComparison.Ordinal))))
+                    {
+                        throw new InvalidDataException("The catalogue authority mapping is missing or contradictory.");
+                    }
                     if (!WotDocumentKinds.IsDocument((WoTDocumentKindEnum)groupDto.Kind))
                     {
                         throw new InvalidDataException("WoT registry manifest group has an invalid document kind.");
@@ -764,7 +785,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                         foreach (ResourceDto resourceDto in groupDto.Resources)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
-                            if (!WotDocumentKinds.IsDocument((WoTDocumentKindEnum)resourceDto.Kind))
+                            if (!WotDocumentKinds.IsDocument((WoTDocumentKindEnum)resourceDto.Kind) ||
+                                resourceDto.Kind != groupDto.Kind)
                             {
                                 throw new InvalidDataException(
                                     "WoT registry manifest resource has an invalid document kind.");
@@ -820,14 +842,17 @@ namespace Opc.Ua.WotCon.Server.Registry
                         groupDto.Name,
                         groupDto.Description,
                         groupDto.Epoch,
-                        ToLabels(groupDto.Labels));
+                        ToLabels(groupDto.Labels),
+                        groupDto.CatalogUri);
                     groups[group.GroupId] = group;
                     generation = Math.Max(generation, groupDto.Epoch);
                 }
             }
 
-            return new WotRegistrySnapshot(
+            var snapshot = new WotRegistrySnapshot(
                 generation, groups.ToImmutable(), registryLabels);
+            WotRegistryIdentity.ValidateSnapshot(snapshot);
+            return snapshot;
         }
 
         private async ValueTask<WotResource> LoadResourceAsync(
@@ -838,6 +863,21 @@ namespace Opc.Ua.WotCon.Server.Registry
             List<string>? deferredVerifications,
             CancellationToken cancellationToken)
         {
+            if (dto.AuthorityEstablished is null ||
+                dto.AuthorityEstablished.Value != WotRegistryIdentity.IsAbsoluteUri(dto.ThingId))
+            {
+                throw new InvalidDataException("The resource source-authority mapping is missing or invalid.");
+            }
+            foreach (VersionDto version in dto.Versions ?? [])
+            {
+                ValidateVersionId(version.VersionId);
+            }
+            if (dto.Versions is { Length: > 0 } &&
+                !dto.Versions.Any(version => string.Equals(
+                    version.VersionId, dto.DefaultVersionId, StringComparison.Ordinal)))
+            {
+                throw new InvalidDataException("The resource is missing its exact default Version.");
+            }
             ImmutableArray<WotResourceVersion>.Builder versions =
                 ImmutableArray.CreateBuilder<WotResourceVersion>();
             var versionIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -850,6 +890,13 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 foreach (VersionDto version in dto.Versions)
                 {
+                    if (version.DocumentId is not null &&
+                        dto.ThingId is not null &&
+                        !string.Equals(version.DocumentId, dto.ThingId, StringComparison.Ordinal))
+                    {
+                        throw new InvalidDataException(
+                            "A Version and its Resource contain incompatible document identities.");
+                    }
                     if (string.IsNullOrEmpty(version.VersionId) ||
                         !versionIds.Add(version.VersionId))
                     {
@@ -1009,7 +1056,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 rootNodeId: ParseNodeId(dto.RootNodeId),
                 name: dto.Name,
                 description: dto.Description,
-                thingId: selectedVersion?.DocumentId ?? dto.ThingId,
+                thingId: dto.ThingId,
                 title: selectedVersion?.Title ?? dto.Title,
                 labels: ToLabels(dto.Labels))
             {
@@ -1036,6 +1083,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     GroupId = group.GroupId,
                     Kind = (int)group.Kind,
+                    CatalogUri = group.CatalogUri,
+                    AuthorityEstablished = group.CatalogUri is not null,
                     Name = group.Name,
                     Description = group.Description,
                     Epoch = group.Epoch,
@@ -1095,6 +1144,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 MaterializedNodeCount = resource.MaterializedNodeCount,
                 RootNodeId = resource.RootNodeId.IsNull ? null : resource.RootNodeId.ToString(),
                 ThingId = resource.ThingId,
+                AuthorityEstablished = WotRegistryIdentity.IsAbsoluteUri(resource.SourceId),
                 Title = resource.Title,
                 Diagnostics = resource.Diagnostics.IsDefaultOrEmpty
                     ? null
@@ -1367,9 +1417,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
             foreach (char character in value)
             {
-                if (character is not (>= '0' and <= '9' or
-                    >= 'a' and <= 'f' or
-                    >= 'A' and <= 'F'))
+                if (character is not ((>= '0' and <= '9') or
+                    (>= 'a' and <= 'f') or
+                    (>= 'A' and <= 'F')))
                 {
                     return false;
                 }
@@ -1398,6 +1448,10 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private static void ValidateSegment(string value, string description)
         {
+            if (WotRegistryIdentity.IsIdentifier(value))
+            {
+                return;
+            }
             string normalized;
             try
             {
@@ -2524,7 +2578,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         private const string LockFile = ".wot-registry.lock";
         private const string RegistryXid = "/";
         private const string RegistryNodeIdPath = "WoTRegistry";
-        private const int CurrentSchemaVersion = 4;
+        private const int CurrentSchemaVersion = 5;
         private const int OldestSupportedSchemaVersion = 3;
         private const int Sha256HexLength = 64;
         private const int BlobVerifyChunkSize = 64 * 1024;
@@ -2593,6 +2647,16 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the serialized group kind.
             /// </summary>
             public int Kind { get; set; }
+
+            /// <summary>
+            /// Gets or sets the exact catalogue authority.
+            /// </summary>
+            public string? CatalogUri { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether this record has an established authority mapping.
+            /// </summary>
+            public bool? AuthorityEstablished { get; set; }
 
             /// <summary>
             /// Gets or sets the display name stored for the group.
@@ -2836,6 +2900,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the Thing Description identifier discovered in the active version.
             /// </summary>
             public string? ThingId { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether the exact source-authority mapping is established.
+            /// </summary>
+            public bool? AuthorityEstablished { get; set; }
 
             /// <summary>
             /// Gets or sets the Thing Description title discovered in the active version.

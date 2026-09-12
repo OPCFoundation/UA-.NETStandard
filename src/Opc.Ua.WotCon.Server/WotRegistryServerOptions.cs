@@ -103,6 +103,12 @@ namespace Opc.Ua.WotCon.Server
         public WotRegistryPersistenceBounds Bounds { get; } = new WotRegistryPersistenceBounds();
 
         /// <summary>
+        /// Gets or sets explicit source-authority bindings for inherited generic creation Methods.
+        /// Typed provisioning accepts arbitrary exact authorities without configured aliases.
+        /// </summary>
+        public WotRegistryIdentityBindings IdentityBindings { get; set; } = new();
+
+        /// <summary>
         /// Gets or sets the management access policy used to secure the registry
         /// management Methods.
         /// </summary>

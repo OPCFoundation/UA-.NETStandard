@@ -256,6 +256,12 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string Message { get; }
 
         /// <summary>
+        /// Gets the precise service status when the mutation rejected invalid source authority.
+        /// Good leaves the established outcome-to-status mapping to the caller.
+        /// </summary>
+        public StatusCode StatusCode { get; init; }
+
+        /// <summary>
         /// Gets whether the mutation changed the registry contents.
         /// </summary>
         public bool Changed => Outcome is WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning;

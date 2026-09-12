@@ -143,6 +143,12 @@ namespace Opc.Ua.WotCon.Server
             // the RegistryType Method declarations.
             typed.AddCreateGroup(context)
                 .AddGetOrCreateGroup(context);
+            if (registry is WoTRegistryState wot)
+            {
+                wot.AddCreateDocumentGroup(context).AddGetOrCreateDocumentGroup(context);
+                WotRegistryProjection.LinkMethodArguments(wot.CreateDocumentGroup, context);
+                WotRegistryProjection.LinkMethodArguments(wot.GetOrCreateDocumentGroup, context);
+            }
             WotRegistryProjection.LinkMethodArguments(typed.CreateGroup, context);
             WotRegistryProjection.LinkMethodArguments(typed.GetOrCreateGroup, context);
 

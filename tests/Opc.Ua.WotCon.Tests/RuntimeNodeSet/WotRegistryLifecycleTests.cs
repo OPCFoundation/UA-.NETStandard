@@ -44,9 +44,9 @@ using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Quickstarts.ReferenceServer;
+using UaObjectIds = Opc.Ua.ObjectIds;
+using UaReferenceTypeIds = Opc.Ua.ReferenceTypeIds;
 using WotConModel = Opc.Ua.WotCon;
-using UaObjectIds = global::Opc.Ua.ObjectIds;
-using UaReferenceTypeIds = global::Opc.Ua.ReferenceTypeIds;
 
 #nullable disable warnings
 
@@ -115,6 +115,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             // deterministic converter so the projected value node is predictable.
             m_options = new WotRegistryServerOptions
             {
+                IdentityBindings = Registry.WotRegistryTestAuthorities.ForResources("thing1"),
                 AutoRefresh = false,
                 ManagementAccess = new WotManagementAccessPolicy
                 {
@@ -123,7 +124,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     RequiredRoleId = UaObjectIds.WellKnownRole_Anonymous
                 }
             };
-            m_registry = new WotRegistryService();
+            m_registry = new WotRegistryService(null, m_options.Bounds, m_options.IdentityBindings);
             var host = new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle);
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, host, documentConverter: new SensorConverter());
@@ -261,7 +262,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             m_coordinator = null!;
 
             Assert.That(
-                () => m_server.Dispose(),
+                m_server.Dispose,
                 Throws.Nothing,
                 "Server disposal must still delete the WoT address space after coordinator disposal.");
         }
@@ -325,9 +326,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             CallMethodResult createGroup = await CallAsync(
                 registryNodeId, createGroupId, new Variant("sensors")).ConfigureAwait(false);
             Assert.That(createGroup.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(m_registry.Current.FindGroup("sensors"), Is.Not.Null);
-            var groupNodeId = (NodeId)createGroup.OutputArguments[0]
-                .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+            Assert.That(m_registry.Current.Groups.Values.Any(group =>
+                group.CatalogUri == "urn:test:catalogue:sensors"), Is.True);
+            Assert.That(createGroup.OutputArguments[0].TryGetValue(out NodeId groupNodeId), Is.True);
 
             // 2. GetOrCreateResource with RequestFileOpen returns a write FileHandle.
             NodeId getOrCreateResourceId = await FindChildAsync(groupNodeId, "GetOrCreateResource")
@@ -337,8 +338,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 new Variant("thing1"), new Variant(string.Empty), new Variant(true))
                 .ConfigureAwait(false);
             Assert.That(createResource.StatusCode, Is.EqualTo(StatusCodes.Good));
-            var resourceNodeId = (NodeId)createResource.OutputArguments[0]
-                .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+            Assert.That(createResource.OutputArguments[0].TryGetValue(out NodeId resourceNodeId), Is.True);
             uint fileHandle = createResource.OutputArguments[2].GetUInt32();
             Assert.That(fileHandle, Is.Not.Zero,
                 "RequestFileOpen must return a non-zero write FileHandle.");
@@ -359,7 +359,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 resourceNodeId, closeId, new Variant(fileHandle)).ConfigureAwait(false);
             Assert.That(close.StatusCode, Is.EqualTo(StatusCodes.Good));
 
-            WotResource stored = m_registry.Current.FindResource("sensors", "thing1");
+            WotResource stored = Registry.WotRegistryTestAuthorities.FindResource(
+                m_registry.Current, "sensors", "thing1");
             Assert.That(stored?.DefaultVersion, Is.Not.Null,
                 "Closing the write handle must commit the buffered document as a version.");
 
@@ -368,10 +369,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             CallMethodResult validate = await CallAsync(resourceNodeId, validateId)
                 .ConfigureAwait(false);
             Assert.That(validate.StatusCode, Is.EqualTo(StatusCodes.Good));
-            object outcomeBoxed = validate.OutputArguments[0]
-                .AsBoxedObject(Variant.BoxingBehavior.Legacy);
-            Assert.That(outcomeBoxed, Is.InstanceOf<ExtensionObject>());
-            Assert.That(((ExtensionObject)outcomeBoxed).TryGetValue(
+            Assert.That(validate.OutputArguments[0].TryGetValue(out ExtensionObject outcomeExtension), Is.True);
+            Assert.That(outcomeExtension.TryGetValue(
                 out WoTValidationOutcomeDataType outcome), Is.True);
             Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
 
@@ -382,14 +381,16 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 resourceNodeId, setEnabledId,
                 new Variant(false), new Variant(0u)).ConfigureAwait(false);
             Assert.That(setEnabled.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(m_registry.Current.FindResource("sensors", "thing1")!.Enabled, Is.False);
+            Assert.That(Registry.WotRegistryTestAuthorities.FindResource(
+                m_registry.Current, "sensors", "thing1")!.Enabled, Is.False);
 
             // 6. Delete the resource through the xRegistry Delete Method.
             NodeId deleteId = await FindChildAsync(resourceNodeId, "Delete").ConfigureAwait(false);
             CallMethodResult delete = await CallAsync(
                 resourceNodeId, deleteId, new Variant(0u)).ConfigureAwait(false);
             Assert.That(delete.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(m_registry.Current.FindResource("sensors", "thing1"), Is.Null);
+            Assert.That(Registry.WotRegistryTestAuthorities.FindResource(
+                m_registry.Current, "sensors", "thing1"), Is.Null);
         }
 
         [Test]
@@ -406,8 +407,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 registryNodeId,
                 createGroupId,
                 new Variant("secure-files")).ConfigureAwait(false);
-            var groupNodeId = (NodeId)createGroup.OutputArguments[0]
-                .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+            Assert.That(createGroup.OutputArguments[0].TryGetValue(out NodeId groupNodeId), Is.True);
 
             NodeId createResourceId = await FindChildAsync(groupNodeId, "GetOrCreateResource")
                 .ConfigureAwait(false);
@@ -417,8 +417,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 new Variant("thing1"),
                 new Variant(string.Empty),
                 new Variant(true)).ConfigureAwait(false);
-            var resourceNodeId = (NodeId)createResource.OutputArguments[0]
-                .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+            Assert.That(createResource.OutputArguments[0].TryGetValue(out NodeId resourceNodeId), Is.True);
             uint writeHandle = createResource.OutputArguments[2].GetUInt32();
 
             m_options.ManagementAccess = new WotManagementAccessPolicy
@@ -521,8 +520,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             CallMethodResult createGroup = await CallAsync(
                 registryNodeId, createGroupId, new Variant("labelgroup")).ConfigureAwait(false);
             Assert.That(createGroup.StatusCode, Is.EqualTo(StatusCodes.Good));
-            var groupNodeId = (NodeId)createGroup.OutputArguments[0]
-                .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+            Assert.That(createGroup.OutputArguments[0].TryGetValue(out NodeId groupNodeId), Is.True);
 
             NodeId groupLabelsId = await FindChildAsync(groupNodeId, "Labels").ConfigureAwait(false);
             NodeId groupAddId = await FindChildAsync(groupLabelsId, "AddAttribute")
@@ -572,8 +570,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 new Variant("thing1"), new Variant(string.Empty), new Variant(false))
                 .ConfigureAwait(false);
             Assert.That(createResource.StatusCode, Is.EqualTo(StatusCodes.Good));
-            var resourceNodeId = (NodeId)createResource.OutputArguments[0]
-                .AsBoxedObject(Variant.BoxingBehavior.Legacy);
+            Assert.That(createResource.OutputArguments[0].TryGetValue(out NodeId resourceNodeId), Is.True);
 
             NodeId resourceLabelsId = await FindChildAsync(resourceNodeId, "Labels")
                 .ConfigureAwait(false);

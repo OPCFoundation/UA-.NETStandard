@@ -94,6 +94,7 @@ namespace Opc.Ua.WotCon.Tests
 
             var options = new WotRegistryServerOptions
             {
+                IdentityBindings = Registry.WotRegistryTestAuthorities.ForResources("sensor01", "concurrent-sensor"),
                 // The test drives Refresh explicitly for a deterministic
                 // sequence of events/generations.
                 AutoRefresh = false,
@@ -104,7 +105,7 @@ namespace Opc.Ua.WotCon.Tests
                     RequiredRoleId = Ua.ObjectIds.WellKnownRole_Anonymous
                 }
             };
-            m_registry = new WotRegistryService();
+            m_registry = new WotRegistryService(null, options.Bounds, options.IdentityBindings);
             m_projectionHost = new BlockingProjectionHost(
                 new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle));
             m_coordinator = new WotMaterializationCoordinator(
@@ -201,7 +202,7 @@ namespace Opc.Ua.WotCon.Tests
             {
                 hasFailure |= result.Outcome == WoTOutcomeEnum.Failed;
                 hasActiveResource |=
-                    result.ResourceId == "sensor01" &&
+                    result.ResourceId == resource.ResourceId &&
                     result.LoadState == WoTLoadStateEnum.Active;
             }
             Assert.That(
