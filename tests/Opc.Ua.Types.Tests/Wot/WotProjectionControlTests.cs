@@ -46,6 +46,54 @@ namespace Opc.Ua.Types.Tests.Wot
     public sealed class WotProjectionControlTests
     {
         [Test]
+        public async Task ReviewedMalformedSemanticIrisAreRejectedBeforeDownstreamAcquisition(
+            [Values("space", "scheme", "percent", "control")] string failure,
+            [Values] bool nested)
+        {
+            string iri = failure switch
+            {
+                "space" => "urn:bad meaning",
+                "scheme" => "\u00e9:meaning",
+                "percent" => "urn:bad%GG",
+                "control" => "urn:\u0001",
+                _ => throw new ArgumentOutOfRangeException(nameof(failure))
+            };
+            JsonObject invalid = Projection();
+            invalid["uav:projects"]![0]!["href"] = "urn:review:source";
+            invalid["uav:projects"]![0]!["uav:select"] =
+                new JsonArray(new JsonObject { ["uav:semanticId"] = iri });
+            var documents = new Mock<IWotThingResolver>(MockBehavior.Strict);
+            documents.Setup(value => value.ResolveThingAsync(
+                    "urn:review:source", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(
+                    /*lang=json,strict*/
+                                         "{\"@type\":\"Thing\",\"title\":\"Source\",\"properties\":{}}")));
+            JsonObject root = invalid;
+            if (nested)
+            {
+                root = Projection();
+                root["uav:projects"]![0]!["href"] = "urn:review:nested";
+                root["uav:projects"]![0]!["type"] = WotProjection.ContentType;
+                documents.Setup(value => value.ResolveThingAsync(
+                        "urn:review:nested", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(invalid.ToJsonString())));
+            }
+            using WotDocument document = Parse(root);
+            var resolver = new WotProjectionResolver(documents.Object);
+
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
+            using WotDocument view = result.Value;
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Value, Is.Null);
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.ProjectionSelectorInvalid &&
+                diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True);
+            documents.Verify(value => value.ResolveThingAsync(
+                "urn:review:source", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Never());
+        }
+
+        [Test]
         public void NumericSourceDigestIsReportedInsteadOfDiscardingThePin()
         {
             JsonObject projection = Projection();

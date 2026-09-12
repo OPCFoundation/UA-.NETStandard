@@ -46,6 +46,155 @@ namespace Opc.Ua.Types.Tests.Wot
     [Category("WoT")]
     public sealed class WotProjectionSecurityTests
     {
+        [Test]
+        public async Task ReviewedSourceAffordanceSecurityRetainsItsOwner(
+            [Values("properties", "actions", "events")] string map,
+            [Values] bool enumerated,
+            [Values] bool array)
+        {
+            JsonObject projection = Projection();
+            JsonObject manifest = Manifest("source", "urn:source");
+            projection["uav:projects"] = new JsonArray(manifest);
+            JsonObject source = Source("value", "auth", "basic");
+            var affordance = (JsonObject)source["properties"]!["value"]!.DeepClone();
+            source.Remove("properties");
+            source[map] = new JsonObject { ["value"] = affordance };
+            affordance["security"] = array ? new JsonArray("auth") : JsonValue.Create("auth");
+            affordance["forms"]![0]!["op"] = map switch
+            {
+                "actions" => "invokeaction",
+                "events" => "subscribeevent",
+                _ => "readproperty"
+            };
+            if (enumerated)
+            {
+                manifest.Remove("uav:selectAll");
+                projection[map] = new JsonObject
+                {
+                    ["selected"] = new JsonObject { ["tm:ref"] = "urn:source#/" + map + "/value" }
+                };
+            }
+
+            WotConversionResult<WotDocument> result = await ResolveAsync(
+                projection, new Dictionary<string, JsonObject> { ["urn:source"] = source }).ConfigureAwait(false);
+            using WotDocument view = result.Value;
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            JsonElement selected = view.RootElement.GetProperty(map).GetProperty(enumerated ? "selected" : "value");
+            JsonElement security = selected.GetProperty("security");
+            Assert.That((array ? security[0] : security).GetString(), Is.EqualTo("q:s:c291cmNl:YXV0aA"));
+            Assert.That(view.SecurityDefinitions["q:s:c291cmNl:YXV0aA"].GetProperty("scheme").GetString(),
+                Is.EqualTo("basic"));
+            Assert.That(selected.GetProperty("forms")[0].GetProperty("security")[0].GetString(),
+                Is.EqualTo("q:s:c291cmNl:YXV0aA"));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReviewedAffordanceRequirementCannotSelectAnotherSourcesAnonymousScheme(bool reversed)
+        {
+            const string raw = "q:s:YV9i:Yw";
+            JsonObject projection = Projection();
+            JsonObject victim = Manifest("source", "urn:victim");
+            JsonObject other = Manifest("a_b", "urn:other");
+            projection["uav:projects"] = reversed ? new JsonArray(other, victim) : new JsonArray(victim, other);
+            JsonObject source = Source("victim", raw, "basic");
+            source["properties"]!["victim"]!["security"] = raw;
+
+            WotConversionResult<WotDocument> result = await ResolveAsync(
+                projection, new Dictionary<string, JsonObject>
+                {
+                    ["urn:victim"] = source,
+                    ["urn:other"] = Source("other", "c", "nosec")
+                }).ConfigureAwait(false);
+            using WotDocument view = result.Value;
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            string required = view.Properties["victim"].GetProperty("security").GetString();
+            Assert.That(required, Is.EqualTo("q:s:c291cmNl:cTpzOllWOWk6WXc"));
+            Assert.That(view.SecurityDefinitions[required].GetProperty("scheme").GetString(), Is.EqualTo("basic"));
+            Assert.That(view.SecurityDefinitions[raw].GetProperty("scheme").GetString(), Is.EqualTo("nosec"));
+        }
+
+        [Test]
+        public async Task ReviewedModelAffordanceSecurityCarriesItsClosureWithoutForms()
+        {
+            JsonObject projection = Projection();
+            projection["uav:projectionKind"] = "ThingModel";
+            JsonObject manifest = Manifest("source", "urn:source");
+            manifest["type"] = "application/tm+json";
+            projection["uav:projects"] = new JsonArray(manifest);
+            JsonObject source = Source("value", "auth", "basic");
+            source["@type"] = "tm:ThingModel";
+            source.Remove("security");
+            source["properties"]!["value"]!["security"] = "auth";
+            ((JsonObject)source["properties"]!["value"]!).Remove("forms");
+
+            WotConversionResult<WotDocument> result = await ResolveAsync(
+                projection, new Dictionary<string, JsonObject> { ["urn:source"] = source }).ConfigureAwait(false);
+            using WotDocument view = result.Value;
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            Assert.That(view.Properties["value"].GetProperty("security").GetString(),
+                Is.EqualTo("q:s:c291cmNl:YXV0aA"));
+            Assert.That(view.SecurityDefinitions["q:s:c291cmNl:YXV0aA"].GetProperty("scheme").GetString(),
+                Is.EqualTo("basic"));
+            Assert.That(view.Properties["value"].TryGetProperty("forms", out _), Is.False);
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ReviewedDuplicateSecurityContainersCannotReplaceEarlierRequirements(
+            bool host, bool equivalent)
+        {
+            JsonObject projection = Projection();
+            projection["uav:projects"] = new JsonArray(Manifest("source", "urn:source"));
+            JsonObject source = Source("value", "auth", "basic");
+            if (host)
+            {
+                projection["security"] = "auth";
+            }
+            string owner = (host ? projection : source).ToJsonString();
+            if (!host)
+            {
+                source.Remove("securityDefinitions");
+                owner = source.ToJsonString();
+            }
+            owner = owner[..^1] +
+                ",\"securityDefinitions\":{\"auth\":{\"scheme\":\"basic\"}}," +
+                "\"securityDefinitions\":{\"auth\":{\"scheme\":\"" +
+                (equivalent ? "basic" : "nosec") +
+                "\"}}}";
+            var documents = new Mock<IWotThingResolver>();
+            documents.Setup(resolver => resolver.ResolveThingAsync(
+                    "urn:source", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(WotResolverResult.FromBytes(
+                    Encoding.UTF8.GetBytes(host ? source.ToJsonString() : owner)));
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(host ? owner : projection.ToJsonString()));
+            var resolver = new WotProjectionResolver(documents.Object);
+
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
+            using WotDocument view = result.Value;
+
+            Assert.That(result.Success, Is.EqualTo(equivalent), string.Join("; ", result.Diagnostics));
+            if (equivalent)
+            {
+                Assert.That(view.SecurityDefinitions[host ? "q:p:YXV0aA" : "q:s:c291cmNl:YXV0aA"]
+                    .GetProperty("scheme").GetString(), Is.EqualTo("basic"));
+            }
+            else
+            {
+                Assert.That(result.Value, Is.Null);
+                Assert.That(result.Diagnostics.Any(diagnostic =>
+                    diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True);
+                documents.Verify(value => value.ResolveThingAsync(
+                    "urn:source", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()),
+                    host ? Times.Never() : Times.Once());
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task DistinctSourceSecurityOriginsCannotCollideThroughUnderscores(bool reversed)

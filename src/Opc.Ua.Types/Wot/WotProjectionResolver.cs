@@ -1071,6 +1071,16 @@ namespace Opc.Ua.Wot
             ResolvedSource source,
             Selection selection)
         {
+            if (target["security"] is JsonNode requirement)
+            {
+                CopySecurityClosure(
+                    source.Source.SourceName,
+                    source.Document.SecurityDefinitions,
+                    NamesFromNode(requirement),
+                    selection.SecurityDefinitions,
+                    selection.SecurityAdded);
+                QualifySecurityRequirement(target, source.Source.SourceName);
+            }
             if (!target.TryGetPropertyValue("forms", out JsonNode? formsNode) ||
                 formsNode is not JsonArray forms)
             {
@@ -1597,12 +1607,28 @@ namespace Opc.Ua.Wot
             WotDocument document, int maxDepth, List<WotDiagnostic> diagnostics)
         {
             var seen = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-            if (document.RootElement.TryGetProperty("securityDefinitions", out JsonElement definitions))
+            JsonElement previousContainer = default;
+            foreach (JsonProperty member in document.RootElement.EnumerateObject())
             {
+                if (member.Name != "securityDefinitions")
+                {
+                    continue;
+                }
+                JsonElement definitions = member.Value;
                 if (definitions.ValueKind != JsonValueKind.Object)
                 {
                     return Invalid("securityDefinitions must be an object.");
                 }
+                if (previousContainer.ValueKind != JsonValueKind.Undefined &&
+                    (!WotJsonCanonicalizer.TryCanonicalize(
+                        previousContainer, out string firstContainer, out string containerError) ||
+                        !WotJsonCanonicalizer.TryCanonicalize(definitions, out string nextContainer, out containerError) ||
+                        !string.Equals(firstContainer, nextContainer, StringComparison.Ordinal)))
+                {
+                    return Invalid("Repeated securityDefinitions containers are contradictory or incomparable. " +
+                        containerError);
+                }
+                previousContainer = definitions;
                 foreach (JsonProperty definition in definitions.EnumerateObject())
                 {
                     if (definition.Value.ValueKind != JsonValueKind.Object)
@@ -1768,32 +1794,32 @@ namespace Opc.Ua.Wot
 
         private static void QualifyProjectionSecurity(JsonObject target)
         {
-            QualifyMember(target);
+            QualifySecurityRequirement(target, null);
             if (target["forms"] is JsonArray forms)
             {
                 foreach (JsonNode? form in forms)
                 {
                     if (form is JsonObject value)
                     {
-                        QualifyMember(value);
+                        QualifySecurityRequirement(value, null);
                     }
                 }
             }
+        }
 
-            static void QualifyMember(JsonObject value)
+        private static void QualifySecurityRequirement(JsonObject value, string? sourceName)
+        {
+            if (value["security"] is JsonValue scalar && scalar.TryGetValue(out string? name))
             {
-                if (value["security"] is JsonValue scalar && scalar.TryGetValue(out string? name))
+                value["security"] = Qualify(sourceName, name!);
+            }
+            else if (value["security"] is JsonArray names)
+            {
+                for (int index = 0; index < names.Count; index++)
                 {
-                    value["security"] = Qualify(null, name!);
-                }
-                else if (value["security"] is JsonArray names)
-                {
-                    for (int index = 0; index < names.Count; index++)
+                    if (names[index] is JsonValue item && item.TryGetValue(out string? entry))
                     {
-                        if (names[index] is JsonValue item && item.TryGetValue(out string? entry))
-                        {
-                            names[index] = Qualify(null, entry!);
-                        }
+                        names[index] = Qualify(sourceName, entry!);
                     }
                 }
             }
@@ -1995,71 +2021,68 @@ namespace Opc.Ua.Wot
 
         private static string ResolveHref(string baseHref, string href)
         {
-            if (string.IsNullOrEmpty(href) || HasScheme(href))
+            if (HasScheme(href))
             {
                 return href;
             }
             if (!TrySplitBase(
-                    baseHref, out string scheme, out string? authority, out string basePath))
+                    baseHref, out string scheme, out string? authority, out string basePath, out string? baseQuery))
             {
                 return href;
             }
             string prefix = authority is null
                 ? scheme + ":"
                 : scheme + "://" + authority;
-            if (href.StartsWith("//", StringComparison.Ordinal))
+            SplitUriSuffix(href, out string referencePath, out string? query, out string? fragment);
+            if (referencePath.StartsWith("//", StringComparison.Ordinal))
             {
-                return scheme + ":" + href;
+                int slash = referencePath.IndexOf('/', 2);
+                string networkAuthority = slash < 0 ? referencePath : referencePath[..slash];
+                string networkPath = slash < 0 ? string.Empty : referencePath[slash..];
+                return scheme + ":" + networkAuthority + RemoveDotSegments(networkPath) + query + fragment;
             }
-            if (href.StartsWith('/'))
+            string path;
+            if (referencePath.Length == 0)
             {
-                return prefix + href;
+                path = basePath;
+                query ??= baseQuery;
             }
-            if (href.StartsWith('?') || href.StartsWith('#'))
+            else if (referencePath[0] == '/')
             {
-                return prefix + basePath + href;
+                path = RemoveDotSegments(referencePath);
             }
-            string merged = MergePath(basePath, href, authority is not null);
-            return prefix + RemoveDotSegments(merged);
+            else
+            {
+                path = RemoveDotSegments(MergePath(basePath, referencePath, authority is not null));
+            }
+            return prefix + path + query + fragment;
         }
 
         private static bool HasScheme(string value)
         {
-            if (value.Length == 0 || !char.IsLetter(value[0]))
-            {
-                return false;
-            }
-            for (int ii = 0; ii < value.Length; ii++)
-            {
-                char c = value[ii];
-                if (c == ':')
-                {
-                    return ii > 0;
-                }
-                if (!char.IsLetterOrDigit(c) && c is not ('+' or '-' or '.'))
-                {
-                    return false;
-                }
-            }
-            return false;
+            int colon = value.IndexOf(':', StringComparison.Ordinal);
+            return colon > 0 && Uri.CheckSchemeName(value[..colon]);
         }
 
         private static bool TrySplitBase(
             string baseHref,
             out string scheme,
             out string? authority,
-            out string path)
+            out string path,
+            out string? query)
         {
             scheme = string.Empty;
             authority = null;
             path = string.Empty;
-            int colon = baseHref.IndexOf(':', StringComparison.Ordinal);
-            if (colon <= 0)
+            query = null;
+            if (!HasScheme(baseHref))
             {
                 return false;
             }
-            scheme = baseHref[..colon];
-            string rest = baseHref[(colon + 1)..];
+            SplitUriSuffix(baseHref, out string main, out query, out _);
+            int colon = main.IndexOf(':', StringComparison.Ordinal);
+            scheme = main[..colon];
+            string rest = main[(colon + 1)..];
             if (rest.StartsWith("//", StringComparison.Ordinal))
             {
                 string afterAuthority = rest[2..];
@@ -2080,6 +2103,17 @@ namespace Opc.Ua.Wot
                 path = rest;
             }
             return true;
+        }
+
+        private static void SplitUriSuffix(
+            string value, out string path, out string? query, out string? fragment)
+        {
+            int hash = value.IndexOf('#', StringComparison.Ordinal);
+            fragment = hash < 0 ? null : value[hash..];
+            string withoutFragment = hash < 0 ? value : value[..hash];
+            int question = withoutFragment.IndexOf('?', StringComparison.Ordinal);
+            query = question < 0 ? null : withoutFragment[question..];
+            path = question < 0 ? withoutFragment : withoutFragment[..question];
         }
 
         private static string MergePath(string basePath, string reference, bool hasAuthority)

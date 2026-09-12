@@ -1090,7 +1090,9 @@ resolve their authored base against it; source forms are not moved under the
 outer projection's base. `WotProjectionManifestSource.Href` retains the authored
 spelling, while generated `uav:resolvedFrom` uses the resolved source location.
 Relative organizing-graph links are resolved at each owning document, including
-cycle checks.
+cycle checks. Query-only references replace the previous query; fragments and
+query text never become path segments. Dot-segment removal applies to the path,
+including rooted relative paths, without rewriting opaque query values.
 
 Selection has three forms. An enumerated `tm:ref` names one affordance and is the
 only form that can annotate it; `uav:selectAll` takes every affordance of a
@@ -1184,6 +1186,13 @@ definitions fail rather than replacing another authentication scheme.
 Consistent repeats may share a definition. Unrelated vendor metadata is retained,
 not rewritten by matching strings. Consumers must follow the emitted names
 rather than assuming the older underscore-concatenated spelling.
+
+Source-owned affordance requirements are qualified as well as form requirements.
+An incomplete Thing Model's affordance can retain a security-definition closure
+without forms. Repeating the `securityDefinitions` container does not permit an
+earlier policy to be replaced: repeated containers must describe equivalent
+facts. Projection-owned conflicts fail before source acquisition; source-owned
+conflicts fail before a resolved view is returned.
 
 Selections are applied in the total order of Section 12.4, and the **first**
 selection of a name wins: by the position of the source in `uav:projects`;

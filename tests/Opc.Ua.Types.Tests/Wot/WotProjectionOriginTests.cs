@@ -44,6 +44,134 @@ namespace Opc.Ua.Types.Tests.Wot
     [Category("WoT")]
     public sealed class WotProjectionOriginTests
     {
+        [TestCase("g:h", "g:h")]
+        [TestCase("g", "http://a/b/c/g")]
+        [TestCase("./g", "http://a/b/c/g")]
+        [TestCase("g/", "http://a/b/c/g/")]
+        [TestCase("/g", "http://a/g")]
+        [TestCase("//g", "http://g")]
+        [TestCase("?y", "http://a/b/c/d;p?y")]
+        [TestCase("g?y", "http://a/b/c/g?y")]
+        [TestCase("#s", "http://a/b/c/d;p?q#s")]
+        [TestCase("g#s", "http://a/b/c/g#s")]
+        [TestCase("g?y#s", "http://a/b/c/g?y#s")]
+        [TestCase(";x", "http://a/b/c/;x")]
+        [TestCase("g;x", "http://a/b/c/g;x")]
+        [TestCase("g;x?y#s", "http://a/b/c/g;x?y#s")]
+        [TestCase("", "http://a/b/c/d;p?q")]
+        [TestCase(".", "http://a/b/c/")]
+        [TestCase("./", "http://a/b/c/")]
+        [TestCase("..", "http://a/b/")]
+        [TestCase("../", "http://a/b/")]
+        [TestCase("../g", "http://a/b/g")]
+        [TestCase("../..", "http://a/")]
+        [TestCase("../../", "http://a/")]
+        [TestCase("../../g", "http://a/g")]
+        [TestCase("../../../g", "http://a/g")]
+        [TestCase("../../../../g", "http://a/g")]
+        [TestCase("/./g", "http://a/g")]
+        [TestCase("/../g", "http://a/g")]
+        [TestCase("g.", "http://a/b/c/g.")]
+        [TestCase(".g", "http://a/b/c/.g")]
+        [TestCase("g..", "http://a/b/c/g..")]
+        [TestCase("..g", "http://a/b/c/..g")]
+        [TestCase("./../g", "http://a/b/g")]
+        [TestCase("./g/.", "http://a/b/c/g/")]
+        [TestCase("g/./h", "http://a/b/c/g/h")]
+        [TestCase("g/../h", "http://a/b/c/h")]
+        [TestCase("g;x=1/./y", "http://a/b/c/g;x=1/y")]
+        [TestCase("g;x=1/../y", "http://a/b/c/y")]
+        [TestCase("g?y/./x", "http://a/b/c/g?y/./x")]
+        [TestCase("g?y/../x", "http://a/b/c/g?y/../x")]
+        [TestCase("g#s/./x", "http://a/b/c/g#s/./x")]
+        [TestCase("g#s/../x", "http://a/b/c/g#s/../x")]
+        public async Task ReviewedCarriedFormsFollowRfc3986ReferenceExamples(string reference, string expected)
+        {
+            JsonObject source = Source("http://a/b/c/d;p?q");
+            source["properties"]!["value"]!["forms"]![0]!["href"] = reference;
+            Mock<IWotThingResolver> sources = Resolver(new Dictionary<string, JsonObject> { ["urn:source"] = source });
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(Projection("urn:source").ToJsonString()));
+            var resolver = new WotProjectionResolver(sources.Object);
+
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
+            using WotDocument view = result.Value;
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            Assert.That(view.Properties["value"].GetProperty("forms")[0].GetProperty("href").GetString(),
+                Is.EqualTo(expected));
+        }
+
+        [TestCase("https://review.test/views/root.json?old=1", "?edition=2",
+            "https://review.test/views/root.json?edition=2")]
+        [TestCase("https://review.test/views/root.json?path=/wrong/route", "../device.json",
+            "https://review.test/device.json")]
+        [TestCase("https://review.test/views/root.json#old", "?edition=2",
+            "https://review.test/views/root.json?edition=2")]
+        [TestCase("https://review.test/views/root.json", "/assets/../device.json",
+            "https://review.test/device.json")]
+        public async Task ReviewedSourceUrisResolvePathQueryAndFragmentAsSeparateComponents(
+            string baseUri, string reference, string expected)
+        {
+            JsonObject projection = Projection(reference);
+            projection["base"] = baseUri;
+            Mock<IWotThingResolver> sources = Resolver(new Dictionary<string, JsonObject>
+            {
+                [expected] = Source("https://device.test/api/")
+            });
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(projection.ToJsonString()));
+            var resolver = new WotProjectionResolver(sources.Object);
+
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
+            using WotDocument view = result.Value;
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            Assert.That(view.Properties["value"].GetProperty("forms")[0].GetProperty("href").GetString(),
+                Is.EqualTo("https://device.test/api/value"));
+            sources.Verify(value => value.ResolveThingAsync(
+                expected, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once());
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReviewedQueryBearingOrganizesGraphCannotHideItsCycle(bool oldQuery)
+        {
+            JsonObject projection = Projection("https://review.test/source.json");
+            projection["base"] = "https://review.test/views/root.json";
+            projection["links"] = new JsonArray(Organizes("./group/a.json"));
+            var first = new JsonObject
+            {
+                ["@type"] = "Thing",
+                ["title"] = "First",
+                ["base"] = "../collections/node.json" + (oldQuery ? "?old=1" : string.Empty),
+                ["links"] = new JsonArray(Organizes("?next=2"))
+            };
+            var second = new JsonObject
+            {
+                ["@type"] = "Thing",
+                ["title"] = "Second",
+                ["links"] = new JsonArray(Organizes("../group/a.json"))
+            };
+            Mock<IWotThingResolver> sources = Resolver(new Dictionary<string, JsonObject>
+            {
+                ["https://review.test/source.json"] = Source("https://device.test/api/"),
+                ["https://review.test/views/group/a.json"] = first,
+                ["https://review.test/views/collections/node.json?next=2"] = second
+            });
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(projection.ToJsonString()));
+            var resolver = new WotProjectionResolver(sources.Object);
+
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
+            using WotDocument view = result.Value;
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Value, Is.Null);
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.ProjectionCycle), Is.True, string.Join("; ", result.Diagnostics));
+            sources.Verify(value => value.ResolveThingAsync(
+                "https://review.test/views/collections/node.json?next=2",
+                It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once());
+        }
+
         [TestCase("../device.json", null,
             "https://origin.test/device.json", "https://origin.test/value")]
         [TestCase("../device.json", "./runtime/",

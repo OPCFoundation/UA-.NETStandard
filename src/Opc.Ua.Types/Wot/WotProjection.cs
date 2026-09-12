@@ -792,20 +792,7 @@ namespace Opc.Ua.Wot
 
         private static bool IsAbsoluteIri(string value)
         {
-            int scheme = value.IndexOf(':', StringComparison.Ordinal);
-            if (scheme <= 0)
-            {
-                return false;
-            }
-            for (int ii = 0; ii < scheme; ii++)
-            {
-                char c = value[ii];
-                if (!char.IsLetterOrDigit(c) && c is not ('+' or '-' or '.'))
-                {
-                    return false;
-                }
-            }
-            return char.IsLetter(value[0]);
+            return Uri.TryCreate(value, UriKind.Absolute, out Uri? iri) && iri.IsWellFormedOriginalString();
         }
 
         private static bool IsSha256Digest(string value)
