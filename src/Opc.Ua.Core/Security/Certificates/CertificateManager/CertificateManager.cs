@@ -172,7 +172,14 @@ namespace Opc.Ua
                     $"Trust list '{trustList}' is not registered.");
             }
 
-            return OpenStore(entry.TrustedStorePath, entry.StoreType);
+            if (string.IsNullOrEmpty(entry.TrustedStorePath))
+            {
+                throw new InvalidOperationException(
+                    $"Trust list '{trustList}' names its trusted certificates " +
+                    "inline and has no store to open.");
+            }
+
+            return OpenStore(entry.TrustedStorePath!, entry.StoreType);
         }
 
         /// <inheritdoc/>
@@ -319,13 +326,18 @@ namespace Opc.Ua
             string? issuerStorePath,
             bool replaceExisting)
         {
-            if (string.IsNullOrEmpty(trustedStorePath))
+            // A trust list is worth registering as soon as it names trust
+            // material, and <TrustedCertificates> alone is enough: a
+            // configuration that lists peers inline and sets no store path had
+            // nothing registered at all, so the validator went on rejecting
+            // exactly the peers it was told to trust.
+            if (string.IsNullOrEmpty(trustedStorePath) && explicitTrustedCertificates.IsEmpty)
             {
                 return;
             }
 
             var entry = new TrustListEntry(
-                trustedStorePath!,
+                trustedStorePath,
                 issuerStorePath,
                 StoreType: null,
                 explicitTrustedCertificates);
@@ -1575,8 +1587,19 @@ namespace Opc.Ua
         /// <summary>
         /// Internal record for a registered trust list.
         /// </summary>
+        /// <param name="TrustedStorePath">
+        /// The trusted store, or <c>null</c> when the list names its trusted
+        /// certificates inline and has no store behind it.
+        /// </param>
+        /// <param name="IssuerStorePath">The issuer store, if any.</param>
+        /// <param name="StoreType">
+        /// The store type, or <c>null</c> to derive it from the path.
+        /// </param>
+        /// <param name="ExplicitTrustedCertificates">
+        /// The certificates named on the trust list itself.
+        /// </param>
         private sealed record TrustListEntry(
-            string TrustedStorePath,
+            string? TrustedStorePath,
             string? IssuerStorePath,
             string? StoreType,
             ArrayOf<CertificateIdentifier> ExplicitTrustedCertificates = default);

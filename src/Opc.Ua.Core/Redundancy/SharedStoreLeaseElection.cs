@@ -139,6 +139,16 @@ namespace Opc.Ua.Redundancy
                 .CompareAndSwapAsync(m_leaseKey, expected, newLease, ct)
                 .ConfigureAwait(false);
 
+            // The expiry was computed before the store call. A call that took
+            // longer than the lease duration wrote a lease that has already run
+            // out, and another replica may have taken over in the meantime - so
+            // this is not leadership, however the swap went.
+            if (acquired && m_timeProvider.GetUtcNow().UtcTicks >= expiry)
+            {
+                SetLeader(false);
+                return false;
+            }
+
             if (acquired)
             {
                 Interlocked.Exchange(ref m_localLeaseExpiryTicks, expiry);
@@ -159,6 +169,18 @@ namespace Opc.Ua.Redundancy
                 }
                 m_started = true;
                 m_loop = Task.Run(() => RenewLoopAsync(m_cts.Token));
+
+                // Runs independently of the renew loop. A store that hangs
+                // rather than throws never lets that loop come round to its
+                // failure path, so the step-down has to be driven from
+                // somewhere the store cannot block - otherwise a replica keeps
+                // announcing itself as leader on a lease every other replica
+                // has already watched expire.
+                m_watchdog = m_timeProvider.CreateTimer(
+                    _ => StepDownIfLeaseExpired(),
+                    null,
+                    m_renewInterval,
+                    m_renewInterval);
             }
         }
 
@@ -172,6 +194,18 @@ namespace Opc.Ua.Redundancy
                     return;
                 }
                 m_disposed = true;
+            }
+
+            ITimer? watchdog;
+            lock (m_lock)
+            {
+                watchdog = m_watchdog;
+                m_watchdog = null;
+            }
+
+            if (watchdog != null)
+            {
+                await watchdog.DisposeAsync().ConfigureAwait(false);
             }
 
             m_cts.Cancel();
@@ -327,6 +361,13 @@ namespace Opc.Ua.Redundancy
         private bool m_isLeader;
         private bool m_started;
         private bool m_disposed;
+
+        /// <summary>
+        /// Drives <see cref="StepDownIfLeaseExpired"/> on its own cadence, so a
+        /// store call that never returns cannot keep this replica claiming
+        /// leadership.
+        /// </summary>
+        private ITimer? m_watchdog;
 
         /// <summary>
         /// When the lease this replica last wrote to the store runs out. Used to

@@ -835,6 +835,22 @@ namespace Opc.Ua.Bindings
             // it ends as soon as it observes the cancellation.
             previous?.Cancel();
 
+            // The transport was read before the epoch went in, so a detach could
+            // have run in between and this epoch would now be reading a socket
+            // the channel has given up - one the listener may have closed, or
+            // handed to the channel that adopted it.
+            //
+            // DetachTransport clears the transport before it retires the loop,
+            // so the two orderings are both covered: a detach that got as far as
+            // the transport is seen here, and a later one retires this epoch and
+            // cancels it before the body reads anything.
+            if (!ReferenceEquals(Volatile.Read(ref m_transport), transport))
+            {
+                Interlocked.CompareExchange(ref m_receiveLoop, null, epoch);
+                epoch.Cancel();
+                return;
+            }
+
             CancellationToken ct = epoch.Token;
             m_receiveLoopTask = Task.Run(
                 async () =>

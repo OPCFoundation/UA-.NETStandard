@@ -94,22 +94,67 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         /// <summary>
-        /// The logger reports a level enabled when the trace mask lets it
-        /// through, with no Tracing handler subscribed. IsEnabled used to
-        /// consult only the handler, so every source-generated log call - which
-        /// checks IsEnabled before doing any work - short-circuited and nothing
-        /// reached the trace file in the usual case of no subscriber.
+        /// The logger reports enabled when a trace mask is configured, with no
+        /// Tracing handler subscribed. IsEnabled used to consult only the
+        /// handler, so every source-generated log call - which checks IsEnabled
+        /// before doing any work - short-circuited and nothing reached the trace
+        /// file in the usual case of no subscriber.
         /// </summary>
-        [Test]
-        public void LoggerIsEnabledFollowsTheTraceMaskWithoutATracingHandler()
+        /// <remarks>
+        /// It answers for the configuration as a whole rather than for the
+        /// level: a core event id carries its own category bits, so a mask
+        /// derived from the level alone would report a configured category
+        /// disabled. Log() applies the exact, event-specific filter.
+        /// </remarks>
+        [TestCase(LogLevel.Error)]
+        [TestCase(LogLevel.Information)]
+        [TestCase(LogLevel.Trace)]
+        public void LoggerIsEnabledFollowsTheTraceMaskWithoutATracingHandler(LogLevel logLevel)
         {
             using var provider = new TraceLoggerProvider();
             provider.SetTraceMask(Utils.TraceMasks.Error);
 
             ILogger logger = provider.CreateLogger("category");
 
-            Assert.That(logger.IsEnabled(LogLevel.Error), Is.True);
-            Assert.That(logger.IsEnabled(LogLevel.Information), Is.False);
+            Assert.That(logger.IsEnabled(logLevel), Is.True);
+        }
+
+        /// <summary>
+        /// A call whose event id carries a category the mask has enabled still
+        /// reaches the trace file, even though its level maps to a different
+        /// mask bit. This is the case a level-derived IsEnabled dropped.
+        /// </summary>
+        [Test]
+        public void LoggerWritesWhenOnlyTheEventIdCategoryIsMasked()
+        {
+            string directory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                "TraceLoggerProviderTests",
+                Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            string logFile = Path.Combine(directory, "trace.log");
+
+            using var provider = new TraceLoggerProvider();
+            provider.SetTraceOutput(Utils.TraceOutput.FileOnly);
+            provider.SetTraceMask(Utils.TraceMasks.ServiceDetail);
+            provider.SetTraceLog(logFile, deleteExisting: true);
+
+            ILogger logger = provider.CreateLogger("category");
+            var eventId = new EventId(Utils.TraceMasks.ServiceDetail, "ServiceDetail");
+
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.Log(
+                    LogLevel.Information,
+                    eventId,
+                    "Detail {Value}",
+                    null,
+                    (state, _) => "Detail 31");
+            }
+
+            string text = File.ReadAllText(logFile);
+            Assert.That(text, Does.Contain("Detail 31"));
+            Directory.Delete(directory, true);
         }
 
         /// <summary>

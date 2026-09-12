@@ -358,7 +358,11 @@ namespace Opc.Ua
             InternalResetValidatedCertificates();
 
             CertificateStoreIdentifier? trustedCertificateStore = null;
-            if (trustedStore != null)
+
+            // A trust list can name its certificates inline and have no store
+            // behind it; building an identifier for an empty path would make
+            // every validation try to open a store that does not exist.
+            if (trustedStore != null && !string.IsNullOrEmpty(trustedStore.StorePath))
             {
                 trustedCertificateStore = new CertificateStoreIdentifier(trustedStore.StorePath!)
                 {

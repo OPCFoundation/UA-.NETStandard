@@ -178,32 +178,41 @@ namespace Opc.Ua
             encryptingKey = new byte[encryptingKeySize];
             iv = new byte[blockSize];
 
-            byte[] secret = localNonce.GenerateSecret(remoteNonce, null) ?? throw new InvalidOperationException("Failed to generate secret.");
-            byte[] keyLength = BitConverter.GetBytes((ushort)(encryptingKeySize + blockSize));
+            byte[] secret = localNonce.GenerateSecret(remoteNonce, null) ??
+                throw new InvalidOperationException("Failed to generate secret.");
+            byte[]? keyData = null;
 
-            byte[] salt = Utils.Append(
-                keyLength,
-                s_secretLabel,
-                forDecryption ? remoteNonce.Data : localNonce.Data,
-                forDecryption ? localNonce.Data : remoteNonce.Data);
-
-            byte[] keyData = localNonce.DeriveKeyData(
-                secret!,
-                salt,
-                securityPolicy.KeyDerivationAlgorithm,
-                encryptingKeySize + blockSize);
-
+            // The scope starts at the shared secret, not at the copy below: the
+            // derivation in between can throw, and neither of these leaves this
+            // method. The secret is the worse of the two to leave behind - it
+            // derives the keys for every message of the exchange, not just this
+            // one.
             try
             {
+                byte[] keyLength = BitConverter.GetBytes((ushort)(encryptingKeySize + blockSize));
+
+                byte[] salt = Utils.Append(
+                    keyLength,
+                    s_secretLabel,
+                    forDecryption ? remoteNonce.Data : localNonce.Data,
+                    forDecryption ? localNonce.Data : remoteNonce.Data);
+
+                keyData = localNonce.DeriveKeyData(
+                    secret,
+                    salt,
+                    securityPolicy.KeyDerivationAlgorithm,
+                    encryptingKeySize + blockSize);
+
                 Buffer.BlockCopy(keyData, 0, encryptingKey, 0, encryptingKey.Length);
                 Buffer.BlockCopy(keyData, encryptingKeySize, iv, 0, iv.Length);
             }
             finally
             {
-                // Neither of these leaves this method, and the shared secret is
-                // the worse of the two to leave behind: it derives the keys for
-                // every message of the exchange, not just this one.
-                CryptoUtils.ZeroMemory(keyData);
+                if (keyData != null)
+                {
+                    CryptoUtils.ZeroMemory(keyData);
+                }
+
                 CryptoUtils.ZeroMemory(secret);
             }
         }

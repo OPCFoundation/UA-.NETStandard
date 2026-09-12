@@ -174,6 +174,43 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(firstKey.GetHashCode(), Is.EqualTo(secondKey.GetHashCode()));
         }
 
+        /// <summary>
+        /// The seven-argument constructor is kept alongside the profile-aware
+        /// one. Folding the new argument in as an optional parameter would be
+        /// source compatible but not binary compatible, and an application
+        /// compiled against the old signature would fail with a
+        /// MissingMethodException.
+        /// </summary>
+        [Test]
+        public void ChannelKeyKeepsTheConstructorWithoutATransportProfile()
+        {
+            ConstructorInfo? seven = typeof(ManagedChannelKey).GetConstructor(
+                [
+                    typeof(string),
+                    typeof(string),
+                    typeof(MessageSecurityMode),
+                    typeof(ByteString),
+                    typeof(int),
+                    typeof(ByteString),
+                    typeof(object)
+                ]);
+
+            Assert.That(seven, Is.Not.Null);
+
+            var key = (ManagedChannelKey)seven!.Invoke(
+                [
+                    "opc.tcp://localhost:4840",
+                    SecurityPolicies.None,
+                    MessageSecurityMode.None,
+                    default(ByteString),
+                    0,
+                    default(ByteString),
+                    null
+                ]);
+
+            Assert.That(key.TransportProfileUri, Is.Empty);
+        }
+
         [Test]
         public void ExponentialBackoffPolicyDoublesWithCap()
         {

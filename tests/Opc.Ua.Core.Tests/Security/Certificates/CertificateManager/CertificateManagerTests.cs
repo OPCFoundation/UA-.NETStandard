@@ -408,6 +408,56 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
+        /// A configuration that names its trusted peers inline and sets no
+        /// store path is still registered. The registration bailed out on the
+        /// empty store path, so nothing was registered at all and the validator
+        /// went on rejecting exactly the peers it was told to trust.
+        /// </summary>
+        [Test]
+        public async Task ExplicitlyTrustedPeerWithoutATrustedStorePathIsAcceptedAsync()
+        {
+            using Certificate cert = CertificateBuilder
+                .Create("CN=ExplicitlyTrustedNoStore")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            var configuration = new SecurityConfiguration
+            {
+                TrustedPeerCertificates = new CertificateTrustList()
+            };
+            configuration.AddTrustedPeer(cert.RawData);
+
+            using var manager = new CertificateManager(m_telemetry);
+            manager.MapFromSecurityConfiguration(configuration);
+
+            Assert.That(manager.TrustLists, Does.Contain(TrustListIdentifier.Peers));
+
+            using var collection = new CertificateCollection { cert };
+
+            CertificateValidationResult result = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.True);
+        }
+
+        /// <summary>
+        /// A trust list with neither a store path nor inline certificates names
+        /// no trust material, so there is nothing to register.
+        /// </summary>
+        [Test]
+        public void EmptyTrustListIsNotRegistered()
+        {
+            using var manager = new CertificateManager(m_telemetry);
+            manager.MapFromSecurityConfiguration(new SecurityConfiguration
+            {
+                TrustedPeerCertificates = new CertificateTrustList()
+            });
+
+            Assert.That(manager.TrustLists, Does.Not.Contain(TrustListIdentifier.Peers));
+        }
+
+        /// <summary>
         /// A negative retention limit means the same as zero - keep no rejected
         /// history - so the stores only ever see zero or a positive cap, no
         /// matter which of the two ways the limit was configured.

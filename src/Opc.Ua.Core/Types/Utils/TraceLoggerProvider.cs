@@ -176,11 +176,13 @@ namespace Opc.Ua
                 // call short-circuit, and nothing reaches the trace file when no
                 // handler is subscribed - the usual case.
                 //
-                // The event id is not available at this point, so the mask is the
-                // one GetTraceMask derives from the level alone; a call whose
-                // event id carries its own mask is filtered exactly in Log().
-                return Tracing.IsEnabled() ||
-                    (m_provider.TraceMask & GetTraceMask(default, logLevel)) != 0;
+                // The event id is not available at this point, and a core event
+                // id carries its own category bits rather than following from
+                // the level, so deriving a mask from the level alone would
+                // report a configured category disabled and the call would never
+                // reach Log(). This therefore answers "something is configured"
+                // and leaves the exact, event-specific filtering to Log().
+                return Tracing.IsEnabled() || m_provider.TraceMask != 0;
             }
 
             public void Log<TState>(
