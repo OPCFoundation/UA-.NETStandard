@@ -50,9 +50,35 @@ namespace Opc.Ua.Client.WebApi
     {
         private readonly HttpClient m_httpClient;
         private readonly bool m_ownsHttpClient;
+
+        /// <summary>
+        /// Whether the HttpClient may be configured in the constructor. False
+        /// for a factory pooled instance, which is shared and may already have
+        /// sent a request.
+        /// </summary>
+        private readonly bool m_configureHttpClient;
         private readonly WebApiClientOptions m_options;
         private readonly IServiceMessageContext m_messageContext;
         private readonly string m_contentType;
+
+        /// <summary>
+        /// Authorization header applied to every request. Kept here rather than
+        /// on the HttpClient so a shared client is never mutated.
+        /// </summary>
+        private readonly AuthenticationHeaderValue? m_authorization;
+
+        /// <summary>
+        /// Parsed once: the content type never changes after construction and
+        /// SendAsync is the per-service-call path of this transport.
+        /// </summary>
+        private readonly MediaTypeHeaderValue m_contentTypeHeader;
+        private readonly MediaTypeWithQualityHeaderValue m_acceptHeader;
+
+        /// <summary>
+        /// Base address applied per request when this instance does not own
+        /// the HttpClient; <see langword="null"/> when the client carries it.
+        /// </summary>
+        private readonly Uri? m_baseAddress;
         private bool m_disposed;
 
         /// <summary>
@@ -63,21 +89,45 @@ namespace Opc.Ua.Client.WebApi
         /// <param name="httpClient">The HTTP client to use.</param>
         /// <param name="options">Configuration options.</param>
         public WebApiClient(HttpClient httpClient, WebApiClientOptions? options = null)
-            : this(httpClient, ownsHttpClient: false, options)
+            : this(httpClient, ownsHttpClient: false, configureHttpClient: true, options)
         {
+        }
+
+        /// <summary>
+        /// Initializes a new REST client over an <c>HttpClient</c> the caller
+        /// owns - typically one handed out by an <c>IHttpClientFactory</c> and
+        /// therefore shared and possibly already used. The base address is kept
+        /// here and applied per request instead of being written onto the
+        /// shared client, whose BaseAddress, Timeout and DefaultRequestHeaders
+        /// throw once it has sent its first request.
+        /// </summary>
+        /// <param name="httpClient">The HTTP client to use.</param>
+        /// <param name="baseAddress">The server's base URI.</param>
+        /// <param name="options">Configuration options.</param>
+        internal WebApiClient(
+            HttpClient httpClient,
+            Uri baseAddress,
+            WebApiClientOptions? options)
+            : this(httpClient, ownsHttpClient: false, configureHttpClient: false, options)
+        {
+            m_baseAddress = baseAddress;
         }
 
         private WebApiClient(
             HttpClient httpClient,
             bool ownsHttpClient,
+            bool configureHttpClient,
             WebApiClientOptions? options)
         {
             m_httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             m_ownsHttpClient = ownsHttpClient;
+            m_configureHttpClient = configureHttpClient;
             m_options = options ?? new WebApiClientOptions();
             m_messageContext = m_options.MessageContext
                 ?? ServiceMessageContext.CreateEmpty(new ClientTelemetryContext());
             m_contentType = WebApiMediaType.FormatContentType(m_options.Encoding);
+            m_contentTypeHeader = MediaTypeHeaderValue.Parse(m_contentType);
+            m_acceptHeader = MediaTypeWithQualityHeaderValue.Parse(m_contentType);
 
             if (m_options.BearerToken != null && m_options.BasicCredentials.HasValue)
             {
@@ -87,23 +137,32 @@ namespace Opc.Ua.Client.WebApi
 
             if (m_options.BearerToken is not null)
             {
-                m_httpClient.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", m_options.BearerToken);
+                m_authorization = new AuthenticationHeaderValue("Bearer", m_options.BearerToken);
             }
             else if (m_options.BasicCredentials is var basic && basic.HasValue)
             {
                 string parameter = Convert.ToBase64String(
                     System.Text.Encoding.UTF8.GetBytes(basic.Value.Username + ":" + basic.Value.Password));
-                m_httpClient.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Basic", parameter);
+                m_authorization = new AuthenticationHeaderValue("Basic", parameter);
             }
 
-            m_httpClient.DefaultRequestHeaders.Accept.Clear();
-            m_httpClient.DefaultRequestHeaders.Accept.Add(MediaTypeWithQualityHeaderValue.Parse(m_contentType));
-
-            if (m_options.RequestTimeout.HasValue)
+            // A factory pooled HttpClient is shared and already in use: writing
+            // BaseAddress, Timeout or DefaultRequestHeaders on it throws
+            // InvalidOperationException. Those instances are configured per
+            // request instead - see SendAsync.
+            if (m_configureHttpClient)
             {
-                m_httpClient.Timeout = m_options.RequestTimeout.Value;
+                if (m_authorization != null)
+                {
+                    m_httpClient.DefaultRequestHeaders.Authorization = m_authorization;
+                }
+                m_httpClient.DefaultRequestHeaders.Accept.Clear();
+                m_httpClient.DefaultRequestHeaders.Accept.Add(m_acceptHeader);
+
+                if (m_options.RequestTimeout.HasValue)
+                {
+                    m_httpClient.Timeout = m_options.RequestTimeout.Value;
+                }
             }
         }
 
@@ -134,7 +193,7 @@ namespace Opc.Ua.Client.WebApi
                 ? new HttpClient(options.HttpMessageHandler, disposeHandler: options.DisposeHandler)
                 : new HttpClient();
             httpClient.BaseAddress = normalizedAddress;
-            return new WebApiClient(httpClient, ownsHttpClient: true, options);
+            return new WebApiClient(httpClient, ownsHttpClient: true, configureHttpClient: true, options);
         }
 
         private static Uri NormalizeOpcUaUrl(Uri url)
@@ -235,15 +294,41 @@ namespace Opc.Ua.Client.WebApi
                 WebApiMediaType.ToEncoderOptions(m_options.Encoding));
 
             using var content = new ByteArrayContent(body);
-            content.Headers.ContentType = MediaTypeHeaderValue.Parse(m_contentType);
+            content.Headers.ContentType = m_contentTypeHeader;
 
-            using var requestMessage = new HttpRequestMessage(HttpMethod.Post, route.Path)
+            using var requestMessage = new HttpRequestMessage(
+                HttpMethod.Post,
+                m_baseAddress != null
+                    ? new Uri(m_baseAddress, route.Path)
+                    : new Uri(route.Path, UriKind.Relative))
             {
                 Content = content
             };
 
+            if (!m_configureHttpClient)
+            {
+                // The client is shared, so the per-client defaults were not
+                // applied in the constructor. Carry them on the request.
+                if (m_authorization != null)
+                {
+                    requestMessage.Headers.Authorization = m_authorization;
+                }
+                requestMessage.Headers.Accept.Add(m_acceptHeader);
+            }
+
+            using CancellationTokenSource? timeoutCts =
+                !m_configureHttpClient && m_options.RequestTimeout.HasValue
+                    ? new CancellationTokenSource(m_options.RequestTimeout.Value)
+                    : null;
+            using CancellationTokenSource? linkedCts = timeoutCts != null
+                ? CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token)
+                : null;
+
             using HttpResponseMessage response = await m_httpClient
-                .SendAsync(requestMessage, HttpCompletionOption.ResponseContentRead, ct)
+                .SendAsync(
+                    requestMessage,
+                    HttpCompletionOption.ResponseContentRead,
+                    linkedCts?.Token ?? ct)
                 .ConfigureAwait(false);
 
             response.EnsureSuccessStatusCode();

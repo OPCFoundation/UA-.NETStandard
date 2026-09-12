@@ -46,6 +46,16 @@ namespace Opc.Ua.Client
             });
             ResultSet<ArrayOf<ReferenceDescription>> results =
                 await browser.BrowseAsync([nodeId], ct).ConfigureAwait(false);
+            // Surface the browse error. Returning the empty result set would
+            // make the node cache store "this node has no references" for a
+            // node the server merely refused to browse (BadUserAccessDenied,
+            // BadNodeIdUnknown), and every type-hierarchy query answered from
+            // that entry would be silently wrong until the entry expires.
+            ServiceResult error = results.Errors[0];
+            if (ServiceResult.IsBad(error))
+            {
+                throw new ServiceResultException(error);
+            }
             return results.Results[0];
         }
 
@@ -94,7 +104,7 @@ namespace Opc.Ua.Client
                 });
 
             ReadResponse readResponse = await m_session.ReadAsync(
-                null,
+                requestHeader,
                 0,
                 TimestampsToReturn.Neither,
                 itemsToRead,
@@ -127,7 +137,7 @@ namespace Opc.Ua.Client
             {
                 itemsToRead = attributesToRead.ToArrayOf();
                 readResponse = await m_session.ReadAsync(
-                    null,
+                    requestHeader,
                     0,
                     TimestampsToReturn.Neither,
                     itemsToRead,
@@ -238,7 +248,7 @@ namespace Opc.Ua.Client
 
             // read from server.
             ReadResponse readResponse = await m_session.ReadAsync(
-                null,
+                requestHeader,
                 0,
                 TimestampsToReturn.Neither,
                 itemsToRead,
@@ -276,7 +286,7 @@ namespace Opc.Ua.Client
 
             // read from server.
             ReadResponse readResponse = await m_session.ReadAsync(
-                null,
+                requestHeader,
                 0,
                 TimestampsToReturn.Both,
                 itemsToRead,
@@ -325,7 +335,7 @@ namespace Opc.Ua.Client
             var errors = new ServiceResult[itemsToRead.Count];
 
             ReadResponse readResponse = await m_session.ReadAsync(
-                null,
+                requestHeader,
                 0,
                 TimestampsToReturn.Both,
                 itemsToRead,

@@ -445,35 +445,10 @@ namespace Opc.Ua.Client.AliasNames
                 throw new ServiceResultException(br.StatusCode);
             }
 
-            foreach (ReferenceDescription r in SnapshotReferences(br.References))
-            {
-                if (!r.TypeDefinition.Equals(ObjectTypeIds.AliasNameCategoryType))
-                {
-                    continue;
-                }
-                var localId = ExpandedNodeId.ToNodeId(
-                    r.NodeId, Session.NamespaceUris);
-                if (localId.IsNull)
-                {
-                    continue;
-                }
-                yield return new AliasNameSubCategoryInfo(
-                    localId,
-                    r.BrowseName,
-                    r.DisplayName);
-            }
-
             ByteString continuationPoint = br.ContinuationPoint;
-            while (!continuationPoint.IsEmpty)
+            try
             {
-                (_, continuationPoint, ArrayOf<ReferenceDescription> nextReferences) =
-                    await Session.BrowseNextAsync(
-                        requestHeader: null,
-                        releaseContinuationPoint: false,
-                        continuationPoint,
-                        ct).ConfigureAwait(false);
-
-                foreach (ReferenceDescription r in SnapshotReferences(nextReferences))
+                foreach (ReferenceDescription r in SnapshotReferences(br.References))
                 {
                     if (!r.TypeDefinition.Equals(ObjectTypeIds.AliasNameCategoryType))
                     {
@@ -490,6 +465,41 @@ namespace Opc.Ua.Client.AliasNames
                         r.BrowseName,
                         r.DisplayName);
                 }
+
+                while (!continuationPoint.IsEmpty)
+                {
+                    (_, continuationPoint, ArrayOf<ReferenceDescription> nextReferences) =
+                        await Session.BrowseNextAsync(
+                            requestHeader: null,
+                            releaseContinuationPoint: false,
+                            continuationPoint,
+                            ct).ConfigureAwait(false);
+
+                    foreach (ReferenceDescription r in SnapshotReferences(nextReferences))
+                    {
+                        if (!r.TypeDefinition.Equals(ObjectTypeIds.AliasNameCategoryType))
+                        {
+                            continue;
+                        }
+                        var localId = ExpandedNodeId.ToNodeId(
+                            r.NodeId, Session.NamespaceUris);
+                        if (localId.IsNull)
+                        {
+                            continue;
+                        }
+                        yield return new AliasNameSubCategoryInfo(
+                            localId,
+                            r.BrowseName,
+                            r.DisplayName);
+                    }
+                }
+            }
+            finally
+            {
+                // Part 4 §5.9.3.2 requires releasing a continuation point the
+                // client stops following.
+                await Session.ReleaseContinuationPointAsync(continuationPoint)
+                    .ConfigureAwait(false);
             }
         }
 

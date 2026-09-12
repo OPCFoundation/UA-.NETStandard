@@ -144,14 +144,51 @@ namespace Opc.Ua.Client.Subscriptions
         /// "standalone subscription, no grouping".
         /// </para>
         /// <para>
-        /// Wire-format compatibility: the field is encoded as a
-        /// nullable string and serialised after all pre-existing
-        /// fields, so a V1 reader skips it transparently and a V2
-        /// reader pointed at a V1 snapshot sees <c>null</c>.
+        /// Wire-format compatibility: the binary encoding is positional,
+        /// so a reader cannot skip or detect an absent field. Streams are
+        /// versioned by <see cref="SubscriptionManagerSerializer"/> instead,
+        /// and every change to this record's wire shape must bump that
+        /// version and keep a frozen copy of the previous shape.
         /// </para>
         /// </summary>
         [DataTypeField(Order = 30)]
         public partial string? LogicalGroupId { get; init; }
+
+        /// <summary>
+        /// Surrogate for <see cref="SubscriptionOptions.RecoveryPolicy"/>.
+        /// </summary>
+        [DataTypeField(Order = 40)]
+        public partial uint RecoveryPolicy { get; init; }
+
+        /// <summary>
+        /// Surrogate for
+        /// <see cref="SubscriptionOptions.DisableUnboundedItemMode"/>.
+        /// </summary>
+        [DataTypeField(Order = 41)]
+        public partial bool DisableUnboundedItemMode { get; init; }
+
+        /// <summary>
+        /// Surrogate for
+        /// <see cref="SubscriptionOptions.MaxMonitoredItemsPerPartition"/>.
+        /// Zero means "not set" (the option is nullable).
+        /// </summary>
+        [DataTypeField(Order = 42)]
+        public partial uint MaxMonitoredItemsPerPartition { get; init; }
+
+        /// <summary>
+        /// Surrogate for
+        /// <see cref="SubscriptionOptions.MaxPartitionCount"/>.
+        /// </summary>
+        [DataTypeField(Order = 43)]
+        public partial uint MaxPartitionCount { get; init; }
+
+        /// <summary>
+        /// Surrogate for
+        /// <see cref="SubscriptionOptions.SecondaryPartitionIdleTimeout"/>
+        /// in milliseconds.
+        /// </summary>
+        [DataTypeField(Order = 44)]
+        public partial int SecondaryPartitionIdleTimeoutMs { get; init; }
 
         /// <summary>
         /// Zero-based partition index inside the
@@ -189,7 +226,15 @@ namespace Opc.Ua.Client.Subscriptions
                 PublishingEnabled = PublishingEnabled,
                 MaxNotificationsPerPublish = MaxNotificationsPerPublish,
                 MinLifetimeInterval = TimeSpan.FromMilliseconds(MinLifetimeIntervalMs),
-                SendInitialValuesOnTransfer = SendInitialValuesOnTransfer
+                SendInitialValuesOnTransfer = SendInitialValuesOnTransfer,
+                RecoveryPolicy = (SubscriptionRecoveryPolicy)RecoveryPolicy,
+                DisableUnboundedItemMode = DisableUnboundedItemMode,
+                MaxMonitoredItemsPerPartition = MaxMonitoredItemsPerPartition == 0
+                    ? null
+                    : MaxMonitoredItemsPerPartition,
+                MaxPartitionCount = MaxPartitionCount,
+                SecondaryPartitionIdleTimeout =
+                    TimeSpan.FromMilliseconds(SecondaryPartitionIdleTimeoutMs)
             };
         }
 
@@ -235,6 +280,17 @@ namespace Opc.Ua.Client.Subscriptions
                     int.MaxValue,
                     Math.Max(0, options.MinLifetimeInterval.TotalMilliseconds)),
                 SendInitialValuesOnTransfer = options.SendInitialValuesOnTransfer,
+                RecoveryPolicy = (uint)options.RecoveryPolicy,
+                DisableUnboundedItemMode = options.DisableUnboundedItemMode,
+                MaxMonitoredItemsPerPartition =
+                    options.MaxMonitoredItemsPerPartition ?? 0,
+                MaxPartitionCount = options.MaxPartitionCount,
+                // Timeout.InfiniteTimeSpan (-1 ms) means "never delete an idle
+                // secondary partition" and must survive the round trip;
+                // clamping to 0 would turn it into "delete immediately".
+                SecondaryPartitionIdleTimeoutMs = (int)Math.Min(
+                    int.MaxValue,
+                    Math.Max(-1, options.SecondaryPartitionIdleTimeout.TotalMilliseconds)),
                 MonitoredItems = monitoredItems
             };
         }

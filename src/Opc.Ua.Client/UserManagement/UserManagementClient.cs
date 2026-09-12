@@ -254,9 +254,16 @@ namespace Opc.Ua.Client.UserManagement
                     return lt;
                 }
             }
-            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadNotFound)
+            catch (ServiceResultException ex) when (
+                ex.StatusCode == StatusCodes.BadNotFound ||
+                // TranslateBrowsePathsToNodeIds answers BadNoMatch when the
+                // relativePath cannot be resolved to a target (Part 4 §5.9.4.4),
+                // which is what a server that does not expose the optional
+                // property actually returns.
+                ex.StatusCode == StatusCodes.BadNoMatch ||
+                ex.StatusCode == StatusCodes.BadNodeIdUnknown)
             {
-                // PasswordRestrictions is Optional per Part 18 §5.2.2.
+                // PasswordRestrictions is Optional per Part 18 §5.2.1.
                 return null;
             }
             return null;

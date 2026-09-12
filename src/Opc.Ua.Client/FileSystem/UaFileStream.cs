@@ -409,6 +409,17 @@ namespace Opc.Ua.Client.FileSystem
                     }
 
                     int read = data.Length;
+                    if (read > chunkLen)
+                    {
+                        // A server that returns more than was asked for would
+                        // otherwise have the surplus written past the caller's
+                        // window (or throw out of CopyTo).
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "Server returned {0} bytes for a {1} byte read.",
+                            read,
+                            chunkLen);
+                    }
                     data.Span.CopyTo(buffer.AsSpan(offset + total, read));
                     total += read;
                     m_position += read;

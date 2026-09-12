@@ -91,6 +91,9 @@ namespace Opc.Ua.Client
                 sessionTimeout,
                 preferredLocales,
                 checkDomain: false,
+                updateBeforeConnect,
+                connection: null,
+                reverseConnectManager: null,
                 ct).ConfigureAwait(false);
         }
 
@@ -114,6 +117,9 @@ namespace Opc.Ua.Client
                 sessionTimeout,
                 preferredLocales,
                 checkDomain,
+                updateBeforeConnect,
+                connection: null,
+                reverseConnectManager: null,
                 ct).ConfigureAwait(false);
         }
 
@@ -138,6 +144,9 @@ namespace Opc.Ua.Client
                 sessionTimeout,
                 preferredLocales,
                 checkDomain,
+                updateBeforeConnect,
+                connection,
+                reverseConnectManager: null,
                 ct).ConfigureAwait(false);
         }
 
@@ -162,6 +171,9 @@ namespace Opc.Ua.Client
                 sessionTimeout,
                 preferredLocales,
                 checkDomain,
+                updateBeforeConnect,
+                connection: null,
+                reverseConnectManager,
                 ct).ConfigureAwait(false);
         }
 
@@ -237,6 +249,9 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             ArrayOf<string> preferredLocales,
             bool checkDomain,
+            bool updateBeforeConnect,
+            ITransportWaitingConnection? connection,
+            ReverseConnectManager? reverseConnectManager,
             CancellationToken ct)
         {
             return ManagedSession.CreateAsync(
@@ -249,6 +264,9 @@ namespace Opc.Ua.Client
                 sessionTimeout: sessionTimeout,
                 preferredLocales: preferredLocales,
                 checkDomain: checkDomain,
+                reverseConnectManager: reverseConnectManager,
+                connection: connection,
+                updateBeforeConnect: updateBeforeConnect,
                 ct: ct);
         }
     }

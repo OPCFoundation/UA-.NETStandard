@@ -41,7 +41,7 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// Implements the complex type resolver for a Session using a cache.
     /// </summary>
-    public class NodeCacheResolver : IComplexTypeResolver
+    public class NodeCacheResolver : IComplexTypeResolver, IDisposable
     {
         /// <summary>
         /// Initializes the type resolver with a session to load the custom type information.
@@ -51,6 +51,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 new NodeCacheContext(session),
                 telemetry), telemetry)
         {
+            m_ownsNodeCache = true;
         }
 
         /// <summary>
@@ -66,6 +67,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 telemetry,
                 cacheExpiry), telemetry)
         {
+            m_ownsNodeCache = true;
         }
 
         /// <summary>
@@ -82,6 +84,29 @@ namespace Opc.Ua.Client.ComplexTypes
                 cacheExpiry,
                 capacity), telemetry)
         {
+            m_ownsNodeCache = true;
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Disposes the node cache this resolver created for itself. A cache
+        /// supplied by the caller is left alone - it is theirs to dispose.
+        /// Without this the cache (and the Meter it registers) roots up to its
+        /// capacity in nodes for the lifetime of the process.
+        /// </summary>
+        /// <param name="disposing">True when called from <see cref="Dispose()"/>.</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing && m_ownsNodeCache && m_nodeCache is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
         }
 
         /// <summary>
@@ -129,12 +154,22 @@ namespace Opc.Ua.Client.ComplexTypes
 
             // find the dictionary for the description.
 #pragma warning disable IDE0008 // Use explicit type
-            var references = await FindReferencesAsync(
-                dataTypeSystem,
-                ReferenceTypeIds.HasComponent,
-                false,
-                ct)
-                .ConfigureAwait(false);
+            var references = ArrayOf<INode>.Empty;
+            try
+            {
+                references = await FindReferencesAsync(
+                    dataTypeSystem,
+                    ReferenceTypeIds.HasComponent,
+                    false,
+                    ct)
+                    .ConfigureAwait(false);
+            }
+            catch (ServiceResultException sre)
+                when (sre.StatusCode == StatusCodes.BadNodeIdUnknown)
+            {
+                // A server without the type system node at all is the same
+                // case as one exposing it empty: no dictionaries to load.
+            }
 #pragma warning restore IDE0008 // Use explicit type
 
             if (references.Count == 0)
@@ -147,18 +182,40 @@ namespace Opc.Ua.Client.ComplexTypes
             // batch read all encodings and namespaces
             ArrayOf<ExpandedNodeId> referenceNodeIds = references.ConvertAll(r => r.NodeId);
 
-            // find namespace properties
-#pragma warning disable IDE0008 // Use explicit type
-            var namespaceReferences = await FindReferencesAsync(
+            // Warm the cache for every dictionary with one batched browse,
+            // then resolve each dictionary's NamespaceUri property on its own.
+            // The batched call returns one flat list across all dictionaries,
+            // so pairing it positionally with the input list mismatches as
+            // soon as a dictionary exposes no - or more than one - property.
+            await FindReferencesAsync(
                     referenceNodeIds,
                     ReferenceTypeIds.HasProperty,
                     false,
                     ct)
                 .ConfigureAwait(false);
-#pragma warning restore IDE0008 // Use explicit type
 
-            ArrayOf<INode> namespaceNodes = namespaceReferences.Filter(
-                n => n.BrowseName == BrowseNames.NamespaceUri);
+            var namespaceNodeList = new List<INode>(referenceNodeIds.Count);
+            var namespaceOwners = new List<NodeId>(referenceNodeIds.Count);
+            foreach (ExpandedNodeId dictionaryNodeId in referenceNodeIds.ToList())
+            {
+                ArrayOf<INode> properties = await FindReferencesAsync(
+                        dictionaryNodeId,
+                        ReferenceTypeIds.HasProperty,
+                        false,
+                        ct)
+                    .ConfigureAwait(false);
+                foreach (INode property in properties.ToList())
+                {
+                    if (property.BrowseName == BrowseNames.NamespaceUri)
+                    {
+                        namespaceNodeList.Add(property);
+                        namespaceOwners.Add(
+                            ExpandedNodeId.ToNodeId(dictionaryNodeId, NamespaceUris));
+                        break;
+                    }
+                }
+            }
+            ArrayOf<INode> namespaceNodes = namespaceNodeList.ToArrayOf();
 
             // read all schema definitions
             ArrayOf<NodeId> referenceExpandedNodeIds = references
@@ -188,7 +245,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         if (nameSpaceValues[ii].WrappedValue.TryGetValue(out string ns))
                         {
-                            namespaces[(NodeId)referenceNodeIds[ii]] = ns;
+                            namespaces[namespaceOwners[ii]] = ns;
                             continue;
                         }
                         nameSpaceValues = nameSpaceValues.ReplaceItem(
@@ -806,6 +863,13 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         private readonly INodeCache m_nodeCache;
+
+        /// <summary>
+        /// True when <see cref="m_nodeCache"/> was created by one of this
+        /// type's convenience constructors and therefore has to be disposed
+        /// with the resolver.
+        /// </summary>
+        private readonly bool m_ownsNodeCache;
         private readonly ISession m_session;
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;

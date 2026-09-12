@@ -85,6 +85,7 @@ namespace Opc.Ua.Client
             m_innerFactory = new DefaultSessionFactory(telemetry)
             {
                 TimeProvider = timeProvider,
+                SubscriptionEngineFactory = engineFactory,
                 SecurityPolicyRegistry = securityPolicies
             };
             ReturnDiagnostics = returnDiagnostics;

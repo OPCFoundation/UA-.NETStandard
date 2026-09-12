@@ -68,7 +68,7 @@ namespace Opc.Ua.Client
         /// engine (<see cref="DefaultSubscriptionEngineFactory"/>) via
         /// the <c>ManagedSessionBuilder</c>.
         /// </summary>
-        public ISubscriptionEngineFactory? SubscriptionEngineFactory { get; init; }
+        public ISubscriptionEngineFactory? SubscriptionEngineFactory { get; set; }
 
         /// <summary>
         /// Optional <see cref="TimeProvider"/> forwarded to every

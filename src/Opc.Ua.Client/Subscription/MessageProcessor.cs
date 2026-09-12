@@ -367,6 +367,7 @@ namespace Opc.Ua.Client.Subscriptions
                 await OnNotificationReceivedAsync(
                     incoming.Message,
                     PublishState.KeepAlive,
+                    incoming.StringTable ?? [],
                     ct).ConfigureAwait(false);
                 return;
             }
@@ -395,18 +396,36 @@ namespace Opc.Ua.Client.Subscriptions
                     return;
                 }
 
-                // Walk the gap (prevDataSeq, curSeqNum) wrapping past
-                // uint.MaxValue to 1.
-                uint missing = prevDataSeq;
-                while (true)
+                // Account for the whole gap (prevDataSeq, curSeqNum), but only
+                // republish what the server still holds. A server that jumps
+                // from sequence 1 to 2,000,000,000 would otherwise keep the
+                // worker busy for hours issuing Republish for messages that
+                // cannot exist. Bounded by the retransmission queue size, as on
+                // the first-message path below.
+                uint gap = delta - 1;
+                if (gap != 0 && curSeqNum < prevDataSeq)
                 {
-                    missing = missing == uint.MaxValue ? 1u : missing + 1u;
-                    if (missing == curSeqNum)
+                    // The skipped range crosses the wrap point. Sequence
+                    // numbers roll over from uint.MaxValue straight to 1
+                    // (Part 4 §5.14.5.1), so zero is in the arithmetic range
+                    // but was never sent and is not a missing message.
+                    gap--;
+                }
+                if (gap != 0)
+                {
+                    Interlocked.Add(ref m_missingCount, gap);
+
+                    IReadOnlyList<uint> available = AvailableInRetransmissionQueue;
+                    for (int i = 0; i < available.Count; i++)
                     {
-                        break;
+                        uint seq = available[i];
+                        uint offset = unchecked(seq - prevDataSeq);
+                        if (offset != 0 && offset < delta)
+                        {
+                            await TryRepublishAsync(seq, curSeqNum, ct)
+                                .ConfigureAwait(false);
+                        }
                     }
-                    Interlocked.Increment(ref m_missingCount);
-                    await TryRepublishAsync(missing, curSeqNum, ct).ConfigureAwait(false);
                 }
             }
             else
@@ -435,6 +454,7 @@ namespace Opc.Ua.Client.Subscriptions
             await OnNotificationReceivedAsync(
                 incoming.Message,
                 PublishState.None,
+                incoming.StringTable ?? [],
                 ct).ConfigureAwait(false);
         }
 
@@ -503,6 +523,7 @@ namespace Opc.Ua.Client.Subscriptions
                     await OnNotificationReceivedAsync(
                         republish.NotificationMessage,
                         PublishState.Republish,
+                        republish.ResponseHeader.StringTable.ToArray() ?? [],
                         ct).ConfigureAwait(false);
                 }
                 else
@@ -526,16 +547,19 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         /// <param name="message"></param>
         /// <param name="publishStateMask"></param>
+        /// <param name="stringTable">The string table of the publish or
+        /// republish response the notification arrived in.</param>
         /// <param name="ct"></param>
         /// <returns></returns>
         private async ValueTask OnNotificationReceivedAsync(
             NotificationMessage message,
             PublishState publishStateMask,
+            IReadOnlyList<string> stringTable,
             CancellationToken ct)
         {
+            bool shouldAcknowledge = message.NotificationData.Count != 0;
             try
             {
-                bool shouldAcknowledge = message.NotificationData.Count != 0;
                 if (!shouldAcknowledge)
                 {
                     publishStateMask |= PublishState.KeepAlive;
@@ -551,16 +575,9 @@ namespace Opc.Ua.Client.Subscriptions
                         await DispatchAsync(
                             message,
                             publishStateMask,
-                            message.NotificationData[i]).ConfigureAwait(false);
+                            message.NotificationData[i],
+                            stringTable).ConfigureAwait(false);
                     }
-                }
-                if (shouldAcknowledge)
-                {
-                    await AckQueue.QueueAsync(new SubscriptionAcknowledgement
-                    {
-                        SequenceNumber = message.SequenceNumber,
-                        SubscriptionId = Id
-                    }, ct).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -568,6 +585,31 @@ namespace Opc.Ua.Client.Subscriptions
                 Logger.SubscriptionErrorDispatchingNotificationData(
                     ex,
                     Id);
+            }
+
+            // Acknowledge even when a handler threw. The acknowledgement only
+            // tells the server it may drop the message from its retransmission
+            // queue (Part 4 §5.14.5.2); it is not a claim that the client
+            // processed it. Withholding it does not redeliver anything - the
+            // dedup gate has already advanced, so the message would only be
+            // reachable via an explicit Republish and discarded as a duplicate
+            // - it just pins the entry until the queue overflows.
+            if (shouldAcknowledge)
+            {
+                try
+                {
+                    await AckQueue.QueueAsync(new SubscriptionAcknowledgement
+                    {
+                        SequenceNumber = message.SequenceNumber,
+                        SubscriptionId = Id
+                    }, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Logger.SubscriptionErrorDispatchingNotificationData(
+                        ex,
+                        Id);
+                }
             }
         }
 
@@ -577,9 +619,12 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="message"></param>
         /// <param name="publishStateMask"></param>
         /// <param name="notificationData"></param>
+        /// <param name="stringTable">The string table of the publish or
+        /// republish response the notification arrived in.</param>
         /// <returns></returns>
         private async ValueTask DispatchAsync(NotificationMessage message,
-            PublishState publishStateMask, ExtensionObject? notificationData)
+            PublishState publishStateMask, ExtensionObject? notificationData,
+            IReadOnlyList<string> stringTable)
         {
             if (notificationData == null)
             {
@@ -593,7 +638,7 @@ namespace Opc.Ua.Client.Subscriptions
                     (DateTime)message.PublishTime,
                     datachange,
                     publishStateMask,
-                    message.StringTable.ToArray() ?? []).ConfigureAwait(false);
+                    stringTable).ConfigureAwait(false);
             }
             else if (notificationData.Value.TryGetValue(
                 out EventNotificationList? events))
@@ -603,7 +648,7 @@ namespace Opc.Ua.Client.Subscriptions
                     (DateTime)message.PublishTime,
                     events,
                     publishStateMask,
-                    message.StringTable.ToArray() ?? []).ConfigureAwait(false);
+                    stringTable).ConfigureAwait(false);
             }
             else if (notificationData.Value.TryGetValue(
                 out StatusChangeNotification? statusChanged))
@@ -626,7 +671,7 @@ namespace Opc.Ua.Client.Subscriptions
                     (DateTime)message.PublishTime,
                     statusChanged,
                     mask,
-                    message.StringTable.ToArray() ?? []).ConfigureAwait(false);
+                    stringTable).ConfigureAwait(false);
             }
         }
 

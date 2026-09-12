@@ -50,10 +50,11 @@ namespace Opc.Ua.Client.Subscriptions
     /// The reader instantiates <see cref="SubscriptionStateSnapshot"/>
     /// statically by type (no <see cref="ExpandedNodeId"/> lookup is
     /// required because the wire schema is implicit in the call site).
-    /// Future schema evolution is handled by adding new optional fields
-    /// to the snapshot record — they are encoded only when set and
-    /// recognized via <see cref="IDecoder.HasField(string)"/> by the
-    /// reader.
+    /// The binary encoding is positional and the reader cannot detect an
+    /// absent field, so the stream carries a format version: every change
+    /// to the snapshot's wire shape bumps it, and the reader decodes older
+    /// versions with a frozen copy of that version's record (see
+    /// <see cref="SubscriptionStateSnapshotV0"/>).
     /// </para>
     /// <para>
     /// The stream still preserves the source session's namespace and
@@ -65,6 +66,14 @@ namespace Opc.Ua.Client.Subscriptions
     /// </remarks>
     internal static class SubscriptionManagerSerializer
     {
+        /// <summary>
+        /// Version of the stream format written by <see cref="SaveAsync"/>.
+        /// Version 1 added the partition options (RecoveryPolicy through
+        /// SecondaryPartitionIdleTimeoutMs) to the snapshot; the unversioned
+        /// first format is read as version 0.
+        /// </summary>
+        internal const int kFormatVersion = 1;
+
 #pragma warning disable RCS1229 // Use async/await when necessary - this path is synchronous; ValueTask wraps work for future async I/O
         public static ValueTask SaveAsync(
             SubscriptionManager manager,
@@ -114,14 +123,17 @@ namespace Opc.Ua.Client.Subscriptions
             using var encoder = new BinaryEncoder(stream, messageContext, true);
             encoder.WriteStringArray(null, messageContext.NamespaceUris.ToArrayOf());
             encoder.WriteStringArray(null, messageContext.ServerUris.ToArrayOf());
+            // The format version travels as a negative count: the first
+            // format wrote the (never negative) snapshot count here, so a
+            // reader can tell the two apart from that one value.
+            encoder.WriteInt32(null, -kFormatVersion);
             encoder.WriteInt32(null, snapshots.Count);
             foreach (SubscriptionStateSnapshot snapshot in snapshots)
             {
-                // Write the snapshot directly as an IEncodeable.
-                // Schema identity is statically encoded by the call site
-                // (we always read back a SubscriptionStateSnapshot); schema
-                // evolution is handled by adding new optional fields with
-                // CanOmitFields-aware encoding.
+                // Write the snapshot directly as an IEncodeable. Schema
+                // identity is statically encoded by the call site (we always
+                // read back a SubscriptionStateSnapshot); the binary encoding
+                // is positional, so every field is always written.
                 encoder.WriteEncodeable(null, snapshot);
             }
             return default;
@@ -163,7 +175,25 @@ namespace Opc.Ua.Client.Subscriptions
                     ? new StringTable()
                     : new StringTable(serverUris.Memory.ToArray()!));
 
+            // See SaveAsync: a negative value is the format version, followed
+            // by the count; a non-negative value is the count of the first,
+            // unversioned format.
+            int formatVersion = 0;
             int count = decoder.ReadInt32(null);
+            if (count < 0)
+            {
+                formatVersion = -count;
+                if (formatVersion > kFormatVersion)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Subscription snapshot format version {0} is newer than " +
+                        "the supported version {1}.",
+                        formatVersion,
+                        kFormatVersion);
+                }
+                count = decoder.ReadInt32(null);
+            }
             if (count <= 0)
             {
                 return [];
@@ -176,7 +206,12 @@ namespace Opc.Ua.Client.Subscriptions
             for (int i = 0; i < count; i++)
             {
                 ct.ThrowIfCancellationRequested();
-                raw.Add(decoder.ReadEncodeable<SubscriptionStateSnapshot>(null));
+                raw.Add(formatVersion == 0
+                    // The binary encoding is positional: the fields added
+                    // since must not be read from a stream that never
+                    // carried them.
+                    ? decoder.ReadEncodeable<SubscriptionStateSnapshotV0>(null).ToCurrent()
+                    : decoder.ReadEncodeable<SubscriptionStateSnapshot>(null));
             }
 
             var restored = new List<ISubscription>();

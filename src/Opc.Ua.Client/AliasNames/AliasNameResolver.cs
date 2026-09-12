@@ -99,7 +99,8 @@ namespace Opc.Ua.Client.AliasNames
         /// </summary>
         public async Task EnsureLoadedAsync(CancellationToken ct = default)
         {
-            if (Volatile.Read(ref m_loaded) == 1)
+            if (Volatile.Read(ref m_loadedGeneration) ==
+                Interlocked.Read(ref m_invalidationGeneration))
             {
                 return;
             }
@@ -135,6 +136,11 @@ namespace Opc.Ua.Client.AliasNames
         /// </summary>
         public async Task RefreshAsync(CancellationToken ct = default)
         {
+            // Capture the invalidation generation before the fetch: an
+            // Invalidate that lands while it is in flight must not be undone by
+            // marking the (already stale) result as loaded.
+            long generation = Interlocked.Read(ref m_invalidationGeneration);
+
             var forward = new Dictionary<string, ExpandedNodeId[]>(StringComparer.Ordinal);
             var serverUris = new Dictionary<string, string?[]>(StringComparer.Ordinal);
             var reverse = new Dictionary<ExpandedNodeId, string>();
@@ -179,7 +185,14 @@ namespace Opc.Ua.Client.AliasNames
                 m_forward = forward;
                 m_serverUris = serverUris;
                 m_reverse = reverse;
-                Volatile.Write(ref m_loaded, 1);
+
+                // Publish the generation this data was fetched for rather than
+                // a separate "loaded" flag: an Invalidate that lands between a
+                // check and the flag write would otherwise be overwritten and
+                // mark pre-invalidation data as current forever. A reader
+                // compares the two generations, so the single write below can
+                // never swallow an invalidation.
+                Volatile.Write(ref m_loadedGeneration, generation);
             }
             finally
             {
@@ -290,7 +303,11 @@ namespace Opc.Ua.Client.AliasNames
         /// </summary>
         public void Invalidate()
         {
-            Volatile.Write(ref m_loaded, 0);
+            // One atomic step: a refresh that is already fetching publishes the
+            // generation it fetched for, which no longer matches this one, so
+            // its stale result can neither be served nor swallow this
+            // invalidation.
+            Interlocked.Increment(ref m_invalidationGeneration);
         }
 
         /// <summary>
@@ -412,7 +429,21 @@ namespace Opc.Ua.Client.AliasNames
             = new(StringComparer.Ordinal);
 
         private Dictionary<ExpandedNodeId, string> m_reverse = [];
-        private int m_loaded;
+
+        /// <summary>
+        /// The <see cref="m_invalidationGeneration"/> the cached data was
+        /// fetched for. The cache is loaded exactly while this equals the
+        /// current generation; <c>-1</c> is "never loaded", which no
+        /// generation can collide with.
+        /// </summary>
+        private long m_loadedGeneration = -1;
+
+        /// <summary>
+        /// Incremented by every <see cref="Invalidate"/> so an in-flight
+        /// <see cref="RefreshAsync"/> can tell whether its result is still
+        /// current when it completes.
+        /// </summary>
+        private long m_invalidationGeneration;
         private int m_strategyStarted;
     }
 }

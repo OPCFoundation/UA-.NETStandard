@@ -83,11 +83,18 @@ namespace Opc.Ua.Client.Discovery
             string discoveryUrl,
             CancellationToken ct)
         {
+            ApplicationConfiguration? configurationFromProvider = null;
             if (m_options.ConfigurationProvider != null)
             {
-                await m_options.ConfigurationProvider.GetAsync(ct).ConfigureAwait(false);
+                // Use what the provider returns: discarding it and falling back
+                // to m_options.Configuration makes every provider-only setup
+                // fail with "Configuration is required".
+                configurationFromProvider = await m_options.ConfigurationProvider
+                    .GetAsync(ct)
+                    .ConfigureAwait(false);
             }
-            ApplicationConfiguration configuration = m_options.Configuration ??
+            ApplicationConfiguration configuration =
+                configurationFromProvider ?? m_options.Configuration ??
                 throw new InvalidOperationException("OpcUaClientOptions.Configuration is required.");
             var endpointConfiguration = EndpointConfiguration.Create(configuration);
             return await DiscoveryClient.CreateAsync(
