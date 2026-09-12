@@ -1250,7 +1250,15 @@ namespace Opc.Ua
             {
                 foreach (string profileUri in profileUris)
                 {
-                    if (baseAddress.ProfileUri == Profiles.NormalizeUri(profileUri))
+                    string normalized = Profiles.NormalizeUri(profileUri);
+
+                    // A base address carries only the profile its URL scheme
+                    // implies, so a client asking for the JSON or OpenAPI profile
+                    // would match nothing and get an empty endpoint list back -
+                    // the same mismatch TranslateEndpointDescriptions works
+                    // around when it decides which endpoints belong here.
+                    if (baseAddress.ProfileUri == normalized ||
+                        ServesSameScheme(baseAddress.ProfileUri, normalized))
                     {
                         filteredAddresses.Add(baseAddress);
                         break;
@@ -1419,15 +1427,16 @@ namespace Opc.Ua
                     // find matching base address.
                     foreach (BaseAddress baseAddress in baseAddresses)
                     {
-                        bool translateHttpsEndpoint = false;
-                        if (endpoint.TransportProfileUri == Profiles.HttpsBinaryTransport &&
-                            baseAddress.ProfileUri == Profiles.HttpsBinaryTransport)
-                        {
-                            translateHttpsEndpoint = true;
-                        }
-
+                        // A base address carries the one profile its URL scheme
+                        // implies, but a listener publishes every profile it
+                        // serves on that scheme - HTTPS serves binary, JSON and
+                        // OpenAPI; WSS serves binary, JSON and OpenAPI too.
+                        // Without this those twins match no base address and
+                        // GetEndpoints drops them.
                         if (endpoint.TransportProfileUri != baseAddress.ProfileUri &&
-                            !translateHttpsEndpoint)
+                            !ServesSameScheme(
+                                baseAddress.ProfileUri,
+                                endpoint.TransportProfileUri))
                         {
                             continue;
                         }
@@ -1466,10 +1475,17 @@ namespace Opc.Ua
                         translation.UserIdentityTokens = endpoint.UserIdentityTokens;
                         translation.Server = application;
 
+                        // The transport profile is part of the identity: binary,
+                        // JSON and OpenAPI endpoints share a URL, security mode
+                        // and policy, so leaving it out collapses them into one.
                         if (!translations.Exists(match =>
                                 match.EndpointUrl!
                                     .Equals(translation.EndpointUrl, StringComparison.Ordinal) &&
                                 match.SecurityMode == translation.SecurityMode &&
+                                string.Equals(
+                                    match.TransportProfileUri,
+                                    translation.TransportProfileUri,
+                                    StringComparison.Ordinal) &&
                                 match.SecurityPolicyUri!.Equals(
                                     translation.SecurityPolicyUri,
                                     StringComparison.Ordinal)))
@@ -1480,10 +1496,76 @@ namespace Opc.Ua
                 }
             } while (matchPort && translations.Count == 0);
 
-            translations.Sort(
-                (ep1, ep2) => string.CompareOrdinal(ep1.EndpointUrl, ep2.EndpointUrl));
+            // Ordered by URL, then by transport profile. The HTTPS binary, JSON
+            // and OpenAPI descriptions of one listener share a URL, security mode
+            // and policy, and List.Sort is not stable - without the second key a
+            // client that picks "the first endpoint that fits" (which is what
+            // CoreClientUtils.SelectEndpoint does, having no transport filter of
+            // its own) would get an arbitrary one of the three and fail to open a
+            // channel for a profile it has no binding for. Binary sorts first, so
+            // that client keeps getting the endpoint it got before the JSON and
+            // OpenAPI twins were published at all.
+            translations.Sort((ep1, ep2) =>
+            {
+                int byUrl = string.CompareOrdinal(ep1.EndpointUrl, ep2.EndpointUrl);
+                return byUrl != 0
+                    ? byUrl
+                    : TransportProfileRank(ep1.TransportProfileUri)
+                        .CompareTo(TransportProfileRank(ep2.TransportProfileUri));
+            });
 
             return translations;
+        }
+
+        /// <summary>
+        /// Returns whether an endpoint's transport profile is served by the same
+        /// URL scheme as a base address's profile, so the endpoint belongs on
+        /// that address even though the two profile URIs differ.
+        /// </summary>
+        private static bool ServesSameScheme(
+            string? baseAddressProfileUri,
+            string? endpointProfileUri)
+        {
+            if (Profiles.IsHttpsBinary(baseAddressProfileUri))
+            {
+                return Profiles.IsHttpsJson(endpointProfileUri) ||
+                    Profiles.IsHttpsOpenApi(endpointProfileUri);
+            }
+
+            if (Profiles.IsWssBinary(baseAddressProfileUri))
+            {
+                return Profiles.IsWssOpenApi(endpointProfileUri) ||
+                    string.Equals(
+                        endpointProfileUri,
+                        Profiles.UaWssJsonTransport,
+                        StringComparison.Ordinal);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Orders transport profiles so that the binary encodings a client is
+        /// always able to speak are offered ahead of the JSON and OpenAPI ones.
+        /// </summary>
+        private static int TransportProfileRank(string? transportProfileUri)
+        {
+            if (Profiles.IsHttpsJson(transportProfileUri) ||
+                string.Equals(
+                    transportProfileUri,
+                    Profiles.UaWssJsonTransport,
+                    StringComparison.Ordinal))
+            {
+                return 1;
+            }
+
+            if (Profiles.IsHttpsOpenApi(transportProfileUri) ||
+                Profiles.IsWssOpenApi(transportProfileUri))
+            {
+                return 2;
+            }
+
+            return 0;
         }
 
         /// <summary>

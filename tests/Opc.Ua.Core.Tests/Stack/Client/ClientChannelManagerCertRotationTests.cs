@@ -114,13 +114,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
                 await sut.DisposeAsync().ConfigureAwait(false);
 
-                // The production channel factory parses description.ServerCertificate
-                // into a Certificate that the real channel would own and dispose; the
-                // mock channel does not, so dispose the captured copies here.
-                while (openSettings.TryDequeue(out TransportChannelSettings? opened))
-                {
-                    opened.ServerCertificate?.Dispose();
-                }
+                DisposeOpenedCertificates(openSettings);
             }
         }
 
@@ -166,13 +160,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
                 await sut.DisposeAsync().ConfigureAwait(false);
 
-                // The production channel factory parses description.ServerCertificate
-                // into a Certificate that the real channel would own and dispose; the
-                // mock channel does not, so dispose the captured copies here.
-                while (openSettings.TryDequeue(out TransportChannelSettings? opened))
-                {
-                    opened.ServerCertificate?.Dispose();
-                }
+                DisposeOpenedCertificates(openSettings);
             }
         }
 
@@ -224,10 +212,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     await channel.CloseAsync().ConfigureAwait(false);
                 }
                 await sut.DisposeAsync().ConfigureAwait(false);
-                while (openSettings.TryDequeue(out TransportChannelSettings? opened))
-                {
-                    opened.ServerCertificate?.Dispose();
-                }
+                DisposeOpenedCertificates(openSettings);
             }
         }
 
@@ -280,7 +265,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     await channel.CloseAsync().ConfigureAwait(false);
                 }
                 await sut.DisposeAsync().ConfigureAwait(false);
-                DisposeOpenedServerCertificates(openSettings);
+                DisposeOpenedCertificates(openSettings);
             }
         }
 
@@ -328,7 +313,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     await channel.CloseAsync().ConfigureAwait(false);
                 }
                 await sut.DisposeAsync().ConfigureAwait(false);
-                DisposeOpenedServerCertificates(openSettings);
+                DisposeOpenedCertificates(openSettings);
             }
         }
 
@@ -377,7 +362,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             finally
             {
                 await sut.DisposeAsync().ConfigureAwait(false);
-                DisposeOpenedServerCertificates(openSettings);
+                DisposeOpenedCertificates(openSettings);
             }
         }
 
@@ -430,7 +415,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     await secondChannel.CloseAsync().ConfigureAwait(false);
                 }
                 await sut.DisposeAsync().ConfigureAwait(false);
-                DisposeOpenedServerCertificates(openSettings);
+                DisposeOpenedCertificates(openSettings);
             }
         }
 
@@ -541,12 +526,24 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
-        private static void DisposeOpenedServerCertificates(
+        /// <summary>
+        /// Releases the certificate handles a real channel would own.
+        /// </summary>
+        /// <remarks>
+        /// A production channel takes over everything on the settings and
+        /// releases it when it closes: the server certificate it parses out of
+        /// the description, and the client certificate and chain the manager
+        /// hands it a reference of its own on. The mock channel captures the
+        /// settings and does neither, so the test stands in for it.
+        /// </remarks>
+        private static void DisposeOpenedCertificates(
             ConcurrentQueue<TransportChannelSettings> openSettings)
         {
             while (openSettings.TryDequeue(out TransportChannelSettings? opened))
             {
                 opened.ServerCertificate?.Dispose();
+                opened.ClientCertificate?.Dispose();
+                opened.ClientCertificateChain?.Dispose();
             }
         }
 

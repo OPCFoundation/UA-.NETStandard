@@ -63,6 +63,12 @@ namespace Opc.Ua
         /// <param name="reverseConnectionIdentity">Opaque identity of
         /// the reverse-connect wait handle. Use <c>null</c> for
         /// forward connections.</param>
+        /// <remarks>
+        /// Kept as its own overload rather than folded into the one below with
+        /// an optional argument: an optional parameter is source compatible but
+        /// not binary compatible, and an application compiled against this
+        /// signature would fail with a <see cref="MissingMethodException"/>.
+        /// </remarks>
         public ManagedChannelKey(
             string endpointUrl,
             string securityPolicyUri,
@@ -71,6 +77,47 @@ namespace Opc.Ua
             int endpointConfigurationHash,
             ByteString clientCertificateThumbprint,
             object? reverseConnectionIdentity)
+            : this(
+                endpointUrl,
+                securityPolicyUri,
+                securityMode,
+                serverCertificateThumbprint,
+                endpointConfigurationHash,
+                clientCertificateThumbprint,
+                reverseConnectionIdentity,
+                transportProfileUri: null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a key for the supplied endpoint identity.
+        /// </summary>
+        /// <param name="endpointUrl">The endpoint URL.</param>
+        /// <param name="securityPolicyUri">The security policy URI.</param>
+        /// <param name="securityMode">The message security mode.</param>
+        /// <param name="serverCertificateThumbprint">Thumbprint of the
+        /// expected server certificate (may be empty for None
+        /// security).</param>
+        /// <param name="endpointConfigurationHash">Stable hash of the
+        /// endpoint configuration values.</param>
+        /// <param name="clientCertificateThumbprint">Thumbprint of the
+        /// client instance certificate (may be empty for None
+        /// security).</param>
+        /// <param name="reverseConnectionIdentity">Opaque identity of
+        /// the reverse-connect wait handle. Use <c>null</c> for
+        /// forward connections.</param>
+        /// <param name="transportProfileUri">The transport profile URI.
+        /// Binary, JSON and OpenAPI endpoints share a URL, security mode
+        /// and policy but not a channel.</param>
+        public ManagedChannelKey(
+            string endpointUrl,
+            string securityPolicyUri,
+            MessageSecurityMode securityMode,
+            ByteString serverCertificateThumbprint,
+            int endpointConfigurationHash,
+            ByteString clientCertificateThumbprint,
+            object? reverseConnectionIdentity,
+            string? transportProfileUri)
         {
             EndpointUrl = endpointUrl ?? throw new ArgumentNullException(nameof(endpointUrl));
             SecurityPolicyUri = securityPolicyUri
@@ -80,6 +127,7 @@ namespace Opc.Ua
             EndpointConfigurationHash = endpointConfigurationHash;
             ClientCertificateThumbprint = clientCertificateThumbprint;
             ReverseConnectionIdentity = reverseConnectionIdentity;
+            TransportProfileUri = transportProfileUri ?? string.Empty;
         }
 
         /// <summary>
@@ -122,6 +170,15 @@ namespace Opc.Ua
         public object? ReverseConnectionIdentity { get; }
 
         /// <summary>
+        /// The transport profile URI, or an empty string when the endpoint
+        /// does not name one. The HTTPS binary, JSON and OpenAPI endpoints
+        /// of a server share a URL, security mode and policy, so without
+        /// this they would all be served by a single channel of whichever
+        /// transport happened to be created first.
+        /// </summary>
+        public string TransportProfileUri { get; }
+
+        /// <summary>
         /// Computes a key for the supplied configured endpoint and
         /// (optional) client certificate / reverse connection identity.
         /// </summary>
@@ -160,7 +217,8 @@ namespace Opc.Ua
                 serverThumbprint,
                 ComputeEndpointConfigurationHash(configuration),
                 clientThumbprint,
-                reverseConnectionIdentity);
+                reverseConnectionIdentity,
+                description.TransportProfileUri);
         }
 
         private static ByteString ComputeServerCertificateThumbprint(ByteString rawCertificate)

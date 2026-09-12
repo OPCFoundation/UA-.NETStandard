@@ -126,6 +126,91 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(r1, Is.Not.EqualTo(r2));
         }
 
+        /// <summary>
+        /// The HTTPS binary, JSON and OpenAPI endpoints of one server share a
+        /// URL, security mode, policy and certificate but are served by
+        /// different transports. Leaving the transport profile out of the key
+        /// gave all three the single channel of whichever transport happened to
+        /// be created first.
+        /// </summary>
+        [Test]
+        public void ChannelKeyDistinguishesTransportProfiles()
+        {
+            using Certificate serverCert = s_factory.CreateCertificate("CN=server").CreateForRSA();
+
+            ConfiguredEndpoint binary = GetTestEndpoint(serverCert);
+            binary.Description.EndpointUrl = "https://localhost:4843";
+            binary.Description.TransportProfileUri = Profiles.HttpsBinaryTransport;
+
+            ConfiguredEndpoint json = GetTestEndpoint(serverCert);
+            json.Description.EndpointUrl = "https://localhost:4843";
+            json.Description.TransportProfileUri = Profiles.HttpsJsonTransport;
+
+            var binaryKey = ManagedChannelKey.FromEndpoint(binary);
+            var jsonKey = ManagedChannelKey.FromEndpoint(json);
+
+            Assert.That(binaryKey, Is.Not.EqualTo(jsonKey));
+        }
+
+        /// <summary>
+        /// Two endpoints that name the same transport profile still share a key,
+        /// so the profile was added to the identity rather than replacing it.
+        /// </summary>
+        [Test]
+        public void ChannelKeyMatchesForTheSameTransportProfile()
+        {
+            using Certificate serverCert = s_factory.CreateCertificate("CN=server").CreateForRSA();
+
+            ConfiguredEndpoint first = GetTestEndpoint(serverCert);
+            first.Description.TransportProfileUri = Profiles.UaTcpTransport;
+
+            ConfiguredEndpoint second = GetTestEndpoint(serverCert);
+            second.Description.TransportProfileUri = Profiles.UaTcpTransport;
+
+            var firstKey = ManagedChannelKey.FromEndpoint(first);
+            var secondKey = ManagedChannelKey.FromEndpoint(second);
+
+            Assert.That(firstKey, Is.EqualTo(secondKey));
+            Assert.That(firstKey.GetHashCode(), Is.EqualTo(secondKey.GetHashCode()));
+        }
+
+        /// <summary>
+        /// The seven-argument constructor is kept alongside the profile-aware
+        /// one. Folding the new argument in as an optional parameter would be
+        /// source compatible but not binary compatible, and an application
+        /// compiled against the old signature would fail with a
+        /// MissingMethodException.
+        /// </summary>
+        [Test]
+        public void ChannelKeyKeepsTheConstructorWithoutATransportProfile()
+        {
+            ConstructorInfo? seven = typeof(ManagedChannelKey).GetConstructor(
+                [
+                    typeof(string),
+                    typeof(string),
+                    typeof(MessageSecurityMode),
+                    typeof(ByteString),
+                    typeof(int),
+                    typeof(ByteString),
+                    typeof(object)
+                ]);
+
+            Assert.That(seven, Is.Not.Null);
+
+            var key = (ManagedChannelKey)seven!.Invoke(
+                [
+                    "opc.tcp://localhost:4840",
+                    SecurityPolicies.None,
+                    MessageSecurityMode.None,
+                    default(ByteString),
+                    0,
+                    default(ByteString),
+                    null
+                ]);
+
+            Assert.That(key.TransportProfileUri, Is.Empty);
+        }
+
         [Test]
         public void ExponentialBackoffPolicyDoublesWithCap()
         {

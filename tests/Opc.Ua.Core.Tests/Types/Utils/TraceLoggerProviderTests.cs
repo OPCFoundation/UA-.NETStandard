@@ -93,6 +93,117 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.That(message, Does.Contain("rejected"));
         }
 
+        /// <summary>
+        /// The logger reports enabled when a trace mask is configured, with no
+        /// Tracing handler subscribed. IsEnabled used to consult only the
+        /// handler, so every source-generated log call - which checks IsEnabled
+        /// before doing any work - short-circuited and nothing reached the trace
+        /// file in the usual case of no subscriber.
+        /// </summary>
+        /// <remarks>
+        /// It answers for the configuration as a whole rather than for the
+        /// level: a core event id carries its own category bits, so a mask
+        /// derived from the level alone would report a configured category
+        /// disabled. Log() applies the exact, event-specific filter.
+        /// </remarks>
+        [TestCase(LogLevel.Error)]
+        [TestCase(LogLevel.Information)]
+        [TestCase(LogLevel.Trace)]
+        public void LoggerIsEnabledFollowsTheTraceMaskWithoutATracingHandler(LogLevel logLevel)
+        {
+            using var provider = new TraceLoggerProvider();
+            provider.SetTraceMask(Utils.TraceMasks.Error);
+
+            ILogger logger = provider.CreateLogger("category");
+
+            Assert.That(logger.IsEnabled(logLevel), Is.True);
+        }
+
+        /// <summary>
+        /// A call whose event id carries a category the mask has enabled still
+        /// reaches the trace file, even though its level maps to a different
+        /// mask bit. This is the case a level-derived IsEnabled dropped.
+        /// </summary>
+        [Test]
+        public void LoggerWritesWhenOnlyTheEventIdCategoryIsMasked()
+        {
+            string directory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                "TraceLoggerProviderTests",
+                Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            string logFile = Path.Combine(directory, "trace.log");
+
+            using var provider = new TraceLoggerProvider();
+            provider.SetTraceOutput(Utils.TraceOutput.FileOnly);
+            provider.SetTraceMask(Utils.TraceMasks.ServiceDetail);
+            provider.SetTraceLog(logFile, deleteExisting: true);
+
+            ILogger logger = provider.CreateLogger("category");
+            var eventId = new EventId(Utils.TraceMasks.ServiceDetail, "ServiceDetail");
+
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.Log(
+                    LogLevel.Information,
+                    eventId,
+                    "Detail {Value}",
+                    null,
+                    (state, _) => "Detail 31");
+            }
+
+            string text = File.ReadAllText(logFile);
+            Assert.That(text, Does.Contain("Detail 31"));
+            Directory.Delete(directory, true);
+        }
+
+        /// <summary>
+        /// A level the mask excludes stays disabled, so the mask is honoured
+        /// rather than everything being reported enabled.
+        /// </summary>
+        [Test]
+        public void LoggerIsEnabledReportsFalseWhenNothingIsMasked()
+        {
+            using var provider = new TraceLoggerProvider();
+            provider.SetTraceMask(0);
+
+            ILogger logger = provider.CreateLogger("category");
+
+            Assert.That(logger.IsEnabled(LogLevel.Error), Is.False);
+            Assert.That(logger.IsEnabled(LogLevel.Information), Is.False);
+        }
+
+        /// <summary>
+        /// A source-generated style call guarded by IsEnabled reaches the trace
+        /// file, which is the behaviour the IsEnabled fix restores.
+        /// </summary>
+        [Test]
+        public void LoggerWritesWhenTheCallIsGuardedByIsEnabled()
+        {
+            string directory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                "TraceLoggerProviderTests",
+                Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            string logFile = Path.Combine(directory, "trace.log");
+
+            using var provider = new TraceLoggerProvider();
+            provider.SetTraceOutput(Utils.TraceOutput.FileOnly);
+            provider.SetTraceMask(Utils.TraceMasks.Error);
+            provider.SetTraceLog(logFile, deleteExisting: true);
+
+            ILogger logger = provider.CreateLogger("category");
+
+            if (logger.IsEnabled(LogLevel.Error))
+            {
+                logger.LogError("Guarded {Value}", 23);
+            }
+
+            string text = File.ReadAllText(logFile);
+            Assert.That(text, Does.Contain("Guarded 23"));
+            Directory.Delete(directory, true);
+        }
+
         [Test]
         public void LoggerLogWritesFormattedExceptionWhenMaskIsEnabled()
         {

@@ -178,23 +178,43 @@ namespace Opc.Ua
             encryptingKey = new byte[encryptingKeySize];
             iv = new byte[blockSize];
 
-            byte[] secret = localNonce.GenerateSecret(remoteNonce, null) ?? throw new InvalidOperationException("Failed to generate secret.");
-            byte[] keyLength = BitConverter.GetBytes((ushort)(encryptingKeySize + blockSize));
+            byte[] secret = localNonce.GenerateSecret(remoteNonce, null) ??
+                throw new InvalidOperationException("Failed to generate secret.");
+            byte[]? keyData = null;
 
-            byte[] salt = Utils.Append(
-                keyLength,
-                s_secretLabel,
-                forDecryption ? remoteNonce.Data : localNonce.Data,
-                forDecryption ? localNonce.Data : remoteNonce.Data);
+            // The scope starts at the shared secret, not at the copy below: the
+            // derivation in between can throw, and neither of these leaves this
+            // method. The secret is the worse of the two to leave behind - it
+            // derives the keys for every message of the exchange, not just this
+            // one.
+            try
+            {
+                byte[] keyLength = BitConverter.GetBytes((ushort)(encryptingKeySize + blockSize));
 
-            byte[] keyData = localNonce.DeriveKeyData(
-                secret!,
-                salt,
-                securityPolicy.KeyDerivationAlgorithm,
-                encryptingKeySize + blockSize);
+                byte[] salt = Utils.Append(
+                    keyLength,
+                    s_secretLabel,
+                    forDecryption ? remoteNonce.Data : localNonce.Data,
+                    forDecryption ? localNonce.Data : remoteNonce.Data);
 
-            Buffer.BlockCopy(keyData, 0, encryptingKey, 0, encryptingKey.Length);
-            Buffer.BlockCopy(keyData, encryptingKeySize, iv, 0, iv.Length);
+                keyData = localNonce.DeriveKeyData(
+                    secret,
+                    salt,
+                    securityPolicy.KeyDerivationAlgorithm,
+                    encryptingKeySize + blockSize);
+
+                Buffer.BlockCopy(keyData, 0, encryptingKey, 0, encryptingKey.Length);
+                Buffer.BlockCopy(keyData, encryptingKeySize, iv, 0, iv.Length);
+            }
+            finally
+            {
+                if (keyData != null)
+                {
+                    CryptoUtils.ZeroMemory(keyData);
+                }
+
+                CryptoUtils.ZeroMemory(secret);
+            }
         }
 
         /// <summary>
@@ -367,11 +387,21 @@ namespace Opc.Ua
             message[lengthPosition++] = (byte)((length & 0xFF0000) >> 16);
             message[lengthPosition++] = (byte)((length & 0xFF000000) >> 24);
 
-            _ = CryptoUtils.SymmetricEncryptAndSign(
-                new ArraySegment<byte>(message, startOfSecret, endOfSecret - startOfSecret),
-                SecurityPolicy,
-                encryptingKey,
-                iv);
+            try
+            {
+                _ = CryptoUtils.SymmetricEncryptAndSign(
+                    new ArraySegment<byte>(message, startOfSecret, endOfSecret - startOfSecret),
+                    SecurityPolicy,
+                    encryptingKey,
+                    iv);
+            }
+            finally
+            {
+                // Matches the decrypt side: the derived key and IV are finished
+                // with once the body is encrypted.
+                CryptoUtils.ZeroMemory(encryptingKey);
+                CryptoUtils.ZeroMemory(iv);
+            }
 
             var dataToSign = new ArraySegment<byte>(message, 0, message.Length - signatureLength);
 
@@ -1218,54 +1248,80 @@ namespace Opc.Ua
                 out byte[] encryptingKey,
                 out byte[] iv);
 
-            ArraySegment<byte> plainText = CryptoUtils.SymmetricDecryptAndVerify(
-                dataToDecrypt,
-                SecurityPolicy,
-                encryptingKey,
-                iv);
-
-            using var decoder = new BinaryDecoder(
-                plainText.GetArray(),
-                plainText.Offset + dataToDecrypt.Offset,
-                plainText.Count - dataToDecrypt.Offset,
-                Context);
-
-            ByteString actualNonce = decoder.ReadByteString(null);
-
-            if (expectedNonce != null && expectedNonce.Length > 0)
+            try
             {
-                int notvalid = expectedNonce.Length == actualNonce.Length ? 0 : 1;
+                ArraySegment<byte> plainText = CryptoUtils.SymmetricDecryptAndVerify(
+                    dataToDecrypt,
+                    SecurityPolicy,
+                    encryptingKey,
+                    iv);
 
-                for (int ii = 0; ii < expectedNonce.Length && ii < actualNonce.Length; ii++)
+
+                using var decoder = new BinaryDecoder(
+                    plainText.GetArray(),
+                    plainText.Offset + dataToDecrypt.Offset,
+                    plainText.Count - dataToDecrypt.Offset,
+                    Context);
+
+                ByteString actualNonce = decoder.ReadByteString(null);
+
+                if (expectedNonce != null && expectedNonce.Length > 0)
                 {
-                    notvalid |= expectedNonce[ii] ^ actualNonce.Span[ii];
+                    int notvalid = expectedNonce.Length == actualNonce.Length ? 0 : 1;
+
+                    for (int ii = 0; ii < expectedNonce.Length && ii < actualNonce.Length; ii++)
+                    {
+                        notvalid |= expectedNonce[ii] ^ actualNonce.Span[ii];
+                    }
+
+                    if (notvalid != 0)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNonceInvalid);
+                    }
                 }
 
-                if (notvalid != 0)
+                ByteString key = decoder.ReadByteString(null);
+                byte paddingCount = decoder.ReadByte(null);
+
+                int error = 0;
+
+                for (int ii = 0; ii < paddingCount; ii++)
                 {
-                    throw new ServiceResultException(StatusCodes.BadNonceInvalid);
+                    byte padding = decoder.ReadByte(null);
+                    error |= padding & ~paddingCount;
                 }
+
+                byte highByte = decoder.ReadByte(null);
+
+                if (error != 0 || highByte != 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError);
+                }
+
+                return key.ToArray();
             }
-
-            ByteString key = decoder.ReadByteString(null);
-            byte paddingCount = decoder.ReadByte(null);
-
-            int error = 0;
-
-            for (int ii = 0; ii < paddingCount; ii++)
+            finally
             {
-                byte padding = decoder.ReadByte(null);
-                error |= padding & ~paddingCount;
+                // The decryption writes the secret in place, over the buffer the
+                // caller handed in, and only the extracted key is copied out - so
+                // without this the plain text lives on in that buffer.
+                //
+                // The region is taken from dataToDecrypt, not from the returned
+                // segment: SymmetricDecryptAndVerify decrypts first and verifies
+                // afterwards, so on a signature or padding failure it throws with
+                // the plain text already written and nothing returned. That is
+                // precisely the path this has to cover.
+                if (dataToDecrypt.Array != null)
+                {
+                    CryptoUtils.ZeroMemory(
+                        dataToDecrypt.Array.AsSpan(
+                            dataToDecrypt.Offset,
+                            dataToDecrypt.Count));
+                }
+
+                CryptoUtils.ZeroMemory(encryptingKey);
+                CryptoUtils.ZeroMemory(iv);
             }
-
-            byte highByte = decoder.ReadByte(null);
-
-            if (error != 0 || highByte != 0)
-            {
-                throw new ServiceResultException(StatusCodes.BadDecodingError);
-            }
-
-            return key.ToArray();
         }
 
         /// <summary>

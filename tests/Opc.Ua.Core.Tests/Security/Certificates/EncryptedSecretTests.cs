@@ -842,6 +842,84 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return EncryptedSecret.CreateForRsa(m_context, policyUri, m_certificate);
         }
 
+        /// <summary>
+        /// The ECC secret is decrypted in place, over the buffer the caller
+        /// handed in, and only the extracted key is copied out. The plain text
+        /// left in that buffer is wiped - including on the failure path, which
+        /// is the one that matters: the decryption runs before the signature and
+        /// padding are verified, so a rejected message has the secret written
+        /// out and nothing returned.
+        /// </summary>
+        [TestCase(SecurityPolicies.ECC_nistP256)]
+        [TestCase(SecurityPolicies.ECC_nistP384)]
+        [Category("EncryptedSecretCoverage")]
+        public void EccDecryptWipesThePlainTextFromTheCallersBufferOnFailure(string policyUri)
+        {
+            RequireEccPolicy(policyUri);
+            ECCurve curve = CurveForPolicy(policyUri);
+            using Certificate senderCertificate = CreateEccCertificate(curve);
+            using Certificate receiverCertificate = CreateEccCertificate(curve);
+            using Nonce receiverEphemeralKey = CreateEphemeralKey(policyUri);
+            using Nonce senderEphemeralKey = CreateEphemeralKey(policyUri);
+            byte[] secret = SecretBytes();
+            byte[] nonce = NonceBytes();
+
+            EncryptedSecret encryptor = CreateEccEncryptor(
+                policyUri,
+                senderCertificate,
+                receiverCertificate,
+                receiverEphemeralKey,
+                senderEphemeralKey);
+            byte[] encoded = encryptor.Encrypt(secret, nonce);
+
+            int longestZeroRunBefore = LongestZeroRun(encoded);
+
+            EncryptedSecret decryptor = CreateEccDecryptor(
+                policyUri, receiverCertificate, receiverEphemeralKey);
+
+            bool accepted;
+
+            try
+            {
+                // a nonce the message was not built for: rejected after the body
+                // has already been decrypted in place.
+                accepted = decryptor.TryDecrypt(encoded, [0xAA, 0xBB, 0xCC, 0xDD], out _);
+            }
+            catch (ServiceResultException)
+            {
+                accepted = false;
+            }
+            finally
+            {
+                decryptor.SenderCertificate?.Dispose();
+            }
+
+            Assert.That(accepted, Is.False);
+
+            Assert.That(
+                LongestZeroRun(encoded),
+                Is.GreaterThan(longestZeroRunBefore + secret.Length),
+                "the decrypted secret was left behind in the caller's buffer.");
+        }
+
+        private static int LongestZeroRun(byte[] buffer)
+        {
+            int longest = 0;
+            int current = 0;
+
+            foreach (byte value in buffer)
+            {
+                current = value == 0 ? current + 1 : 0;
+
+                if (current > longest)
+                {
+                    longest = current;
+                }
+            }
+
+            return longest;
+        }
+
         private static byte[] SecretBytes()
         {
             return System.Text.Encoding.UTF8.GetBytes("opc-ua-encrypted-secret-roundtrip-value");

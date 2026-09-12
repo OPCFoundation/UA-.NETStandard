@@ -348,6 +348,251 @@ namespace Opc.Ua.Core.Tests.Redundancy
             }
         }
 
+        /// <summary>
+        /// The lease this replica wrote has to still be running for it to count
+        /// as the leader. Checked on read, because a store that hangs rather
+        /// than throws never reaches the renew failure path at all while every
+        /// other replica watches the lease expire.
+        /// </summary>
+        [Test]
+        public async Task IsLeaderReportsFalseOnceTheLocalLeaseHasExpiredAsync()
+        {
+            var time = new FakeTimeProvider();
+            using var store = new InMemorySharedKeyValueStore();
+            await using SharedStoreLeaseElection election = CreateElection(store, "A", time);
+
+            Assert.That(
+                await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            Assert.That(election.IsLeader, Is.True);
+
+            // still inside the lease.
+            time.Advance(s_leaseDuration - TimeSpan.FromSeconds(1));
+            Assert.That(election.IsLeader, Is.True);
+
+            // past it: another replica is free to take over, so this one is no
+            // longer the leader.
+            time.Advance(TimeSpan.FromSeconds(2));
+            Assert.That(election.IsLeader, Is.False);
+        }
+
+        /// <summary>
+        /// A renewed lease extends the local expiry, so a leader that keeps
+        /// reaching the store keeps leading.
+        /// </summary>
+        [Test]
+        public async Task RenewingTheLeaseExtendsLeadershipAsync()
+        {
+            var time = new FakeTimeProvider();
+            using var store = new InMemorySharedKeyValueStore();
+            await using SharedStoreLeaseElection election = CreateElection(store, "A", time);
+
+            Assert.That(
+                await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+
+            time.Advance(s_leaseDuration - TimeSpan.FromSeconds(1));
+
+            Assert.That(
+                await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+
+            time.Advance(TimeSpan.FromSeconds(2));
+            Assert.That(election.IsLeader, Is.True);
+        }
+
+        /// <summary>
+        /// A renew that never reached the store steps the replica down once the
+        /// lease it last wrote has run out, and announces it - otherwise the
+        /// standby that took over and this replica would both be leading.
+        /// </summary>
+        [Test]
+        public async Task RenewFailureStepsDownOnceTheLeaseExpiresAsync()
+        {
+            var time = new FakeTimeProvider();
+            int probes = 0;
+            var store = new Mock<ISharedKeyValueStore>();
+
+            store
+                .Setup(s => s.TryGetAsync(LeaseKey, It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    if (Interlocked.Increment(ref probes) > 1)
+                    {
+                        throw new InvalidOperationException("store offline");
+                    }
+
+                    return new ValueTask<(bool, ByteString)>((false, default));
+                });
+
+            store
+                .Setup(s => s.CompareAndSwapAsync(
+                    LeaseKey,
+                    It.IsAny<ByteString>(),
+                    It.IsAny<ByteString>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+
+            SharedStoreLeaseElection election = CreateElection(
+                store.Object, "A", time, TimeSpan.FromMilliseconds(20));
+
+            var steppedDown = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var acquired = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            election.LeadershipChanged += value =>
+            {
+                if (value)
+                {
+                    acquired.TrySetResult(true);
+                }
+                else
+                {
+                    steppedDown.TrySetResult(true);
+                }
+            };
+
+            try
+            {
+                election.Start();
+
+                await WaitWithTimeoutAsync(
+                    acquired.Task, "leadership was not acquired").ConfigureAwait(false);
+
+                // the store is unreachable from here on; once the lease it last
+                // wrote runs out the replica has to give leadership up.
+                time.Advance(s_leaseDuration + TimeSpan.FromSeconds(1));
+
+                await WaitWithTimeoutAsync(
+                    steppedDown.Task,
+                    "the replica kept leading on an expired lease").ConfigureAwait(false);
+
+                Assert.That(election.IsLeader, Is.False);
+            }
+            finally
+            {
+                await election.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// A store that hangs rather than throws never lets the renew loop come
+        /// round to its failure path, so the step-down is driven from a watchdog
+        /// the store cannot block. Without it a replica keeps announcing itself
+        /// as leader on a lease every other replica has watched expire.
+        /// </summary>
+        [Test]
+        public async Task StoreThatHangsStillStepsTheLeaderDownAsync()
+        {
+            var time = new FakeTimeProvider();
+            var released = new SemaphoreSlim(0);
+            int probes = 0;
+            var store = new Mock<ISharedKeyValueStore>();
+
+            store
+                .Setup(s => s.TryGetAsync(LeaseKey, It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    if (Interlocked.Increment(ref probes) > 1)
+                    {
+                        // never completes until the test lets it go.
+                        return new ValueTask<(bool, ByteString)>(
+                            released.WaitAsync().ContinueWith(
+                                _ => (false, default(ByteString)),
+                                TaskScheduler.Default));
+                    }
+
+                    return new ValueTask<(bool, ByteString)>((false, default));
+                });
+
+            store
+                .Setup(s => s.CompareAndSwapAsync(
+                    LeaseKey,
+                    It.IsAny<ByteString>(),
+                    It.IsAny<ByteString>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+
+            SharedStoreLeaseElection election = CreateElection(
+                store.Object, "A", time, TimeSpan.FromMilliseconds(20));
+
+            var acquired = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var steppedDown = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            election.LeadershipChanged += value =>
+            {
+                if (value)
+                {
+                    acquired.TrySetResult(true);
+                }
+                else
+                {
+                    steppedDown.TrySetResult(true);
+                }
+            };
+
+            try
+            {
+                election.Start();
+
+                await WaitWithTimeoutAsync(
+                    acquired.Task, "leadership was not acquired").ConfigureAwait(false);
+
+                // The renew loop is now blocked in the store and will never come
+                // back on its own. Run the lease out.
+                time.Advance(s_leaseDuration + TimeSpan.FromSeconds(1));
+
+                await WaitWithTimeoutAsync(
+                    steppedDown.Task,
+                    "the replica kept leading while the store hung").ConfigureAwait(false);
+
+                Assert.That(election.IsLeader, Is.False);
+            }
+            finally
+            {
+                released.Release(int.MaxValue / 2);
+                await election.DisposeAsync().ConfigureAwait(false);
+                released.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// The lease expiry is computed before the store call. A call that took
+        /// longer than the lease duration wrote a lease that has already run
+        /// out, so it is not leadership however the swap went.
+        /// </summary>
+        [Test]
+        public async Task AcquireThatOutlastsTheLeaseIsNotLeadershipAsync()
+        {
+            var time = new FakeTimeProvider();
+            var store = new Mock<ISharedKeyValueStore>();
+
+            store
+                .Setup(s => s.TryGetAsync(LeaseKey, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<(bool, ByteString)>((false, default)));
+
+            store
+                .Setup(s => s.CompareAndSwapAsync(
+                    LeaseKey,
+                    It.IsAny<ByteString>(),
+                    It.IsAny<ByteString>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    // the store took longer than the lease it was writing.
+                    time.Advance(s_leaseDuration + TimeSpan.FromSeconds(1));
+                    return new ValueTask<bool>(true);
+                });
+
+            await using SharedStoreLeaseElection election = CreateElection(
+                store.Object, "A", time);
+
+            bool acquired = await election.TryAcquireOrRenewAsync().ConfigureAwait(false);
+
+            Assert.That(acquired, Is.False);
+            Assert.That(election.IsLeader, Is.False);
+        }
+
         private static SharedStoreLeaseElection CreateElection(
             ISharedKeyValueStore store,
             string nodeId,

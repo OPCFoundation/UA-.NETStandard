@@ -306,12 +306,18 @@ namespace Opc.Ua.Bindings
                 // accepted immediately and any in flight are cancelled.
                 m_backgroundWork.Dispose();
 
-                m_receiveLoopCts?.Cancel();
+                Interlocked.Exchange(ref m_receiveLoop, null)?.Cancel();
                 IUaSCByteTransport? transport = Interlocked.Exchange(ref m_transport, null);
                 transport?.Close();
                 DiscardTokens();
-                m_receiveLoopCts?.Dispose();
-                m_receiveLoopCts = null;
+
+                // A message the peer never finished sending leaves its chunks
+                // queued here. Nothing else returns them, so a client that sends
+                // one intermediate chunk and disconnects would cost the pool a
+                // receive buffer per channel.
+                BufferCollection? partialChunks = m_partialMessageChunks;
+                m_partialMessageChunks = null;
+                partialChunks?.Release(BufferManager, "Dispose");
 
                 ServerCertificateChain?.Dispose();
                 ServerCertificateChain = null;
@@ -521,6 +527,13 @@ namespace Opc.Ua.Bindings
         /// <see cref="DoMessageLimitsExceeded(bool)"/>, which tears the channel
         /// down and must know whether it may take the gate.
         /// </param>
+        /// <remarks>
+        /// Always takes ownership of <paramref name="chunk"/>: it is either added
+        /// to the partial message, or returned to the <see cref="BufferManager"/>
+        /// straight away. A caller must therefore never pass a chunk it has
+        /// already handed over — use <see cref="TakeSavedChunks"/> when the body
+        /// is saved and only the collection is wanted.
+        /// </remarks>
         protected bool SaveIntermediateChunk(
             uint requestId,
             ArraySegment<byte> chunk,
@@ -551,6 +564,7 @@ namespace Opc.Ua.Bindings
 
             if (chunkOrSizeLimitsExceeded)
             {
+                ReturnBuffer(chunk, "SaveIntermediateChunk");
                 DoMessageLimitsExceeded(gateHeld);
                 return firstChunk;
             }
@@ -560,8 +574,25 @@ namespace Opc.Ua.Bindings
                 m_partialRequestId = requestId;
                 m_partialMessageChunks.Add(chunk);
             }
+            else
+            {
+                ReturnBuffer(chunk, "SaveIntermediateChunk");
+            }
 
             return firstChunk;
+        }
+
+        /// <summary>
+        /// Returns a pooled buffer nothing downstream took ownership of.
+        /// </summary>
+        /// <param name="buffer">The segment whose array goes back to the pool.</param>
+        /// <param name="owner">The owner name the buffer manager tracks it under.</param>
+        protected void ReturnBuffer(ArraySegment<byte> buffer, string owner)
+        {
+            if (buffer.Array != null)
+            {
+                BufferManager.ReturnBuffer(buffer.Array, owner);
+            }
         }
 
         /// <summary>
@@ -575,7 +606,18 @@ namespace Opc.Ua.Bindings
             bool gateHeld)
         {
             SaveIntermediateChunk(requestId, chunk, isServerContext, gateHeld);
-            BufferCollection savedChunks = m_partialMessageChunks!;
+            return TakeSavedChunks();
+        }
+
+        /// <summary>
+        /// Detaches the chunks saved so far without offering another one. Used
+        /// where the final chunk has already been saved and only the collection
+        /// is needed; passing it to <see cref="GetSavedChunks"/> a second time
+        /// would either queue the same buffer twice or release it early.
+        /// </summary>
+        protected BufferCollection TakeSavedChunks()
+        {
+            BufferCollection savedChunks = m_partialMessageChunks ?? [];
             m_partialMessageChunks = null;
             return savedChunks;
         }
@@ -693,8 +735,14 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles an error parsing or verifying a message.
         /// </summary>
+        /// <remarks>
+        /// The default reports the error to the log. A channel that has to act
+        /// on it — fault, reconnect, fail the pending operation — does so at the
+        /// point the error is detected rather than relying on this.
+        /// </remarks>
         protected virtual void HandleMessageProcessingError(ServiceResult result)
         {
+            m_logger.UaSCChannelMessageProcessingError(ChannelId, result);
         }
 
         /// <summary>
@@ -751,13 +799,59 @@ namespace Opc.Ua.Bindings
             {
                 return;
             }
-            if (Interlocked.CompareExchange(ref m_receiveLoopRunning, 1, 0) != 0)
+
+            // Idempotent per transport. A loop already running on this transport
+            // is left alone, but one still running on a transport the channel has
+            // since replaced (a reconnect binds a new socket to an existing
+            // channel) is superseded - otherwise the channel would never read
+            // from the socket it just adopted.
+            //
+            // The whole state is one object swapped atomically, so a second
+            // caller can never observe a half-installed loop (the new transport
+            // paired with the previous token) and start a competing reader on the
+            // same socket.
+            var epoch = new ReceiveLoopEpoch(transport);
+            ReceiveLoopEpoch? previous;
+
+            while (true)
             {
+                previous = Volatile.Read(ref m_receiveLoop);
+
+                if (previous != null && ReferenceEquals(previous.Transport, transport))
+                {
+                    return;
+                }
+
+                if (ReferenceEquals(
+                    Interlocked.CompareExchange(ref m_receiveLoop, epoch, previous),
+                    previous))
+                {
+                    break;
+                }
+            }
+
+            // Cancel the loop this one replaces. Not awaited: the caller may be
+            // running on that very loop (a reconnect is dispatched from it), so
+            // it ends as soon as it observes the cancellation.
+            previous?.Cancel();
+
+            // The transport was read before the epoch went in, so a detach could
+            // have run in between and this epoch would now be reading a socket
+            // the channel has given up - one the listener may have closed, or
+            // handed to the channel that adopted it.
+            //
+            // DetachTransport clears the transport before it retires the loop,
+            // so the two orderings are both covered: a detach that got as far as
+            // the transport is seen here, and a later one retires this epoch and
+            // cancels it before the body reads anything.
+            if (!ReferenceEquals(Volatile.Read(ref m_transport), transport))
+            {
+                Interlocked.CompareExchange(ref m_receiveLoop, null, epoch);
+                epoch.Cancel();
                 return;
             }
-            m_receiveLoopCts?.Dispose();
-            m_receiveLoopCts = new CancellationTokenSource();
-            CancellationToken ct = m_receiveLoopCts.Token;
+
+            CancellationToken ct = epoch.Token;
             m_receiveLoopTask = Task.Run(
                 async () =>
                 {
@@ -767,10 +861,67 @@ namespace Opc.Ua.Bindings
                     }
                     finally
                     {
-                        Interlocked.Exchange(ref m_receiveLoopRunning, 0);
+                        // Retire only if still current; a superseded loop must not
+                        // clear the epoch the loop that replaced it installed.
+                        Interlocked.CompareExchange(ref m_receiveLoop, null, epoch);
                     }
                 },
                 ct);
+        }
+
+        /// <summary>
+        /// One run of the receive loop: the transport it reads from and the
+        /// source that stops it. Installed and retired as a unit so the two can
+        /// never be observed out of step.
+        /// </summary>
+        /// <remarks>
+        /// The token source is deliberately never disposed. It carries no timer
+        /// and no linked registration, so it holds nothing a garbage collection
+        /// will not reclaim - and disposing it would race every other path that
+        /// cancels a loop, turning a teardown into an
+        /// <see cref="ObjectDisposedException"/>.
+        /// </remarks>
+#pragma warning disable CA1001 // m_cts is intentionally not disposed; see the remarks above.
+        private sealed class ReceiveLoopEpoch
+#pragma warning restore CA1001
+        {
+            public ReceiveLoopEpoch(IUaSCByteTransport transport)
+            {
+                Transport = transport;
+            }
+
+            public IUaSCByteTransport Transport { get; }
+
+            public CancellationToken Token => m_cts.Token;
+
+            public void Cancel()
+            {
+                m_cts.Cancel();
+            }
+
+            private readonly CancellationTokenSource m_cts = new();
+        }
+
+        /// <summary>
+        /// Detaches the current <see cref="Transport"/> and signals the receive
+        /// loop reading from it to stop, without waiting for it to finish. The
+        /// returned transport is the caller's responsibility — the channel's own
+        /// <see cref="Dispose(bool)"/> will no longer close it.
+        /// </summary>
+        /// <remarks>
+        /// The synchronous counterpart to <see cref="DetachTransportAsync"/>,
+        /// for the handover in <c>TcpServerChannel</c> that runs on the very
+        /// receive loop being stopped and so cannot await it.
+        /// </remarks>
+        protected internal IUaSCByteTransport? DetachTransport()
+        {
+            IUaSCByteTransport? transport = Interlocked.Exchange(ref m_transport, null);
+
+            // Retire the loop as well as cancelling it, so a later
+            // StartReceiveLoop on a reattached transport is not mistaken for a
+            // loop that is already serving it.
+            Interlocked.Exchange(ref m_receiveLoop, null)?.Cancel();
+            return transport;
         }
 
         /// <summary>
@@ -789,8 +940,7 @@ namespace Opc.Ua.Bindings
         {
             IUaSCByteTransport? transport = Interlocked.Exchange(ref m_transport, null);
 
-            CancellationTokenSource? cts = m_receiveLoopCts;
-            cts?.Cancel();
+            Interlocked.Exchange(ref m_receiveLoop, null)?.Cancel();
 
             Task? loop = m_receiveLoopTask;
             if (loop != null)
@@ -1489,9 +1639,14 @@ namespace Opc.Ua.Bindings
 
         private IUaSCByteTransport? m_transport;
         private readonly BackgroundTaskScope m_backgroundWork;
-        private CancellationTokenSource? m_receiveLoopCts;
         private Task? m_receiveLoopTask;
-        private int m_receiveLoopRunning;
+
+        /// <summary>
+        /// The receive loop currently installed, or <c>null</c> when none is.
+        /// Swapped atomically so the transport a loop reads from and the source
+        /// that stops it are always seen together.
+        /// </summary>
+        private ReceiveLoopEpoch? m_receiveLoop;
 
         private volatile TcpChannelStateEventHandler? m_stateChanged;
         private const uint kMaxValueLegacyTrue = TcpMessageLimits.MinSequenceNumber;
@@ -1656,6 +1811,19 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             Exception exception,
             uint channelId);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 15, Level = LogLevel.Error,
+            Message = "ChannelId {ChannelId}: Could not process an incoming message. {ServiceResult}")]
+        public static partial void UaSCChannelMessageProcessingError(
+            this ILogger logger,
+            uint channelId,
+            ServiceResult serviceResult);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 16, Level = LogLevel.Debug,
+            Message = "The nonce supplied by the peer was rejected.")]
+        public static partial void UaSCChannelNonceRejected(
+            this ILogger logger,
+            Exception exception);
     }
 
 }

@@ -751,6 +751,83 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.IsSuppressible, Is.True);
         }
 
+        /// <summary>
+        /// A peer named by the trust list's own TrustedCertificates element - the
+        /// &lt;TrustedCertificates&gt; configuration list, or
+        /// SecurityConfiguration.AddTrustedPeer - is trusted even though the
+        /// store behind the trust list is empty. Before the fix that list never
+        /// reached the validator and such a peer was rejected with
+        /// BadCertificateUntrusted.
+        /// </summary>
+        [Test]
+        public async Task ValidateAsyncTrustsCertificateListedOnTrustListOnlyAsync()
+        {
+            CertificateValidationCore core = NewCore();
+            core.Update(null, TrustListWith(NewTempDir(), m_selfSignedApp), null);
+            using CertificateCollection chain = Chain(m_selfSignedApp);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.True);
+        }
+
+        /// <summary>
+        /// The same for a CA: a leaf issued by an authority listed only on the
+        /// trust list chains to it.
+        /// </summary>
+        [Test]
+        public async Task ValidateAsyncTrustsLeafOfIssuerListedOnTrustListOnlyAsync()
+        {
+            CertificateValidationCore core = NewCore();
+            core.Update(null, TrustListWith(NewTempDir(), m_rootCa), null);
+            using CertificateCollection chain = Chain(m_leaf);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.True);
+        }
+
+        /// <summary>
+        /// A certificate the trust list does not name is still untrusted, so the
+        /// list is consulted rather than trusted wholesale.
+        /// </summary>
+        [Test]
+        public async Task ValidateAsyncRejectsCertificateMissingFromTrustListAsync()
+        {
+            CertificateValidationCore core = NewCore();
+            core.Update(null, TrustListWith(NewTempDir(), m_rootCa), null);
+            using CertificateCollection chain = Chain(m_selfSignedApp);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(
+                ContainsStatusCode(result, StatusCodes.BadCertificateUntrusted), Is.True);
+        }
+
+        /// <summary>
+        /// A trust list whose store is empty and whose TrustedCertificates names
+        /// the given certificates, which is the shape the configuration file
+        /// produces for &lt;TrustedCertificates&gt;.
+        /// </summary>
+        private static CertificateTrustList TrustListWith(
+            string dir,
+            params Certificate[] trusted)
+        {
+            CertificateTrustList trustList = TrustList(dir);
+
+            foreach (Certificate certificate in trusted)
+            {
+                trustList.TrustedCertificates = trustList.TrustedCertificates.AddItem(
+                    new CertificateIdentifier { RawData = certificate.RawData });
+            }
+
+            return trustList;
+        }
+
         private static Certificate CreateLeaf(
             string subjectName, Certificate issuer, DateTime notBefore, DateTime notAfter)
         {
