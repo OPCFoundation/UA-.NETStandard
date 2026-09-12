@@ -41,6 +41,12 @@ namespace Opc.Ua.Wot
         /// resolution rules. The affordance must be an original element of the live
         /// document: scoped contexts and inferred identities are keyed by that element.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="document"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="affordance"/> is not an original object from <paramref name="document"/>.
+        /// </exception>
         public static WotPayloadSchema CapturePayloadSchema(
             WotDocument document, WotAffordanceKind kind, JsonElement affordance)
         {
@@ -138,7 +144,8 @@ namespace Opc.Ua.Wot
                     int index = 0;
                     foreach (JsonElement branch in branches.EnumerateArray())
                     {
-                        Capture(branch, pointer + "/oneOf/" +
+                        Capture(branch, pointer +
+                            "/oneOf/" +
                             index.ToString(System.Globalization.CultureInfo.InvariantCulture));
                         index++;
                     }
@@ -194,8 +201,10 @@ namespace Opc.Ua.Wot
             WotDocument document, JsonElement schema, List<WotDiagnostic> diagnostics)
         {
             string? name = GetElementString(schema, "uav:browseName");
-            if (name is null || name.StartsWith("nsu=", StringComparison.Ordinal) ||
-                name.StartsWith('{') || !name.Contains(':', StringComparison.Ordinal))
+            if (name is null ||
+                name.StartsWith("nsu=", StringComparison.Ordinal) ||
+                name.StartsWith('{') ||
+                !name.Contains(':', StringComparison.Ordinal))
             {
                 return name;
             }

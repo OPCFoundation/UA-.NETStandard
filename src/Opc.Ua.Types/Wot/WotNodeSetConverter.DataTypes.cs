@@ -227,6 +227,10 @@ namespace Opc.Ua.Wot
             Visit(document.RootElement);
             foreach (KeyValuePair<string, JsonElement> action in document.Actions)
             {
+                if (action.Value.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
                 if (action.Value.TryGetProperty(InputMember, out JsonElement input))
                 {
                     Visit(input);
@@ -238,7 +242,8 @@ namespace Opc.Ua.Wot
             }
             foreach (KeyValuePair<string, JsonElement> eventAffordance in document.Events)
             {
-                if (eventAffordance.Value.TryGetProperty(DataMember, out JsonElement data))
+                if (eventAffordance.Value.ValueKind == JsonValueKind.Object &&
+                    eventAffordance.Value.TryGetProperty(DataMember, out JsonElement data))
                 {
                     VisitProperties(data);
                 }
@@ -876,10 +881,10 @@ namespace Opc.Ua.Wot
             }
             UADataType dataType = root ??
                 new UADataType
-                    {
-                        NodeId = identity,
-                        BrowseName = browseName
-                    };
+                {
+                    NodeId = identity,
+                    BrowseName = browseName
+                };
             dataType.IsAbstract = isAbstract;
             ApplyDataTypeText(document, dataType, definition);
 

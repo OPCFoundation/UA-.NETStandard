@@ -77,6 +77,50 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 Is.EqualTo(new WotBrowsePathElement("urn:form", "Value")));
         }
 
+        [TestCase("Factory")]
+        [TestCase("opc.tcp://localhost:4840/UA/Factory")]
+        public void PlanningRetainsPayloadAndPathContextsAcrossHrefResolution(string href)
+        {
+            string json = $$$"""
+                {
+                  "@context":{"native":"urn:wrong-root","t":"urn:root"},
+                  "base":"opc.tcp://localhost:4840/UA/",
+                  "uav:browsePathAnchor":"nsu=urn:path:source;s=RootAnchor",
+                  "properties":{"Value":{
+                    "@context":{"native":"http://opcfoundation.org/UA/","t":"urn:affordance"},
+                    "type":"integer","uav:dataTypeName":"native:UInt16","uav:browseName":"t:Value",
+                    "forms":[{
+                      "@context":{"native":"urn:wrong-form","t":"urn:form"},
+                      "href":"{{{href}}}","op":"readproperty","uav:browsePath":"t:Value"
+                    }]
+                  }}
+                }
+                """;
+            var session = new Mock<ISession>();
+            WotProtocolBinderRegistry registry = Registry(session);
+            var request = WotBindingPlanRequest.FromDocument(
+                "payload-and-path", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(json));
+
+            WotBindingPlan plan = registry.Prepare(request);
+
+            Assert.That(plan.CompiledForms, Has.Length.EqualTo(1), string.Join("; ", plan.Diagnostics));
+            WotCompiledForm compiled = plan.CompiledForms[0];
+            Assert.That(compiled.Endpoint.BaseUri, Is.EqualTo("opc.tcp://localhost:4840/UA/Factory"));
+            Assert.That(compiled.Addressing.BrowsePathTarget, Is.Not.Null);
+            Assert.That(compiled.Addressing.BrowsePathTarget!.AnchorId,
+                Is.EqualTo("nsu=urn:path:source;s=RootAnchor"));
+            Assert.That(compiled.Addressing.BrowsePathTarget.Elements[0].TargetName,
+                Is.EqualTo(new WotBrowsePathElement("urn:form", "Value")));
+            Assert.That(request.Forms[0].PayloadSchema, Is.Not.Null);
+            Assert.That(compiled.Payload.Schema, Is.SameAs(request.Forms[0].PayloadSchema));
+            Assert.That(compiled.Payload.Schema!.TryGetTypeBinding(string.Empty, out WotPayloadTypeBinding? binding),
+                Is.True);
+            Assert.That(binding!.DataTypeId, Is.EqualTo(new ExpandedNodeId(5)));
+            Assert.That(binding.TypeInfo, Is.EqualTo(TypeInfo.Create(BuiltInType.UInt16, ValueRanks.Scalar)));
+            Assert.That(binding.ResolvedBrowseName, Is.EqualTo("nsu=urn:affordance;Value"));
+            session.VerifyNoOtherCalls();
+        }
+
         [Test]
         public void DirectFormConstructionUsesTheSameScopedCaptureAsDocumentExtraction()
         {

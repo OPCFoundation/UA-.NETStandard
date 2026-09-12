@@ -262,6 +262,9 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Returns the clause with its declaring data schema and context-resolved path.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="schema"/> is <c>null</c>.
+        /// </exception>
         public WotResolvedEventSelectClause WithPayloadSchema(
             WotPayloadSchema schema, string? resolvedBrowsePath = null)
         {
@@ -272,18 +275,6 @@ namespace Opc.Ua.Wot
                 ResolvedPathElements = ResolvedPathElements,
                 Declaration = Declaration,
                 DeclarationFailure = DeclarationFailure
-            };
-        }
-
-        internal WotResolvedEventSelectClause WithDeclaration(WotTypeDeclaration? declaration, string? failure)
-        {
-            return new WotResolvedEventSelectClause(TypeDefinitionId, BrowsePath, Source, TypeDefinitionReference)
-            {
-                PayloadSchema = PayloadSchema,
-                ResolvedBrowsePath = ResolvedBrowsePath,
-                ResolvedPathElements = ResolvedPathElements,
-                Declaration = declaration,
-                DeclarationFailure = failure
             };
         }
 
@@ -313,6 +304,18 @@ namespace Opc.Ua.Wot
         public override string ToString()
         {
             return TypeDefinitionId + "#" + BrowsePath;
+        }
+
+        internal WotResolvedEventSelectClause WithDeclaration(WotTypeDeclaration? declaration, string? failure)
+        {
+            return new WotResolvedEventSelectClause(TypeDefinitionId, BrowsePath, Source, TypeDefinitionReference)
+            {
+                PayloadSchema = PayloadSchema,
+                ResolvedBrowsePath = ResolvedBrowsePath,
+                ResolvedPathElements = ResolvedPathElements,
+                Declaration = declaration,
+                DeclarationFailure = failure
+            };
         }
     }
 }

@@ -351,6 +351,58 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(s_linkedFields));
         }
 
+        [Test]
+        public async Task EventPayloadCapturePreservesVerifiedOccurrenceAcrossClauseCopiesAsync(
+            [Values] bool termScoped)
+        {
+            using WotDocument original = SelectionDocument("field:EventId");
+            JsonObject json = JsonNode.Parse(original.RootElement.GetRawText()).AsObject();
+            json["@context"]["field"] = termScoped ? "urn:wrong-root" : Namespaces.OpcUa;
+            if (termScoped)
+            {
+                json["@context"]["uav:eventSelectClauses"] = new JsonObject
+                {
+                    ["@id"] = "http://opcfoundation.org/UA/WoT-Binding/eventSelectClauses",
+                    ["@context"] = new JsonObject { ["field"] = Namespaces.OpcUa }
+                };
+            }
+            Mock<IWotThingResolver> things = DefinitionResolver("i=2041");
+            WotResolvedEventSelectClause occurrence;
+            using (var document = WotDocument.Parse(WotTestData.Utf8(json.ToJsonString())))
+            {
+                var resolver = new WotEventSelectionResolver(things.Object);
+                WotConversionResult<WotEventSelectionCatalog> result = await resolver.ResolveAsync(document)
+                    .ConfigureAwait(false);
+                Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+                Assert.That(result.Value.TryGetSelection("alarm", out ArrayOf<WotResolvedEventSelectClause> clauses),
+                    Is.True);
+                occurrence = clauses.ToList().Single(clause => clause.Source == WotEventSelectClauseSource.Explicit);
+            }
+
+            Assert.That(occurrence.Declaration, Is.Not.Null);
+            Assert.That(occurrence.Declaration.NodeId, Is.EqualTo("i=2042"));
+            Assert.That(occurrence.Declaration.DeclaringTypeNodeId, Is.EqualTo("i=2041"));
+            Assert.That(occurrence.Declaration.DataType, Is.EqualTo("i=15"));
+            Assert.That(occurrence.DeclarationFailure, Is.Null);
+            Assert.That(occurrence.ResolvedBrowsePath, Is.EqualTo("EventId"));
+            Assert.That(occurrence.PayloadSchema, Is.Not.Null);
+            WotPayloadSchema payload = occurrence.PayloadSchema;
+            Assert.That(payload.TryGetTypeBinding("/properties/EventId", out WotPayloadTypeBinding binding), Is.True);
+            Assert.That(binding!.TypeInfo, Is.EqualTo(TypeInfo.Create(BuiltInType.ByteString, ValueRanks.Scalar)));
+            foreach (WotResolvedEventSelectClause copy in new[]
+            {
+                occurrence.WithPayloadSchema(payload, occurrence.ResolvedBrowsePath),
+                occurrence.WithBrowsePath(occurrence.BrowsePath)
+            })
+            {
+                Assert.That(copy.PayloadSchema, Is.SameAs(payload));
+                Assert.That(copy.Declaration, Is.SameAs(occurrence.Declaration));
+                Assert.That(copy.DeclarationFailure, Is.Null);
+                Assert.That(copy.ResolvedPathElements, Is.EqualTo(occurrence.ResolvedPathElements));
+                Assert.That(copy.ResolvedBrowsePath, Is.EqualTo("EventId"));
+            }
+        }
+
         private static WotDocument SelectionDocument(string path)
         {
             return WotDocument.Parse(WotTestData.Utf8(

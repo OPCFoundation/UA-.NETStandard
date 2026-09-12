@@ -467,7 +467,7 @@ namespace Opc.Ua.Wot
                     {
                         AddError(diagnostics,
                             $"The clause path '{clause.BrowsePath}' has an unbound namespace prefix.", at);
-                        return ArrayOf<WotResolvedEventSelectClause>.Empty;
+                        return [];
                     }
                     explicitClauses.Add(new WotResolvedEventSelectClause(
                         target.TypeDefinitionId,
@@ -702,13 +702,14 @@ namespace Opc.Ua.Wot
                 string[] qualified = new string[take];
                 Array.Copy(leaf.Elements, elements, take);
                 Array.Copy(leaf.QualifiedElements, qualified, take);
-                var resolvedElements = new string[take];
+                string[] resolvedElements = new string[take];
                 string pointer = string.Empty;
                 for (int index = 0; index < take; index++)
                 {
                     pointer += "/properties/" + EscapePointerToken(leaf.Members[index]);
                     resolvedElements[index] = definition.PayloadSchema.TryGetTypeBinding(
-                        pointer, out WotPayloadTypeBinding? binding) && binding.ResolvedBrowseName is { } resolvedName
+                        pointer, out WotPayloadTypeBinding? binding) &&
+                        binding.ResolvedBrowseName is { } resolvedName
                         ? resolvedName : elements[index];
                 }
                 baseline.Add(new WotResolvedEventSelectClause(
@@ -1207,7 +1208,7 @@ namespace Opc.Ua.Wot
         private static string? ResolvePayloadBrowsePath(
             WotDocument document, JsonElement carryingNode, WotEventSelectClause clause)
         {
-            var elements = new string[clause.PathElements.Count];
+            string[] elements = new string[clause.PathElements.Count];
             for (int index = 0; index < elements.Length; index++)
             {
                 string element = clause.PathElements[index];

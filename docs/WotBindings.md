@@ -147,6 +147,9 @@ owning document and scoped contexts are still available. Conversion-resolved
 external and inferred types are retained through `WotConvertedAffordance` and
 `WotProjectedAffordance`. Capture requires original elements of the live owning
 document, not foreign or already-cloned elements whose scoped context is lost.
+Payload and browse-path captures keep their separate original scopes when a
+relative href is resolved; a form's local prefixes do not redefine the owning
+affordance's data types.
 Numeric declarations remain abstract Integer/Number
 unless annotated; concrete native widths are not invented in the schema.
 The JSON codec adapts the TD representation to the existing native codecs:
@@ -198,6 +201,8 @@ implicit-default clauses are populated with typed values and
 `WotNotification.Context`; linked EventType schemas retain their own context,
 not the referring TD's prefixes. This is JSON event polling, not a property
 observation masquerading as an event, and does not add SSE or WebSub framing.
+Resolved selections retain their payload facts alongside independently verified
+native declaration evidence; neither is discarded when the selection is copied.
 Malformed event payloads produce observable bad-status notifications.
 
 `WotBindingBounds.MaxPayloadBytes` counts actual UTF-8 payload bytes, including

@@ -109,8 +109,9 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void NamespaceZeroUriIdentitiesMatchLocalNodeSetIdentifiers()
         {
-            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(
-                """
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                /*lang=json,strict*/
+                                     """
                 {
                   "@type": "uav:object",
                   "uav:id": "nsu=http://opcfoundation.org/UA/;i=2253",
@@ -147,8 +148,9 @@ namespace Opc.Ua.Types.Tests.Wot
         public void PayloadCaptureRetainsOriginalScopedTypesAndNestedRanksAfterDisposal()
         {
             WotPayloadSchema captured;
-            using (WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(
-                """
+            using (var document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                /*lang=json,strict*/
+                                     """
                 {
                   "@context":{"native":"urn:wrong-root","model":"urn:payload-fields"},
                   "actions":{"exchange":{
@@ -196,7 +198,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             WotPayloadSchema captured;
             UANodeSet nodeSet;
-            using (WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+            using (var document = WotDocument.Parse(Encoding.UTF8.GetBytes(
                 $$"""
                 {
                   "@context":{"model":"urn:payload-capture"},
@@ -243,6 +245,37 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(nativeType.NodeId));
             Assert.That(captured.Definition.GetProperty(member).GetProperty("properties").GetProperty("Value")
                 .GetProperty("type").GetString(), Is.EqualTo("boolean"));
+        }
+
+        [Test]
+        public void PayloadCaptureSkipsNonObjectSiblingDeclarations(
+            [Values("actions", "events")] string collection,
+            [Values("\"not an affordance\"", "null", "[]", "true", "17")] string malformed)
+        {
+            WotPayloadSchema captured;
+            string original;
+            using (var document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                $$"""
+                {
+                  "@context":{"model":"urn:payload-capture"},
+                  "properties":{
+                    "Reading":{"type":"integer","uav:dataTypeId":"i=5","uav:browseName":"model:Reading"}
+                  },
+                  "{{collection}}":{"broken":{{malformed}}}
+                }
+                """)))
+            {
+                JsonElement affordance = document.Properties["Reading"];
+                original = affordance.GetRawText();
+                captured = WotNodeSetConverter.CapturePayloadSchema(document, WotAffordanceKind.Property, affordance);
+            }
+
+            Assert.That(captured.Diagnostics, Is.Empty);
+            Assert.That(captured.TryGetTypeBinding(string.Empty, out WotPayloadTypeBinding binding), Is.True);
+            Assert.That(binding!.DataTypeId, Is.EqualTo(new ExpandedNodeId(5)));
+            Assert.That(binding.TypeInfo, Is.EqualTo(TypeInfo.Create(BuiltInType.UInt16, ValueRanks.Scalar)));
+            Assert.That(binding.ResolvedBrowseName, Is.EqualTo("nsu=urn:payload-capture;Reading"));
+            Assert.That(captured.Definition.GetRawText(), Is.EqualTo(original));
         }
 
         [TestCase(false)]

@@ -102,7 +102,7 @@ namespace Opc.Ua.WotCon.Bindings
                 {
                     continue;
                 }
-                Wot.WotPayloadSchema payloadSchema = Wot.WotNodeSetConverter.CapturePayloadSchema(
+                WotPayloadSchema payloadSchema = Wot.WotNodeSetConverter.CapturePayloadSchema(
                     document, kind switch
                     {
                         WotAffordanceKind.Property => Wot.WotAffordanceKind.Property,

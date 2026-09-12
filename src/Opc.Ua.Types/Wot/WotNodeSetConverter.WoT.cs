@@ -2329,10 +2329,10 @@ namespace Opc.Ua.Wot
                             diagnostics,
                             action),
                 MethodDeclarationId = declaration,
-                ParentNodeId = rootNodeId
+                ParentNodeId = rootNodeId,
+                DisplayName = ReadTitle(document, action),
+                Description = ReadDescription(document, action)
             };
-            method.DisplayName = ReadTitle(document, action);
-            method.Description = ReadDescription(document, action);
 
             string owner = ReadComponentOfParent(action, nodeSet, diagnostics) ?? rootNodeId;
             if (isConditionMethod &&
@@ -2415,19 +2415,19 @@ namespace Opc.Ua.Wot
                         nodeSet,
                         diagnostics,
                         eventAffordance),
-                IsAbstract = false
+                IsAbstract = false,
+                DisplayName = ReadTitle(document, eventAffordance),
+                Description = ReadDescription(document, eventAffordance),
+                References =
+                [
+                    new Reference
+                    {
+                        ReferenceType = "HasSubtype",
+                        IsForward = false,
+                        Value = ResolveConditionSupertype(conditionBinding, nodeSet, diagnostics)
+                    }
+                ]
             };
-            eventType.DisplayName = ReadTitle(document, eventAffordance);
-            eventType.Description = ReadDescription(document, eventAffordance);
-            eventType.References =
-            [
-                new Reference
-                {
-                    ReferenceType = "HasSubtype",
-                    IsForward = false,
-                    Value = ResolveConditionSupertype(conditionBinding, nodeSet, diagnostics)
-                }
-            ];
 
             items.Add(eventType);
 
@@ -3217,14 +3217,6 @@ namespace Opc.Ua.Wot
             JsonElement carryingNode = default)
         {
             return document.TryGetContextPrefix(prefix, out namespaceUri, carryingNode);
-        }
-
-        private static bool TryGetContextNamespace(
-            JsonElement context,
-            string prefix,
-            out string namespaceUri)
-        {
-            return WotDocument.TryGetContextPrefix(context, prefix, out namespaceUri);
         }
 
         private static void SynthesizeComponentArrays(
