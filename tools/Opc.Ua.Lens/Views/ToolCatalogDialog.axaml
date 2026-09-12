@@ -1,0 +1,127 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:UaLens.Views"
+        x:Class="UaLens.Views.ToolCatalogDialog"
+        Title="Add tool"
+        Width="640" Height="560"
+        MinWidth="480" MinHeight="360"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}"
+        FontFamily="Inter, Segoe UI, sans-serif">
+  <Window.Styles>
+    <Style Selector="TextBlock.h">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+      <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+    <Style Selector="TextBlock.mono">
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+    <Style Selector="Button.tonal">
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="Padding" Value="12,6" />
+    </Style>
+    <Style Selector="Button.tool">
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Background" Value="{DynamicResource PanelBg}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource PanelBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="12,8" />
+      <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+    <Style Selector="Button.tool:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource HighlightBg}" />
+    </Style>
+  </Window.Styles>
+
+  <DockPanel Margin="14" LastChildFill="True">
+    <TextBlock DockPanel.Dock="Top" Classes="heading" Text="Add a tool to the workspace" />
+    <TextBlock DockPanel.Dock="Top" Classes="caption" Margin="0,4,0,10" TextWrapping="Wrap"
+               Text="Every tool opens offline. Live operation requirements and capability checks are shown per tool." />
+    <TextBox DockPanel.Dock="Top" x:Name="SearchBox" Margin="0,0,0,10"
+             PlaceholderText="Search tools by name or description…" />
+    <DockPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+      <Button DockPanel.Dock="Right" x:Name="CancelButton" Classes="tonal" Content="Cancel"
+              MinWidth="90" />
+      <Button DockPanel.Dock="Right" x:Name="CheckButton" Classes="tonal" Content="Check availability"
+              Margin="0,0,8,0" />
+      <TextBlock x:Name="EmptyLabel" VerticalAlignment="Center" IsVisible="False"
+                 Foreground="{DynamicResource TextDim}" Text="No tools match your search." />
+    </DockPanel>
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+      <ItemsControl x:Name="GroupsList">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="v:ToolCatalogGroup">
+            <StackPanel Orientation="Vertical" Margin="0,0,0,12">
+              <TextBlock Classes="h" Text="{CompiledBinding Name}" />
+              <ItemsControl DataContextChanged="OnToolGroupChanged">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="v:ToolCatalogEntry">
+                    <Button Classes="tool" Tag="{CompiledBinding}"
+                            AutomationProperties.Name="{CompiledBinding DisplayName}">
+                      <Grid ColumnDefinitions="34,*,Auto" RowDefinitions="Auto,Auto">
+                        <Border Grid.Column="0" Grid.RowSpan="2" Width="26" Height="26"
+                                CornerRadius="5" Background="{DynamicResource SeparatorBrush}"
+                                VerticalAlignment="Top" Margin="0,2,8,0">
+                          <TextBlock Text="{CompiledBinding Glyph}" HorizontalAlignment="Center"
+                                     VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12"
+                                     Foreground="{DynamicResource TextPrimary}" />
+                        </Border>
+                        <TextBlock Grid.Column="1" Grid.Row="0" Text="{CompiledBinding DisplayName}"
+                                   FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                        <TextBlock Grid.Column="2" Grid.Row="0" Text="{CompiledBinding Shortcut}"
+                                   Classes="mono" Foreground="{DynamicResource TextDim}"
+                                   VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1" Grid.ColumnSpan="2" Grid.Row="1" Orientation="Vertical">
+                          <TextBlock Text="{CompiledBinding Description}" TextWrapping="Wrap"
+                                     Foreground="{DynamicResource TextSecondary}" FontSize="12" />
+                          <TextBlock Text="{CompiledBinding ConnectionRequirement}" TextWrapping="Wrap"
+                                     Foreground="{DynamicResource TextDim}" FontSize="11" Margin="0,2,0,0" />
+                          <TextBlock Text="{CompiledBinding AvailabilityText}" TextWrapping="Wrap"
+                                     Foreground="{DynamicResource TextSecondary}" FontSize="11" Margin="0,2,0,0" />
+                        </StackPanel>
+                      </Grid>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </DockPanel>
+</Window>

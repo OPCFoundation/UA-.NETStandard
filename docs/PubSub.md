@@ -237,6 +237,15 @@ uses; `StaticSecurityKeyProvider` keeps a fixed ring,
 `PullSecurityKeyProvider` calls an SKS endpoint
 ([§8.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.4)).
 
+Out-of-band key providers do not need a fictitious SKS URL in a secured
+configuration. `PubSubSecurityWrapperResolver` exposes its non-secret registered
+group IDs through `IPubSubSecurityKeyProviderCatalog`; application construction
+and configuration rebuilds pass that evidence to
+`PubSubConfigurationValidator.RegisteredSecurityGroupIds`. Only an exact registered
+group can omit SKS endpoints. Standalone validation without registration evidence
+still rejects a secured group with neither a key provider nor SKS endpoint, and
+runtime wrapper/key resolution remains fail-closed.
+
 ### `IPubSubKeyServiceServer`
 
 Bound by the in-memory SKS implementation. Exposes the standard

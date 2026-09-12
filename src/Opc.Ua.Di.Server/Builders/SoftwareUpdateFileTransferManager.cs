@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Di.Server.SoftwareUpdate;
@@ -87,7 +88,9 @@ namespace Opc.Ua.Di.Server.Builders
         /// </summary>
         internal const long MaxUploadSizeBytes = 64L * 1024 * 1024;
 
-        /// <summary>OPC 10000-5 §11.3.3 — Open mode <c>Write|EraseExisting</c>.</summary>
+        /// <summary>
+        /// OPC 10000-5 §11.3.3 — Open mode <c>Write|EraseExisting</c>.
+        /// </summary>
         private const byte OpenModeWriteEraseExisting = 6;
 
         private readonly TemporaryFileTransferState m_fileTransfer;
@@ -493,7 +496,7 @@ namespace Opc.Ua.Di.Server.Builders
                 Description: "Uploaded via FileTransfer",
                 SizeBytes: payload.LongLength,
                 CreatedAt: DateTimeOffset.UtcNow,
-                Hash: string.Empty);
+                Hash: CoreUtils.ToHexString(SHA256.HashData(payload)));
         }
 
         private sealed class UploadSlot : IDisposable

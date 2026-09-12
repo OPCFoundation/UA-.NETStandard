@@ -1,0 +1,201 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.Plugins.FileSystem"
+             x:Class="UaLens.Plugins.FileSystem.FileSystemView"
+             x:DataType="vm:FileSystemPlugin"
+             Background="{DynamicResource SurfaceBg}" Foreground="{DynamicResource TextPrimary}">
+
+  <UserControl.Styles>
+    <Style Selector="Border.panel">
+      <Setter Property="BorderBrush" Value="{DynamicResource PanelBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Background" Value="{DynamicResource PanelBg}" />
+    </Style>
+    <Style Selector="Button.tonal">
+      <Setter Property="Background" Value="{DynamicResource SeparatorBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="92" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{DynamicResource AccentBlue}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="92" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.danger">
+      <Setter Property="Background" Value="{DynamicResource AccentRed}" />
+      <Setter Property="Foreground" Value="{DynamicResource AppBg}" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="92" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.h">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+    </Style>
+    <Style Selector="TextBlock.row">
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+  </UserControl.Styles>
+
+  <DockPanel LastChildFill="True">
+
+    <!-- Toolbar (WrapPanel: children flow to next line on narrow windows). -->
+    <Border DockPanel.Dock="Top" Classes="panel" Margin="8,8,8,4" Padding="8,6">
+      <WrapPanel Classes="toolbar" Orientation="Horizontal" ItemHeight="32">
+        <Button Classes="primary" Content="Pick Root…" Margin="0,0,4,0"
+                Command="{CompiledBinding PickRootCommand}" />
+        <Button Classes="tonal"   Content="Settings…" Margin="0,0,4,0"
+                Command="{CompiledBinding EditFilterCommand}" />
+        <Border Width="1" Background="{DynamicResource SeparatorBrush}" Margin="4,6" />
+        <Button Classes="tonal"   Content="Add File…" Margin="0,0,4,0"
+                Command="{CompiledBinding AddFileCommand}" />
+        <Button Classes="tonal"   Content="Export File…" Margin="0,0,4,0"
+                Command="{CompiledBinding ExportFileCommand}" />
+        <Border Width="1" Background="{DynamicResource SeparatorBrush}" Margin="4,6" />
+        <Button Classes="tonal"   Content="New Folder…" Margin="0,0,4,0"
+                Command="{CompiledBinding NewFolderCommand}" />
+        <Button Classes="tonal"   Content="Rename…" Margin="0,0,4,0"
+                Command="{CompiledBinding RenameCommand}" />
+        <Button Classes="danger"  Content="Delete" Margin="0,0,4,0"
+                Command="{CompiledBinding DeleteCommand}" />
+        <Border Width="1" Background="{DynamicResource SeparatorBrush}" Margin="4,6" />
+        <Button Classes="tonal"   Content="↻ Refresh" Margin="0,0,4,0"
+                Command="{CompiledBinding RefreshCommand}" />
+      </WrapPanel>
+    </Border>
+
+    <!-- Body: TreeView (left) + details ListBox (right) -->
+    <Border Classes="panel" Margin="8,4,8,8">
+      <Grid ColumnDefinitions="*,5,2*">
+
+        <!-- Left: tree -->
+        <Grid Grid.Column="0" RowDefinitions="Auto,*">
+          <Border Grid.Row="0" Background="{DynamicResource SeparatorBrush}">
+            <TextBlock Margin="8,4" Classes="h" Text="ROOTS" />
+          </Border>
+          <TreeView Grid.Row="1"
+                    x:Name="Tree"
+                    ItemsSource="{CompiledBinding Roots}"
+                    SelectedItem="{CompiledBinding SelectedNode, Mode=TwoWay}"
+                    Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}"
+                    BorderThickness="0">
+            <TreeView.Styles>
+              <Style Selector="TreeViewItem" x:DataType="vm:FsNode">
+                <Setter Property="IsExpanded" Value="{CompiledBinding IsExpanded, Mode=TwoWay}" />
+                <Setter Property="Padding"    Value="4,2" />
+              </Style>
+            </TreeView.Styles>
+            <TreeView.ItemTemplate>
+              <TreeDataTemplate DataType="vm:FsNode" ItemsSource="{CompiledBinding Children}">
+                <StackPanel Orientation="Horizontal" Spacing="6"
+                            PointerPressed="OnTreeRowPointerPressed">
+                  <TextBlock Text="{CompiledBinding Glyph}"
+                             FontFamily="Cascadia Mono, Consolas, monospace"
+                             FontSize="12"
+                             VerticalAlignment="Center" />
+                  <TextBlock Text="{CompiledBinding Name}"
+                             FontFamily="Cascadia Mono, Consolas, monospace"
+                             FontSize="12"
+                             VerticalAlignment="Center"
+                             TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+              </TreeDataTemplate>
+            </TreeView.ItemTemplate>
+          </TreeView>
+        </Grid>
+
+        <GridSplitter Grid.Column="1" Width="5"
+                      ResizeDirection="Columns"
+                      ResizeBehavior="PreviousAndNext"
+                      Background="{DynamicResource SeparatorBrush}" />
+
+        <!-- Right: details list with shared-size columns so the header
+             splitter drags resize both the header and per-row grids. -->
+        <Grid Grid.Column="2" RowDefinitions="Auto,*"
+              Grid.IsSharedSizeScope="True">
+          <Grid Grid.Row="0" Background="{DynamicResource SeparatorBrush}">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"   SharedSizeGroup="FsCol0" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="FsSep0" />
+              <ColumnDefinition Width="120" SharedSizeGroup="FsCol1" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="FsSep1" />
+              <ColumnDefinition Width="180" SharedSizeGroup="FsCol2" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Margin="8,4" Classes="h" Text="NAME" />
+            <GridSplitter Grid.Column="1" Width="4" Background="{DynamicResource AppBg}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="2" Margin="8,4" Classes="h" Text="SIZE"     TextAlignment="Right" />
+            <GridSplitter Grid.Column="3" Width="4" Background="{DynamicResource AppBg}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="4" Margin="8,4" Classes="h" Text="MODIFIED" />
+          </Grid>
+          <ListBox Grid.Row="1"
+                   x:Name="DetailsList"
+                   ItemsSource="{CompiledBinding SelectedChildren}"
+                   Background="{DynamicResource PanelBg}" Foreground="{DynamicResource TextPrimary}"
+                   BorderThickness="0">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="vm:FsNode">
+                <Grid PointerPressed="OnDetailsRowPointerPressed">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"   SharedSizeGroup="FsCol0" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="FsSep0" />
+                    <ColumnDefinition Width="120" SharedSizeGroup="FsCol1" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="FsSep1" />
+                    <ColumnDefinition Width="180" SharedSizeGroup="FsCol2" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="{CompiledBinding Glyph}" Classes="row" />
+                    <TextBlock Text="{CompiledBinding Name}"  Classes="row" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="2"
+                             Text="{CompiledBinding DisplaySize}"
+                             Classes="row" TextAlignment="Right" />
+                  <TextBlock Grid.Column="4"
+                             Text="{CompiledBinding DisplayLastModified}"
+                             Classes="row" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Grid>
+    </Border>
+  </DockPanel>
+</UserControl>

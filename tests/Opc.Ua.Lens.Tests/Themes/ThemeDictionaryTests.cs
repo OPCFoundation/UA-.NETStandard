@@ -1,0 +1,94 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Media;
+using NUnit.Framework;
+using UaLens.Tests.Desktop;
+using UaLens.Themes;
+
+namespace UaLens.Tests.Themes
+{
+    [TestFixture]
+    public sealed class ThemeDictionaryTests
+    {
+        [Test]
+        public Task ApplyingChartColorsKeepsDataAndZoom()
+        {
+            if (Application.Current is not null)
+            {
+                return AvaloniaDesktopTestHost.RunAsync(() =>
+                {
+                    Application.Current.Resources["SurfaceBg"] = Brushes.White;
+                    Application.Current.Resources["TextPrimary"] = Brushes.Black;
+                    AssertChartColors();
+                    return Task.CompletedTask;
+                });
+            }
+            AssertChartColors();
+            return Task.CompletedTask;
+        }
+
+        private static void AssertChartColors()
+        {
+            using var plot = new ScottPlot.Plot();
+            var line = plot.Add.Scatter(new double[] { 0, 1 }, new double[] { 2, 3 });
+            plot.Axes.SetLimits(0, 10, -1, 5);
+            ScottPlot.AxisLimits limits = plot.Axes.GetLimits();
+
+            ChartTheme.Apply(plot);
+
+            Assert.That(plot.GetPlottables(), Does.Contain(line));
+            Assert.That(plot.Axes.GetLimits(), Is.EqualTo(limits));
+            Assert.That(plot.DataBackground.Color, Is.EqualTo(ScottPlot.Colors.White));
+            Assert.That(plot.Legend.FontColor, Is.EqualTo(ScottPlot.Colors.Black));
+        }
+
+        [TestCase("Light", "#fff3f4f6")]
+        [TestCase("Dark", "#ff141619")]
+        [TestCase("Navy", "#ff0f172a")]
+        public void CompiledThemeConstructorsLoadSemanticColors(string theme, string background)
+        {
+            ResourceDictionary resources = theme switch
+            {
+                "Light" => new LightTheme(),
+                "Dark" => new DarkStandardTheme(),
+                _ => new DarkNavyTheme()
+            };
+
+            Assert.That(resources["AppBg"], Is.InstanceOf<ISolidColorBrush>());
+            var brush = (ISolidColorBrush)resources["AppBg"]!;
+            Assert.That(brush.Color, Is.EqualTo(Color.Parse(background)));
+            Assert.That(resources["TextOnAccent"], Is.InstanceOf<ISolidColorBrush>());
+            Assert.That(resources["TextPrimary"], Is.InstanceOf<ISolidColorBrush>());
+        }
+    }
+}

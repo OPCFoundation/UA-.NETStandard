@@ -1,0 +1,169 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:c="using:UaLens.Plugins.Continuity"
+             xmlns:d="using:UaLens.Diagnostics"
+             x:Class="UaLens.Plugins.Continuity.ContinuityView"
+             x:DataType="c:ContinuityPlugin"
+             x:CompileBindings="True">
+  <Grid Margin="12" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="8">
+    <StackPanel Grid.Row="0" Spacing="6">
+      <TextBlock Text="Continuity Lab" FontSize="20" FontWeight="SemiBold" />
+      <TextBlock Text="Explicit, bounded experiments on owned resources. No server process control, zero-loss or hard-real-time promises."
+                 Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" />
+      <ComboBox ItemsSource="{Binding Scenarios}" SelectedItem="{Binding SelectedScenario}"
+                IsEnabled="{Binding CanConfigure}" HorizontalAlignment="Stretch"
+                AutomationProperties.AutomationId="ContinuityScenario">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="c:ContinuityScenarioChoice">
+            <TextBlock Text="{Binding Label}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Text="{Binding ScenarioDescription}" TextWrapping="Wrap"
+                 Foreground="{DynamicResource TextSecondary}" />
+      <TextBlock Text="{Binding SetupText}" TextWrapping="Wrap" />
+    </StackPanel>
+    <Expander Grid.Row="1" Header="Targets and requested settings" IsExpanded="True"
+              HorizontalAlignment="Stretch">
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="12" IsEnabled="{Binding CanConfigure}">
+        <StackPanel Grid.Column="0" Spacing="6">
+          <TextBlock Text="Variable targets (1–64): one namespace-URI expanded NodeId per line" TextWrapping="Wrap" />
+          <TextBox Text="{Binding TargetText}" AcceptsReturn="True" MinHeight="64" MaxHeight="130"
+                   AutomationProperties.AutomationId="ContinuityTargets" />
+          <WrapPanel>
+            <Button Content="Use selected Variable" Command="{Binding UseSelectedVariableCommand}" Margin="0,0,6,4" />
+            <Button Content="Server clock sample" Command="{Binding UseServerClockSampleCommand}" Margin="0,0,0,4" />
+          </WrapPanel>
+          <CheckBox Content="Selected repository sample is an integer +1 counter"
+                    IsChecked="{Binding MonotonicSample}" />
+          <TextBlock Text="No values are written. Counter gaps can also result from sampling, filtering or source resets."
+                     TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Spacing="5">
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="8" RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
+            <StackPanel Grid.Row="0" Grid.Column="0" Spacing="3">
+              <TextBlock Text="Publishing interval (ms)" TextWrapping="Wrap" />
+              <NumericUpDown Value="{Binding PublishingIntervalMs}" Minimum="20" Maximum="60000"
+                             HorizontalAlignment="Stretch" />
+            </StackPanel>
+            <StackPanel Grid.Row="0" Grid.Column="1" Spacing="3">
+              <TextBlock Text="Sampling interval (ms)" TextWrapping="Wrap" />
+              <NumericUpDown Value="{Binding SamplingIntervalMs}" Minimum="0" Maximum="60000"
+                             HorizontalAlignment="Stretch" />
+            </StackPanel>
+            <StackPanel Grid.Row="1" Grid.Column="0" Spacing="3">
+              <TextBlock Text="Item queue" />
+              <NumericUpDown Value="{Binding QueueSize}" Minimum="1" Maximum="10000"
+                             HorizontalAlignment="Stretch" />
+            </StackPanel>
+            <StackPanel Grid.Row="1" Grid.Column="1" Spacing="3">
+              <TextBlock Text="Items / partition" />
+              <NumericUpDown Value="{Binding ItemsPerPartition}" Minimum="1" Maximum="64"
+                             HorizontalAlignment="Stretch" />
+            </StackPanel>
+            <StackPanel Grid.Row="2" Grid.Column="0" Spacing="3">
+              <TextBlock Text="Keep-alive count" />
+              <NumericUpDown Value="{Binding KeepAliveCount}" Minimum="1" Maximum="1000"
+                             HorizontalAlignment="Stretch" />
+            </StackPanel>
+            <StackPanel Grid.Row="2" Grid.Column="1" Spacing="3">
+              <TextBlock Text="Lifetime count" />
+              <NumericUpDown Value="{Binding LifetimeCount}" Minimum="3" Maximum="100000"
+                             HorizontalAlignment="Stretch" />
+            </StackPanel>
+          </Grid>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <CheckBox Content="Request durability before items" IsChecked="{Binding Durable}" />
+            <NumericUpDown Value="{Binding DurableLifetimeHours}" Minimum="1" Maximum="168" Width="140" />
+            <TextBlock Text="hours" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock Text="Revised settings and server status appear below. Graceful durable restore always requests durability."
+                     Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Grid>
+    </Expander>
+    <StackPanel Grid.Row="2" Spacing="5">
+      <WrapPanel>
+        <Button Content="Start observation" Command="{Binding StartCommand}" Margin="0,0,8,4"
+                AutomationProperties.AutomationId="ContinuityStart" />
+        <Button Content="{Binding StepLabel}" Command="{Binding StepCommand}" Margin="0,0,8,4"
+                AutomationProperties.AutomationId="ContinuityStep" />
+        <Button Content="Stop" Command="{Binding StopCommand}" Margin="0,0,8,4"
+                AutomationProperties.AutomationId="ContinuityStop" />
+        <Button Content="Export redacted evidence…" Command="{Binding ExportCommand}" Margin="0,0,8,4"
+                AutomationProperties.AutomationId="ContinuityExport" />
+      </WrapPanel>
+      <TextBlock Text="{Binding Status}" TextWrapping="Wrap" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding CounterText}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding ObservationText}" TextWrapping="Wrap"
+                 Foreground="{DynamicResource TextSecondary}" FontSize="11" />
+    </StackPanel>
+    <TabControl Grid.Row="3">
+      <TabItem Header="Bounded evidence timeline">
+        <Grid RowDefinitions="Auto,*">
+          <TextBlock Grid.Row="0" Text="{Binding UiTimingText}" FontSize="11" Margin="0,4"
+                     Foreground="{DynamicResource TextSecondary}" />
+          <ListBox Grid.Row="1" ItemsSource="{Binding TimelineEntries}"
+                   AutomationProperties.AutomationId="ContinuityTimeline">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="c:ContinuityEvidence">
+                <StackPanel Spacing="2" Margin="4">
+                  <StackPanel Orientation="Horizontal" Spacing="12">
+                    <TextBlock Text="{Binding TimeText}" Width="90" />
+                    <TextBlock Text="{Binding Kind}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding StatusText}" FontSize="11" />
+                    <TextBlock Text="{Binding CorrelationText}" FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11" />
+                  </StackPanel>
+                  <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding TimingText}" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </TabItem>
+      <TabItem Header="Revised settings and counters">
+        <ScrollViewer>
+          <ItemsControl ItemsSource="{Binding DiagnosticRows}" Margin="6">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="d:DiagnosticMetric">
+                <Grid ColumnDefinitions="260,*" Margin="0,3">
+                  <TextBlock Grid.Column="0" Text="{Binding Name}" Foreground="{DynamicResource TextSecondary}" />
+                  <TextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </TabItem>
+    </TabControl>
+  </Grid>
+</UserControl>

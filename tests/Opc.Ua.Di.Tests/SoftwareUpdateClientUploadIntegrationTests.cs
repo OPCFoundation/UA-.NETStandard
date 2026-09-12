@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.IO;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -92,6 +93,8 @@ namespace Opc.Ua.Di.Tests
                 .ConfigureAwait(false);
             Assert.That(stored, Is.EqualTo(payload),
                 "Stored package bytes must match the uploaded payload.");
+            SoftwarePackage? metadata = await m_store.GetAsync(packageId).ConfigureAwait(false);
+            Assert.That(metadata!.Hash, Is.EqualTo(CoreUtils.ToHexString(SHA256.HashData(payload))));
         }
 
         [Test]

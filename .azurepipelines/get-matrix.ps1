@@ -49,24 +49,52 @@
     'targetTfm' variable that downstream jobs typically pass to
     'dotnet build' as '/p:CustomTestTarget=$(targetTfm)'.
 
+ .PARAMETER TestFramework
+    Optional test runtime framework. When supplied, evaluates each discovered
+    project with the installed .NET SDK and includes only projects targeting
+    this framework whose evaluated IsTestProject is not explicitly false.
+    Evaluation does not build or restore projects. This is independent of
+    -Tfms, which retains its unfiltered build-matrix fanout.
+
+ .PARAMETER CustomTestTarget
+    The CustomTestTarget property used by the test job. Requires -TestFramework
+    when non-empty. Always passed explicitly to MSBuild, including the default
+    empty value, so an inherited environment variable cannot change discovery.
+    For netstandard legs, -TestFramework is the test host's runtime framework,
+    not this library target.
+
  .PARAMETER AllowEmpty
     Do not fail when discovery produces no matrix entries. Off by default,
     because an empty matrix skips the downstream job, which rolls up as a
     successful stage and would let the 'Tests passed' gate approve a run that
-    executed no tests.
+    executed no tests. Does not tolerate missing test files or failed project
+    evaluation.
 #>
 
 Param(
-    [string]    $BuildRoot       = $null,
-    [string]    $FileName        = $null,
-    [string]    $ExcludeFileName = $null,
-    [string]    $JobPrefix       = '',
-    [hashtable] $AgentTable      = $null,
-    [string]    $Configurations  = '',
-    [string]    $Files           = '',
-    [string]    $Tfms            = '',
-    [switch]    $AllowEmpty
+    [string]    $BuildRoot        = $null,
+    [string]    $FileName         = $null,
+    [string]    $ExcludeFileName  = $null,
+    [string]    $JobPrefix        = '',
+    [hashtable] $AgentTable       = $null,
+    [string]    $Configurations   = '',
+    [string]    $Files            = '',
+    [string]    $Tfms             = '',
+    [switch]    $AllowEmpty,
+    [string]    $TestFramework    = '',
+    [string]    $CustomTestTarget = ''
 )
+
+$ErrorActionPreference = 'Stop'
+
+if ($PSBoundParameters.ContainsKey('TestFramework') -and [string]::IsNullOrWhiteSpace($TestFramework)) {
+    throw 'TestFramework must name a test runtime framework.'
+}
+$useTestFramework = -not [string]::IsNullOrEmpty($TestFramework)
+if (-not $useTestFramework -and -not [string]::IsNullOrEmpty($CustomTestTarget)) {
+    throw 'CustomTestTarget requires TestFramework; use Tfms for build-matrix fanout.'
+}
+$TestFramework = $TestFramework.Trim()
 
 if ([string]::IsNullOrEmpty($BuildRoot)) {
     $BuildRoot = & (Join-Path $PSScriptRoot 'get-root.ps1') -fileName '*.slnx'
@@ -99,6 +127,85 @@ function Split-CsvList([string] $value) {
     return $value -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
 }
 
+function Get-TestProjectProperties([string] $projectPath, [string] $framework = '') {
+    $arguments = @(
+        'msbuild'
+        $projectPath
+        '-nologo'
+        '-verbosity:quiet'
+        '-nodeReuse:false'
+        '-getProperty:TargetFramework,TargetFrameworks,IsTestProject'
+        "-property:CustomTestTarget=$CustomTestTarget"
+    )
+    if (-not [string]::IsNullOrEmpty($framework)) {
+        $arguments += "-property:TargetFramework=$framework"
+    }
+
+    $previousNoLogo = $env:DOTNET_NOLOGO
+    $PSNativeCommandUseErrorActionPreference = $false
+    try {
+        $env:DOTNET_NOLOGO = 'true'
+        $output = & dotnet @arguments
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $env:DOTNET_NOLOGO = $previousNoLogo
+    }
+    if ($exitCode -ne 0) {
+        throw "MSBuild evaluation failed for '$projectPath' (exit code $exitCode):`n$($output -join "`n")"
+    }
+
+    try {
+        $evaluation = ($output -join "`n") | ConvertFrom-Json -ErrorAction Stop
+    }
+    catch [System.ArgumentException] {
+        throw "MSBuild property evaluation returned invalid JSON for '$projectPath': $($_.Exception.Message)"
+    }
+    if ($evaluation -isnot [pscustomobject] -or $evaluation.Properties -isnot [pscustomobject]) {
+        throw "MSBuild property evaluation returned no property object for '$projectPath'."
+    }
+    foreach ($name in @('TargetFramework', 'TargetFrameworks', 'IsTestProject')) {
+        $property = $evaluation.Properties.PSObject.Properties[$name]
+        if ($null -eq $property -or $property.Value -isnot [string]) {
+            throw "MSBuild property evaluation returned an invalid '$name' for '$projectPath'."
+        }
+    }
+    $isTestProject = $evaluation.Properties.IsTestProject.Trim()
+    if ($isTestProject -ne '' -and $isTestProject -notin @('true', 'false')) {
+        throw ("MSBuild property evaluation returned an invalid IsTestProject value '$isTestProject' " +
+            "for '$projectPath'.")
+    }
+    return $evaluation.Properties
+}
+
+function Test-ProjectFramework([string] $projectPath) {
+    $properties = Get-TestProjectProperties $projectPath
+    $frameworks = @($properties.TargetFrameworks -split ';' |
+        ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    if ($frameworks.Count -eq 0 -and -not [string]::IsNullOrWhiteSpace($properties.TargetFramework)) {
+        $frameworks = @($properties.TargetFramework.Trim())
+    }
+    if ($frameworks.Count -eq 0) {
+        throw "Test project '$projectPath' does not declare TargetFramework or TargetFrameworks."
+    }
+    if ($frameworks -notcontains $TestFramework) {
+        Write-Host "Skipping '$projectPath': targets '$($frameworks -join ';')', not '$TestFramework'."
+        return $false
+    }
+
+    # Check membership before selecting an inner build: forcing TargetFramework
+    # first would make an incompatible project appear to support the test leg.
+    if ($properties.TargetFramework.Trim() -ne $TestFramework) {
+        $properties = Get-TestProjectProperties $projectPath $TestFramework
+    }
+    if ($properties.IsTestProject.Trim() -eq 'false') {
+        Write-Host ("Skipping '$projectPath': IsTestProject=false for '$TestFramework' " +
+            "(CustomTestTarget='$CustomTestTarget').")
+        return $false
+    }
+    return $true
+}
+
 $configList = Split-CsvList $Configurations
 $useConfigs = $configList.Count -gt 0
 
@@ -116,10 +223,13 @@ if ($fileList.Count -gt 0) {
     $items = @()
     foreach ($rel in $fileList) {
         $full = Join-Path $buildRootFull $rel
-        if (Test-Path $full -PathType Leaf) {
+        if (Test-Path -LiteralPath $full -PathType Leaf) {
             $items += Get-Item -LiteralPath $full
         }
         else {
+            if ($useTestFramework) {
+                throw "Test project file not found: '$full'."
+            }
             Write-Warning "File not found: $rel"
         }
     }
@@ -139,6 +249,10 @@ else {
 }
 
 foreach ($item in $items) {
+    if ($useTestFramework -and -not (Test-ProjectFramework $item.FullName)) {
+        continue
+    }
+
     $fullFolder = $item.DirectoryName.Replace('\', '/')
     $folder     = $item.DirectoryName.Replace($BuildRoot, '').Replace('\', '/').TrimStart('/')
     $file       = $item.FullName.Replace($BuildRoot, '').Replace('\', '/').TrimStart('/')
@@ -217,7 +331,13 @@ Write-Host ("Job matrix:`n" + ($jobMatrix | ConvertTo-Json -Depth 4))
 # would sail through the 'Tests passed' gate having run nothing at all. Fail
 # loudly instead; no caller legitimately expects zero matches.
 if ($jobMatrix.Count -eq 0 -and -not $AllowEmpty) {
-    Write-Host "##vso[task.logissue type=error]The job matrix is empty - no file matched '$FileName' beneath '$BuildRoot'. Pass -AllowEmpty if that is genuinely expected."
+    $reason = "no file matched '$FileName' beneath '$BuildRoot'"
+    if ($useTestFramework) {
+        $reason = "no eligible test project targets '$TestFramework' " +
+            "with CustomTestTarget='$CustomTestTarget' beneath '$BuildRoot'"
+    }
+    Write-Host ("##vso[task.logissue type=error]The job matrix is empty - $reason. " +
+        "Pass -AllowEmpty if that is genuinely expected.")
     exit 1
 }
 

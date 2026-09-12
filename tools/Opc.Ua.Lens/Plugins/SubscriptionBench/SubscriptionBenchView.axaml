@@ -1,0 +1,172 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ScottPlot="clr-namespace:ScottPlot.Avalonia;assembly=ScottPlot.Avalonia"
+             xmlns:vm="using:UaLens.Plugins.SubscriptionBench"
+             x:Class="UaLens.Plugins.SubscriptionBench.SubscriptionBenchView"
+             x:DataType="vm:SubscriptionBenchPlugin"
+             Background="{DynamicResource SurfaceBg}">
+  <UserControl.Styles>
+    <Style Selector="TextBlock.metric">
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.section">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Margin" Value="0,6,0,2" />
+    </Style>
+  </UserControl.Styles>
+
+  <DockPanel Margin="10">
+
+    <!-- Pool + settings actions -->
+    <Border DockPanel.Dock="Top" Padding="10"
+            Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+            BorderThickness="1" CornerRadius="6">
+      <WrapPanel Classes="toolbar" Orientation="Horizontal" ItemHeight="32">
+        <Button Classes="quiet" Content="Pick variables…" Margin="0,0,6,0"
+                ToolTip.Tip="Multi-pick Variable nodes to add to the bench pool."
+                Command="{CompiledBinding PickVariablesCommand}" />
+        <Button Classes="quiet" Content="Pick subtree…" Margin="0,0,6,0"
+                ToolTip.Tip="Pick a starting node; every Variable below it is appended to the pool."
+                Command="{CompiledBinding PickSubtreeCommand}" />
+        <TextBlock Classes="caption" Margin="6,0"
+                   Text="{CompiledBinding PoolDescription}" />
+        <Button Classes="quiet" Content="Clear pool" Margin="0,0,12,0"
+                Command="{CompiledBinding ClearPoolCommand}" />
+        <Button Classes="quiet" Content="Subscription settings…" Margin="0,0,6,0"
+                ToolTip.Tip="Publishing interval, keep-alive, lifetime and notification limits. Applied to every subscription."
+                Command="{CompiledBinding EditSubscriptionCommand}" />
+        <Button Classes="quiet" Content="Item settings…" Margin="0,0,6,0"
+                ToolTip.Tip="Sampling, queue, mode and filter. Applied to every item across every subscription."
+                Command="{CompiledBinding EditItemSettingsCommand}" />
+        <Button Content="Stop" Margin="0,0,6,0"
+                ToolTip.Tip="Reset both sliders and release every subscription."
+                Command="{CompiledBinding StopCommand}" />
+        <Button Classes="quiet" Content="Clear counters"
+                Command="{CompiledBinding ClearCommand}" />
+      </WrapPanel>
+    </Border>
+
+    <!-- Restored bench size: prepared but stopped until the user starts it -->
+    <Border DockPanel.Dock="Top" Margin="0,8,0,0" Padding="10,6"
+            IsVisible="{CompiledBinding HasSavedSize}"
+            Background="{DynamicResource HighlightBg}" BorderBrush="{DynamicResource PanelBorder}"
+            BorderThickness="1" CornerRadius="6">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Grid.Column="0" Classes="caption" VerticalAlignment="Center"
+                   TextWrapping="Wrap" Text="{CompiledBinding SavedSizeText}" />
+        <Button Grid.Column="1" Classes="primary" Content="Apply saved size"
+                VerticalAlignment="Center"
+                Command="{CompiledBinding ApplySavedSizeCommand}" />
+      </Grid>
+    </Border>
+
+    <!-- Subscriptions slider -->
+    <Border DockPanel.Dock="Top" Padding="10,8" Margin="0,8,0,0"
+            Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+            BorderThickness="1" CornerRadius="6">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <TextBlock Grid.Column="0" Classes="caption" Text="Subscriptions"
+                   VerticalAlignment="Center" Margin="0,0,8,0" />
+        <Slider Grid.Column="1" Minimum="0"
+                Maximum="{CompiledBinding SubsSliderMax}"
+                Value="{CompiledBinding SubsSliderValue, Mode=TwoWay}"
+                IsEnabled="{CompiledBinding CanResize}"
+                TickFrequency="1"
+                ToolTip.Tip="Number of subscriptions on the session. Subscriptions are released when reduced." />
+        <TextBlock Grid.Column="2" Classes="metric"
+                   Text="{CompiledBinding SubsSizeText}"
+                   VerticalAlignment="Center" Margin="12,0,0,0" />
+      </Grid>
+    </Border>
+
+    <!-- Items-per-subscription slider -->
+    <Border DockPanel.Dock="Top" Padding="10,8" Margin="0,8,0,0"
+            Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+            BorderThickness="1" CornerRadius="6">
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <TextBlock Grid.Column="0" Classes="caption" Text="Items per subscription"
+                   VerticalAlignment="Center" Margin="0,0,8,0" />
+        <Slider Grid.Column="1" Minimum="0"
+                Maximum="{CompiledBinding ItemsSliderMax}"
+                Value="{CompiledBinding ItemsSliderValue, Mode=TwoWay}"
+                IsEnabled="{CompiledBinding CanResize}"
+                TickFrequency="100"
+                ToolTip.Tip="Monitored items per subscription. Each subscription fills slots from the pool round-robin." />
+        <TextBlock Grid.Column="2" Classes="metric"
+                   Text="{CompiledBinding ItemsSizeText}"
+                   VerticalAlignment="Center" Margin="12,0,0,0" />
+      </Grid>
+    </Border>
+
+    <!-- Body: chart with legend (left) and metrics (right) -->
+    <Grid Margin="0,8,0,0" ColumnDefinitions="*,5,340">
+      <Border Grid.Column="0"
+              Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+              BorderThickness="1" CornerRadius="6">
+        <ScottPlot:AvaPlot x:Name="Chart" />
+      </Border>
+      <GridSplitter Grid.Column="1"
+                    Background="{DynamicResource SeparatorBrush}"
+                    ResizeDirection="Columns" />
+      <Border Grid.Column="2" Padding="10"
+              Background="{DynamicResource PanelBg}" BorderBrush="{DynamicResource PanelBorder}"
+              BorderThickness="1" CornerRadius="6">
+        <ScrollViewer>
+          <StackPanel Spacing="2">
+            <TextBlock Classes="section" Text="THROUGHPUT" />
+            <TextBlock Classes="metric" Text="{CompiledBinding Stats1sText}" />
+            <TextBlock Classes="metric" Text="{CompiledBinding Stats10sText}" />
+            <TextBlock Classes="metric" Text="{CompiledBinding Stats30sText}" />
+            <TextBlock Classes="metric" Text="{CompiledBinding Stats60sText}" />
+
+            <TextBlock Classes="section" Text="TOTALS" />
+            <TextBlock Classes="metric" Text="{CompiledBinding TotalValuesText}" />
+            <TextBlock Classes="metric" Text="{CompiledBinding TotalErrorsText}" />
+            <TextBlock Classes="metric" Text="{CompiledBinding PublishIntervalText}" />
+
+            <Expander Margin="0,8,0,0" Header="Engine details"
+                      IsExpanded="{CompiledBinding ShowEngineDetails, Mode=TwoWay}">
+              <TextBlock Classes="code" FontSize="11"
+                         Foreground="{DynamicResource TextPrimary}"
+                         TextWrapping="Wrap"
+                         Text="{CompiledBinding EngineMetricsText}" />
+            </Expander>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+
+  </DockPanel>
+</UserControl>

@@ -1,0 +1,113 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="UaLens.Plugins.UserManagement.ModifyUserDialog"
+        Title="Modify user"
+        Width="520" Height="500"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppBg}" Foreground="{DynamicResource TextPrimary}">
+  <Window.Styles>
+    <Style Selector="TextBlock.k">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBox">
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="Border.section">
+      <Setter Property="BorderBrush" Value="{DynamicResource PanelBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="10,8" />
+      <Setter Property="Margin" Value="0,8,0,0" />
+    </Style>
+  </Window.Styles>
+
+  <DockPanel Margin="16" LastChildFill="True">
+
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="OkButton"     Content="Apply"  IsDefault="True" Width="100" />
+      <Button x:Name="CancelButton" Content="Cancel" IsCancel="True"  Width="100" Margin="8,0,0,0" />
+    </StackPanel>
+
+    <TextBlock x:Name="ErrorLabel" DockPanel.Dock="Bottom"
+               Foreground="{DynamicResource AccentRedLight}"
+               Margin="0,8,0,0" IsVisible="False" TextWrapping="Wrap" />
+
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+      <StackPanel>
+
+        <TextBlock Margin="0,0,0,12" TextWrapping="Wrap"
+                   Text="Modify an existing user (Part 18 §5.2.4 ModifyUser). Only the sections you tick are sent — leave them unchecked to keep the current value." />
+
+        <Grid RowDefinitions="Auto" ColumnDefinitions="140,*">
+          <TextBlock Grid.Row="0" Grid.Column="0" Classes="k" Text="User name" />
+          <TextBox   Grid.Row="0" Grid.Column="1" x:Name="UserNameBox" IsReadOnly="True" />
+        </Grid>
+
+        <Border Classes="section">
+          <StackPanel>
+            <CheckBox x:Name="ChangePasswordBox" Content="Change password" />
+            <Grid RowDefinitions="Auto" ColumnDefinitions="140,*" Margin="0,6,0,0">
+              <TextBlock Grid.Row="0" Grid.Column="0" Classes="k" Text="New password" />
+              <TextBox   Grid.Row="0" Grid.Column="1" x:Name="NewPasswordBox" PasswordChar="●"
+                         IsEnabled="{Binding #ChangePasswordBox.IsChecked}" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="section">
+          <StackPanel>
+            <CheckBox x:Name="ChangeConfigBox" Content="Change configuration" />
+            <StackPanel Margin="0,6,0,0" IsEnabled="{Binding #ChangeConfigBox.IsChecked}">
+              <CheckBox x:Name="DisabledBox"           Content="Disabled" />
+              <CheckBox x:Name="MustChangePasswordBox" Content="Must change password" />
+              <CheckBox x:Name="NoChangeByUserBox"     Content="No change by user" />
+              <CheckBox x:Name="NoDeleteBox"           Content="No delete" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="section">
+          <StackPanel>
+            <CheckBox x:Name="ChangeDescriptionBox" Content="Change description" />
+            <Grid RowDefinitions="Auto" ColumnDefinitions="140,*" Margin="0,6,0,0">
+              <TextBlock Grid.Row="0" Grid.Column="0" Classes="k" Text="Description" />
+              <TextBox   Grid.Row="0" Grid.Column="1" x:Name="DescriptionBox"
+                         IsEnabled="{Binding #ChangeDescriptionBox.IsChecked}" />
+            </Grid>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</Window>

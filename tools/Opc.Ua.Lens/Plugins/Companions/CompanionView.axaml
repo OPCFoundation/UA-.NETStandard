@@ -1,0 +1,150 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.Plugins.Companions"
+             x:Class="UaLens.Plugins.Companions.CompanionView"
+             x:DataType="vm:CompanionPlugin"
+             Background="{DynamicResource SurfaceBg}"
+             Foreground="{DynamicResource TextPrimary}">
+  <DockPanel Margin="12">
+    <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
+      <WrapPanel Orientation="Horizontal">
+        <ComboBox ItemsSource="{CompiledBinding Providers}"
+                  SelectedItem="{CompiledBinding SelectedProvider, Mode=TwoWay}"
+                  IsEnabled="{CompiledBinding !IsBusy}"
+                  MinWidth="220" Margin="0,0,8,0"
+                  AutomationProperties.Name="Companion model">
+          <ComboBox.ItemTemplate>
+            <DataTemplate DataType="vm:CompanionDescriptor">
+              <TextBlock Text="{CompiledBinding DisplayName}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+        <Button Content="Discover" Command="{CompiledBinding DiscoverCommand}" Margin="0,0,8,0" />
+        <Button Content="Inspect" Command="{CompiledBinding InspectCommand}" Margin="0,0,8,0" />
+        <Button Content="Stop" Command="{CompiledBinding CancelCommand}" IsEnabled="{CompiledBinding IsBusy}" />
+      </WrapPanel>
+      <TextBlock Text="{CompiledBinding SelectedProvider.Maturity}" TextWrapping="Wrap"
+                 Foreground="{DynamicResource TextSecondary}" />
+      <ProgressBar IsIndeterminate="True" IsVisible="{CompiledBinding IsBusy}" Height="2" />
+    </StackPanel>
+    <TextBlock DockPanel.Dock="Bottom" Text="{CompiledBinding Status}" TextWrapping="Wrap"
+               Margin="0,10,0,0" Foreground="{DynamicResource TextSecondary}" />
+    <Grid ColumnDefinitions="2*,5,3*">
+      <ListBox Grid.Column="0" ItemsSource="{CompiledBinding Targets}"
+               SelectedItem="{CompiledBinding SelectedTarget, Mode=TwoWay}"
+               IsEnabled="{CompiledBinding !IsBusy}"
+               Background="{DynamicResource PanelBg}"
+               AutomationProperties.Name="Companion instances">
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="vm:CompanionTarget">
+            <StackPanel Spacing="3" Margin="4">
+              <TextBlock Text="{CompiledBinding DisplayName}" TextTrimming="CharacterEllipsis" />
+              <TextBlock Text="{CompiledBinding TypeName}" FontSize="11"
+                         Foreground="{DynamicResource TextSecondary}" />
+              <TextBlock Text="{CompiledBinding Identifier}" FontSize="11" TextTrimming="CharacterEllipsis"
+                         Foreground="{DynamicResource TextSecondary}" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+      <GridSplitter Grid.Column="1" Width="5" ResizeDirection="Columns"
+                    ResizeBehavior="PreviousAndNext" Background="{DynamicResource SeparatorBrush}" />
+      <DockPanel Grid.Column="2" Margin="12,0,0,0">
+        <Expander DockPanel.Dock="Bottom" Header="Guided operations" IsExpanded="False" Margin="0,8,0,0">
+          <StackPanel Spacing="8" Margin="0,8,0,0" IsEnabled="{CompiledBinding !IsBusy}">
+            <TextBlock Text="Inspect an instance to see its available operations." TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextSecondary}" />
+            <ComboBox ItemsSource="{CompiledBinding Operations}"
+                      SelectedItem="{CompiledBinding SelectedOperation, Mode=TwoWay}"
+                      HorizontalAlignment="Stretch" AutomationProperties.Name="Guided operation">
+              <ComboBox.ItemTemplate>
+                <DataTemplate DataType="vm:CompanionOperation">
+                  <TextBlock Text="{CompiledBinding DisplayName}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBox Text="{CompiledBinding OperationInput, Mode=TwoWay}"
+                     IsVisible="{CompiledBinding !SelectedOperation.HasTypedInput}"
+                     PlaceholderText="{CompiledBinding SelectedOperation.InputHint}"
+                     MaxLength="65536" AutomationProperties.Name="Operation input or destination" />
+            <ItemsControl ItemsSource="{CompiledBinding InputFields}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="vm:CompanionInputEditor">
+                  <StackPanel Spacing="4" Margin="0,0,0,8">
+                    <TextBlock Text="{CompiledBinding Definition.DisplayName}" TextWrapping="Wrap" />
+                    <TextBox Text="{CompiledBinding Text, Mode=TwoWay}"
+                             IsVisible="{CompiledBinding !IsBoolean}"
+                             AcceptsReturn="{CompiledBinding Definition.IsMultiline}"
+                             MaxHeight="120" TextWrapping="Wrap"
+                             PlaceholderText="{CompiledBinding Definition.Hint}" MaxLength="65536"
+                             AutomationProperties.Name="{CompiledBinding Definition.DisplayName}" />
+                    <CheckBox IsChecked="{CompiledBinding Checked, Mode=TwoWay}"
+                              IsVisible="{CompiledBinding IsBoolean}"
+                              Content="{CompiledBinding Definition.Hint}" />
+                    <Button Content="Choose local file..." Command="{CompiledBinding PickFileCommand}"
+                            IsVisible="{CompiledBinding Definition.IsFileSource}"
+                            HorizontalAlignment="Left" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Button Content="Prepare selected task" Command="{CompiledBinding PrepareTaskCommand}"
+                    HorizontalAlignment="Left" AutomationProperties.Name="Prepare companion task" />
+            <TextBlock Text="{CompiledBinding PreparationSummary}" TextWrapping="Wrap"
+                       AutomationProperties.Name="Companion task preflight" />
+            <CheckBox IsChecked="{CompiledBinding ConfirmLocalSample, Mode=TwoWay}"
+                      Content="I confirm this loopback server is a repository sample." />
+            <TextBlock Text="Sample actions can change server state. Prepare first, then confirm for this execution. Preparation and confirmation are never saved."
+                       TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" FontSize="11" />
+            <Button Content="Run selected task" Command="{CompiledBinding RunTaskCommand}"
+                    HorizontalAlignment="Left" />
+          </StackPanel>
+        </Expander>
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+          <ItemsControl ItemsSource="{CompiledBinding Values}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate DataType="vm:CompanionValue">
+                <Grid ColumnDefinitions="140,*" Margin="0,0,0,8">
+                  <TextBlock Grid.Column="0" Text="{CompiledBinding Name}" Margin="0,5,8,0"
+                             TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" />
+                  <TextBox Grid.Column="1" Text="{CompiledBinding Text, Mode=OneWay}"
+                           IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                           Background="Transparent" BorderThickness="0"
+                           AutomationProperties.Name="{CompiledBinding Name}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </DockPanel>
+    </Grid>
+  </DockPanel>
+</UserControl>
