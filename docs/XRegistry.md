@@ -23,6 +23,12 @@ Thing Model documents.
 `Opc.Ua.XRegistry` has no dependency on either SDK, so a codec or a shared contracts assembly can
 reference the identity abstraction without pulling in the client or the server.
 
+The model assembly consumes the reviewed **0.7.0 draft** dated 2026-09-12,
+paired with the WoT Connectivity 1.2 draft. It preserves the existing namespace,
+numeric identities and native event hierarchy, and adds origin and canonical
+capability snapshot declarations. This is a draft model input, not a published
+release or a claim of runtime support for every new declaration.
+
 ## Core concepts
 
 ### Structural identity and content lookup

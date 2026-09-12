@@ -112,6 +112,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             string? name = null,
             CancellationToken cancellationToken = default)
         {
+            EnsureDocumentKind(kind);
             groupId = NormalizeSegment(groupId, nameof(groupId));
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -151,6 +152,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             string? name = null,
             CancellationToken cancellationToken = default)
         {
+            EnsureDocumentKind(kind);
             groupId = NormalizeSegment(groupId, nameof(groupId));
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -227,6 +229,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             WoTDocumentKindEnum kind,
             CancellationToken cancellationToken = default)
         {
+            EnsureDocumentKind(kind);
             groupId = NormalizeSegment(groupId, nameof(groupId));
             resourceId = NormalizeSegment(resourceId, nameof(resourceId));
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -255,6 +258,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             WoTDocumentKindEnum kind,
             CancellationToken cancellationToken = default)
         {
+            EnsureDocumentKind(kind);
             groupId = NormalizeSegment(groupId, nameof(groupId));
             resourceId = NormalizeSegment(resourceId, nameof(resourceId));
             await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -322,6 +326,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             bool getOrCreate,
             CancellationToken cancellationToken)
         {
+            EnsureDocumentKind(kind);
             groupId = NormalizeSegment(groupId, nameof(groupId));
             resourceId = NormalizeSegment(resourceId, nameof(resourceId));
             string? explicitVersionId = string.IsNullOrEmpty(versionId)
@@ -338,7 +343,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     .FirstOrDefault(version => !version.HasContent);
                 if (explicitVersionId is null && pendingVersion is not null)
                 {
-                    return new VersionCreateResult(existing!, pendingVersion, false);
+                    return new VersionCreateResult(existing, pendingVersion, false);
                 }
                 if (getOrCreate &&
                     explicitVersionId is null &&
@@ -407,7 +412,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
 
                 DateTime now = DateTime.UtcNow;
-                WotResourceVersion version =
+                var version =
                     WotResourceVersion.CreatePlaceholder(assignedVersionId, now);
                 WotResource resource;
                 bool resourceCreated = existing is null;
@@ -758,6 +763,15 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 throw new ArgumentNullException(nameof(request));
             }
+            if (!WotDocumentKinds.IsDocument(request.Kind))
+            {
+                return new WotRegistryMutationResult(
+                    WoTOutcomeEnum.Rejected,
+                    null,
+                    m_snapshot.Generation,
+                    ["A stored document kind must be ThingDescription or ThingModel, not a selector."],
+                    "Invalid document kind.");
+            }
             if (request.Content.IsNull || request.Content.Length == 0)
             {
                 return Failed(m_snapshot.Generation, "The document is empty.");
@@ -781,7 +795,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             string contentType = request.ContentType ?? string.Empty;
             string format = request.Format ?? string.Empty;
 
-            ByteString content = ByteString.From(request.Content.Span.ToArray());
+            var content = ByteString.From(request.Content.Span.ToArray());
 
             // Light parse to derive the kind/id/title and to record a format
             // failure state for a document that cannot even be parsed. Full WoT
@@ -1335,9 +1349,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                         enabled: false,
                         loadState: WoTLoadStateEnum.Retired,
                         epoch: metaEpoch,
+                        materializedNodeCount: 0,
                         clearActiveVersion: true,
-                        clearRootNodeId: true,
-                        materializedNodeCount: 0)
+                        clearRootNodeId: true)
                     .WithMeta(metaEpoch, modifiedAt: modifiedAt);
                 next = WithResource(next, retiredResource, generation);
                 deleted = false;
@@ -1430,15 +1444,15 @@ namespace Opc.Ua.WotCon.Server.Registry
                 WotResource updated = dependent.Resource.With(
                         enabled: false,
                         loadState: state,
-                        epoch: metaEpoch,
-                        clearActiveVersion: true,
-                        clearRootNodeId: true,
-                        materializedNodeCount: 0,
                         diagnostics: [
                             state == WoTLoadStateEnum.Failed
                                 ? "A document this projection resolves through was force-deleted."
                                 : "The only document this projection resolved through was deleted."
-                        ])
+                        ],
+                        epoch: metaEpoch,
+                        materializedNodeCount: 0,
+                        clearActiveVersion: true,
+                        clearRootNodeId: true)
                     .WithMeta(metaEpoch, modifiedAt: modifiedAt);
                 snapshot = WithResource(snapshot, updated, generation);
                 changed.Add(dependent.Xid);
@@ -1460,14 +1474,14 @@ namespace Opc.Ua.WotCon.Server.Registry
                 WotResource updated = unreadable.With(
                         enabled: false,
                         loadState: WoTLoadStateEnum.Failed,
-                        epoch: metaEpoch,
-                        clearActiveVersion: true,
-                        clearRootNodeId: true,
-                        materializedNodeCount: 0,
                         diagnostics: [
                             "This document could not be read, so whether it resolved " +
                             "through the force-deleted document is unknown."
-                        ])
+                        ],
+                        epoch: metaEpoch,
+                        materializedNodeCount: 0,
+                        clearActiveVersion: true,
+                        clearRootNodeId: true)
                     .WithMeta(metaEpoch, modifiedAt: modifiedAt);
                 snapshot = WithResource(snapshot, updated, generation);
                 changed.Add(xid);
@@ -1506,7 +1520,8 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             string unreadable = unknown.IsDefaultOrEmpty
                 ? string.Empty
-                : " " + unknown.Length.ToString(CultureInfo.InvariantCulture) +
+                : " " +
+                    unknown.Length.ToString(CultureInfo.InvariantCulture) +
                     " document(s) could not be read, so whether they depended on it is " +
                     "unknown.";
             return policy switch
@@ -1516,11 +1531,13 @@ namespace Opc.Ua.WotCon.Server.Registry
                 WoTDeletePolicyEnum.Cascade =>
                     $"'{xid}' was deleted and " +
                     unloaded.Length.ToString(CultureInfo.InvariantCulture) +
-                    " dependent projection(s) were unloaded." + unreadable,
+                    " dependent projection(s) were unloaded." +
+                    unreadable,
                 WoTDeletePolicyEnum.Force =>
                     $"'{xid}' was force-deleted; " +
                     failed.Length.ToString(CultureInfo.InvariantCulture) +
-                    " remaining dependent(s) were marked Failed." + unreadable,
+                    " remaining dependent(s) were marked Failed." +
+                    unreadable,
                 _ => $"'{xid}' was deleted."
             };
         }
@@ -1602,8 +1619,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                         defaultVersionId: versionId,
                         desiredVersionId: versionId,
                         validation: selected.Validation,
-                        clearValidation: selected.Validation is null,
-                        epoch: resource.MetaEpoch + 1)
+                        epoch: resource.MetaEpoch + 1,
+                        clearValidation: selected.Validation is null)
                         .WithSelectedVersionMetadata(
                             selected.DocumentId,
                             selected.Title)
@@ -1872,9 +1889,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                             $"{Bounds.MaxLabelsPerEntity} labels.");
                     }
                     return version.With(
-                        labels: version.Labels.SetItem(key, value),
+                        modifiedAt: DateTime.UtcNow,
                         epoch: version.Epoch + 1,
-                        modifiedAt: DateTime.UtcNow);
+                        labels: version.Labels.SetItem(key, value));
                 },
                 cancellationToken);
         }
@@ -1900,9 +1917,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 expectedEpoch,
                 version => version.Labels.ContainsKey(key)
                     ? version.With(
-                        labels: version.Labels.Remove(key),
+                        modifiedAt: DateTime.UtcNow,
                         epoch: version.Epoch + 1,
-                        modifiedAt: DateTime.UtcNow)
+                        labels: version.Labels.Remove(key))
                     : null,
                 cancellationToken);
         }
@@ -2260,7 +2277,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 ImmutableArray<WotResourceVersion> versions =
                     resource.Versions.Remove(version);
-                ImmutableArray<WotResourceVersion> committedVersions = versions
+                var committedVersions = versions
                     .Where(candidate => candidate.HasContent)
                     .ToImmutableArray();
                 if (committedVersions.IsEmpty)
@@ -2444,7 +2461,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 return false;
             }
 
-            ImmutableArray<WotResourceVersion>.Builder retained = versions.ToBuilder();
+            var retained = versions.ToBuilder();
             while (committedCount > max)
             {
                 int removeAt = 0;
@@ -2534,6 +2551,16 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
             string candidate = thingId ?? request.Name ?? title ?? Guid.NewGuid().ToString("N");
             return Slugify(candidate);
+        }
+
+        private static void EnsureDocumentKind(WoTDocumentKindEnum kind)
+        {
+            if (!WotDocumentKinds.IsDocument(kind))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "A creation document kind must be ThingDescription or ThingModel, not a selector.");
+            }
         }
 
         private static string DefaultGroupFor(WoTDocumentKindEnum kind)

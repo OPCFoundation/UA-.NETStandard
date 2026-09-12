@@ -38,8 +38,7 @@ using NUnit.Framework;
 namespace Opc.Ua.WotCon.Tests
 {
     /// <summary>
-    /// Pins the model NodeSets this library generates from to the versions the
-    /// specifications publish, and pins every NodeId they assign.
+    /// Pins the adopted draft model NodeSets and representative stable identifiers.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -60,7 +59,7 @@ namespace Opc.Ua.WotCon.Tests
     [TestFixture]
     [Category("WoT")]
     [Parallelizable]
-    public sealed class WotConModelSourceParityTests
+    public sealed partial class WotConModelSourceParityTests
     {
         [Test]
         public void TheConnectivityModelIsTheAdoptedSpecificationVersion()
@@ -71,24 +70,24 @@ namespace Opc.Ua.WotCon.Tests
             {
                 Assert.That(
                     model.Attribute("Version")?.Value,
-                    Is.EqualTo("1.1"));
+                    Is.EqualTo("1.2"));
                 Assert.That(
                     model.Attribute("PublicationDate")?.Value,
-                    Is.EqualTo("2026-09-05T00:00:00Z"));
+                    Is.EqualTo("2026-09-12T00:00:00Z"));
             });
         }
 
-        [TestCase("ns=2;i=39", "ModelVersion", "i=24263", "1.1.0")]
+        [TestCase("ns=2;i=39", "ModelVersion", "i=24263", "1.2.0")]
         [TestCase("ns=2;i=68", "NamespaceUri", "String", ConnectivityNamespace)]
-        [TestCase("ns=2;i=69", "NamespaceVersion", "String", "1.1")]
-        [TestCase("ns=2;i=70", "NamespacePublicationDate", "DateTime", "2026-09-05T00:00:00Z")]
+        [TestCase("ns=2;i=69", "NamespaceVersion", "String", "1.2")]
+        [TestCase("ns=2;i=70", "NamespacePublicationDate", "DateTime", "2026-09-12T00:00:00Z")]
         public void TheConnectivityNamespaceMetadataMatchesItsPropertyContract(
             string nodeId,
             string browseName,
             string dataType,
             string expectedValue)
         {
-            XDocument document = XDocument.Load(FindModel(ConnectivityNodeSet));
+            var document = XDocument.Load(FindModel(ConnectivityNodeSet));
             XElement property = document.Root!
                 .Elements(UaNodeSet + "UAVariable")
                 .Single(element => element.Attribute("NodeId")?.Value == nodeId);
@@ -109,10 +108,10 @@ namespace Opc.Ua.WotCon.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(model.Attribute("Version")?.Value, Is.EqualTo("0.6.0"));
+                Assert.That(model.Attribute("Version")?.Value, Is.EqualTo("0.7.0"));
                 Assert.That(
                     model.Attribute("PublicationDate")?.Value,
-                    Is.EqualTo("2026-09-05T00:00:00Z"));
+                    Is.EqualTo("2026-09-12T00:00:00Z"));
             });
         }
 
@@ -167,8 +166,8 @@ namespace Opc.Ua.WotCon.Tests
                 }
                 Assert.That(
                     nodes,
-                    Has.Count.EqualTo(292),
-                    "The connectivity model has 292 Nodes; a re-sync that drops one is " +
+                    Has.Count.EqualTo(349),
+                    "The connectivity model has 349 Nodes; a re-sync that drops one is " +
                     "invisible in a diff of two large NodeSets.");
             });
         }
@@ -191,7 +190,7 @@ namespace Opc.Ua.WotCon.Tests
                         Is.EqualTo(browseName),
                         $"'{nodeId}' now names a different Node.");
                 }
-                Assert.That(nodes, Has.Count.EqualTo(117));
+                Assert.That(nodes, Has.Count.EqualTo(131));
             });
         }
 
@@ -202,7 +201,7 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public void TheRegistryModelPublishesItsOwnNamespaceMetadata()
         {
-            XDocument document = XDocument.Load(FindModel(RegistryNodeSet));
+            var document = XDocument.Load(FindModel(RegistryNodeSet));
             XElement metadata = document.Root!
                 .Elements(UaNodeSet + "UAObject")
                 .Single(e => e.Attribute("BrowseName")?.Value == "1:" + RegistryNamespace);
@@ -228,7 +227,8 @@ namespace Opc.Ua.WotCon.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(Property("NamespaceUri"), Is.EqualTo(RegistryNamespace));
-                Assert.That(Property("NamespaceVersion"), Is.EqualTo("0.6.0"));
+                Assert.That(Property("NamespaceVersion"), Is.EqualTo("0.7.0"));
+                Assert.That(Property("NamespacePublicationDate"), Is.EqualTo("2026-09-12T00:00:00Z"));
                 Assert.That(Property("IsNamespaceSubset"), Is.EqualTo("false"));
             });
         }
@@ -248,7 +248,7 @@ namespace Opc.Ua.WotCon.Tests
             {
                 if (nodeId.StartsWith("ns=2;i=", StringComparison.Ordinal))
                 {
-                    modelled.Add(nodeId.Substring("ns=2;i=".Length));
+                    modelled.Add(nodeId["ns=2;i=".Length..]);
                 }
             }
 
@@ -289,7 +289,7 @@ namespace Opc.Ua.WotCon.Tests
 
         private static XElement ReadModel(string fileName, string modelUri)
         {
-            XDocument document = XDocument.Load(FindModel(fileName));
+            var document = XDocument.Load(FindModel(fileName));
             return document.Root!
                 .Element(UaNodeSet + "Models")!
                 .Elements(UaNodeSet + "Model")
@@ -298,7 +298,7 @@ namespace Opc.Ua.WotCon.Tests
 
         private static Dictionary<string, string> ReadNodes(string fileName)
         {
-            XDocument document = XDocument.Load(FindModel(fileName));
+            var document = XDocument.Load(FindModel(fileName));
             var nodes = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (XElement element in document.Root!.Elements())
             {

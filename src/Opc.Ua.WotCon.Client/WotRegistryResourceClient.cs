@@ -70,7 +70,7 @@ namespace Opc.Ua.WotCon.Client
             GroupId = groupId;
             ResourceId = resourceId;
             VersionId = versionId;
-            Kind = kind;
+            Kind = WotDocumentKinds.RequireDocument(kind, nameof(kind));
             m_groupProxy = groupProxy;
             Proxy = proxy;
             m_pendingStructuralVersion = pendingStructuralVersion;
@@ -132,6 +132,9 @@ namespace Opc.Ua.WotCon.Client
         /// expose the field return <c>null</c>. The value is advisory; uploads
         /// use an atomic server operation before filling a content-less Version.
         /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The server reports an error other than unavailable content state.
+        /// </exception>
         public async ValueTask<bool?> HasContentAsync(CancellationToken ct = default)
         {
             NodeId contentDigestNodeId;
@@ -201,6 +204,9 @@ namespace Opc.Ua.WotCon.Client
         /// <summary>
         /// Calls <c>Validate</c> on the resource.
         /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The server rejects Validate or returns an invalid outcome.
+        /// </exception>
         public async ValueTask<WoTValidationOutcomeDataType> ValidateAsync(CancellationToken ct = default)
         {
             var request = new CallMethodRequest
@@ -340,6 +346,9 @@ namespace Opc.Ua.WotCon.Client
         /// an atomic server-side content-less write when available. Servers
         /// without that optional capability cause a new Version to be allocated.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="chunkSize"/> is not positive.
+        /// </exception>
         public async ValueTask<WotRegistryUploadResult> UploadNewVersionAndGetResultAsync(
             ByteString content,
             int chunkSize = FileTypeClientExtensions.DefaultChunkSize,
@@ -487,6 +496,18 @@ namespace Opc.Ua.WotCon.Client
         /// Uploads a stream as a new Version and returns the exact Version node
         /// and id that received the bytes.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="content"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="content"/> is not readable.
+        /// </exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="chunkSize"/> is not positive.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The server rejects the upload or does not return the requested write handle.
+        /// </exception>
         public async ValueTask<WotRegistryUploadResult> UploadNewVersionAndGetResultAsync(
             Stream content,
             int chunkSize = FileTypeClientExtensions.DefaultChunkSize,

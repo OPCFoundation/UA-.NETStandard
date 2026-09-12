@@ -56,7 +56,7 @@ namespace Opc.Ua.WotCon.Client
             Session = session;
             GroupNodeId = groupNodeId;
             GroupId = groupId;
-            Kind = kind;
+            Kind = WotDocumentKinds.RequireDocument(kind, nameof(kind));
             Proxy = proxy;
             Telemetry = telemetry;
             m_usesDistinctHierarchy = usesDistinctHierarchy;

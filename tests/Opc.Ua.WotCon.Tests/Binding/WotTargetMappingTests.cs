@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Linq;
 using System.Text;
 using NUnit.Framework;
@@ -108,15 +109,15 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 "t",
                     /*lang=json,strict*/
                     "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}",
-                "\"uav:mapToType\":\"ns=2;i=100\",\"uav:mapByFieldPath\":\"Value/SubField\"");
+                "\"uav:mapToType\":\"nsu=urn:test:mapped;i=100\",\"uav:mapByFieldPath\":\"/Value/SubField\"");
 
             WotBindingPlan plan = Prepare(document);
 
-            Assert.That(plan.FullySupported, Is.True);
+            Assert.That(plan.FullySupported, Is.True, string.Join("; ", plan.Diagnostics));
             Assert.That(plan.Diagnostics.Any(d => d.IsError), Is.False);
             WotCompiledForm entry = plan.CompiledForms[0];
-            Assert.That(entry.TargetMapping.TargetTypeNodeId, Is.EqualTo("ns=2;i=100"));
-            Assert.That(entry.TargetMapping.FieldPath, Is.EqualTo("Value/SubField"));
+            Assert.That(entry.TargetMapping.TargetTypeNodeId, Is.EqualTo("nsu=urn:test:mapped;i=100"));
+            Assert.That(entry.TargetMapping.FieldPath, Is.EqualTo("/Value/SubField"));
         }
 
         [Test]
@@ -143,13 +144,34 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 "t",
                     /*lang=json,strict*/
                     "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}",
-                "\"uav:mapToNodeId\":\"ns=2;s=Target\",\"uav:mapToType\":\"ns=2;i=100\"");
+                "\"uav:mapToNodeId\":\"nsu=urn:test:mapped;s=Target\"," +
+                "\"uav:mapToType\":\"nsu=urn:test:mapped;i=100\"");
 
             WotBindingPlan plan = Prepare(document);
 
-            Assert.That(plan.FullySupported, Is.True);
-            Assert.That(plan.CompiledForms[0].TargetMapping.TargetNodeId, Is.EqualTo("ns=2;s=Target"));
-            Assert.That(plan.CompiledForms[0].TargetMapping.TargetTypeNodeId, Is.EqualTo("ns=2;i=100"));
+            Assert.That(plan.FullySupported, Is.True, string.Join("; ", plan.Diagnostics));
+            Assert.That(plan.CompiledForms[0].TargetMapping.TargetNodeId, Is.EqualTo("nsu=urn:test:mapped;s=Target"));
+            Assert.That(plan.CompiledForms[0].TargetMapping.TargetTypeNodeId, Is.EqualTo("nsu=urn:test:mapped;i=100"));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void PersistedTargetTypeMappingsRejectSessionLocalNamespaceIndexes(bool nodeTarget)
+        {
+            string annotations = "\"uav:mapToType\":\"ns=2;i=100\"" +
+                (nodeTarget
+                    ? ",\"uav:mapToNodeId\":\"nsu=urn:test:mapped;s=Target\""
+                    : ",\"uav:mapByFieldPath\":\"/Value/SubField\"");
+            string document = WotBindingTestSupport.Property(
+                "t", /*lang=json,strict*/ "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}", annotations);
+
+            WotBindingPlan plan = Prepare(document);
+
+            Assert.That(plan.FullySupported, Is.False);
+            Assert.That(plan.CompiledForms, Is.Empty);
+            Assert.That(plan.Diagnostics.Any(diagnostic => diagnostic.IsError &&
+                diagnostic.Message.Contains("ns=2;i=100", StringComparison.Ordinal) &&
+                diagnostic.Message.Contains("session-local", StringComparison.Ordinal)), Is.True);
         }
 
         [Test]

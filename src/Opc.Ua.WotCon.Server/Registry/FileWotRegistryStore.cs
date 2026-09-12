@@ -143,7 +143,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     staging?.Dispose();
                 }
-                m_resourceStore = m_stagedStore;
+                ResourceStore = m_stagedStore;
             }
             else
             {
@@ -151,14 +151,14 @@ namespace Opc.Ua.WotCon.Server.Registry
                 // and does not use this root's blob directory, so there is
                 // nothing to stage or promote.
                 m_stagedStore = null;
-                m_resourceStore = resourceStore;
+                ResourceStore = resourceStore;
             }
             m_directorySyncFailureInjector = directorySyncFailureInjector;
             m_manifestReplace = manifestReplace;
         }
 
         /// <inheritdoc/>
-        public IXRegistryResourceStore ResourceStore => m_resourceStore;
+        public IXRegistryResourceStore ResourceStore { get; }
 
         /// <summary>
         /// Releases the resource-store areas this store created. An injected
@@ -200,7 +200,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             try
             {
-                return Directory.GetFileSystemEntries(m_root)
+                return [.. Directory.GetFileSystemEntries(m_root)
                     .Where(path =>
                     {
                         string name = Path.GetFileName(path);
@@ -208,8 +208,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                             string.Equals(name, ManifestFile, StringComparison.Ordinal) ||
                             name.StartsWith(ManifestFile + ".", StringComparison.Ordinal);
                     })
-                    .OrderBy(path => path, StringComparer.Ordinal)
-                    .ToArray();
+                    .OrderBy(path => path, StringComparer.Ordinal)];
             }
             catch (UnauthorizedAccessException ex)
             {
@@ -282,7 +281,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             if (!expected.Equals(actual))
             {
                 throw new InvalidOperationException(
-                    $"The on-disk WoT registry changed after this store loaded it. " +
+                    "The on-disk WoT registry changed after this store loaded it. " +
                     $"Expected {expected}; found {actual}. Reload before retrying.");
             }
             if (snapshot.Generation <= expectedGeneration)
@@ -306,10 +305,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                     // directory fsync below does not apply to it. Content addressing makes
                     // matching blobs immutable, so never rewrite one that already verifies.
                     if (!await ResourceStoreBlobMatchesAsync(
-                            m_resourceStore, blob.Key, blob.Value, cancellationToken)
+                            ResourceStore, blob.Key, blob.Value, cancellationToken)
                         .ConfigureAwait(false))
                     {
-                        await m_resourceStore
+                        await ResourceStore
                             .WriteAsync(blob.Key, 0, ByteString.From(blob.Value), cancellationToken)
                             .ConfigureAwait(false);
                     }
@@ -415,7 +414,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         StringComparison.Ordinal))
                     {
                         throw new InvalidDataException(
-                            $"WoT registry snapshot resource " +
+                            "WoT registry snapshot resource " +
                             $"'{resource.GroupId}/{resource.ResourceId}' does not belong " +
                             $"to group '{group.GroupId}'.");
                     }
@@ -427,7 +426,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                             if (version.ContentLength != 0)
                             {
                                 throw new InvalidDataException(
-                                    $"Registry snapshot placeholder version " +
+                                    "Registry snapshot placeholder version " +
                                     $"'{version.VersionId}' has a non-zero content length.");
                             }
                             continue;
@@ -473,7 +472,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             if (roundTripped.SchemaVersion != CurrentSchemaVersion)
             {
                 throw new NotSupportedException(
-                    $"WoT registry snapshot manifest uses schema " +
+                    "WoT registry snapshot manifest uses schema " +
                     $"{roundTripped.SchemaVersion}; expected {CurrentSchemaVersion}.");
             }
 
@@ -619,8 +618,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                     "The registry was left unchanged.",
                     ex);
             }
-            if (manifest.SchemaVersion < OldestSupportedSchemaVersion ||
-                manifest.SchemaVersion > CurrentSchemaVersion)
+            if (manifest.SchemaVersion is < OldestSupportedSchemaVersion or
+                > CurrentSchemaVersion)
             {
                 throw new NotSupportedException(
                     $"WoT registry {manifestRole} '{manifestPath}' uses schema " +
@@ -712,6 +711,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// disk wants.
         /// </param>
         /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="InvalidDataException">
+        /// The manifest contains invalid document kinds, identities or ownership.
+        /// </exception>
         private async ValueTask<WotRegistrySnapshot> LoadSnapshotAsync(
             ManifestDto manifest,
             string manifestRole,
@@ -735,6 +737,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                 foreach (GroupDto groupDto in manifest.Groups)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    if (!WotDocumentKinds.IsDocument((WoTDocumentKindEnum)groupDto.Kind))
+                    {
+                        throw new InvalidDataException("WoT registry manifest group has an invalid document kind.");
+                    }
                     if (string.IsNullOrEmpty(groupDto.GroupId))
                     {
                         throw new InvalidDataException(
@@ -748,7 +754,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         !identities.Add(groupNodeIdPath))
                     {
                         throw new InvalidDataException(
-                            $"WoT registry manifest contains duplicate group id or " +
+                            "WoT registry manifest contains duplicate group id or " +
                             $"identity '{groupDto.GroupId}'.");
                     }
                     ImmutableDictionary<string, WotResource>.Builder resources =
@@ -758,15 +764,20 @@ namespace Opc.Ua.WotCon.Server.Registry
                         foreach (ResourceDto resourceDto in groupDto.Resources)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
+                            if (!WotDocumentKinds.IsDocument((WoTDocumentKindEnum)resourceDto.Kind))
+                            {
+                                throw new InvalidDataException(
+                                    "WoT registry manifest resource has an invalid document kind.");
+                            }
                             if (!string.Equals(
                                 resourceDto.GroupId,
                                 groupDto.GroupId,
                                 StringComparison.Ordinal))
                             {
                                 throw new InvalidDataException(
-                                    $"WoT registry manifest resource " +
+                                    "WoT registry manifest resource " +
                                     $"'{resourceDto.GroupId}/{resourceDto.ResourceId}' " +
-                                    $"does not belong to containing group " +
+                                    "does not belong to containing group " +
                                     $"'{groupDto.GroupId}'.");
                             }
                             if (string.IsNullOrEmpty(resourceDto.ResourceId))
@@ -786,7 +797,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                                 !identities.Add(resourceNodeIdPath))
                             {
                                 throw new InvalidDataException(
-                                    $"WoT registry manifest contains duplicate resource id " +
+                                    "WoT registry manifest contains duplicate resource id " +
                                     $"or identity '{resourceXid}'.");
                             }
                             WotResource resource = await LoadResourceAsync(
@@ -844,7 +855,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     {
                         throw new InvalidDataException(
                             $"Registry resource '{dto.GroupId}/{dto.ResourceId}' " +
-                            $"contains a duplicate or empty version id " +
+                            "contains a duplicate or empty version id " +
                             $"'{version.VersionId}'.");
                     }
                     ValidateVersionId(version.VersionId);
@@ -922,7 +933,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         ParseDate(version.CreatedAt),
                         ParseDate(version.ModifiedAt))
                     {
-                        Epoch = version.Epoch.GetValueOrDefault(1),
+                        Epoch = version.Epoch ?? 1,
                         Labels = ToLabels(version.Labels),
                         HasContent = hasContent,
                         Validation = FromDto(version.Validation),
@@ -1226,7 +1237,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         private string[] BuildRootDurabilityPath()
         {
             var components = new Stack<string>();
-            DirectoryInfo? current = new DirectoryInfo(m_root);
+            var current = new DirectoryInfo(m_root);
             while (current is not null && !current.Exists)
             {
                 components.Push(current.FullName);
@@ -1271,12 +1282,18 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// document never requires holding it in memory - which is the point of
         /// keeping bytes out of the snapshot in the first place.
         /// </remarks>
+        /// <exception cref="InvalidDataException">
+        /// A referenced blob is missing or its digest does not match.
+        /// </exception>
+        /// <exception cref="IOException">
+        /// A blob cannot be read completely from the resource store.
+        /// </exception>
         private async ValueTask<long> VerifyBlobFromResourceStoreAsync(
             string expectedDigest,
             string manifestRole,
             CancellationToken cancellationToken)
         {
-            long length = await m_resourceStore.GetLengthAsync(expectedDigest, cancellationToken)
+            long length = await ResourceStore.GetLengthAsync(expectedDigest, cancellationToken)
                 .ConfigureAwait(false);
             if (length < 0)
             {
@@ -1294,7 +1311,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 ByteString chunk;
                 try
                 {
-                    chunk = await m_resourceStore
+                    chunk = await ResourceStore
                         .ReadAsync(expectedDigest, offset, take, cancellationToken)
                         .ConfigureAwait(false);
                 }
@@ -1342,59 +1359,6 @@ namespace Opc.Ua.WotCon.Server.Registry
 #endif
         }
 
-        private async ValueTask<byte[]> ReadBlobAsync(
-            string path,
-            string expectedDigest,
-            string manifestRole,
-            CancellationToken cancellationToken)
-        {
-            byte[] content;
-            try
-            {
-                content = await ReadAllBytesAsync(path, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            catch (FileNotFoundException ex)
-            {
-                throw new InvalidDataException(
-                    $"WoT registry blob '{path}' referenced by the {manifestRole} " +
-                    "is missing. The registry was left unchanged.",
-                    ex);
-            }
-            catch (DirectoryNotFoundException ex)
-            {
-                throw new InvalidDataException(
-                    $"WoT registry blob directory for '{path}' referenced by the " +
-                    $"{manifestRole} is missing. " +
-                    "The registry was left unchanged.",
-                    ex);
-            }
-            catch (IOException ex)
-            {
-                throw new IOException(
-                    $"Unable to read WoT registry blob '{path}'. " +
-                    "The registry was left unchanged.",
-                    ex);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                throw new IOException(
-                    $"Access to WoT registry blob '{path}' was denied. " +
-                    "The registry was left unchanged.",
-                    ex);
-            }
-
-            string actualDigest = WotContentDigest.ToHex(WotContentDigest.Compute(content));
-            if (!string.Equals(expectedDigest, actualDigest, StringComparison.Ordinal))
-            {
-                throw new InvalidDataException(
-                    $"WoT registry blob '{path}' has SHA-256 '{actualDigest}', " +
-                    $"but the {manifestRole} requires '{expectedDigest}'. " +
-                    "The registry was left unchanged.");
-            }
-            return content;
-        }
-
         private static bool IsSha256Hex(string? value)
         {
             if (value?.Length != Sha256HexLength)
@@ -1403,9 +1367,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
             foreach (char character in value)
             {
-                if (!((character >= '0' && character <= '9') ||
-                    (character >= 'a' && character <= 'f') ||
-                    (character >= 'A' && character <= 'F')))
+                if (character is not (>= '0' and <= '9' or
+                    >= 'a' and <= 'f' or
+                    >= 'A' and <= 'F'))
                 {
                     return false;
                 }
@@ -1415,7 +1379,7 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private static ByteString FromHexDigest(string digestHex)
         {
-            var bytes = new byte[Sha256HexLength / 2];
+            byte[] bytes = new byte[Sha256HexLength / 2];
             for (int i = 0; i < bytes.Length; i++)
             {
                 // TODO: the span overload of byte.Parse is only available on
@@ -1511,7 +1475,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             string rollbackMarker = Path.Combine(
                 m_root,
                 ManifestFile + ".rollback-" + Guid.NewGuid().ToString("N"));
-            byte[] markerBytes = Array.Empty<byte>();
+            byte[] markerBytes = [];
             await WriteThroughAsync(
                     rollbackMarker,
                     markerBytes,
@@ -1720,6 +1684,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// that a corrupted or unwritable existing blob is reported exactly as
         /// it is on every other path into the blob directory.
         /// </remarks>
+        /// <exception cref="InvalidDataException">
+        /// A referenced staged or committed blob fails verification.
+        /// </exception>
         private async ValueTask<List<string>> PromoteStagedBlobsAsync(
             WotRegistrySnapshot snapshot,
             PristineCommitArtifacts? pristineArtifacts,
@@ -2151,7 +2118,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     int error = Marshal.GetLastWin32Error();
                     throw new IOException(
                         $"Unable to open WoT registry directory '{path}' for a " +
-                        $"durability flush.",
+                        "durability flush.",
                         new Win32Exception(error));
                 }
                 if (!FlushFileBuffers(handle))
@@ -2172,7 +2139,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 int error = Marshal.GetLastWin32Error();
                 throw new IOException(
                     $"Unable to open WoT registry directory '{path}' for a " +
-                    $"durability flush.",
+                    "durability flush.",
                     new Win32Exception(error));
             }
             if (Fsync(directory) != 0)
@@ -2390,6 +2357,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 Interlocked.Exchange(ref m_stream, null)?.Dispose();
             }
+
             private FileStream? m_stream;
         }
 
@@ -2568,6 +2536,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         private const uint OpenExisting = 3;
         private const uint FileFlagBackupSemantics = 0x02000000;
         private static readonly TimeSpan s_lockRetryDelay = TimeSpan.FromMilliseconds(25);
+
         private static readonly StringComparer s_fileSystemPathComparer =
             RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
                 ? StringComparer.OrdinalIgnoreCase
@@ -2577,7 +2546,6 @@ namespace Opc.Ua.WotCon.Server.Registry
         private readonly string m_blobsFolder;
         private readonly string m_stagingFolder;
         private readonly StagedResourceStore? m_stagedStore;
-        private readonly IXRegistryResourceStore m_resourceStore;
         private readonly string m_lockPath;
         private readonly Action<DirectorySyncPhase>? m_directorySyncFailureInjector;
         private readonly Action<string, string, string>? m_manifestReplace;

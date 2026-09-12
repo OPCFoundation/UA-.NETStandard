@@ -95,6 +95,9 @@ namespace Opc.Ua.WotCon.Client
         /// fetched the server namespace table yet, so this appends rather than failing — matching
         /// what <see cref="ForServerAsync"/> does.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="session"/> is <c>null</c>.
+        /// </exception>
         private static string EnsureRegistryNamespace(ISession session)
         {
             if (session is null)
@@ -109,6 +112,9 @@ namespace Opc.Ua.WotCon.Client
         /// Rejects a null registry root. The WoT registry root is server-specific and discovered by
         /// Browse, so unlike the base model there is no well-known identifier to fall back to.
         /// </summary>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="registryObjectId"/> is null.
+        /// </exception>
         private static NodeId ValidateRegistryObjectId(NodeId registryObjectId)
         {
             if (registryObjectId.IsNull)
@@ -289,6 +295,9 @@ namespace Opc.Ua.WotCon.Client
         /// generation.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="options"/> is null.</exception>
+        /// <exception cref="ServiceResultException">
+        /// The server rejects Refresh or returns invalid output arguments.
+        /// </exception>
         public async ValueTask<WotRegistryRefreshResult> RefreshAsync(
             ArrayOf<WoTResourceSelectorDataType> selection,
             WoTRefreshOptionsDataType options,
@@ -387,8 +396,8 @@ namespace Opc.Ua.WotCon.Client
             var decoded = new T[extensions.Count];
             for (int i = 0; i < extensions.Count; i++)
             {
-                if (!extensions[i].TryGetValue(out T? item, Session.MessageContext) &&
-                    !TryDecodeBinaryExtension(extensions[i], out item) ||
+                if ((!extensions[i].TryGetValue(out T? item, Session.MessageContext) &&
+                    !TryDecodeBinaryExtension(extensions[i], out item)) ||
                     item is null)
                 {
                     return false;
@@ -668,7 +677,7 @@ namespace Opc.Ua.WotCon.Client
             {
                 throw new ArgumentException("Document content is required.", nameof(content));
             }
-            Kind = kind;
+            Kind = WotDocumentKinds.RequireDocument(kind, nameof(kind));
             GroupId = groupId;
             ResourceId = resourceId;
             Content = content;

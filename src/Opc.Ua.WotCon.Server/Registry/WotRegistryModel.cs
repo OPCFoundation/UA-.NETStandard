@@ -66,7 +66,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Computes the SHA-256 digest of the supplied document bytes.
         /// </summary>
         public static ByteString Compute(ByteString content)
-            => Compute(content.IsNull ? default : content.Span);
+        {
+            return Compute(content.IsNull ? default : content.Span);
+        }
 
         /// <summary>
         /// Formats a digest as a lowercase hexadecimal string, or the empty
@@ -266,6 +268,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Creates a copy with selected Version state replaced.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         internal WotResourceVersion With(
             ByteString digest = default,
             long? contentLength = null,
@@ -295,7 +298,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 CreatedAt,
                 modifiedAt ?? ModifiedAt)
             {
-                IncarnationId = this.IncarnationId,
+                IncarnationId = IncarnationId,
                 Epoch = epoch ?? Epoch,
                 Labels = labels ?? Labels,
                 HasContent = updatedHasContent,
@@ -322,7 +325,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 CreatedAt,
                 ModifiedAt)
             {
-                IncarnationId = this.IncarnationId,
+                IncarnationId = IncarnationId,
                 Epoch = Epoch,
                 Labels = Labels,
                 HasContent = HasContent,
@@ -385,7 +388,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             GroupId = groupId ?? throw new ArgumentNullException(nameof(groupId));
             ResourceId = resourceId ?? throw new ArgumentNullException(nameof(resourceId));
-            Kind = kind;
+            Kind = WotDocumentKinds.RequireDocument(kind, nameof(kind));
             Versions = versions.IsDefault ? [] : versions;
             DefaultVersionId = defaultVersionId;
             DesiredVersionId = desiredVersionId ?? defaultVersionId;
@@ -721,7 +724,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             ImmutableSortedDictionary<string, string>? labels = null)
         {
             GroupId = groupId ?? throw new ArgumentNullException(nameof(groupId));
-            Kind = kind;
+            Kind = WotDocumentKinds.RequireDocument(kind, nameof(kind));
             Resources = resources ?? ImmutableDictionary<string, WotResource>.Empty;
             Name = name ?? groupId;
             Description = description ?? string.Empty;

@@ -60,7 +60,7 @@ namespace Opc.Ua.WotCon.Bindings
             WotEventSelectionCatalog? eventSelections = null)
         {
             ResourceXid = resourceXid ?? string.Empty;
-            Kind = kind;
+            Kind = WotDocumentKinds.RequireDocument(kind, nameof(kind));
             Forms = forms.IsDefault ? [] : forms;
             SecurityDefinitions = securityDefinitions ?? ImmutableDictionary<string, WotSecurityDefinition>.Empty;
             BaseUri = baseUri;
@@ -135,7 +135,7 @@ namespace Opc.Ua.WotCon.Bindings
         /// </summary>
         public bool IsDeclarationContext { get; private init; }
 
-        private ImmutableHashSet<ExpandedNodeId> LocalVariables { get; init; } = ImmutableHashSet<ExpandedNodeId>.Empty;
+        private ImmutableHashSet<ExpandedNodeId> LocalVariables { get; init; } = [];
 
         /// <summary>
         /// Returns a request carrying conversion-resolved local declarations.
@@ -285,6 +285,7 @@ namespace Opc.Ua.WotCon.Bindings
             {
                 throw new ArgumentNullException(nameof(thingResolver));
             }
+            WotDocumentKinds.RequireDocument(kind, nameof(kind));
             WotEventSelectionCatalog catalog = await ResolveEventSelectionsAsync(
                     document, thingResolver, maxJsonDepth, diagnostics, cancellationToken)
                 .ConfigureAwait(false);
@@ -369,8 +370,10 @@ namespace Opc.Ua.WotCon.Bindings
                 return true;
             }
             return affordance.TryGetProperty("uav:id", out JsonElement id) &&
-                id.ValueKind == JsonValueKind.String && id.GetString() is string text &&
-                ExpandedNodeId.TryParse(text, out ExpandedNodeId nodeId) && LocalVariables.Contains(nodeId);
+                id.ValueKind == JsonValueKind.String &&
+                id.GetString() is string text &&
+                ExpandedNodeId.TryParse(text, out ExpandedNodeId nodeId) &&
+                LocalVariables.Contains(nodeId);
         }
 
         private static WotBindingPlanRequest Build(
@@ -381,12 +384,13 @@ namespace Opc.Ua.WotCon.Bindings
             WotBindingSelectionContext? selection,
             WotEventSelectionCatalog? eventSelections)
         {
+            WotDocumentKinds.RequireDocument(kind, nameof(kind));
             ImmutableArray<WotAffordanceForm> forms = [];
             ImmutableDictionary<string, WotSecurityDefinition> definitions =
                 ImmutableDictionary<string, WotSecurityDefinition>.Empty;
             ImmutableDictionary<string, string> prefixes = ImmutableDictionary<string, string>.Empty;
             ArrayOf<WotProjectedAffordance> projectedAffordances = [];
-            ImmutableHashSet<ExpandedNodeId> localVariables = ImmutableHashSet<ExpandedNodeId>.Empty;
+            ImmutableHashSet<ExpandedNodeId> localVariables = [];
             string? baseUri = null;
             try
             {
@@ -425,10 +429,12 @@ namespace Opc.Ua.WotCon.Bindings
             if (!root.TryGetProperty("uav:nodes", out JsonElement native) ||
                 native.ValueKind != JsonValueKind.Object ||
                 !native.TryGetProperty("profileVersion", out JsonElement version) ||
-                version.ValueKind != JsonValueKind.String || version.GetString() != "1.0" ||
-                !native.TryGetProperty("nodes", out JsonElement nodes) || nodes.ValueKind != JsonValueKind.Array)
+                version.ValueKind != JsonValueKind.String ||
+                version.GetString() != "1.0" ||
+                !native.TryGetProperty("nodes", out JsonElement nodes) ||
+                nodes.ValueKind != JsonValueKind.Array)
             {
-                return ImmutableHashSet<ExpandedNodeId>.Empty;
+                return [];
             }
             var namespaces = new NamespaceTable();
             if (native.TryGetProperty("namespaceUris", out JsonElement uris) && uris.ValueKind == JsonValueKind.Array)
@@ -446,10 +452,13 @@ namespace Opc.Ua.WotCon.Bindings
             {
                 if (node.ValueKind == JsonValueKind.Object &&
                     node.TryGetProperty("nodeClass", out JsonElement nodeClass) &&
-                    nodeClass.ValueKind == JsonValueKind.String && nodeClass.GetString() == "Variable" &&
+                    nodeClass.ValueKind == JsonValueKind.String &&
+                    nodeClass.GetString() == "Variable" &&
                     node.TryGetProperty("nodeId", out JsonElement identifier) &&
-                    identifier.ValueKind == JsonValueKind.String && identifier.GetString() is string id &&
-                    NodeId.TryParse(id, out NodeId local) && local.NamespaceIndex < namespaces.Count)
+                    identifier.ValueKind == JsonValueKind.String &&
+                    identifier.GetString() is string id &&
+                    NodeId.TryParse(id, out NodeId local) &&
+                    local.NamespaceIndex < namespaces.Count)
                 {
                     values.Add(NodeId.ToExpandedNodeId(local, namespaces));
                 }

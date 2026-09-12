@@ -98,10 +98,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task MutatingOneResourceDoesNotRewriteAnotherResourceBytes()
         {
             using var service = new WotRegistryService(new FileWotRegistryStore(m_root));
-            await service.InitializeAsync();
+            await service.InitializeAsync().ConfigureAwait(false);
             WotRegistryMutationResult untouched = await service
-                .UpsertResourceAsync(TdRequest("stable", "urn:stable"));
-            await service.UpsertResourceAsync(TdRequest("edited", "urn:edited:v1"));
+                .UpsertResourceAsync(TdRequest("stable", "urn:stable"))
+                .ConfigureAwait(false);
+            await service.UpsertResourceAsync(TdRequest("edited", "urn:edited:v1")).ConfigureAwait(false);
 
             string untouchedBlob = BlobPath(untouched);
             Assert.That(File.Exists(untouchedBlob), Is.True,
@@ -112,7 +113,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             // Move the clock past the file system's timestamp resolution so a
             // rewrite would be visible rather than indistinguishable.
             await Task.Delay(50).ConfigureAwait(false);
-            await service.UpsertResourceAsync(TdRequest("edited", "urn:edited:v2"));
+            await service.UpsertResourceAsync(TdRequest("edited", "urn:edited:v2")).ConfigureAwait(false);
 
             Assert.That(File.ReadAllBytes(untouchedBlob), Is.EqualTo(before),
                 "An unrelated document's bytes must not change.");
@@ -126,21 +127,21 @@ namespace Opc.Ua.WotCon.Tests.Registry
             var store = new FileWotRegistryStore(m_root);
             using (var service = new WotRegistryService(store))
             {
-                await service.InitializeAsync();
+                await service.InitializeAsync().ConfigureAwait(false);
                 await service.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
                     GroupId = WotRegistryGroups.ThingDescriptions,
                     ResourceId = "a",
                     Kind = WoTDocumentKindEnum.ThingDescription,
                     Content = ByteString.From(TestMaterialization.Td("urn:a"))
-                });
+                }).ConfigureAwait(false);
                 await service.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
                     GroupId = WotRegistryGroups.ThingModels,
                     ResourceId = "m",
                     Kind = WoTDocumentKindEnum.ThingModel,
                     Content = ByteString.From(TestMaterialization.Tm("urn:m"))
-                });
+                }).ConfigureAwait(false);
                 WotResource createdTd = service.Current.FindResource(
                     WotRegistryGroups.ThingDescriptions,
                     "a")!;
@@ -150,21 +151,21 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     createdTd.DefaultVersionId!,
                     "version",
                     "one",
-                    createdTd.DefaultVersion!.Epoch);
+                    createdTd.DefaultVersion!.Epoch).ConfigureAwait(false);
                 await service.AddResourceLabelAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "a",
                     "owner",
                     "plant-1",
-                    createdTd.MetaEpoch);
+                    createdTd.MetaEpoch).ConfigureAwait(false);
                 await service.ValidateResourceAsync(
                     WotRegistryGroups.ThingDescriptions,
-                    "a");
+                    "a").ConfigureAwait(false);
             }
 
             var reloadStore = new FileWotRegistryStore(m_root);
             using var reloaded = new WotRegistryService(reloadStore);
-            await reloaded.InitializeAsync();
+            await reloaded.InitializeAsync().ConfigureAwait(false);
 
             WotResource? td = reloaded.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions, "a");
@@ -182,7 +183,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Assert.That(td.MetaCreatedAt, Is.Not.Default);
                 Assert.That(td.MetaModifiedAt, Is.GreaterThanOrEqualTo(td.MetaCreatedAt));
             });
-            ByteString tdContent = await reloaded.ReadContentAsync(td.Versions[0]);
+            ByteString tdContent = await reloaded.ReadContentAsync(td.Versions[0]).ConfigureAwait(false);
             Assert.That(
                 Encoding.UTF8.GetString(tdContent.Span.ToArray()),
                 Does.Contain("urn:a"));
@@ -196,7 +197,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             string[] versionIds = ["V1@prod", "a:b", "release~1"];
             using (var service = new WotRegistryService(new FileWotRegistryStore(m_root)))
             {
-                await service.InitializeAsync();
+                await service.InitializeAsync().ConfigureAwait(false);
                 foreach (string versionId in versionIds)
                 {
                     await service.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -208,12 +209,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
                         Content = ByteString.From(
                             TestMaterialization.Td("urn:explicit-versions", versionId)),
                         SetAsDefault = false
-                    });
+                    }).ConfigureAwait(false);
                 }
             }
 
             using var reloaded = new WotRegistryService(new FileWotRegistryStore(m_root));
-            await reloaded.InitializeAsync();
+            await reloaded.InitializeAsync().ConfigureAwait(false);
             WotResource resource = reloaded.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "explicit-versions")!;
@@ -234,7 +235,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             string maximumVersionId = long.MaxValue.ToString(CultureInfo.InvariantCulture);
             using (var service = new WotRegistryService(new FileWotRegistryStore(m_root)))
             {
-                await service.InitializeAsync();
+                await service.InitializeAsync().ConfigureAwait(false);
                 await service.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
                     GroupId = WotRegistryGroups.ThingDescriptions,
@@ -242,11 +243,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     VersionId = maximumVersionId,
                     Kind = WoTDocumentKindEnum.ThingDescription,
                     Content = ByteString.From(TestMaterialization.Td("urn:overflow"))
-                });
+                }).ConfigureAwait(false);
             }
 
             using var reloaded = new WotRegistryService(new FileWotRegistryStore(m_root));
-            await reloaded.InitializeAsync();
+            await reloaded.InitializeAsync().ConfigureAwait(false);
             WotRegistrySnapshot before = reloaded.Current;
 
             ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
@@ -254,7 +255,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     WotRegistryGroups.ThingDescriptions,
                     "overflow",
                     string.Empty,
-                    WoTDocumentKindEnum.ThingDescription))!;
+                    WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false))!;
 
             Assert.Multiple(() =>
             {
@@ -272,7 +273,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             var store = new FileWotRegistryStore(m_root);
             using (var service = new WotRegistryService(store))
             {
-                await service.InitializeAsync();
+                await service.InitializeAsync().ConfigureAwait(false);
                 foreach ((string VersionId, string Title, string BaseUri) version in new[]
                 {
                     ("v1", "first", "https://example.test/first/"),
@@ -290,7 +291,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                             "urn:metadata-" + version.Title,
                             version.BaseUri)),
                         SetAsDefault = false
-                    });
+                    }).ConfigureAwait(false);
                 }
                 WotResource before = service.Current.FindResource(
                     WotRegistryGroups.ThingDescriptions,
@@ -299,7 +300,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     WotRegistryGroups.ThingDescriptions,
                     "metadata",
                     "v2",
-                    before.MetaEpoch);
+                    before.MetaEpoch).ConfigureAwait(false);
 
                 foreach ((string VersionId, string Title, string ModelVersion) version in new[]
                 {
@@ -318,7 +319,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                             "urn:model-metadata-" + version.Title,
                             version.ModelVersion)),
                         SetAsDefault = false
-                    });
+                    }).ConfigureAwait(false);
                 }
                 WotResource modelBefore = service.Current.FindResource(
                     WotRegistryGroups.ThingModels,
@@ -327,11 +328,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     WotRegistryGroups.ThingModels,
                     "model-metadata",
                     "v2",
-                    modelBefore.MetaEpoch);
+                    modelBefore.MetaEpoch).ConfigureAwait(false);
             }
 
             using var reloaded = new WotRegistryService(new FileWotRegistryStore(m_root));
-            await reloaded.InitializeAsync();
+            await reloaded.InitializeAsync().ConfigureAwait(false);
             WotResource restored = reloaded.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "metadata")!;
@@ -379,7 +380,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions,
                 "metadata",
                 "v1",
-                restored.MetaEpoch);
+                restored.MetaEpoch).ConfigureAwait(false);
             Assert.That(
                 reloaded.Current.FindResource(
                     WotRegistryGroups.ThingDescriptions,
@@ -392,7 +393,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         {
             using (var service = new WotRegistryService(new FileWotRegistryStore(m_root)))
             {
-                await service.InitializeAsync();
+                await service.InitializeAsync().ConfigureAwait(false);
                 foreach (string versionId in new[] { "v1", "v2" })
                 {
                     await service.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -404,7 +405,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                         Content = ByteString.From(
                             TestMaterialization.Td("urn:identity", versionId)),
                         SetAsDefault = false
-                    });
+                    }).ConfigureAwait(false);
                 }
             }
 
@@ -418,7 +419,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
             using var reloaded = new WotRegistryService(new FileWotRegistryStore(m_root));
             InvalidDataException error = Assert.ThrowsAsync<InvalidDataException>(
-                async () => await reloaded.InitializeAsync())!;
+                async () => await reloaded.InitializeAsync().ConfigureAwait(false))!;
 
             Assert.That(error.Message, Does.Contain("incompatible document identities"));
         }
@@ -430,7 +431,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             var store = new FileWotRegistryStore(m_root);
             using (var service = new WotRegistryService(store, bounds))
             {
-                await service.InitializeAsync();
+                await service.InitializeAsync().ConfigureAwait(false);
                 foreach (string versionId in new[] { "v1", "v2", "v3" })
                 {
                     await service.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -442,7 +443,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                         Content = ByteString.From(
                             TestMaterialization.Td("urn:retained", versionId)),
                         SetAsDefault = false
-                    });
+                    }).ConfigureAwait(false);
                 }
                 await service.ApplyProjectionResultsAsync(
                 [
@@ -460,7 +461,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     {
                         VersionId = "v1"
                     }
-                ]);
+                ]).ConfigureAwait(false);
                 WotResource beforeSwitch = service.Current.FindResource(
                     WotRegistryGroups.ThingDescriptions,
                     "retained")!;
@@ -468,7 +469,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     WotRegistryGroups.ThingDescriptions,
                     "retained",
                     "v2",
-                    beforeSwitch.MetaEpoch);
+                    beforeSwitch.MetaEpoch).ConfigureAwait(false);
                 await service.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
                     GroupId = WotRegistryGroups.ThingDescriptions,
@@ -477,13 +478,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     Kind = WoTDocumentKindEnum.ThingDescription,
                     Content = ByteString.From(TestMaterialization.Td("urn:retained", "v4")),
                     SetAsDefault = false
-                });
+                }).ConfigureAwait(false);
             }
 
             using var reloaded = new WotRegistryService(
                 new FileWotRegistryStore(m_root),
                 bounds);
-            await reloaded.InitializeAsync();
+            await reloaded.InitializeAsync().ConfigureAwait(false);
             WotResource restored = reloaded.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "retained")!;
@@ -506,23 +507,23 @@ namespace Opc.Ua.WotCon.Tests.Registry
             var store = new FileWotRegistryStore(m_root);
             using (var service = new WotRegistryService(store))
             {
-                await service.InitializeAsync();
+                await service.InitializeAsync().ConfigureAwait(false);
                 await service.GetOrCreateVersionAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "placeholder",
                     "v1",
-                    WoTDocumentKindEnum.ThingDescription);
+                    WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
             }
 
             using var reloaded = new WotRegistryService(new FileWotRegistryStore(m_root));
-            await reloaded.InitializeAsync();
+            await reloaded.InitializeAsync().ConfigureAwait(false);
             WotResource resource = reloaded.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "placeholder")!;
 
             Assert.Multiple(() =>
             {
-                using JsonDocument manifest = JsonDocument.Parse(
+                using var manifest = JsonDocument.Parse(
                     File.ReadAllBytes(ManifestPath));
                 Assert.That(
                     manifest.RootElement.GetProperty("SchemaVersion").GetInt32(),
@@ -544,7 +545,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 new FileWotRegistryStore(m_root),
                 bounds))
             {
-                await service.InitializeAsync();
+                await service.InitializeAsync().ConfigureAwait(false);
                 foreach (string versionId in new[] { "v1", "v2" })
                 {
                     await service.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -556,13 +557,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
                         Content = ByteString.From(
                             TestMaterialization.Td("urn:pending-restart", versionId)),
                         SetAsDefault = false
-                    });
+                    }).ConfigureAwait(false);
                 }
-                var created = await service.TryCreateVersionAsync(
+                (WotResource Resource, WotResourceVersion Version)? created = await service.TryCreateVersionAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "pending-restart",
                     string.Empty,
-                    WoTDocumentKindEnum.ThingDescription);
+                    WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
                 Assert.That(created, Is.Not.Null);
                 pendingVersionId = created!.Value.Version.VersionId;
             }
@@ -570,15 +571,15 @@ namespace Opc.Ua.WotCon.Tests.Registry
             using var reloaded = new WotRegistryService(
                 new FileWotRegistryStore(m_root),
                 bounds);
-            await reloaded.InitializeAsync();
+            await reloaded.InitializeAsync().ConfigureAwait(false);
             WotResource beforeClose = reloaded.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "pending-restart")!;
-            var recovered = await reloaded.TryCreateVersionAsync(
+            (WotResource Resource, WotResourceVersion Version)? recovered = await reloaded.TryCreateVersionAsync(
                 WotRegistryGroups.ThingDescriptions,
                 "pending-restart",
                 string.Empty,
-                WoTDocumentKindEnum.ThingDescription);
+                WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
             Assert.That(recovered, Is.Not.Null);
             await reloaded.UpsertResourceAsync(new WotUpsertResourceRequest
             {
@@ -590,7 +591,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Content = ByteString.From(
                     TestMaterialization.Td("urn:pending-restart", "recovered")),
                 SetAsDefault = false
-            });
+            }).ConfigureAwait(false);
             WotResource afterClose = reloaded.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "pending-restart")!;
@@ -614,11 +615,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
         {
             using (var service = new WotRegistryService(new FileWotRegistryStore(m_root)))
             {
-                await service.InitializeAsync();
-                await service.UpsertResourceAsync(TdRequest("legacy", "urn:legacy"));
+                await service.InitializeAsync().ConfigureAwait(false);
+                await service.UpsertResourceAsync(TdRequest("legacy", "urn:legacy")).ConfigureAwait(false);
                 await service.ValidateResourceAsync(
                     WotRegistryGroups.ThingDescriptions,
-                    "legacy");
+                    "legacy").ConfigureAwait(false);
             }
 
             JsonObject manifest = JsonNode.Parse(File.ReadAllText(ManifestPath))!.AsObject();
@@ -638,7 +639,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 new JsonSerializerOptions { WriteIndented = true }));
 
             using var reloaded = new WotRegistryService(new FileWotRegistryStore(m_root));
-            await reloaded.InitializeAsync();
+            await reloaded.InitializeAsync().ConfigureAwait(false);
             WotResource migrated = reloaded.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "legacy")!;
@@ -670,14 +671,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
             var store = new FileWotRegistryStore(m_root, resourceStore);
             using (var service = new WotRegistryService(store))
             {
-                await service.InitializeAsync();
+                await service.InitializeAsync().ConfigureAwait(false);
                 await service.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
                     GroupId = WotRegistryGroups.ThingDescriptions,
                     ResourceId = "a",
                     Kind = WoTDocumentKindEnum.ThingDescription,
                     Content = ByteString.From(TestMaterialization.Td("urn:a"))
-                });
+                }).ConfigureAwait(false);
             }
 
             string registryBlobs = Path.Combine(m_root, "blobs");
@@ -688,10 +689,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
             var reloadStore = new FileWotRegistryStore(m_root, resourceStore);
             using var reloaded = new WotRegistryService(reloadStore);
-            await reloaded.InitializeAsync();
+            await reloaded.InitializeAsync().ConfigureAwait(false);
             WotResource? td = reloaded.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions, "a");
-            ByteString tdContent = await reloaded.ReadContentAsync(td!.Versions[0]);
+            ByteString tdContent = await reloaded.ReadContentAsync(td!.Versions[0]).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -715,17 +716,17 @@ namespace Opc.Ua.WotCon.Tests.Registry
             var store = new FileWotRegistryStore(m_root, resourceStore);
             using (var service = new WotRegistryService(store))
             {
-                await service.InitializeAsync();
-                await service.UpsertResourceAsync(TdRequest("a", "urn:a"));
+                await service.InitializeAsync().ConfigureAwait(false);
+                await service.UpsertResourceAsync(TdRequest("a", "urn:a")).ConfigureAwait(false);
                 Assert.That(resourceStore.WriteCount, Is.EqualTo(1));
 
                 resourceStore.FailOnWrite = true;
-                await service.AddRegistryLabelAsync("environment", "test");
+                await service.AddRegistryLabelAsync("environment", "test").ConfigureAwait(false);
             }
 
             var reloadStore = new FileWotRegistryStore(m_root, resourceStore);
             using var reloaded = new WotRegistryService(reloadStore);
-            await reloaded.InitializeAsync();
+            await reloaded.InitializeAsync().ConfigureAwait(false);
 
             Assert.That(resourceStore.WriteCount, Is.EqualTo(1));
             Assert.That(
@@ -747,19 +748,19 @@ namespace Opc.Ua.WotCon.Tests.Registry
             var store = new FileWotRegistryStore(m_root);
             using (var service = new WotRegistryService(store))
             {
-                await service.InitializeAsync();
+                await service.InitializeAsync().ConfigureAwait(false);
                 await service.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
                     GroupId = WotRegistryGroups.ThingDescriptions,
                     ResourceId = "bad",
                     Kind = WoTDocumentKindEnum.ThingDescription,
                     Content = ByteString.From(TestMaterialization.InvalidJson())
-                });
+                }).ConfigureAwait(false);
             }
 
             var reloadStore = new FileWotRegistryStore(m_root);
             using var reloaded = new WotRegistryService(reloadStore);
-            await reloaded.InitializeAsync();
+            await reloaded.InitializeAsync().ConfigureAwait(false);
 
             WotResource bad = reloaded.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions, "bad")!;
@@ -773,25 +774,25 @@ namespace Opc.Ua.WotCon.Tests.Registry
         {
             var store = new FileWotRegistryStore(m_root);
             using var service = new WotRegistryService(store);
-            await service.InitializeAsync();
+            await service.InitializeAsync().ConfigureAwait(false);
             await service.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = "a",
                 Kind = WoTDocumentKindEnum.ThingDescription,
                 Content = ByteString.From(TestMaterialization.Td("urn:a", "v1"))
-            });
+            }).ConfigureAwait(false);
             await service.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = "a",
                 Kind = WoTDocumentKindEnum.ThingDescription,
                 Content = ByteString.From(TestMaterialization.Td("urn:a", "v2"))
-            });
+            }).ConfigureAwait(false);
 
             var reloadStore = new FileWotRegistryStore(m_root);
             using var reloaded = new WotRegistryService(reloadStore);
-            await reloaded.InitializeAsync();
+            await reloaded.InitializeAsync().ConfigureAwait(false);
             Assert.That(
                 reloaded.Current.FindResource(WotRegistryGroups.ThingDescriptions, "a")!.Versions,
                 Has.Length.EqualTo(2));
@@ -801,7 +802,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task PristineAbsentPrimaryManifestLoadsEmptyRegistry()
         {
             WotRegistrySnapshot loaded =
-                await new FileWotRegistryStore(m_root).LoadAsync();
+                await new FileWotRegistryStore(m_root).LoadAsync().ConfigureAwait(false);
 
             Assert.That(loaded, Is.SameAs(WotRegistrySnapshot.Empty));
             Assert.That(File.Exists(ManifestPath), Is.False);
@@ -812,7 +813,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task AbsentPrimaryWithPriorStateFailsClosedWithoutDataLoss()
         {
             WotRegistryMutationResult persisted =
-                await PersistResourceAsync("a", "urn:a");
+                await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             CreateBackup();
             byte[] backup = File.ReadAllBytes(BackupPath);
             byte[] blob = File.ReadAllBytes(BlobPath(persisted));
@@ -820,9 +821,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             var store = new FileWotRegistryStore(m_root);
 
             InvalidDataException error = Assert.ThrowsAsync<InvalidDataException>(
-                async () => await store.LoadAsync());
+                async () => await store.LoadAsync().ConfigureAwait(false));
             Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await store.CommitAsync(WotRegistrySnapshot.Empty));
+                async () => await store.CommitAsync(WotRegistrySnapshot.Empty).ConfigureAwait(false));
 
             Assert.That(error.Message, Does.Contain("recovery artifacts"));
             Assert.That(error.Message, Does.Contain("cannot be treated as empty"));
@@ -850,7 +851,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             }
 
             InvalidDataException error = Assert.ThrowsAsync<InvalidDataException>(
-                async () => await new FileWotRegistryStore(m_root).LoadAsync());
+                async () => await new FileWotRegistryStore(m_root).LoadAsync().ConfigureAwait(false));
 
             Assert.That(error.Message, Does.Contain(artifactName));
             Assert.That(
@@ -861,17 +862,17 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [Test]
         public async Task CorruptPrimaryFailsClosedAndCannotCommitEmptyView()
         {
-            await PersistResourceAsync("a", "urn:a");
+            await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             CreateBackup();
             File.WriteAllText(ManifestPath, "{ corrupt");
             Dictionary<string, byte[]> expected = CaptureDataFiles();
             var store = new FileWotRegistryStore(m_root);
 
             InvalidDataException loadError = Assert.ThrowsAsync<InvalidDataException>(
-                async () => await store.LoadAsync());
+                async () => await store.LoadAsync().ConfigureAwait(false));
             InvalidOperationException commitError =
                 Assert.ThrowsAsync<InvalidOperationException>(
-                    async () => await store.CommitAsync(WotRegistrySnapshot.Empty));
+                    async () => await store.CommitAsync(WotRegistrySnapshot.Empty).ConfigureAwait(false));
 
             Assert.That(loadError.Message, Does.Contain("primary manifest"));
             Assert.That(loadError.Message, Does.Contain("corrupt"));
@@ -882,7 +883,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [Test]
         public async Task UnsupportedSchemaFailsClosedWithoutUsingValidBackup()
         {
-            await PersistResourceAsync("a", "urn:a");
+            await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             CreateBackup();
             File.WriteAllBytes(
                 ManifestPath,
@@ -891,9 +892,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             var store = new FileWotRegistryStore(m_root);
 
             NotSupportedException error = Assert.ThrowsAsync<NotSupportedException>(
-                async () => await store.LoadAsync());
+                async () => await store.LoadAsync().ConfigureAwait(false));
             Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await store.CommitAsync(WotRegistrySnapshot.Empty));
+                async () => await store.CommitAsync(WotRegistrySnapshot.Empty).ConfigureAwait(false));
 
             Assert.That(error.Message, Does.Contain("schema 1"));
             AssertDataFilesEqual(expected);
@@ -902,14 +903,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [Test]
         public async Task FutureSchemaFailsClosed()
         {
-            await PersistResourceAsync("a", "urn:a");
+            await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             File.WriteAllBytes(
                 ManifestPath,
                 WithSchemaVersion(File.ReadAllBytes(ManifestPath), schemaVersion: 5));
             var store = new FileWotRegistryStore(m_root);
 
             NotSupportedException error = Assert.ThrowsAsync<NotSupportedException>(
-                async () => await store.LoadAsync());
+                async () => await store.LoadAsync().ConfigureAwait(false));
 
             Assert.That(error.Message, Does.Contain("schema 5"));
         }
@@ -917,16 +918,16 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [Test]
         public async Task SuccessfulCommitLeavesOperatorBackupUntouched()
         {
-            await PersistResourceAsync("a", "urn:a");
+            await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             CreateBackup();
             byte[] backup = File.ReadAllBytes(BackupPath);
 
-            await PersistResourceAsync("b", "urn:b");
+            await PersistResourceAsync("b", "urn:b").ConfigureAwait(false);
 
             Assert.That(File.ReadAllBytes(BackupPath), Is.EqualTo(backup));
             Assert.That(ReplaceBackupPaths, Is.Empty);
             WotRegistrySnapshot reloaded =
-                await new FileWotRegistryStore(m_root).LoadAsync();
+                await new FileWotRegistryStore(m_root).LoadAsync().ConfigureAwait(false);
             Assert.That(
                 reloaded.FindResource(WotRegistryGroups.ThingDescriptions, "b"),
                 Is.Not.Null);
@@ -936,21 +937,21 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task DeleteRetainsBlobReferencedByOperatorBackup()
         {
             WotRegistryMutationResult persisted =
-                await PersistResourceAsync("a", "urn:a");
+                await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             CreateBackup();
             byte[] backup = File.ReadAllBytes(BackupPath);
             byte[] blob = File.ReadAllBytes(BlobPath(persisted));
             using var service = new WotRegistryService(
                 new FileWotRegistryStore(m_root));
-            await service.InitializeAsync();
+            await service.InitializeAsync().ConfigureAwait(false);
 
             await service.DeleteResourceAsync(
-                WotRegistryGroups.ThingDescriptions, "a");
+                WotRegistryGroups.ThingDescriptions, "a").ConfigureAwait(false);
 
             Assert.That(File.ReadAllBytes(BackupPath), Is.EqualTo(backup));
             Assert.That(File.ReadAllBytes(BlobPath(persisted)), Is.EqualTo(blob));
             WotRegistrySnapshot reloaded =
-                await new FileWotRegistryStore(m_root).LoadAsync();
+                await new FileWotRegistryStore(m_root).LoadAsync().ConfigureAwait(false);
             Assert.That(
                 reloaded.FindResource(WotRegistryGroups.ThingDescriptions, "a"),
                 Is.Null);
@@ -964,7 +965,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Assert.Ignore("FileShare.None is enforced by Windows for this test.");
             }
 
-            await PersistResourceAsync("a", "urn:a");
+            await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             CreateBackup();
             Dictionary<string, byte[]> expected = CaptureDataFiles();
             var store = new FileWotRegistryStore(m_root);
@@ -976,13 +977,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 FileShare.None))
             {
                 IOException error = Assert.ThrowsAsync<IOException>(
-                    async () => await store.LoadAsync());
+                    async () => await store.LoadAsync().ConfigureAwait(false));
                 Assert.That(error.Message, Does.Contain("primary manifest"));
                 Assert.That(error.Message, Does.Contain("left unchanged"));
             }
 
             Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await store.CommitAsync(WotRegistrySnapshot.Empty));
+                async () => await store.CommitAsync(WotRegistrySnapshot.Empty).ConfigureAwait(false));
             AssertDataFilesEqual(expected);
         }
 
@@ -990,18 +991,18 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task MissingReferencedBlobFailsClosedWithoutChangingOtherBlobs()
         {
             WotRegistryMutationResult first =
-                await PersistResourceAsync("a", "urn:a");
+                await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             WotRegistryMutationResult second =
-                await PersistResourceAsync("b", "urn:b");
+                await PersistResourceAsync("b", "urn:b").ConfigureAwait(false);
             CreateBackup();
             File.Delete(BlobPath(second));
             Dictionary<string, byte[]> expected = CaptureDataFiles();
             var store = new FileWotRegistryStore(m_root);
 
             InvalidDataException error = Assert.ThrowsAsync<InvalidDataException>(
-                async () => await store.LoadAsync());
+                async () => await store.LoadAsync().ConfigureAwait(false));
             Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await store.CommitAsync(WotRegistrySnapshot.Empty));
+                async () => await store.CommitAsync(WotRegistrySnapshot.Empty).ConfigureAwait(false));
 
             Assert.That(error.Message, Does.Contain("missing"));
             Assert.That(File.Exists(BlobPath(first)), Is.True);
@@ -1017,7 +1018,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             }
 
             WotRegistryMutationResult persisted =
-                await PersistResourceAsync("a", "urn:a");
+                await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             CreateBackup();
             Dictionary<string, byte[]> expected = CaptureDataFiles();
             var store = new FileWotRegistryStore(m_root);
@@ -1029,7 +1030,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 FileShare.None))
             {
                 IOException error = Assert.ThrowsAsync<IOException>(
-                    async () => await store.LoadAsync());
+                    async () => await store.LoadAsync().ConfigureAwait(false));
                 Assert.That(error.Message, Does.Contain("blob"));
                 Assert.That(error.Message, Does.Contain("left unchanged"));
             }
@@ -1041,18 +1042,18 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task TamperedReferencedBlobFailsClosedWithoutChangingOtherBlobs()
         {
             WotRegistryMutationResult first =
-                await PersistResourceAsync("a", "urn:a");
+                await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             WotRegistryMutationResult second =
-                await PersistResourceAsync("b", "urn:b");
+                await PersistResourceAsync("b", "urn:b").ConfigureAwait(false);
             CreateBackup();
             File.WriteAllText(BlobPath(second), "tampered");
             Dictionary<string, byte[]> expected = CaptureDataFiles();
             var store = new FileWotRegistryStore(m_root);
 
             InvalidDataException error = Assert.ThrowsAsync<InvalidDataException>(
-                async () => await store.LoadAsync());
+                async () => await store.LoadAsync().ConfigureAwait(false));
             Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await store.CommitAsync(WotRegistrySnapshot.Empty));
+                async () => await store.CommitAsync(WotRegistrySnapshot.Empty).ConfigureAwait(false));
 
             Assert.That(error.Message, Does.Contain("SHA-256"));
             Assert.That(File.Exists(BlobPath(first)), Is.True);
@@ -1069,6 +1070,26 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     manifest.Groups = [group, group];
                 },
                 "group id");
+        }
+
+        [Test]
+        public Task NonDocumentManifestKindsFailClosedWithoutChangingFiles(
+            [Values(-1, 2, 3)] int kind, [Values] bool resource)
+        {
+            return AssertInvalidManifestRejected(
+                manifest =>
+                {
+                    if (resource)
+                    {
+                        manifest.Groups![0].Resources![0].Kind = kind;
+                    }
+                    else
+                    {
+                        manifest.Groups![0].Kind = kind;
+                    }
+                },
+                resource ? "resource" : "group",
+                "document kind");
         }
 
         [Test]
@@ -1120,7 +1141,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [Test]
         public async Task LegacyOverlongNormalizedVersionIdLoadsAndRoundTrips()
         {
-            await PersistResourceAsync("legacy-id", "urn:legacy-id");
+            await PersistResourceAsync("legacy-id", "urn:legacy-id").ConfigureAwait(false);
             string versionId = new('a', 160);
             JsonObject manifest = JsonNode.Parse(File.ReadAllText(ManifestPath))!.AsObject();
             JsonObject resource = manifest["Groups"]![0]!["Resources"]![0]!.AsObject();
@@ -1133,7 +1154,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
             using (var service = new WotRegistryService(new FileWotRegistryStore(m_root)))
             {
-                await service.InitializeAsync();
+                await service.InitializeAsync().ConfigureAwait(false);
                 WotResource loaded = service.Current.FindResource(
                     WotRegistryGroups.ThingDescriptions,
                     "legacy-id")!;
@@ -1143,7 +1164,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                         WotRegistryGroups.ThingDescriptions,
                         "legacy-id",
                         versionId,
-                        WoTDocumentKindEnum.ThingDescription);
+                        WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
                 Assert.Multiple(() =>
                 {
                     Assert.That(created, Is.False);
@@ -1160,7 +1181,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                         Kind = WoTDocumentKindEnum.ThingDescription,
                         Content = ByteString.From(
                             TestMaterialization.Td("urn:legacy-id", "updated"))
-                    });
+                    }).ConfigureAwait(false);
                 Assert.That(updated.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
                 WotResource afterUpdate = service.Current.FindResource(
                     WotRegistryGroups.ThingDescriptions,
@@ -1170,11 +1191,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     "legacy-id",
                     "roundtrip",
                     "true",
-                    afterUpdate.MetaEpoch);
+                    afterUpdate.MetaEpoch).ConfigureAwait(false);
             }
 
             using var reloaded = new WotRegistryService(new FileWotRegistryStore(m_root));
-            await reloaded.InitializeAsync();
+            await reloaded.InitializeAsync().ConfigureAwait(false);
             WotResource roundTripped = reloaded.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "legacy-id")!;
@@ -1416,7 +1437,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task ConcurrentStoresSerializeAndRejectStaleCommitWithoutBlobDeletion()
         {
             WotRegistryMutationResult baseline =
-                await PersistResourceAsync("base", "urn:base");
+                await PersistResourceAsync("base", "urn:base").ConfigureAwait(false);
             using var firstEnteredSync = new ManualResetEventSlim();
             using var releaseFirst = new ManualResetEventSlim();
             var firstStore = new FileWotRegistryStore(
@@ -1435,31 +1456,31 @@ namespace Opc.Ua.WotCon.Tests.Registry
             var secondStore = new FileWotRegistryStore(m_root);
             using var firstService = new WotRegistryService(firstStore);
             using var secondService = new WotRegistryService(secondStore);
-            await firstService.InitializeAsync();
-            await secondService.InitializeAsync();
+            await firstService.InitializeAsync().ConfigureAwait(false);
+            await secondService.InitializeAsync().ConfigureAwait(false);
 
             Task<WotRegistryMutationResult> firstCommit = Task.Run(
                 async () => await firstService.UpsertResourceAsync(
-                    TdRequest("a", "urn:a")));
+                    TdRequest("a", "urn:a")).ConfigureAwait(false));
             Assert.That(firstEnteredSync.Wait(TimeSpan.FromSeconds(10)), Is.True);
             Task<WotRegistryMutationResult> staleCommit = Task.Run(
                 async () => await secondService.UpsertResourceAsync(
-                    TdRequest("b", "urn:b")));
-            await Task.Delay(150);
+                    TdRequest("b", "urn:b")).ConfigureAwait(false));
+            await Task.Delay(150).ConfigureAwait(false);
             Assert.That(staleCommit.IsCompleted, Is.False);
 
             releaseFirst.Set();
-            WotRegistryMutationResult committed = await firstCommit;
+            WotRegistryMutationResult committed = await firstCommit.ConfigureAwait(false);
             InvalidOperationException staleError =
                 Assert.ThrowsAsync<InvalidOperationException>(
-                    async () => await staleCommit);
+                    async () => await staleCommit.ConfigureAwait(false));
 
             Assert.That(staleError.Message, Does.Contain("changed after this store loaded"));
             Assert.That(File.Exists(BlobPath(baseline)), Is.True);
             Assert.That(File.Exists(BlobPath(committed)), Is.True);
             Assert.That(Directory.GetFiles(BlobsPath, "*.bin"), Has.Length.EqualTo(2));
             WotRegistrySnapshot reloaded =
-                await new FileWotRegistryStore(m_root).LoadAsync();
+                await new FileWotRegistryStore(m_root).LoadAsync().ConfigureAwait(false);
             Assert.That(
                 reloaded.FindResource(WotRegistryGroups.ThingDescriptions, "a"),
                 Is.Not.Null);
@@ -1473,7 +1494,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         {
             var staleStore = new FileWotRegistryStore(m_root);
             using var staleService = new WotRegistryService(staleStore);
-            await staleService.InitializeAsync();
+            await staleService.InitializeAsync().ConfigureAwait(false);
 
             string? replaceBackupPath = null;
             var writerStore = new FileWotRegistryStore(
@@ -1487,13 +1508,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
                         "Injected replacement failure after moving destination to backup.");
                 });
             using var writerService = new WotRegistryService(writerStore);
-            await writerService.InitializeAsync();
-            await writerService.UpsertResourceAsync(TdRequest("a", "urn:a"));
+            await writerService.InitializeAsync().ConfigureAwait(false);
+            await writerService.UpsertResourceAsync(TdRequest("a", "urn:a")).ConfigureAwait(false);
             byte[] committedPrimary = File.ReadAllBytes(ManifestPath);
 
             Assert.ThrowsAsync<WotRegistryCommitIndeterminateException>(
                 async () => await writerService.UpsertResourceAsync(
-                    TdRequest("b", "urn:b")));
+                    TdRequest("b", "urn:b")).ConfigureAwait(false));
             Assert.That(File.Exists(ManifestPath), Is.False);
             Assert.That(replaceBackupPath, Is.Not.Null);
             Assert.That(
@@ -1506,7 +1527,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             WotRegistryCommitIndeterminateException staleError =
                 Assert.ThrowsAsync<WotRegistryCommitIndeterminateException>(
                     async () => await staleService.UpsertResourceAsync(
-                        TdRequest("c", "urn:c")));
+                        TdRequest("c", "urn:c")).ConfigureAwait(false));
 
             Assert.That(
                 staleError.PersistenceFailure.Message,
@@ -1520,34 +1541,34 @@ namespace Opc.Ua.WotCon.Tests.Registry
             InvalidOperationException blocked =
                 Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await staleService.UpsertResourceAsync(
-                        TdRequest("d", "urn:d")));
+                        TdRequest("d", "urn:d")).ConfigureAwait(false));
             Assert.That(blocked.Message, Does.Contain("InitializeAsync"));
             Assert.ThrowsAsync<InvalidDataException>(
-                async () => await staleStore.LoadAsync());
+                async () => await staleStore.LoadAsync().ConfigureAwait(false));
             AssertDataFilesEqual(indeterminateFiles);
         }
 
         [Test]
         public async Task SameStoreRejectsSecondSnapshotWithAlreadyCommittedGeneration()
         {
-            await PersistResourceAsync("a", "urn:a");
+            await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             var store = new FileWotRegistryStore(m_root);
-            WotRegistrySnapshot loaded = await store.LoadAsync();
+            WotRegistrySnapshot loaded = await store.LoadAsync().ConfigureAwait(false);
             long nextGeneration = loaded.Generation + 1;
             var first = new WotRegistrySnapshot(
                 nextGeneration, loaded.Groups, loaded.Labels);
             var stale = new WotRegistrySnapshot(
                 nextGeneration, WotRegistrySnapshot.Empty.Groups, loaded.Labels);
 
-            await store.CommitAsync(first);
+            await store.CommitAsync(first).ConfigureAwait(false);
             byte[] committedManifest = File.ReadAllBytes(ManifestPath);
             InvalidOperationException error =
                 Assert.ThrowsAsync<InvalidOperationException>(
-                    async () => await store.CommitAsync(stale));
+                    async () => await store.CommitAsync(stale).ConfigureAwait(false));
             Assert.That(error.Message, Does.Contain("strictly greater"));
             Assert.That(File.ReadAllBytes(ManifestPath), Is.EqualTo(committedManifest));
             WotRegistrySnapshot reloaded =
-                await new FileWotRegistryStore(m_root).LoadAsync();
+                await new FileWotRegistryStore(m_root).LoadAsync().ConfigureAwait(false);
             Assert.That(
                 reloaded.FindResource(WotRegistryGroups.ThingDescriptions, "a"),
                 Is.Not.Null);
@@ -1557,17 +1578,17 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task SameGenerationManifestRewriteRejectsStaleCommit()
         {
             WotRegistryMutationResult baseline =
-                await PersistResourceAsync("a", "urn:a");
+                await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             var store = new FileWotRegistryStore(m_root);
             using var service = new WotRegistryService(store);
-            await service.InitializeAsync();
+            await service.InitializeAsync().ConfigureAwait(false);
             File.AppendAllText(ManifestPath, Environment.NewLine);
             byte[] rewrittenManifest = File.ReadAllBytes(ManifestPath);
 
             InvalidOperationException error =
                 Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await service.UpsertResourceAsync(
-                        TdRequest("b", "urn:b")));
+                        TdRequest("b", "urn:b")).ConfigureAwait(false));
 
             Assert.That(error.Message, Does.Contain("manifest SHA-256"));
             Assert.That(File.ReadAllBytes(ManifestPath), Is.EqualTo(rewrittenManifest));
@@ -1576,7 +1597,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public async Task ExclusiveOpenStorageLockRetriesContentionUntilCancellation()
+        public Task ExclusiveOpenStorageLockRetriesContentionUntilCancellation()
         {
             string lockPath = Path.Combine(m_root, ".wot-registry.lock");
             using var externalLock = new FileStream(
@@ -1589,7 +1610,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
             Assert.CatchAsync<OperationCanceledException>(
                 async () => await new FileWotRegistryStore(m_root)
-                    .LoadAsync(cancellation.Token));
+                    .LoadAsync(cancellation.Token)
+                    .ConfigureAwait(false));
+            return Task.CompletedTask;
         }
 
         [Test]
@@ -1600,13 +1623,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
             var store = new FileWotRegistryStore(nestedRoot, phases.Add);
             using var service = new WotRegistryService(store);
 
-            await service.InitializeAsync();
-            await service.UpsertResourceAsync(TdRequest("a", "urn:a"));
+            await service.InitializeAsync().ConfigureAwait(false);
+            await service.UpsertResourceAsync(TdRequest("a", "urn:a")).ConfigureAwait(false);
 
             Assert.That(
                 phases,
-                Is.EqualTo(new[]
-                {
+                Is.EqualTo(
+                [
                     FileWotRegistryStore.DirectorySyncPhase.RootComponentParent,
                     FileWotRegistryStore.DirectorySyncPhase.RootComponentParent,
                     FileWotRegistryStore.DirectorySyncPhase.RootComponentParent,
@@ -1619,7 +1642,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     FileWotRegistryStore.DirectorySyncPhase.RootBeforeManifest,
                     FileWotRegistryStore.DirectorySyncPhase.RootAfterManifestStaging,
                     FileWotRegistryStore.DirectorySyncPhase.RootAfterManifest
-                }));
+                ]));
         }
 
         [Test]
@@ -1647,7 +1670,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 });
 
             Assert.ThrowsAsync<IOException>(
-                async () => await store.LoadAsync());
+                async () => await store.LoadAsync().ConfigureAwait(false));
             Assert.That(Directory.Exists(first), Is.True);
             Assert.That(Directory.Exists(second), Is.True);
             Assert.That(Directory.Exists(nestedRoot), Is.False);
@@ -1656,7 +1679,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Is.False);
 
             injectFailure = false;
-            WotRegistrySnapshot loaded = await store.LoadAsync();
+            WotRegistrySnapshot loaded = await store.LoadAsync().ConfigureAwait(false);
 
             Assert.That(loaded, Is.SameAs(WotRegistrySnapshot.Empty));
             Assert.That(syncAttempts, Is.EqualTo(7));
@@ -1683,13 +1706,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     }
                 });
             using var service = new WotRegistryService(store);
-            await service.InitializeAsync();
+            await service.InitializeAsync().ConfigureAwait(false);
 
             OperationCanceledException error =
                 Assert.ThrowsAsync<OperationCanceledException>(
                     async () => await service.UpsertResourceAsync(
                         TdRequest("a", "urn:a"),
-                        cancellation.Token));
+                        cancellation.Token).ConfigureAwait(false));
 
             Assert.That(error.CancellationToken, Is.EqualTo(cancellation.Token));
             Assert.That(File.Exists(ManifestPath), Is.False);
@@ -1698,7 +1721,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(RollbackMarkerPaths, Is.Empty);
 
             WotRegistryMutationResult retry = await service.UpsertResourceAsync(
-                TdRequest("a", "urn:a"));
+                TdRequest("a", "urn:a")).ConfigureAwait(false);
 
             Assert.That(retry.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             Assert.That(File.Exists(ManifestPath), Is.True);
@@ -1723,11 +1746,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     }
                 });
             using var service = new WotRegistryService(store);
-            await service.InitializeAsync();
+            await service.InitializeAsync().ConfigureAwait(false);
 
             IOException error = Assert.ThrowsAsync<IOException>(
                 async () => await service.UpsertResourceAsync(
-                    TdRequest("a", "urn:a")));
+                    TdRequest("a", "urn:a")).ConfigureAwait(false));
 
             Assert.That(error.Message, Does.Contain("manifest staging"));
             Assert.That(File.Exists(ManifestPath), Is.False);
@@ -1736,7 +1759,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(RollbackMarkerPaths, Is.Empty);
 
             WotRegistryMutationResult retry = await service.UpsertResourceAsync(
-                TdRequest("a", "urn:a"));
+                TdRequest("a", "urn:a")).ConfigureAwait(false);
 
             Assert.That(retry.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             Assert.That(File.Exists(ManifestPath), Is.True);
@@ -1762,12 +1785,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     }
                 });
             using var service = new WotRegistryService(store);
-            await service.InitializeAsync();
+            await service.InitializeAsync().ConfigureAwait(false);
 
             WotRegistryCommitIndeterminateException error =
                 Assert.ThrowsAsync<WotRegistryCommitIndeterminateException>(
                     async () => await service.UpsertResourceAsync(
-                        TdRequest("a", "urn:a")));
+                        TdRequest("a", "urn:a")).ConfigureAwait(false));
             Dictionary<string, byte[]> retained = CaptureDataFiles();
 
             Assert.That(error.PersistenceFailure.Message, Does.Contain("ambiguous artifact"));
@@ -1778,9 +1801,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(Directory.GetFiles(BlobsPath), Has.Length.EqualTo(2));
             Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await service.UpsertResourceAsync(
-                    TdRequest("b", "urn:b")));
+                    TdRequest("b", "urn:b")).ConfigureAwait(false));
             Assert.ThrowsAsync<InvalidDataException>(
-                async () => await new FileWotRegistryStore(m_root).LoadAsync());
+                async () => await new FileWotRegistryStore(m_root).LoadAsync().ConfigureAwait(false));
             AssertDataFilesEqual(retained);
         }
 
@@ -1805,12 +1828,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     }
                 });
             using var service = new WotRegistryService(store);
-            await service.InitializeAsync();
+            await service.InitializeAsync().ConfigureAwait(false);
 
             WotRegistryCommitIndeterminateException error =
                 Assert.ThrowsAsync<WotRegistryCommitIndeterminateException>(
                     async () => await service.UpsertResourceAsync(
-                        TdRequest("a", "urn:a")));
+                        TdRequest("a", "urn:a")).ConfigureAwait(false));
             Dictionary<string, byte[]> retained = CaptureDataFiles();
 
             Assert.That(error.PersistenceFailure.Message, Does.Contain("pre-switch"));
@@ -1820,7 +1843,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(Directory.GetFileSystemEntries(BlobsPath), Is.Empty);
             Assert.That(File.Exists(ManifestPath), Is.False);
             Assert.ThrowsAsync<InvalidDataException>(
-                async () => await new FileWotRegistryStore(m_root).LoadAsync());
+                async () => await new FileWotRegistryStore(m_root).LoadAsync().ConfigureAwait(false));
             AssertDataFilesEqual(retained);
         }
 
@@ -1842,7 +1865,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             FileWotRegistryStore.DirectorySyncPhase phaseToFail)
         {
             WotRegistryMutationResult baseline =
-                await PersistResourceAsync("a", "urn:a");
+                await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             CreateBackup();
             byte[] primary = File.ReadAllBytes(ManifestPath);
             byte[] backup = File.ReadAllBytes(BackupPath);
@@ -1857,12 +1880,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     }
                 });
             using var service = new WotRegistryService(store);
-            await service.InitializeAsync();
+            await service.InitializeAsync().ConfigureAwait(false);
             long previousGeneration = service.Current.Generation;
 
             IOException error = Assert.ThrowsAsync<IOException>(
                 async () => await service.UpsertResourceAsync(
-                    TdRequest("b", "urn:b")));
+                    TdRequest("b", "urn:b")).ConfigureAwait(false));
 
             Assert.That(error.Message, Does.Contain("Injected"));
             Assert.That(
@@ -1876,7 +1899,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(File.ReadAllBytes(BackupPath), Is.EqualTo(backup));
             Assert.That(File.Exists(BlobPath(baseline)), Is.True);
             WotRegistrySnapshot reloaded =
-                await new FileWotRegistryStore(m_root).LoadAsync();
+                await new FileWotRegistryStore(m_root).LoadAsync().ConfigureAwait(false);
             Assert.That(
                 reloaded.FindResource(WotRegistryGroups.ThingDescriptions, "a"),
                 Is.Not.Null);
@@ -1889,7 +1912,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task ReplaceFailureBeforeMovesIsNotCommittedAndPreservesStagedManifest()
         {
             WotRegistryMutationResult baseline =
-                await PersistResourceAsync("a", "urn:a");
+                await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             CreateBackup();
             byte[] primary = File.ReadAllBytes(ManifestPath);
             byte[] operatorBackup = File.ReadAllBytes(BackupPath);
@@ -1909,13 +1932,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     File.Replace(source, destination, backup);
                 });
             using var service = new WotRegistryService(store);
-            await service.InitializeAsync();
+            await service.InitializeAsync().ConfigureAwait(false);
             WotRegistrySnapshot before = service.Current;
 
             WotRegistryCommitNotCommittedException error =
                 Assert.ThrowsAsync<WotRegistryCommitNotCommittedException>(
                     async () => await service.UpsertResourceAsync(
-                        TdRequest("b", "urn:b")));
+                        TdRequest("b", "urn:b")).ConfigureAwait(false));
 
             Assert.That(error.PersistenceFailure.Message, Does.Contain("before any move"));
             Assert.That(service.Current, Is.SameAs(before));
@@ -1931,7 +1954,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(Directory.GetFiles(BlobsPath, "*.bin"), Has.Length.EqualTo(2));
 
             WotRegistryMutationResult retry = await service.UpsertResourceAsync(
-                TdRequest("b", "urn:b"));
+                TdRequest("b", "urn:b")).ConfigureAwait(false);
 
             Assert.That(retry.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             Assert.That(File.Exists(error.RecoveryArtifactPath), Is.True);
@@ -1943,7 +1966,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [Test]
         public async Task ReplaceReportsFailureAfterSuccessfulMoveAsCommittedUncertain()
         {
-            await PersistResourceAsync("a", "urn:a");
+            await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             CreateBackup();
             byte[] primary = File.ReadAllBytes(ManifestPath);
             byte[] operatorBackup = File.ReadAllBytes(BackupPath);
@@ -1964,12 +1987,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     }
                 });
             using var service = new WotRegistryService(store);
-            await service.InitializeAsync();
+            await service.InitializeAsync().ConfigureAwait(false);
 
             WotRegistryCommitDurabilityUncertainException error =
                 Assert.ThrowsAsync<WotRegistryCommitDurabilityUncertainException>(
                     async () => await service.UpsertResourceAsync(
-                        TdRequest("b", "urn:b")));
+                        TdRequest("b", "urn:b")).ConfigureAwait(false));
 
             Assert.That(error.PersistenceFailure.Message, Does.Contain("destination move"));
             Assert.That(service.Current, Is.SameAs(error.CommittedSnapshot));
@@ -1981,7 +2004,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(Directory.GetFiles(BlobsPath, "*.bin"), Has.Length.EqualTo(2));
 
             WotRegistryMutationResult next = await service.UpsertResourceAsync(
-                TdRequest("c", "urn:c"));
+                TdRequest("c", "urn:c")).ConfigureAwait(false);
             Assert.That(next.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
         }
 
@@ -1989,7 +2012,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task DestinationMovedToBackupFailureIsIndeterminateWithoutDataLoss()
         {
             WotRegistryMutationResult baseline =
-                await PersistResourceAsync("a", "urn:a");
+                await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             CreateBackup();
             byte[] primary = File.ReadAllBytes(ManifestPath);
             byte[] operatorBackup = File.ReadAllBytes(BackupPath);
@@ -2011,13 +2034,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     File.Replace(source, destination, backup);
                 });
             using var service = new WotRegistryService(store);
-            await service.InitializeAsync();
+            await service.InitializeAsync().ConfigureAwait(false);
             WotRegistrySnapshot before = service.Current;
 
             WotRegistryCommitIndeterminateException error =
                 Assert.ThrowsAsync<WotRegistryCommitIndeterminateException>(
                     async () => await service.UpsertResourceAsync(
-                        TdRequest("b", "urn:b")));
+                        TdRequest("b", "urn:b")).ConfigureAwait(false));
 
             Assert.That(error.PersistenceFailure.Message, Does.Contain("moving destination"));
             Assert.That(error.ValidationFailure.Message, Does.Contain("primary manifest"));
@@ -2034,26 +2057,26 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(Directory.GetFiles(BlobsPath, "*.bin"), Has.Length.EqualTo(2));
             Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await service.UpsertResourceAsync(
-                    TdRequest("c", "urn:c")));
+                    TdRequest("c", "urn:c")).ConfigureAwait(false));
 
             using (var restarted = new WotRegistryService(
                 new FileWotRegistryStore(m_root)))
             {
                 InvalidDataException restartError =
                     Assert.ThrowsAsync<InvalidDataException>(
-                        async () => await restarted.InitializeAsync());
+                        async () => await restarted.InitializeAsync().ConfigureAwait(false));
                 Assert.That(restartError.Message, Does.Contain("recovery artifacts"));
                 InvalidOperationException restartBlocked =
                     Assert.ThrowsAsync<InvalidOperationException>(
                         async () => await restarted.UpsertResourceAsync(
-                            TdRequest("c", "urn:c")));
+                            TdRequest("c", "urn:c")).ConfigureAwait(false));
                 Assert.That(restartBlocked.Message, Does.Contain("InitializeAsync"));
             }
 
             File.Move(replaceBackupPath!, ManifestPath);
-            await service.InitializeAsync();
+            await service.InitializeAsync().ConfigureAwait(false);
             WotRegistryMutationResult recovered = await service.UpsertResourceAsync(
-                TdRequest("c", "urn:c"));
+                TdRequest("c", "urn:c")).ConfigureAwait(false);
             Assert.That(recovered.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             Assert.That(
                 service.Current.FindResource(WotRegistryGroups.ThingDescriptions, "b"),
@@ -2063,7 +2086,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [Test]
         public async Task FinalRootSyncFailurePublishesValidatedCommittedSnapshot()
         {
-            await PersistResourceAsync("a", "urn:a");
+            await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             bool injectFailure = true;
             var store = new FileWotRegistryStore(
                 m_root,
@@ -2077,12 +2100,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     }
                 });
             using var service = new WotRegistryService(store);
-            await service.InitializeAsync();
+            await service.InitializeAsync().ConfigureAwait(false);
 
             WotRegistryCommitDurabilityUncertainException error =
                 Assert.ThrowsAsync<WotRegistryCommitDurabilityUncertainException>(
                     async () => await service.UpsertResourceAsync(
-                        TdRequest("b", "urn:b")));
+                        TdRequest("b", "urn:b")).ConfigureAwait(false));
 
             Assert.That(error.PersistenceFailure.Message, Does.Contain("Injected"));
             Assert.That(service.Current, Is.SameAs(error.CommittedSnapshot));
@@ -2092,10 +2115,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Is.Not.Null);
 
             WotRegistryMutationResult next = await service.UpsertResourceAsync(
-                TdRequest("c", "urn:c"));
+                TdRequest("c", "urn:c")).ConfigureAwait(false);
             Assert.That(next.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             WotRegistrySnapshot reloaded =
-                await new FileWotRegistryStore(m_root).LoadAsync();
+                await new FileWotRegistryStore(m_root).LoadAsync().ConfigureAwait(false);
             Assert.That(reloaded.Generation, Is.EqualTo(service.Current.Generation));
             Assert.That(
                 reloaded.FindResource(WotRegistryGroups.ThingDescriptions, "b"),
@@ -2108,7 +2131,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [Test]
         public async Task UnvalidatedPostSwitchFailureBlocksMutationUntilReload()
         {
-            await PersistResourceAsync("a", "urn:a");
+            await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             CreateBackup();
             byte[] recoveryManifest = File.ReadAllBytes(BackupPath);
             bool injectFailure = true;
@@ -2124,27 +2147,27 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     }
                 });
             using var service = new WotRegistryService(store);
-            await service.InitializeAsync();
+            await service.InitializeAsync().ConfigureAwait(false);
             WotRegistrySnapshot before = service.Current;
 
             WotRegistryCommitIndeterminateException error =
                 Assert.ThrowsAsync<WotRegistryCommitIndeterminateException>(
                     async () => await service.UpsertResourceAsync(
-                        TdRequest("b", "urn:b")));
+                        TdRequest("b", "urn:b")).ConfigureAwait(false));
 
             Assert.That(error.IntendedGeneration, Is.EqualTo(before.Generation + 1));
             Assert.That(service.Current, Is.SameAs(before));
             InvalidOperationException blocked =
                 Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await service.UpsertResourceAsync(
-                        TdRequest("c", "urn:c")));
+                        TdRequest("c", "urn:c")).ConfigureAwait(false));
             Assert.That(blocked.Message, Does.Contain("InitializeAsync"));
 
             injectFailure = false;
             File.WriteAllBytes(ManifestPath, recoveryManifest);
-            await service.InitializeAsync();
+            await service.InitializeAsync().ConfigureAwait(false);
             WotRegistryMutationResult recovered = await service.UpsertResourceAsync(
-                TdRequest("c", "urn:c"));
+                TdRequest("c", "urn:c")).ConfigureAwait(false);
 
             Assert.That(recovered.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             Assert.That(
@@ -2161,9 +2184,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
         {
             using var service = new WotRegistryService(
                 new FileWotRegistryStore(m_root));
-            await service.InitializeAsync();
+            await service.InitializeAsync().ConfigureAwait(false);
             return await service.UpsertResourceAsync(
-                TdRequest(resourceId, thingId));
+                TdRequest(resourceId, thingId)).ConfigureAwait(false);
         }
 
         private async Task AssertDuplicateManifestRejected(
@@ -2173,14 +2196,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
             await AssertInvalidManifestRejected(
                 duplicate,
                 "duplicate",
-                logicalId);
+                logicalId).ConfigureAwait(false);
         }
 
         private async Task AssertInvalidManifestRejected(
             Action<FileWotRegistryStore.ManifestDto> invalidate,
             params string[] diagnostics)
         {
-            await PersistResourceAsync("a", "urn:a");
+            await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             CreateBackup();
             FileWotRegistryStore.ManifestDto manifest = JsonSerializer.Deserialize(
                     File.ReadAllBytes(ManifestPath),
@@ -2195,13 +2218,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
             var store = new FileWotRegistryStore(m_root);
 
             InvalidDataException error = Assert.ThrowsAsync<InvalidDataException>(
-                async () => await store.LoadAsync());
+                async () => await store.LoadAsync().ConfigureAwait(false));
             foreach (string diagnostic in diagnostics)
             {
                 Assert.That(error.Message, Does.Contain(diagnostic));
             }
             Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await store.CommitAsync(WotRegistrySnapshot.Empty));
+                async () => await store.CommitAsync(WotRegistrySnapshot.Empty).ConfigureAwait(false));
             AssertDataFilesEqual(expected);
         }
 
@@ -2209,13 +2232,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Func<WotRegistrySnapshot, WotRegistrySnapshot> invalidate,
             params string[] diagnostics)
         {
-            WotRegistrySnapshot valid = await CreateInMemorySnapshotAsync();
+            WotRegistrySnapshot valid = await CreateInMemorySnapshotAsync().ConfigureAwait(false);
             WotRegistrySnapshot malformed = invalidate(valid);
             Assert.That(Directory.GetFileSystemEntries(m_root), Is.Empty);
             var store = new FileWotRegistryStore(m_root);
 
             InvalidDataException error = Assert.ThrowsAsync<InvalidDataException>(
-                async () => await store.CommitAsync(malformed));
+                async () => await store.CommitAsync(malformed).ConfigureAwait(false));
 
             foreach (string diagnostic in diagnostics)
             {
@@ -2230,8 +2253,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
         private static async Task<WotRegistrySnapshot> CreateInMemorySnapshotAsync()
         {
             using var service = new WotRegistryService(new InMemoryWotRegistryStore());
-            await service.InitializeAsync();
-            await service.UpsertResourceAsync(TdRequest("a", "urn:a"));
+            await service.InitializeAsync().ConfigureAwait(false);
+            await service.UpsertResourceAsync(TdRequest("a", "urn:a")).ConfigureAwait(false);
             return service.Current;
         }
 
@@ -2341,7 +2364,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
         private string RelativePath(string path)
         {
-            return path.Substring(m_root.Length).TrimStart(
+            return path[m_root.Length..].TrimStart(
                 Path.DirectorySeparatorChar,
                 Path.AltDirectorySeparatorChar);
         }
@@ -2413,8 +2436,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
         {
             return Encoding.UTF8.GetBytes(
                 "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "\"@type\":\"uav:object\",\"id\":\"" + id + "\"," +
-                "\"title\":\"" + title + "\",\"base\":\"" + baseUri + "\"}");
+                "\"@type\":\"uav:object\",\"id\":\"" +
+                id +
+                "\"," +
+                "\"title\":\"" +
+                title +
+                "\",\"base\":\"" +
+                baseUri +
+                "\"}");
         }
 
         private static byte[] ThingModelWithMetadata(
@@ -2424,9 +2453,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
         {
             return Encoding.UTF8.GetBytes(
                 "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "\"@type\":\"tm:ThingModel\",\"id\":\"" + id + "\"," +
-                "\"title\":\"" + title + "\",\"version\":{\"model\":\"" +
-                modelVersion + "\"}}");
+                "\"@type\":\"tm:ThingModel\",\"id\":\"" +
+                id +
+                "\"," +
+                "\"title\":\"" +
+                title +
+                "\",\"version\":{\"model\":\"" +
+                modelVersion +
+                "\"}}");
         }
 
         private sealed class CorruptingResourceStore : IXRegistryResourceStore

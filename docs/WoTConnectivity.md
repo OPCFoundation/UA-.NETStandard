@@ -4,15 +4,16 @@ This repository implements the OPC UA **WoT Connectivity** companion specificati
 
 | Project                          | Purpose                                                       |
 |----------------------------------|---------------------------------------------------------------|
-| `Opc.Ua.WotCon`                  | Source-generated information model (NodeStates, NodeIds, generated ObjectType client proxies) generated once from the combined **WoT Connectivity 1.1** NodeSet2 (incorporating the OPC 10100-1 v1.02 model plus additive registry nodes in one namespace) and the draft **xRegistry** base NodeSet2 (see §11) |
+| `Opc.Ua.WotCon`                  | Source-generated information model (NodeStates, NodeIds, generated ObjectType client proxies) generated once from the combined **WoT Connectivity 1.2 draft** NodeSet2 (incorporating the OPC 10100-1 v1.02 model plus additive registry nodes in one namespace) and the **xRegistry 0.7.0 draft** base NodeSet2 (see §11) |
 | `Opc.Ua.WotCon.Server`           | Server-side node manager (`WotConnectivityNodeManager` → `AsyncCustomNodeManager`) and the extensible provider model |
-| `Opc.Ua.WotCon.Client`           | Client wrappers + extension methods that compose the generated proxies without inheritance, covering both the OPC 10100-1 v1.02 asset-connection surface (`WotConnectivityClient`) and the WoT Connectivity 1.1 registry surface (`WotRegistryClient`, see §11.8) |
+| `Opc.Ua.WotCon.Client`           | Client wrappers + extension methods that compose the generated proxies without inheritance, covering both the OPC 10100-1 v1.02 asset-connection surface (`WotConnectivityClient`) and the registry surface (`WotRegistryClient`, see §11.8) |
 | `Opc.Ua.WotCon.Bindings`         | Protocol-binding abstractions, planners, codecs, credential references, HTTP/Modbus/OPC UA executors on net8+, and the generic target-mapping channel factory |
 | `Opc.Ua.WotCon.Bindings.Mqtt`    | Optional MQTT executor package |
 | `Opc.Ua.WotCon.Tests`            | NUnit tests covering the TD parser, mappers, simulated provider, discovery facade |
 
-The model namespace URI is `http://opcfoundation.org/UA/WoT-Con/`,
-target version `1.02.0`, publication 2025-12-05.
+The model namespace URI is `http://opcfoundation.org/UA/WoT-Con/`.
+The combined input is draft version `1.2`, dated 2026-09-12; the incorporated
+published `1.02.0` ModelDesign remains unchanged.
 
 For current protocol-runtime architecture and the contributor guide for adding a protocol see [WoT protocol bindings](WotBindings.md), and the runnable end-to-end topology is documented in the [WoT aggregation sample](../samples/WotCon/README.md).
 
@@ -560,20 +561,20 @@ may be exposed over `MessageSecurityMode.None` by deployment policy.
 
 ---
 
-## 11. WoT Connectivity 1.1 registry and materialization (preview)
+## 11. WoT Connectivity registry and materialization (preview)
 
-The `Opc.Ua.WotCon` assembly is source-generated once from the combined **WoT Connectivity 1.1** NodeSet2, which incorporates the published OPC 10100-1 v1.02 model (NodeIds `1..172`, superseded in capability but **not** deprecated) plus the additive registry nodes (`64000+`) in one namespace, and from the abstract **xRegistry** base model the registry types build on:
+The `Opc.Ua.WotCon` assembly is source-generated once from the combined **WoT Connectivity 1.2 draft** NodeSet2, which incorporates the published OPC 10100-1 v1.02 model (NodeIds `1..172`, superseded in capability but **not** deprecated) plus the additive registry nodes (`64000+`) in one namespace, and from the abstract **xRegistry 0.7.0 draft** base model the registry types build on:
 
 | Model | Namespace | Emitted C# namespace |
 |-------|-----------|----------------------|
-| xRegistry (abstract registry base) | `http://opcfoundation.org/UA/xRegistry/` | `Opc.Ua.XRegistry` |
-| WoT Connectivity 1.1 (combined) | `http://opcfoundation.org/UA/WoT-Con/` | `Opc.Ua.WotCon` |
+| xRegistry 0.7.0 draft (abstract registry base) | `http://opcfoundation.org/UA/xRegistry/` | `Opc.Ua.XRegistry` |
+| WoT Connectivity 1.2 draft (combined) | `http://opcfoundation.org/UA/WoT-Con/` | `Opc.Ua.WotCon` |
 
-Both NodeSet2 models are *pinned* from the OPC UA drafts authoring repository into `src/Opc.Ua.WotCon/Design` (as `*.NodeSet2.xml` + `*.NodeSet2.csv`) and added as `AdditionalFiles`. The legacy 1.02 `WotConnection.xml` / `WotConnection.csv` sources are retained under `Design/` for reference only — they are incorporated into the combined NodeSet and are **not** source-generated a second time, so the preserved 1.02 constants and the additive registry constants coexist in one `Opc.Ua.WotCon` namespace under their exact NodeIds. The tooling that refreshes the pinned copies from the draft repository lives in that authoring repository, not here.
+The NodeSet2 models are *pinned* from the OPC UA drafts authoring repository and added as `AdditionalFiles`. xRegistry has one authoritative copy in `src/Opc.Ua.XRegistry`; Connectivity's NodeSet and NodeId CSV are in `src/Opc.Ua.WotCon/Design`. The legacy 1.02 `WotConnection.xml` / `WotConnection.csv` sources are retained under `Design/` for reference only — they are incorporated into the combined NodeSet and are **not** source-generated a second time, so the preserved 1.02 constants and the additive registry constants coexist in one `Opc.Ua.WotCon` namespace under their exact NodeIds. The tooling that refreshes the pinned copies from the draft repository lives in that authoring repository, not here.
 
 ### 11.1 Architecture
 
-The 1.1 runtime separates a **stable registry** from **ephemeral projections**:
+The runtime separates a **stable registry** from **ephemeral projections**:
 
 * `WotRegistryNodeManager` (stable) exposes the well-known `WoTRegistry`
   object, its Thing Description / Thing Model groups, the `Refresh`
@@ -954,7 +955,7 @@ refresh.EnsureSuccess();
 
 Register the registry client with DI alongside `AddWotConClient` via `AddWotRegistryClient` (on `IOpcUaBuilder` or `IOpcUaClientBuilder`, bindable from `IConfiguration`/`IConfigurationSection`, default section `OpcUa:WotCon:RegistryClient`). It follows the same lazy `ManagedSession`-backed factory pattern: resolve `Func<CancellationToken, Task<WotRegistryClient>>` for the lazily connected form, or `Func<ManagedSession, CancellationToken, Task<WotRegistryClient>>` to wrap an already-connected session.
 
-## 12. Conformance to WoT Connectivity 1.1
+## 12. Model identity and runtime conformance
 
 This clause describes what the model requires and what this implementation
 provides. It is a statement of the current state, not a history of how either
@@ -962,21 +963,28 @@ got here.
 
 ### 12.1 Model identity
 
-The information model is generated from the NodeSets the specifications publish,
-adopted verbatim rather than maintained by hand.
+The information model is generated from the reviewed draft NodeSets, adopted
+verbatim rather than maintained by hand. These are unpublished successor
+declarations, not a claim that every declared capability is implemented.
 
-| Model | Version | PublicationDate |
+| Model | Draft version | PublicationDate metadata |
 |---|---|---|
-| WoT Connectivity | `1.1` | 2026-09-05 |
-| WoT Binding | `1.1` | 2026-07-29 |
-| xRegistry (`RequiredModel`) | `0.6.0` | 2026-09-05 |
+| WoT Connectivity | `1.2` | 2026-09-12 |
+| xRegistry (`RequiredModel`) | `0.7.0` | 2026-09-12 |
 
-xRegistry contributes 117 nodes, including its native event hierarchy. The registry honours its
-reverse-authority construction algorithm for `GroupId` and `ResourceId` (§ 11.4),
-`SignAndEncrypt` on every mutating operation, and optional generic event semantics.
+xRegistry contributes 131 nodes and Connectivity 349. Both retain the Core
+`1.05.04` dependency with date `2025-01-08`, matching the incorporated legacy
+input. Binding vocabulary and protocol-format versions are independent of these
+NodeSet model identities; the Binding vocabulary is not a `RequiredModel`.
 
-Draft iterations are identified by the specification release label, for example
-`1.1-draft5`; they do not increment the information model version.
+The generated successor surface includes typed provisioning Methods, canonical
+capability snapshots, origin/dependency/plan Structures, event-binding descriptors
+and projection-group declarations. Generated classes and enum members are not
+runtime support discovery: a client must check the applicable server capability
+before using an optional contract. Runtime work for the complete successor
+provisioning, transaction, dependency and event-mode contracts is not yet complete.
+In particular, `All = 2` is a selector-only value, not a document kind: snapshot,
+creation, upload and executable-plan boundaries reject it.
 
 ### 12.2 Conformance units and profiles
 
