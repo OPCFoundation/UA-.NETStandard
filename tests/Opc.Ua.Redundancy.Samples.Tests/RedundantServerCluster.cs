@@ -35,6 +35,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using NUnit.Framework;
 
 namespace Opc.Ua.Redundancy.Samples.Tests
 {
@@ -229,6 +230,11 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 foreach (RedundantServerReplica replica in replicas)
                 {
                     await replica.Process.DisposeAsync().ConfigureAwait(false);
+                    TestContext.Out.WriteLine(
+                        "Sample server '{0}' startup output:{1}{2}",
+                        replica.NodeId,
+                        Environment.NewLine,
+                        replica.Process.GetOutputTail(40));
                 }
 
                 throw;
