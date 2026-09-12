@@ -18,6 +18,17 @@ stack:
    abstraction on top of the V2 engine for state-machine waits and
    short-lived monitoring.
 
+On the server, newly created monitored items remain provisional until
+the subscription rechecks ownership and deletion after node-manager
+creation. If transfer, session detachment, deletion, or cancellation wins,
+normal node-manager deletion releases those unattached items.
+
+Publish, queued Publish, Republish, and persistence consumers receive
+deep notification snapshots. Acknowledgement, eviction, or queue disposal
+can recycle the retained pooled graph without changing a response still
+waiting for encoding or a captured retransmission/durable snapshot.
+Pooling remains enabled for the retained notifications.
+
 **Recommendation:** new code should use the V2 surface
 (`ISubscriptionManager` for long-lived application subscriptions,
 `IStreamingSubscription` for short-lived / await-until-X scenarios).
@@ -31,6 +42,7 @@ pools, when to pick which) see
 [Sessions.md §4](Sessions.md#4-subscription-engines).
 
 - [Quick reference](#quick-reference)
+- [Server retransmission queues](#server-retransmission-queues)
 - [Triggering (SetTriggering)](#triggering-settriggering)
   - [Declarative triggering](#declarative-triggering)
   - [Imperative triggering](#imperative-triggering)
@@ -85,6 +97,26 @@ pools, when to pick which) see
 | Stream — buffer first N | `.BufferedAsync(count)` |
 | Stream — typed alarms | `streaming.SubscribeAlarmsAsync(notifierId, filter?)` |
 
+## Server retransmission queues
+
+The server retains notification messages for acknowledgement and Republish
+(Part 4 §5.14). When a new batch exceeds the configured retransmission capacity,
+only the excess oldest retained messages are evicted. The remaining sequence
+numbers, persistence removal deltas and discarded-unacknowledged-message
+diagnostics describe the same retained queue. An oversized new batch is trimmed
+to capacity before it displaces older messages.
+
+The per-session Publish request limit counts only requests still awaiting a
+response. Cancellation, timeout, normal completion and session/server teardown
+release a request's admission exactly once; a completed request does not prevent
+the client from queuing its replacement while a long keep-alive is pending.
+
+Publish from a live session without subscriptions returns `BadNoSubscription`,
+regardless of other sessions' subscriptions. A closing session retains
+`BadSessionClosed`. The Republish request and requested-message diagnostic
+counters remain equal, with one increment per authorized request; the
+successful-message counter advances only when a message is returned.
+
 ## Triggering (SetTriggering)
 
 Triggering (OPC UA Part 4 §5.13.5) links a *triggering* monitored
@@ -94,6 +126,12 @@ reported in the next publish even if their monitoring mode is
 `Sampling` (which would otherwise suppress reporting). This is the
 canonical pattern for "sample many items at high rate, report on
 demand". See Part 4 §5.13.1.6 for the full triggering model.
+
+Aggregate-filtered monitored items follow these same monitoring-mode rules
+(Part 4 5.13.1.3). Completion of an aggregate interval does not enable reporting
+for a `Disabled` item or an untriggered `Sampling` item. A legitimately triggered
+`Sampling` item can publish its queued aggregates; after that trigger is consumed,
+interval completion alone does not cause another report.
 
 The V2 engine exposes triggering through a **hybrid API**:
 
@@ -477,6 +515,10 @@ subscriptions regroup items into the same affinity-pinned partition
 the source had.
 
 ### Durable subscriptions
+
+The server converts the configured durable lifetime in hours to milliseconds
+before revising keep-alive and lifetime counts. The conversion uses wide
+arithmetic, including lifetimes longer than the UInt32 millisecond range.
 
 `SetAsDurableAsync(lifetime)` records the durable intent on the
 wrapper and applies it synchronously to every partition that is

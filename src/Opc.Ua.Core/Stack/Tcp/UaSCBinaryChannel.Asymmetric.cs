@@ -1415,15 +1415,23 @@ namespace Opc.Ua.Bindings
                 new ArraySegment<byte>(buffer.GetArray(), buffer.Offset, headerSize),
                 receiverCertificate!);
 
-            return FinishReadAsymmetricMessage(
-                plainText,
-                headerSize,
-                receiverCertificate,
-                senderCertificate,
-                oscRequestSignature,
-                out requestId,
-                out sequenceNumber,
-                out signature);
+            try
+            {
+                return FinishReadAsymmetricMessage(
+                    plainText,
+                    headerSize,
+                    receiverCertificate,
+                    senderCertificate,
+                    oscRequestSignature,
+                    out requestId,
+                    out sequenceNumber,
+                    out signature);
+            }
+            catch
+            {
+                BufferManager.ReturnBuffer(plainText.Array, nameof(ReadAsymmetricMessage));
+                throw;
+            }
         }
 
         /// <summary>
@@ -1517,18 +1525,26 @@ namespace Opc.Ua.Bindings
                 receiverCertificate!,
                 ct).ConfigureAwait(false);
 
-            ArraySegment<byte> body = FinishReadAsymmetricMessage(
-                plainText,
-                headerSize,
-                receiverCertificate,
-                senderCertificate,
-                oscRequestSignature,
-                out uint requestId,
-                out uint sequenceNumber,
-                out byte[] signature);
+            try
+            {
+                ArraySegment<byte> body = FinishReadAsymmetricMessage(
+                    plainText,
+                    headerSize,
+                    receiverCertificate,
+                    senderCertificate,
+                    oscRequestSignature,
+                    out uint requestId,
+                    out uint sequenceNumber,
+                    out byte[] signature);
 
-            return new AsymmetricMessage(
-                body, channelId, senderCertificate, requestId, sequenceNumber, signature);
+                return new AsymmetricMessage(
+                    body, channelId, senderCertificate, requestId, sequenceNumber, signature);
+            }
+            catch
+            {
+                BufferManager.ReturnBuffer(plainText.Array, nameof(ReadAsymmetricMessageAsync));
+                throw;
+            }
         }
 
         /// <summary>

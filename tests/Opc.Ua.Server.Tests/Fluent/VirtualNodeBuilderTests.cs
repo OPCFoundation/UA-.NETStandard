@@ -510,6 +510,48 @@ namespace Opc.Ua.Server.Tests.Fluent
             return item;
         }
 
+        [Test]
+        public async Task VirtualMonitoredSourcesReleaseEveryLiveInstanceAtShutdownAsync()
+        {
+            using var manager = new TestVirtualManager();
+            NodeId[] ids = [manager.VirtualId("FirstLive"), manager.VirtualId("SecondLive")];
+            var active = new HashSet<NodeId>();
+            var released = new List<NodeId>();
+            manager.Builder.ResolveNodes(id => Array.IndexOf(ids, id) >= 0, (_, id, _) =>
+                {
+                    BaseDataVariableState<int> node = BaseDataVariableState<int>.With<VariantBuilder>(null!);
+                    node.NodeId = id;
+                    node.BrowseName = new QualifiedName("Live", id.NamespaceIndex);
+                    node.DataType = DataTypeIds.Int32;
+                    return new ValueTask<NodeState?>(node);
+                })
+                .OnFirstSubscriber((_, source, _) =>
+                {
+                    active.Add(source.NodeId);
+                    return default;
+                })
+                .OnLastSubscriber((_, source, _) =>
+                {
+                    active.Remove(source.NodeId);
+                    released.Add(source.NodeId);
+                    return default;
+                })
+                .PollWhileMonitored(TimeSpan.FromHours(1), (_, _, _) => new ValueTask<int>(42));
+            await manager.Builder.SealAsync().ConfigureAwait(false);
+            for (int i = 0; i < ids.Length; i++)
+            {
+                (NodeHandle? handle, _) = await manager.ResolveAsync(ids[i], new Dictionary<NodeId, NodeState>())
+                    .ConfigureAwait(false);
+                Mock<ISampledDataChangeMonitoredItem> item = CreateMonitoredItem((uint)i + 1, ids[i]);
+                item.SetupGet(value => value.ManagerHandle).Returns(handle!);
+                await manager.NotifyCreatedAsync(handle!, item.Object).ConfigureAwait(false);
+            }
+            Assert.That(active, Is.EquivalentTo(ids));
+            await manager.DeleteAddressSpaceAsync().ConfigureAwait(false);
+            Assert.That(active, Is.Empty);
+            Assert.That(released, Is.EquivalentTo(ids));
+        }
+
         private sealed class TestVirtualManager : FluentNodeManagerBase
         {
             public TestVirtualManager()

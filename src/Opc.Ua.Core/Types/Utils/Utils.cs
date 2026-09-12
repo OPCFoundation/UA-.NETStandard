@@ -248,7 +248,7 @@ namespace Opc.Ua
         /// <param name="url">The url</param>
         public static bool IsUriHttpRelatedScheme(string url)
         {
-            return url.StartsWith(UriSchemeHttps, StringComparison.Ordinal) ||
+            return url.StartsWith(UriSchemeHttp, StringComparison.Ordinal) ||
                 IsUriHttpsScheme(url);
         }
 
@@ -1511,7 +1511,8 @@ namespace Opc.Ua
                 document.LoadInnerXml(xml);
             }
 
-            if (document.DocumentElement == null)
+            if (document.DocumentElement == null &&
+                !EqualityComparer<T>.Default.Equals(value!, default!))
             {
                 return;
             }

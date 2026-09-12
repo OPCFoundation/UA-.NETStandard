@@ -1778,12 +1778,6 @@ namespace Opc.Ua.Server
             }
             ThrowIfDeleted();
 
-            lock (m_diagnosticsLock)
-            {
-                Diagnostics.RepublishMessageRequestCount++;
-                MarkDiagnosticsDirty();
-            }
-
             lock (m_lock)
             {
                 // check session.
@@ -2152,102 +2146,142 @@ namespace Opc.Ua.Server
                 filterResults.Add(null!);
             }
 
-            await m_server.NodeManager.CreateMonitoredItemsAsync(
-                context,
-                Id,
-                m_publishingInterval,
-                timestampsToReturn,
-                itemsToCreate,
-                errors,
-                filterResults,
-                monitoredItems,
-                IsDurable,
-                cancellationToken).ConfigureAwait(false);
-
-            // allocate results.
-            bool diagnosticsExist = false;
-            var results = new List<MonitoredItemCreateResult>(count);
-            List<DiagnosticInfo>? diagnosticInfos = null;
-            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+            bool ownershipTransferred = false;
+            try
             {
-                diagnosticInfos = new List<DiagnosticInfo>(count);
-            }
+                await m_server.NodeManager.CreateMonitoredItemsAsync(
+                    context,
+                    Id,
+                    m_publishingInterval,
+                    timestampsToReturn,
+                    itemsToCreate,
+                    errors,
+                    filterResults,
+                    monitoredItems,
+                    IsDurable,
+                    cancellationToken).ConfigureAwait(false);
 
-            lock (m_lock)
-            {
-                // check session again after CreateMonitoredItems.
-                VerifySession(context);
-
-                for (int ii = 0; ii < errors.Count; ii++)
+                bool diagnosticsExist = false;
+                var results = new List<MonitoredItemCreateResult>(count);
+                List<DiagnosticInfo>? diagnosticInfos = null;
+                if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                 {
-                    // update results.
-                    MonitoredItemCreateResult? result = null;
-
-                    if (ServiceResult.IsBad(errors[ii]))
-                    {
-                        result = new MonitoredItemCreateResult { StatusCode = errors[ii].Code };
-
-                        if (filterResults[ii] != null)
-                        {
-                            result.FilterResult = new ExtensionObject(filterResults[ii]);
-                        }
-                    }
-                    else
-                    {
-                        IMonitoredItem monitoredItem = monitoredItems[ii];
-
-                        if (monitoredItem != null)
-                        {
-                            monitoredItem.SubscriptionCallback = this;
-
-                            LinkedListNode<IMonitoredItem> node = m_itemsToCheck.AddLast(
-                                monitoredItem);
-                            m_monitoredItems.Add(monitoredItem.Id, node);
-
-                            errors[ii] = monitoredItem.GetCreateResult(out result);
-
-                            // update sampling interval diagnostics.
-                            AddItemToSamplingInterval(
-                                result.RevisedSamplingInterval,
-                                itemsToCreate[ii].MonitoringMode);
-                        }
-                    }
-
-                    results.Add(result!);
-
-                    // update diagnostics.
-                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        DiagnosticInfo? diagnosticInfo = null;
-
-                        if (errors[ii] != null && errors[ii].Code != StatusCodes.Good)
-                        {
-                            diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
-                                m_server,
-                                context,
-                                errors[ii],
-                                m_logger);
-                            diagnosticsExist = true;
-                        }
-
-                        diagnosticInfos!.Add(diagnosticInfo!);
-                    }
+                    diagnosticInfos = new List<DiagnosticInfo>(count);
                 }
 
-                // clear diagnostics if not required.
-                if (!diagnosticsExist && diagnosticInfos != null)
+                lock (m_lock)
                 {
-                    diagnosticInfos.Clear();
+                    cancellationToken.ThrowIfCancellationRequested();
+                    ThrowIfDeleted();
+                    VerifySession(context);
+                    ownershipTransferred = true;
+
+                    for (int ii = 0; ii < errors.Count; ii++)
+                    {
+                        MonitoredItemCreateResult? result = null;
+                        if (ServiceResult.IsBad(errors[ii]))
+                        {
+                            result = new MonitoredItemCreateResult { StatusCode = errors[ii].Code };
+
+                            if (filterResults[ii] != null)
+                            {
+                                result.FilterResult = new ExtensionObject(filterResults[ii]);
+                            }
+                        }
+                        else
+                        {
+                            IMonitoredItem monitoredItem = monitoredItems[ii];
+                            if (monitoredItem != null)
+                            {
+                                monitoredItem.SubscriptionCallback = this;
+
+                                LinkedListNode<IMonitoredItem> node = m_itemsToCheck.AddLast(monitoredItem);
+                                m_monitoredItems.Add(monitoredItem.Id, node);
+
+                                errors[ii] = monitoredItem.GetCreateResult(out result);
+
+                                AddItemToSamplingInterval(
+                                    result.RevisedSamplingInterval,
+                                    itemsToCreate[ii].MonitoringMode);
+                            }
+                        }
+
+                        results.Add(result!);
+
+                        if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                        {
+                            DiagnosticInfo? diagnosticInfo = null;
+                            if (errors[ii] != null && errors[ii].Code != StatusCodes.Good)
+                            {
+                                diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
+                                    m_server, context, errors[ii], m_logger);
+                                diagnosticsExist = true;
+                            }
+
+                            diagnosticInfos!.Add(diagnosticInfo!);
+                        }
+                    }
+                    if (!diagnosticsExist && diagnosticInfos != null)
+                    {
+                        diagnosticInfos.Clear();
+                    }
+                    TraceState(LogLevel.Information, TraceStateId.Items, "ITEMS CREATED");
                 }
-
-                TraceState(LogLevel.Information, TraceStateId.Items, "ITEMS CREATED");
+                return new CreateMonitoredItemsResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos!
+                };
             }
-
-            return new CreateMonitoredItemsResponse
+            finally
             {
-                Results = results,
-                DiagnosticInfos = diagnosticInfos!
-            };
+                if (!ownershipTransferred)
+                {
+                    await DeleteUnattachedMonitoredItemsAsync(context, monitoredItems).ConfigureAwait(false);
+                }
+            }
+        }
+
+        private async ValueTask DeleteUnattachedMonitoredItemsAsync(
+            OperationContext context,
+            List<IMonitoredItem> monitoredItems)
+        {
+            List<IMonitoredItem> created = monitoredItems.FindAll(item => item != null);
+            if (created.Count == 0)
+            {
+                return;
+            }
+            var errors = new ServiceResult[created.Count];
+            try
+            {
+                await m_server.NodeManager.DeleteMonitoredItemsAsync(
+                    context, Id, created, errors, CancellationToken.None).ConfigureAwait(false);
+                foreach (ServiceResult error in errors)
+                {
+                    if (ServiceResult.IsBad(error))
+                    {
+                        m_logger.DeleteItemsForSubscriptionFailed(error.GetServiceResultException());
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.DeleteItemsForSubscriptionFailed(ex);
+            }
+            finally
+            {
+                foreach (IMonitoredItem item in created)
+                {
+                    try
+                    {
+                        item.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.DeleteItemsForSubscriptionFailed(ex);
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -3107,30 +3141,33 @@ namespace Opc.Ua.Server
         /// </summary>
         public IStoredSubscription ToStorableSubscription()
         {
-            var monitoredItemsToStore = new List<IStoredMonitoredItem>();
-
-            foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> kvp in m_monitoredItems)
+            lock (m_lock)
             {
-                monitoredItemsToStore.Add(kvp.Value.Value.ToStorableMonitoredItem());
+                var monitoredItemsToStore = new List<IStoredMonitoredItem>();
+
+                foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> kvp in m_monitoredItems)
+                {
+                    monitoredItemsToStore.Add(kvp.Value.Value.ToStorableMonitoredItem());
+                }
+
+                return new StoredSubscription
+                {
+                    SentMessages = m_messageQueue.CreateSnapshot(),
+                    Id = Id,
+                    SequenceNumber = m_messageQueue.NextSequenceNumber,
+                    LastSentMessage = m_messageQueue.LastSentMessage,
+                    LifetimeCounter = m_lifetimeCounter,
+                    MaxKeepaliveCount = m_maxKeepAliveCount,
+                    MaxLifetimeCount = m_maxLifetimeCount,
+                    MaxMessageCount = m_messageQueue.MaxMessageCount,
+                    MaxNotificationsPerPublish = m_maxNotificationsPerPublish,
+                    Priority = Priority,
+                    PublishingInterval = PublishingInterval,
+                    UserIdentityToken = EffectiveIdentity?.TokenHandler.Token!,
+                    MonitoredItems = monitoredItemsToStore,
+                    IsDurable = IsDurable
+                };
             }
-
-            return new StoredSubscription
-            {
-                SentMessages = m_messageQueue.SentMessages,
-                Id = Id,
-                SequenceNumber = m_messageQueue.NextSequenceNumber,
-                LastSentMessage = m_messageQueue.LastSentMessage,
-                LifetimeCounter = m_lifetimeCounter,
-                MaxKeepaliveCount = m_maxKeepAliveCount,
-                MaxLifetimeCount = m_maxLifetimeCount,
-                MaxMessageCount = m_messageQueue.MaxMessageCount,
-                MaxNotificationsPerPublish = m_maxNotificationsPerPublish,
-                Priority = Priority,
-                PublishingInterval = PublishingInterval,
-                UserIdentityToken = EffectiveIdentity?.TokenHandler.Token!,
-                MonitoredItems = monitoredItemsToStore,
-                IsDurable = IsDurable
-            };
         }
 
         /// <summary>

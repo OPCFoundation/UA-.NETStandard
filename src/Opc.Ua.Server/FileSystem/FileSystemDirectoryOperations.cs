@@ -64,8 +64,9 @@ namespace Opc.Ua.Server.FileSystem
             string newPath = host.CombineProviderPath(providerPath, directoryName);
             try
             {
-                await host.Provider.CreateDirectoryAsync(newPath, cancellationToken).ConfigureAwait(false);
-                await host.OnProviderChangedAsync(cancellationToken).ConfigureAwait(false);
+                await host.ApplyMutationAsync(
+                    FileSystemMutationKind.CreateDirectory, newPath, string.Empty, NodeId.Null, cancellationToken)
+                    .ConfigureAwait(false);
                 return new CreateDirectoryMethodStateResult
                 {
                     ServiceResult = ServiceResult.Good,
@@ -133,8 +134,9 @@ namespace Opc.Ua.Server.FileSystem
             NodeId fileNodeId = host.BuildFileNodeId(newPath);
             try
             {
-                await host.Provider.CreateFileAsync(newPath, cancellationToken).ConfigureAwait(false);
-                await host.OnProviderChangedAsync(cancellationToken).ConfigureAwait(false);
+                await host.ApplyMutationAsync(
+                    FileSystemMutationKind.CreateFile, newPath, string.Empty, NodeId.Null, cancellationToken)
+                    .ConfigureAwait(false);
                 if (!requestFileOpen)
                 {
                     return new CreateFileMethodStateResult
@@ -155,7 +157,8 @@ namespace Opc.Ua.Server.FileSystem
                     };
                 }
 
-                ServiceResult openResult = handle.Open(sessionId, 0x6, out uint fileHandle);
+                (ServiceResult openResult, uint fileHandle) = await handle.OpenAsync(sessionId, 0x6, cancellationToken)
+                    .ConfigureAwait(false);
                 return new CreateFileMethodStateResult
                 {
                     ServiceResult = openResult,
@@ -210,7 +213,7 @@ namespace Opc.Ua.Server.FileSystem
                         "Not a file-system object.")
                 };
             }
-            if (isRoot)
+            if (isRoot || string.IsNullOrEmpty(providerPath))
             {
                 return new DeleteFileMethodStateResult
                 {
@@ -221,9 +224,9 @@ namespace Opc.Ua.Server.FileSystem
 
             try
             {
-                await host.Provider.DeleteAsync(providerPath, cancellationToken).ConfigureAwait(false);
-                host.ForgetHandle(objectToDelete);
-                await host.OnProviderChangedAsync(cancellationToken).ConfigureAwait(false);
+                await host.ApplyMutationAsync(
+                    FileSystemMutationKind.Delete, providerPath, string.Empty, objectToDelete, cancellationToken)
+                    .ConfigureAwait(false);
                 return new DeleteFileMethodStateResult { ServiceResult = ServiceResult.Good };
             }
             catch (FileNotFoundException ex)
@@ -278,7 +281,7 @@ namespace Opc.Ua.Server.FileSystem
             }
             if (!host.TryGetProviderPath(objectToMoveOrCopy, out string sourcePath, out bool sourceIsDirectory,
                     out bool sourceIsRoot) ||
-                sourceIsRoot)
+                sourceIsRoot || string.IsNullOrEmpty(sourcePath))
             {
                 return new MoveOrCopyMethodStateResult
                 {
@@ -307,17 +310,9 @@ namespace Opc.Ua.Server.FileSystem
 
             try
             {
-                if (createCopy)
-                {
-                    await host.Provider.CopyAsync(sourcePath, targetPath, cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    await host.Provider.MoveAsync(sourcePath, targetPath, cancellationToken).ConfigureAwait(false);
-                    host.ForgetHandle(objectToMoveOrCopy);
-                }
-
-                await host.OnProviderChangedAsync(cancellationToken).ConfigureAwait(false);
+                await host.ApplyMutationAsync(
+                    createCopy ? FileSystemMutationKind.Copy : FileSystemMutationKind.Move,
+                    sourcePath, targetPath, objectToMoveOrCopy, cancellationToken).ConfigureAwait(false);
                 NodeId newNodeId = sourceIsDirectory
                     ? host.BuildDirectoryNodeId(targetPath)
                     : host.BuildFileNodeId(targetPath);
@@ -358,6 +353,38 @@ namespace Opc.Ua.Server.FileSystem
                     ServiceResult = ServiceResult.Create(ex, StatusCodes.BadBrowseNameDuplicated,
                         "Failed to move or copy.")
                 };
+            }
+        }
+
+        public static async ValueTask ApplyProviderMutationAsync(
+            IFileSystemHost host,
+            FileSystemMutationKind kind,
+            string path,
+            string targetPath,
+            NodeId sourceNodeId,
+            CancellationToken cancellationToken)
+        {
+            switch (kind)
+            {
+                case FileSystemMutationKind.CreateFile:
+                    await host.Provider.CreateFileAsync(path, cancellationToken).ConfigureAwait(false);
+                    break;
+                case FileSystemMutationKind.CreateDirectory:
+                    await host.Provider.CreateDirectoryAsync(path, cancellationToken).ConfigureAwait(false);
+                    break;
+                case FileSystemMutationKind.Delete:
+                    await host.Provider.DeleteAsync(path, cancellationToken).ConfigureAwait(false);
+                    host.ForgetHandle(sourceNodeId);
+                    break;
+                case FileSystemMutationKind.Move:
+                    await host.Provider.MoveAsync(path, targetPath, cancellationToken).ConfigureAwait(false);
+                    host.ForgetHandle(sourceNodeId);
+                    break;
+                case FileSystemMutationKind.Copy:
+                    await host.Provider.CopyAsync(path, targetPath, cancellationToken).ConfigureAwait(false);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(kind));
             }
         }
 

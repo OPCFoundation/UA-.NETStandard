@@ -424,8 +424,7 @@ namespace Opc.Ua
         /// </summary>
         public ushort GetMinKeySize(SecurityConfiguration securityConfiguration)
         {
-            if (CertificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
-                CertificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType ||
+            if (IsRsaCertificateType(CertificateType) ||
                 securityConfiguration.IsDeprecatedConfiguration
             ) // Deprecated configurations are implicitly RSA
             {
@@ -507,15 +506,22 @@ namespace Opc.Ua
                     break;
                 default:
                     // TODO: check SHA1/key size
-                    if (certificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType ||
-                        certificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
-                        certificateType == ObjectTypeIds.ApplicationCertificateType)
+                    if (IsRsaCertificateType(certificateType))
                     {
                         return true;
                     }
                     break;
             }
             return false;
+        }
+
+        internal static bool IsRsaCertificateType(NodeId certificateType)
+        {
+            return certificateType.IsNull ||
+                certificateType == ObjectTypeIds.ApplicationCertificateType ||
+                certificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
+                certificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType ||
+                certificateType == ObjectTypeIds.HttpsCertificateType;
         }
 
         /// <summary>

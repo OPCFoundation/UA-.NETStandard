@@ -63,7 +63,7 @@ namespace Opc.Ua.Server
     /// claiming a persistence it does not provide.
     /// </para>
     /// </remarks>
-    public sealed class HardwarePendingCertificateKeyStore : IPendingCertificateKeyStore
+    public sealed class HardwarePendingCertificateKeyStore : IMatchingPendingCertificateKeyStore
     {
         /// <summary>
         /// Initializes a store that opens the group's configured store.
@@ -95,10 +95,19 @@ namespace Opc.Ua.Server
         /// caller can fall back to a store that knows how to protect exportable
         /// key material rather than this one silently mishandling it.
         /// </remarks>
-        public async ValueTask<bool> SaveAsync(
+        public ValueTask<bool> SaveAsync(
             PendingCertificateKeyContext context,
             Certificate certificateWithPrivateKey,
             CancellationToken cancellationToken = default)
+        {
+            return PendingCertificateKeyStoreOperations.RunAsync(
+                context, ct => SaveCoreAsync(context, certificateWithPrivateKey, ct), cancellationToken);
+        }
+
+        private async ValueTask<bool> SaveCoreAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificateWithPrivateKey,
+            CancellationToken cancellationToken)
         {
             if (context is null)
             {
@@ -128,7 +137,7 @@ namespace Opc.Ua.Server
             using ICertificateStore? staging = OpenStagingStore(context);
             if (staging == null)
             {
-                return false;
+                throw new ServiceResultException(StatusCodes.BadNotSupported, "The pending-key scope cannot be restored.");
             }
 
             // Replace whatever was staged for this scope before, per the
@@ -157,9 +166,70 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask<Certificate?> TryTakeAsync(
+        public ValueTask<Certificate?> TryTakeAsync(
             PendingCertificateKeyContext context,
             CancellationToken cancellationToken = default)
+        {
+            return PendingCertificateKeyStoreOperations.RunAsync(
+                context, ct => TryTakeCoreAsync(context, null, ct), cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<Certificate?> TryTakeMatchingAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificate,
+            CancellationToken cancellationToken = default)
+        {
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+            return PendingCertificateKeyStoreOperations.RunAsync(
+                context, ct => TryTakeCoreAsync(context, certificate, ct), cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<bool> TryRestoreAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificateWithPrivateKey,
+            CancellationToken cancellationToken = default)
+        {
+            return PendingCertificateKeyStoreOperations.RunAsync(
+                context, ct => RestoreCoreAsync(context, certificateWithPrivateKey, ct), cancellationToken);
+        }
+
+        private async ValueTask<bool> RestoreCoreAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificate,
+            CancellationToken ct)
+        {
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+            using (ICertificateStore? staging = OpenStagingStore(context))
+            {
+                if (staging == null)
+                {
+                    return false;
+                }
+                using CertificateCollection entries = await staging.EnumerateAsync(ct).ConfigureAwait(false);
+                if (entries.Count != 0)
+                {
+                    return false;
+                }
+            }
+            if (!await SaveCoreAsync(context, certificate, ct).ConfigureAwait(false))
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported, "The pending signing key could not be restored.");
+            }
+            return true;
+        }
+
+        private async ValueTask<Certificate?> TryTakeCoreAsync(
+            PendingCertificateKeyContext context,
+            Certificate? matchingCertificate,
+            CancellationToken cancellationToken)
         {
             if (context is null)
             {
@@ -197,32 +267,64 @@ namespace Opc.Ua.Server
             // never left the device, so it is loaded from the group's own store.
             Certificate? pending = null;
 
-            using (ICertificateStore? device = OpenDeviceStore(context))
+            try
             {
-                if (device != null)
+                using (ICertificateStore? device = OpenDeviceStore(context))
                 {
-                    pending = await device
-                        .LoadPrivateKeyAsync(
-                            thumbprint,
-                            null,
-                            null,
-                            context.CertificateTypeId,
-                            password,
-                            cancellationToken)
-                        .ConfigureAwait(false);
+                    if (device != null)
+                    {
+                        pending = await device
+                            .LoadPrivateKeyAsync(
+                                thumbprint,
+                                null,
+                                null,
+                                context.CertificateTypeId,
+                                password,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                }
+                if (pending == null ||
+                    (matchingCertificate != null && !X509Utils.VerifyKeyPair(matchingCertificate, pending)))
+                {
+                    return null;
+                }
+                if (!await staging.DeleteAsync(thumbprint, cancellationToken).ConfigureAwait(false))
+                {
+                    return null;
+                }
+                Certificate taken = pending;
+                pending = null;
+                return taken;
+            }
+            finally
+            {
+                pending?.Dispose();
+                if (password != null)
+                {
+                    Array.Clear(password, 0, password.Length);
                 }
             }
-
-            // Consume it: the contract hands a pending key out exactly once.
-            await staging.DeleteAsync(thumbprint, cancellationToken).ConfigureAwait(false);
-
-            return pending;
         }
 
         /// <inheritdoc/>
         public async ValueTask RemoveAsync(
             PendingCertificateKeyContext context,
             CancellationToken cancellationToken = default)
+        {
+            await PendingCertificateKeyStoreOperations.RunAsync(
+                context,
+                async ct =>
+                {
+                    await RemoveCoreAsync(context, ct).ConfigureAwait(false);
+                    return true;
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        private async ValueTask RemoveCoreAsync(
+            PendingCertificateKeyContext context,
+            CancellationToken cancellationToken)
         {
             if (context is null)
             {

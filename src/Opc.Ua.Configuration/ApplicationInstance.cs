@@ -961,10 +961,7 @@ namespace Opc.Ua.Configuration
 
             Certificate newCertificate = KeyPairGenerator.CreateCertificate(
                 builder, id.CertificateType, minimumKeySize);
-            if (id.CertificateType.IsNull ||
-                id.CertificateType == ObjectTypeIds.ApplicationCertificateType ||
-                id.CertificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
-                id.CertificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
+            if (CertificateIdentifier.IsRsaCertificateType(id.CertificateType))
             {
                 m_logger.CertificateCreatedForRsa(
                     newCertificate,

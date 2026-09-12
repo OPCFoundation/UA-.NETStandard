@@ -135,6 +135,12 @@ Per Part 3 4.9 and Part 18 4.3 the default `RoleManager` rules already grant:
 - `AuthenticatedUser` for any session with a non-anonymous token;
 - `TrustedApplication` when the session was authenticated with a trusted ApplicationInstance certificate over a signed channel.
 
+Any nonempty `Applications` filter requires a signed channel and an
+application certificate, including when `ApplicationsExclude` is true.
+The `Thumbprint` and `X509Subject` identity criteria evaluate the authenticated
+**user** certificate, not the application's channel certificate. `Application`
+and `TrustedApplication` criteria continue to evaluate application identity.
+
 Additional identity-mapping rules are evaluated by `IRoleManager.ResolveGrantedRoles` after authentication. New integrations should expose claims through `IIdentityClaims` and add `IdentityMappingRuleType` entries to the role manager.
 
 ### User Management (Part 18 §5)
@@ -171,8 +177,13 @@ serverInternal.SetUserManagement(userManagement);
 `RemoveUser` and `ChangePassword` method-state proxies, enforces
 `RoleAuthorizationGate.CheckAdmin` on the admin methods (SecurityAdmin +
 SignAndEncrypt) and `RoleAuthorizationGate.CheckSelfUserName` on
-`ChangePassword`, and closes any active sessions for a deactivated user
-via the supplied `ISessionManager`.
+`ChangePassword`, and closes a deactivated user's sessions **and
+subscriptions** through the server's coordinated teardown. `ModifyUser`
+and `RemoveUser` wait for that teardown before reporting success.
+The binding resolves the server's session manager when needed because
+the diagnostics address space is created before the session manager.
+External deactivation notifications are tracked; `DisposeAsync` drains
+accepted work, and the configuration manager awaits it during shutdown.
 
 Spec result codes honoured:
 
@@ -189,6 +200,19 @@ The `IUserDatabase` interface (`Opc.Ua.Server.UserDatabase.IUserDatabase`) remai
 
 - `LinqUserDatabase` - in-memory.
 - `JsonUserDatabase` - JSON file backed.
+
+The JSON testing/sample database publishes a complete temporary snapshot
+through atomic file replacement. Failed writes leave the previous file
+intact, and saves are serialized per database instance. Missing files
+initialize an empty database; malformed or inaccessible files are logged
+and reported as errors instead of silently becoming empty databases.
+
+Password verification uses the shared fixed-time comparison with the
+expected derived-key width and clears working key/password buffers on
+every exit. Unknown users perform bounded dummy-key verification, and
+inactive users still perform credential verification before access is
+denied. This equalizes the expensive verification work; it is not a claim
+that all surrounding application behavior has constant execution time.
 
 External implementations may be provided by integrators (e.g. backed by SQL, LDAP, or a vendor-specific store).
 

@@ -83,7 +83,7 @@ namespace Opc.Ua.Server
             MaxMessageCount = maxMessageCount;
             m_retransmissionStore = retransmissionStore;
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            SentMessages = sentMessages;
+            SentMessages = sentMessages.ConvertAll(message => CoreUtils.Clone(message)!);
             m_sequenceNumber = nextSequenceNumber;
             m_lastSentMessage = lastSentMessage;
         }
@@ -136,6 +136,14 @@ namespace Opc.Ua.Server
         public List<NotificationMessage> SentMessages { get; }
 
         /// <summary>
+        /// Creates a detached snapshot whose payloads survive recycling of the retained messages.
+        /// </summary>
+        public List<NotificationMessage> CreateSnapshot()
+        {
+            return SentMessages.ConvertAll(message => CoreUtils.Clone(message)!);
+        }
+
+        /// <summary>
         /// Consumes and returns the next sequence number, advancing the counter.
         /// </summary>
         public uint AssignSequenceNumber()
@@ -168,7 +176,7 @@ namespace Opc.Ua.Server
 
                 moreNotifications = (m_lastSentMessage < SentMessages.Count - 1) || hasItemsToPublish;
 
-                return SentMessages[m_lastSentMessage++];
+                return CoreUtils.Clone(SentMessages[m_lastSentMessage++])!;
             }
 
             return null;
@@ -193,8 +201,7 @@ namespace Opc.Ua.Server
         /// <param name="availableSequenceNumbers">Receives the sequence numbers still available for republish.</param>
         /// <param name="moreNotifications">Set to <c>true</c> when more messages remain to be published.</param>
         /// <param name="newlyUnacknowledgedCount">
-        /// The number of messages that displaced older unacknowledged ones (for diagnostics); <c>0</c> when the queue
-        /// was not full.
+        /// The number of older unacknowledged messages evicted (for diagnostics); <c>0</c> when no eviction was needed.
         /// </param>
         public NotificationMessage Enqueue(
             List<NotificationMessage> messages,
@@ -205,7 +212,7 @@ namespace Opc.Ua.Server
             newlyUnacknowledgedCount = 0;
 
             // have to drop unsent messages if out of queue space.
-            int overflowCount = messages.Count - (int)MaxMessageCount;
+            int overflowCount = (int)Math.Max(0, (long)messages.Count - MaxMessageCount);
             if (overflowCount > 0)
             {
                 m_logger.WARNINGQUEUEOVERFLOWDroppingCountMessagesIncrease(overflowCount, Id, MaxMessageCount);
@@ -218,35 +225,21 @@ namespace Opc.Ua.Server
 
             ArrayOf<uint> removedSequenceNumbers = m_retransmissionStore == null ? default : [];
 
-            // remove old messages if queue is full.
-            if (SentMessages.Count > MaxMessageCount - messages.Count)
+            // Only the excess over capacity displaces previously retained messages.
+            int evictionCount = (int)Math.Max(0, (long)SentMessages.Count + messages.Count - MaxMessageCount);
+            if (evictionCount > 0)
             {
-                newlyUnacknowledgedCount = (uint)messages.Count;
+                newlyUnacknowledgedCount = (uint)evictionCount;
 
-                if (MaxMessageCount <= messages.Count)
+                if (m_retransmissionStore != null)
                 {
-                    if (m_retransmissionStore != null)
-                    {
-                        removedSequenceNumbers = GetSequenceNumbers(SentMessages, SentMessages.Count);
-                    }
-                    for (int ii = 0; ii < SentMessages.Count; ii++)
-                    {
-                        ReuseNotificationPayloads(SentMessages[ii]);
-                    }
-                    SentMessages.Clear();
+                    removedSequenceNumbers = GetSequenceNumbers(SentMessages, evictionCount);
                 }
-                else
+                for (int ii = 0; ii < evictionCount; ii++)
                 {
-                    if (m_retransmissionStore != null)
-                    {
-                        removedSequenceNumbers = GetSequenceNumbers(SentMessages, messages.Count);
-                    }
-                    for (int ii = 0; ii < messages.Count; ii++)
-                    {
-                        ReuseNotificationPayloads(SentMessages[ii]);
-                    }
-                    SentMessages.RemoveRange(0, messages.Count);
+                    ReuseNotificationPayloads(SentMessages[ii]);
                 }
+                SentMessages.RemoveRange(0, evictionCount);
             }
 
             // save new message
@@ -263,7 +256,7 @@ namespace Opc.Ua.Server
                 availableSequenceNumbers.Add(SentMessages[ii].SequenceNumber);
             }
 
-            return SentMessages[m_lastSentMessage++];
+            return CoreUtils.Clone(SentMessages[m_lastSentMessage++])!;
         }
 
         /// <summary>
@@ -302,7 +295,7 @@ namespace Opc.Ua.Server
             {
                 if (sentMessage.SequenceNumber == retransmitSequenceNumber)
                 {
-                    return sentMessage;
+                    return CoreUtils.Clone(sentMessage)!;
                 }
             }
 
@@ -343,8 +336,8 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            SentMessages.Clear();
-            SentMessages.AddRange(state.SentMessages);
+            Clear();
+            SentMessages.AddRange(state.SentMessages.ConvertAll(message => CoreUtils.Clone(message)!));
             m_sequenceNumber = state.NextSequenceNumber;
             m_lastSentMessage = SentMessages.Count;
         }
@@ -375,12 +368,12 @@ namespace Opc.Ua.Server
                 deltaStore.StoreRetransmissionStateDelta(
                     Id,
                     m_sequenceNumber,
-                    new ArrayOf<NotificationMessage>(addedMessages.ToArray()),
+                    addedMessages.Select(message => CoreUtils.Clone(message)!).ToArrayOf(),
                     removedSequenceNumbers);
                 return;
             }
 
-            m_retransmissionStore.StoreRetransmissionState(Id, m_sequenceNumber, [.. SentMessages]);
+            m_retransmissionStore.StoreRetransmissionState(Id, m_sequenceNumber, [.. CreateSnapshot()]);
         }
 
         private static ArrayOf<uint> GetSequenceNumbers(List<NotificationMessage> messages, int count)

@@ -104,6 +104,11 @@ namespace Opc.Ua
         public const int EventSourceRegistry = 150;
 
         /// <summary>
+        /// Event identifier offset for materialized file-directory binding messages.
+        /// </summary>
+        public const int FileDirectoryBinder = 610;
+
+        /// <summary>
         /// Event identifier offset for historian sample capture messages.
         /// </summary>
         public const int HistorianCaptureSink = 170;
@@ -267,6 +272,31 @@ namespace Opc.Ua
         /// Event identifier offset for historian event capture messages.
         /// </summary>
         public const int HistorianEventCapture = 600;
+
+        /// <summary>
+        /// Event identifier offset for state-machine lifecycle messages.
+        /// </summary>
+        public const int StateMachineBuilder = 620;
+
+        /// <summary>
+        /// Event identifier offset for fluent state-machine lifecycle messages.
+        /// </summary>
+        public const int FluentStateMachineBuilder = 630;
+
+        /// <summary>
+        /// Event identifier offset for KeyCredential push messages.
+        /// </summary>
+        public const int KeyCredentialPushSubject = 640;
+
+        /// <summary>
+        /// Event identifier offset for deferred node-manager cleanup.
+        /// </summary>
+        public const int NodeManagerDisposal = 650;
+
+        /// <summary>
+        /// Event identifier offset for pending certificate-key compensation.
+        /// </summary>
+        public const int PendingCertificateKey = 660;
     }
 
     /// <summary>

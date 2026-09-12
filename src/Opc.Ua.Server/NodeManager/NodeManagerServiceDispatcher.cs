@@ -761,147 +761,117 @@ namespace Opc.Ua.Server
             var results = new List<BrowseResult>(continuationPoints.Count);
             var diagnosticInfos = new List<DiagnosticInfo>(continuationPoints.Count);
 
-            uint continuationPointsAssigned = 0;
-
-            for (int ii = 0; ii < continuationPoints.Count; ii++)
+            bool completed = false;
+            try
             {
-                ContinuationPoint? cp;
-
-                // check if request has timed out or been canceled.
-                if (StatusCode.IsBad(context.OperationStatus))
+                uint continuationPointsAssigned = 0;
+                for (int ii = 0; ii < continuationPoints.Count; ii++)
                 {
-                    // release all allocated continuation points.
-                    foreach (BrowseResult current in results)
+                    if (StatusCode.IsBad(context.OperationStatus))
                     {
-                        if (current != null && !current.ContinuationPoint.IsEmpty)
-                        {
-                            cp = context.Session
-                                .ContinuationPoints.RestoreBrowse(current.ContinuationPoint);
-                            cp?.Dispose();
-                        }
+                        throw new ServiceResultException(context.OperationStatus);
                     }
 
-                    throw new ServiceResultException(context.OperationStatus);
-                }
-
-                // find the continuation point.
-                cp = context.Session.ContinuationPoints.RestoreBrowse(continuationPoints[ii]);
-
-                // validate access rights and role permissions
-                if (cp != null)
-                {
-                    ServiceResult validationResult = await ValidatePermissionsAsync(
-                            context,
-                            cp.Manager,
-                            cp.NodeToBrowse,
-                            PermissionType.Browse,
-                            null,
-                            true,
-                            cancellationToken)
-                        .ConfigureAwait(false);
-                    if (ServiceResult.IsBad(validationResult))
-                    {
-                        var badResult = new BrowseResult
-                        {
-                            StatusCode = validationResult.Code,
-                            ContinuationPoint = default
-                        };
-                        results.Add(badResult);
-
-                        // put placeholder for diagnostics
-                        diagnosticInfos.Add(null!);
-                        continue;
-                    }
-                }
-
-                // initialize result.
-                var result = new BrowseResult
-                {
-                    StatusCode = StatusCodes.Good,
-                    ContinuationPoint = default
-                };
-                results.Add(result);
-
-                // check if simply releasing the continuation point.
-                if (releaseContinuationPoints)
-                {
-                    cp?.Dispose();
-
-                    continue;
-                }
-
-                ServiceResult? error = null;
-
-                // check if continuation point has expired.
-                if (cp == null)
-                {
-                    error = StatusCodes.BadContinuationPointInvalid;
-                }
-
-                if (cp != null)
-                {
-                    // need to trap unexpected exceptions to handle bugs in the node managers.
+                    ContinuationPoint? cp = context.Session.ContinuationPoints.RestoreBrowse(continuationPoints[ii]);
+                    ContinuationPoint? ownedCp = cp;
                     try
                     {
-                        ArrayOf<ReferenceDescription> references = result.References;
+                        if (cp != null)
+                        {
+                            ServiceResult validationResult = await ValidatePermissionsAsync(
+                                context, cp.Manager, cp.NodeToBrowse, PermissionType.Browse,
+                                null, true, cancellationToken).ConfigureAwait(false);
+                            if (ServiceResult.IsBad(validationResult))
+                            {
+                                results.Add(new BrowseResult
+                                {
+                                    StatusCode = validationResult.Code,
+                                    ContinuationPoint = default
+                                });
+                                diagnosticInfos.Add(null!);
+                                continue;
+                            }
+                        }
 
-                        (error, cp, references) = await FetchReferencesAsync(
-                                context,
-                                continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
-                                cp!,
-                                references,
-                                cancellationToken)
-                            .ConfigureAwait(false);
+                        var result = new BrowseResult
+                        {
+                            StatusCode = StatusCodes.Good,
+                            ContinuationPoint = default
+                        };
+                        results.Add(result);
+                        if (releaseContinuationPoints)
+                        {
+                            continue;
+                        }
 
-                        result.References = references;
+                        ServiceResult error = StatusCodes.BadContinuationPointInvalid;
+                        if (cp != null)
+                        {
+                            ContinuationPoint pointToFetch = cp;
+                            ownedCp = null; // FetchReferencesAsync owns it, including on failure.
+                            try
+                            {
+                                ArrayOf<ReferenceDescription> references = result.References;
+                                (error, cp, references) = await FetchReferencesAsync(
+                                    context,
+                                    continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
+                                    pointToFetch,
+                                    references,
+                                    cancellationToken).ConfigureAwait(false);
+                                result.References = references;
+                            }
+                            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                            {
+                                throw;
+                            }
+                            catch (Exception e)
+                            {
+                                error = ServiceResult.Create(
+                                    e, StatusCodes.BadUnexpectedError, "Unexpected error browsing node.");
+                            }
+                        }
+
+                        result.StatusCode = error.StatusCode;
+                        if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                        {
+                            DiagnosticInfo? diagnosticInfo = null;
+                            if (error.Code != StatusCodes.Good)
+                            {
+                                diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error, m_logger);
+                                diagnosticsExist = true;
+                            }
+                            diagnosticInfos.Add(diagnosticInfo!);
+                        }
+
+                        if (cp != null && ServiceResult.IsGood(error))
+                        {
+                            result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
+                            continuationPointsAssigned++;
+                        }
                     }
-                    catch (Exception e)
+                    finally
                     {
-                        error = ServiceResult.Create(
-                            e,
-                            StatusCodes.BadUnexpectedError,
-                            "Unexpected error browsing node.");
-                    }
-
-                    // check for continuation point.
-                    if (!result.ContinuationPoint.IsEmpty)
-                    {
-                        continuationPointsAssigned++;
+                        ownedCp?.Dispose();
                     }
                 }
 
-                // check for error.
-                result.StatusCode = error!.StatusCode;
-
-                if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
+                completed = true;
+                return (results, diagnosticInfos);
+            }
+            finally
+            {
+                if (!completed)
                 {
-                    DiagnosticInfo? diagnosticInfo = null;
-
-                    if (error != null && error.Code != StatusCodes.Good)
+                    foreach (BrowseResult result in results)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
-                            Server,
-                            context,
-                            error,
-                            m_logger);
-                        diagnosticsExist = true;
+                        if (!result.ContinuationPoint.IsEmpty)
+                        {
+                            context.Session.ContinuationPoints.RestoreBrowse(result.ContinuationPoint)?.Dispose();
+                        }
                     }
-
-                    diagnosticInfos.Add(diagnosticInfo!);
-                }
-
-                // check for continuation point.
-                if (cp != null && ServiceResult.IsGood(error))
-                {
-                    result.StatusCode = StatusCodes.Good;
-                    result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
                 }
             }
-
-            // clear the diagnostics array if no diagnostics requested or no errors occurred.
-            UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
-
-            return (results, diagnosticInfos);
         }
 
         /// <summary>
@@ -955,64 +925,38 @@ namespace Opc.Ua.Server
                 return validationResult;
             }
 
-            // create a continuation point.
-            ContinuationPoint? tempCp = null;
-            try
+            using var owner = new ContinuationPointOwner(new ContinuationPoint
             {
-                tempCp = new ContinuationPoint
-                {
-                    Manager = nodeManager!,
-                    View = view,
-                    NodeToBrowse = handle,
-                    RequestedNodeId = nodeToBrowse.NodeId,
-                    MaxResultsToReturn = maxReferencesPerNode,
-                    BrowseDirection = nodeToBrowse.BrowseDirection,
-                    ReferenceTypeId = nodeToBrowse.ReferenceTypeId,
-                    IncludeSubtypes = nodeToBrowse.IncludeSubtypes,
-                    NodeClassMask = nodeToBrowse.NodeClassMask,
-                    ResultMask = (BrowseResultMask)nodeToBrowse.ResultMask,
-                    Index = 0,
-                    Data = null
-                };
-                ContinuationPoint? cp = tempCp;
-
-                // check if reference type left unspecified.
-                if (cp.ReferenceTypeId.IsNull)
-                {
-                    cp.ReferenceTypeId = ReferenceTypeIds.References;
-                    cp.IncludeSubtypes = true;
-                }
-
-                // loop until browse is complete or max results.
-                ArrayOf<ReferenceDescription> references = result!.References;
-
-                ServiceResult error;
-
-                (error, cp, references) = await FetchReferencesAsync(
-                   context!,
-                   assignContinuationPoint,
-                   cp!,
-                   references,
-                   cancellationToken)
-                   .ConfigureAwait(false);
-                tempCp = null; // ownership transferred to FetchReferencesAsync
-
-                result.References = references;
-
-                // save continuation point.
-                if (cp != null && ServiceResult.IsGood(error))
-                {
-                    result.StatusCode = StatusCodes.Good;
-                    result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
-                }
-
-                // all is good.
-                return error;
-            }
-            finally
+                Manager = nodeManager!,
+                View = view,
+                NodeToBrowse = handle,
+                RequestedNodeId = nodeToBrowse.NodeId,
+                MaxResultsToReturn = maxReferencesPerNode,
+                BrowseDirection = nodeToBrowse.BrowseDirection,
+                ReferenceTypeId = nodeToBrowse.ReferenceTypeId,
+                IncludeSubtypes = nodeToBrowse.IncludeSubtypes,
+                NodeClassMask = nodeToBrowse.NodeClassMask,
+                ResultMask = (BrowseResultMask)nodeToBrowse.ResultMask,
+                Index = 0,
+                Data = null
+            });
+            if (owner.Point.ReferenceTypeId.IsNull)
             {
-                tempCp?.Dispose();
+                owner.Point.ReferenceTypeId = ReferenceTypeIds.References;
+                owner.Point.IncludeSubtypes = true;
             }
+
+            (ServiceResult error, ContinuationPoint? cp, ArrayOf<ReferenceDescription> references) =
+                await FetchReferencesAsync(
+                    context!, assignContinuationPoint, owner.Detach(), result!.References, cancellationToken)
+                    .ConfigureAwait(false);
+            result.References = references;
+            if (cp != null && ServiceResult.IsGood(error))
+            {
+                result.StatusCode = StatusCodes.Good;
+                result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
+            }
+            return error;
         }
 
         /// <summary>
@@ -1032,73 +976,64 @@ namespace Opc.Ua.Server
             Debug.Assert(context != null);
             Debug.Assert(cp != null);
 
-            IAsyncNodeManager nodeManager = cp!.Manager;
-            var nodeClassMask = (NodeClass)cp.NodeClassMask;
-            BrowseResultMask resultMask = cp.ResultMask;
-            var referenceList = references.ToList();
             ContinuationPoint? currentCp = cp;
-            // loop until browse is complete or max results.
-            while (currentCp != null)
+            try
             {
-                currentCp = await nodeManager.BrowseAsync(context!, currentCp, referenceList, cancellationToken)
-                    .ConfigureAwait(false);
-
-                var referencesToKeep = new List<ReferenceDescription>(referenceList.Count);
-
-                // check for incomplete reference descriptions.
-                for (int ii = 0; ii < referenceList.Count; ii++)
+                IAsyncNodeManager nodeManager = cp!.Manager;
+                var nodeClassMask = (NodeClass)cp.NodeClassMask;
+                BrowseResultMask resultMask = cp.ResultMask;
+                var referenceList = references.ToList();
+                while (currentCp != null)
                 {
-                    ReferenceDescription reference = referenceList[ii];
+                    currentCp = await nodeManager.BrowseAsync(context!, currentCp, referenceList, cancellationToken)
+                        .ConfigureAwait(false);
+                    var referencesToKeep = new List<ReferenceDescription>(referenceList.Count);
 
-                    // check if filtering must be applied.
-                    if (reference.Unfiltered)
+                    for (int ii = 0; ii < referenceList.Count; ii++)
                     {
-                        // ignore unknown external references.
-                        if (reference.NodeId.IsAbsolute)
+                        ReferenceDescription reference = referenceList[ii];
+                        if (reference.Unfiltered)
                         {
-                            continue;
-                        }
+                            if (reference.NodeId.IsAbsolute)
+                            {
+                                continue;
+                            }
 
-                        // update the description.
-                        bool include = await UpdateReferenceDescriptionAsync(
+                            bool include = await UpdateReferenceDescriptionAsync(
                                 context!,
                                 (NodeId)reference.NodeId,
                                 nodeClassMask,
                                 resultMask,
                                 reference,
-                                cancellationToken)
-                            .ConfigureAwait(false);
-
-                        if (!include)
-                        {
-                            continue;
+                                cancellationToken).ConfigureAwait(false);
+                            if (!include)
+                            {
+                                continue;
+                            }
                         }
+                        referencesToKeep.Add(reference);
                     }
 
-                    // add to list.
-                    referencesToKeep.Add(reference);
-                }
-
-                // replace list.
-                referenceList = referencesToKeep;
-
-                // check if browse limit reached.
-                if (currentCp != null && referenceList.Count >= currentCp.MaxResultsToReturn)
-                {
-                    if (!assignContinuationPoint)
+                    referenceList = referencesToKeep;
+                    if (currentCp != null && referenceList.Count >= currentCp.MaxResultsToReturn)
                     {
-                        currentCp.Dispose();
-                        return (StatusCodes.BadNoContinuationPoints, null, referenceList);
+                        if (!assignContinuationPoint)
+                        {
+                            return (StatusCodes.BadNoContinuationPoints, null, referenceList);
+                        }
+                        currentCp.Id = Guid.NewGuid();
+                        context!.Session!.ContinuationPoints.SaveBrowse(currentCp);
+                        ContinuationPoint retainedCp = currentCp;
+                        currentCp = null;
+                        return (ServiceResult.Good, retainedCp, referenceList);
                     }
-
-                    currentCp.Id = Guid.NewGuid();
-                    context!.Session!.ContinuationPoints.SaveBrowse(currentCp);
-                    break;
                 }
+                return (ServiceResult.Good, null, referenceList);
             }
-
-            // all is good.
-            return (ServiceResult.Good, currentCp, referenceList);
+            finally
+            {
+                currentCp?.Dispose();
+            }
         }
 
         /// <summary>
@@ -2237,7 +2172,10 @@ namespace Opc.Ua.Server
                 monitoredItems[ii] = monitoredItem;
             }
 
-            m_monitoredItemIdFactory.SetStartValue(itemsToRestore.Max(i => i.Id));
+            if (itemsToRestore.Count > 0)
+            {
+                m_monitoredItemIdFactory.SetStartValue(itemsToRestore.Max(i => i.Id));
+            }
         }
 
         /// <summary>
@@ -2846,6 +2784,7 @@ namespace Opc.Ua.Server
             await DispatchDataMonitoredItemsToOwningNodeManagersAsync(
                     itemsToDelete,
                     processedItems,
+                    errors,
                     (owner, ownedItems) => owner.DeleteMonitoredItemsAsync(
                         context,
                         itemsToDelete,
@@ -2894,6 +2833,7 @@ namespace Opc.Ua.Server
 
                 IAsyncNodeManager owningNodeManager = monitoredItem.NodeManager;
                 processedItems[ii] = true;
+                ServiceResult result = ServiceResult.Good;
 
                 // unsubscribe to all node managers.
                 if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
@@ -2904,23 +2844,31 @@ namespace Opc.Ua.Server
                     {
                         foreach (NotificationDispatchLease dispatch in dispatches)
                         {
-                            await dispatch.NodeManager.SubscribeToAllEventsAsync(
+                            ServiceResult unsubscribe = await UnsubscribeEventsAsync(
+                                dispatch.NodeManager,
+                                () => dispatch.NodeManager.SubscribeToAllEventsAsync(
                                     context,
                                     subscriptionId,
                                     monitoredItem,
                                     true,
-                                    cancellationToken)
+                                    cancellationToken),
+                                cancellationToken)
                                 .ConfigureAwait(false);
-                            if (dispatch.Notifications is not null)
+                            if (ServiceResult.IsBad(unsubscribe))
+                            {
+                                if (ServiceResult.IsGood(result))
+                                {
+                                    result = unsubscribe;
+                                }
+                            }
+                            else if (dispatch.Notifications is not null)
                             {
                                 m_owner.CompleteRetiredAllEventUnsubscribe(
                                     monitoredItem,
                                     dispatch.Notifications);
+                                retiredGenerationDrained = true;
                             }
                         }
-                        m_owner.CompleteRetiredAllEventUnsubscribe(
-                            monitoredItem,
-                            dispatches);
                     }
                     finally
                     {
@@ -2930,12 +2878,11 @@ namespace Opc.Ua.Server
                 // only unsubscribe to the node manager that owns the node.
                 else
                 {
-                    await owningNodeManager.SubscribeToEventsAsync(
-                        context,
-                        monitoredItem.ManagerHandle,
-                        subscriptionId,
-                        monitoredItem,
-                        true,
+                    result = await UnsubscribeEventsAsync(
+                        owningNodeManager,
+                        () => owningNodeManager.SubscribeToEventsAsync(
+                            context, monitoredItem.ManagerHandle, subscriptionId, monitoredItem, true,
+                            cancellationToken),
                         cancellationToken).ConfigureAwait(false);
                 }
 
@@ -2943,8 +2890,7 @@ namespace Opc.Ua.Server
                 Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
                 retiredGenerationDrained |= !m_nodeManagers.Contains(owningNodeManager);
 
-                // success.
-                errors[ii] = StatusCodes.Good;
+                errors[ii] = result;
             }
 
             if (retiredGenerationDrained)
@@ -3011,7 +2957,8 @@ namespace Opc.Ua.Server
                 monitoringMode,
                 itemsToModify,
                 processedItems,
-                errors);
+                errors,
+                cancellationToken);
 
             // set the monitoring mode on each owning node manager. Data monitored items are
             // dispatched to their recorded owning NodeManager (grouped by owner) so items
@@ -3019,6 +2966,7 @@ namespace Opc.Ua.Server
             await DispatchDataMonitoredItemsToOwningNodeManagersAsync(
                     itemsToModify,
                     processedItems,
+                    errors,
                     (owner, ownedItems) => owner.SetMonitoringModeAsync(
                         context,
                         monitoringMode,
@@ -3043,12 +2991,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Delete monitored items for event subscriptions.
         /// </summary>
-        private static void SetMonitoringModeForEvents(
+        private void SetMonitoringModeForEvents(
             OperationContext context,
             MonitoringMode monitoringMode,
             IList<IMonitoredItem> monitoredItems,
             List<bool> processedItems,
-            IList<ServiceResult> errors)
+            IList<ServiceResult> errors,
+            CancellationToken cancellationToken)
         {
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
@@ -3066,11 +3015,20 @@ namespace Opc.Ua.Server
 
                 processedItems[ii] = true;
 
-                // set the monitoring mode.
-                monitoredItem.SetMonitoringMode(monitoringMode);
-
-                // success.
-                errors[ii] = StatusCodes.Good;
+                try
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    monitoredItem.SetMonitoringMode(monitoringMode);
+                    errors[ii] = StatusCodes.Good;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    errors[ii] = GetMonitoredItemDispatchFailure(monitoredItem.NodeManager, ex);
+                }
             }
         }
 
@@ -3128,6 +3086,7 @@ namespace Opc.Ua.Server
         private async ValueTask DispatchDataMonitoredItemsToOwningNodeManagersAsync(
             IList<IMonitoredItem> monitoredItems,
             List<bool> processedItems,
+            IList<ServiceResult> errors,
             Func<IAsyncNodeManager, IList<bool>, ValueTask> dispatch,
             bool notifyRetiredGenerationDrain,
             CancellationToken cancellationToken)
@@ -3144,6 +3103,7 @@ namespace Opc.Ua.Server
             bool retiredGenerationDrained = false;
             foreach ((IAsyncNodeManager owner, List<int> indices) in owners)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 // Present only this owner's items as unprocessed.
                 bool[] ownedItems = new bool[monitoredItems.Count];
                 for (int ii = 0; ii < ownedItems.Length; ii++)
@@ -3155,7 +3115,23 @@ namespace Opc.Ua.Server
                     ownedItems[ii] = false;
                 }
 
-                await dispatch(owner, ownedItems).ConfigureAwait(false);
+                try
+                {
+                    await dispatch(owner, ownedItems).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    ServiceResult failure = GetMonitoredItemDispatchFailure(owner, ex);
+                    foreach (int ii in indices)
+                    {
+                        errors[ii] ??= failure;
+                        ownedItems[ii] = true;
+                    }
+                }
 
                 // Merge the owner's processed marks back into the shared list.
                 foreach (int ii in indices)
@@ -3626,6 +3602,65 @@ namespace Opc.Ua.Server
             return ServiceResult.IsGood(result)
                 ? MasterNodeManager.ValidateAccessRestrictions(context, nodeMetadata)
                 : result;
+        }
+
+        private sealed class ContinuationPointOwner : IDisposable
+        {
+            public ContinuationPointOwner(ContinuationPoint point)
+            {
+                Point = point;
+            }
+
+            public ContinuationPoint Point { get; }
+
+            public ContinuationPoint Detach()
+            {
+                m_owned = false;
+                return Point;
+            }
+
+            public void Dispose()
+            {
+                if (m_owned)
+                {
+                    m_owned = false;
+                    Point.Dispose();
+                }
+            }
+
+            private bool m_owned = true;
+        }
+
+        private async ValueTask<ServiceResult> UnsubscribeEventsAsync(
+            IAsyncNodeManager owner,
+            Func<ValueTask<ServiceResult>> unsubscribe,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ServiceResult result = await unsubscribe().ConfigureAwait(false);
+                if (ServiceResult.IsBad(result))
+                {
+                    m_logger.MonitoredItemOwnerDispatchFailed(result.GetServiceResultException(), owner.GetType().Name);
+                }
+                return result;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                return GetMonitoredItemDispatchFailure(owner, ex);
+            }
+        }
+
+        private ServiceResult GetMonitoredItemDispatchFailure(IAsyncNodeManager owner, Exception exception)
+        {
+            m_logger.MonitoredItemOwnerDispatchFailed(exception, owner.GetType().Name);
+            return ServiceResult.Create(exception, StatusCodes.BadUnexpectedError,
+                "The node manager could not complete the monitored-item operation.");
         }
 
         private readonly MonitoredItemIdFactory m_monitoredItemIdFactory = new();

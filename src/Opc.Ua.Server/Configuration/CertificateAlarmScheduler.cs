@@ -60,10 +60,15 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="timeProvider">The time provider for the periodic timer.</param>
         /// <param name="logger">The logger.</param>
-        public CertificateAlarmScheduler(TimeProvider timeProvider, ILogger logger)
+        /// <param name="certificateRegistry">Resolves the active registry, when available.</param>
+        public CertificateAlarmScheduler(
+            TimeProvider timeProvider,
+            ILogger logger,
+            Func<ICertificateRegistry?>? certificateRegistry = null)
         {
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            m_certificateRegistry = certificateRegistry;
         }
 
         /// <summary>
@@ -261,6 +266,8 @@ namespace Opc.Ua.Server
         /// <param name="context">The system context.</param>
         private void RefreshInputs(ISystemContext context)
         {
+            using CertificateEntryCollection? activeCertificates =
+                m_certificateRegistry?.Invoke()?.SnapshotApplicationCertificates();
             foreach (MonitorEntry entry in m_monitors)
             {
                 CertificateGroupAlarmMonitor monitor = entry.Monitor;
@@ -279,6 +286,17 @@ namespace Opc.Ua.Server
 
                     foreach (CertificateIdentifier certIdent in certGroup.ApplicationCertificates)
                     {
+                        if (activeCertificates != null)
+                        {
+                            foreach (CertificateEntry active in activeCertificates)
+                            {
+                                if (active.CertificateType == certIdent.CertificateType)
+                                {
+                                    ConsiderCertificate(active.Certificate, active.CertificateType);
+                                }
+                            }
+                            continue;
+                        }
                         if (certIdent.RawData == null || certIdent.RawData.Length == 0)
                         {
                             continue;
@@ -287,12 +305,7 @@ namespace Opc.Ua.Server
                         try
                         {
                             using Certificate cert = Certificate.FromRawData(certIdent.RawData);
-                            if (cert.NotAfter < earliest)
-                            {
-                                earliest = cert.NotAfter;
-                                certificate = ByteString.From(certIdent.RawData);
-                                certificateType = certIdent.CertificateType;
-                            }
+                            ConsiderCertificate(cert, certIdent.CertificateType);
                         }
                         catch (Exception ex)
                         {
@@ -305,6 +318,17 @@ namespace Opc.Ua.Server
                         earliest == DateTime.MaxValue ? null : earliest,
                         certificate,
                         certificateType);
+
+                    void ConsiderCertificate(Certificate cert, NodeId type)
+                    {
+                        DateTime expiration = cert.NotAfter.ToUniversalTime();
+                        if (expiration < earliest)
+                        {
+                            earliest = expiration;
+                            certificate = ByteString.From(cert.RawData);
+                            certificateType = type;
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -342,6 +366,7 @@ namespace Opc.Ua.Server
 
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger m_logger;
+        private readonly Func<ICertificateRegistry?>? m_certificateRegistry;
         private readonly List<MonitorEntry> m_monitors = [];
         private readonly Lock m_lock = new();
         private ITimer? m_timer;

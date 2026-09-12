@@ -56,7 +56,7 @@ namespace Opc.Ua.Server
     /// construction or DI) to be used at all.
     /// </para>
     /// </remarks>
-    public sealed class InMemoryPendingCertificateKeyStore : IPendingCertificateKeyStore
+    public sealed class InMemoryPendingCertificateKeyStore : IMatchingPendingCertificateKeyStore
     {
         /// <inheritdoc/>
         public ValueTask<bool> SaveAsync(
@@ -75,6 +75,7 @@ namespace Opc.Ua.Server
             }
 
             var key = new ScopeKey(context.CertificateGroupId, context.CertificateTypeId);
+            cancellationToken.ThrowIfCancellationRequested();
             Certificate owned = certificateWithPrivateKey.AddRef();
 
             lock (m_lock)
@@ -95,12 +96,61 @@ namespace Opc.Ua.Server
             PendingCertificateKeyContext context,
             CancellationToken cancellationToken = default)
         {
+            return TryTakeCore(context, null, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<Certificate?> TryTakeMatchingAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificate,
+            CancellationToken cancellationToken = default)
+        {
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+            return TryTakeCore(context, certificate, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<bool> TryRestoreAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificateWithPrivateKey,
+            CancellationToken cancellationToken = default)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (certificateWithPrivateKey == null)
+            {
+                throw new ArgumentNullException(nameof(certificateWithPrivateKey));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            var key = new ScopeKey(context.CertificateGroupId, context.CertificateTypeId);
+            lock (m_lock)
+            {
+                if (m_entries.ContainsKey(key))
+                {
+                    return new ValueTask<bool>(false);
+                }
+                m_entries.Add(key, certificateWithPrivateKey.AddRef());
+            }
+            return new ValueTask<bool>(true);
+        }
+
+        private ValueTask<Certificate?> TryTakeCore(
+            PendingCertificateKeyContext context,
+            Certificate? matchingCertificate,
+            CancellationToken cancellationToken)
+        {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
 
             var key = new ScopeKey(context.CertificateGroupId, context.CertificateTypeId);
+            cancellationToken.ThrowIfCancellationRequested();
 
             // CA2000: ownership of `entry` transfers to the caller per the
             // IPendingCertificateKeyStore.TryTakeAsync contract ("the
@@ -109,8 +159,10 @@ namespace Opc.Ua.Server
 #pragma warning disable CA2000
             lock (m_lock)
             {
-                if (m_entries.Remove(key, out Certificate? entry))
+                if (m_entries.TryGetValue(key, out Certificate? entry) &&
+                    (matchingCertificate == null || X509Utils.VerifyKeyPair(matchingCertificate, entry)))
                 {
+                    m_entries.Remove(key);
                     return new ValueTask<Certificate?>(entry);
                 }
             }
@@ -129,6 +181,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             var key = new ScopeKey(context.CertificateGroupId, context.CertificateTypeId);
 
             lock (m_lock)

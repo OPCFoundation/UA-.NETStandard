@@ -714,13 +714,15 @@ namespace Opc.Ua
 
         internal ILogger? Logger { get; }
 
-        internal (Certificate? Certificate, CertificateCollection? Chain, long Version) CurrentClientCertificateSnapshot
+        internal ClientChannelCertificateSnapshot CurrentClientCertificateSnapshot
         {
             get
             {
                 lock (m_certLock)
                 {
-                    return (m_clientCertificate, m_clientCertificateChain, m_clientCertificateVersion);
+                    ThrowIfDisposed();
+                    return new ClientChannelCertificateSnapshot(
+                        m_clientCertificate, m_clientCertificateChain, m_clientCertificateVersion);
                 }
             }
         }
@@ -861,8 +863,7 @@ namespace Opc.Ua
                 return original;
             }
 
-            (Certificate? clientCert, CertificateCollection? clientChain, long clientCertificateVersion) =
-                CurrentClientCertificateSnapshot;
+            using ClientChannelCertificateSnapshot certificates = CurrentClientCertificateSnapshot;
 
             ChannelEntry fresh;
             bool created = false;
@@ -890,7 +891,8 @@ namespace Opc.Ua
             {
                 try
                 {
-                    await fresh.OpenInitialAsync(clientCert, clientChain, clientCertificateVersion, ct)
+                    await fresh.OpenInitialAsync(
+                        certificates.Certificate, certificates.Chain, certificates.Version, ct)
                         .ConfigureAwait(false);
                 }
                 catch
@@ -958,18 +960,10 @@ namespace Opc.Ua
         {
             ThrowIfDisposed();
 
-            Certificate? clientCert;
-            CertificateCollection? clientChain;
-            long clientCertificateVersion;
-            lock (m_certLock)
-            {
-                clientCert = m_clientCertificate;
-                clientChain = m_clientCertificateChain;
-                clientCertificateVersion = m_clientCertificateVersion;
-            }
+            using ClientChannelCertificateSnapshot certificates = CurrentClientCertificateSnapshot;
 
             var key = ManagedChannelKey.FromEndpoint(
-                endpoint, clientCert, reverseConnection);
+                endpoint, certificates.Certificate, reverseConnection);
 
             ChannelEntry entry;
             bool created = false;
@@ -996,7 +990,8 @@ namespace Opc.Ua
             {
                 if (created)
                 {
-                    await entry.OpenInitialAsync(clientCert, clientChain, clientCertificateVersion, ct)
+                    await entry.OpenInitialAsync(
+                        certificates.Certificate, certificates.Chain, certificates.Version, ct)
                         .ConfigureAwait(false);
                 }
                 lease = entry.AcquireLease(participantFactory);
@@ -1199,11 +1194,19 @@ namespace Opc.Ua
             CertificateCollection? previousCertificateChain;
             lock (m_certLock)
             {
+                ThrowIfDisposed();
                 previousCertificate = m_clientCertificate;
                 previousCertificateChain = m_clientCertificateChain;
+                if (!ClientChannelCertificateSnapshot.HaveSameMaterial(
+                    previousCertificate,
+                    previousCertificateChain,
+                    clientCertificate,
+                    clientCertificateChain))
+                {
+                    m_clientCertificateVersion++;
+                }
                 m_clientCertificate = clientCertificate;
                 m_clientCertificateChain = clientCertificateChain;
-                m_clientCertificateVersion++;
             }
 
             previousCertificate?.Dispose();
@@ -1243,8 +1246,7 @@ namespace Opc.Ua
             m_diagnostics.EmitChannelClosed(entry, reason);
         }
 
-        (Certificate? Certificate, CertificateCollection? Chain, long Version)
-            IChannelEntryHost.SnapshotClientCertificate()
+        ClientChannelCertificateSnapshot IChannelEntryHost.SnapshotClientCertificate()
         {
             return CurrentClientCertificateSnapshot;
         }

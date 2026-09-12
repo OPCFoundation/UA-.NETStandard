@@ -429,6 +429,111 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        [TestCase(UserTokenType.UserName, false)]
+        [TestCase(UserTokenType.UserName, true)]
+        [TestCase(UserTokenType.Certificate, false)]
+        [TestCase(UserTokenType.Certificate, true)]
+        public async Task ActivationRejectsIdentityTokenWithAnotherTokenTypesPolicyAsync(
+            UserTokenType tokenType,
+            bool binaryEncoded)
+        {
+            EndpointDescription endpoint = CreateEndpoint(
+                MessageSecurityMode.None,
+                securityPolicyUri: SecurityPolicies.None);
+            using SecuritySessionManager manager = CreateManager();
+            CreatedSession created = await CreateSessionAsync(
+                manager, endpoint, "channel-1", m_clientCertificate).ConfigureAwait(false);
+            UserIdentityToken token = tokenType == UserTokenType.Certificate
+                ? new X509IdentityToken
+                {
+                    PolicyId = AnonymousPolicyId,
+                    CertificateData = m_clientCertificate.RawData.ToByteString()
+                }
+                : new UserNameIdentityToken
+                {
+                    PolicyId = AnonymousPolicyId,
+                    UserName = "policy-mismatch",
+                    Password = ByteString.From([1, 2, 3])
+                };
+            ExtensionObject identity = binaryEncoded
+                ? EncodeAsBinaryBody(token)
+                : new ExtensionObject(token);
+            SignatureData signature = CreateClientSignature(
+                created.Context, created.ClientNonce, created.ServerNonce, m_clientCertificate);
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await created.Result.Session.ValidateBeforeActivateAsync(
+                    created.Context,
+                    signature,
+                    identity,
+                    new SignatureData(),
+                    CancellationToken.None).ConfigureAwait(false))!;
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+        }
+
+        [TestCase("missing")]
+        [TestCase("wrong")]
+        [TestCase("valid")]
+        public async Task CertificateUserPolicyVerifiesProofOnNoneChannelAsync(string proof)
+        {
+            EndpointDescription endpoint = CreateEndpoint(
+                MessageSecurityMode.None,
+                securityPolicyUri: SecurityPolicies.None);
+            endpoint.ServerCertificate = m_serverCertificate.RawData.ToByteString();
+            endpoint.UserIdentityTokens = endpoint.UserIdentityTokens.AddItem(new UserTokenPolicy
+            {
+                PolicyId = "certificate",
+                TokenType = UserTokenType.Certificate,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+            });
+            using SecuritySessionManager manager = CreateManager();
+            CreatedSession created = await CreateSessionAsync(
+                manager, endpoint, "channel-1", m_clientCertificate).ConfigureAwait(false);
+            var identity = new ExtensionObject(new X509IdentityToken
+            {
+                PolicyId = "certificate",
+                CertificateData = m_clientCertificate.RawData.ToByteString()
+            });
+            SignatureData signature = CreateClientSignature(
+                created.Context, created.ClientNonce, created.ServerNonce, m_clientCertificate);
+            SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(SecurityPolicies.Basic256Sha256)!;
+            SecureChannelContext channel = created.Context.ChannelContext!;
+            byte[] dataToSign = policy.GetUserTokenSignatureData(
+                channel.ChannelThumbprint,
+                created.ServerNonce.ToArray(),
+                m_serverCertificate.RawData,
+                channel.ServerChannelCertificate,
+                m_clientCertificate.RawData,
+                channel.ClientChannelCertificate,
+                created.ClientNonce.ToArray());
+            SignatureData userSignature = proof == "missing"
+                ? new SignatureData()
+                : await SecurityPolicies.Default.CreateSignatureDataAsync(
+                    policy,
+                    proof == "valid" ? m_clientCertificate : m_otherClientCertificate,
+                    dataToSign,
+                    CancellationToken.None).ConfigureAwait(false);
+
+            if (proof == "valid")
+            {
+                (IUserIdentityTokenHandler token, UserTokenPolicy? selected) =
+                    await created.Result.Session.ValidateBeforeActivateAsync(
+                        created.Context, signature, identity, userSignature, CancellationToken.None)
+                        .ConfigureAwait(false);
+                Assert.That(token.TokenType, Is.EqualTo(UserTokenType.Certificate));
+                Assert.That(selected, Is.Not.Null);
+                Assert.That(selected!.PolicyId, Is.EqualTo("certificate"));
+            }
+            else
+            {
+                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await created.Result.Session.ValidateBeforeActivateAsync(
+                        created.Context, signature, identity, userSignature, CancellationToken.None)
+                        .ConfigureAwait(false))!;
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+            }
+        }
+
         [Test]
         public async Task ActivationValidationRejectsBinaryTokenWithUnknownPolicyAsync()
         {
@@ -1058,6 +1163,83 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 rejected.StatusCode,
                 Is.EqualTo(StatusCodes.BadApplicationSignatureInvalid));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task WrongChannelActivationNeverChargesVictimLockoutAsync(bool differentPolicy)
+        {
+            EndpointDescription endpoint = CreateEndpoint(MessageSecurityMode.SignAndEncrypt);
+            using SecuritySessionManager manager = CreateManager(maxFailedAuthenticationAttempts: 5);
+            CreatedSession victim = await CreateSessionAsync(
+                manager, endpoint, "victim-channel", m_clientCertificate).ConfigureAwait(false);
+            EndpointDescription attackerEndpoint = differentPolicy
+                ? CreateEndpoint(MessageSecurityMode.None, securityPolicyUri: SecurityPolicies.None)
+                : endpoint;
+            OperationContext attacker = CreateContext(attackerEndpoint, "attacker-channel", m_otherClientCertificate);
+            var rejections = new List<StatusCode>();
+            for (int i = 0; i < 5; i++)
+            {
+                ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await manager.ActivateSessionAsync(
+                        attacker, victim.Result.AuthenticationToken, new SignatureData(), default, null!, [], default)
+                        .ConfigureAwait(false))!;
+                rejections.Add(rejected.StatusCode);
+            }
+            SignatureData valid = CreateClientSignature(
+                victim.Context, victim.ClientNonce, victim.ServerNonce, m_clientCertificate);
+            (_, ByteString nonce, ServiceResult result) = await manager.ActivateSessionAsync(
+                victim.Context, victim.Result.AuthenticationToken, valid, default, null!, [], default)
+                .ConfigureAwait(false);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(nonce.IsEmpty, Is.False);
+            Assert.That(victim.Result.Session.Activated, Is.True);
+            AssertRequestAcceptedOnOriginalChannel(victim);
+            Assert.That(rejections, Is.All.EqualTo(
+                differentPolicy ? StatusCodes.BadSecurityPolicyRejected : StatusCodes.BadSecureChannelIdInvalid));
+        }
+
+        [Test]
+        public async Task InvalidSignaturesStillLockOutTheOriginatingApplicationAsync()
+        {
+            EndpointDescription endpoint = CreateEndpoint(MessageSecurityMode.SignAndEncrypt);
+            using SecuritySessionManager manager = CreateManager(maxFailedAuthenticationAttempts: 5);
+            CreatedSession created = await CreateSessionAsync(
+                manager, endpoint, "client-channel", m_clientCertificate).ConfigureAwait(false);
+            SignatureData invalid = CreateClientSignature(
+                created.Context, created.ClientNonce, created.ServerNonce, m_otherClientCertificate);
+            for (int i = 0; i < 5; i++)
+            {
+                ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await manager.ActivateSessionAsync(
+                        created.Context, created.Result.AuthenticationToken, invalid, default, null!, [], default)
+                        .ConfigureAwait(false))!;
+                Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadApplicationSignatureInvalid));
+            }
+            SignatureData valid = CreateClientSignature(
+                created.Context, created.ClientNonce, created.ServerNonce, m_clientCertificate);
+            ServiceResultException lockedOut = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await manager.ActivateSessionAsync(
+                    created.Context, created.Result.AuthenticationToken, valid, default, null!, [], default)
+                    .ConfigureAwait(false))!;
+            Assert.That(lockedOut.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            OperationContext otherContext = CreateContext(endpoint, "other-channel", m_otherClientCertificate);
+            ByteString otherNonce = ByteString.From(CreateBytes(32, 0x42));
+            CreateSessionResult other = await manager.CreateSessionAsync(
+                otherContext, m_serverCertificate, "OtherApplication", otherNonce,
+                new ApplicationDescription
+                {
+                    ApplicationUri = "urn:test:other-application",
+                    ApplicationType = ApplicationType.Client
+                },
+                endpoint.EndpointUrl, m_otherClientCertificate.AddRef(), [], 60_000, 64 * 1024, default)
+                .ConfigureAwait(false);
+            SignatureData otherSignature = CreateClientSignature(
+                otherContext, otherNonce, other.ServerNonce, m_otherClientCertificate);
+            await manager.ActivateSessionAsync(
+                otherContext, other.AuthenticationToken, otherSignature, default, null!, [], default)
+                .ConfigureAwait(false);
+            Assert.That(other.Session.Activated, Is.True);
         }
 
         private SecuritySessionManager CreateManager(

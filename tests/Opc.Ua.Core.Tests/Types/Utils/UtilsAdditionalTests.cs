@@ -625,6 +625,34 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         [Test]
+        public void UpdateExtensionNullRemovesOnlyMatchingQualifiedName()
+        {
+            ArrayOf<Opc.Ua.XmlElement> extensions = [];
+            var name = new XmlQualifiedName("Entry", "urn:remove");
+            var other = new XmlQualifiedName("Entry", "urn:keep");
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            Utils.UpdateExtension(
+                ref extensions, name, "remove", telemetry,
+                (encoder, value) => encoder.WriteString("Value", value));
+            Utils.UpdateExtension(
+                ref extensions, other, "keep", telemetry,
+                (encoder, value) => encoder.WriteString("Value", value));
+            Opc.Ua.XmlElement retained = extensions[1];
+
+            Utils.UpdateExtension<string>(
+                ref extensions, name, null, telemetry,
+                (_, _) => Assert.Fail("Deleting an extension must not serialize a replacement."));
+            Assert.That(extensions, Has.Count.EqualTo(1));
+            Assert.That(extensions[0], Is.EqualTo(retained));
+
+            Utils.UpdateExtension<string>(
+                ref extensions, name, null, telemetry,
+                (_, _) => Assert.Fail("Deleting an absent extension must not serialize."));
+            Assert.That(extensions, Has.Count.EqualTo(1));
+            Assert.That(extensions[0], Is.EqualTo(retained));
+        }
+
+        [Test]
         public void UpdateEncodeableExtensionAddsReplacesAndParses()
         {
             var extensions = new ArrayOf<Opc.Ua.XmlElement>();

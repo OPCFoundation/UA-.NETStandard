@@ -380,7 +380,8 @@ namespace Opc.Ua.Server
 
                         try
                         {
-                            await operation.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                            await PushConfigurationRollback.RunAsync(operation.RollbackAsync, m_timeProvider)
+                                .ConfigureAwait(false);
                         }
                         catch (Exception rollbackException)
                         {
@@ -720,6 +721,16 @@ namespace Opc.Ua.Server
         private ArrayOf<NodeId> m_lastAffectedCertificateGroups;
         private ArrayOf<NodeId> m_lastAffectedTrustLists;
         private ArrayOf<TransactionErrorType> m_lastErrors;
+    }
+
+    internal static class PushConfigurationRollback
+    {
+        public static async Task RunAsync(Func<CancellationToken, Task> rollback, TimeProvider timeProvider)
+        {
+            using CancellationTokenSource lifetime =
+                timeProvider.CreateCancellationTokenSource(TimeSpan.FromSeconds(30));
+            await rollback(lifetime.Token).ConfigureAwait(false);
+        }
     }
 
     internal static partial class PushConfigurationTransactionCoordinatorLog

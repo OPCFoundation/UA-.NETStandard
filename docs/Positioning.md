@@ -160,7 +160,10 @@ that differs from the Variable's configured `CoordinateReferenceSystem`, the
 binding fails rather than silently mis-georeferencing the value; leave
 `EpsgCode` `null` to accept whatever the Variable is configured for.
 `InMemoryGeoLocationProvider` ships as a reference implementation for tests and
-for servers whose positions are pushed in from elsewhere.
+for servers whose positions are pushed in from elsewhere. Watching an unknown
+source does not create a sample: reads return `BadNotFound` until `Update`
+supplies one. `Fault` makes reads surface the supplied exception even for an
+unknown source; a subsequent `Update` clears the fault and publishes its sample.
 
 ## Client
 

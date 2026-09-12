@@ -1,5 +1,32 @@
 # Node Managers
 
+Event delivery for a node follows enqueue order. The Server node and
+nodes opting into parallel event consumers deliver each event concurrently
+to independent monitored items, then complete that event before advancing
+the shared queue. A slow permission check cannot let a later event overtake
+an earlier one; the bounded queue still applies backpressure.
+
+Monitored-item deletion and mode changes isolate failures by owner.
+Already completed results are retained, remaining items for a failed
+owner receive an explicit error, and other owners still run. Event
+unsubscribe failures likewise do not skip later owners or monitored items.
+Request cancellation continues to stop the operation rather than being
+converted into an ordinary per-item failure.
+
+Fluent node builders reject new handler registration once graph authoring
+is sealed, including callbacks wired directly to node slots. History,
+removal, condition-refresh, and monitored-item callbacks on ad-hoc child
+and instance builders use the same dispatcher as regular node builders.
+A manager without that dispatcher rejects those registrations explicitly.
+
+Monitored-source lifecycle ownership is rechecked after a worker stops.
+A superseded deactivate/reactivate cycle keeps its live source rather than
+reacquiring it and releasing the replacement. Callback invocation is
+coordinated without holding a gate across its asynchronous completion, so
+first-subscriber callbacks can still reenter monitoring operations.
+Virtual monitored sources register the same shutdown behavior as concrete
+sources; every live materialized instance is released at teardown.
+
 ## Table of contents
 
 - [Overview](#overview)
@@ -110,6 +137,12 @@ Every `StandardServer` creates a `MasterNodeManager` and asks the server's `IMai
 
 Internally, service-call dispatch and lifecycle coordination are separated. The session-service implementations live in the internal `NodeManagerServiceDispatcher`, which depends only on the lock-free routing-table snapshot and never acquires lifecycle semaphores; `MasterNodeManager` keeps the public service surface (every virtual entry point and protected helper delegates to the dispatcher, so derived classes are unaffected) together with NodeManager lifecycle coordination. The node-management services (AddNodes, DeleteNodes, AddReferences, DeleteReferences) sit between the two: they dispatch per item like other services but serialize address-space mutation with runtime NodeManager lifecycle operations.
 
+`AddNodes` rejects colliding identifiers whether supplied by the client,
+derived from a parent and browse name, or returned by a custom allocator.
+Registration atomically admits the new root without replacing an existing
+node. This add-only rule does not change the explicit runtime
+replacement/re-registration APIs.
+
 The master node manager builds a routing table keyed by namespace index. During construction it ensures the configured dynamic namespace URI is present, registers the configuration/diagnostics manager first, registers the core node manager second, and then registers application managers. For a service request, `GetManagerHandleAsync` uses the `NodeId.NamespaceIndex` to find the candidate manager list and asks each candidate for a handle until one claims the node. If no explicit route exists for the namespace, it falls back to the core node manager. This means a namespace route is a candidate list, not a single-owner map.
 
 Multiple managers can serve the same namespace. `RegisterNamespaceManager(string namespaceUri, IAsyncNodeManager nodeManager)` appends a manager to the namespace route instead of replacing the existing route; the routing table also preserves manager order during lifecycle replacement. This is important for namespace 0 and for generated or runtime models that add nodes in namespaces already used by another manager.
@@ -121,6 +154,15 @@ At runtime, the same reference handling is used for lifecycle-managed managers. 
 ### Core node manager
 
 `CoreNodeManager` is the always-present manager for the core address-space infrastructure. The default master-node-manager constructor registers it for namespace index 0 and for the built-in server namespace route, and it also uses it as the fallback when a namespace has no explicit route. `CoreNodeManager` derives from `AsyncCustomNodeManager`, implements `ICoreNodeManager`, and uses sampling groups for monitored items.
+
+`AsyncCustomNodeManager.Dispose()` stops admission to gate-backed operations and
+starts cleanup without blocking on outstanding work. `DisposeAsync()` also waits
+for admitted operations and semaphore owners to finish before releasing the
+address space, monitored-item manager and synchronization resources. Diagnostics
+mutations participate in the same lifetime. `MasterNodeManager` and the server's
+asynchronous teardown await this cleanup; prefer `await using` when directly
+owning a manager. Subclasses release deferred resources in `DisposeAsyncCore`,
+which runs after admitted operations drain, and await its base implementation.
 
 The core manager owns and imports built-in nodes that other server components need to expose as part of the standard server address space. It is also the target for nodes loaded by the diagnostics/configuration manager from generated model output: `DiagnosticsNodeManager.CreateAddressSpaceAsync` loads predefined diagnostics/configuration nodes and then imports them into the core manager with `ImportNodesAsync(..., isInternal: true)`. When application nodes are imported with `isInternal: false`, the core manager updates the diagnostics manager so diagnostics metadata stays in sync.
 
@@ -180,12 +222,30 @@ This document outlines the key differences in behavior and implementation betwee
 
 #### Method Calls
 
+`CustomNodeManager2.Call` completes synchronously through its synchronous
+`Call` override and `MethodState.Call`. It does not launch asynchronous
+overrides or discard their results. An unhandled dispatch exception is
+returned to the caller as an exception, while errors translated by
+`MethodState` retain their normal `ServiceResult` status.
+
+Use `CallAsync` and the asynchronous overrides for work that can suspend.
+The awaitable path completes only after that work finishes. Both paths
+share node ownership, method resolution, role-permission checks, and
+argument-result handling.
+
 * **CoreNodeManager**:
   * **Browse**: Iterates over references stored in `ILocalNode`. Basic masking and filtering.
   * **Translate**: Basic search through internal references.
 * **CustomNodeManager2**:
   * **Browse**: Uses `NodeState.CreateBrowser`. Explicitly validates `PermissionType.Browse`. Supports Views (`IsNodeInView`).
   * **Translate**: Uses `CreateBrowser` to navigate path. Supports resolving targets in other node managers via `unresolvedTargetIds`.
+
+Browse continuation ownership transfers explicitly between the dispatcher,
+node manager, and session store. Permission rejection, metadata/fetch
+failure, and cancellation release the claimed point. If a batch is
+canceled, any earlier retained pages that were not returned to the client
+are released too. Successful continuation pages remain owned by the
+session until resumed, released, or expired.
 
 #### Runtime subtype replacement (`IPredefinedNodeSubtypeReplacer`)
 
@@ -1342,6 +1402,11 @@ that identity and ownership. Both built-in monitored-item managers then
 handle modify, monitoring-mode, delete, and manager-lifecycle operations
 normally. `Use(factory, queueInitialValue: true)` additionally performs
 the standard initial attribute read; push-style items omit it by default.
+
+An initial read that rejects the attribute or data encoding removes the
+unaccepted monitored item from registration, sampling, and any newly
+acquired component-cache entry. Existing items on that node remain valid.
+Recoverable bad data values do not prevent creating the monitored item.
 
 Manager-level asynchronous batch hooks receive only successful items and
 run after the monitored-item manager has applied its changes:

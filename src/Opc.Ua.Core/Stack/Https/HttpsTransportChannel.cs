@@ -33,6 +33,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Security;
+using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -266,7 +267,11 @@ namespace Opc.Ua.Bindings
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
             try
             {
-                using var content = new ByteArrayContent(EncodeRequest(request, context));
+                using var requestMessage = new HttpRequestMessage(HttpMethod.Post, m_url)
+                {
+                    Content = new ByteArrayContent(EncodeRequest(request, context))
+                };
+                HttpContent content = requestMessage.Content;
                 content.Headers.ContentType = MediaType;
                 if (EndpointDescription?.SecurityPolicyUri != null &&
                     !string.Equals(
@@ -279,9 +284,9 @@ namespace Opc.Ua.Bindings
                         EndpointDescription.SecurityPolicyUri);
                 }
 
-                HttpResponseMessage response = await client.PostAsync(
-                    m_url,
-                    content,
+                using HttpResponseMessage response = await client.SendAsync(
+                    requestMessage,
+                    HttpCompletionOption.ResponseHeadersRead,
                     linkedCts.Token).ConfigureAwait(false);
 
                 // Translate an HTTP 429/503 (e.g. from an AddHttpsRateLimiter
@@ -296,13 +301,9 @@ namespace Opc.Ua.Bindings
 
                 response.EnsureSuccessStatusCode();
 
-#if NET6_0_OR_GREATER
-                Stream responseContent = await response.Content.ReadAsStreamAsync(ct)
-                    .ConfigureAwait(false);
-#else
-                Stream responseContent = await response.Content.ReadAsStreamAsync()
-                    .ConfigureAwait(false);
-#endif
+                byte[] responseBytes = await HttpResponseBodyReader.ReadAsync(
+                    response.Content, context.MaxMessageSize, linkedCts.Token).ConfigureAwait(false);
+                using var responseContent = new MemoryStream(responseBytes, writable: false);
                 IServiceResponse serviceResponse = DecodeResponse(responseContent, context);
                 if (serviceResponse != null)
                 {
@@ -314,27 +315,25 @@ namespace Opc.Ua.Bindings
             }
             catch (HttpRequestException hre)
             {
+                StatusCode statusCode = hre.InnerException switch
+                {
+                    WebException { Status: WebExceptionStatus.Timeout } => StatusCodes.BadRequestTimeout,
+                    WebException { Status: WebExceptionStatus.ConnectionClosed or WebExceptionStatus.ConnectFailure }
+                        => StatusCodes.BadNotConnected,
+                    SocketException { SocketErrorCode: SocketError.TimedOut } => StatusCodes.BadRequestTimeout,
+                    SocketException => StatusCodes.BadNotConnected,
+                    _ => StatusCodes.BadUnknownResponse
+                };
                 if (hre.InnerException is WebException webex)
                 {
-                    StatusCode statusCode;
-                    switch (webex.Status)
-                    {
-                        case WebExceptionStatus.Timeout:
-                            statusCode = StatusCodes.BadRequestTimeout;
-                            break;
-                        case WebExceptionStatus.ConnectionClosed:
-                        case WebExceptionStatus.ConnectFailure:
-                            statusCode = StatusCodes.BadNotConnected;
-                            break;
-                        default:
-                            statusCode = StatusCodes.BadUnknownResponse;
-                            break;
-                    }
                     m_logger.HttpsChannelLog1(webex);
-                    throw ServiceResultException.Create((uint)statusCode, webex.Message);
                 }
-                m_logger.HttpsChannelLog2(hre);
-                throw;
+                else
+                {
+                    m_logger.HttpsChannelLog2(hre);
+                }
+                throw ServiceResultException.Create(
+                    statusCode, hre, "Error sending request: {0}", hre.InnerException?.Message ?? hre.Message);
             }
             catch (OperationCanceledException e)
             {

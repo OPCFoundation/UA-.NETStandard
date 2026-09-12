@@ -277,6 +277,45 @@ src/Opc.Ua.Client/FileSystem/
 
 Tests live under `tests/Opc.Ua.Client.Tests/FileSystem/`.
 
+## Server-side file bindings
+
+Both lazy `FileSystemNodeManager` nodes and materialized
+`FileDirectoryBinder` nodes protect their mounted root from deletion,
+move, and copy. A NodeId from another namespace, an invalid encoded type,
+or a component identifier cannot alias a file-system object.
+
+`FileType.Read` requires a positive length and may return fewer bytes than
+requested. The server advertises `MaxByteStringLength` and bounds each
+read by the file's limit, the server byte-string limit, and the available
+single-result binary response budget. If server limits are disabled,
+the default encoding byte-string limit still bounds individual read
+allocations. At EOF, a valid positive-length read returns an empty byte
+string. Service calls use the asynchronous read handler; legacy direct
+synchronous delegates remain available.
+
+File opens reserve compatible access before invoking the provider, so a
+rejected erase request cannot truncate a file held by another opener.
+Failed or cancelled opens release their reservations; streams returned
+after session closure or disposal are closed rather than published.
+`Read` and `Write` enforce the requested open mode even if the provider's
+stream supports both operations. `SetPosition` clamps positions beyond
+EOF to the current file length. `Writable` describes the provider/file
+capability and does not become false merely because a handle is open.
+
+Materialized directory bindings serialize capacity admission, provider
+mutations, refresh, and teardown. Creates and cross-directory moves/copies
+are rejected before touching the provider when the target directory is
+already at `MaxEntries`; a rename within the same directory needs no extra
+slot. Lookup snapshots are published only after node registration completes.
+Teardown retires lookups and handles before provider cleanup and drains
+queued operations before disposing its synchronization resources.
+
+If a provider mutation commits but the subsequent refresh fails, the
+mutation remains successful and an error identifies the unsynchronized
+binding. `RefreshAsync` retries reconciliation, as does the next mutation
+before it changes the provider again. Failed registration callbacks are
+retried rather than treating an unregistered node as complete.
+
 ## See also
 
 - [SourceGeneratedDataTypes.md](SourceGeneratedDataTypes.md) — for an

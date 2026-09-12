@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -45,14 +46,12 @@ namespace Opc.Ua.Server.AliasNames
     ///   <item><description><c>%</c> — matches zero or more characters.</description></item>
     ///   <item><description><c>_</c> — matches exactly one character.</description></item>
     ///   <item><description><c>[abc]</c> — matches any single character from the set.</description></item>
-    ///   <item><description><c>[!abc]</c> — matches any single character not in the set.</description></item>
+    ///   <item><description><c>[^abc]</c> — matches any single character not in the set.
+    ///   The legacy <c>[!abc]</c> spelling is also accepted.</description></item>
     ///   <item><description><c>\</c> — escapes the next wildcard character.</description></item>
     /// </list>
-    /// Algorithm ported from the original implementation in the Quickstart
-    /// reference server (which itself ported the private <c>Match</c> from
-    /// <c>src/Opc.Ua.Core/Stack/Types/FilterEvaluator.cs</c>). Matching is
-    /// case-sensitive and anchored: the entire target must match the entire
-    /// pattern.
+    /// Matching is case-sensitive and anchored: the entire target must match
+    /// the entire pattern. Evaluation has a finite timeout on all target frameworks.
     /// </remarks>
     public static class AliasNameWildcardMatcher
     {
@@ -75,16 +74,13 @@ namespace Opc.Ua.Server.AliasNames
             {
                 return false;
             }
+            return Matches(target, CreateRegex(pattern));
+        }
 
-            // Translate the OPC UA Like pattern to an anchored .NET regex
-            // by walking the input char-by-char. We need to:
-            //   - escape regex metacharacters that aren't wildcards;
-            //   - turn '%' / '_' / '[..]' / '[!..]' into the matching
-            //     regex constructs;
-            //   - honour the OPC UA escape character '\' which makes the
-            //     next character match literally.
+        internal static Regex CreateRegex(string pattern)
+        {
             StringBuilder sb = new StringBuilder(pattern.Length + 8)
-                .Append('^');
+                .Append(@"\A");
             int i = 0;
             while (i < pattern.Length)
             {
@@ -92,8 +88,6 @@ namespace Opc.Ua.Server.AliasNames
                 switch (c)
                 {
                     case '\\':
-                        // OPC UA escape: next character is matched
-                        // literally (including '\' '%' '_' '[' ']').
                         if (i + 1 < pattern.Length)
                         {
                             sb.Append(Regex.Escape(pattern[i + 1].ToString()));
@@ -101,47 +95,57 @@ namespace Opc.Ua.Server.AliasNames
                         }
                         else
                         {
-                            // Trailing backslash with nothing to escape —
-                            // match a literal backslash.
                             sb.Append("\\\\");
                             i++;
                         }
                         break;
                     case '%':
                         sb.Append(".*");
-                        i++;
+                        do
+                        {
+                            i++;
+                        }
+                        while (i < pattern.Length && pattern[i] == '%');
                         break;
                     case '_':
                         sb.Append('.');
                         i++;
                         break;
                     case '[':
-                        int end = pattern.IndexOf(']', i + 1);
-                        if (end < 0)
+                        int end = i + 1;
+                        while (end < pattern.Length && pattern[end] != ']')
                         {
-                            // No matching close-bracket — treat as a
-                            // literal '['.
+                            end += pattern[end] == '\\' && end + 1 < pattern.Length ? 2 : 1;
+                        }
+                        if (end == pattern.Length)
+                        {
                             sb.Append("\\[");
                             i++;
                         }
                         else
                         {
-                            // [abc] or [!abc] — copy the contents
-                            // verbatim, swapping leading '!' for '^' per
-                            // Part 4 §7.40. The contents are taken as-is
-                            // (regex char-class semantics are a superset
-                            // of OPC UA — for simple character lists this
-                            // works correctly).
-                            string body = pattern.Substring(i + 1, end - i - 1);
-                            if (body.Length > 0 && body[0] == '!')
+                            sb.Append('[');
+                            i++;
+                            if (i < end && pattern[i] is '^' or '!')
                             {
-                                sb.Append("[^").Append(body, 1, body.Length - 1)
-                                    .Append(']');
+                                sb.Append('^');
+                                i++;
                             }
-                            else
+                            while (i < end)
                             {
-                                sb.Append('[').Append(body).Append(']');
+                                char member = pattern[i++];
+                                bool escaped = member == '\\';
+                                if (escaped)
+                                {
+                                    member = pattern[i++];
+                                }
+                                if (member is '\\' or ']' or '[' or '^' || (member == '-' && escaped))
+                                {
+                                    sb.Append('\\');
+                                }
+                                sb.Append(member);
                             }
+                            sb.Append(']');
                             i = end + 1;
                         }
                         break;
@@ -151,8 +155,31 @@ namespace Opc.Ua.Server.AliasNames
                         break;
                 }
             }
-            sb.Append('$');
-            return Regex.IsMatch(target, sb.ToString());
+            sb.Append(@"\z");
+            try
+            {
+                return new Regex(sb.ToString(), RegexOptions.Singleline | RegexOptions.CultureInvariant, s_matchTimeout);
+            }
+            catch (ArgumentException ex)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidArgument, ex, "Invalid alias-name search pattern.");
+            }
         }
+
+        internal static bool Matches(string target, Regex pattern)
+        {
+            try
+            {
+                return pattern.IsMatch(target);
+            }
+            catch (RegexMatchTimeoutException ex)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTimeout, ex, "Alias-name pattern evaluation exceeded its time limit.");
+            }
+        }
+
+        private static readonly TimeSpan s_matchTimeout = TimeSpan.FromMilliseconds(100);
     }
 }

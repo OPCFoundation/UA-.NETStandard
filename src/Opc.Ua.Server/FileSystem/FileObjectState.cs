@@ -29,6 +29,8 @@
 
 using System;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.FileSystem
 {
@@ -123,9 +125,18 @@ namespace Opc.Ua.Server.FileSystem
                 new QualifiedName(BrowseNames.LastModifiedTime),
                 new LocalizedText(BrowseNames.LastModifiedTime), true);
 
+            MaxByteStringLength = PropertyState<uint>.With<VariantBuilder>(this);
+            MaxByteStringLength.AccessLevel = AccessLevels.CurrentRead;
+            MaxByteStringLength.UserAccessLevel = AccessLevels.CurrentRead;
+            MaxByteStringLength.Create(context, VariableIds.FileType_MaxByteStringLength,
+                new QualifiedName(BrowseNames.MaxByteStringLength),
+                new LocalizedText(BrowseNames.MaxByteStringLength), true);
+            MaxByteStringLength.Value = (uint)GetServerReadLimit(context);
+
             Open = new OpenMethodState(this)
             {
                 OnCall = OnOpen,
+                OnCallAsync = OnOpenAsync,
                 Executable = true,
                 UserExecutable = true
             };
@@ -148,6 +159,7 @@ namespace Opc.Ua.Server.FileSystem
             Read = new ReadMethodState(this)
             {
                 OnCall = OnRead,
+                OnCallAsync = OnReadAsync,
                 Executable = true,
                 UserExecutable = true
             };
@@ -297,6 +309,23 @@ namespace Opc.Ua.Server.FileSystem
                     "File handle is invalid, belongs to another Session, or is already closed.");
         }
 
+        private async ValueTask<OpenMethodStateResult> OnOpenAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            byte mode,
+            CancellationToken cancellationToken)
+        {
+            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result) ||
+                !FileSystemNodeManager.TryGetSessionId(context, out NodeId sessionId, out result))
+            {
+                return new OpenMethodStateResult { ServiceResult = result };
+            }
+            (ServiceResult error, uint fileHandle) = await handle.OpenAsync(sessionId, mode, cancellationToken)
+                .ConfigureAwait(false);
+            return new OpenMethodStateResult { ServiceResult = error, FileHandle = fileHandle };
+        }
+
         private ServiceResult OnSetPosition(ISystemContext context, MethodState method,
             NodeId objectId, uint fileHandle, ulong position)
         {
@@ -317,7 +346,7 @@ namespace Opc.Ua.Server.FileSystem
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
                     "File handle not open.");
             }
-            stream.Position = (long)position;
+            stream.Position = (long)Math.Min(position, (ulong)stream.Length);
             return ServiceResult.Good;
         }
 
@@ -348,6 +377,52 @@ namespace Opc.Ua.Server.FileSystem
         private ServiceResult OnRead(ISystemContext context, MethodState method,
             NodeId objectId, uint fileHandle, int length, ref ByteString data)
         {
+            ServiceResult result = PrepareRead(context, fileHandle, length, out Stream? stream, out int count);
+            if (ServiceResult.IsBad(result))
+            {
+                return result;
+            }
+            byte[] buffer = new byte[count];
+            int read = stream!.Read(buffer, 0, count);
+            data = ByteString.From(read == count ? buffer : buffer.AsSpan(0, read).ToArray());
+            return ServiceResult.Good;
+        }
+
+        private async ValueTask<ReadMethodStateResult> OnReadAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            uint fileHandle,
+            int length,
+            CancellationToken cancellationToken)
+        {
+            ServiceResult result = PrepareRead(context, fileHandle, length, out Stream? stream, out int count);
+            if (ServiceResult.IsBad(result))
+            {
+                return new ReadMethodStateResult { ServiceResult = result };
+            }
+            byte[] buffer = new byte[count];
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+            int read = await stream!.ReadAsync(buffer.AsMemory(0, count), cancellationToken).ConfigureAwait(false);
+#else
+            int read = await stream!.ReadAsync(buffer, 0, count, cancellationToken).ConfigureAwait(false);
+#endif
+            return new ReadMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                Data = ByteString.From(read == count ? buffer : buffer.AsSpan(0, read).ToArray())
+            };
+        }
+
+        private ServiceResult PrepareRead(
+            ISystemContext context,
+            uint fileHandle,
+            int length,
+            out Stream? stream,
+            out int count)
+        {
+            stream = null;
+            count = 0;
             if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
             {
                 return result;
@@ -359,31 +434,49 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return result;
             }
-            Stream? stream = handle.GetStream(sessionId, fileHandle);
+            stream = handle.GetStream(sessionId, fileHandle, requiredMode: 1);
             if (stream == null)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
                     "File handle not open.");
             }
 
-            if (length < 0)
+            if (length <= 0)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidArgument,
-                    "Negative length.");
+                    "File Read length must be positive.");
             }
-            byte[] buffer = new byte[length];
-            int read = stream.Read(buffer, 0, length);
-            if (read == length)
+            int limit = GetServerReadLimit(context);
+            uint fileLimit = MaxByteStringLength?.Value ?? 0;
+            if (fileLimit > 0)
             {
-                data = ByteString.From(buffer);
+                limit = (int)Math.Min(limit, (long)fileLimit);
             }
-            else
+            if (limit <= 0)
             {
-                byte[] trimmed = new byte[read];
-                Array.Copy(buffer, 0, trimmed, 0, read);
-                data = ByteString.From(trimmed);
+                return ServiceResult.Create(StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxMessageSize cannot hold a File Read response.");
             }
+            count = Math.Min(length, limit);
             return ServiceResult.Good;
+        }
+
+        private static int GetServerReadLimit(ISystemContext context)
+        {
+            IServiceMessageContext? messageContext = (context as ServerSystemContext)?.Server.MessageContext;
+            int limit = messageContext?.MaxByteStringLength ?? DefaultEncodingLimits.MaxByteStringLength;
+            if (limit <= 0)
+            {
+                limit = DefaultEncodingLimits.MaxByteStringLength;
+            }
+            int messageLimit = messageContext?.MaxMessageSize ?? DefaultEncodingLimits.MaxMessageSize;
+            if (messageLimit > 0)
+            {
+                // Binary CallResponse with one ByteString result and empty diagnostics.
+                const int responseOverhead = 57;
+                limit = Math.Min(limit, Math.Max(0, messageLimit - responseOverhead));
+            }
+            return limit;
         }
 
         private ServiceResult OnWrite(ISystemContext context, MethodState method,
@@ -400,7 +493,7 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return result;
             }
-            Stream? stream = handle.GetStream(sessionId, fileHandle);
+            Stream? stream = handle.GetStream(sessionId, fileHandle, requiredMode: 2);
             if (stream == null)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
@@ -489,6 +582,7 @@ namespace Opc.Ua.Server.FileSystem
             if (Open != null)
             {
                 Open.OnCall = null;
+                Open.OnCallAsync = null;
             }
             if (Write != null)
             {
@@ -497,6 +591,7 @@ namespace Opc.Ua.Server.FileSystem
             if (Read != null)
             {
                 Read.OnCall = null;
+                Read.OnCallAsync = null;
             }
             if (Close != null)
             {

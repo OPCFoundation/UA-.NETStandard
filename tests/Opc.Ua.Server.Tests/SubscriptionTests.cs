@@ -175,6 +175,124 @@ namespace Opc.Ua.Server.Tests
                     .ConfigureAwait(false));
         }
 
+        [TestCase("delete")]
+        [TestCase("transfer")]
+        [TestCase("close")]
+        [TestCase("cancel")]
+        public async Task UnattachedMonitoredItemsAreDeletedWhenCreationLosesOwnershipAsync(string outcome)
+        {
+            using Subscription subscription = CreateSubscription();
+            using var cancellation = new CancellationTokenSource();
+            using var context = new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
+            var item = new Mock<IMonitoredItem>();
+            item.SetupGet(value => value.Id).Returns(77);
+            var created = new MonitoredItemCreateResult { MonitoredItemId = 77, RevisedSamplingInterval = 1000 };
+            item.Setup(value => value.GetCreateResult(out created)).Returns(ServiceResult.Good);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool registered = false;
+            m_nodeManagerMock.Setup(manager => manager.CreateMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<uint>(), It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(), It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(),
+                    It.IsAny<IList<ServiceResult>>(), It.IsAny<IList<MonitoringFilterResult>>(),
+                    It.IsAny<IList<IMonitoredItem>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+                .Returns(async (
+                    OperationContext _, uint _, double _, TimestampsToReturn _,
+                    ArrayOf<MonitoredItemCreateRequest> _, IList<ServiceResult> errors,
+                    IList<MonitoringFilterResult> _, IList<IMonitoredItem> items, bool _, CancellationToken ct) =>
+                {
+                    items[0] = item.Object;
+                    errors[0] = ServiceResult.Good;
+                    registered = true;
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    ct.ThrowIfCancellationRequested();
+                });
+            m_nodeManagerMock.Setup(manager => manager.DeleteMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(), 1, It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<ServiceResult>>(), It.IsAny<CancellationToken>()))
+                .Returns((
+                    OperationContext _, uint _, IList<IMonitoredItem> items, IList<ServiceResult> errors,
+                    CancellationToken ct) =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    Assert.That(items, Has.Count.EqualTo(1));
+                    Assert.That(items[0], Is.SameAs(item.Object));
+                    registered = false;
+                    errors[0] = ServiceResult.Good;
+                    return default;
+                });
+            Task<CreateMonitoredItemsResponse> creating = subscription.CreateMonitoredItemsAsync(
+                context, TimestampsToReturn.Both, [new MonitoredItemCreateRequest()], cancellation.Token).AsTask();
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                switch (outcome)
+                {
+                    case "delete":
+                        await subscription.DeleteAsync(context).ConfigureAwait(false);
+                        break;
+                    case "transfer":
+                        Assert.That(((ISubscriptionPublishPipeline)subscription).TryBeginTransfer(m_sessionMock.Object),
+                            Is.True);
+                        break;
+                    case "close":
+                        Assert.That(((ISubscriptionPublishPipeline)subscription).SessionClosed(m_sessionMock.Object),
+                            Is.True);
+                        break;
+                    default:
+                        cancellation.Cancel();
+                        break;
+                }
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            if (outcome == "cancel")
+            {
+                Assert.CatchAsync<OperationCanceledException>(async () => await creating.ConfigureAwait(false));
+            }
+            else
+            {
+                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await creating.ConfigureAwait(false));
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+            }
+            Assert.That(registered, Is.False);
+            Assert.That(subscription.Diagnostics.MonitoredItemCount, Is.Zero);
+            item.Verify(value => value.Dispose(), Times.Once);
+            item.VerifySet(value => value.SubscriptionCallback = subscription, Times.Never);
+        }
+
+        [Test]
+        public void DurableSubscriptionSnapshotSurvivesRetransmissionQueueRecycling()
+        {
+            using Subscription subscription = CreateSubscription();
+            var queue = (SentMessageQueue)typeof(Subscription)
+                .GetField("m_messageQueue", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(subscription)!;
+            var item = new MonitoredItemNotification { ClientHandle = 77, Value = new DataValue(42) };
+            var message = new NotificationMessage
+            {
+                SequenceNumber = 9,
+                NotificationData = [new ExtensionObject(new DataChangeNotification { MonitoredItems = [item] })]
+            };
+            queue.Enqueue([message], [], out _, out _);
+            IStoredSubscription snapshot = subscription.ToStorableSubscription();
+            queue.Clear();
+            Assert.That(message.IsEmpty, Is.True);
+            ServiceMessageContext messageContext = ServiceMessageContext.Create(m_telemetry);
+            using var encoder = new BinaryEncoder(messageContext);
+            snapshot.SentMessages[0].Encode(encoder);
+            using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer(), messageContext);
+            var decoded = new NotificationMessage();
+            decoded.Decode(decoder);
+            Assert.That(decoded.SequenceNumber, Is.EqualTo(9u));
+            Assert.That(decoded.NotificationData[0].TryGetValue(out DataChangeNotification data), Is.True);
+            Assert.That(data.MonitoredItems[0].ClientHandle, Is.EqualTo(77u));
+            Assert.That(data.MonitoredItems[0].Value.WrappedValue.GetInt32(), Is.EqualTo(42));
+        }
+
         private ServerInternalData CreateServerInternalData()
         {
             var configuration = new ApplicationConfiguration

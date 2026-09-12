@@ -503,6 +503,9 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadInternalError, "Failed to create subscription in Server");
             }
 
+            // Restored subscriptions have no Session until transfer and must still advance their lifetime.
+            m_abandonedSubscriptions[subscription.Id] = subscription;
+
             // get the count for the diagnostics.
             publishingIntervalCount = GetPublishingIntervalCount();
 
@@ -1195,12 +1198,9 @@ namespace Opc.Ua.Server
             // get publish queue for session.
             if (!m_publishQueues.TryGetValue(context.Session.Id, out SessionPublishQueue? queue))
             {
-                if (m_subscriptions.IsEmpty)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNoSubscription);
-                }
-
-                throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                throw new ServiceResultException(context.Session.IsClosing
+                    ? StatusCodes.BadSessionClosed
+                    : StatusCodes.BadNoSubscription);
             }
 
             // acknowledge previous messages.
@@ -2317,9 +2317,7 @@ namespace Opc.Ua.Server
                 keepAliveCount = 3;
             }
 
-            ulong maxSubscriptionLifetime = isDurableSubscription
-                ? m_maxDurableSubscriptionLifetimeInHours
-                : m_maxSubscriptionLifetime;
+            ulong maxSubscriptionLifetime = GetMaximumLifetimeMilliseconds(isDurableSubscription);
 
             double keepAliveInterval = keepAliveCount * publishingInterval;
 
@@ -2361,11 +2359,7 @@ namespace Opc.Ua.Server
             uint lifetimeCount,
             bool isDurableSubscription = false)
         {
-            const int kMillisecondsToHours = 3_600_000;
-
-            ulong maxSubscriptionLifetime = isDurableSubscription
-                ? m_maxDurableSubscriptionLifetimeInHours * kMillisecondsToHours
-                : m_maxSubscriptionLifetime;
+            ulong maxSubscriptionLifetime = GetMaximumLifetimeMilliseconds(isDurableSubscription);
 
             double lifetimeInterval = lifetimeCount * publishingInterval;
 
@@ -2739,6 +2733,13 @@ namespace Opc.Ua.Server
             {
                 return HashCode.Combine(Subscription.Id, MonitoredItemId);
             }
+        }
+
+        private ulong GetMaximumLifetimeMilliseconds(bool isDurableSubscription)
+        {
+            return isDurableSubscription
+                ? (ulong)m_maxDurableSubscriptionLifetimeInHours * 3_600_000
+                : m_maxSubscriptionLifetime;
         }
 
         /// <summary>

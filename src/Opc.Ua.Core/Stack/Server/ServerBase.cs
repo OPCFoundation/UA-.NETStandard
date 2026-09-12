@@ -854,6 +854,8 @@ namespace Opc.Ua
             /// The discovery URL for the address.
             /// </summary>
             public Uri? DiscoveryUrl { get; set; }
+
+            internal ArrayOf<string> RequestedProfiles { get; init; }
         }
 
         /// <summary>
@@ -1245,14 +1247,25 @@ namespace Opc.Ua
             }
 
             var filteredAddresses = new List<BaseAddress>();
+            ArrayOf<string> requestedProfiles = profileUris.ConvertAll(Profiles.NormalizeUri);
 
             foreach (BaseAddress baseAddress in baseAddresses)
             {
-                foreach (string profileUri in profileUris)
+                string baseProfile = TransportProfileIdentity.GetEffective(baseAddress.ProfileUri, baseAddress.Url.ToString());
+                foreach (string profileUri in requestedProfiles)
                 {
-                    if (baseAddress.ProfileUri == Profiles.NormalizeUri(profileUri))
+                    if (baseProfile == profileUri ||
+                        (TransportProfileIdentity.IsHttps(baseProfile) &&
+                            TransportProfileIdentity.IsHttps(profileUri)))
                     {
-                        filteredAddresses.Add(baseAddress);
+                        filteredAddresses.Add(new BaseAddress
+                        {
+                            Url = baseAddress.Url,
+                            AlternateUrls = baseAddress.AlternateUrls,
+                            ProfileUri = baseProfile,
+                            DiscoveryUrl = baseAddress.DiscoveryUrl,
+                            RequestedProfiles = requestedProfiles
+                        });
                         break;
                     }
                 }
@@ -1284,14 +1297,16 @@ namespace Opc.Ua
                     {
                         if (alternateUrl.IdnHost == endpointUrl.IdnHost)
                         {
-                            if (!accessibleAddresses.Any(item => item.Url == alternateUrl))
+                            if (!accessibleAddresses.Any(item =>
+                                item.Url == alternateUrl && item.ProfileUri == baseAddress.ProfileUri))
                             {
                                 accessibleAddresses.Add(
                                     new BaseAddress
                                     {
                                         Url = alternateUrl,
                                         ProfileUri = baseAddress.ProfileUri,
-                                        DiscoveryUrl = alternateUrl
+                                        DiscoveryUrl = alternateUrl,
+                                        RequestedProfiles = baseAddress.RequestedProfiles
                                     });
                             }
                             break;
@@ -1415,19 +1430,22 @@ namespace Opc.Ua
                 foreach (EndpointDescription endpoint in endpoints)
                 {
                     var endpointUrl = new UriBuilder(endpoint.EndpointUrl!);
+                    string endpointProfile = TransportProfileIdentity.GetEffective(
+                        endpoint.TransportProfileUri, endpoint.EndpointUrl!);
 
                     // find matching base address.
                     foreach (BaseAddress baseAddress in baseAddresses)
                     {
-                        bool translateHttpsEndpoint = false;
-                        if (endpoint.TransportProfileUri == Profiles.HttpsBinaryTransport &&
-                            baseAddress.ProfileUri == Profiles.HttpsBinaryTransport)
+                        string baseProfile = TransportProfileIdentity.GetEffective(
+                            baseAddress.ProfileUri, baseAddress.Url.ToString());
+                        if (!baseAddress.RequestedProfiles.IsEmpty &&
+                            !baseAddress.RequestedProfiles.Contains(endpointProfile))
                         {
-                            translateHttpsEndpoint = true;
+                            continue;
                         }
-
-                        if (endpoint.TransportProfileUri != baseAddress.ProfileUri &&
-                            !translateHttpsEndpoint)
+                        bool translateHttpsEndpoint = TransportProfileIdentity.IsHttps(endpointProfile) &&
+                            TransportProfileIdentity.IsHttps(baseProfile);
+                        if (endpointProfile != baseProfile && !translateHttpsEndpoint)
                         {
                             continue;
                         }
@@ -1462,7 +1480,7 @@ namespace Opc.Ua
                         translation.SecurityMode = endpoint.SecurityMode;
                         translation.SecurityPolicyUri = endpoint.SecurityPolicyUri;
                         translation.ServerCertificate = endpoint.ServerCertificate;
-                        translation.TransportProfileUri = endpoint.TransportProfileUri;
+                        translation.TransportProfileUri = endpointProfile;
                         translation.UserIdentityTokens = endpoint.UserIdentityTokens;
                         translation.Server = application;
 
@@ -1472,7 +1490,8 @@ namespace Opc.Ua
                                 match.SecurityMode == translation.SecurityMode &&
                                 match.SecurityPolicyUri!.Equals(
                                     translation.SecurityPolicyUri,
-                                    StringComparison.Ordinal)))
+                                    StringComparison.Ordinal) &&
+                                match.TransportProfileUri == translation.TransportProfileUri))
                         {
                             translations.Add(translation);
                         }

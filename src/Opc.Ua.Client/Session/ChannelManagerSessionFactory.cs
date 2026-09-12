@@ -434,6 +434,7 @@ namespace Opc.Ua.Client
                     configuration,
                     securityPolicyUri,
                     messageContext.Telemetry,
+                    useCertificateRegistry: true,
                     ct).ConfigureAwait(false);
 #pragma warning disable CA2000 // ownership of the chain transfers to the channel manager, which disposes it
                 m_manager.UpdateClientCertificate(

@@ -238,6 +238,7 @@ namespace Opc.Ua.Server.FileSystem
         {
             EnsureWritable();
             string full = ResolveAbsolute(path);
+            EnsureNotRoot(full);
             if (Directory.Exists(full))
             {
                 Directory.Delete(full, recursive: true);
@@ -261,6 +262,8 @@ namespace Opc.Ua.Server.FileSystem
             EnsureWritable();
             string sourceFull = ResolveAbsolute(source);
             string targetFull = ResolveAbsolute(target);
+            EnsureNotRoot(sourceFull);
+            EnsureNotRoot(targetFull);
 
             if (File.Exists(targetFull) || Directory.Exists(targetFull))
             {
@@ -290,6 +293,8 @@ namespace Opc.Ua.Server.FileSystem
             EnsureWritable();
             string sourceFull = ResolveAbsolute(source);
             string targetFull = ResolveAbsolute(target);
+            EnsureNotRoot(sourceFull);
+            EnsureNotRoot(targetFull);
 
             if (File.Exists(targetFull) || Directory.Exists(targetFull))
             {
@@ -316,6 +321,20 @@ namespace Opc.Ua.Server.FileSystem
             {
                 throw new UnauthorizedAccessException(
                     "Provider is read-only.");
+            }
+        }
+
+        private void EnsureNotRoot(string fullPath)
+        {
+            StringComparison comparison = Path.DirectorySeparatorChar == '\\'
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            if (string.Equals(
+                fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                m_rootDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                comparison))
+            {
+                throw new UnauthorizedAccessException("The file-system mount root cannot be deleted, moved or copied.");
             }
         }
 

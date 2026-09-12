@@ -460,6 +460,7 @@ namespace Opc.Ua.Server
             Nonce? serverNonceObject = null;
             try
             {
+                bool sessionExpired;
                 // The global lock guards the session-manager dictionary and
                 // session lifecycle (lookup, lockout, expiry). It is deliberately
                 // released before the client-signature verification below:
@@ -508,20 +509,20 @@ namespace Opc.Ua.Server
                             $"Too many failed authentication attempts. Try again in {remainingSeconds} seconds.");
                     }
 
-                    // check if session timeout has expired.
-                    if (session.HasExpired)
-                    {
-                        // raise audit event for session closed because of timeout
-                        m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Timeout");
-
-                        await m_server.CloseSessionAsync(null!, session.Id, false, default).ConfigureAwait(false);
-
-                        throw new ServiceResultException(StatusCodes.BadSessionClosed);
-                    }
+                    sessionExpired = session.HasExpired;
                 }
                 finally
                 {
                     m_semaphoreSlim.Release();
+                }
+
+                if (sessionExpired)
+                {
+                    m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Timeout");
+                    // Coordinated close re-enters this manager and must not run under its global gate.
+                    await m_server.CloseSessionAsync(null!, session.Id, false, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
 
                 if (!m_sessionActivationStates.TryGetValue(
@@ -550,15 +551,18 @@ namespace Opc.Ua.Server
 
                     EndpointDescription currentEndpoint =
                         channelContext.EndpointDescription!;
-                    if (isNewChannel &&
-                        (!string.Equals(
+                    if (!string.Equals(
                             activationState.SecurityPolicyUri,
                             currentEndpoint.SecurityPolicyUri,
                             StringComparison.Ordinal) ||
-                        activationState.SecurityMode != currentEndpoint.SecurityMode))
+                        activationState.SecurityMode != currentEndpoint.SecurityMode)
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityPolicyRejected);
+                    }
+                    if (!session.Activated && !session.IsSecureChannelValid(channelContext.SecureChannelId))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
                     }
 
                     bool requiresClientCertificate =

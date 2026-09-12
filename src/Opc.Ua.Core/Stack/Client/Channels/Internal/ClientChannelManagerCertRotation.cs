@@ -114,7 +114,16 @@ namespace Opc.Ua
                 return;
             }
 
-            UpdateClientCertificate(certificate, chain);
+            try
+            {
+                UpdateClientCertificate(certificate, chain);
+            }
+            catch
+            {
+                certificate.Dispose();
+                chain?.Dispose();
+                throw;
+            }
             await ReconnectAllAsync(ct).ConfigureAwait(false);
         }
 

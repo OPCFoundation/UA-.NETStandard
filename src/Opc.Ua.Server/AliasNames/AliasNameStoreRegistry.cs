@@ -169,11 +169,20 @@ namespace Opc.Ua.Server.AliasNames
             {
                 return (new ServiceResult(StatusCodes.BadNotImplemented), []);
             }
-            IReadOnlyList<AliasNameDataType> aliases = await store
-                .FindAliasAsync(categoryId, aliasNameSearchPattern,
-                    referenceTypeFilter, typeTree, ct)
-                .ConfigureAwait(false);
-            return (ServiceResult.Good, aliases);
+            try
+            {
+                ValidateSearchPattern(aliasNameSearchPattern);
+                IReadOnlyList<AliasNameDataType> aliases = await store
+                    .FindAliasAsync(categoryId, aliasNameSearchPattern,
+                        referenceTypeFilter, typeTree, ct)
+                    .ConfigureAwait(false);
+                return (ServiceResult.Good, aliases);
+            }
+            catch (ServiceResultException ex)
+                when (ex.StatusCode == StatusCodes.BadInvalidArgument || ex.StatusCode == StatusCodes.BadTimeout)
+            {
+                return (ex.Result, []);
+            }
         }
 
         /// <inheritdoc/>
@@ -190,11 +199,20 @@ namespace Opc.Ua.Server.AliasNames
             {
                 return (new ServiceResult(StatusCodes.BadNotImplemented), []);
             }
-            IReadOnlyList<AliasNameVerboseDataType> aliases = await store
-                .FindAliasVerboseAsync(categoryId, aliasNameSearchPattern,
-                    referenceTypeFilter, typeTree, ct)
-                .ConfigureAwait(false);
-            return (ServiceResult.Good, aliases);
+            try
+            {
+                ValidateSearchPattern(aliasNameSearchPattern);
+                IReadOnlyList<AliasNameVerboseDataType> aliases = await store
+                    .FindAliasVerboseAsync(categoryId, aliasNameSearchPattern,
+                        referenceTypeFilter, typeTree, ct)
+                    .ConfigureAwait(false);
+                return (ServiceResult.Good, aliases);
+            }
+            catch (ServiceResultException ex)
+                when (ex.StatusCode == StatusCodes.BadInvalidArgument || ex.StatusCode == StatusCodes.BadTimeout)
+            {
+                return (ex.Result, []);
+            }
         }
 
         /// <inheritdoc/>
@@ -270,6 +288,14 @@ namespace Opc.Ua.Server.AliasNames
                 m_semaphore.Release();
             }
             m_semaphore.Dispose();
+        }
+
+        private static void ValidateSearchPattern(string? pattern)
+        {
+            if (!string.IsNullOrEmpty(pattern))
+            {
+                _ = AliasNameWildcardMatcher.CreateRegex(pattern);
+            }
         }
 
         private void OnStoreChanged(object? sender, AliasStoreChangedEventArgs e)

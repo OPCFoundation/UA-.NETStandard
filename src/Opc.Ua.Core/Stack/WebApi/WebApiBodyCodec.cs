@@ -228,18 +228,24 @@ namespace Opc.Ua.Bindings
             // MemoryStream, capping at MaxMessageSize as soon as the cap is
             // exceeded.
             using var buffer = new MemoryStream();
-            byte[] rented = ArrayPool<byte>.Shared.Rent(81920);
+            int bufferSize = maxLength > 0 ? (int)Math.Min(81920L, (long)maxLength + 1) : 81920;
+            byte[] rented = ArrayPool<byte>.Shared.Rent(bufferSize);
             try
             {
-                int read;
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
-                while ((read = await body
-                    .ReadAsync(rented.AsMemory(0, rented.Length), ct).ConfigureAwait(false)) > 0)
-#else
-                while ((read = await body
-                    .ReadAsync(rented, 0, rented.Length, ct).ConfigureAwait(false)) > 0)
-#endif
+                while (true)
                 {
+                    int count = maxLength > 0
+                        ? (int)Math.Min(rented.Length, (long)maxLength - buffer.Length + 1)
+                        : rented.Length;
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                    int read = await body.ReadAsync(rented.AsMemory(0, count), ct).ConfigureAwait(false);
+#else
+                    int read = await body.ReadAsync(rented, 0, count, ct).ConfigureAwait(false);
+#endif
+                    if (read == 0)
+                    {
+                        break;
+                    }
                     if (maxLength > 0 && buffer.Length + read > maxLength)
                     {
                         throw ServiceResultException.Create(
@@ -256,7 +262,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                ArrayPool<byte>.Shared.Return(rented);
+                ArrayPool<byte>.Shared.Return(rented, clearArray: true);
             }
             return buffer.ToArray();
         }

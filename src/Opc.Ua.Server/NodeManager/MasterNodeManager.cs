@@ -40,6 +40,7 @@ namespace Opc.Ua.Server
     /// <inheritdoc/>
     public partial class MasterNodeManager :
         IDisposable,
+        IAsyncDisposable,
         IMasterNodeManager,
         IMonitoredItemTransferCoordinator,
         IDynamicNodeManagerHost,
@@ -211,12 +212,42 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing && !m_disposed)
+            if (!disposing)
             {
+                return;
+            }
+            lock (m_disposalLock)
+            {
+                if (m_disposed)
+                {
+                    return;
+                }
                 m_disposed = true;
+                m_disposalTask = DisposeNodeManagersAsync();
+            }
+        }
 
-                m_startupShutdownSemaphoreSlim.Wait();
+        /// <summary>
+        /// Disposes the owned node managers and waits for their admitted operations to drain.
+        /// </summary>
+        public async ValueTask DisposeAsync()
+        {
+            Dispose();
+            Task disposal;
+            lock (m_disposalLock)
+            {
+                disposal = m_disposalTask;
+            }
+            await disposal.ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+        }
 
+        private async Task DisposeNodeManagersAsync()
+        {
+            await m_startupShutdownSemaphoreSlim.WaitAsync().ConfigureAwait(false);
+            var errors = new List<Exception>();
+            try
+            {
                 List<IAsyncNodeManager> nodeManagers = [.. m_nodeManagers];
                 m_nodeManagers.Clear();
                 m_dynamicExternalReferences.Clear();
@@ -224,11 +255,33 @@ namespace Opc.Ua.Server
 
                 foreach (IAsyncNodeManager nodeManager in nodeManagers)
                 {
-                    (nodeManager as IDisposable)?.Dispose();
+                    try
+                    {
+                        if (nodeManager is IAsyncDisposable asyncDisposable)
+                        {
+                            await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            (nodeManager as IDisposable)?.Dispose();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.NodeManagerDeferredCleanupFailed(ex);
+                        errors.Add(ex);
+                    }
                 }
-
+            }
+            finally
+            {
+                m_startupShutdownSemaphoreSlim.Release();
                 m_startupShutdownSemaphoreSlim.Dispose();
                 m_dynamicMutationSemaphore.Dispose();
+            }
+            if (errors.Count > 0)
+            {
+                throw new AggregateException("Node-manager disposal failed.", errors);
             }
         }
 
@@ -2543,6 +2596,8 @@ namespace Opc.Ua.Server
 
         private bool m_startupApplicationNodeManagersTransferred;
         private bool m_disposed;
+        private readonly Lock m_disposalLock = new();
+        private Task m_disposalTask = Task.CompletedTask;
     }
 
     /// <summary>
@@ -2595,12 +2650,12 @@ namespace Opc.Ua.Server
     public class MonitoredItemIdFactory
     {
         /// <summary>
-        /// Initialize the MonitoredItemIdFactory with a new start value the ids start incrementing from.
+        /// Advances the identifier floor without moving the current identifier backwards during restoration.
         /// </summary>
         /// <param name="firstId"></param>
         public void SetStartValue(uint firstId)
         {
-            Utils.SetIdentifier(ref m_lastMonitoredItemId, firstId);
+            Utils.SetIdentifierToAtLeast(ref m_lastMonitoredItemId, firstId);
         }
 
         /// <summary>
@@ -2735,6 +2790,13 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 23, Level = LogLevel.Error,
             Message = "NodeManager threw an exception transferring monitored items. NodeManager={NodeManager}")]
         public static partial void MonitoredItemTransferFailedForNodeManager(
+            this ILogger logger,
+            Exception ex,
+            string nodeManager);
+
+        [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 24, Level = LogLevel.Error,
+            Message = "NodeManager failed a monitored-item operation. NodeManager={NodeManager}")]
+        public static partial void MonitoredItemOwnerDispatchFailed(
             this ILogger logger,
             Exception ex,
             string nodeManager);

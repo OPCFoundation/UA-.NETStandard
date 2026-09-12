@@ -665,11 +665,15 @@ namespace Opc.Ua.Server
             IReadOnlyList<string> clientApplicationUris = clientCertificate != null
                 ? X509Utils.GetApplicationUrisFromCertificate(clientCertificate)
                 : [];
-            string clientThumbprint = clientCertificate != null
-                ? IdentityRuleValidator.NormaliseThumbprint(clientCertificate.Thumbprint)
+            using Certificate? userCertificate = identity.TokenType == UserTokenType.Certificate &&
+                identity.TokenHandler?.Token is X509IdentityToken { CertificateData.IsEmpty: false } userToken
+                    ? Certificate.FromRawData(userToken.CertificateData)
+                    : null;
+            string userThumbprint = userCertificate != null
+                ? IdentityRuleValidator.NormaliseThumbprint(userCertificate.Thumbprint)
                 : string.Empty;
-            string clientSubject = clientCertificate != null
-                ? IdentityRuleValidator.NormaliseX509Subject(clientCertificate.Subject)
+            string userSubject = userCertificate != null
+                ? IdentityRuleValidator.NormaliseX509Subject(userCertificate.Subject)
                 : string.Empty;
 
             string endpointUrl = endpoint?.EndpointUrl ?? string.Empty;
@@ -694,7 +698,7 @@ namespace Opc.Ua.Server
                 foreach (MutableRole role in m_roles.Values)
                 {
                     if (RoleMatches(role, identity, clientCertificate, clientApplicationUris,
-                            clientThumbprint, clientSubject, candidate, isSignedChannel,
+                            userThumbprint, userSubject, candidate, isSignedChannel,
                             isEncryptedChannel))
                     {
                         granted.Add(role.RoleId);
@@ -725,8 +729,8 @@ namespace Opc.Ua.Server
             IUserIdentity identity,
             Certificate? clientCertificate,
             IReadOnlyList<string> clientApplicationUris,
-            string clientThumbprint,
-            string clientSubject,
+            string userThumbprint,
+            string userSubject,
             EndpointType candidateEndpoint,
             bool isSignedChannel,
             bool isEncryptedChannel)
@@ -739,10 +743,7 @@ namespace Opc.Ua.Server
                 // communication channel." — §4.4.1
                 if (!isSignedChannel || clientApplicationUris.Count == 0)
                 {
-                    if (!role.ApplicationsExclude)
-                    {
-                        return false;
-                    }
+                    return false;
                 }
                 // The certificate may advertise multiple ApplicationUris (Subject
                 // Alternative Names); any match against the role's Applications list
@@ -777,7 +778,7 @@ namespace Opc.Ua.Server
             foreach (IdentityMappingRuleType rule in role.Identities)
             {
                 if (IdentityRuleMatches(rule, identity, clientCertificate,
-                        clientApplicationUris, clientThumbprint, clientSubject,
+                        clientApplicationUris, userThumbprint, userSubject,
                         isSignedChannel, isEncryptedChannel))
                 {
                     return true;
@@ -792,8 +793,8 @@ namespace Opc.Ua.Server
             IUserIdentity identity,
             Certificate? clientCertificate,
             IReadOnlyList<string> clientApplicationUris,
-            string clientThumbprint,
-            string clientSubject,
+            string userThumbprint,
+            string userSubject,
             bool isSignedChannel,
             bool isEncryptedChannel)
         {
@@ -807,11 +808,12 @@ namespace Opc.Ua.Server
                 IdentityCriteriaType.AuthenticatedUser => tokenType != UserTokenType.Anonymous,
                 IdentityCriteriaType.UserName => tokenType == UserTokenType.UserName &&
                     string.Equals(identity.DisplayName, criteria, StringComparison.Ordinal),
-                IdentityCriteriaType.Thumbprint => clientCertificate != null &&
-                    string.Equals(clientThumbprint, criteria, StringComparison.Ordinal),
-                IdentityCriteriaType.X509Subject => clientCertificate != null &&
-                    !string.IsNullOrEmpty(clientSubject) &&
-                    string.Equals(clientSubject, criteria, StringComparison.Ordinal),
+                IdentityCriteriaType.Thumbprint => tokenType == UserTokenType.Certificate &&
+                    !string.IsNullOrEmpty(userThumbprint) &&
+                    string.Equals(userThumbprint, criteria, StringComparison.Ordinal),
+                IdentityCriteriaType.X509Subject => tokenType == UserTokenType.Certificate &&
+                    !string.IsNullOrEmpty(userSubject) &&
+                    string.Equals(userSubject, criteria, StringComparison.Ordinal),
                 IdentityCriteriaType.Role => claims != null && MatchClaimRole(claims, criteria),
                 // The certificate may advertise multiple ApplicationUris; any one
                 // matching the rule's criteria is sufficient.

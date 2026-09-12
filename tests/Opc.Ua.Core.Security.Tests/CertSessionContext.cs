@@ -50,6 +50,7 @@ namespace Opc.Ua.Core.Security.Tests
     internal sealed class CertSessionContext : IAsyncDisposable
     {
         private readonly string m_pkiRoot;
+        private readonly ApplicationInstance m_application;
         private bool m_disposed;
         public ApplicationConfiguration ClientConfig { get; }
         public Certificate ClientCertificate { get; }
@@ -57,11 +58,13 @@ namespace Opc.Ua.Core.Security.Tests
         private CertSessionContext(
             ApplicationConfiguration clientConfig,
             Certificate clientCertificate,
-            string pkiRoot)
+            string pkiRoot,
+            ApplicationInstance application)
         {
             ClientConfig = clientConfig;
             ClientCertificate = clientCertificate;
             m_pkiRoot = pkiRoot;
+            m_application = application;
         }
 
         /// <summary>
@@ -92,6 +95,7 @@ namespace Opc.Ua.Core.Security.Tests
 
             string pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
             Directory.CreateDirectory(pkiRoot);
+            ApplicationInstance clientApp = null;
 
             try
             {
@@ -113,30 +117,30 @@ namespace Opc.Ua.Core.Security.Tests
                     Thumbprint = clientCertificate.Thumbprint
                 };
 
-                var clientApp = new ApplicationInstance(telemetry)
+                clientApp = new ApplicationInstance(telemetry)
                 {
                     ApplicationName = "ConformanceTestClient",
                     ApplicationType = ApplicationType.Client
                 };
 
-                ApplicationConfiguration clientConfig;
-                await using (clientApp.ConfigureAwait(false))
-                {
-                    clientConfig = await clientApp
-                        .Build(applicationUri, "urn:opcfoundation.org:ConformanceTestClient")
-                        .AsClient()
-                        .AddSecurityConfiguration(new[] { certIdentifier }.ToArrayOf(), pkiRoot)
-                        .SetMinimumCertificateKeySize(1024)
-                        .SetAutoAcceptUntrustedCertificates(true)
-                        .SetRejectSHA1SignedCertificates(false)
-                        .CreateAsync()
-                        .ConfigureAwait(false);
-                }
+                ApplicationConfiguration clientConfig = await clientApp
+                    .Build(applicationUri, "urn:opcfoundation.org:ConformanceTestClient")
+                    .AsClient()
+                    .AddSecurityConfiguration(new[] { certIdentifier }.ToArrayOf(), pkiRoot)
+                    .SetMinimumCertificateKeySize(1024)
+                    .SetAutoAcceptUntrustedCertificates(true)
+                    .SetRejectSHA1SignedCertificates(false)
+                    .CreateAsync()
+                    .ConfigureAwait(false);
 
-                return new CertSessionContext(clientConfig, clientCertificate, pkiRoot);
+                return new CertSessionContext(clientConfig, clientCertificate, pkiRoot, clientApp);
             }
             catch
             {
+                if (clientApp != null)
+                {
+                    await clientApp.DisposeAsync().ConfigureAwait(false);
+                }
                 TryDeleteDirectory(pkiRoot);
                 throw;
             }
@@ -172,16 +176,16 @@ namespace Opc.Ua.Core.Security.Tests
                 ct: cancellationToken).ConfigureAwait(false);
         }
 
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
             if (m_disposed)
             {
-                return default;
+                return;
             }
             m_disposed = true;
+            await m_application.DisposeAsync().ConfigureAwait(false);
             ClientCertificate?.Dispose();
             TryDeleteDirectory(m_pkiRoot);
-            return default;
         }
 
         private static void TryDeleteDirectory(string path)

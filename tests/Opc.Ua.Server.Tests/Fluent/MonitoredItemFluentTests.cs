@@ -348,6 +348,73 @@ namespace Opc.Ua.Server.Tests.Fluent
                 "a resource held by a live subscription must be released at shutdown");
         }
 
+        [Test]
+        public async Task ReactivationDuringOldPollerDrainKeepsItsSourceResourceAliveAsync()
+        {
+            int acquired = 0;
+            int released = 0;
+            int samples = 0;
+            bool resourceAlive = false;
+            var sampleEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseSample = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var harness = await MonitoredItemHarness.CreateAsync(builder =>
+            {
+                builder.Variable<int>("Value")
+                    .AcquireWhileMonitored((_, _, _) =>
+                    {
+                        acquired++;
+                        resourceAlive = true;
+                        return new ValueTask<IAsyncDisposable>(new ReleaseTracker(() =>
+                        {
+                            released++;
+                            resourceAlive = false;
+                        }));
+                    })
+                    .PollWhileMonitored(TimeSpan.FromMilliseconds(50), async (_, _) =>
+                    {
+                        int sample = Interlocked.Increment(ref samples);
+                        if (sample == 2)
+                        {
+                            sampleEntered.TrySetResult(true);
+                            await releaseSample.Task.ConfigureAwait(false);
+                        }
+                        return resourceAlive ? sample : -1;
+                    });
+            }).ConfigureAwait(false);
+            (_, IMonitoredItem? first) = await harness.CreateAsync(CreateRequest(samplingInterval: 100))
+                .ConfigureAwait(false);
+            harness.Time.Advance(TimeSpan.FromMilliseconds(100));
+            await sampleEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Task<ServiceResult> stopping = harness.SetModeAsync(first!, MonitoringMode.Disabled).AsTask();
+            IMonitoredItem? second = null;
+            Task<(ServiceResult Error, IMonitoredItem? Item)>? creating = null;
+            try
+            {
+                Assert.That(stopping.IsCompleted, Is.False);
+                creating = harness.CreateAsync(CreateRequest(samplingInterval: 100)).AsTask();
+                (_, second) = await creating.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+            finally
+            {
+                releaseSample.TrySetResult(true);
+                await stopping.ConfigureAwait(false);
+                if (creating != null)
+                {
+                    (_, second) = await creating.ConfigureAwait(false);
+                }
+            }
+            Assert.Multiple(() =>
+            {
+                Assert.That(resourceAlive, Is.True);
+                Assert.That(acquired, Is.EqualTo(1));
+                Assert.That(released, Is.Zero);
+                Assert.That(samples, Is.GreaterThanOrEqualTo(3));
+            });
+            await harness.DeleteAsync(first!).ConfigureAwait(false);
+            await harness.DeleteAsync(second!).ConfigureAwait(false);
+            Assert.That(released, Is.EqualTo(1));
+        }
+
         private sealed class ReleaseTracker : IAsyncDisposable
         {
             public ReleaseTracker(Action onRelease)

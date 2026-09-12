@@ -120,6 +120,19 @@ OPC 10000-4 Table 105 defines `ServiceLevel` as a byte split into mandatory sub-
 
 `ConstantServiceLevelProvider` reports a fixed value, defaulting to `255`, preserving single-instance behavior. `LeaderServiceLevelProvider` follows an `ILeaderElection`: the leader reports `255`, Cold standbys report `1`, Warm standbys report `199`, and Hot/HotAndMirrored standbys report `255` unless explicit levels are supplied. Optional health and connected-client delegates cap or decrement Healthy values so Hot servers can load-balance within the 200-255 range. `IServiceLevelController` lets `RequestServerStateChange` override the published value for manual maintenance.
 
+`SharedStoreLeaseElection` bounds local authority by the last successfully
+confirmed lease. Its injected `TimeProvider` drives both renewal and an
+independent expiry timer, so failed or blocked store operations cannot keep a
+replica authoritative past that deadline. `IsLeader` also checks the deadline
+when read, and expiry raises `LeadershipChanged(false)` to update dependent
+service levels. Lease validity starts at the write attempt, not at receipt of
+its reply; an expired or superseded operation cannot restore leadership. A
+fresh, confirmed acquisition is required after expiry. The UTC lease record is
+also bounded by local elapsed time, so moving the local clock backwards cannot
+extend authority. Replicas still require unique identities, suitably synchronized
+clocks and a linearizable compare-and-swap store; this local safety mechanism
+does not replace backend fencing or provide consensus.
+
 Client-side, `DefaultServerRedundancyHandler.FetchRedundancyInfoAsync` reads `RedundancySupport`, `ServiceLevel`, `EstimatedReturnTime`, `RedundantServerArray`, `ServerUriArray`, and `CurrentServerId` as applicable. `ServerRedundancyInfo.ServiceLevelSubrange` is calculated with `ServiceLevels.GetSubrange`.
 
 ```csharp

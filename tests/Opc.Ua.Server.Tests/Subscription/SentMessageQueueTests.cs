@@ -71,7 +71,8 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(queue.NextSequenceNumber, Is.EqualTo(42u));
                 Assert.That(queue.LastSentMessage, Is.EqualTo(2));
-                Assert.That(result, Is.SameAs(messages[1]));
+                Assert.That(result, Is.Not.SameAs(messages[1]));
+                Assert.That(result!.IsEqual(messages[1]), Is.True);
                 Assert.That(availableSequenceNumbers, Has.Count.EqualTo(2));
                 Assert.That(moreNotifications, Is.False);
             });

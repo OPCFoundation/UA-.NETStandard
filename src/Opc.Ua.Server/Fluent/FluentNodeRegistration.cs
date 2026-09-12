@@ -33,6 +33,23 @@ namespace Opc.Ua.Server.Fluent
 {
     internal static class FluentNodeRegistration
     {
+        internal static NodeBuilder GetHandlerBuilder(INodeManagerBuilder builder, NodeState node)
+        {
+            NodeManagerBuilder owner = builder as NodeManagerBuilder ??
+                FluentNodeManagerBase.TryResolveAttachedBuilder(builder) ??
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+                    "The node manager does not expose a fluent handler dispatcher.");
+            owner.ThrowIfSealed();
+            return new NodeBuilder(owner, node);
+        }
+
+        internal static void EnsureGraphAuthoringOpen(INodeManagerBuilder builder)
+        {
+            NodeManagerBuilder? owner = builder as NodeManagerBuilder ??
+                FluentNodeManagerBase.TryResolveAttachedBuilder(builder);
+            owner?.ThrowIfSealed();
+        }
+
         /// <summary>
         /// Mints the NodeId for a node the fluent surface just created.
         /// </summary>

@@ -73,6 +73,7 @@ namespace Opc.Ua
             object? reverseConnectionIdentity)
         {
             EndpointUrl = endpointUrl ?? throw new ArgumentNullException(nameof(endpointUrl));
+            TransportProfileUri = TransportProfileIdentity.GetEffective(null, endpointUrl);
             SecurityPolicyUri = securityPolicyUri
                 ?? throw new ArgumentNullException(nameof(securityPolicyUri));
             SecurityMode = securityMode;
@@ -86,6 +87,12 @@ namespace Opc.Ua
         /// The endpoint URL.
         /// </summary>
         public string EndpointUrl { get; }
+
+        /// <summary>
+        /// The effective transport profile, including its wire encoding.
+        /// The legacy constructor defaults to the scheme's binary profile.
+        /// </summary>
+        public string TransportProfileUri { get; init; }
 
         /// <summary>
         /// The security policy URI.
@@ -160,7 +167,13 @@ namespace Opc.Ua
                 serverThumbprint,
                 ComputeEndpointConfigurationHash(configuration),
                 clientThumbprint,
-                reverseConnectionIdentity);
+                reverseConnectionIdentity)
+            {
+                TransportProfileUri = TransportProfileIdentity.GetEffective(
+                    description.TransportProfileUri,
+                    description.EndpointUrl ?? string.Empty,
+                    configuration?.UseBinaryEncoding ?? true)
+            };
         }
 
         private static ByteString ComputeServerCertificateThumbprint(ByteString rawCertificate)

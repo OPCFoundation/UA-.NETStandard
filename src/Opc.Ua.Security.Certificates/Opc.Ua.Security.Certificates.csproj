@@ -14,6 +14,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Security.Certificates.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Core" />
+    <InternalsVisibleTo Include="Opc.Ua.Server" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Test.Common" />
     <InternalsVisibleTo Include="Opc.Ua.Certificates.Fuzz" />

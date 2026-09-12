@@ -53,6 +53,23 @@ namespace Opc.Ua
             Nonce? senderNonce,
             ICertificateValidatorEx? validator = null,
             bool doNotEncodeSenderCertificate = false)
+            : this(
+                context, securityPolicyUri, senderIssuerCertificates, receiverCertificate, receiverNonce,
+                senderCertificate, senderNonce, validator, doNotEncodeSenderCertificate, null)
+        {
+        }
+
+        internal EncryptedSecret(
+            IServiceMessageContext context,
+            string securityPolicyUri,
+            CertificateCollection? senderIssuerCertificates,
+            Certificate receiverCertificate,
+            Nonce? receiverNonce,
+            Certificate? senderCertificate,
+            Nonce? senderNonce,
+            ICertificateValidatorEx? validator,
+            bool doNotEncodeSenderCertificate,
+            Func<ArraySegment<byte>, SecurityPolicyInfo, byte[], byte[], ArraySegment<byte>>? decrypt)
         {
             SenderCertificate = senderCertificate;
             SenderIssuerCertificates = senderIssuerCertificates;
@@ -66,6 +83,8 @@ namespace Opc.Ua
                     $"Cannot resolve SecurityPolicy '{securityPolicyUri}'.",
                     nameof(securityPolicyUri));
             Context = context;
+            m_decrypt = decrypt ?? ((data, policy, key, iv) =>
+                CryptoUtils.SymmetricDecryptAndVerify(data, policy, key, iv));
         }
 
         /// <summary>
@@ -178,23 +197,35 @@ namespace Opc.Ua
             encryptingKey = new byte[encryptingKeySize];
             iv = new byte[blockSize];
 
-            byte[] secret = localNonce.GenerateSecret(remoteNonce, null) ?? throw new InvalidOperationException("Failed to generate secret.");
-            byte[] keyLength = BitConverter.GetBytes((ushort)(encryptingKeySize + blockSize));
-
-            byte[] salt = Utils.Append(
-                keyLength,
-                s_secretLabel,
-                forDecryption ? remoteNonce.Data : localNonce.Data,
-                forDecryption ? localNonce.Data : remoteNonce.Data);
-
-            byte[] keyData = localNonce.DeriveKeyData(
-                secret!,
-                salt,
-                securityPolicy.KeyDerivationAlgorithm,
-                encryptingKeySize + blockSize);
-
-            Buffer.BlockCopy(keyData, 0, encryptingKey, 0, encryptingKey.Length);
-            Buffer.BlockCopy(keyData, encryptingKeySize, iv, 0, iv.Length);
+            byte[]? secret = null;
+            byte[]? keyData = null;
+            bool created = false;
+            try
+            {
+                secret = localNonce.GenerateSecret(remoteNonce, null) ??
+                    throw new InvalidOperationException("Failed to generate secret.");
+                byte[] keyLength = BitConverter.GetBytes((ushort)(encryptingKeySize + blockSize));
+                byte[] salt = Utils.Append(
+                    keyLength,
+                    s_secretLabel,
+                    forDecryption ? remoteNonce.Data : localNonce.Data,
+                    forDecryption ? localNonce.Data : remoteNonce.Data);
+                keyData = localNonce.DeriveKeyData(
+                    secret, salt, securityPolicy.KeyDerivationAlgorithm, encryptingKeySize + blockSize);
+                Buffer.BlockCopy(keyData, 0, encryptingKey, 0, encryptingKey.Length);
+                Buffer.BlockCopy(keyData, encryptingKeySize, iv, 0, iv.Length);
+                created = true;
+            }
+            finally
+            {
+                ZeroMemory(secret);
+                ZeroMemory(keyData);
+                if (!created)
+                {
+                    ZeroMemory(encryptingKey);
+                    ZeroMemory(iv);
+                }
+            }
         }
 
         /// <summary>
@@ -1210,62 +1241,62 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadArgumentsMissing, "Receiver and sender nonces are required for ECC decryption.");
             }
 
-            CreateKeysForEcc(
-                SecurityPolicy,
-                ReceiverNonce!,
-                SenderNonce!,
-                true,
-                out byte[] encryptingKey,
-                out byte[] iv);
-
-            ArraySegment<byte> plainText = CryptoUtils.SymmetricDecryptAndVerify(
-                dataToDecrypt,
-                SecurityPolicy,
-                encryptingKey,
-                iv);
-
-            using var decoder = new BinaryDecoder(
-                plainText.GetArray(),
-                plainText.Offset + dataToDecrypt.Offset,
-                plainText.Count - dataToDecrypt.Offset,
-                Context);
-
-            ByteString actualNonce = decoder.ReadByteString(null);
-
-            if (expectedNonce != null && expectedNonce.Length > 0)
+            byte[]? encryptingKey = null;
+            byte[]? iv = null;
+            ByteString actualNonce = default;
+            ByteString key = default;
+            try
             {
-                int notvalid = expectedNonce.Length == actualNonce.Length ? 0 : 1;
+                CreateKeysForEcc(SecurityPolicy, ReceiverNonce, SenderNonce, true, out encryptingKey, out iv);
+                ArraySegment<byte> plainText = m_decrypt(dataToDecrypt, SecurityPolicy, encryptingKey, iv);
+                using var decoder = new BinaryDecoder(
+                    plainText.GetArray(),
+                    plainText.Offset + dataToDecrypt.Offset,
+                    plainText.Count - dataToDecrypt.Offset,
+                    Context);
+                actualNonce = decoder.ReadByteString(null);
 
-                for (int ii = 0; ii < expectedNonce.Length && ii < actualNonce.Length; ii++)
+                if (expectedNonce != null && expectedNonce.Length > 0)
                 {
-                    notvalid |= expectedNonce[ii] ^ actualNonce.Span[ii];
+                    int notvalid = expectedNonce.Length == actualNonce.Length ? 0 : 1;
+                    for (int ii = 0; ii < expectedNonce.Length && ii < actualNonce.Length; ii++)
+                    {
+                        notvalid |= expectedNonce[ii] ^ actualNonce.Span[ii];
+                    }
+
+                    if (notvalid != 0)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNonceInvalid);
+                    }
                 }
 
-                if (notvalid != 0)
+                key = decoder.ReadByteString(null);
+                byte paddingCount = decoder.ReadByte(null);
+
+                int error = 0;
+                for (int ii = 0; ii < paddingCount; ii++)
                 {
-                    throw new ServiceResultException(StatusCodes.BadNonceInvalid);
+                    byte padding = decoder.ReadByte(null);
+                    error |= padding & ~paddingCount;
                 }
+
+                byte highByte = decoder.ReadByte(null);
+
+                if (error != 0 || highByte != 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError);
+                }
+
+                return key.ToArray();
             }
-
-            ByteString key = decoder.ReadByteString(null);
-            byte paddingCount = decoder.ReadByte(null);
-
-            int error = 0;
-
-            for (int ii = 0; ii < paddingCount; ii++)
+            finally
             {
-                byte padding = decoder.ReadByte(null);
-                error |= padding & ~paddingCount;
+                ZeroMemory(encryptingKey);
+                ZeroMemory(iv);
+                ClearDecodedBytes(actualNonce);
+                ClearDecodedBytes(key);
+                CryptoUtils.ZeroMemory(dataToDecrypt.AsSpan());
             }
-
-            byte highByte = decoder.ReadByte(null);
-
-            if (error != 0 || highByte != 0)
-            {
-                throw new ServiceResultException(StatusCodes.BadDecodingError);
-            }
-
-            return key.ToArray();
         }
 
         /// <summary>
@@ -1287,6 +1318,22 @@ namespace Opc.Ua
             return sha1.ComputeHash(data);
 #endif
 #pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
+        }
+
+        private readonly Func<ArraySegment<byte>, SecurityPolicyInfo, byte[], byte[], ArraySegment<byte>> m_decrypt;
+
+        private static void ClearDecodedBytes(ByteString value)
+        {
+            if (value.IsEmpty)
+            {
+                return;
+            }
+            // BinaryDecoder allocates these byte strings; no caller owns or shares their backing arrays.
+            if (!System.Runtime.InteropServices.MemoryMarshal.TryGetArray(value.Memory, out ArraySegment<byte> bytes))
+            {
+                throw new InvalidOperationException("Decoded secret bytes must have an owned array buffer.");
+            }
+            CryptoUtils.ZeroMemory(bytes.AsSpan());
         }
 
         private static void ZeroMemory(byte[]? buffer)

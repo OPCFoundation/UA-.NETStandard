@@ -230,11 +230,9 @@ namespace Opc.Ua.Vision.Server
         /// <summary>
         /// Asynchronously disposes the node manager.
         /// </summary>
-        public ValueTask DisposeAsync()
+        public override ValueTask DisposeAsync()
         {
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
-            return default;
+            return base.DisposeAsync();
         }
 
         /// <inheritdoc/>

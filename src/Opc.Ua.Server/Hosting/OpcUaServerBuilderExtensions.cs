@@ -705,7 +705,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     sp.GetService<ISecretStore>() ?? new InMemorySecretStore("KeyCredentialPush")));
             builder.Services.AddSingleton(sp => new KeyCredentialPushSubject(
                 sp.GetRequiredService<IKeyCredentialStore>(),
-                sp.GetRequiredService<IOptions<KeyCredentialPushOptions>>().Value));
+                sp.GetRequiredService<IOptions<KeyCredentialPushOptions>>().Value,
+                sp.GetService<ICertificateRegistry>(),
+                sp.GetService<ISecurityPolicyRegistry>()));
             return builder;
         }
 
