@@ -1252,6 +1252,72 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
+        public async Task ReconnectParticipantTimeoutUsesInjectedClockAsync()
+        {
+            var timeProvider = new ObservableFakeTimeProvider();
+            TimeSpan participantTimeout = TimeSpan.FromMilliseconds(200);
+            var reconnectPolicy = new ExponentialBackoffChannelReconnectPolicy
+            {
+                MinDelay = TimeSpan.Zero,
+                MaxDelay = TimeSpan.Zero,
+                MaxAttempts = 1,
+                ParticipantTimeout = participantTimeout
+            };
+            var participantCompletion = new TaskCompletionSource<ParticipantReconnectResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            (ClientChannelManager sut, Certificate serverCert, _) =
+                CreateMockedSut(reconnectPolicy: reconnectPolicy, timeProvider: timeProvider);
+            try
+            {
+                var participant = new Mock<IReconnectParticipant>();
+                participant.SetupGet(p => p.Id).Returns("bounded-participant");
+                participant.SetupGet(p => p.Endpoint).Returns(GetTestEndpoint(serverCert));
+                participant.Setup(p => p.OnReconnectAsync(
+                        It.IsAny<IManagedTransportChannel>(),
+                        0,
+                        It.IsAny<CancellationToken>()))
+                    .Returns(() => new ValueTask<ParticipantReconnectResult>(participantCompletion.Task));
+                participant.Setup(p => p.OnReconnectAsync(
+                        It.IsAny<IManagedTransportChannel>(),
+                        -1,
+                        It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<ParticipantReconnectResult>(ParticipantReconnectResult.Reactivated));
+                using IManagedTransportChannel channel = await sut.GetAsync(participant.Object, default)
+                    .ConfigureAwait(false);
+                Task<bool> timerCreated = timeProvider.WaitForTimersCreatedAsync();
+                var budget = new RetryBudget(TimeSpan.FromSeconds(5), timeProvider);
+                Task reconnectTask = sut.ReconnectAsync(channel, budget, default).AsTask();
+                await timerCreated.WaitAsync(s_completionTimeout).ConfigureAwait(false);
+
+                timeProvider.Advance(participantTimeout - TimeSpan.FromTicks(1));
+                Assert.That(reconnectTask.IsCompleted, Is.False);
+                Assert.That(channel.State, Is.EqualTo(ChannelState.TransportConnectedSessionReactivating));
+
+                timeProvider.Advance(TimeSpan.FromTicks(1));
+                ServiceResultException exception = await AssertThrowsAsync<ServiceResultException>(
+                    reconnectTask, s_completionTimeout).ConfigureAwait(false);
+
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
+                Assert.That(channel.State, Is.EqualTo(ChannelState.Faulted));
+                Assert.That(participantCompletion.Task.IsCompleted, Is.False);
+                participant.Verify(p => p.OnReconnectAsync(
+                    It.IsAny<IManagedTransportChannel>(),
+                    0,
+                    It.IsAny<CancellationToken>()), Times.Once);
+                participant.Verify(p => p.OnReconnectAsync(
+                    It.IsAny<IManagedTransportChannel>(),
+                    -1,
+                    It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                participantCompletion.TrySetResult(ParticipantReconnectResult.Reactivated);
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
+
+        [Test]
         public async Task ReconnectAsyncWithExhaustedPolicyDoesNotSwapTheEntryAsync()
         {
             var timeProvider = new ObservableFakeTimeProvider();

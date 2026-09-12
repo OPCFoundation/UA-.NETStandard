@@ -1183,7 +1183,9 @@ namespace Opc.Ua
                         }
 
                         ObserveFaultedParticipantTask(reconnectTask);
-                        return await reconnectTask.WaitAsync(participantTimeout, ct).ConfigureAwait(false);
+                        return await reconnectTask
+                            .WaitAsync(participantTimeout, OwnerManager.TimeProvider, ct)
+                            .ConfigureAwait(false);
                     }
                     catch (TimeoutException)
                     {

@@ -505,6 +505,8 @@ transitions the channel to `Faulted`. The `IChannelReconnectPolicy` default
 interface member remains `Timeout.InfiniteTimeSpan` for custom-policy
 backward compatibility, and older TFMs can opt in with `IParticipantTimeoutPolicy`.
 The policy is configurable on the `ClientChannelManager` constructor.
+Participant deadlines use the manager's injected `TimeProvider`, including on
+.NET Framework, so they follow the same clock as reconnect backoff and retry budgets.
 
 ### HTTPS resilience vs channel-mgr reconnect
 
