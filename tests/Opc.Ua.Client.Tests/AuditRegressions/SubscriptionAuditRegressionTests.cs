@@ -329,6 +329,41 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Sequence numbers roll over from uint.MaxValue straight to 1, so
+        /// zero falls inside the arithmetic gap but was never sent. Counting
+        /// it reported a missing message on every wrap.
+        /// </summary>
+        [Test]
+        public async Task SequenceNumberWrapDoesNotCountAMissingMessageAsync()
+        {
+            var sut = new RecordingProcessor(m_services.Object, m_completion, m_telemetry)
+            {
+                Id = 1
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                // Anchor the dedup gate at the last sequence number ...
+                await sut.OnPublishReceivedAsync(
+                    DataMessage(uint.MaxValue),
+                    new List<uint> { uint.MaxValue },
+                    []);
+                await m_completion.WaitForQueuedAckAsync(1);
+
+                // ... then wrap to 1, which is the very next message.
+                await sut.OnPublishReceivedAsync(
+                    DataMessage(1),
+                    new List<uint> { 1 },
+                    []);
+                await m_completion.WaitForQueuedAckAsync(2);
+
+                Assert.That(
+                    sut.MissingMessageCount,
+                    Is.Zero,
+                    "no message is missing across a wrap - zero is never sent");
+            }
+        }
+
+        /// <summary>
         /// The publish response string table was captured but never forwarded:
         /// handlers always received an empty table, so localized text in a
         /// notification could not be resolved.

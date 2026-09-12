@@ -1076,12 +1076,6 @@ namespace Opc.Ua.Client
                     && !Profiles.IsHttpsOpenApi(profile)
                     && !Profiles.IsWssOpenApi(profile);
 
-                // A waiting reverse connection is single-use: hand it to the
-                // first connect attempt only, every reconnect goes through the
-                // regular paths below.
-                ITransportWaitingConnection? waitingConnection =
-                    Interlocked.Exchange(ref m_initialConnection, null);
-
                 IDisposable? connectLease = null;
                 Session session;
                 try
@@ -1092,6 +1086,16 @@ namespace Opc.Ua.Client
                             .AcquireAsync(ct)
                             .ConfigureAwait(false);
                     }
+
+                    // A waiting reverse connection is single-use: hand it to
+                    // the first connect attempt only, every reconnect goes
+                    // through the regular paths below. Consumed only once the
+                    // gate has granted the attempt - taking it before would
+                    // burn it on a gate rejection and leave the retry to fall
+                    // back to an outbound path, which cannot reach a server
+                    // that only ever connects in reverse.
+                    ITransportWaitingConnection? waitingConnection =
+                        Interlocked.Exchange(ref m_initialConnection, null);
 
                     if (waitingConnection != null)
                     {

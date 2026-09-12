@@ -403,6 +403,14 @@ namespace Opc.Ua.Client.Subscriptions
                 // cannot exist. Bounded by the retransmission queue size, as on
                 // the first-message path below.
                 uint gap = delta - 1;
+                if (gap != 0 && curSeqNum < prevDataSeq)
+                {
+                    // The skipped range crosses the wrap point. Sequence
+                    // numbers roll over from uint.MaxValue straight to 1
+                    // (Part 4 §5.14.5.1), so zero is in the arithmetic range
+                    // but was never sent and is not a missing message.
+                    gap--;
+                }
                 if (gap != 0)
                 {
                     Interlocked.Add(ref m_missingCount, gap);
