@@ -1161,11 +1161,19 @@ Projection-owned forms use the projection root's declarations, never surviving
 source declarations. The projection annotation whitelist does not permit an
 enumerated member to restate `uriVariables`.
 
+If host routing replaces a selected source's URI-variable subtree, source data
+references into that subtree retain their original variable schemas as supporting
+`schemaDefinitions`. They do not follow the source affordance's ancestor mapping
+into the host-owned variables. These dependencies share the existing owner-scoped
+reference closure, collision-safe names, original contexts and support-node budget.
+
 Carried variables preserve their original ordered and term-scoped contexts and
 schema-reference ownership. Duplicate containers or declarations must agree;
-equivalent facts coalesce and contradictory facts fail. Variable maps are emitted
-in code-point order without changing the URI template. Retained variables count
-with affordances and reusable schemas against `MaxNodeCount`.
+equivalent facts coalesce and contradictory facts fail with
+`ProjectionSourceUnresolved`. Source-local containers are checked before cloning
+enumerated, bulk-selected or supporting affordances, including under host routing.
+Variable maps are emitted in code-point order without changing the URI template.
+Retained variables count with affordances and reusable schemas against `MaxNodeCount`.
 
 Dependency discovery reads supported RFC 6570 expressions, including prefix and
 explode modifiers and literal percent-encoded variable names. Missing required

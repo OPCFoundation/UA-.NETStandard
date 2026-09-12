@@ -780,7 +780,11 @@ namespace Opc.Ua.Wot
                     reference.Reference);
                 return;
             }
-            JsonObject target = CloneObject(definition);
+            JsonObject? target = CloneAffordance(definition, pointer, diagnostics);
+            if (target is null)
+            {
+                return;
+            }
             if (!sourceRouting)
             {
                 target.Remove("forms");
@@ -854,7 +858,12 @@ namespace Opc.Ua.Wot
 
                 bool sourceRouting =
                     source.Source.Routing == WotProjectionRouting.Source;
-                JsonObject target = CloneObject(definition);
+                string pointer = "/" + MapName(kind) + "/" + EscapePointer(name);
+                JsonObject? target = CloneAffordance(definition, pointer, diagnostics);
+                if (target is null)
+                {
+                    continue;
+                }
                 if (sourceRouting)
                 {
                     TransformForms(target, source, selection);
@@ -865,8 +874,7 @@ namespace Opc.Ua.Wot
                     target.Remove("security");
                 }
                 CarryAnchor(target, source.Document);
-                CarryProvenance(target, source, definition,
-                    "/" + MapName(kind) + "/" + EscapePointer(name), diagnostics);
+                CarryProvenance(target, source, definition, pointer, diagnostics);
                 selection.Add(kind, viewName, target, source, name, definition);
             }
         }
@@ -954,7 +962,11 @@ namespace Opc.Ua.Wot
             }
 
             string outputName = selection.AllocateSupportName(kind, source, name, pointer);
-            JsonObject value = CloneObject(definition);
+            JsonObject? value = CloneAffordance(definition, pointer, diagnostics);
+            if (value is null)
+            {
+                return null;
+            }
             if (source.Source.Routing == WotProjectionRouting.Source)
             {
                 TransformForms(value, source, selection);

@@ -222,20 +222,23 @@ namespace Opc.Ua.Wot
                     Fail("A local schema reference must identify an existing schema object.", owner.Href + "#" + pointer);
                     return null;
                 }
-                string? mapped = MappedPointer(owner, pointer);
+                string? replacedScope = ReplacedUriVariableScope(owner, pointer);
+                string? mapped = MappedPointer(owner, pointer, replacedScope?.Length ?? 0);
                 if (mapped is not null)
                 {
                     return mapped;
                 }
 
                 const string prefix = "/schemaDefinitions/";
-                if (!pointer.StartsWith(prefix, StringComparison.Ordinal))
+                bool replacedVariable = replacedScope is not null && pointer.Length > replacedScope.Length;
+                if (!pointer.StartsWith(prefix, StringComparison.Ordinal) && !replacedVariable)
                 {
                     Fail("The local schema is neither a selected definition nor a reusable schema definition.",
                         owner.Href + "#" + pointer);
                     return null;
                 }
-                int next = pointer.IndexOf('/', prefix.Length);
+                int nameStart = replacedVariable ? replacedScope!.Length + 1 : prefix.Length;
+                int next = pointer.IndexOf('/', nameStart);
                 string rootPointer = next < 0 ? pointer : pointer[..next];
                 if (!WotDocument.TryEvaluatePointer(owner.Document.RootElement, rootPointer, out JsonElement original) ||
                     original.ValueKind != JsonValueKind.Object)
@@ -249,7 +252,7 @@ namespace Opc.Ua.Wot
                     BudgetError();
                     return null;
                 }
-                string name = UnescapeAffordanceName(rootPointer[prefix.Length..]);
+                string name = UnescapeAffordanceName(rootPointer[nameStart..]);
                 if (m_definitions.ContainsKey(name))
                 {
                     string stem = owner.SourceName is null
@@ -262,7 +265,9 @@ namespace Opc.Ua.Wot
                     }
                 }
                 string destination = prefix + EscapePointer(name);
-                JsonObject value = CloneObject(original);
+                JsonObject value = replacedVariable
+                    ? CloneUriVariableSchema(owner.Document, original)
+                    : CloneObject(original);
                 m_definitions[name] = value;
                 if (!m_root.ContainsKey("schemaDefinitions"))
                 {
@@ -273,7 +278,7 @@ namespace Opc.Ua.Wot
                 return destination + pointer[rootPointer.Length..];
             }
 
-            private string? MappedPointer(ReferenceOwner owner, string pointer)
+            private string? MappedPointer(ReferenceOwner owner, string pointer, int minimumAncestorLength)
             {
                 bool host = owner.SourceName is null;
                 if (m_locations.TryGetValue((host, owner.Href, pointer), out string? destination))
@@ -286,6 +291,7 @@ namespace Opc.Ua.Wot
                 {
                     if (location.Key.Host == host &&
                         string.Equals(location.Key.Href, owner.Href, StringComparison.Ordinal) &&
+                        location.Key.Pointer.Length >= minimumAncestorLength &&
                         location.Key.Pointer.Length > longest &&
                         pointer.StartsWith(location.Key.Pointer + "/", StringComparison.Ordinal))
                     {

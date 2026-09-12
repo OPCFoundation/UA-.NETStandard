@@ -38,11 +38,105 @@ namespace Opc.Ua.Wot
 {
     public sealed partial class WotProjectionResolver
     {
+        private static JsonObject? CloneAffordance(
+            JsonElement definition, string pointer, List<WotDiagnostic> diagnostics)
+        {
+            if (!definition.TryGetProperty("uriVariables", out _))
+            {
+                return CloneObject(definition);
+            }
+            int errors = CountErrors(diagnostics);
+            Dictionary<string, JsonElement> variables = ReadUriVariables(definition, pointer, diagnostics);
+            if (CountErrors(diagnostics) != errors)
+            {
+                return null;
+            }
+            var target = new JsonObject();
+            foreach (JsonProperty member in definition.EnumerateObject())
+            {
+                if (member.Name != "uriVariables")
+                {
+                    target.Add(member.Name, CloneNode(member.Value));
+                    continue;
+                }
+                if (target.ContainsKey("uriVariables"))
+                {
+                    continue;
+                }
+                var local = new JsonObject();
+                foreach (KeyValuePair<string, JsonElement> variable in variables
+                    .OrderBy(entry => entry.Key, WotCodePointComparer.Instance))
+                {
+                    local.Add(variable.Key, CloneObject(variable.Value));
+                }
+                target.Add("uriVariables", local);
+            }
+            return target;
+        }
+
+        private static Dictionary<string, JsonElement> ReadUriVariables(
+            JsonElement scope, string pointer, List<WotDiagnostic> diagnostics)
+        {
+            var variables = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+            if (scope.ValueKind != JsonValueKind.Object)
+            {
+                return variables;
+            }
+            JsonElement previous = default;
+            foreach (JsonProperty property in scope.EnumerateObject())
+            {
+                if (property.Name != "uriVariables")
+                {
+                    continue;
+                }
+                if (property.Value.ValueKind != JsonValueKind.Object)
+                {
+                    Fail("uriVariables must be an object.", pointer + "/uriVariables");
+                    return variables;
+                }
+                if (previous.ValueKind != JsonValueKind.Undefined && !EquivalentVariables(previous, property.Value))
+                {
+                    Fail("Repeated uriVariables containers must agree.", pointer + "/uriVariables");
+                    return variables;
+                }
+                previous = property.Value;
+                foreach (JsonProperty variable in property.Value.EnumerateObject())
+                {
+                    string variablePointer = pointer + "/uriVariables/" + EscapePointer(variable.Name);
+                    if (variable.Value.ValueKind != JsonValueKind.Object)
+                    {
+                        Fail($"URI variable '{variable.Name}' must be a DataSchema object.", variablePointer);
+                        continue;
+                    }
+                    if (variables.TryGetValue(variable.Name, out JsonElement existing) &&
+                        !EquivalentVariables(existing, variable.Value))
+                    {
+                        Fail($"URI variable '{variable.Name}' has contradictory duplicate definitions.",
+                            variablePointer);
+                        continue;
+                    }
+                    variables[variable.Name] = variable.Value;
+                }
+            }
+            return variables;
+
+            void Fail(string message, string location) =>
+                AddError(diagnostics, WotDiagnosticCode.ProjectionSourceUnresolved, message, location);
+        }
+
+        private static bool EquivalentVariables(JsonElement left, JsonElement right)
+        {
+            return WotJsonCanonicalizer.TryCanonicalize(left, out string first, out _) &&
+                WotJsonCanonicalizer.TryCanonicalize(right, out string second, out _) &&
+                string.Equals(first, second, StringComparison.Ordinal);
+        }
+
         private sealed partial class SchemaReferenceClosure
         {
             private void RegisterRootUriVariables()
             {
-                Dictionary<string, JsonElement> definitions = ReadUriVariables(m_host.Document.RootElement, string.Empty);
+                Dictionary<string, JsonElement> definitions = ReadUriVariables(
+                    m_host.Document.RootElement, string.Empty, m_diagnostics);
                 if (!m_root.ContainsKey("uriVariables"))
                 {
                     return;
@@ -73,12 +167,17 @@ namespace Opc.Ua.Wot
                 ReferenceOwner owner = hostForms ? m_host : sourceOwner;
                 string originalPointer = hostForms ? destination : member.Pointer;
                 JsonElement original = member.Definition;
-                if (hostForms && !WotDocument.TryEvaluatePointer(owner.Document.RootElement, originalPointer, out original))
+                if (hostForms)
                 {
-                    original = default;
+                    m_replacedUriVariableScopes.Add((sourceOwner.Href, member.Pointer + "/uriVariables"));
+                    if (!WotDocument.TryEvaluatePointer(owner.Document.RootElement, originalPointer, out original))
+                    {
+                        original = default;
+                    }
                 }
-                Dictionary<string, JsonElement> local = ReadUriVariables(original, originalPointer);
-                Dictionary<string, JsonElement> root = ReadUriVariables(owner.Document.RootElement, string.Empty);
+                Dictionary<string, JsonElement> local = ReadUriVariables(original, originalPointer, m_diagnostics);
+                Dictionary<string, JsonElement> root = ReadUriVariables(
+                    owner.Document.RootElement, string.Empty, m_diagnostics);
                 var variables = new JsonObject();
                 foreach (KeyValuePair<string, JsonElement> declaration in local
                     .OrderBy(entry => entry.Key, WotCodePointComparer.Instance))
@@ -140,17 +239,7 @@ namespace Opc.Ua.Wot
                         BudgetError();
                         return;
                     }
-                    JsonObject schema = CloneObject(definition);
-                    ArrayOf<JsonElement> contexts = owner.Document.GetContextSequence(definition);
-                    if (contexts.Count != 0)
-                    {
-                        var context = new JsonArray();
-                        foreach (JsonElement entry in contexts)
-                        {
-                            AppendContext(context, entry);
-                        }
-                        schema["@context"] = context;
-                    }
+                    JsonObject schema = CloneUriVariableSchema(owner.Document, definition);
                     variables[name] = schema;
                     RegisterVariable(schema, owner, pointer, destination + "/uriVariables/" + EscapePointer(name));
                 }
@@ -163,50 +252,38 @@ namespace Opc.Ua.Wot
                 m_uriVariableCount++;
             }
 
-            private Dictionary<string, JsonElement> ReadUriVariables(JsonElement scope, string pointer)
+            private string? ReplacedUriVariableScope(ReferenceOwner owner, string pointer)
             {
-                var variables = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-                if (scope.ValueKind != JsonValueKind.Object)
+                if (owner.SourceName is null)
                 {
-                    return variables;
+                    return null;
                 }
-                JsonElement previous = default;
-                foreach (JsonProperty property in scope.EnumerateObject())
+                foreach ((string href, string scope) in m_replacedUriVariableScopes)
                 {
-                    if (property.Name != "uriVariables")
+                    if (string.Equals(href, owner.Href, StringComparison.Ordinal) &&
+                        (string.Equals(pointer, scope, StringComparison.Ordinal) ||
+                            pointer.StartsWith(scope + "/", StringComparison.Ordinal)))
                     {
-                        continue;
-                    }
-                    if (property.Value.ValueKind != JsonValueKind.Object)
-                    {
-                        Fail("uriVariables must be an object.", pointer + "/uriVariables");
-                        return variables;
-                    }
-                    if (previous.ValueKind != JsonValueKind.Undefined && !EquivalentVariables(previous, property.Value))
-                    {
-                        Fail("Repeated uriVariables containers must agree.", pointer + "/uriVariables");
-                        return variables;
-                    }
-                    previous = property.Value;
-                    foreach (JsonProperty variable in property.Value.EnumerateObject())
-                    {
-                        string variablePointer = pointer + "/uriVariables/" + EscapePointer(variable.Name);
-                        if (variable.Value.ValueKind != JsonValueKind.Object)
-                        {
-                            Fail($"URI variable '{variable.Name}' must be a DataSchema object.", variablePointer);
-                            continue;
-                        }
-                        if (variables.TryGetValue(variable.Name, out JsonElement existing) &&
-                            !EquivalentVariables(existing, variable.Value))
-                        {
-                            Fail($"URI variable '{variable.Name}' has contradictory duplicate definitions.",
-                                variablePointer);
-                            continue;
-                        }
-                        variables[variable.Name] = variable.Value;
+                        return scope;
                     }
                 }
-                return variables;
+                return null;
+            }
+
+            private static JsonObject CloneUriVariableSchema(WotDocument document, JsonElement definition)
+            {
+                JsonObject schema = CloneObject(definition);
+                ArrayOf<JsonElement> contexts = document.GetContextSequence(definition);
+                if (contexts.Count != 0)
+                {
+                    var context = new JsonArray();
+                    foreach (JsonElement entry in contexts)
+                    {
+                        AppendContext(context, entry);
+                    }
+                    schema["@context"] = context;
+                }
+                return schema;
             }
 
             private bool TryReadTemplateVariables(string href, out List<string> names, out string error)
@@ -337,13 +414,6 @@ namespace Opc.Ua.Wot
                 return true;
             }
 
-            private static bool EquivalentVariables(JsonElement left, JsonElement right)
-            {
-                return WotJsonCanonicalizer.TryCanonicalize(left, out string first, out _) &&
-                    WotJsonCanonicalizer.TryCanonicalize(right, out string second, out _) &&
-                    string.Equals(first, second, StringComparison.Ordinal);
-            }
-
             private static void AppendContext(JsonArray target, JsonElement context)
             {
                 if (context.ValueKind == JsonValueKind.Array)
@@ -360,6 +430,7 @@ namespace Opc.Ua.Wot
             }
 
             private readonly Dictionary<JsonObject, ReferenceCarriage> m_uriVariableCarriages = [];
+            private readonly HashSet<(string Href, string Pointer)> m_replacedUriVariableScopes = [];
             private int m_uriVariableCount;
             private static readonly char[] s_variableModifiers = [':', '*'];
         }
