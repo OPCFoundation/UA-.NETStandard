@@ -394,7 +394,9 @@ public sealed class ValueDialogWorkflowTests
             Task shown = dialog.ShowDialog(DesktopInteraction.Owner);
             try
             {
-                Assert.That(dialog.Inputs.Select(row => row.Argument.Name), Is.EqualTo(s_callAcceptCommitsTypedArgumentsAndDisplaysOutputsExpected));
+                Assert.That(
+                    dialog.Inputs.Select(row => row.Argument.Name),
+                    Is.EqualTo(s_callAcceptCommitsTypedArgumentsAndDisplaysOutputsExpected));
                 dialog.Inputs[0].ValueText = "41";
                 var command = (IAsyncRelayCommand)dialog.Inputs[1].EditComplexCommand!;
                 Task editing = Task.CompletedTask;

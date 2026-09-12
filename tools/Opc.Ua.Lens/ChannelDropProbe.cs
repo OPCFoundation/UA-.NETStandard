@@ -38,16 +38,15 @@ namespace UaLens;
 /// <summary>
 /// Headless validator for the bounded-channel DropOldest semantics used
 /// by <c>ChannelV2EngineAdapter</c> and <c>ClassicEngineAdapter</c>.
-/// The adapters' <c>WriteEventOrCount</c> helper relies on:
+/// The adapters use an eviction callback so each dropped message is counted:
 /// <list type="number">
 ///   <item><see cref="ChannelReader{T}.CanCount"/> + <see cref="ChannelReader{T}.Count"/>
 ///         returning a usable count on the SDK's bounded channels.</item>
 ///   <item>Each over-capacity write evicting exactly one (the OLDEST) event
 ///         so the surviving N items are always the most-recent N.</item>
 /// </list>
-/// We can't test the live adapter without a server, but the channel
-/// configuration is identical so this probe verifies the contract that
-/// adapter code depends on.
+/// This command checks the channel contract independently of a server.
+/// Adapter regression tests exercise the same configuration through actual callbacks.
 /// </summary>
 internal static class ChannelDropProbe
 {
@@ -57,26 +56,21 @@ internal static class ChannelDropProbe
         int rc = 0;
         const int kCapacity = 8192;
 
+        long dropped = 0;
         var channel = Channel.CreateBounded<NotificationEvent>(new BoundedChannelOptions(kCapacity)
         {
             FullMode = BoundedChannelFullMode.DropOldest,
             SingleReader = true,
             SingleWriter = true,
-        });
+        }, _ => Interlocked.Increment(ref dropped));
 
         // CanCount must be supported on this channel.
         rc |= AssertEqual("Reader.CanCount", true, channel.Reader.CanCount);
 
         // Write kCapacity + extra; expect `extra` drops.
         const int extra = 137;
-        long droppedHeuristic = 0;
         for (int i = 1; i <= kCapacity + extra; i++)
         {
-            // Mimic the adapter's WriteEventOrCount logic exactly.
-            if (channel.Reader.CanCount && channel.Reader.Count >= kCapacity)
-            {
-                Interlocked.Increment(ref droppedHeuristic);
-            }
             bool ok = channel.Writer.TryWrite(new NotificationEvent(
                 NotificationKind.DataChange,
                 ItemId: 1,
@@ -92,7 +86,7 @@ internal static class ChannelDropProbe
         }
 
         rc |= AssertEqual("Buffer size at capacity", kCapacity, channel.Reader.Count);
-        rc |= AssertEqual("DroppedHeuristic == extra", (long)extra, droppedHeuristic);
+        rc |= AssertEqual("Dropped count == extra", (long)extra, dropped);
 
         // Drain and verify the surviving range is [extra+1 .. capacity+extra].
         // (Since BoundedChannelFullMode.DropOldest evicts the front when a new

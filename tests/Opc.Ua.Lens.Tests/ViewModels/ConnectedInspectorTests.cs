@@ -252,6 +252,34 @@ public sealed class ConnectedInspectorTests
         });
     }
 
+    [Test]
+    public Task WellKnownRoleNamesAndEveryPermissionBitRemainVisibleInTypedMetadata()
+    {
+        return AvaloniaDesktopTestHost.RunAsync(async () =>
+        {
+            await using var context = new ConnectedProtocolContext();
+            await context.ConnectAsync().ConfigureAwait(true);
+            using var model = new NodeAttributesViewModel(context.Desktop.Telemetry, context.Desktop.Connection);
+            RolePermissionType[] roles = s_roles.Select(id => new RolePermissionType
+            {
+                RoleId = id, Permissions = id.IsNull ? 0 : uint.MaxValue
+            }).ToArray();
+            context.Read = (ids, _) => ValueTask.FromResult(new ReadResponse
+            {
+                Results = ids.ToArray()!.Select(id => id.AttributeId == Attributes.RolePermissions
+                    ? new DataValue(Variant.FromStructure((ArrayOf<RolePermissionType>)roles))
+                    : DataValue.FromStatusCode(StatusCodes.BadAttributeIdInvalid)).ToArray()
+            });
+            await model.LoadAsync(new NodeId(4001u), NodeClass.Variable).ConfigureAwait(true);
+            string text = model.Rows.Single(row => row.Name == "RolePermissions").Value;
+            foreach (string role in s_roleNames)
+            {
+                Assert.That(text, Does.Contain(role + " = " + kPermissions));
+            }
+            Assert.That(text, Does.EndWith("(null) = None]"));
+        });
+    }
+
     private static IEnumerable<TestCaseData> AttributeCases()
     {
         yield return new(Attributes.AccessLevel, Variant.From((byte)0), "None (0x00)", (int)NodeClass.Variable);
@@ -259,7 +287,11 @@ public sealed class ConnectedInspectorTests
             "CurrentRead | CurrentWrite | HistoryRead | HistoryWrite | SemanticChange | StatusWrite | TimestampWrite (0x7F)",
             (int)NodeClass.Variable);
         yield return new(Attributes.AccessLevelEx, Variant.From(0x1234u), "0x00001234", (int)NodeClass.Variable);
-        yield return new(Attributes.AccessRestrictions, Variant.From((ushort)0), "None (0x0000)", (int)NodeClass.Variable);
+        yield return new(
+            Attributes.AccessRestrictions,
+            Variant.From((ushort)0),
+            "None (0x0000)",
+            (int)NodeClass.Variable);
         yield return new(Attributes.AccessRestrictions, Variant.From((ushort)15),
             "SigningRequired | EncryptionRequired | SessionRequired | ApplyRestrictionsToBrowse (0x000F)",
             (int)NodeClass.Variable);
@@ -309,4 +341,19 @@ public sealed class ConnectedInspectorTests
 
     private static readonly string[] s_directions = ["→", "←", "→"];
     private static readonly string[] s_targets = ["Child", "Other", "Last"];
+    private static readonly NodeId[] s_roles =
+    [
+        ObjectIds.WellKnownRole_Anonymous, ObjectIds.WellKnownRole_AuthenticatedUser, ObjectIds.WellKnownRole_Observer,
+        ObjectIds.WellKnownRole_Operator, ObjectIds.WellKnownRole_Engineer, ObjectIds.WellKnownRole_Supervisor,
+        ObjectIds.WellKnownRole_ConfigureAdmin, ObjectIds.WellKnownRole_SecurityAdmin,
+        ObjectIds.WellKnownRole_TrustedApplication, NodeId.Null
+    ];
+    private static readonly string[] s_roleNames =
+    [
+        "Anonymous", "AuthenticatedUser", "Observer", "Operator", "Engineer", "Supervisor", "ConfigureAdmin",
+        "SecurityAdmin", "TrustedApplication"
+    ];
+    private const string kPermissions =
+        "Browse|ReadRolePermissions|WriteAttribute|WriteRolePermissions|WriteHistorizing|Read|Write|ReadHistory|" +
+        "InsertHistory|ModifyHistory|DeleteHistory|ReceiveEvents|Call|AddReference|RemoveReference|DeleteNode|AddNode";
 }

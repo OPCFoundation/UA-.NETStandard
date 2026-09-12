@@ -380,7 +380,7 @@ internal sealed partial class UserManagementPlugin : ObservableObject, IPlugin
         try
         {
             await client.ChangePasswordAsync(r.OldPassword, r.NewPassword,
-                CancellationToken.None).ConfigureAwait(false);
+                CancellationToken.None).ConfigureAwait(true);
             m_log.UserChangePasswordSucceeded(Title);
             Status = "● Password changed for current session user.";
         }

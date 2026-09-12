@@ -89,11 +89,15 @@ public sealed class AvaloniaWorkspaceDispatcherTests
             try
             {
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(true);
-                Assert.That(sequence, Is.EqualTo(s_invokeAsyncExecutesInlineOrMarshalsToSameUiOwnerAndAwaitsCompExpected));
+                Assert.That(
+                    sequence,
+                    Is.EqualTo(s_invokeAsyncExecutesInlineOrMarshalsToSameUiOwnerAndAwaitsCompExpected));
                 Assert.That(operation.IsCompleted, Is.False);
                 release.SetResult();
                 await operation.ConfigureAwait(true);
-                Assert.That(sequence, Is.EqualTo(s_invokeAsyncExecutesInlineOrMarshalsToSameUiOwnerAndAwaitsCompExpected2));
+                Assert.That(
+                    sequence,
+                    Is.EqualTo(s_invokeAsyncExecutesInlineOrMarshalsToSameUiOwnerAndAwaitsCompExpected2));
                 Assert.That(Environment.CurrentManagedThreadId, Is.EqualTo(owner));
             }
             finally

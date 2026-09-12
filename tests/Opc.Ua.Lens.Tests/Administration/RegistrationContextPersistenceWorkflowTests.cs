@@ -52,7 +52,9 @@ public sealed class RegistrationContextPersistenceWorkflowTests
         Assert.That(dto.RegistrationType, Is.EqualTo("ServerPush"));
         Assert.That(dto.DiscoveryUrls,
             Is.EqualTo(s_dtoConversionCopiesListsAndPreservesBothCertificatePathFamiliExpected));
-        Assert.That(dto.ServerCapabilities, Is.EqualTo(s_dtoConversionCopiesListsAndPreservesBothCertificatePathFamiliExpected2));
+        Assert.That(
+            dto.ServerCapabilities,
+            Is.EqualTo(s_dtoConversionCopiesListsAndPreservesBothCertificatePathFamiliExpected2));
         Assert.That(dto.PushEndpointSecurityMode, Is.EqualTo("Sign"));
         Assert.That(dto.PushEndpointSecurityPolicyUri, Is.EqualTo(SecurityPolicies.Basic256Sha256));
         RegisteredApplicationContext rebuilt = RegisteredApplicationContextXml.ToRecord(dto);
@@ -66,7 +68,9 @@ public sealed class RegistrationContextPersistenceWorkflowTests
         dto.DiscoveryUrls.Add("opc.tcp://new.example.test");
         dto.ServerCapabilities.Clear();
         Assert.That(context.DiscoveryUrls, Has.Count.EqualTo(2));
-        Assert.That(context.ServerCapabilities, Is.EqualTo(s_dtoConversionCopiesListsAndPreservesBothCertificatePathFamiliExpected2));
+        Assert.That(
+            context.ServerCapabilities,
+            Is.EqualTo(s_dtoConversionCopiesListsAndPreservesBothCertificatePathFamiliExpected2));
     }
 
     [TestCase("", "", false)]
@@ -132,7 +136,9 @@ public sealed class RegistrationContextPersistenceWorkflowTests
         RegisteredApplicationContext loaded = RegisteredApplicationContextXml.Load(path);
         RegistrationTestData.AssertPaths(loaded);
         Assert.That(loaded.ApplicationName, Is.EqualTo("Assembly line"));
-        Assert.That(loaded.ServerCapabilities, Is.EqualTo(s_dtoConversionCopiesListsAndPreservesBothCertificatePathFamiliExpected2));
+        Assert.That(
+            loaded.ServerCapabilities,
+            Is.EqualTo(s_dtoConversionCopiesListsAndPreservesBothCertificatePathFamiliExpected2));
         using FileStream exclusive = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
         Assert.That(exclusive.Length, Is.GreaterThan(100));
         Assert.That(Directory.GetFiles(temporary.Root, "*", SearchOption.AllDirectories), Is.EqualTo(new[] { path }));
@@ -177,8 +183,12 @@ public sealed class RegistrationContextPersistenceWorkflowTests
         Assert.That(loaded.ApplicationName, Is.EqualTo("Legacy line"));
         Assert.That(loaded.ApplicationUri, Is.EqualTo("urn:fixture:legacy"));
         Assert.That(loaded.ProductUri, Is.EqualTo("urn:fixture:legacy-product"));
-        Assert.That(loaded.DiscoveryUrls, Is.EqualTo(s_loadReadsLegacyXmlListsAndBothApplicationAndHttpsDeliverySettExpected));
-        Assert.That(loaded.ServerCapabilities, Is.EqualTo(s_dtoConversionCopiesListsAndPreservesBothCertificatePathFamiliExpected2));
+        Assert.That(
+            loaded.DiscoveryUrls,
+            Is.EqualTo(s_loadReadsLegacyXmlListsAndBothApplicationAndHttpsDeliverySettExpected));
+        Assert.That(
+            loaded.ServerCapabilities,
+            Is.EqualTo(s_dtoConversionCopiesListsAndPreservesBothCertificatePathFamiliExpected2));
         Assert.That(loaded.RegistrationType, Is.EqualTo(GdsRegistrationType.ServerPush));
         Assert.That(loaded.Domains, Is.EqualTo("legacy.test,backup.test"));
         Assert.That(loaded.CertificateSubjectName, Is.EqualTo("CN=Legacy"));

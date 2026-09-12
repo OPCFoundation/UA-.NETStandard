@@ -218,11 +218,15 @@ public sealed class PerformanceTargetDialogWorkflowTests
                     .Children.OfType<TextBlock>().Select(text => text.Text!).ToArray();
                 if (count == 0)
                 {
-                    Assert.That(signature, Is.EqualTo(s_callTargetResolvesParentAndDisplaysCurrentArgumentPayloadContExpected));
+                    Assert.That(
+                        signature,
+                        Is.EqualTo(s_callTargetResolvesParentAndDisplaysCurrentArgumentPayloadContExpected));
                 }
                 else
                 {
-                    Assert.That(signature, Is.EqualTo(s_callTargetResolvesParentAndDisplaysCurrentArgumentPayloadContExpected2));
+                    Assert.That(
+                        signature,
+                        Is.EqualTo(s_callTargetResolvesParentAndDisplaysCurrentArgumentPayloadContExpected2));
                 }
                 Assert.That(protocol.Browses, Has.Count.EqualTo(cachedParent ? 1 : 2));
                 BrowseDescription properties = protocol.Browses[^1];

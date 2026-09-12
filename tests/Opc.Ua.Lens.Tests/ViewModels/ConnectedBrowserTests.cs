@@ -109,7 +109,8 @@ public sealed class ConnectedBrowserTests
             await context.ConnectAsync().ConfigureAwait(true);
             BrowserViewModel browser = context.Desktop.Browser;
             var parent = new NodeViewModel(browser, NodeId.Null, new NodeId(5000u), "Parent", NodeClass.Object);
-            var completion = new TaskCompletionSource<BrowseResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var completion = new TaskCompletionSource<BrowseResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             context.Browse = (_, _) => new ValueTask<BrowseResponse>(completion.Task);
             int pages = 0;
             context.BrowseNext = (release, points, _) =>
@@ -202,7 +203,9 @@ public sealed class ConnectedBrowserTests
                 Assert.That(values[0], Is.EqualTo((new NodeId(1u, 2), "Named")));
                 Assert.That(values[1], Is.EqualTo((new NodeId(2u, 2), "ns=2;i=2")));
             }
-            Assert.That(await context.Desktop.Browser.GetChildVariablesAsync(NodeId.Null).ConfigureAwait(true), Is.Empty);
+            Assert.That(
+                await context.Desktop.Browser.GetChildVariablesAsync(NodeId.Null).ConfigureAwait(true),
+                Is.Empty);
         });
     }
 

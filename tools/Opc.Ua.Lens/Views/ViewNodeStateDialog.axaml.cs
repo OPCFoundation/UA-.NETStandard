@@ -151,7 +151,7 @@ internal sealed partial class ViewNodeStateDialog : Window
     /// </summary>
     private async Task LoadOnOpenAsync()
     {
-        if (m_connection.Session is not { } session || m_nodeId.IsNull)
+        if (m_connection.CurrentSession is not { } session || m_nodeId.IsNull)
         {
             m_roots.Add(new NodeStateItem("(disconnected or null node)"));
             return;
@@ -207,7 +207,6 @@ internal sealed partial class ViewNodeStateDialog : Window
             : $"{Glyph(nc)} {m_nodeId}  ({nc})";
         var root = new NodeStateItem(rootHeader);
 
-        // ── Attributes ──────────────────────────────────────────────
         var attrs = new NodeStateItem("Attributes");
         List<(uint Id, string Name)> relevant = RelevantAttributes(nc);
         foreach ((uint Id, string Name) e in relevant)
@@ -229,11 +228,9 @@ internal sealed partial class ViewNodeStateDialog : Window
         }
         root.Children.Add(attrs);
 
-        // ── References (lazy) ───────────────────────────────────────
         var references = new NodeStateItem("References", LoadReferencesAsync);
         root.Children.Add(references);
 
-        // ── Value (Variables / VariableTypes only) ──────────────────
         if (nc == NodeClass.Variable || nc == NodeClass.VariableType)
         {
             int vIdx = IndexOf(Attributes.Value);
@@ -281,7 +278,7 @@ internal sealed partial class ViewNodeStateDialog : Window
     {
         item.Children.Clear();
 
-        if (m_connection.Session is not { } session)
+        if (m_connection.CurrentSession is not { } session)
         {
             item.Children.Add(new NodeStateItem("(disconnected)"));
             return;
@@ -391,7 +388,9 @@ internal sealed partial class ViewNodeStateDialog : Window
         // reference type, ordered alphabetically for stable output.
         var groups = refs
             .GroupBy(r => r.ReferenceTypeId)
-            .OrderBy(g => refTypeNames.TryGetValue(g.Key, out string? n) ? n : g.Key.ToString(), StringComparer.Ordinal);
+            .OrderBy(
+                g => refTypeNames.TryGetValue(g.Key, out string? n) ? n : g.Key.ToString(),
+                StringComparer.Ordinal);
         foreach (IGrouping<NodeId, ReferenceDescription> group in groups)
         {
             string rtName = refTypeNames.TryGetValue(group.Key, out string? name)

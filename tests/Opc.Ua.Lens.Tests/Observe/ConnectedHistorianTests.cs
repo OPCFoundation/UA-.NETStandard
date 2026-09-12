@@ -39,6 +39,7 @@ using NUnit.Framework;
 using Opc.Ua;
 using UaLens.Plugins.Historian;
 using UaLens.Tests.Desktop;
+using UaLens.Views;
 
 namespace UaLens.Tests.Observe;
 
@@ -246,6 +247,130 @@ public sealed class ConnectedHistorianTests
             TargetNodeId = s_node, TargetDisplayName = "Temperature",
             CustomStart = s_start, CustomEnd = s_start.AddHours(1)
         };
+    }
+
+    [TestCase("edit", false)]
+    [TestCase("nearest", false)]
+    [TestCase("insert", false)]
+    [TestCase("after", false)]
+    [TestCase("new", false)]
+    [TestCase("edit", true)]
+    [TestCase("insert", true)]
+    public Task EditAndInsertEntryPointsCommitOnlyTheChosenTargetTimestampAndValue(string entry, bool reject)
+    {
+        return AvaloniaDesktopTestHost.RunAsync(async () =>
+        {
+            await using var context = new ConnectedProtocolContext();
+            await context.ConnectAsync().ConfigureAwait(true);
+            await using HistorianPlugin plugin = CreatePlugin(context);
+            var first = new HistoryRow(s_start, s_start, Variant.From(11), StatusCodes.Good);
+            var last = new HistoryRow(
+                s_start.AddSeconds(10),
+                s_start.AddSeconds(10),
+                Variant.From(22),
+                StatusCodes.Good);
+            plugin.Rows.Add(first);
+            plugin.Rows.Add(last);
+            plugin.SelectedRow = first;
+            int reads = 0;
+            SetupRead(context, (_, _, _) =>
+            {
+                reads++;
+                return ValueTask.FromResult(HistoryProtocolTestDriver.Page(s_values));
+            });
+            UpdateDataDetails? sent = null;
+            context.Session.Setup(session => session.HistoryUpdateAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<ExtensionObject>>(), It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader? _, ArrayOf<ExtensionObject> updates, CancellationToken _) =>
+                {
+                    sent = WorkflowAssertions.GetEncodeable<UpdateDataDetails>(updates[0]);
+                    return ValueTask.FromResult(HistoryProtocolTestDriver.Outcome(
+                        reject ? StatusCodes.BadUserAccessDenied : StatusCodes.Good));
+                });
+            Task operation = Task.CompletedTask;
+            EditHistoryRowDialog dialog = await DesktopInteraction.OpenedAsync<EditHistoryRowDialog>(() =>
+                operation = entry switch
+                {
+                    "edit" => plugin.EditSelectedAsync(),
+                    "nearest" => plugin.EditNearestAsync(new NearestArgs(s_start.AddSeconds(9))),
+                    "after" => plugin.InsertAfterSelectedAsync(),
+                    "new" => plugin.InsertNewAsync(),
+                    _ => plugin.InsertAtAsync(new InsertAtArgs(s_start.AddSeconds(4), 33))
+                }).ConfigureAwait(true);
+            Assert.That(sent, Is.Null);
+            DateTime expected = entry == "nearest" ? last.SourceTimestamp : first.SourceTimestamp;
+            if (entry is not ("edit" or "nearest"))
+            {
+                if (entry == "after")
+                {
+                    Assert.That(DesktopInteraction.Control<UtcDateTimePicker>(dialog, "TimestampPicker").Value,
+                        Is.EqualTo(s_start.AddSeconds(5)));
+                }
+                expected = s_start.AddMinutes(2);
+                DesktopInteraction.Control<UtcDateTimePicker>(dialog, "TimestampPicker").Value = expected;
+            }
+            DesktopInteraction.Control<TextBox>(dialog, "ValueText").Text = "42.5";
+            DesktopInteraction.Click(DesktopInteraction.Control<Button>(dialog, "OkButton"));
+            await operation.ConfigureAwait(true);
+            Assert.That(sent, Is.Not.Null);
+            Assert.That(sent!.NodeId, Is.EqualTo(s_node));
+            Assert.That(sent.UpdateValues.Count, Is.EqualTo(1));
+            Assert.That(sent.UpdateValues[0].SourceTimestamp, Is.EqualTo((DateTimeUtc)expected));
+            Assert.That(sent.UpdateValues[0].WrappedValue, Is.EqualTo(Variant.From(42.5)));
+            Assert.That(reads, Is.EqualTo(reject ? 0 : 1));
+            if (reject)
+            {
+                Assert.That(plugin.Rows[0], Is.SameAs(first));
+                Assert.That(plugin.Status, Does.Contain("denied (BadUserAccessDenied)"));
+            }
+        });
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public Task AnnotationEditsUseTheAnnotationPropertyAndChangeTheRowOnlyAfterSuccess(bool reject)
+    {
+        return AvaloniaDesktopTestHost.RunAsync(async () =>
+        {
+            await using var context = new ConnectedProtocolContext();
+            await context.ConnectAsync().ConfigureAwait(true);
+            await using HistorianPlugin plugin = CreatePlugin(context);
+            NodeId property = new("Annotations", 2);
+            context.Translate = (paths, _) =>
+            {
+                Assert.That(paths[0].StartingNode, Is.EqualTo(s_node));
+                Assert.That(paths[0].RelativePath.Elements[0].TargetName.Name, Is.EqualTo(BrowseNames.Annotations));
+                return ValueTask.FromResult(HistoryProtocolTestDriver.Property(property));
+            };
+            var original = new Annotation { Message = "Original", UserName = "operator", AnnotationTime = s_start };
+            var row = new HistoryRow(s_start, s_start, Variant.From(11), StatusCodes.Good) { Annotation = original };
+            plugin.Rows.Add(row);
+            plugin.SelectedRow = row;
+            UpdateDataDetails? sent = null;
+            context.Session.Setup(session => session.HistoryUpdateAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<ExtensionObject>>(), It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader? _, ArrayOf<ExtensionObject> details, CancellationToken _) =>
+                {
+                    sent = WorkflowAssertions.GetEncodeable<UpdateDataDetails>(details[0]);
+                    return ValueTask.FromResult(HistoryProtocolTestDriver.Outcome(
+                        reject ? StatusCodes.BadUserAccessDenied : StatusCodes.Good));
+                });
+            Task saving = Task.CompletedTask;
+            AnnotationEditDialog dialog = await DesktopInteraction.OpenedAsync<AnnotationEditDialog>(
+                () => saving = plugin.EditAnnotationAsync()).ConfigureAwait(true);
+            DesktopInteraction.Control<TextBox>(dialog, "MessageText").Text = "Reviewed";
+            Assert.That(sent, Is.Null);
+            DesktopInteraction.Click(DesktopInteraction.Control<Button>(dialog, "OkButton"));
+            await saving.ConfigureAwait(true);
+            Assert.That(sent!.NodeId, Is.EqualTo(property));
+            Assert.That(sent.PerformInsertReplace, Is.EqualTo(PerformUpdateType.Update));
+            Assert.That(sent.UpdateValues[0].SourceTimestamp, Is.EqualTo((DateTimeUtc)s_start));
+            Assert.That(sent.UpdateValues[0].WrappedValue.TryGetValue<Annotation>(
+                out Annotation? annotation, context.Messages), Is.True);
+            Assert.That(annotation!.Message, Is.EqualTo("Reviewed"));
+            Assert.That(row.Annotation!.Message, Is.EqualTo(reject ? "Original" : "Reviewed"));
+            Assert.That(plugin.Status, Does.Contain(reject ? "BadUserAccessDenied" : "Annotation saved"));
+        });
     }
 
     private static void SetupRead(

@@ -247,8 +247,6 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
         RefreshStatus();
     }
 
-    // ----- IPlugin members -----
-
     public PluginKind Kind => PluginKind.EventView;
 
     Control? IPlugin.View => m_view ??= new EventViewView { DataContext = this };
@@ -326,9 +324,6 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
         }
     }
 
-    // ----- Commands -----
-
-    /// <summary>
     /// <summary>
     /// Spawns an "Add Source" flow.  Prefers the currently-selected
     /// address-space node when it's an event-emitting Object/View; falls
@@ -339,7 +334,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
     [RelayCommand]
     private async Task AddSourceAsync()
     {
-        if (m_host.Connection.Session is not { } session)
+        if (m_host.Connection.CurrentSession is not { } session)
         {
             m_log.AddSourceNotConnected();
             return;
@@ -446,7 +441,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
         // Hand the live session to the dialog so its "Pick type…"
         // button can browse subtypes of BaseEventType and discover
         // fields in-place.  When disconnected the button is disabled.
-        var dlg = new EventFilterDialog(Filter, m_host.Connection.Session);
+        var dlg = new EventFilterDialog(Filter, m_host.Connection.CurrentSession);
         EventFilterConfig? result;
         if (owner is not null)
         {
@@ -479,7 +474,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
     [RelayCommand]
     private async Task TriggerEventAsync()
     {
-        if (m_host.Connection.Session is not { } session)
+        if (m_host.Connection.CurrentSession is not { } session)
         {
             m_log.TriggerNotConnected();
             return;
@@ -527,7 +522,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
         }
     }
 
-    private static async Task ShowWriteValueDialogAsync(NodeViewModel node, ManagedSession session, Window? owner)
+    private static async Task ShowWriteValueDialogAsync(NodeViewModel node, ISession session, Window? owner)
     {
         var dialog = new WriteValueDialog(node, session);
         await using (dialog.ConfigureAwait(false))
@@ -546,7 +541,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
         }
     }
 
-    private static async Task ShowMethodCallDialogAsync(NodeViewModel node, ManagedSession session, Window owner)
+    private static async Task ShowMethodCallDialogAsync(NodeViewModel node, ISession session, Window owner)
     {
         var dialog = new MethodCallDialog(node, session);
         await using (dialog.ConfigureAwait(false))
@@ -555,7 +550,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
         }
     }
 
-    private static async Task<bool> HasGeneratesEventAsync(ManagedSession session, NodeId id)
+    private static async Task<bool> HasGeneratesEventAsync(ISession session, NodeId id)
     {
         try
         {
@@ -584,8 +579,6 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
         }
     }
 
-    // ----- Wiring helpers -----
-
     /// <summary>
     /// Reconciles the subscription with the current connection, assuming the gate is
     /// held. A missing session releases the subscription; a new session generation
@@ -594,7 +587,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
     /// </summary>
     private async Task SynchronizeSubscriptionAsync(CancellationToken cancellationToken)
     {
-        if (m_host.Connection.Session is not { } session)
+        if (m_host.Connection.CurrentSession is not { } session)
         {
             await ReleaseSubscriptionAsync().ConfigureAwait(true);
             RefreshStatus();
@@ -615,7 +608,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
     /// </summary>
     private async Task<ClassicSubscription?> EnsureSubscriptionAsync(CancellationToken cancellationToken)
     {
-        if (m_closed || m_host.Connection.Session is not { } session)
+        if (m_closed || m_host.Connection.CurrentSession is not { } session)
         {
             return null;
         }
@@ -637,7 +630,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
     /// cleaned up and propagated so the connection lifecycle can report it.
     /// </summary>
     private async Task InstallSubscriptionAsync(
-        ManagedSession session, long generation, CancellationToken cancellationToken)
+        ISession session, long generation, CancellationToken cancellationToken)
     {
         await ReleaseSubscriptionAsync().ConfigureAwait(true);
         cancellationToken.ThrowIfCancellationRequested();
@@ -660,16 +653,25 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
         var creation = new UaLens.Subscriptions.ClassicSubscriptionLease(session, sub);
         await using (creation.ConfigureAwait(false))
         {
-            if (!session.AddSubscription(sub))
+            m_subscription = sub;
+            try
             {
-                throw new InvalidOperationException("The session rejected the Event View subscription.");
+                if (!session.AddSubscription(sub))
+                {
+                    throw new InvalidOperationException("The session rejected the Event View subscription.");
+                }
+                await sub.CreateAsync(cancellationToken).ConfigureAwait(true);
+                m_log.SubscriptionCreated(Title, sub.Id, sub.CurrentPublishingInterval, sub.PublishingEnabled);
+                await RebindSourcesAsync(sub, cancellationToken).ConfigureAwait(true);
+                m_subscription = creation.Transfer();
+                m_installedGeneration = generation;
+                RefreshStatus();
             }
-            await sub.CreateAsync(cancellationToken).ConfigureAwait(true);
-            m_log.SubscriptionCreated(Title, sub.Id, sub.CurrentPublishingInterval, sub.PublishingEnabled);
-            await RebindSourcesAsync(sub, cancellationToken).ConfigureAwait(true);
-            m_subscription = creation.Transfer();
-            m_installedGeneration = generation;
-            RefreshStatus();
+            catch
+            {
+                m_subscription = null;
+                throw;
+            }
         }
     }
 
@@ -869,7 +871,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
     private void OnFastEvent(ClassicSubscription subscription,
         EventNotificationList notification, ArrayOf<string> stringTable)
     {
-        if (notification?.Events is null)
+        if (!OwnsSubscription(subscription) || notification?.Events is null)
         {
             return;
         }
@@ -903,6 +905,10 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
         Interlocked.Add(ref m_eventCount, batch.Count);
         Dispatcher.UIThread.Post(() =>
         {
+            if (!OwnsSubscription(subscription))
+            {
+                return;
+            }
             if (IsPaused)
             {
                 foreach (EventLogEntry e in batch)
@@ -955,7 +961,18 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
     /// </summary>
     private void OnFastKeepAlive(ClassicSubscription subscription, NotificationData notification)
     {
-        Dispatcher.UIThread.Post(RefreshSubscriptionStatus);
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (OwnsSubscription(subscription))
+            {
+                RefreshSubscriptionStatus();
+            }
+        });
+    }
+
+    private bool OwnsSubscription(ClassicSubscription subscription)
+    {
+        return !Volatile.Read(ref m_closed) && ReferenceEquals(subscription, Volatile.Read(ref m_subscription));
     }
 
     /// <summary>
@@ -1104,7 +1121,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
     /// </summary>
     private ITelemetryContext SessionTelemetry()
     {
-        if (m_host.Connection.Session is { } session)
+        if (m_host.Connection.CurrentSession is { } session)
         {
             return session.MessageContext.Telemetry;
         }
@@ -1272,7 +1289,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
 
     private IServiceMessageContext MessageContext()
     {
-        if (m_host.Connection.Session is { } session)
+        if (m_host.Connection.CurrentSession is { } session)
         {
             return session.MessageContext;
         }

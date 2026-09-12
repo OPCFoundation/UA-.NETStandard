@@ -264,7 +264,8 @@ internal sealed partial class BrowserViewModel : ObservableObject
             while (continuationPoints.Count > 0)
             {
                 ArrayOf<ByteString> nextCps = continuationPoints.ToArray();
-                BrowseNextResponse next = await session.BrowseNextAsync(null, false, nextCps, default).ConfigureAwait(false);
+                BrowseNextResponse next = await session.BrowseNextAsync(null, false, nextCps, default)
+                    .ConfigureAwait(false);
                 continuationPoints.Clear();
                 foreach (BrowseResult br in next.Results)
                 {
@@ -577,7 +578,8 @@ internal sealed partial class BrowserViewModel : ObservableObject
             for (int j = 0; j < live.Count; j++)
             {
                 int idx = live[j].Index;
-                rows[idx] = (live[j].Path, new StatusCode(StatusCodes.BadCommunicationError.Code), Array.Empty<NodeId>());
+                rows[idx] = (live[j].Path, new StatusCode(StatusCodes.BadCommunicationError.Code), Array
+                    .Empty<NodeId>());
             }
         }
         return rows;
@@ -621,7 +623,8 @@ internal sealed partial class BrowserViewModel : ObservableObject
                     AttributeId = Attributes.EventNotifier
                 }
             ];
-            ReadResponse resp = await session.ReadAsync(null, 0, TimestampsToReturn.Neither, ids, ct).ConfigureAwait(false);
+            ReadResponse resp = await session.ReadAsync(null, 0, TimestampsToReturn.Neither, ids, ct)
+                .ConfigureAwait(false);
             if (resp.Results.Count == 0)
             {
                 return null;
@@ -692,7 +695,13 @@ internal sealed partial class NodeViewModel : ObservableObject
         Children.Add(new NodeViewModel(owner, NodeId, NodeId.Null, "…", NodeClass.Unspecified, isPlaceholder: true));
     }
 
-    private NodeViewModel(BrowserViewModel owner, NodeId parent, NodeId nodeId, string text, NodeClass cls, bool isPlaceholder)
+    private NodeViewModel(
+        BrowserViewModel owner,
+        NodeId parent,
+        NodeId nodeId,
+        string text,
+        NodeClass cls,
+        bool isPlaceholder)
     {
         m_owner = owner;
         ParentNodeId = parent;

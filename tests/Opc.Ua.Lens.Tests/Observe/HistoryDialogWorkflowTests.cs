@@ -69,7 +69,9 @@ public sealed class HistoryDialogWorkflowTests
                     Is.EqualTo("ns=2;s=Temperature"));
                 Assert.That(DesktopInteraction.Control<TextBox>(dialog, "ValueText").Text, Is.EqualTo("-12.5"));
                 ComboBox actions = DesktopInteraction.Control<ComboBox>(dialog, "ActionCombo");
-                Assert.That(actions.Items.Cast<string>(), Is.EqualTo(s_historyEditReturnsExactActionTypedValueStatusAndTimestampsExpected));
+                Assert.That(
+                    actions.Items.Cast<string>(),
+                    Is.EqualTo(s_historyEditReturnsExactActionTypedValueStatusAndTimestampsExpected));
                 Assert.That(actions.SelectedIndex, Is.EqualTo(insert ? 0 : 1));
                 UtcDateTimePicker picker = DesktopInteraction.Control<UtcDateTimePicker>(dialog, "TimestampPicker");
                 Assert.That(picker.IsVisible, Is.EqualTo(insert));
@@ -112,7 +114,9 @@ public sealed class HistoryDialogWorkflowTests
             try
             {
                 ComboBox actions = DesktopInteraction.Control<ComboBox>(dialog, "ActionCombo");
-                Assert.That(actions.Items.Cast<string>(), Is.EqualTo(s_restrictedActionListAndMissingSelectionUseDeclaredDefaultExpected));
+                Assert.That(
+                    actions.Items.Cast<string>(),
+                    Is.EqualTo(s_restrictedActionListAndMissingSelectionUseDeclaredDefaultExpected));
                 Assert.That(actions.SelectedIndex, Is.EqualTo(1));
                 Assert.That(DesktopInteraction.Control<TextBlock>(dialog, "HintLabel").Text,
                     Is.EqualTo("Insert a calibrated point"));

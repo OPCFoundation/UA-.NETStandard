@@ -389,7 +389,9 @@ public sealed class HistoryReaderTests
 
         Assert.That(rows.Select(row => row.DisplayAnnotation),
             Is.EqualTo(s_annotationLookupUsesMappedPropertyAndPaddedRangeExpected));
-        Assert.That(rows.Select(row => row.Numeric), Is.EqualTo(s_annotationLookupUsesMappedPropertyAndPaddedRangeExpected2));
+        Assert.That(
+            rows.Select(row => row.Numeric),
+            Is.EqualTo(s_annotationLookupUsesMappedPropertyAndPaddedRangeExpected2));
         AssertTranslation(driver.Translations.Single(), cancellation.Token);
         Assert.That(driver.Reads, Has.Count.EqualTo(2));
         for (int i = 0; i < driver.Reads.Count; i++)
@@ -442,7 +444,9 @@ public sealed class HistoryReaderTests
         Assert.That(rows[0].Annotation!.AnnotationTime, Is.EqualTo((DateTimeUtc)s_start.AddSeconds(9)));
         Assert.That(rows[0].DisplayAnnotation, Is.EqualTo("校正  —  engineer"));
         Assert.That(rows[1].Annotation, Is.Null);
-        Assert.That(rows.Select(row => row.Numeric), Is.EqualTo(s_annotationsMatchDataValueSourceTimestampNotAnnotationTimeExpected));
+        Assert.That(
+            rows.Select(row => row.Numeric),
+            Is.EqualTo(s_annotationsMatchDataValueSourceTimestampNotAnnotationTimeExpected));
         Assert.That(driver.Reads, Has.Count.EqualTo(1));
     }
 
@@ -590,7 +594,9 @@ public sealed class HistoryReaderTests
         Assert.That(rows[1].Annotation, Is.SameAs(replacement));
         Assert.That(rows[1].DisplayAnnotation, Is.EqualTo("last annotation"));
         Assert.That(rows[2].Annotation, Is.Null);
-        Assert.That(rows.Select(row => row.Numeric), Is.EqualTo(s_annotationsUseExactSourceTicksAndLastDuplicateRowAndValueWinExpected));
+        Assert.That(
+            rows.Select(row => row.Numeric),
+            Is.EqualTo(s_annotationsUseExactSourceTicksAndLastDuplicateRowAndValueWinExpected));
         Assert.That(rows[1].StatusCode, Is.EqualTo(StatusCodes.Uncertain));
         Assert.That(driver.Reads, Has.Count.EqualTo(1));
     }

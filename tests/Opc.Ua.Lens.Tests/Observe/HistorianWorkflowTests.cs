@@ -95,9 +95,15 @@ public sealed class HistorianWorkflowTests
         second.ConfirmCommand.Execute(null);
         sentinel.RemoveCommand.Execute(null);
 
-        Assert.That(rows.Select(row => row.IsAddButton), Is.EqualTo(s_timestampEditingKeepsExactlyOneTrailingSentinelAndSeparateReaExpected));
-        Assert.That(rows.Select(row => row.IsEditor), Is.EqualTo(s_timestampEditingKeepsExactlyOneTrailingSentinelAndSeparateReaExpected2));
-        Assert.That(rows.Select(row => row.IsLabel), Is.EqualTo(s_timestampEditingKeepsExactlyOneTrailingSentinelAndSeparateReaExpected3));
+        Assert.That(
+            rows.Select(row => row.IsAddButton),
+            Is.EqualTo(s_timestampEditingKeepsExactlyOneTrailingSentinelAndSeparateReaExpected));
+        Assert.That(
+            rows.Select(row => row.IsEditor),
+            Is.EqualTo(s_timestampEditingKeepsExactlyOneTrailingSentinelAndSeparateReaExpected2));
+        Assert.That(
+            rows.Select(row => row.IsLabel),
+            Is.EqualTo(s_timestampEditingKeepsExactlyOneTrailingSentinelAndSeparateReaExpected3));
         Assert.That(rows.Where(row => row.IsLabel).Select(row => row.Timestamp),
             Is.EqualTo(new[] { s_time, s_time.AddMinutes(2) }));
         Assert.That(other.Single().IsAddButton, Is.True);
@@ -122,7 +128,9 @@ public sealed class HistorianWorkflowTests
         plugin.AddTimestampCommand.Execute(null);
         plugin.AtTimes[0].ConfirmCommand.Execute(null);
 
-        Assert.That(plugin.AtTimes.Select(row => row.IsAddButton), Is.EqualTo(s_addTimestampRepairsAnEmptyEditableListWithoutDuplicatingItsSeExpected));
+        Assert.That(
+            plugin.AtTimes.Select(row => row.IsAddButton),
+            Is.EqualTo(s_addTimestampRepairsAnEmptyEditableListWithoutDuplicatingItsSeExpected));
         Assert.That(plugin.AtTimes[0].IsLabel, Is.True);
         Assert.That(plugin.AtTimes[1].IsEditor, Is.True);
         Assert.That(plugin.UpdateAtTimes.Single().IsAddButton, Is.True);

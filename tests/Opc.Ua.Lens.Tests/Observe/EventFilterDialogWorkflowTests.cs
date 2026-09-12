@@ -189,7 +189,9 @@ public sealed class EventFilterDialogWorkflowTests
                 Assert.That(requests.Select(request => request.NodeId),
                     Is.EqualTo(new[] { ObjectTypeIds.BaseEventType, custom, ObjectTypeIds.BaseEventType,
                         ObjectTypeIds.BaseEventType, custom }));
-                Assert.That(original.Fields, Is.EqualTo(s_pickingTypeDiscoversInheritedCustomFieldsInOrderAndKeepsOnlyEExpected4));
+                Assert.That(
+                    original.Fields,
+                    Is.EqualTo(s_pickingTypeDiscoversInheritedCustomFieldsInOrderAndKeepsOnlyEExpected4));
             }
             finally
             {
@@ -341,7 +343,9 @@ public sealed class EventFilterDialogWorkflowTests
                 DesktopInteraction.Click(DesktopInteraction.Control<Button>(dialog, "OkButton"));
                 EventFilterConfig? result = await shown.ConfigureAwait(true);
                 Assert.That(result!.WhereClause, apply ? Is.Null : Is.SameAs(clause));
-                Assert.That(result.Fields, Is.EqualTo(s_filterNestedClauseClearAppliesOnlyWhenNestedEditorAcceptsExpected));
+                Assert.That(
+                    result.Fields,
+                    Is.EqualTo(s_filterNestedClauseClearAppliesOnlyWhenNestedEditorAcceptsExpected));
                 Assert.That(result.SeverityThreshold, Is.EqualTo(600));
                 Assert.That(clause.Elements.Count, Is.EqualTo(1));
             }
@@ -370,7 +374,9 @@ public sealed class EventFilterDialogWorkflowTests
                 DesktopInteraction.Control<Slider>(dialog, "SeveritySlider").Value = 900;
                 DesktopInteraction.Click(DesktopInteraction.Control<Button>(dialog, "CancelButton"));
                 Assert.That(await shown.ConfigureAwait(true), Is.Null);
-                Assert.That(current.Fields, Is.EqualTo(s_filterCancelLeavesOriginalSelectionAndClauseUnchangedExpected));
+                Assert.That(
+                    current.Fields,
+                    Is.EqualTo(s_filterCancelLeavesOriginalSelectionAndClauseUnchangedExpected));
                 Assert.That(current.SeverityThreshold, Is.EqualTo(400));
                 Assert.That(current.WhereClause, Is.SameAs(clause));
                 Assert.That(clause.Elements[0].FilterOperands.Count, Is.EqualTo(2));
@@ -503,13 +509,17 @@ public sealed class EventFilterDialogWorkflowTests
                         Is.EqualTo(s_typeDiscoveryStopsAtCycleOrHopCapAndFallsBackOnlyWhenNoFieldsExpected));
                     Assert.That(requests.Count(request => request.BrowseDirection == BrowseDirection.Inverse),
                         Is.EqualTo(2));
-                    Assert.That(fields.Select(field => field.IsChecked), Is.EqualTo(new bool?[] { false, true, false }));
+                    Assert.That(
+                        fields.Select(field => field.IsChecked),
+                        Is.EqualTo(new bool?[] { false, true, false }));
                     fields[2].IsChecked = true;
                     expectedFields = ["Message", "ChildOnly"];
                 }
                 else
                 {
-                    Assert.That(fields.Select(field => field.Content), Is.EqualTo(s_typeDiscoveryStopsAtCycleOrHopCapAndFallsBackOnlyWhenNoFieldsExpected2));
+                    Assert.That(
+                        fields.Select(field => field.Content),
+                        Is.EqualTo(s_typeDiscoveryStopsAtCycleOrHopCapAndFallsBackOnlyWhenNoFieldsExpected2));
                     Assert.That(requests, Has.Count.EqualTo(3));
                     expectedFields = ["Message"];
                 }
@@ -518,7 +528,9 @@ public sealed class EventFilterDialogWorkflowTests
                 Assert.That(result!.Fields, Is.EqualTo(expectedFields));
                 Assert.That(result.EventTypeNodeId, Is.EqualTo(selectedType));
                 Assert.That(result.SeverityThreshold, Is.EqualTo(615));
-                Assert.That(original.Fields, Is.EqualTo(s_filterNestedClauseClearAppliesOnlyWhenNestedEditorAcceptsExpected));
+                Assert.That(
+                    original.Fields,
+                    Is.EqualTo(s_filterNestedClauseClearAppliesOnlyWhenNestedEditorAcceptsExpected));
             }
             finally
             {

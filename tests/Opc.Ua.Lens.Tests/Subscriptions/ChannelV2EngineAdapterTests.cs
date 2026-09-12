@@ -123,7 +123,8 @@ public sealed class ChannelV2EngineAdapterTests
         await using ChannelV2EngineAdapter adapter = context.CreateAdapter();
         var filter = new DataChangeFilter
         {
-            Trigger = DataChangeTrigger.StatusValueTimestamp, DeadbandType = (uint)DeadbandType.Absolute, DeadbandValue = 3
+            Trigger = DataChangeTrigger.StatusValueTimestamp, DeadbandType = (uint)DeadbandType.Absolute, DeadbandValue
+                = 3
         };
         MonitoredItemConfig requested = Item(0, events) with { DataChangeFilter = filter };
         await Assert.ThatAsync(() => adapter.AddItemAsync(requested, CancellationToken.None),
@@ -217,7 +218,8 @@ public sealed class ChannelV2EngineAdapterTests
             Throws.TypeOf(expected)).ConfigureAwait(false);
         Assert.That(context.ItemOptions[0].CurrentValue, Is.SameAs(original));
         Assert.That(adapter.Items[0].NodeId, Is.EqualTo(new NodeId("Temperature", 2)));
-        await adapter.SetMonitoringModeAsync(700, MonitoringMode.Disabled, CancellationToken.None).ConfigureAwait(false);
+        await adapter.SetMonitoringModeAsync(700, MonitoringMode.Disabled, CancellationToken.None)
+            .ConfigureAwait(false);
         Assert.That(context.ItemOptions[0].CurrentValue, Is.SameAs(original));
     }
 
@@ -302,6 +304,30 @@ public sealed class ChannelV2EngineAdapterTests
         Assert.That(last.SequenceNumber, Is.EqualTo(count - 1));
     }
 
+    [Test]
+    public async Task ConcurrentPublishCallbacksCountEveryEvictionExactlyOnce()
+    {
+        var context = new AdapterContext();
+        await using ChannelV2EngineAdapter adapter = context.CreateAdapter();
+        Task[] producers = Enumerable.Range(0, 4).Select(producer => Task.Run(() =>
+        {
+            for (int i = 0; i < 10000; i++)
+            {
+                adapter.WriteEventOrCount(new NotificationEvent(
+                    NotificationKind.DataChange, producer, 1, (uint)(producer * 10000 + i), DateTime.UnixEpoch));
+            }
+        })).ToArray();
+        await Task.WhenAll(producers).ConfigureAwait(false);
+        Assert.That(adapter.Events.Count, Is.EqualTo(8192));
+        Assert.That(adapter.DroppedNotificationCount, Is.EqualTo(40000 - 8192));
+        var sequences = new HashSet<uint>();
+        while (adapter.Events.TryRead(out NotificationEvent notification))
+        {
+            Assert.That(sequences.Add(notification.SequenceNumber), Is.True);
+        }
+        Assert.That(sequences, Has.Count.EqualTo(8192));
+    }
+
     [TestCase(false)]
     [TestCase(true)]
     public async Task DisposalCompletesTheNotificationReaderEvenWhenRemoteCleanupFails(bool fail)
@@ -337,7 +363,7 @@ public sealed class ChannelV2EngineAdapterTests
         };
     }
 
-    private sealed class AdapterContext
+    internal sealed class AdapterContext
     {
         public AdapterContext(bool supported = true)
         {
@@ -384,6 +410,7 @@ public sealed class ChannelV2EngineAdapterTests
                     created.SetupGet(value => value.CurrentMonitoringMode).Returns(MonitoringMode.Sampling);
                     Monitored.Add(created);
                     item = created.Object;
+                    ItemAdded?.Invoke();
                 })).Returns(true);
             Items.Setup(value => value.TryRemove(It.IsAny<uint>())).Returns(true);
         }
@@ -398,6 +425,7 @@ public sealed class ChannelV2EngineAdapterTests
         public IOptionsMonitor<V2Options>? Options { get; private set; }
         public ISubscriptionNotificationHandler? Handler { get; private set; }
         public int Adds { get; private set; }
+        public Action? ItemAdded { get; set; }
 
         public ChannelV2EngineAdapter CreateAdapter(PublishLogObserver? log = null)
         {
@@ -410,7 +438,8 @@ public sealed class ChannelV2EngineAdapterTests
     private static readonly uint[] s_singlePartition = [500];
     private static readonly uint[] s_twoPartitions = [500, 501];
     private static readonly uint[] s_sequences = [71, 71, 71, 72, 72, 73];
-    private static readonly string[] s_eventFields = ["EventId", "EventType", "SourceName", "Time", "Message", "Severity"];
+    private static readonly string[] s_eventFields
+        = ["EventId", "EventType", "SourceName", "Time", "Message", "Severity"];
     private static readonly NotificationKind[] s_kinds =
     [
         NotificationKind.DataChange, NotificationKind.DataChange, NotificationKind.DataChange,

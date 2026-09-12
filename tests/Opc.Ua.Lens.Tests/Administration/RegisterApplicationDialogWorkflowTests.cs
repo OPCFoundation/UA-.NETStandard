@@ -73,7 +73,9 @@ public sealed class RegisterApplicationDialogWorkflowTests
                 Assert.That(result.ApplicationId.IsNull, Is.True, "A new registration must not reuse the old GDS id.");
                 Assert.That(result.DiscoveryUrls,
                     Is.EqualTo(s_eachRegistrationModeReturnsAcceptedIntentAndKeepsBothCertificExpected));
-                Assert.That(result.ServerCapabilities, Is.EqualTo(s_eachRegistrationModeReturnsAcceptedIntentAndKeepsBothCertificExpected2));
+                Assert.That(
+                    result.ServerCapabilities,
+                    Is.EqualTo(s_eachRegistrationModeReturnsAcceptedIntentAndKeepsBothCertificExpected2));
                 Assert.That(result.HasPushEndpoint, Is.EqualTo(mode == 2));
                 RegistrationTestData.AssertPaths(result);
                 Assert.That(original.ApplicationId, Is.EqualTo(new NodeId("assembly", 2)));
@@ -201,7 +203,8 @@ public sealed class RegisterApplicationDialogWorkflowTests
                 Assert.That(result.RegistrationType, Is.EqualTo(GdsRegistrationType.ClientPull));
                 Assert.That(result.DiscoveryUrls, Is.EqualTo(populated
                     ? s_listInputUsesDocumentedDelimitersAndOptionalWhitespaceBecomesExpected : []));
-                Assert.That(result.ServerCapabilities, Is.EqualTo(populated ? s_listInputUsesDocumentedDelimitersAndOptionalWhitespaceBecomesExpected2 : []));
+                Assert.That(result.ServerCapabilities, Is.EqualTo(
+                    populated ? s_listInputUsesDocumentedDelimitersAndOptionalWhitespaceBecomesExpected2 : []));
                 Assert.That(result.CertificateStorePath, Is.Null);
                 Assert.That(result.CertificateSubjectName, Is.EqualTo("CN=Collector"));
                 Assert.That(result.HttpsCertificatePrivateKeyPath, Is.Null);

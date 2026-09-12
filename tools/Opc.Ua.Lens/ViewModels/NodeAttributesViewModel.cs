@@ -103,7 +103,8 @@ internal sealed partial class NodeAttributesViewModel : ObservableObject, IDispo
 
         try
         {
-            ReadResponse resp = await session.ReadAsync(null, 0, TimestampsToReturn.Neither, ids, ct).ConfigureAwait(true);
+            ReadResponse resp = await session.ReadAsync(null, 0, TimestampsToReturn.Neither, ids, ct)
+                .ConfigureAwait(true);
             if (ct.IsCancellationRequested)
             {
                 return;

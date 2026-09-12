@@ -172,7 +172,9 @@ public sealed class HistorianViewWorkflowTests
                 using var pointer = new Pointer(27, PointerType.Mouse, isPrimary: true);
                 var pressed = new PointerPressedEventArgs(control, pointer, DesktopInteraction.Owner,
                     position, 0,
-                    new PointerPointProperties(RawInputModifiers.RightMouseButton, PointerUpdateKind.RightButtonPressed),
+                    new PointerPointProperties(
+                        RawInputModifiers.RightMouseButton,
+                        PointerUpdateKind.RightButtonPressed),
                     KeyModifiers.None, 1);
                 control.RaiseEvent(pressed);
                 var released = new PointerReleasedEventArgs(control, pointer, DesktopInteraction.Owner,

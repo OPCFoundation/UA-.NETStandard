@@ -400,12 +400,12 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
         }
     }
 
-    private bool CanPickTarget() => ConfigurationEditable && m_host.Connection.Session is not null;
+    private bool CanPickTarget() => ConfigurationEditable && m_host.Connection.CurrentSession is not null;
 
     [RelayCommand(CanExecute = nameof(CanPickTarget))]
     private async Task PickTargetAsync()
     {
-        if (m_host.Connection.Session is not { } session)
+        if (m_host.Connection.CurrentSession is not { } session)
         {
             Status = "● Not connected — connect first.";
             return;
@@ -474,12 +474,12 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin, IWo
     private bool CanRun() =>
         ConfigurationEditable
         && Target is not null
-        && m_host.Connection.Session is not null;
+        && m_host.Connection.CurrentSession is not null;
 
     [RelayCommand(CanExecute = nameof(CanRun))]
     private async Task RunAsync()
     {
-        if (m_host.Connection.Session is not { } session || Target is not { } runTarget)
+        if (m_host.Connection.CurrentSession is not { } session || Target is not { } runTarget)
         {
             Status = "● Select a target and connect before running a benchmark.";
             return;

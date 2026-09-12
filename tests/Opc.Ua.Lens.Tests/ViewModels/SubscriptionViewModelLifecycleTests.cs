@@ -145,10 +145,14 @@ public sealed class SubscriptionViewModelLifecycleTests
         await attach.ConfigureAwait(false);
 
         Assert.That(order, Is.EqualTo(s_attachAppliesConfigurationBeforeReplayingItemsAndAdoptsIdsAftExpected));
-        Assert.That(model.Items.Select(item => item.Id), Is.EqualTo(s_attachAppliesConfigurationBeforeReplayingItemsAndAdoptsIdsAftExpected2));
+        Assert.That(
+            model.Items.Select(item => item.Id),
+            Is.EqualTo(s_attachAppliesConfigurationBeforeReplayingItemsAndAdoptsIdsAftExpected2));
         Assert.That(model.Items[0], Is.EqualTo(first with { Id = 501 }));
         Assert.That(model.Items[1], Is.EqualTo(second with { Id = 702 }));
-        Assert.That(model.ItemStatuses.Select(row => row.Id), Is.EqualTo(s_attachAppliesConfigurationBeforeReplayingItemsAndAdoptsIdsAftExpected2));
+        Assert.That(
+            model.ItemStatuses.Select(row => row.Id),
+            Is.EqualTo(s_attachAppliesConfigurationBeforeReplayingItemsAndAdoptsIdsAftExpected2));
         Assert.That(model.Adapter, Is.SameAs(adapter.Object));
         Assert.That(adapter.DisposeCount, Is.Zero);
     }
@@ -407,7 +411,9 @@ public sealed class SubscriptionViewModelLifecycleTests
             await FlushAsync().ConfigureAwait(true);
             Assert.That(model.Items, Is.EqualTo(new[] { first, second }));
             Assert.That(adapter.Items, Is.EqualTo(new[] { first, second }));
-            Assert.That(model.ItemStatuses.Select(row => row.Id), Is.EqualTo(s_failedItemMutationsPreserveConfirmedIntentAndReportOriginalFaExpected));
+            Assert.That(
+                model.ItemStatuses.Select(row => row.Id),
+                Is.EqualTo(s_failedItemMutationsPreserveConfirmedIntentAndReportOriginalFaExpected));
             if (operation != "configure")
             {
                 LogRecord record = log.Records.Single();
@@ -550,7 +556,9 @@ public sealed class SubscriptionViewModelLifecycleTests
                 Times.Once);
             await model.RemoveItemCommand.ExecuteAsync(model.Items[0]).ConfigureAwait(true);
             await FlushAsync().ConfigureAwait(true);
-            Assert.That(adapter.Removed, Is.EqualTo(s_successfulItemChangesForwardExactIdentityAndKeepNeighborsExpected));
+            Assert.That(
+                adapter.Removed,
+                Is.EqualTo(s_successfulItemChangesForwardExactIdentityAndKeepNeighborsExpected));
             Assert.That(model.Items.Single(), Is.SameAs(neighbor));
             Assert.That(model.ItemStatuses.Single().Id, Is.EqualTo(102));
         });

@@ -66,9 +66,15 @@ public sealed class FileSystemWorkflowTests
 
             await root.LoadChildrenAsync(CancellationToken.None).ConfigureAwait(true);
 
-            Assert.That(root.Children.Select(n => n.Name), Is.EqualTo(s_fsNodeLoadRefreshAndFailureReplaceTheExactChildSnapshotExpected));
-            Assert.That(root.Children.Select(n => n.Glyph), Is.EqualTo(s_fsNodeLoadRefreshAndFailureReplaceTheExactChildSnapshotExpected2));
-            Assert.That(root.Children.Select(n => n.FullPath), Is.EqualTo(s_fsNodeLoadRefreshAndFailureReplaceTheExactChildSnapshotExpected3));
+            Assert.That(
+                root.Children.Select(n => n.Name),
+                Is.EqualTo(s_fsNodeLoadRefreshAndFailureReplaceTheExactChildSnapshotExpected));
+            Assert.That(
+                root.Children.Select(n => n.Glyph),
+                Is.EqualTo(s_fsNodeLoadRefreshAndFailureReplaceTheExactChildSnapshotExpected2));
+            Assert.That(
+                root.Children.Select(n => n.FullPath),
+                Is.EqualTo(s_fsNodeLoadRefreshAndFailureReplaceTheExactChildSnapshotExpected3));
             Assert.That(root.Children.All(n => ReferenceEquals(n.Root, root)), Is.True);
             Assert.That(root.Children[0].AsDirectory!.NodeId, Is.EqualTo(directoryId));
             Assert.That(root.Children[1].AsFile!.NodeId, Is.EqualTo(fileId));
@@ -78,7 +84,9 @@ public sealed class FileSystemWorkflowTests
 
             wire.Children[FileSystemProtocolTestDriver.RootId].RemoveAt(0);
             await root.LoadChildrenAsync(CancellationToken.None).ConfigureAwait(true);
-            Assert.That(root.Children.Select(n => n.Name), Is.EqualTo(s_fsNodeLoadRefreshAndFailureReplaceTheExactChildSnapshotExpected4));
+            Assert.That(
+                root.Children.Select(n => n.Name),
+                Is.EqualTo(s_fsNodeLoadRefreshAndFailureReplaceTheExactChildSnapshotExpected4));
             var failure = new IOException("directory snapshot denied");
             wire.BrowseFailure = failure;
             await root.RefreshAsync(CancellationToken.None).ConfigureAwait(true);

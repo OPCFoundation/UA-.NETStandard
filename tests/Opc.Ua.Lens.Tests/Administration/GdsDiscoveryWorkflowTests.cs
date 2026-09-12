@@ -141,7 +141,9 @@ public sealed class GdsDiscoveryWorkflowTests
                     Assert.That(result!.ApplicationName, Is.EqualTo("Assembly*"));
                     Assert.That(result.ApplicationUri, Is.Null);
                     Assert.That(result.ProductUri, Is.EqualTo("urn:fixture:product"));
-                    Assert.That(result.ServerCapabilities, Is.EqualTo(s_queryFilterAcceptTokenizesIndependentFieldsAndCancelLeavesTheExpected));
+                    Assert.That(
+                        result.ServerCapabilities,
+                        Is.EqualTo(s_queryFilterAcceptTokenizesIndependentFieldsAndCancelLeavesTheExpected));
                     Assert.That(result, Is.Not.SameAs(original));
                 }
                 else
@@ -151,7 +153,9 @@ public sealed class GdsDiscoveryWorkflowTests
                 Assert.That(original.ApplicationName, Is.EqualTo("Original name"));
                 Assert.That(original.ApplicationUri, Is.EqualTo("urn:original"));
                 Assert.That(original.ProductUri, Is.EqualTo("urn:old-product"));
-                Assert.That(original.ServerCapabilities, Is.EqualTo(s_queryFilterAcceptTokenizesIndependentFieldsAndCancelLeavesTheExpected2));
+                Assert.That(
+                    original.ServerCapabilities,
+                    Is.EqualTo(s_queryFilterAcceptTokenizesIndependentFieldsAndCancelLeavesTheExpected2));
             }
             finally
             {

@@ -141,7 +141,8 @@ public sealed class SubscriptionBenchWorkflowTests
                 DesktopInteraction.Control<TextBox>(dialog, "MaxNotifs").Text = "47";
                 DesktopInteraction.Control<TextBox>(dialog, "Priority").Text = "19";
                 DesktopInteraction.Control<CheckBox>(dialog, "PublishingEnabled").IsChecked = false;
-                DesktopInteraction.Click(DesktopInteraction.Control<Button>(dialog, accept ? "OkButton" : "CancelButton"));
+                DesktopInteraction.Click(
+                    DesktopInteraction.Control<Button>(dialog, accept ? "OkButton" : "CancelButton"));
                 await command.ConfigureAwait(true);
 
                 JsonElement config = plugin.CaptureState().GetProperty("subscription");
@@ -189,7 +190,8 @@ public sealed class SubscriptionBenchWorkflowTests
                 DesktopInteraction.Control<ComboBox>(dialog, "TriggerCombo").SelectedIndex = 2;
                 DesktopInteraction.Control<ComboBox>(dialog, "DeadbandTypeCombo").SelectedIndex = 1;
                 DesktopInteraction.Control<TextBox>(dialog, "DeadbandValueBox").Text = "2";
-                DesktopInteraction.Click(DesktopInteraction.Control<Button>(dialog, accept ? "OkButton" : "CancelButton"));
+                DesktopInteraction.Click(
+                    DesktopInteraction.Control<Button>(dialog, accept ? "OkButton" : "CancelButton"));
                 await command.ConfigureAwait(true);
 
                 JsonElement item = plugin.CaptureState().GetProperty("item");
@@ -246,14 +248,17 @@ public sealed class SubscriptionBenchWorkflowTests
             Assert.That(initial.Disabled, Is.False);
             Assert.That(initial.MinLifetimeInterval, Is.EqualTo(TimeSpan.FromMinutes(1)));
             var observed = new List<TimeSpan>();
-            using IDisposable? registration = protocol.Options[0].OnChange((value, _) => observed.Add(value.PublishingInterval));
+            using IDisposable? registration = protocol.Options[0]
+                .OnChange((value, _) => observed.Add(value.PublishingInterval));
 
             second.ApplySubscriptionConfig(configuration with
             {
                 PublishingInterval = TimeSpan.FromMilliseconds(375), PublishingEnabled = true, Priority = 4
             });
 
-            Assert.That(protocol.Options[0].CurrentValue.PublishingInterval, Is.EqualTo(TimeSpan.FromMilliseconds(375)));
+            Assert.That(
+                protocol.Options[0].CurrentValue.PublishingInterval,
+                Is.EqualTo(TimeSpan.FromMilliseconds(375)));
             Assert.That(protocol.Options[1].CurrentValue.PublishingEnabled, Is.True);
             Assert.That(protocol.Options[0].CurrentValue.Priority, Is.EqualTo(4));
             Assert.That(observed, Is.EqualTo(new[] { TimeSpan.FromMilliseconds(375) }));
@@ -267,7 +272,9 @@ public sealed class SubscriptionBenchWorkflowTests
             await first.DisposeAsync().ConfigureAwait(false);
             await second.DisposeAsync().ConfigureAwait(false);
         }
-        Assert.That(protocol.Released, Is.EqualTo(s_v2ResourcesShareOptionsAndHandlerButReleaseTheirDistinctOwnerExpected));
+        Assert.That(
+            protocol.Released,
+            Is.EqualTo(s_v2ResourcesShareOptionsAndHandlerButReleaseTheirDistinctOwnerExpected));
     }
 
     [TestCase(false)]
@@ -283,8 +290,10 @@ public sealed class SubscriptionBenchWorkflowTests
         IMonitoredItem? created = item.Object;
         IOptionsMonitor<V2ItemOptions>? received = null;
         var collection = new Mock<IMonitoredItemCollection>(MockBehavior.Strict);
-        collection.Setup(values => values.TryAdd("boiler-temperature", It.IsAny<IOptionsMonitor<V2ItemOptions>>(), out created))
-            .Callback(new InvocationAction(invocation => received = (IOptionsMonitor<V2ItemOptions>)invocation.Arguments[1]))
+        collection.Setup(
+            values => values.TryAdd("boiler-temperature", It.IsAny<IOptionsMonitor<V2ItemOptions>>(), out created))
+            .Callback(
+                new InvocationAction(invocation => received = (IOptionsMonitor<V2ItemOptions>)invocation.Arguments[1]))
             .Returns(true);
         collection.Setup(values => values.TryRemove(117)).Returns(removeResult);
         protocol.Subscriptions[0].SetupGet(value => value.MonitoredItems).Returns(collection.Object);

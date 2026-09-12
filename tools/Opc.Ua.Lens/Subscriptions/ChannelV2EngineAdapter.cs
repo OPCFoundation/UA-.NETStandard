@@ -75,7 +75,7 @@ namespace UaLens.Subscriptions
                 FullMode = BoundedChannelFullMode.DropOldest,
                 SingleReader = true,
                 SingleWriter = false
-            });
+            }, _ => Interlocked.Increment(ref m_droppedCount));
             Events = m_channel.Reader;
         }
 
@@ -277,15 +277,11 @@ namespace UaLens.Subscriptions
         }
 
         /// <summary>
-        /// Writes a notification and samples channel capacity to count dropped events.
-        /// Falls back to no count update when the channel does not expose its count.
+        /// Writes a notification. The channel callback counts actual evictions,
+        /// including concurrent writers racing with the display reader.
         /// </summary>
         internal void WriteEventOrCount(NotificationEvent ev)
         {
-            if (m_channel.Reader.CanCount && m_channel.Reader.Count >= 8192)
-            {
-                Interlocked.Increment(ref m_droppedCount);
-            }
             m_channel.Writer.TryWrite(ev);
         }
 

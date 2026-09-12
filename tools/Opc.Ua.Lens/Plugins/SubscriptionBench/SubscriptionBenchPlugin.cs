@@ -269,7 +269,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     /// </summary>
     public async Task OnConnectionStateChangedAsync(CancellationToken cancellationToken)
     {
-        ManagedSession? session = m_host.Connection.Session;
+        ISession? session = m_host.Connection.CurrentSession;
         long generation = m_host.Connection.Snapshot.Generation;
 
         if (session is null)
@@ -331,7 +331,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     [RelayCommand]
     private async Task PickVariablesAsync()
     {
-        if (m_host.Connection.Session is not { } session)
+        if (m_host.Connection.CurrentSession is not { } session)
         {
             Status = "Not connected — connect first.";
             return;
@@ -356,7 +356,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     [RelayCommand]
     private async Task PickSubtreeAsync()
     {
-        if (m_host.Connection.Session is not { } session)
+        if (m_host.Connection.CurrentSession is not { } session)
         {
             Status = "Not connected — connect first.";
             return;
@@ -400,7 +400,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     }
 
     private static async Task WalkVariablesAsync(
-        ManagedSession session,
+        ISession session,
         NodeId root,
         List<(NodeId NodeId, string DisplayName)> sink,
         CancellationToken ct)
@@ -509,7 +509,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
             AppendPool(new[] { (nodeId, name) });
             return;
         }
-        if (m_host.Connection.Session is not { } session)
+        if (m_host.Connection.CurrentSession is not { } session)
         {
             Status = "Connect to a server before seeding the pool.";
             return;
@@ -841,7 +841,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         }
     }
 
-    private void RefreshServerLimits(ManagedSession session)
+    private void RefreshServerLimits(ISession session)
     {
         ServerCapabilities? caps = session.ServerCapabilities;
         uint mi = caps?.MaxMonitoredItemsPerSubscription ?? 0;
@@ -901,7 +901,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         {
             sb.Append(CultureInfo.InvariantCulture, $"Items in error    : {topology.CountBadItems()}\n");
         }
-        if (m_host.Connection.Session is { } session)
+        if (m_host.Connection.CurrentSession is { } session)
         {
             sb.Append(CultureInfo.InvariantCulture, $"Session good pubs : {session.GoodPublishRequestCount}\n");
             sb.Append(CultureInfo.InvariantCulture,

@@ -1049,7 +1049,7 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
             SelectedItemStatus = "Variable · probing AccessLevel…";
             try
             {
-                if (Connection.Session is { } session)
+                if (Connection.CurrentSession is { } session)
                 {
                     ReadResponse response = await session.ReadAsync(
                         null, 0, TimestampsToReturn.Neither,

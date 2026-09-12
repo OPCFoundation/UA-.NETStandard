@@ -158,7 +158,9 @@ public sealed class BrowseDialogWorkflowTests
                 ListBox list = DesktopInteraction.Control<ListBox>(dialog, "ResultsList");
                 FlattenedNode[] rows = list.Items.Cast<FlattenedNode>().ToArray();
                 Assert.That(rows.Select(row => row.NodeId), Is.EqualTo(new[] { new NodeId(3u), new NodeId(4u) }));
-                Assert.That(rows.Select(row => row.BrowsePath), Is.EqualTo(s_flattenedBrowseDeduplicatesCyclesAndKeepsBreadthFirstPathsExpected));
+                Assert.That(
+                    rows.Select(row => row.BrowsePath),
+                    Is.EqualTo(s_flattenedBrowseDeduplicatesCyclesAndKeepsBreadthFirstPathsExpected));
                 Assert.That(browsed,
                     Is.EqualTo(new[] { new NodeId(1u), new NodeId(2u), new NodeId(3u), new NodeId(4u) }));
                 list.SelectedIndex = 1;

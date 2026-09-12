@@ -52,7 +52,7 @@ namespace UaLens.Subscriptions
     /// </summary>
     internal sealed class ClassicEngineAdapter : ISubscriptionAdapter
     {
-        private readonly ManagedSession m_session;
+        private readonly ISession m_session;
         private readonly ILogger m_log;
         private readonly Channel<NotificationEvent> m_channel;
         private readonly PublishLogObserver? m_publishLog;
@@ -104,8 +104,15 @@ namespace UaLens.Subscriptions
 
         public ClassicEngineAdapter(ManagedSession session, ITelemetryContext telemetry,
             PublishLogObserver? publishLog = null)
+            : this((ISession)session, telemetry, publishLog)
         {
-            m_session = session;
+        }
+
+        internal ClassicEngineAdapter(ISession session, ITelemetryContext telemetry,
+            PublishLogObserver? publishLog = null)
+        {
+            m_session = session ?? throw new ArgumentNullException(nameof(session));
+            ArgumentNullException.ThrowIfNull(telemetry);
             m_log = telemetry.CreateLogger("ClassicAdapter");
             m_publishLog = publishLog;
             m_channel = Channel.CreateBounded<NotificationEvent>(new BoundedChannelOptions(8192)
@@ -113,7 +120,7 @@ namespace UaLens.Subscriptions
                 FullMode = BoundedChannelFullMode.DropOldest,
                 SingleReader = true,
                 SingleWriter = false
-            });
+            }, _ => Interlocked.Increment(ref m_droppedCount));
             Events = m_channel.Reader;
         }
 
@@ -325,7 +332,6 @@ namespace UaLens.Subscriptions
                     ? parsed : null;
                 m_channel.Writer.TryWrite(new NotificationEvent(
                     NotificationKind.DataChange, itemId, 1, subscription.SequenceNumber, now, d));
-                CountDroppedNotificationAfterWrite();
             }
         }
 
@@ -348,7 +354,6 @@ namespace UaLens.Subscriptions
                 }
                 m_channel.Writer.TryWrite(new NotificationEvent(
                     NotificationKind.Event, itemId, 1, subscription.SequenceNumber, now));
-                CountDroppedNotificationAfterWrite();
             }
         }
 
@@ -359,22 +364,6 @@ namespace UaLens.Subscriptions
                 (DateTime)subscription.PublishTime, 1, PublishLogKind.KeepAlive);
             m_channel.Writer.TryWrite(new NotificationEvent(
                 NotificationKind.KeepAlive, 0, 0, subscription.SequenceNumber, DateTime.UtcNow));
-            CountDroppedNotificationAfterWrite();
-        }
-
-        /// <summary>
-        /// Drop-counter increment after a TryWrite (the channel was at
-        /// capacity, so DropOldest evicted one).  Kept as a separate post-hoc
-        /// check because Classic's hot paths emit ad-hoc; we sample
-        /// <see cref="ChannelReader{T}.Count"/> and bump the counter when
-        /// the channel was already saturated.
-        /// </summary>
-        private void CountDroppedNotificationAfterWrite()
-        {
-            if (m_channel.Reader.CanCount && m_channel.Reader.Count >= 8192)
-            {
-                Interlocked.Increment(ref m_droppedCount);
-            }
         }
 
         private int ResolveItemId(uint clientHandle)

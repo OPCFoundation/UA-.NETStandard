@@ -274,7 +274,7 @@ internal sealed class NodeInteractionController
             m_vm.ConnectionStatus = "Connect first.";
             return;
         }
-        if (m_vm.SelectedNode is not { } selected || m_vm.Connection.Session is not { } session)
+        if (m_vm.SelectedNode is not { } selected || m_vm.Connection.CurrentSession is not { } session)
         {
             m_vm.ConnectionStatus = "Pick a node in the address space.";
             return;
@@ -392,7 +392,7 @@ internal sealed class NodeInteractionController
 
     private async Task CallMethodAsync(NodeViewModel node)
     {
-        if (m_vm.Connection.Session is not { } session)
+        if (m_vm.Connection.CurrentSession is not { } session)
         {
             return;
         }
@@ -405,7 +405,7 @@ internal sealed class NodeInteractionController
 
     private async Task WriteValueAsync(NodeViewModel node)
     {
-        if (m_vm.Connection.Session is not { } session)
+        if (m_vm.Connection.CurrentSession is not { } session)
         {
             return;
         }
@@ -418,7 +418,7 @@ internal sealed class NodeInteractionController
 
     private async Task ExportValueAsync(NodeViewModel node)
     {
-        if (m_vm.Connection.Session is not { } session)
+        if (m_vm.Connection.CurrentSession is not { } session)
         {
             m_vm.ConnectionStatus = "Connect to export a value.";
             return;
@@ -475,7 +475,7 @@ internal sealed class NodeInteractionController
 
     private async Task ExportNodeSetAsync()
     {
-        if (m_vm.Connection.Session is not { } session)
+        if (m_vm.Connection.CurrentSession is not { } session)
         {
             m_vm.ConnectionStatus = "Connect to a server before exporting NodeSet2.";
             return;
@@ -580,7 +580,7 @@ internal sealed class NodeInteractionController
     private static async Task<(
         List<(NodeId NodeId, string DisplayName)> Variables,
         List<(NodeId NodeId, string DisplayName)> EventEmitters)>
-        BrowseSubtreeAsync(Opc.Ua.Client.ManagedSession session, NodeId startNode, int maxDepth, int maxItems)
+        BrowseSubtreeAsync(Opc.Ua.Client.ISession session, NodeId startNode, int maxDepth, int maxItems)
     {
         var variables = new List<(NodeId, string)>();
         var objectCandidates = new List<(NodeId NodeId, string Name)>();
@@ -639,7 +639,7 @@ internal sealed class NodeInteractionController
     }
 
     private static async Task<List<(NodeId NodeId, string DisplayName)>> FilterEventEmittersAsync(
-        Opc.Ua.Client.ManagedSession session, List<(NodeId NodeId, string Name)> candidates)
+        Opc.Ua.Client.ISession session, List<(NodeId NodeId, string Name)> candidates)
     {
         var emitters = new List<(NodeId, string)>();
         if (candidates.Count == 0)

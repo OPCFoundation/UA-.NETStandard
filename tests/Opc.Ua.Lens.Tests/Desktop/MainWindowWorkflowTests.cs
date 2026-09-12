@@ -48,6 +48,7 @@ using UaLens.Themes;
 using UaLens.ViewModels;
 using UaLens.Views;
 using UaLens.Workspace;
+using UaLens.Tests.Subscriptions;
 
 namespace UaLens.Tests.Desktop;
 
@@ -118,7 +119,9 @@ public sealed class MainWindowWorkflowTests
             await DesktopInteraction.ModelChangedAsync(context.Model,
                 () => context.Model.ConnectionStatus.StartsWith("Favourites could not be loaded",
                     StringComparison.Ordinal), () => Task.CompletedTask).ConfigureAwait(true);
-            Assert.That(await File.ReadAllTextAsync(context.FavoritesPath).ConfigureAwait(true), Is.EqualTo("{invalid"));
+            Assert.That(
+                await File.ReadAllTextAsync(context.FavoritesPath).ConfigureAwait(true),
+                Is.EqualTo("{invalid"));
             context.Model.EndpointUrl = "not-an-endpoint";
             await DesktopInteraction.ModelChangedAsync(context.Model,
                 () => context.Model.ConnectionStatus.StartsWith("Enter an absolute", StringComparison.Ordinal), () =>
@@ -126,7 +129,9 @@ public sealed class MainWindowWorkflowTests
                     DesktopInteraction.Click(DesktopInteraction.Control<Button>(window, "FavoriteToggle"));
                     return Task.CompletedTask;
                 }).ConfigureAwait(true);
-            Assert.That(await File.ReadAllTextAsync(context.FavoritesPath).ConfigureAwait(true), Is.EqualTo("{invalid"));
+            Assert.That(
+                await File.ReadAllTextAsync(context.FavoritesPath).ConfigureAwait(true),
+                Is.EqualTo("{invalid"));
             Assert.That(DesktopInteraction.Control<ListBox>(window, "WelcomeRecentList").Items, Is.Empty);
         });
     }
@@ -202,7 +207,8 @@ public sealed class MainWindowWorkflowTests
             await using var context = new ShellContext();
             MainWindow window = context.Show();
             await DesktopInteraction.CollectionChangedAsync(context.Model.Tabs, () => context.Model.Tabs.Count == 1,
-                () => DesktopInteraction.Click(DesktopInteraction.Control<Button>(window, button))).ConfigureAwait(true);
+                () => DesktopInteraction.Click(DesktopInteraction
+                    .Control<Button>(window, button))).ConfigureAwait(true);
             await FlushAsync().ConfigureAwait(true);
             Assert.That(context.Created.Single().Object.Kind, Is.EqualTo((PluginKind)kind));
             Assert.That(context.Model.SelectedTab, Is.SameAs(context.Created[0].Object));
@@ -322,7 +328,8 @@ public sealed class MainWindowWorkflowTests
         {
             await using var context = new ShellContext();
             MainWindow window = context.Show();
-            Window help = await DesktopInteraction.OpenedAsync<Window>(() => Press(window, Key.F1)).ConfigureAwait(true);
+            Window help = await DesktopInteraction.OpenedAsync<Window>(() => Press(window, Key.F1))
+                .ConfigureAwait(true);
             Assert.That(help.Owner, Is.SameAs(window));
             Assert.That(((TextBlock)((ScrollViewer)help.Content!).Content!).Text,
                 Does.Contain("Ctrl+Tab").And.Contain("Ctrl+N").And.Contain("Ctrl+W"));
@@ -341,6 +348,338 @@ public sealed class MainWindowWorkflowTests
             int catalogItems = tools.Items.OfType<MenuItem>().Sum(group => group.Items.Count);
             Assert.That(catalogItems, Is.EqualTo(PluginRegistry.All.Count));
         });
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public Task ConnectedWriteButtonSendsOnlyTheAcceptedValueToTheSelectedNode(bool accept)
+    {
+        return AvaloniaDesktopTestHost.RunAsync(async () =>
+        {
+            await using var protocol = new ConnectedProtocolContext();
+            await protocol.ConnectAsync().ConfigureAwait(true);
+            await using var context = new ShellContext(protocol.Desktop);
+            MainWindow window = context.Show();
+            NodeId target = new("Temperature", 2);
+            protocol.Read = (ids, _) => ValueTask.FromResult(new ReadResponse
+            {
+                Results = ids.ToArray()!.Select(id => id.AttributeId == Opc.Ua.Attributes.DataTypeDefinition
+                    ? DataValue.FromStatusCode(StatusCodes.BadAttributeIdInvalid)
+                    : new DataValue(id.AttributeId switch
+                    {
+                        Opc.Ua.Attributes.AccessLevel => Variant.From((byte)3),
+                        Opc.Ua.Attributes.DataType => Variant.From(DataTypeIds.Int32),
+                        Opc.Ua.Attributes.ValueRank => Variant.From(ValueRanks.Scalar),
+                        Opc.Ua.Attributes.ArrayDimensions => Variant.From(ArrayOf<uint>.Empty),
+                        _ => Variant.From(17)
+                    })).ToArray()
+            });
+            ArrayOf<WriteValue> writes = default;
+            protocol.Write = (values, _) =>
+            {
+                writes = values;
+                return ValueTask.FromResult(new WriteResponse { Results = [StatusCodes.Good] });
+            };
+            await context.Model.UpdateSelectionAsync(new NodeViewModel(
+                context.Model.Browser, NodeId.Null, target, "Temperature", NodeClass.Variable)).ConfigureAwait(true);
+            await FlushAsync().ConfigureAwait(true);
+            Button write = DesktopInteraction.Control<Button>(window, "NodeWriteBtn");
+            Assert.That(context.Model.CanWriteVariable, Is.True);
+            Assert.That(write.IsEnabled, Is.True);
+            WriteValueDialog dialog = await DesktopInteraction.OpenedAsync<WriteValueDialog>(
+                () => DesktopInteraction.Click(write)).ConfigureAwait(true);
+            try
+            {
+                Assert.That(dialog.Owner, Is.SameAs(window));
+                DesktopInteraction.Control<TextBox>(dialog, "ValueText").Text = "42";
+                Assert.That(writes.IsNull, Is.True);
+                DesktopInteraction.Click(
+                    DesktopInteraction.Control<Button>(dialog, accept ? "OkButton" : "CancelButton"));
+                await dialog.StopAsync().ConfigureAwait(true);
+                await FlushAsync().ConfigureAwait(true);
+                Assert.That(writes.IsNull, Is.EqualTo(!accept),
+                    DesktopInteraction.Control<TextBlock>(dialog, "CurrentLabel").Text + " / " +
+                    DesktopInteraction.Control<TextBlock>(dialog, "ResultLabel").Text);
+                if (accept)
+                {
+                    Assert.That(writes.Count, Is.EqualTo(1));
+                    Assert.That(writes[0].NodeId, Is.EqualTo(target));
+                    Assert.That(writes[0].AttributeId, Is.EqualTo(Opc.Ua.Attributes.Value));
+                    Assert.That(writes[0].Value.WrappedValue, Is.EqualTo(Variant.From(42)));
+                }
+            }
+            finally
+            {
+                dialog.Close();
+                await dialog.StopAsync().ConfigureAwait(true);
+            }
+        });
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public Task ConnectedCallButtonPreservesTheSelectedMethodAndParentUntilExplicitInvocation(bool call)
+    {
+        return AvaloniaDesktopTestHost.RunAsync(async () =>
+        {
+            await using var protocol = new ConnectedProtocolContext();
+            await protocol.ConnectAsync().ConfigureAwait(true);
+            await using var context = new ShellContext(protocol.Desktop);
+            MainWindow window = context.Show();
+            NodeId parent = new("Boiler", 2);
+            NodeId method = new("Reset", 2);
+            ArrayOf<CallMethodRequest> calls = default;
+            protocol.Call = (values, _) =>
+            {
+                calls = values;
+                return ValueTask.FromResult(new CallResponse
+                {
+                    Results = [new CallMethodResult {
+                        StatusCode = StatusCodes.Good,
+                        OutputArguments = [Variant.From(5)] }]
+                });
+            };
+            await context.Model.UpdateSelectionAsync(new NodeViewModel(
+                context.Model.Browser, parent, method, "Reset", NodeClass.Method)).ConfigureAwait(true);
+            await FlushAsync().ConfigureAwait(true);
+            MethodCallDialog dialog = await DesktopInteraction.OpenedAsync<MethodCallDialog>(() =>
+                DesktopInteraction.Click(DesktopInteraction
+                    .Control<Button>(window, "NodeCallBtn"))).ConfigureAwait(true);
+            try
+            {
+                Assert.That(dialog.Owner, Is.SameAs(window));
+                Assert.That(calls.IsNull, Is.True);
+                if (call)
+                {
+                    await DesktopInteraction.ChangedAsync(
+                        DesktopInteraction.Control<TextBlock>(dialog, "ResultStatus"),
+                        () => !calls.IsNull, () =>
+                        {
+                            DesktopInteraction.Click(DesktopInteraction.Control<Button>(dialog, "OkButton"));
+                            return Task.CompletedTask;
+                        }).ConfigureAwait(true);
+                    Assert.That(calls[0].ObjectId, Is.EqualTo(parent));
+                    Assert.That(calls[0].MethodId, Is.EqualTo(method));
+                    Assert.That(calls[0].InputArguments.IsEmpty, Is.True);
+                }
+                DesktopInteraction.Click(DesktopInteraction.Control<Button>(dialog, "CancelButton"));
+                await dialog.StopAsync().ConfigureAwait(true);
+                Assert.That(calls.IsNull, Is.EqualTo(!call));
+            }
+            finally
+            {
+                dialog.Close();
+                await dialog.StopAsync().ConfigureAwait(true);
+            }
+        });
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public Task PublishingPipelineDialogChangesOnlyTheCurrentSessionAfterAcceptance(bool accept)
+    {
+        return AvaloniaDesktopTestHost.RunAsync(async () =>
+        {
+            await using var protocol = new ConnectedProtocolContext();
+            protocol.Session.SetupProperty(session => session.MinPublishRequestCount, 2);
+            protocol.Session.SetupProperty(session => session.MaxPublishRequestCount, 15);
+            await protocol.ConnectAsync().ConfigureAwait(true);
+            await using var context = new ShellContext(protocol.Desktop);
+            MainWindow window = context.Show();
+            Button settings = DesktopInteraction.Control<Button>(window, "ConnectionSettingsButton");
+            DesktopInteraction.Click(settings);
+            MenuItem pipeline = ((MenuFlyout)settings.Flyout!).Items.OfType<MenuItem>()
+                .Single(item => Equals(item.Header, "Publish pipeline…"));
+            Assert.That(pipeline.IsEnabled, Is.True);
+            SessionPublishingSettingsDialog dialog = await DesktopInteraction
+                .OpenedAsync<SessionPublishingSettingsDialog>(
+                    () => pipeline.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent)))
+                .ConfigureAwait(true);
+            DesktopInteraction.Control<NumericUpDown>(dialog, "MinimumRequests").Value = 3;
+            DesktopInteraction.Control<NumericUpDown>(dialog, "MaximumRequests").Value = 7;
+            Assert.That(protocol.Session.Object.MinPublishRequestCount, Is.EqualTo(2));
+            DesktopInteraction.Click(
+                DesktopInteraction.Control<Button>(dialog, accept ? "ApplyButton" : "CancelButton"));
+            await FlushAsync().ConfigureAwait(true);
+            Assert.That(protocol.Session.Object.MinPublishRequestCount, Is.EqualTo(accept ? 3 : 2));
+            Assert.That(protocol.Session.Object.MaxPublishRequestCount, Is.EqualTo(accept ? 7 : 15));
+            if (accept)
+            {
+                Assert.That(context.Model.ConnectionStatus,
+                    Is.EqualTo("Publish pipeline set to 3 to 7 in-flight requests."));
+            }
+        });
+    }
+
+    [TestCase("variable", false)]
+    [TestCase("variable", true)]
+    [TestCase("events", true)]
+    [TestCase("children", true)]
+    [TestCase("both", false)]
+    [TestCase("both", true)]
+    public Task MonitorActionShapesAnOwnedSubscriptionFromTheSelectedNode(string kind, bool accept)
+    {
+        return AvaloniaDesktopTestHost.RunAsync(async () =>
+        {
+            await using var protocol = new ConnectedProtocolContext();
+            var engine = new ChannelV2EngineAdapterTests.AdapterContext();
+            Opc.Ua.Client.Subscriptions.ISubscriptionManager? manager = engine.Manager.Object;
+            protocol.Session.Setup(session => session.TryGetSubscriptionManager(out manager)).Returns(true);
+            await protocol.ConnectAsync().ConfigureAwait(true);
+            await using var context = new ShellContext(protocol.Desktop, actualMonitors: true);
+            MainWindow window = context.Show();
+            NodeId selected = new("Selected", 2);
+            protocol.Read = (ids, _) => ValueTask.FromResult(new ReadResponse
+            {
+                Results = ids.ToArray()!.Select(id => new DataValue(Variant.From(
+                    id.AttributeId == Opc.Ua.Attributes.EventNotifier
+                        ? (byte)(kind is "events" or "both" ? 1 : 0) : (byte)3))).ToArray()
+            });
+            protocol.Browse = (_, _) => ValueTask.FromResult(new BrowseResponse
+            {
+                Results = [new BrowseResult
+                {
+                    References = kind is "children" or "both" ?
+                    [
+                        new ReferenceDescription
+                        {
+                            NodeId = new NodeId("ChildA", 2), DisplayName = new LocalizedText("Child A"),
+                            NodeClass = NodeClass.Variable
+                        },
+                        new ReferenceDescription
+                        {
+                            NodeId = new NodeId("ChildB", 2), DisplayName = new LocalizedText("Child B"),
+                            NodeClass = NodeClass.Variable
+                        }
+                    ] : []
+                }]
+            });
+            await context.Model.UpdateSelectionAsync(new NodeViewModel(
+                context.Model.Browser, NodeId.Null, selected, "Selected",
+                kind == "variable" ? NodeClass.Variable : NodeClass.Object)).ConfigureAwait(true);
+            await FlushAsync().ConfigureAwait(true);
+            Window dialog = await DesktopInteraction.OpenedAsync<Window>(() =>
+                DesktopInteraction.Click(DesktopInteraction.Control<Button>(window, "NodeMonitorBtn")))
+                .ConfigureAwait(true);
+            Assert.That(dialog, kind == "both" ? Is.TypeOf<AddObjectChildrenDialog>() : Is.TypeOf<AddItemDialog>());
+            Assert.That(engine.ItemOptions, Is.Empty);
+            DesktopInteraction.Control<TextBox>(dialog, "SamplingMs").Text = "25";
+            SubscriptionViewModel monitor = context.Model.SelectedSubscriptionTab!;
+            int expected = !accept ? 0 : kind == "both" ? 3 : kind == "children" ? 2 : 1;
+            if (accept)
+            {
+                await DesktopInteraction.CollectionChangedAsync(monitor.Items, () => monitor.Items.Count == expected,
+                    () => DesktopInteraction.Click(DesktopInteraction.Control<Button>(dialog, "OkButton")))
+                    .ConfigureAwait(true);
+            }
+            else
+            {
+                DesktopInteraction.Click(DesktopInteraction.Control<Button>(dialog, "CancelButton"));
+            }
+            Assert.That(monitor.Items, Has.Count.EqualTo(expected));
+            Assert.That(engine.ItemOptions, Has.Count.EqualTo(expected));
+            Assert.That(engine.ItemOptions.Select(item => item.CurrentValue.SamplingInterval),
+                Is.All.EqualTo(TimeSpan.FromMilliseconds(25)));
+            if (accept && kind is "events" or "both")
+            {
+                Assert.That(monitor.Items[0].NodeId, Is.EqualTo(selected));
+                Assert.That(monitor.Items[0].IsEvent, Is.True);
+                Assert.That(monitor.Items[0].AttributeId, Is.EqualTo(Opc.Ua.Attributes.EventNotifier));
+                Assert.That(monitor.Items[0].QueueSize, Is.EqualTo(100));
+            }
+            if (accept && kind is "children" or "both")
+            {
+                Assert.That(monitor.Items.Where(item => !item.IsEvent).Select(item => item.NodeId),
+                    Is.EqualTo(s_monitorChildren));
+            }
+        });
+    }
+
+    [TestCase(1, 10, true, true, 1, 1)]
+    [TestCase(2, 10, true, true, 2, 1)]
+    [TestCase(2, 1, true, true, 1, 0)]
+    [TestCase(2, 10, false, true, 0, 1)]
+    public Task RecursiveMonitorHonorsDepthCapacityAndActualEventNotifierFlags(
+        int depth, int maximum, bool variables, bool events, int expectedVariables, int expectedEvents)
+    {
+        return AvaloniaDesktopTestHost.RunAsync(async () =>
+        {
+            await using var protocol = new ConnectedProtocolContext();
+            var engine = new ChannelV2EngineAdapterTests.AdapterContext();
+            Opc.Ua.Client.Subscriptions.ISubscriptionManager? manager = engine.Manager.Object;
+            protocol.Session.Setup(session => session.TryGetSubscriptionManager(out manager)).Returns(true);
+            var cache = new Mock<Opc.Ua.Client.INodeCache>();
+            cache.SetupGet(value => value.NamespaceUris).Returns(protocol.Messages.NamespaceUris);
+            NodeId start = new("Container", 2);
+            NodeId emitter = new("Emitter", 2);
+            cache.Setup(value => value.GetReferencesAsync(
+                It.IsAny<ArrayOf<NodeId>>(), It.IsAny<ArrayOf<NodeId>>(), false, true, It.IsAny<CancellationToken>()))
+                .Returns((ArrayOf<NodeId> nodes, ArrayOf<NodeId> references, bool _, bool _, CancellationToken _) =>
+                {
+                    Assert.That(references[0], Is.EqualTo(ReferenceTypeIds.HierarchicalReferences));
+                    return ValueTask.FromResult(nodes.Count == 1 && nodes[0] == start
+                        ? (ArrayOf<INode>)
+                        [
+                            CachedNode(new NodeId("Variable", 2), NodeClass.Variable),
+                            CachedNode(emitter, NodeClass.Object),
+                            CachedNode(new NodeId("Silent", 2), NodeClass.Object)
+                        ]
+                        : (ArrayOf<INode>)
+                        [
+                            CachedNode(new NodeId("Variable", 2), NodeClass.Variable),
+                            CachedNode(new NodeId("Descendant", 2), NodeClass.Variable)
+                        ]);
+                });
+            protocol.Session.SetupGet(session => session.NodeCache).Returns(cache.Object);
+            protocol.Read = (ids, _) => ValueTask.FromResult(new ReadResponse
+            {
+                Results = ids.ToArray()!.Select(id =>
+                    new DataValue(Variant.From((byte)(id.NodeId == emitter ? 1 : 0)))).ToArray()
+            });
+            await protocol.ConnectAsync().ConfigureAwait(true);
+            await using var context = new ShellContext(protocol.Desktop, actualMonitors: true);
+            MainWindow window = context.Show();
+            var node = new NodeViewModel(context.Model.Browser, NodeId.Null, start, "Container", NodeClass.Object);
+            context.Model.Browser.Roots.Add(node);
+            AddressSpaceView browse = DesktopInteraction.Control<AddressSpaceView>(window, "LiveTree");
+            DesktopInteraction.Control<TreeView>(browse, "Tree").SelectedItem = node;
+            await context.Model.UpdateSelectionAsync(node).ConfigureAwait(true);
+            RecursiveAddDialog dialog = await DesktopInteraction.OpenedAsync<RecursiveAddDialog>(() =>
+                DesktopInteraction.Control<MenuItem>(browse, "MenuAddRecursive")
+                    .RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent))).ConfigureAwait(true);
+            DesktopInteraction.Control<TextBox>(dialog, "MaxDepth").Text =
+                depth.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            DesktopInteraction.Control<TextBox>(dialog, "MaxItems").Text =
+                maximum.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            DesktopInteraction.Control<TextBox>(dialog, "SamplingMs").Text = "37";
+            DesktopInteraction.Control<CheckBox>(dialog, "IncludeVariablesCheck").IsChecked = variables;
+            DesktopInteraction.Control<CheckBox>(dialog, "IncludeEventsCheck").IsChecked = events;
+            await DesktopInteraction.ModelChangedAsync(context.Model,
+                () => context.Model.ConnectionStatus.StartsWith("Added ", StringComparison.Ordinal), () =>
+                {
+                    DesktopInteraction.Click(DesktopInteraction.Control<Button>(dialog, "OkButton"));
+                    return Task.CompletedTask;
+                }).ConfigureAwait(true);
+            SubscriptionViewModel monitor = context.Model.SelectedSubscriptionTab!;
+            Assert.That(monitor.Items.Count(item => !item.IsEvent), Is.EqualTo(expectedVariables));
+            Assert.That(monitor.Items.Count(item => item.IsEvent), Is.EqualTo(expectedEvents));
+            Assert.That(
+                monitor.Items.Select(item => item.SamplingInterval),
+                Is.All.EqualTo(TimeSpan.FromMilliseconds(37)));
+            Assert.That(monitor.Items.Select(item => item.NodeId), Does.Not.Contain(new NodeId("Silent", 2)));
+            Assert.That(context.Model.ConnectionStatus,
+                Is.EqualTo($"Added {expectedVariables} variables + {expectedEvents} events recursively."));
+        });
+    }
+
+    private static INode CachedNode(NodeId id, NodeClass nodeClass)
+    {
+        var node = new Mock<INode>();
+        node.SetupGet(value => value.NodeId).Returns(new ExpandedNodeId(id));
+        node.SetupGet(value => value.NodeClass).Returns(nodeClass);
+        node.SetupGet(value => value.DisplayName).Returns(new LocalizedText(id.ToString()));
+        node.SetupGet(value => value.BrowseName).Returns(new QualifiedName(id.ToString()));
+        return node.Object;
     }
 
     private static bool Visible(ShellContext context, string panel)
@@ -371,8 +710,9 @@ public sealed class MainWindowWorkflowTests
 
     private sealed class ShellContext : IAsyncDisposable
     {
-        public ShellContext()
+        public ShellContext(DesktopConnectionContext? connection = null, bool actualMonitors = false)
         {
+            Connection = connection ?? new DesktopConnectionContext();
             Root = Directory.CreateTempSubdirectory("UaLensShell").FullName;
             FavoritesPath = Path.Combine(Root, "favorites.json");
             var factory = new Mock<IPluginFactory>(MockBehavior.Strict);
@@ -380,6 +720,11 @@ public sealed class MainWindowWorkflowTests
                 It.IsAny<Func<PluginHost, IPlugin>>())).Returns(
                 (PluginKind kind, PluginHost _, Func<PluginHost, IPlugin> _) =>
                 {
+                    if (actualMonitors && kind == PluginKind.Subscription)
+                    {
+                        return new SubscriptionViewModel(
+                            "Owned monitor", null, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
+                    }
                     var plugin = new Mock<IPlugin>();
                     plugin.SetupGet(value => value.Kind).Returns(kind);
                     plugin.SetupProperty(value => value.Title, kind.ToString());
@@ -406,7 +751,7 @@ public sealed class MainWindowWorkflowTests
 
         public string Root { get; }
         public string FavoritesPath { get; }
-        public DesktopConnectionContext Connection { get; } = new();
+        public DesktopConnectionContext Connection { get; }
         public MainViewModel Model { get; }
         public MainWindow? Window { get; private set; }
         public List<Mock<IPlugin>> Created { get; } = [];
@@ -444,7 +789,8 @@ public sealed class MainWindowWorkflowTests
     }
 
     private static readonly string[] s_favorites = ["opc.tcp://one.test:4840/Line", "opc.tcp://two.test:4840/Line"];
-    private static readonly string[] s_history = ["Favourites", "opc.tcp://one.test:4840/Line", "opc.tcp://two.test:4840/Line"];
+    private static readonly string[] s_history
+        = ["Favourites", "opc.tcp://one.test:4840/Line", "opc.tcp://two.test:4840/Line"];
     private static readonly string[] s_afterRemove = ["opc.tcp://two.test:4840/Line"];
     private static readonly string[] s_afterAdd =
     [
@@ -455,4 +801,5 @@ public sealed class MainWindowWorkflowTests
         "Transport / reverse listener / application identity…", "Use ChannelV2 engine", "Change user…", "Reconnect",
         "Publish pipeline…", "Preferred locales…"
     ];
+    private static readonly NodeId[] s_monitorChildren = [new("ChildA", 2), new("ChildB", 2)];
 }

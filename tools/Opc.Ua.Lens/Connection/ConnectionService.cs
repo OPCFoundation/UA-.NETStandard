@@ -159,7 +159,7 @@ internal sealed class ConnectionService : IConnectionWorkspace
         lock (m_stateGate)
         {
             ThrowIfDisposed();
-            if (!IsConnected || m_connection?.Session is not ManagedSession session)
+            if (!IsConnected || m_connection?.Session is not { } session)
             {
                 throw new InvalidOperationException("Cannot create a subscription adapter while not connected.");
             }
@@ -329,7 +329,8 @@ internal sealed class ConnectionService : IConnectionWorkspace
             }
             if (!current.MatchesEndpoint(selection.Endpoint))
             {
-                throw new InvalidOperationException("Change user cannot change the selected endpoint/security profile.");
+                throw new InvalidOperationException(
+                    "Change user cannot change the selected endpoint/security profile.");
             }
             selection.ApplySetup(new ConnectionSetupSelection(
                 current.EndpointUrl, current.ReverseConnection, current.ApplicationIdentityId));
@@ -365,7 +366,8 @@ internal sealed class ConnectionService : IConnectionWorkspace
                     ThrowIfListenerStopping();
                     if (m_cancelDiscovery is not null)
                     {
-                        throw new InvalidOperationException("A primary endpoint-discovery operation is already running.");
+                        throw new InvalidOperationException(
+                            "A primary endpoint-discovery operation is already running.");
                     }
                     m_cancelDiscovery = operation.CancelAsync;
                     m_discoveryCompleted = completed.Task;
@@ -809,7 +811,9 @@ internal sealed class ConnectionService : IConnectionWorkspace
         }
         catch (OperationCanceledException)
         {
-            connectFailure = new OperationCanceledException("Connection or identity acquisition canceled.", operation.Token);
+            connectFailure = new OperationCanceledException(
+                "Connection or identity acquisition canceled.",
+                operation.Token);
             if (installed)
             {
                 await CleanupInstalledConnectionAsync(cleanupFailures).ConfigureAwait(false);
@@ -1165,7 +1169,8 @@ internal sealed class ConnectionService : IConnectionWorkspace
             }
             if (profile?.ApplicationIdentityId is not null || profile?.ReverseConnection is not null)
             {
-                throw new NotSupportedException("The backend cannot satisfy the selected application/transport configuration.");
+                throw new NotSupportedException(
+                    "The backend cannot satisfy the selected application/transport configuration.");
             }
             return await m_backend.CreateConfigurationAsync(ct).ConfigureAwait(false);
         }

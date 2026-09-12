@@ -194,6 +194,11 @@ reader or reset collected history. Retention and rendering work are bounded;
 retired history, dropped notifications, gaps, and republish activity must not be
 confused with a lossless delivery guarantee.
 
+The client dropped-notification counter counts notifications actually evicted
+from the bounded delivery queue, not merely a full queue. It is separate from
+server-side monitored-item overflow and publish-sequence gaps. Event View ignores
+callbacks from subscriptions that have been stopped or disconnected.
+
 Raw publish diagnostics use server subscription identifiers where the public
 stack interface exposes an unambiguous identifier. Partitioned V2 callbacks can
 instead carry a `client:` correlation identifier; this is deliberately not
@@ -239,6 +244,11 @@ Administration targets and prerequisites matter. History deletion, file deletion
 account/role changes, certificate application, and write/call workloads are not
 automatically executed when a workspace loads. Certificate ApplyChanges can
 intentionally terminate a connection.
+
+GDS Discovery keeps endpoint results tied to the selected server; a late response
+for an earlier selection cannot replace the current result. Preferred locales
+are edited as an ordered list and sent to the active session only on **Apply**.
+An unsuccessful locale change leaves the dialog open with the failure visible.
 
 ## Guided workflows
 

@@ -1391,7 +1391,8 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
                 var w = new StreamWriter(s, new UTF8Encoding(false));
                 await using (w.ConfigureAwait(false))
                 {
-                    await w.WriteLineAsync("source_timestamp_utc,server_timestamp_utc,value,status").ConfigureAwait(true);
+                    await w.WriteLineAsync("source_timestamp_utc,server_timestamp_utc,value,status")
+                        .ConfigureAwait(true);
                     foreach (HistoryRow row in Rows)
                     {
                         await w.WriteLineAsync(string.Format(CultureInfo.InvariantCulture,

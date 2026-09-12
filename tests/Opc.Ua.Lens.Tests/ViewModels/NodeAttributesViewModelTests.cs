@@ -63,7 +63,9 @@ public sealed class NodeAttributesViewModelTests
 
         Assert.That(actual.Select(entry => $"{entry.AttributeId}:{entry.Name}"), Is.EqualTo(expected));
         Assert.That(actual.Select(entry => entry.AttributeId).Distinct().Count(), Is.EqualTo(expected.Length));
-        Assert.That(actual.Take(10).Select(entry => entry.Name), Is.EqualTo(s_attributeSetIncludesOrderedCommonSecurityAttributesAndOnlyTheExpected));
+        Assert.That(
+            actual.Take(10).Select(entry => entry.Name),
+            Is.EqualTo(s_attributeSetIncludesOrderedCommonSecurityAttributesAndOnlyTheExpected));
         Assert.That(NodeAttributeSets.SupportedAttributes(nodeClass), Is.Not.SameAs(actual));
     }
 

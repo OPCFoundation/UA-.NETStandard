@@ -96,7 +96,9 @@ public sealed class GdsConnectedManagementTests
             Assert.That(scenario.FactoryCalls, Is.EqualTo(1));
             Assert.That(scenario.Administrators.Single(), Is.Not.SameAs(originalIdentity));
             Assert.That(scenario.Administrators[0].TokenType, Is.EqualTo(UserTokenType.Anonymous));
-            Assert.That(scenario.Context.ConnectionContext.Connection.CurrentSession, Is.SameAs(scenario.Primary.Object));
+            Assert.That(
+                scenario.Context.ConnectionContext.Connection.CurrentSession,
+                Is.SameAs(scenario.Primary.Object));
             scenario.Client.Verify(client => client.FindApplicationAsync(string.Empty, It.IsAny<CancellationToken>()),
                 Times.Never);
 
@@ -213,7 +215,9 @@ public sealed class GdsConnectedManagementTests
 
             await plugin.ViewCertGroupsCommand.ExecuteAsync(null).ConfigureAwait(true);
 
-            Assert.That(plugin.CertGroups.Select(value => value.GroupId), Is.EqualTo(new[] { group, missing, faulted }));
+            Assert.That(
+                plugin.CertGroups.Select(value => value.GroupId),
+                Is.EqualTo(new[] { group, missing, faulted }));
             Assert.That(plugin.CertGroups[1].Trusted, Is.Empty);
             Assert.That(plugin.CertGroups[2].Issuers, Is.Empty);
             Assert.That(plugin.CertGroups[0].Trusted, Has.Count.EqualTo(denied ? 0 : 1));
@@ -273,7 +277,9 @@ public sealed class GdsConnectedManagementTests
     [TestCase(true, 1)]
     [TestCase(false, 2)]
     [TestCase(true, 2)]
-    public Task IssuingUsesTheSelectedGroupTypeAndDomainsWithoutInventingADeliveryDestination(bool https, int contextKind)
+    public Task IssuingUsesTheSelectedGroupTypeAndDomainsWithoutInventingADeliveryDestination(
+        bool https,
+        int contextKind)
     {
         return AvaloniaDesktopTestHost.RunAsync(async () =>
         {
@@ -402,6 +408,77 @@ public sealed class GdsConnectedManagementTests
             "Assembly",
             application.ProductUri ?? throw new AssertionException("The fixture requires a product URI."),
             type, [], []);
+    }
+
+    [TestCase(false, false)]
+    [TestCase(true, false)]
+    [TestCase(false, true)]
+    [TestCase(true, true)]
+    public Task IssuedPublicCertificatesUseOnlyTheRegisteredDestinationsAndSurfaceIndividualWriteFailures(
+        bool https, bool failPublicFile)
+    {
+        return AvaloniaDesktopTestHost.RunAsync(async () =>
+        {
+            using var files = new TemporaryCertificateStores();
+            using Certificate certificate = TemporaryCertificateStores.CreateCertificate("CN=Delivered certificate");
+            using Certificate issuer = TemporaryCertificateStores.CreateCertificate("CN=Delivered issuer");
+            await using var scenario = new Scenario();
+            await scenario.ConnectAsync().ConfigureAwait(true);
+            ApplicationRecordDataType application = Record();
+            string publicPath = failPublicFile ? files.Root : Path.Combine(files.Root, "issued", "public.cer");
+            string otherPublicPath = Path.Combine(files.Root, "other", "public.cer");
+            string privatePath = Path.Combine(files.Root, "private-not-issued.pfx");
+            scenario.Context.Workspace.Object.CurrentRegisteredApp = Registration(application) with
+            {
+                CertificateStorePath = files.Application.Identifier.StorePath,
+                CertificatePublicKeyPath = https ? otherPublicPath : publicPath,
+                HttpsCertificatePublicKeyPath = https ? publicPath : otherPublicPath,
+                CertificatePrivateKeyPath = privatePath,
+                HttpsCertificatePrivateKeyPath = privatePath,
+                IssuerListStorePath = files.Issuer.Identifier.StorePath,
+                HttpsIssuerListStorePath = files.Issuer.Identifier.StorePath
+            };
+            scenario.Client.Setup(client => client.GetCertificateGroupsAsync(
+                application.ApplicationId, CancellationToken.None)).ReturnsAsync(ArrayOf<NodeId>.Empty);
+            scenario.Client.Setup(client => client.StartNewKeyPairRequestAsync(
+                application.ApplicationId, NodeId.Null,
+                https
+                    ? Opc.Ua.ObjectTypeIds.HttpsCertificateType
+                    : Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                "CN=Assembly", It.IsAny<ArrayOf<string>>(), "PFX", It.IsAny<char[]>(), CancellationToken.None))
+                .ReturnsAsync(new NodeId(9001u));
+            scenario.Client.Setup(client => client.FinishRequestAsync(
+                application.ApplicationId, new NodeId(9001u), CancellationToken.None))
+                .ReturnsAsync((new ByteString(certificate.RawData), ByteString.Empty,
+                    (ArrayOf<ByteString>)[new ByteString(issuer.RawData)]));
+            await using var plugin = scenario.CreatePlugin();
+            plugin.SelectedApp = RegisteredApp.FromRecord(application);
+            await (https ? plugin.IssueNewHttpsCertificateCommand : plugin.IssueNewCertificateCommand)
+                .ExecuteAsync(null).ConfigureAwait(true);
+            Assert.That(File.Exists(otherPublicPath), Is.False);
+            Assert.That(File.Exists(privatePath), Is.False);
+            if (failPublicFile)
+            {
+                Assert.That(plugin.LastOperationResult, Does.Contain("pub!"));
+                Assert.That(scenario.Context.Log.Entries.Any(entry => entry.Exception is not null), Is.True);
+            }
+            else
+            {
+                Assert.That(
+                    await File.ReadAllBytesAsync(publicPath).ConfigureAwait(true),
+                    Is.EqualTo(certificate.RawData));
+                Assert.That(plugin.LastOperationResult, Does.Contain("pub=" + publicPath));
+            }
+            IReadOnlyList<byte[]> applications = await files.ReadAsync(files.Application).ConfigureAwait(true);
+            Assert.That(applications, Has.Count.EqualTo(https ? 0 : 1));
+            if (!https)
+            {
+                Assert.That(applications[0], Is.EqualTo(certificate.RawData));
+            }
+            IReadOnlyList<byte[]> issuers = await files.ReadAsync(files.Issuer).ConfigureAwait(true);
+            Assert.That(issuers.Single(), Is.EqualTo(issuer.RawData));
+            Assert.That(plugin.IsBusy, Is.False);
+        });
     }
 
     private static ApplicationDescription Description(string uri, string name)

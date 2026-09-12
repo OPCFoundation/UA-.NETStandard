@@ -206,7 +206,8 @@ public sealed class VariantParserTests
         yield return new(BuiltInType.DateTime, "2026-01-02T03:04:05Z",
             Variant.From((ArrayOf<DateTimeUtc>)[s_time]), Variant.From(ArrayOf<DateTimeUtc>.Empty));
         yield return new(BuiltInType.NodeId, "ns=2;s=Boiler,i=2258",
-            Variant.From((ArrayOf<NodeId>)[new NodeId("Boiler", 2), new NodeId(2258u)]), Variant.From(ArrayOf<NodeId>.Empty));
+            Variant.From((ArrayOf<NodeId>)[new NodeId("Boiler", 2), new NodeId(2258u)]), Variant.From(
+                ArrayOf<NodeId>.Empty));
         yield return new(BuiltInType.Guid, "00112233-4455-6677-8899-aabbccddeeff",
             Variant.From((ArrayOf<Uuid>)[s_uuid]), Variant.From(ArrayOf<Uuid>.Empty));
     }

@@ -66,6 +66,7 @@ internal sealed class ConnectedProtocolContext : IAsyncDisposable
         Session.SetupGet(session => session.SessionId).Returns(new NodeId(23001u));
         Session.SetupGet(session => session.ConfiguredEndpoint)
             .Returns(new ConfiguredEndpoint(null, Endpoint, new EndpointConfiguration()));
+        Session.SetupGet(session => session.Endpoint).Returns(Endpoint);
         Session.SetupGet(session => session.TypeTree).Returns(TypeTree.Object);
         TypeTree.Setup(tree => tree.IsTypeOf(It.IsAny<NodeId>(), It.IsAny<NodeId>()))
             .Returns((NodeId type, NodeId parent) => type == parent);
@@ -90,7 +91,8 @@ internal sealed class ConnectedProtocolContext : IAsyncDisposable
                 BrowseNext(release, points, token));
         Session.Setup(session => session.CallAsync(
             It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
-            .Returns((RequestHeader? _, ArrayOf<CallMethodRequest> calls, CancellationToken token) => Call(calls, token));
+            .Returns(
+                (RequestHeader? _, ArrayOf<CallMethodRequest> calls, CancellationToken token) => Call(calls, token));
         Session.Setup(session => session.TranslateBrowsePathsToNodeIdsAsync(
             It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<BrowsePath>>(), It.IsAny<CancellationToken>()))
             .Returns((RequestHeader? _, ArrayOf<BrowsePath> paths, CancellationToken token) => Translate(paths, token));

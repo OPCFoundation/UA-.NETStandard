@@ -66,7 +66,9 @@ public sealed class LiveChartViewWorkflowTests
             Assert.That(bars[^1].Position, Is.InRange(4, 4.1));
             Assert.That(bars[^1].Position - bars[0].Position, Is.EqualTo(7).Within(0.0000001));
             VerticalLine[] markers = histogram.GetPlottables<VerticalLine>().ToArray();
-            Assert.That(markers.Select(marker => marker.LabelText), Is.EqualTo(s_performanceHistogramConfiguresFiniteOverflowSlotAndDistinctPeExpected));
+            Assert.That(
+                markers.Select(marker => marker.LabelText),
+                Is.EqualTo(s_performanceHistogramConfiguresFiniteOverflowSlotAndDistinctPeExpected));
             Assert.That(markers.Select(marker => marker.LinePattern), Is.All.EqualTo(LinePattern.Dashed));
             Assert.That(markers.Select(marker => marker.LabelOppositeAxis), Is.All.True);
             AxisLimits limits = histogram.Axes.GetLimits();

@@ -161,7 +161,7 @@ internal sealed class ConnectionController
 
     private async Task PublishingPipelineAsync()
     {
-        if (m_vm.Connection.Session is not { } session)
+        if (m_vm.Connection.CurrentSession is not { } session)
         {
             m_vm.ConnectionStatus = "Connect to change the publish pipeline.";
             return;
@@ -397,9 +397,13 @@ internal sealed class ConnectionController
         {
             ConnectionProfile? profile = m_vm.RestoredConnectionProfile ?? m_vm.Connection.Profile;
             ConnectionSetupSelection initial = m_vm.RestoredConnectionProfile is { } restored
-                ? new ConnectionSetupSelection(restored.EndpointUrl, restored.ReverseConnection, restored.ApplicationIdentityId)
+                ? new ConnectionSetupSelection(
+                    restored.EndpointUrl,
+                    restored.ReverseConnection,
+                    restored.ApplicationIdentityId)
                 : m_setup ?? new ConnectionSetupSelection(
-                    profile?.EndpointUrl ?? m_vm.EndpointUrl, profile?.ReverseConnection, profile?.ApplicationIdentityId);
+                    profile?.EndpointUrl ?? m_vm.EndpointUrl, profile?.ReverseConnection, profile?
+                        .ApplicationIdentityId);
             var dialog = new ConnectionSetupDialog(
                 m_vm.Connection, initial, pinned: m_vm.RestoredConnectionProfile is not null,
                 selectedProfile: m_vm.RestoredConnectionProfile);

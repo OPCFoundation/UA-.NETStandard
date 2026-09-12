@@ -61,7 +61,9 @@ public sealed class RoleDialogWorkflowTests
         var applications = role.Applications;
         var endpoints = role.Endpoints;
         var user = new IdentityMappingRuleType { CriteriaType = IdentityCriteriaType.UserName, Criteria = "operator" };
-        var anonymous = new IdentityMappingRuleType { CriteriaType = IdentityCriteriaType.Anonymous, Criteria = string.Empty };
+        var anonymous = new IdentityMappingRuleType {
+            CriteriaType = IdentityCriteriaType.Anonymous,
+            Criteria = string.Empty };
         var secured = new EndpointType
         {
             EndpointUrl = "opc.tcp://secure.test:4840",
@@ -81,13 +83,17 @@ public sealed class RoleDialogWorkflowTests
         Assert.That(role.IdentitiesSnapshot.Select(r => r.Criteria), Is.EqualTo(new[] { "operator", string.Empty }));
         Assert.That(role.Identities[0].CriteriaType, Is.EqualTo(IdentityCriteriaType.UserName));
         Assert.That(role.Identities[1].CriteriaType, Is.EqualTo(IdentityCriteriaType.Anonymous));
-        Assert.That(role.Applications, Is.EqualTo(s_roleUpdateReplacesRulesInPlaceButKeepsTheOriginalRoleIdentityExpected));
+        Assert.That(
+            role.Applications,
+            Is.EqualTo(s_roleUpdateReplacesRulesInPlaceButKeepsTheOriginalRoleIdentityExpected));
         Assert.That(role.Endpoints.Single().SecurityMode, Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
         Assert.That(role.Endpoints.Single().EndpointUrl, Is.EqualTo("opc.tcp://secure.test:4840"));
         Assert.That(role.ApplicationsExclude, Is.True);
         Assert.That(role.EndpointsExclude, Is.False);
         Assert.That(role.CustomConfiguration, Is.True);
-        Assert.That(original.Applications, Is.EqualTo(s_roleUpdateReplacesRulesInPlaceButKeepsTheOriginalRoleIdentityExpected2));
+        Assert.That(
+            original.Applications,
+            Is.EqualTo(s_roleUpdateReplacesRulesInPlaceButKeepsTheOriginalRoleIdentityExpected2));
         Assert.That(original.Identities.Single().Criteria, Is.EqualTo("observer"));
 
         role.UpdateFrom(new RoleInfo(role.RoleId, role.BrowseName, [], [], false, [], true, false));
@@ -126,7 +132,9 @@ public sealed class RoleDialogWorkflowTests
         Assert.That(plugin.RemoveRoleCommand.CanExecute(null), Is.False);
         Assert.That(plugin.AddIdentityCommand.CanExecute(null), Is.False);
         Assert.That(plugin.Status, Is.EqualTo("● Not connected"));
-        Assert.That(second.Applications, Is.EqualTo(s_roleSelectionDrivesCommandAvailabilityAndDisconnectClearsTheSExpected));
+        Assert.That(
+            second.Applications,
+            Is.EqualTo(s_roleSelectionDrivesCommandAvailabilityAndDisconnectClearsTheSExpected));
         Assert.That(context.ConnectionContext.ConfigurationsCreated, Is.Zero);
         Assert.That(context.ConnectionContext.Discoveries, Is.Empty);
     }

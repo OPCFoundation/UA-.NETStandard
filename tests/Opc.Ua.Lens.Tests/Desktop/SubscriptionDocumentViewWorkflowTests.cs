@@ -188,7 +188,9 @@ public sealed class SubscriptionDocumentViewWorkflowTests
                     () => DesktopInteraction.Click(
                         DesktopInteraction.Control<Button>(view, "RemoveSelectedItemButton")))
                     .ConfigureAwait(true);
-                Assert.That(adapter.Removed, Is.EqualTo(s_publishingAndItemControlsSendExactRequestsAndPreserveNeighborExpected));
+                Assert.That(
+                    adapter.Removed,
+                    Is.EqualTo(s_publishingAndItemControlsSendExactRequestsAndPreserveNeighborExpected));
                 Assert.That(model.Items.Single(), Is.SameAs(neighbor));
                 Assert.That(model.ItemStatuses.Single().Id, Is.EqualTo(102));
             }

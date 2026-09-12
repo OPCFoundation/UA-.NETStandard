@@ -264,7 +264,8 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         var issue = new MenuItem { Header = "_Issue Cert…" };
         issue.Click += async (_, _) => await IssueNewCertificateCommand.ExecuteAsync(null).ConfigureAwait(true);
         var issueHttps = new MenuItem { Header = "Issue _HTTPS Cert…" };
-        issueHttps.Click += async (_, _) => await IssueNewHttpsCertificateCommand.ExecuteAsync(null).ConfigureAwait(true);
+        issueHttps.Click += async (_, _) => await IssueNewHttpsCertificateCommand.ExecuteAsync(null)
+            .ConfigureAwait(true);
         var groups = new MenuItem { Header = "View _Cert Groups" };
         groups.Click += async (_, _) => await ViewCertGroupsCommand.ExecuteAsync(null).ConfigureAwait(true);
         var pullLocal = new MenuItem { Header = "Pull _Trust List → local store" };
@@ -273,7 +274,17 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         var pullPush = new MenuItem { Header = "Pull Trust List → _push to server" };
         pullPush.Click += async (_, _) =>
             await PullTrustListPushToServerCommand.ExecuteAsync(null).ConfigureAwait(true);
-        return new[] { connect, disconnect, refresh, register, unregister, issue, issueHttps, groups, pullLocal, pullPush };
+        return new[] {
+            connect,
+            disconnect,
+            refresh,
+            register,
+            unregister,
+            issue,
+            issueHttps,
+            groups,
+            pullLocal,
+            pullPush };
     }
 
     public void OnActivated() { }
@@ -529,7 +540,8 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         IsBusy = true;
         try
         {
-            IGlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IGlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(
+                true);
             if (client is null)
             {
                 return;
@@ -604,7 +616,8 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         IsBusy = true;
         try
         {
-            IGlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IGlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(
+                true);
             if (client is null)
             {
                 return;
@@ -702,7 +715,8 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         IsBusy = true;
         try
         {
-            IGlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IGlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(
+                true);
             if (client is null)
             {
                 return;
@@ -777,7 +791,8 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         IsBusy = true;
         try
         {
-            IGlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IGlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(
+                true);
             if (client is null)
             {
                 return;
@@ -865,7 +880,8 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         IsBusy = true;
         try
         {
-            IGlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IGlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(
+                true);
             if (client is null)
             {
                 return;
@@ -920,7 +936,8 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         IsBusy = true;
         try
         {
-            IGlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IGlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(
+                true);
             if (client is null)
             {
                 return;
@@ -980,7 +997,8 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         IsBusy = true;
         try
         {
-            IGlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IGlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(
+                true);
             if (client is null)
             {
                 return;

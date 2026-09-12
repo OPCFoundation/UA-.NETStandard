@@ -352,7 +352,8 @@ internal sealed partial class PerformanceTargetDialog : Window
 
             if (m_resolvedObjectId.IsNull)
             {
-                status.Text = "Cannot resolve parent ObjectId — pick a method whose parent has been expanded in the tree.";
+                status.Text
+                    = "Cannot resolve parent ObjectId — pick a method whose parent has been expanded in the tree.";
                 status.Foreground = (Application.Current?.FindResource("AccentRedLight") as IBrush)
                     ?? Brushes.Transparent;
             }

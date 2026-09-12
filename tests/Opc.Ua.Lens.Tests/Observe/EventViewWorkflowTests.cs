@@ -149,7 +149,9 @@ public sealed class EventViewWorkflowTests
                 await command.ConfigureAwait(true);
                 if (accept)
                 {
-                    Assert.That(plugin.Filter.Fields, Is.EqualTo(s_filterCommandUsesOwnedDialogAndCommitsOnlyAcceptedSelectionsExpected));
+                    Assert.That(
+                        plugin.Filter.Fields,
+                        Is.EqualTo(s_filterCommandUsesOwnedDialogAndCommitsOnlyAcceptedSelectionsExpected));
                     Assert.That(plugin.Filter.SeverityThreshold, Is.EqualTo(775));
                     Assert.That(plugin.FilterSummary,
                         Is.EqualTo("Severity ≥ 775 · 1 field · i=2041 · no where clause"));

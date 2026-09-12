@@ -75,7 +75,12 @@ public sealed class MainViewModelLifecycleTests
                 "Previous method", NodeClass.Method);
             await model.UpdateSelectionAsync(previous).ConfigureAwait(true);
             Assert.That(model.CanCallMethod, Is.True);
-            var next = new NodeViewModel(model.Browser, NodeId.Null, new NodeId("Selection", 2), "Selection", nodeClass);
+            var next = new NodeViewModel(
+                model.Browser,
+                NodeId.Null,
+                new NodeId("Selection", 2),
+                "Selection",
+                nodeClass);
 
             await model.UpdateSelectionAsync(next).ConfigureAwait(true);
 
@@ -237,7 +242,9 @@ public sealed class MainViewModelLifecycleTests
                 Assert.That(disconnect.IsCompleted, Is.False);
                 Assert.That(scenario.Sessions[0].DisposeCount, Is.Zero);
                 Assert.That(scenario.Context.ConfigurationsDisposed, Is.Zero);
-                Assert.That(scenario.Order, Is.EqualTo(s_disconnectDeliversEveryDocumentBeforeSessionDestructionAndRepExpected));
+                Assert.That(
+                    scenario.Order,
+                    Is.EqualTo(s_disconnectDeliversEveryDocumentBeforeSessionDestructionAndRepExpected));
                 release.SetResult();
                 await disconnect.ConfigureAwait(true);
 
@@ -281,7 +288,8 @@ public sealed class MainViewModelLifecycleTests
             Exception failure = kind switch
             {
                 "aggregate" => new AggregateException(
-                    new IOException("first failure"), new AggregateException(new InvalidOperationException("second failure"))),
+                    new IOException("first failure"), new AggregateException(
+                        new InvalidOperationException("second failure"))),
                 "timeout" => new TimeoutException("credential flow timed out"),
                 _ => new OperationCanceledException()
             };
@@ -321,7 +329,8 @@ public sealed class MainViewModelLifecycleTests
             await using MainViewModel model = scenario.CreateModel();
             await model.Workspace.OpenAsync(() => new LifecycleDocument("Preserved")).ConfigureAwait(true);
             Assert.That(() => model.ConfigurePublishingPipeline(new SessionPublishingSettings(3, 9)),
-                Throws.InvalidOperationException.With.Message.EqualTo("Connect before changing session publishing settings."));
+                Throws.InvalidOperationException.With.Message
+                    .EqualTo("Connect before changing session publishing settings."));
             await scenario.ConnectAsync().ConfigureAwait(true);
             var settings = new SessionPublishingSettings(5, 11);
             model.ConfigurePublishingPipeline(settings);
@@ -391,7 +400,9 @@ public sealed class MainViewModelLifecycleTests
             {
                 resource.Release.SetException(failure);
                 await Assert.ThatAsync(() => startup, Throws.Exception.SameAs(failure)).ConfigureAwait(true);
-                Assert.That(model.ResourceStatus, Is.EqualTo("Resource monitoring unavailable: metrics startup failed"));
+                Assert.That(
+                    model.ResourceStatus,
+                    Is.EqualTo("Resource monitoring unavailable: metrics startup failed"));
                 Assert.That(model.StartResourceMonitoringAsync(), Is.SameAs(startup));
                 await model.DisposeAsync().ConfigureAwait(true);
             }
@@ -402,7 +413,8 @@ public sealed class MainViewModelLifecycleTests
                 Assert.That(disposal.IsCompleted, Is.False);
                 Assert.That(resource.Disposals, Is.Zero);
                 resource.Release.SetResult();
-                await Assert.ThatAsync(() => startup, Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(true);
+                await Assert.ThatAsync(() => startup, Throws.InstanceOf<OperationCanceledException>())
+                    .ConfigureAwait(true);
                 await disposal.ConfigureAwait(true);
             }
             Assert.That(resource.Starts, Is.EqualTo(1));
@@ -456,8 +468,10 @@ public sealed class MainViewModelLifecycleTests
         {
             await using var scenario = new ConnectionScenario();
             await using MainViewModel model = scenario.CreateModel();
-            var first = new LifecycleDocument("Boiler history") { State = JsonSerializer.SerializeToElement(new { tag = 17 }) };
-            var second = new LifecycleDocument("Pressure history") { State = JsonSerializer.SerializeToElement(new { tag = 29 }) };
+            var first = new LifecycleDocument("Boiler history") {
+                State = JsonSerializer.SerializeToElement(new { tag = 17 }) };
+            var second = new LifecycleDocument("Pressure history") {
+                State = JsonSerializer.SerializeToElement(new { tag = 29 }) };
             await model.Workspace.OpenAsync(() => first).ConfigureAwait(true);
             await model.Workspace.OpenAsync(() => second).ConfigureAwait(true);
             model.SelectedTab = first;
@@ -535,7 +549,8 @@ public sealed class MainViewModelLifecycleTests
                 startResource ?? (_ =>
                 {
                     ResourceRequests++;
-                    return Task.FromException<ResourceMonitorHost>(new InvalidOperationException("Unexpected monitor."));
+                    return Task.FromException<ResourceMonitorHost>(
+                        new InvalidOperationException("Unexpected monitor."));
                 }), new Mock<ICapabilityService>().Object);
         }
 

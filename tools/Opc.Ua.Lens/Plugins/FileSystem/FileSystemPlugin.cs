@@ -54,10 +54,14 @@ namespace UaLens.Plugins.FileSystem;
 /// </summary>
 internal sealed record FileSystemRootFilter(bool AllowFileSystem, bool AllowDirectory, bool AllowFile)
 {
-    /// <summary>Defaults: accept the standard <c>Server.FileSystem</c> plus any FileSystem-typed object.</summary>
+    /// <summary>
+    /// Defaults: accept the standard <c>Server.FileSystem</c> plus any FileSystem-typed object.
+    /// </summary>
     public static FileSystemRootFilter Default { get; } = new(true, true, false);
 
-    /// <summary>Returns true if at least one node class is allowed.</summary>
+    /// <summary>
+    /// Returns true if at least one node class is allowed.
+    /// </summary>
     public bool AcceptsAnything => AllowFileSystem || AllowDirectory || AllowFile;
 }
 
@@ -107,7 +111,9 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
     [ObservableProperty]
     private string m_status = "● 0 roots";
 
-    /// <summary>Tree-bound root rows; one per <see cref="FileSystemClient"/> attached to the tab.</summary>
+    /// <summary>
+    /// Tree-bound root rows; one per <see cref="FileSystemClient"/> attached to the tab.
+    /// </summary>
     public ObservableCollection<FsNode> Roots { get; } = new();
 
     /// <summary>
@@ -128,8 +134,6 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         // which the workspace delivers on open and on every connection transition.
         // The document owns no fire-and-forget work in its constructor.
     }
-
-    // ----- IPlugin members -----
 
     public PluginKind Kind => PluginKind.FileSystem;
 
@@ -152,7 +156,7 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
     public async Task OnConnectionStateChangedAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (m_host.Connection.Session is { } session)
+        if (m_host.Connection.CurrentSession is { } session)
         {
             if (Roots.Count == 0)
             {
@@ -224,21 +228,19 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         return ValueTask.CompletedTask;
     }
 
-    // ----- Property changed hooks -----
-
     partial void OnSelectedNodeChanged(FsNode? value)
     {
         RebuildSelectedChildren();
         UpdateStatus();
     }
 
-    // ----- Commands -----
-
-    /// <summary>Opens <see cref="BrowsePickerDialog"/> filtered to FileSystem / Directory / File types.</summary>
+    /// <summary>
+    /// Opens <see cref="BrowsePickerDialog"/> filtered to FileSystem / Directory / File types.
+    /// </summary>
     [RelayCommand]
     public async Task PickRootAsync()
     {
-        if (m_host.Connection.Session is not { } session)
+        if (m_host.Connection.CurrentSession is not { } session)
         {
             return;
         }
@@ -266,7 +268,9 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         await AttachRootAsync(session, pickedId.Value, picker.PickedDisplay).ConfigureAwait(true);
     }
 
-    /// <summary>Edits the type filter used by the next <see cref="PickRootAsync"/>.</summary>
+    /// <summary>
+    /// Edits the type filter used by the next <see cref="PickRootAsync"/>.
+    /// </summary>
     [RelayCommand]
     public async Task EditFilterAsync()
     {
@@ -290,7 +294,9 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         m_log.FsFilterChanged(result.AllowFileSystem, result.AllowDirectory, result.AllowFile);
     }
 
-    /// <summary>Re-enumerates the currently selected directory (or all roots when none is selected).</summary>
+    /// <summary>
+    /// Re-enumerates the currently selected directory (or all roots when none is selected).
+    /// </summary>
     [RelayCommand]
     public async Task RefreshAsync()
     {
@@ -306,7 +312,9 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         }
     }
 
-    /// <summary>OS-Open-File-Picker → CreateFile in the selected directory → stream-copy contents.</summary>
+    /// <summary>
+    /// OS-Open-File-Picker → CreateFile in the selected directory → stream-copy contents.
+    /// </summary>
     [RelayCommand]
     public async Task AddFileAsync()
     {
@@ -347,7 +355,9 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         await ImportFilesAsync(target, paths).ConfigureAwait(true);
     }
 
-    /// <summary>OpenRead on the selected file → OS-Save-File-Picker → stream-copy contents.</summary>
+    /// <summary>
+    /// OpenRead on the selected file → OS-Save-File-Picker → stream-copy contents.
+    /// </summary>
     [RelayCommand]
     public async Task ExportFileAsync()
     {
@@ -375,7 +385,9 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         await ExportFileToAsync(file, target).ConfigureAwait(true);
     }
 
-    /// <summary>Prompts for a name, then creates a new sub-directory under the selected directory.</summary>
+    /// <summary>
+    /// Prompts for a name, then creates a new sub-directory under the selected directory.
+    /// </summary>
     [RelayCommand]
     public async Task NewFolderAsync()
     {
@@ -403,7 +415,9 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         }
     }
 
-    /// <summary>Prompts for a new name and moves the selected node within its parent directory.</summary>
+    /// <summary>
+    /// Prompts for a new name and moves the selected node within its parent directory.
+    /// </summary>
     [RelayCommand]
     public async Task RenameAsync()
     {
@@ -562,9 +576,9 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         }
     }
 
-    // ----- Internals -----
-
-    /// <summary>Best-effort attach of the standard <c>Server.FileSystem</c> root.</summary>
+    /// <summary>
+    /// Best-effort attach of the standard <c>Server.FileSystem</c> root.
+    /// </summary>
     private void TryAttachServerFileSystem(ISession session)
     {
         try
@@ -581,7 +595,9 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         }
     }
 
-    /// <summary>Attaches a user-picked <see cref="FileSystemClient"/> root.</summary>
+    /// <summary>
+    /// Attaches a user-picked <see cref="FileSystemClient"/> root.
+    /// </summary>
     private async Task AttachRootAsync(ISession session, NodeId rootId, string displayName)
     {
         try
@@ -620,7 +636,9 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         }
     }
 
-    /// <summary>Predicate handed to <see cref="BrowsePickerDialog"/> to enforce <see cref="m_filter"/>.</summary>
+    /// <summary>
+    /// Predicate handed to <see cref="BrowsePickerDialog"/> to enforce <see cref="m_filter"/>.
+    /// </summary>
     private async Task<bool> MatchesFilterAsync(ISession session, NodeId nodeId, NodeClass nodeClass)
     {
         if (nodeClass != NodeClass.Object || nodeId.IsNull)
@@ -808,7 +826,9 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
             : "Accept: " + string.Join(" / ", parts);
     }
 
-    /// <summary>Walks <paramref name="root"/> looking for a node whose Info matches <paramref name="nodeId"/>.</summary>
+    /// <summary>
+    /// Walks <paramref name="root"/> looking for a node whose Info matches <paramref name="nodeId"/>.
+    /// </summary>
     private static FsNode? FindNode(FsNode root, NodeId nodeId)
     {
         if (root.Info?.NodeId == nodeId)
@@ -830,7 +850,9 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         return null;
     }
 
-    /// <summary>Walks <paramref name="root"/> looking for the parent row of <paramref name="childId"/>.</summary>
+    /// <summary>
+    /// Walks <paramref name="root"/> looking for the parent row of <paramref name="childId"/>.
+    /// </summary>
     private static FsNode? FindParent(FsNode root, NodeId childId)
     {
         foreach (FsNode child in root.Children)
@@ -852,7 +874,9 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
         return null;
     }
 
-    /// <summary>The selected node if it's a directory; falls back to its parent for files.</summary>
+    /// <summary>
+    /// The selected node if it's a directory; falls back to its parent for files.
+    /// </summary>
     private FsNode? SelectedDirectory()
     {
         if (SelectedNode is { IsDirectory: true } dir)
