@@ -121,8 +121,13 @@
             <TextBlock Text="{CompiledBinding PreparationSummary}" TextWrapping="Wrap"
                        AutomationProperties.Name="Companion task preflight" />
             <CheckBox IsChecked="{CompiledBinding ConfirmLocalSample, Mode=TwoWay}"
+                      IsVisible="{CompiledBinding !IsDeploymentOperation}"
                       Content="I confirm this loopback server is a repository sample." />
-            <TextBlock Text="Sample actions can change server state. Prepare first, then confirm for this execution. Preparation and confirmation are never saved."
+            <CheckBox IsChecked="{CompiledBinding ConfirmDeployment, Mode=TwoWay}"
+                      IsVisible="{CompiledBinding IsDeploymentOperation}"
+                      Content="I authorize this prepared deployment operation under the displayed rule."
+                      AutomationProperties.Name="Confirm deployment operation" />
+            <TextBlock Text="Mutations can change server state. Prepare first, then confirm for this execution. Deployment operations also require a matching configured rule. Preparation and confirmation are never saved."
                        TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" FontSize="11" />
             <Button Content="Run selected task" Command="{CompiledBinding RunTaskCommand}"
                     HorizontalAlignment="Left" />

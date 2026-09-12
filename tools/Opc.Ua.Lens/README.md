@@ -109,3 +109,21 @@ readiness dialog without network activity. The
 `CompiledViewTemplateBindsRealTypedEditorsAndHidesTheRawInputAsync` test checks the
 typed companion form. These are explicitly selected desktop probes, not ordinary
 headless-suite prerequisites.
+
+`RepositorySampleLiveTests` is a separate opt-in process/endpoint qualification.
+Build the Console Reference Server and DI pump simulator in Release/net10.0,
+then explicitly select their trusted local checkout:
+
+```powershell
+$env:CustomTestTarget = 'net10.0'
+$env:UALENS_SAMPLE_SOURCE_ROOT = 'D:\trusted\UA-.NETStandard'
+dotnet test tests\Opc.Ua.Lens.Tests\Opc.Ua.Lens.Tests.csproj -c Release -f net10.0 `
+  --filter FullyQualifiedName~RepositorySampleLiveTests.BuiltManagedSampleAdvertisesOwnedIdentityAndCleansUp
+```
+
+This runs two bounded managed processes with private configuration/PKI, verifies
+their advertised identities and own-store certificates, and checks normal exit
+and cleanup. It does not grant peer trust or connect a user session. Sample build
+paths containing symlinks/junctions are rejected; use a trusted materialized
+build layout rather than weakening the no-link check. Ordinary CI tests use
+controlled sample process/probe interfaces and do not start these processes.

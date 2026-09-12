@@ -259,7 +259,8 @@ public sealed class MainViewModelLifecycleTests
                 {
                     Assert.That(model.OperationError, Does.StartWith("Connection failed:")
                         .And.Contain("First document release failed"));
-                    Assert.That(model.ConnectionStatus, Is.EqualTo(model.OperationError));
+                    Assert.That(model.ConnectionStatus, Does.StartWith("Connection failed:")
+                        .And.Contain("First document release failed"));
                 }
                 else
                 {

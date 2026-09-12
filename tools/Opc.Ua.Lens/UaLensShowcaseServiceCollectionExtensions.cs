@@ -39,53 +39,62 @@ using UaLens.Plugins.Models;
 using UaLens.Plugins.PubSub;
 using UaLens.ViewModels;
 
-namespace UaLens;
-
-/// <summary>
-/// Registers native-safe, replaceable document factories without starting network or sample workloads.
-/// </summary>
-internal static class UaLensShowcaseServiceCollectionExtensions
+namespace UaLens
 {
-    public static IServiceCollection AddUaLensShowcases(this IServiceCollection services)
+    /// <summary>
+    /// Registers native-safe, replaceable document factories without starting network or sample workloads.
+    /// </summary>
+    internal static class UaLensShowcaseServiceCollectionExtensions
     {
-        ArgumentNullException.ThrowIfNull(services);
-        if (services.Any(descriptor => descriptor.ServiceType == typeof(RegistrationMarker)))
+        public static IServiceCollection AddUaLensShowcases(this IServiceCollection services)
         {
+            ArgumentNullException.ThrowIfNull(services);
+            if (services.Any(descriptor => descriptor.ServiceType == typeof(RegistrationMarker)))
+            {
+                return services;
+            }
+            services.AddSingleton(new RegistrationMarker());
+            AddFactory(services, PluginKind.Alarms, static host => new AlarmsPlugin(host));
+            AddFactory(services, PluginKind.Models, static host => new ModelInspectorPlugin(host));
+            AddFactory(services, PluginKind.Continuity, static host => new ContinuityPlugin(host));
+
+            services.TryAddSingleton<IPubSubRuntimeFactory>(provider => new PubSubRuntimeFactory(
+                provider.GetRequiredService<ITelemetryContext>(),
+                provider.GetService<TimeProvider>(),
+                [.. provider.GetServices<IPubSubTransportProvider>()],
+                [.. provider.GetServices<IPubSubKeyProviderResolver>()],
+                [.. provider.GetServices<IPubSubAdapterProvider>()]));
+            services.AddUaLensPluginFactory<IPubSubRuntimeFactory>(
+                PluginKind.PubSub, static (factory, host) => new PubSubPlugin(host, factory));
+
+            services.TryAddSingleton<ICompanionPackageReader, CompanionPackageReader>();
+            services.TryAddSingleton<ICompanionDeploymentPolicy>(provider => new ConfiguredCompanionDeploymentPolicy(
+                [.. provider.GetServices<CompanionDeploymentRule>()], provider.GetService<TimeProvider>()));
+            services.TryAddSingleton(provider =>
+            {
+                ICompanionProvider[] companions = [.. provider.GetServices<ICompanionProvider>()];
+                return new CompanionPluginFactory(
+                    providers: companions.Length == 0 ? default : new ArrayOf<ICompanionProvider>(companions),
+                    timeProvider: provider.GetService<TimeProvider>(),
+                    packages: provider.GetRequiredService<ICompanionPackageReader>(),
+                    deploymentPolicy: provider.GetRequiredService<ICompanionDeploymentPolicy>());
+            });
+            services.AddUaLensPluginFactory<CompanionPluginFactory>(
+                PluginKind.Companions, static (factory, host) => factory.Create(host));
             return services;
         }
-        services.AddSingleton(new RegistrationMarker());
-        AddFactory(services, PluginKind.Alarms, static host => new AlarmsPlugin(host));
-        AddFactory(services, PluginKind.Models, static host => new ModelInspectorPlugin(host));
-        AddFactory(services, PluginKind.Continuity, static host => new ContinuityPlugin(host));
 
-        services.TryAddSingleton<IPubSubRuntimeFactory>(provider => new PubSubRuntimeFactory(
-            provider.GetRequiredService<ITelemetryContext>(),
-            provider.GetService<TimeProvider>(),
-            [.. provider.GetServices<IPubSubTransportProvider>()],
-            [.. provider.GetServices<IPubSubKeyProviderResolver>()],
-            [.. provider.GetServices<IPubSubAdapterProvider>()]));
-        services.AddUaLensPluginFactory<IPubSubRuntimeFactory>(
-            PluginKind.PubSub, static (factory, host) => new PubSubPlugin(host, factory));
+        private static void AddFactory<TPlugin>(
+            IServiceCollection services,
+            PluginKind kind,
+            Func<PluginHost, TPlugin> create)
+            where TPlugin : class, IPlugin
+        {
+            services.TryAddSingleton(_ => create);
+            services.AddUaLensPluginFactory<Func<PluginHost, TPlugin>>(
+                kind, static (factory, host) => factory(host));
+        }
 
-        services.TryAddSingleton<ICompanionPackageReader, CompanionPackageReader>();
-        services.TryAddSingleton(provider => new CompanionPluginFactory(
-            timeProvider: provider.GetService<TimeProvider>(),
-            packages: provider.GetRequiredService<ICompanionPackageReader>()));
-        services.AddUaLensPluginFactory<CompanionPluginFactory>(
-            PluginKind.Companions, static (factory, host) => factory.Create(host));
-        return services;
+        private sealed class RegistrationMarker;
     }
-
-    private static void AddFactory<TPlugin>(
-        IServiceCollection services,
-        PluginKind kind,
-        Func<PluginHost, TPlugin> create)
-        where TPlugin : class, IPlugin
-    {
-        services.TryAddSingleton<Func<PluginHost, TPlugin>>(_ => create);
-        services.AddUaLensPluginFactory<Func<PluginHost, TPlugin>>(
-            kind, static (factory, host) => factory(host));
-    }
-
-    private sealed class RegistrationMarker;
 }

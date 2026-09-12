@@ -151,6 +151,41 @@ provider do not prove current certificate trust, private-key access or reachabil
 See [Identity Providers](IdentityProviders.md), [Crypto Provider](CryptoProvider.md),
 [Reverse Connect](ReverseConnect.md) and [Transports](Transports.md).
 
+## Owned repository samples
+
+Open **Connection settings > Repository samples...** for a modeless setup window.
+It provides the Console Reference Server and the opt-in DI pump software-update
+simulator from an explicitly selected local checkout. These are bounded sample
+processes, not a general command launcher or a new document kind.
+
+Choose the trusted checkout, its existing Debug/Release build, managed framework
+and build layout. Confirm that you trust the source and build, then select
+**Check setup**. UaLens does not build, download or install missing prerequisites.
+File existence is not binary attestation; only select a checkout and artifacts
+you trust. An installed tool still needs a separately supplied built checkout.
+
+Set the runtime from 1 to 300 seconds, confirm the particular run, and select
+**Start sample**. The process receives a private run directory, configuration and
+PKI with an allowlisted command and isolated environment. Changing the source,
+build, trust decision or runtime revokes the applicable confirmation. Opening the
+window or restoring ordinary workspace state never starts a sample or restores
+trust in executable files.
+
+The window shows lifecycle state, owned process ID, exit and cleanup evidence,
+and bounded redacted output. Readiness requires discovery of the expected
+application/endpoint with public-certificate evidence from that run's private
+PKI; a successful process start or output line is not sufficient.
+**Use advertised endpoint** only fills the primary connection address. Connect,
+peer trust, user identity and any sample mutation remain separate explicit steps.
+
+**Stop / retry cleanup**, closing this window, and quitting UaLens drain the owned
+run. The current sample CLIs use timed graceful shutdown rather than a portable
+immediate-stop IPC; Stop waits for that configured deadline before a bounded
+termination fallback limited to the exact owned process tree. A cleanup failure
+retains ownership for retry and blocks another launch. It is not reported as a
+successful clean stop. Unrelated processes, source files and the host PKI are not
+cleanup targets.
+
 ## Monitoring
 
 A monitor document starts with values, quality, and source timestamps. Its **View**
@@ -523,6 +558,50 @@ invalidates the earlier preparation. Starting Run consumes it even if cancellati
 authorization or provider execution fails. Preparing an overlapping request cannot
 make an earlier request executable again. No operation is automatically replayed
 after reconnect.
+
+Configured hosts can additionally offer an operation as **DeploymentMutation**.
+It requires a signed and encrypted connection, a matching host-registered policy,
+and separate confirmation of the prepared deployment request. The preflight shows
+the rule identifier and revision; Run checks that same rule again. A policy change,
+expiry, identity or server-application change requires new preparation. A delayed
+authorization response cannot revive a superseded session or an operation the
+server no longer offers.
+
+The default deployment policy denies all requests. A `CompanionDeploymentRule`
+matches one exact endpoint, server application URI, secure policy, provider,
+namespace-qualified target and operation, with a finite expiry and required
+identity and input predicates. These predicates are trusted host code, not
+expressions loaded from a workspace. Overlapping grants are rejected, not selected
+by registration order. The server still enforces its own permissions.
+
+For example, a host can register a rule for an identity and request already
+approved by its deployment configuration before calling `AddUaLens`:
+
+```csharp
+services.AddSingleton(new CompanionDeploymentRule(
+    id: "approved-recipe",
+    revision: approvedPolicyRevision,
+    endpointUrl: approvedEndpointUrl,
+    serverApplicationUri: approvedServerApplicationUri,
+    securityPolicyUri: SecurityPolicies.Basic256Sha256,
+    providerId: approvedProviderId,
+    targetId: approvedNamespaceQualifiedTarget,
+    operationId: approvedOperationId,
+    expiresAt: approvedUntil,
+    acceptsIdentity: identity => ReferenceEquals(identity, approvedIdentity),
+    acceptsInput: request => request.Input == approvedRecipe));
+services.AddUaLens();
+```
+
+The example deliberately pins the current identity object; a newly acquired
+identity needs renewed host authorization. Hosts that need claim-based rules
+must verify their configured identity evidence rather than trusting a display
+name. A host may instead supply `ICompanionDeploymentPolicy`; its asynchronous
+result is subject to the same session, expiry, rule-revision and confirmation checks.
+Registered `ICompanionProvider` instances replace the default provider set; their
+typed factory remains directly constructible. Registration does not execute a task.
+Existing built-in sample tasks remain sample-only: a deployment rule does not
+remove their loopback restrictions or create new server capabilities.
 
 Sample mutations additionally require a loopback endpoint and explicit confirmation
 that it is a repository sample. Loopback alone does not prove a server is safe to

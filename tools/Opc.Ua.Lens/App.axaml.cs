@@ -35,65 +35,69 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
+using UaLens.Samples;
 using UaLens.Themes;
 using UaLens.ViewModels;
 using UaLens.Views;
 
-namespace UaLens;
-
-internal sealed partial class App : Application
+namespace UaLens
 {
-    public App()
-        : this(null)
+    internal sealed class App : Application
     {
-    }
-
-    public App(IServiceProvider? services)
-    {
-        m_services = services;
-    }
-
-    public override void Initialize()
-    {
-        AvaloniaXamlLoader.Load(this);
-        Themes.ThemeManager.Initialize();
-    }
-
-    public override void OnFrameworkInitializationCompleted()
-    {
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        public App()
+            : this(null)
         {
-            IServiceProvider services = m_services
-                ?? throw new InvalidOperationException("Desktop startup requires the owned UaLens service container.");
-            MainViewModel viewModel = services.GetRequiredService<MainViewModel>();
-            AppearancePreferences appearance = services.GetRequiredService<AppearancePreferences>();
-            var window = new MainWindow(viewModel, appearance);
-            window.Opened += async (_, _) => await StartOptionalMonitoringAsync(viewModel).ConfigureAwait(true);
-            desktop.MainWindow = window;
         }
-        base.OnFrameworkInitializationCompleted();
-    }
 
-    private static async Task StartOptionalMonitoringAsync(MainViewModel viewModel)
-    {
-        try
+        public App(IServiceProvider? services)
         {
-            await viewModel.StartResourceMonitoringAsync().ConfigureAwait(true);
+            m_services = services;
         }
-        catch (OperationCanceledException error) when (error.CancellationToken.IsCancellationRequested)
+
+        public override void Initialize()
         {
-            if (!viewModel.Workspace.IsClosing)
+            AvaloniaXamlLoader.Load(this);
+            ThemeManager.Initialize();
+        }
+
+        public override void OnFrameworkInitializationCompleted()
+        {
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                viewModel.ResourceStatus = "Resource monitoring startup was cancelled.";
+                IServiceProvider services = m_services
+                    ?? throw new InvalidOperationException(
+                        "Desktop startup requires the owned UaLens service container.");
+                MainViewModel viewModel = services.GetRequiredService<MainViewModel>();
+                AppearancePreferences appearance = services.GetRequiredService<AppearancePreferences>();
+                var window = new MainWindow(
+                    viewModel, appearance, services.GetRequiredService<IRepositorySampleService>());
+                window.Opened += async (_, _) => await StartOptionalMonitoringAsync(viewModel).ConfigureAwait(true);
+                desktop.MainWindow = window;
+            }
+            base.OnFrameworkInitializationCompleted();
+        }
+
+        private static async Task StartOptionalMonitoringAsync(MainViewModel viewModel)
+        {
+            try
+            {
+                await viewModel.StartResourceMonitoringAsync().ConfigureAwait(true);
+            }
+            catch (OperationCanceledException error) when (error.CancellationToken.IsCancellationRequested)
+            {
+                if (!viewModel.Workspace.IsClosing)
+                {
+                    viewModel.ResourceStatus = "Resource monitoring startup was cancelled.";
+                }
+            }
+            catch (Exception error) when (error is InvalidOperationException or Win32Exception
+                or IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                // Monitoring is optional, but its startup failure remains visible.
+                viewModel.ResourceStatus = $"Resource monitoring unavailable: {error.Message}";
             }
         }
-        catch (Exception error) when (error is InvalidOperationException or Win32Exception
-            or IOException or UnauthorizedAccessException or NotSupportedException)
-        {
-            // Monitoring is optional, but its startup failure remains visible.
-            viewModel.ResourceStatus = $"Resource monitoring unavailable: {error.Message}";
-        }
-    }
 
-    private readonly IServiceProvider? m_services;
+        private readonly IServiceProvider? m_services;
+    }
 }
