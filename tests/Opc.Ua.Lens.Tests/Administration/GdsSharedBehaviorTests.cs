@@ -204,7 +204,7 @@ public sealed class GdsSharedBehaviorTests
         Assert.That(() => GdsCertRequestHelper.ParseCertificate([]),
             Throws.TypeOf<FormatException>().With.Message.EqualTo("Empty certificate buffer."));
         Assert.That(() => GdsCertRequestHelper.ParseCertificate(new byte[] { 1, 2, 3 }),
-            Throws.TypeOf<CryptographicException>());
+            Throws.InstanceOf<CryptographicException>());
     }
 
     [TestCase("")]
@@ -221,7 +221,7 @@ public sealed class GdsSharedBehaviorTests
         else
         {
             Assert.That(() => GdsCertRequestHelper.ParseCertificate(Encoding.ASCII.GetBytes(input)),
-                Throws.TypeOf<CryptographicException>());
+                Throws.InstanceOf<CryptographicException>());
         }
     }
 
