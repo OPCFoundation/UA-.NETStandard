@@ -64,6 +64,16 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [SetUp]
         public void SetUp()
         {
+            // The RSA Diffie-Hellman policies are AEAD, so a platform without
+            // AES-GCM does not offer them and the channel would have no security
+            // policy to validate against - every case below would then pass by
+            // rejecting everything, which proves nothing.
+            if (SecurityPolicies.Default.GetInfo(SecurityPolicies.RSA_DH_AesGcm) == null)
+            {
+                Assert.Ignore(
+                    "The RSA_DH_AesGcm security policy is not supported on this platform.");
+            }
+
             m_telemetry = NUnitTelemetryContext.Create();
             m_buffers = new BufferManager("nonce-test", 8192, m_telemetry);
             m_quotas = new ChannelQuotas(ServiceMessageContext.Create(m_telemetry));

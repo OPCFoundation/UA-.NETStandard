@@ -98,9 +98,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 iv);
 
             Assert.That(decrypted, Has.Count.EqualTo(kHeaderSize + bodySize));
-            Assert.That(
-                new ArraySegment<byte>(buffer, kHeaderSize, bodySize).ToArray(),
-                Is.EqualTo(body));
+
+            // Array.Copy rather than ArraySegment.ToArray: the latter is not on
+            // .NET Framework, which this suite also builds for.
+            byte[] roundTripped = new byte[bodySize];
+            Array.Copy(buffer, kHeaderSize, roundTripped, 0, bodySize);
+
+            Assert.That(roundTripped, Is.EqualTo(body));
         }
 
         /// <summary>

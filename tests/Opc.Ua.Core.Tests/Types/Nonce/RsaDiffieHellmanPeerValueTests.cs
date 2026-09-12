@@ -29,7 +29,6 @@
  * ======================================================================*/
 
 using System;
-using System.Globalization;
 using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Types.Nonce
@@ -217,13 +216,27 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
 
             for (int ii = 0; ii < modulus.Length; ii++)
             {
-                modulus[ii] = byte.Parse(
-                    kFfdhe2048Hex.AsSpan(ii * 2, 2),
-                    NumberStyles.HexNumber,
-                    CultureInfo.InvariantCulture);
+                modulus[ii] = (byte)(
+                    (ParseHexDigit(kFfdhe2048Hex[ii * 2]) << 4) |
+                    ParseHexDigit(kFfdhe2048Hex[(ii * 2) + 1]));
             }
 
             return modulus;
+        }
+
+        /// <summary>
+        /// Parses one hex digit. Written out rather than parsing a substring,
+        /// which allocates, or a span of the literal, which .NET Framework
+        /// cannot parse and this suite also builds for.
+        /// </summary>
+        private static int ParseHexDigit(char digit)
+        {
+            if (digit is >= '0' and <= '9')
+            {
+                return digit - '0';
+            }
+
+            return char.ToUpperInvariant(digit) - 'A' + 10;
         }
     }
 }
