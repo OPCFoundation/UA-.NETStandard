@@ -285,6 +285,30 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// True when the value can be used as an XML element or attribute name -
+        /// an NCName. Escaping cannot rescue a name that is not one: an element
+        /// name is not character data, so "Read&amp;Write" has no legal spelling
+        /// at all, and both <c>xs:element/@name</c> in the generated XSD and the
+        /// element the XML encoder writes require this.
+        /// </summary>
+        public static bool IsValidXmlName(this string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return false;
+            }
+            try
+            {
+                return string.Equals(
+                    XmlConvert.VerifyNCName(value), value, StringComparison.Ordinal);
+            }
+            catch (XmlException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Escapes a value so it can be written as the content of a double quoted
         /// XML attribute.
         /// </summary>

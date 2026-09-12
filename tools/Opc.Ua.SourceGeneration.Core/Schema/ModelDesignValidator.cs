@@ -4273,6 +4273,7 @@ namespace Opc.Ua.Schema.Model
                 */
 
                 ValidateParameters(dataType, dataType.Fields);
+                ValidateFieldNamesAreUsableAsXmlNames(dataType);
 
                 dataType.IsStructure = IsTypeOf(
                     dataType,
@@ -4576,6 +4577,38 @@ namespace Opc.Ua.Schema.Model
                         method.HasChildren = true;
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// A structure field's name is the XML element name the field is encoded
+        /// under, and the name the generated XSD declares it with, so it has to
+        /// be a legal XML name (an NCName). Escaping it would only make the
+        /// document well formed - "Read&amp;Write" written as "Read&amp;amp;Write"
+        /// still decodes to a name xs:element/@name does not accept, and the
+        /// XML encoder would emit an element nothing can read. Report it against
+        /// the design rather than emitting a schema that fails validation.
+        /// </summary>
+        private void ValidateFieldNamesAreUsableAsXmlNames(DataTypeDesign dataType)
+        {
+            if (dataType.Fields == null)
+            {
+                return;
+            }
+
+            foreach (Parameter field in dataType.Fields)
+            {
+                if (field == null || SourceGenerationUtils.IsValidXmlName(field.Name))
+                {
+                    continue;
+                }
+
+                throw Exception(
+                    "The field '{0}' of data type '{1}' is not a legal XML name, " +
+                    "so the type has no XML encoding and no valid XSD can be " +
+                    "generated for it. Rename the field in the design.",
+                    field.Name,
+                    dataType.SymbolicId.Name);
             }
         }
 

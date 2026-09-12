@@ -107,6 +107,26 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
         }
 
         /// <summary>
+        /// An element name is not character data, so escaping cannot rescue one
+        /// that is not an NCName - "Read&amp;Write" written as "Read&amp;amp;Write"
+        /// still decodes to something xs:element/@name does not accept.
+        /// </summary>
+        [TestCase("Value", true)]
+        [TestCase("_value", true)]
+        [TestCase("Value1", true)]
+        [TestCase("Read&Write", false)]
+        [TestCase("Value Id", false)]
+        [TestCase("1Value", false)]
+        [TestCase("a:b", false)]
+        [TestCase("a<b", false)]
+        [TestCase("", false)]
+        [TestCase(null, false)]
+        public void IsValidXmlNameAcceptsOnlyNCNames(string input, bool expected)
+        {
+            Assert.That(input.IsValidXmlName(), Is.EqualTo(expected));
+        }
+
+        /// <summary>
         /// Regression: NodeIdGenerator interpolated the string identifier into a
         /// C# literal unescaped, so a PLC style id with a backslash produced
         /// source that does not compile.

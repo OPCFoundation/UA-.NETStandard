@@ -520,6 +520,66 @@ namespace Opc.Ua.Schema.Model.Tests
             Assert.That(decoded[39].Text, Is.EqualTo("BitThirtyNine"));
         }
 
+        /// <summary>
+        /// A structure field's name is the XML element name the field is encoded
+        /// under and the name the XSD declares it with, so it has to be an
+        /// NCName. Escaping cannot rescue one that is not: an element name is
+        /// not character data. Report it against the design instead of emitting
+        /// a schema that fails its own validation.
+        /// </summary>
+        [Test]
+        public void ValidateStructureFieldNameThatIsNotAnXmlNameThrows()
+        {
+            const string path = "memory://bad-field-name-design.xml";
+            m_fileSystem.Add(
+                path, Encoding.UTF8.GetBytes(InvalidXmlFieldNameDesign));
+            ModelDesignValidator validator = CreateValidator();
+
+            Exception ex = Assert.Catch(() => validator.Validate([path], [], null));
+
+            Assert.That(ex.Message, Does.Contain("Read&Write"));
+            Assert.That(ex.Message, Does.Contain("legal XML name"));
+        }
+
+        /// <summary>
+        /// The ordinary case still validates.
+        /// </summary>
+        [Test]
+        public void ValidateStructureFieldNameThatIsAnXmlNameSucceeds()
+        {
+            const string path = "memory://good-field-name-design.xml";
+            m_fileSystem.Add(
+                path,
+                Encoding.UTF8.GetBytes(
+                    InvalidXmlFieldNameDesign.Replace(
+                        "Read&amp;Write", "ReadWrite", StringComparison.Ordinal)));
+            ModelDesignValidator validator = CreateValidator();
+
+            Assert.DoesNotThrow(() => validator.Validate([path], [], null));
+        }
+
+        private const string InvalidXmlFieldNameDesign =
+            """
+            <?xml version="1.0" encoding="utf-8" ?>
+            <opc:ModelDesign
+                xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+                xmlns:ua="http://opcfoundation.org/UA/"
+                xmlns="http://test.org/UA/Fields/"
+                TargetNamespace="http://test.org/UA/Fields/">
+              <opc:Namespaces>
+                <opc:Namespace Name="OpcUa" Prefix="Opc.Ua"
+                    XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+                    >http://opcfoundation.org/UA/</opc:Namespace>
+                <opc:Namespace Name="Fields" Prefix="Fields">http://test.org/UA/Fields/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:DataType SymbolicName="TestStructure" BaseType="ua:Structure">
+                <opc:Fields>
+                  <opc:Field Name="Read&amp;Write" DataType="ua:Int32" />
+                </opc:Fields>
+              </opc:DataType>
+            </opc:ModelDesign>
+            """;
+
         private const string SubtypeBeforeBaseDesign =
             """
             <?xml version="1.0" encoding="utf-8" ?>
