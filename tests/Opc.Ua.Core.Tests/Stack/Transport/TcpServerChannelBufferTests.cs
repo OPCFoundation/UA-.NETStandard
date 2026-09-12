@@ -337,6 +337,128 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Faulted));
         }
 
+        /// <summary>
+        /// <c>SaveIntermediateChunk</c> takes ownership unconditionally: a chunk
+        /// it does not queue goes straight back to the pool. It used to drop
+        /// such a chunk on the floor, which leaked one receive buffer per
+        /// request on a discovery-only channel - reachable by any unauthenticated
+        /// client of a server with no None endpoint.
+        /// </summary>
+        [Test]
+        public void SaveIntermediateChunkReturnsAChunkItDoesNotQueue()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+
+            byte[] buffer = channel.TakeBufferForTest(64);
+            Assert.That(pool.OutstandingCount, Is.EqualTo(1));
+
+            // request id zero is the "not part of a request" case, which is not
+            // queued against a partial message.
+            channel.SaveIntermediateChunkForTest(
+                requestId: 0,
+                new ArraySegment<byte>(buffer, 0, 64));
+
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// The chunk that trips the request chunk limit is returned along with
+        /// the ones already buffered, rather than being abandoned while the
+        /// channel is torn down.
+        /// </summary>
+        [Test]
+        public async Task IntermediateChunksBeyondTheRequestChunkLimitReturnAllBuffersAsync()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            channel.SetMaxRequestChunkCountForTest(1);
+
+            for (uint sequenceNumber = 1; sequenceNumber <= 3; sequenceNumber++)
+            {
+                await channel.FeedReceivedChunkAsync(
+                    channel.CreateRequestChunkForTest(
+                        TcpMessageType.Message,
+                        isFinal: false,
+                        sequenceNumber,
+                        requestId: 1))
+                    .ConfigureAwait(false);
+            }
+
+            Assert.That(pool.RentCount, Is.EqualTo(3));
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// An intermediate CloseSecureChannel chunk is handed to the partial
+        /// message and reported as owned. Reporting it as not owned returned the
+        /// same buffer to the pool a second time, so two callers could then be
+        /// handed the same array.
+        /// </summary>
+        [Test]
+        public async Task IntermediateCloseSecureChannelChunkIsNotReturnedTwiceAsync()
+        {
+            var pool = new TrackingArrayPool();
+            TestServerChannel channel = CreateOpenChannel(pool);
+
+            try
+            {
+                await channel.FeedReceivedChunkAsync(
+                    channel.CreateRequestChunkForTest(
+                        TcpMessageType.Close,
+                        isFinal: false,
+                        sequenceNumber: 1,
+                        requestId: 1))
+                    .ConfigureAwait(false);
+
+                Assert.That(pool.DuplicateReturnCount, Is.Zero);
+                Assert.That(pool.OutstandingCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                // the channel still owns the chunk; disposing it hands the
+                // unfinished message back.
+                channel.Dispose();
+            }
+
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// The chunks of a message the peer never finished are released when the
+        /// channel goes away, so a client that sends one intermediate chunk and
+        /// disconnects does not cost the pool a buffer per channel.
+        /// </summary>
+        [Test]
+        public async Task DisposeReleasesTheChunksOfAnUnfinishedMessageAsync()
+        {
+            var pool = new TrackingArrayPool();
+            TestServerChannel channel = CreateOpenChannel(pool);
+
+            try
+            {
+                await channel.FeedReceivedChunkAsync(
+                    channel.CreateRequestChunkForTest(
+                        TcpMessageType.Message,
+                        isFinal: false,
+                        sequenceNumber: 1,
+                        requestId: 1))
+                    .ConfigureAwait(false);
+
+                Assert.That(pool.OutstandingCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                channel.Dispose();
+            }
+
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
         private static TestServerChannel CreateOpenChannel(
             TrackingArrayPool pool,
             int maxBufferSize = 64 * 1024)
@@ -495,6 +617,48 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public byte[] TakeBufferForTest(int size)
             {
                 return BufferManager.TakeBuffer(size, nameof(TakeBufferForTest));
+            }
+
+            public void SetMaxRequestChunkCountForTest(int maxRequestChunkCount)
+            {
+                MaxRequestChunkCount = maxRequestChunkCount;
+            }
+
+            public void SaveIntermediateChunkForTest(uint requestId, ArraySegment<byte> chunk)
+            {
+                SaveIntermediateChunk(requestId, chunk, isServerContext: true, gateHeld: false);
+            }
+
+            /// <summary>
+            /// Builds a chunk the symmetric read path accepts: the channel runs
+            /// with <see cref="MessageSecurityMode.None"/>, so the body needs no
+            /// signature or padding.
+            /// </summary>
+            public ArraySegment<byte> CreateRequestChunkForTest(
+                uint baseMessageType,
+                bool isFinal,
+                uint sequenceNumber,
+                uint requestId,
+                int bodySize = 8)
+            {
+                int length = TcpMessageLimits.SymmetricHeaderSize +
+                    TcpMessageLimits.SequenceHeaderSize +
+                    bodySize;
+                byte[] buffer = BufferManager.TakeBuffer(
+                    length,
+                    nameof(CreateRequestChunkForTest));
+
+                uint messageType = baseMessageType |
+                    (isFinal ? TcpMessageType.Final : TcpMessageType.Intermediate);
+
+                BitConverter.GetBytes(messageType).CopyTo(buffer, 0);
+                BitConverter.GetBytes(length).CopyTo(buffer, 4);
+                BitConverter.GetBytes(ChannelId).CopyTo(buffer, 8);
+                BitConverter.GetBytes(CurrentToken!.TokenId).CopyTo(buffer, 12);
+                BitConverter.GetBytes(sequenceNumber).CopyTo(buffer, 16);
+                BitConverter.GetBytes(requestId).CopyTo(buffer, 20);
+
+                return new ArraySegment<byte>(buffer, 0, length);
             }
 
             public ValueTask FeedReceivedChunkAsync(ArraySegment<byte> chunk)

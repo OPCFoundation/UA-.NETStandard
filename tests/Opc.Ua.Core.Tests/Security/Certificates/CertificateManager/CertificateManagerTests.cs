@@ -297,6 +297,150 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.IsValid, Is.False);
         }
 
+        /// <summary>
+        /// A validation performed before the trust list was registered caches a
+        /// core with no trust material at all. Registering the list has to evict
+        /// it, or every later validation is answered from that empty core.
+        /// </summary>
+        [Test]
+        public async Task RegisteringATrustListAfterAFailedValidationTakesEffectAsync()
+        {
+            string trustedPath = CreateTempDir();
+            using var manager = new CertificateManager(m_telemetry);
+
+            using Certificate cert = CertificateBuilder
+                .Create("CN=LateRegistration")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            using var collection = new CertificateCollection { cert };
+
+            // validated against a manager that has no trust list yet.
+            CertificateValidationResult before = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+            Assert.That(before.IsValid, Is.False);
+
+            manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
+
+            using (ICertificateStore store = manager.OpenTrustedStore(TrustListIdentifier.Peers))
+            {
+                await store.AddAsync(cert).ConfigureAwait(false);
+            }
+
+            CertificateValidationResult after = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+
+            Assert.That(after.IsValid, Is.True);
+        }
+
+        /// <summary>
+        /// Re-mapping the security configuration onto a different trusted store
+        /// takes effect. A cached core snapshots its trust list when it is
+        /// built, so it has to be evicted when the configuration is replaced.
+        /// </summary>
+        [Test]
+        public async Task UpdateAsyncSwitchesToTheReconfiguredTrustedStoreAsync()
+        {
+            string emptyPath = CreateTempDir();
+            string populatedPath = CreateTempDir();
+
+            using Certificate cert = CertificateBuilder
+                .Create("CN=Reconfigured")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            using (var store = new DirectoryCertificateStore(m_telemetry))
+            {
+                store.Open(populatedPath, noPrivateKeys: true);
+                await store.AddAsync(cert).ConfigureAwait(false);
+            }
+
+            using var manager = new CertificateManager(m_telemetry);
+            manager.MapFromSecurityConfiguration(SecurityConfigurationFor(emptyPath));
+
+            using var collection = new CertificateCollection { cert };
+
+            CertificateValidationResult before = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+            Assert.That(before.IsValid, Is.False);
+
+            await manager.UpdateAsync(SecurityConfigurationFor(populatedPath))
+                .ConfigureAwait(false);
+
+            CertificateValidationResult after = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+
+            Assert.That(after.IsValid, Is.True);
+        }
+
+        /// <summary>
+        /// A peer listed in the configuration's &lt;TrustedCertificates&gt;
+        /// element reaches the validator. That list was dropped on the way from
+        /// the configuration into the trust list the validator uses, so such a
+        /// peer was rejected with BadCertificateUntrusted no matter what the
+        /// configuration said.
+        /// </summary>
+        [Test]
+        public async Task ExplicitlyTrustedPeerFromConfigurationIsAcceptedAsync()
+        {
+            using Certificate cert = CertificateBuilder
+                .Create("CN=ExplicitlyTrusted")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            SecurityConfiguration configuration = SecurityConfigurationFor(CreateTempDir());
+            configuration.AddTrustedPeer(cert.RawData);
+
+            using var manager = new CertificateManager(m_telemetry);
+            manager.MapFromSecurityConfiguration(configuration);
+
+            using var collection = new CertificateCollection { cert };
+
+            CertificateValidationResult result = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.True);
+        }
+
+        /// <summary>
+        /// A negative retention limit means the same as zero - keep no rejected
+        /// history - so the stores only ever see zero or a positive cap, no
+        /// matter which of the two ways the limit was configured.
+        /// </summary>
+        [TestCase(-1)]
+        [TestCase(-100)]
+        public void MaxRejectedCertificatesNormalisesNegativeValues(int configured)
+        {
+            using var fromSetter = new CertificateManager(m_telemetry)
+            {
+                MaxRejectedCertificates = configured
+            };
+            Assert.That(fromSetter.MaxRejectedCertificates, Is.Zero);
+
+            using var fromConstructor = new CertificateManager(
+                m_telemetry,
+                storeProviders: null,
+                maxRejectedCertificates: configured);
+            Assert.That(fromConstructor.MaxRejectedCertificates, Is.Zero);
+        }
+
+        private static SecurityConfiguration SecurityConfigurationFor(string trustedPath)
+        {
+            return new SecurityConfiguration
+            {
+                TrustedPeerCertificates = new CertificateTrustList
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = trustedPath
+                }
+            };
+        }
+
         [Test]
         public async Task ValidateTrustedCertReturnsSuccess()
         {

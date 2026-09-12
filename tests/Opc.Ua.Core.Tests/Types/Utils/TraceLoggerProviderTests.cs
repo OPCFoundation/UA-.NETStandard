@@ -93,6 +93,72 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.That(message, Does.Contain("rejected"));
         }
 
+        /// <summary>
+        /// The logger reports a level enabled when the trace mask lets it
+        /// through, with no Tracing handler subscribed. IsEnabled used to
+        /// consult only the handler, so every source-generated log call - which
+        /// checks IsEnabled before doing any work - short-circuited and nothing
+        /// reached the trace file in the usual case of no subscriber.
+        /// </summary>
+        [Test]
+        public void LoggerIsEnabledFollowsTheTraceMaskWithoutATracingHandler()
+        {
+            using var provider = new TraceLoggerProvider();
+            provider.SetTraceMask(Utils.TraceMasks.Error);
+
+            ILogger logger = provider.CreateLogger("category");
+
+            Assert.That(logger.IsEnabled(LogLevel.Error), Is.True);
+            Assert.That(logger.IsEnabled(LogLevel.Information), Is.False);
+        }
+
+        /// <summary>
+        /// A level the mask excludes stays disabled, so the mask is honoured
+        /// rather than everything being reported enabled.
+        /// </summary>
+        [Test]
+        public void LoggerIsEnabledReportsFalseWhenNothingIsMasked()
+        {
+            using var provider = new TraceLoggerProvider();
+            provider.SetTraceMask(0);
+
+            ILogger logger = provider.CreateLogger("category");
+
+            Assert.That(logger.IsEnabled(LogLevel.Error), Is.False);
+            Assert.That(logger.IsEnabled(LogLevel.Information), Is.False);
+        }
+
+        /// <summary>
+        /// A source-generated style call guarded by IsEnabled reaches the trace
+        /// file, which is the behaviour the IsEnabled fix restores.
+        /// </summary>
+        [Test]
+        public void LoggerWritesWhenTheCallIsGuardedByIsEnabled()
+        {
+            string directory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                "TraceLoggerProviderTests",
+                Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            string logFile = Path.Combine(directory, "trace.log");
+
+            using var provider = new TraceLoggerProvider();
+            provider.SetTraceOutput(Utils.TraceOutput.FileOnly);
+            provider.SetTraceMask(Utils.TraceMasks.Error);
+            provider.SetTraceLog(logFile, deleteExisting: true);
+
+            ILogger logger = provider.CreateLogger("category");
+
+            if (logger.IsEnabled(LogLevel.Error))
+            {
+                logger.LogError("Guarded {Value}", 23);
+            }
+
+            string text = File.ReadAllText(logFile);
+            Assert.That(text, Does.Contain("Guarded 23"));
+            Directory.Delete(directory, true);
+        }
+
         [Test]
         public void LoggerLogWritesFormattedExceptionWhenMaskIsEnabled()
         {

@@ -311,6 +311,14 @@ namespace Opc.Ua.Bindings
                 transport?.Close();
                 DiscardTokens();
 
+                // A message the peer never finished sending leaves its chunks
+                // queued here. Nothing else returns them, so a client that sends
+                // one intermediate chunk and disconnects would cost the pool a
+                // receive buffer per channel.
+                BufferCollection? partialChunks = m_partialMessageChunks;
+                m_partialMessageChunks = null;
+                partialChunks?.Release(BufferManager, "Dispose");
+
                 ServerCertificateChain?.Dispose();
                 ServerCertificateChain = null;
                 // The channel always owns an independent handle on

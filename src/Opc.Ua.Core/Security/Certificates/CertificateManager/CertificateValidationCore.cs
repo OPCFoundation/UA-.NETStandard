@@ -521,11 +521,15 @@ namespace Opc.Ua
                     break;
                 }
 
+                // The certificates listed on the trust list itself count as
+                // trusted issuers alongside the ones its store holds, so a CA
+                // configured only through <TrustedCertificates> can complete the
+                // chain of a peer presenting a leaf under it.
                 if (validationErrors != null)
                 {
                     (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(
                             certificate,
-                            default,
+                            state.ExplicitTrustedCertificates,
                             state.TrustedStore,
                             true,
                             ct)
@@ -535,7 +539,7 @@ namespace Opc.Ua
                 {
                     issuer = await GetIssuerAsync(
                             certificate,
-                            default,
+                            state.ExplicitTrustedCertificates,
                             state.TrustedStore,
                             true,
                             ct)
@@ -1507,59 +1511,25 @@ namespace Opc.Ua
                 serialNumber = authority.SerialNumber;
             }
 
-            // check in explicit list.
-            if (!explicitList.IsEmpty)
+            // Check in the certificate store first. An issuer the store holds
+            // can have its revocation status checked against that store's CRLs,
+            // and one named inline on the trust list cannot - so preferring the
+            // store keeps the revocation check for a CA that is configured both
+            // ways.
+            ICertificateStore? store = null;
+
+            if (certificateStore != null)
             {
-                for (int ii = 0; ii < explicitList.Count; ii++)
+                store = OpenCachedStore(certificateStore);
+
+                if (store == null && m_logger.IsEnabled(LogLevel.Warning))
                 {
-                    Certificate? issuer = await CertificateIdentifierResolver
-                        .ResolveAsync(
-                            explicitList[ii],
-                            registry: null,
-                            needPrivateKey: false,
-                            applicationUri: null,
-                            m_telemetry,
-                            ct)
-                        .ConfigureAwait(false);
-
-                    if (issuer != null)
-                    {
-                        if (!X509Utils.IsIssuerAllowed(issuer))
-                        {
-                            issuer.Dispose();
-                            continue;
-                        }
-
-                        if (Match(issuer, subjectName, serialNumber, keyId))
-                        {
-                            // can't check revocation.
-                            return (
-                                new CertificateIssuerReference(
-                                    issuer,
-                                    CertificateValidationOptions.SuppressRevocationStatusUnknown),
-                                null);
-                        }
-
-                        issuer.Dispose();
-                    }
+                    m_logger.CertificateValidationLog12(Redact.Create(certificateStore));
                 }
             }
 
-            // check in certificate store.
-            if (certificateStore != null)
+            if (certificateStore != null && store != null)
             {
-                ICertificateStore? store = OpenCachedStore(certificateStore);
-
-                if (store == null)
-                {
-                    if (m_logger.IsEnabled(LogLevel.Warning))
-                    {
-                        m_logger.CertificateValidationLog12(Redact.Create(certificateStore));
-                    }
-                    // not a trusted issuer.
-                    return (null, null);
-                }
-
                 using CertificateCollection certificates = await store.EnumerateAsync(ct)
                     .ConfigureAwait(false);
 
@@ -1621,6 +1591,45 @@ namespace Opc.Ua
 
                             return (new CertificateIssuerReference(issuer.AddRef(), options), serviceResult);
                         }
+                    }
+                }
+            }
+
+            // Then the certificates named on the list itself, which the store
+            // above does not hold.
+            if (!explicitList.IsEmpty)
+            {
+                for (int ii = 0; ii < explicitList.Count; ii++)
+                {
+                    Certificate? issuer = await CertificateIdentifierResolver
+                        .ResolveAsync(
+                            explicitList[ii],
+                            registry: null,
+                            needPrivateKey: false,
+                            applicationUri: null,
+                            m_telemetry,
+                            ct)
+                        .ConfigureAwait(false);
+
+                    if (issuer != null)
+                    {
+                        if (!X509Utils.IsIssuerAllowed(issuer))
+                        {
+                            issuer.Dispose();
+                            continue;
+                        }
+
+                        if (Match(issuer, subjectName, serialNumber, keyId))
+                        {
+                            // can't check revocation.
+                            return (
+                                new CertificateIssuerReference(
+                                    issuer,
+                                    CertificateValidationOptions.SuppressRevocationStatusUnknown),
+                                null);
+                        }
+
+                        issuer.Dispose();
                     }
                 }
             }

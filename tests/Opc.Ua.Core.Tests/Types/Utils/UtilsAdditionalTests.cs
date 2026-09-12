@@ -624,6 +624,94 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.That(parsed, Is.EqualTo("decoded"));
         }
 
+        /// <summary>
+        /// Passing the default value deletes the extension. The delete never
+        /// happened: the method encoded nothing for a default value, then
+        /// returned early because the empty document had no root element, so the
+        /// removal below it was unreachable.
+        /// </summary>
+        [Test]
+        public void UpdateExtensionWithDefaultValueRemovesTheExtension()
+        {
+            var extensions = new ArrayOf<Opc.Ua.XmlElement>();
+            var elementName = new XmlQualifiedName("SampleExtension", "urn:test");
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            Utils.UpdateExtension(
+                ref extensions,
+                elementName,
+                "alpha",
+                telemetry,
+                (encoder, value) => encoder.WriteString("Value", value));
+            Assert.That(extensions, Has.Count.EqualTo(1));
+
+            Utils.UpdateExtension<string>(
+                ref extensions,
+                elementName,
+                null,
+                telemetry,
+                (encoder, value) => encoder.WriteString("Value", value));
+
+            Assert.That(extensions, Is.Empty);
+        }
+
+        /// <summary>
+        /// Deleting an extension leaves the others alone.
+        /// </summary>
+        [Test]
+        public void UpdateExtensionWithDefaultValueKeepsOtherExtensions()
+        {
+            var extensions = new ArrayOf<Opc.Ua.XmlElement>();
+            var first = new XmlQualifiedName("FirstExtension", "urn:test");
+            var second = new XmlQualifiedName("SecondExtension", "urn:test");
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            Utils.UpdateExtension(
+                ref extensions,
+                first,
+                "alpha",
+                telemetry,
+                (encoder, value) => encoder.WriteString("Value", value));
+            Utils.UpdateExtension(
+                ref extensions,
+                second,
+                "beta",
+                telemetry,
+                (encoder, value) => encoder.WriteString("Value", value));
+            Assert.That(extensions, Has.Count.EqualTo(2));
+
+            Utils.UpdateExtension<string>(
+                ref extensions,
+                first,
+                null,
+                telemetry,
+                (encoder, value) => encoder.WriteString("Value", value));
+
+            Assert.That(extensions, Has.Count.EqualTo(1));
+            Assert.That(extensions[0].AsXmlElement().OuterXml, Does.Contain("beta"));
+        }
+
+        /// <summary>
+        /// Deleting an extension that is not there is a no-op rather than an
+        /// empty element being added.
+        /// </summary>
+        [Test]
+        public void UpdateExtensionWithDefaultValueOnAnAbsentExtensionAddsNothing()
+        {
+            var extensions = new ArrayOf<Opc.Ua.XmlElement>();
+            var elementName = new XmlQualifiedName("SampleExtension", "urn:test");
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            Utils.UpdateExtension<string>(
+                ref extensions,
+                elementName,
+                null,
+                telemetry,
+                (encoder, value) => encoder.WriteString("Value", value));
+
+            Assert.That(extensions, Is.Empty);
+        }
+
         [Test]
         public void UpdateEncodeableExtensionAddsReplacesAndParses()
         {

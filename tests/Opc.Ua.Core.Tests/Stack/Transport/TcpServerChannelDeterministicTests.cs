@@ -312,6 +312,156 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Is.EqualTo((uint)StatusCodes.BadCertificateUntrusted));
         }
 
+        /// <summary>
+        /// A reconnect binds a new socket to an existing channel, and the receive
+        /// loop has to follow it. The loop used to be guarded by a plain running
+        /// flag, so the second start was a no-op and the channel kept reading
+        /// from the socket the client had already dropped - nothing sent on the
+        /// new one was ever seen.
+        /// </summary>
+        [Test]
+        public async Task StartReceiveLoopFollowsAReplacedTransportAsync()
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            using TestServerChannel channel = BuildChannel(listenerMock);
+
+            (InProcessTransport first, InProcessTransport firstPeer) =
+                InProcessTransport.CreatePair(m_buffers, 8192, m_telemetry);
+            (InProcessTransport second, InProcessTransport secondPeer) =
+                InProcessTransport.CreatePair(m_buffers, 8192, m_telemetry);
+
+            try
+            {
+                channel.SetTransport(first);
+                channel.StartReceiveLoopForTest();
+
+                // the reconnect: a new socket for the same channel.
+                channel.SetTransport(second);
+                channel.StartReceiveLoopForTest();
+
+                await secondPeer
+                    .SendChunkAsync(CreateHelloChunk(), CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(
+                    await WaitForChunkAsync(channel, 1).ConfigureAwait(false),
+                    Is.True,
+                    "the receive loop never read from the transport that replaced the first.");
+            }
+            finally
+            {
+                firstPeer.Close();
+                secondPeer.Close();
+                first.Close();
+                second.Close();
+            }
+        }
+
+        /// <summary>
+        /// Starting the loop again on the transport it is already serving is a
+        /// no-op, so a caller cannot put two readers on one socket.
+        /// </summary>
+        [Test]
+        public async Task StartReceiveLoopIsIdempotentForTheSameTransportAsync()
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            using TestServerChannel channel = BuildChannel(listenerMock);
+
+            (InProcessTransport transport, InProcessTransport peer) =
+                InProcessTransport.CreatePair(m_buffers, 8192, m_telemetry);
+
+            try
+            {
+                channel.SetTransport(transport);
+                channel.StartReceiveLoopForTest();
+                channel.StartReceiveLoopForTest();
+                channel.StartReceiveLoopForTest();
+
+                await peer
+                    .SendChunkAsync(CreateHelloChunk(), CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(
+                    await WaitForChunkAsync(channel, 1).ConfigureAwait(false), Is.True);
+
+                // a second reader would have consumed a chunk of its own.
+                await Task.Delay(100).ConfigureAwait(false);
+                Assert.That(channel.ChunksReceived, Is.EqualTo(1));
+            }
+            finally
+            {
+                peer.Close();
+                transport.Close();
+            }
+        }
+
+        /// <summary>
+        /// Detaching the transport retires the loop, so a later start on a
+        /// reattached transport is not mistaken for one already serving it.
+        /// </summary>
+        [Test]
+        public async Task DetachTransportRetiresTheLoopAsync()
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            using TestServerChannel channel = BuildChannel(listenerMock);
+
+            (InProcessTransport transport, InProcessTransport peer) =
+                InProcessTransport.CreatePair(m_buffers, 8192, m_telemetry);
+
+            try
+            {
+                channel.SetTransport(transport);
+                channel.StartReceiveLoopForTest();
+
+                Assert.That(channel.DetachTransportForTest(), Is.SameAs(transport));
+
+                channel.SetTransport(transport);
+                channel.StartReceiveLoopForTest();
+
+                await peer
+                    .SendChunkAsync(CreateHelloChunk(), CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(
+                    await WaitForChunkAsync(channel, 1).ConfigureAwait(false),
+                    Is.True,
+                    "the loop did not restart on the reattached transport.");
+            }
+            finally
+            {
+                peer.Close();
+                transport.Close();
+            }
+        }
+
+        private static byte[] CreateHelloChunk()
+        {
+            byte[] chunk = new byte[32];
+            BinaryPrimitives.WriteUInt32LittleEndian(
+                chunk.AsSpan(0), TcpMessageType.Hello | TcpMessageType.Final);
+            BinaryPrimitives.WriteUInt32LittleEndian(chunk.AsSpan(4), (uint)chunk.Length);
+            return chunk;
+        }
+
+        private static async Task<bool> WaitForChunkAsync(
+            TestServerChannel channel,
+            int expected)
+        {
+            DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+
+            while (DateTime.UtcNow < deadline)
+            {
+                if (channel.ChunksReceived >= expected)
+                {
+                    return true;
+                }
+
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+
+            return false;
+        }
+
         private TestServerChannel BuildChannel(Mock<ITcpChannelListener> listenerMock)
         {
             return new TestServerChannel(
@@ -451,6 +601,28 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 Transport = transport;
             }
+
+            public int ChunksReceived => Volatile.Read(ref m_chunksReceived);
+
+            public void StartReceiveLoopForTest()
+            {
+                StartReceiveLoop();
+            }
+
+            public IUaSCByteTransport? DetachTransportForTest()
+            {
+                return DetachTransport();
+            }
+
+            protected override ValueTask OnChunkReceivedAsync(
+                ArraySegment<byte> message,
+                CancellationToken ct)
+            {
+                Interlocked.Increment(ref m_chunksReceived);
+                return base.OnChunkReceivedAsync(message, ct);
+            }
+
+            private int m_chunksReceived;
 
             public ValueTask<bool> FeedIncomingMessageAsync(
                 uint messageType,
