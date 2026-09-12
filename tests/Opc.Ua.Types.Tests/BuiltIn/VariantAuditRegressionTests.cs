@@ -218,6 +218,46 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void CompareToOrdersTheNullVariantConsistentlyWithEquals()
+        {
+            // CompareTo substituted the typed side's type info and then read
+            // the null variant's zeroed union storage, so it reported equality
+            // for every zero valued scalar while Equals reported them distinct.
+            // A SortedSet keyed on CompareTo therefore still collapsed them.
+            Variant nullVariant = Variant.Null;
+
+            Assert.Multiple(() =>
+            {
+                foreach (Variant zero in new[]
+                {
+                    new Variant(0),
+                    new Variant(false),
+                    new Variant(0.0),
+                    new Variant(0L)
+                })
+                {
+                    Assert.That(
+                        nullVariant.CompareTo(zero),
+                        Is.LessThan(0),
+                        $"{zero.TypeInfo.BuiltInType} must sort after the null variant");
+                    Assert.That(
+                        zero.CompareTo(nullVariant),
+                        Is.GreaterThan(0),
+                        $"{zero.TypeInfo.BuiltInType} must sort after the null variant");
+                }
+
+                Assert.That(
+                    new SortedSet<Variant> { nullVariant, new Variant(0), new Variant(false) },
+                    Has.Count.EqualTo(3));
+
+                // and the order agrees with Equals where Equals says equal.
+                Assert.That(nullVariant.CompareTo(new Variant((string)null)), Is.Zero);
+                Assert.That(new Variant((string)null).CompareTo(nullVariant), Is.Zero);
+                Assert.That(nullVariant.CompareTo(nullVariant), Is.Zero);
+            });
+        }
+
+        [Test]
         public void ComparisonOperatorsAreFalseForIncomparableVariants()
         {
             // CompareTo signals "not comparable" with int.MinValue, which is its

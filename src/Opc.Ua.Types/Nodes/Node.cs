@@ -637,9 +637,12 @@ namespace Opc.Ua
                     break;
             }
 
-            return expectedType ==
-                    TypeInfo.GetBuiltInType(
-                        TypeInfo.GetDataTypeId(value, null)) && // TODO: Pass message context
+            // The value's own built-in type is read directly rather than by way
+            // of its data type id: for a structured value that id is the
+            // concrete structure (StructureDefinition and the like), which is
+            // not a built-in type at all, so the round trip resolved every
+            // DataTypeDefinition write to BuiltInType.Null and rejected it.
+            return expectedType == value.TypeInfo.BuiltInType &&
                 value.TypeInfo.ValueRank == expectedRank;
         }
 

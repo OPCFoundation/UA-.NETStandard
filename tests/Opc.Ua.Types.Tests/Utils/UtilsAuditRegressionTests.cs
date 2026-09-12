@@ -88,6 +88,27 @@ namespace Opc.Ua.Types.Tests.Utils
         }
 
         [Test]
+        public void MatchRejectsAnUnterminatedCharacterSet()
+        {
+            // Only an empty "[" was rejected. A non-empty set with no closing
+            // ']' ran the scanner off the end of the pattern, which then left
+            // the switch as though the set had matched.
+            Assert.Multiple(() =>
+            {
+                Assert.That(CoreUtils.Match("a", "[a", true), Is.False);
+                Assert.That(CoreUtils.Match("b", "[!a", true), Is.False);
+                Assert.That(CoreUtils.Match("a", "[a-c", true), Is.False);
+                Assert.That(CoreUtils.Match("a", "[", true), Is.False);
+
+                // a closed set still works, in both directions.
+                Assert.That(CoreUtils.Match("a", "[a]", true), Is.True);
+                Assert.That(CoreUtils.Match("b", "[a]", true), Is.False);
+                Assert.That(CoreUtils.Match("b", "[!a]", true), Is.True);
+                Assert.That(CoreUtils.Match("b", "[a-c]", true), Is.True);
+            });
+        }
+
+        [Test]
         public void MatchRejectsAnUnmatchedTrailingCharacter()
         {
             // The trailing bound was target.Length - 1, which let exactly one

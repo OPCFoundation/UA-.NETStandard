@@ -786,6 +786,16 @@ namespace Opc.Ua
                             return false; // syntax
                         }
 
+                        // A character set has to be closed. Without this the
+                        // scanner below runs off the end of the pattern and then
+                        // leaves the switch as though the set had matched, so
+                        // "[a" matched "a" while the empty "[" was already
+                        // rejected as a syntax error.
+                        if (pattern.IndexOf(']', pIndex) < 0)
+                        {
+                            return false; // syntax
+                        }
+
                         c = ConvertCase(target[tIndex++], caseSensitive);
 
                         l = '\0';
@@ -846,6 +856,8 @@ namespace Opc.Ua
                         // match if char is in set []
                         else
                         {
+                            bool matchedInSet = false;
+
                             p = ConvertCase(pattern[pIndex++], caseSensitive);
 
                             while (pIndex < pattern.Length)
@@ -873,6 +885,7 @@ namespace Opc.Ua
 
                                     if (c >= l && c <= p)
                                     {
+                                        matchedInSet = true;
                                         break; // if in range, move on
                                     }
                                 }
@@ -881,10 +894,21 @@ namespace Opc.Ua
 
                                 if (c == p) // if char matches this element move on
                                 {
+                                    matchedInSet = true;
                                     break;
                                 }
 
                                 p = ConvertCase(pattern[pIndex++], caseSensitive);
+                            }
+
+                            // The loop above also ends when the pattern runs out,
+                            // which is what happens for the last element of a set
+                            // that closes the pattern. Leaving the switch then
+                            // treated the set as matched, so "[a]" matched every
+                            // character instead of only 'a'.
+                            if (!matchedInSet)
+                            {
+                                return false;
                             }
 
                             while (pIndex < pattern.Length && p != ']') // got a match in char set skip to end of set

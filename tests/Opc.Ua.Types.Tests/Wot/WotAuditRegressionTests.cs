@@ -308,12 +308,15 @@ namespace Opc.Ua.Types.Tests.Wot
                 "uav", "Member", WotVocabulary.VocabularyNamespace);
             member.SetAttribute("Pointer", pointer);
             member.SetAttribute("Encoding", WotVocabulary.Base64Encoding);
-            // SHA256.HashData is .NET 5 and later only.
+            // SHA256.HashData is .NET 5 and later only, and this fixture also
+            // builds for the .NET Framework targets.
+#pragma warning disable CA1850 // Prefer static HashData over ComputeHash
             byte[] hash;
             using (var sha256 = System.Security.Cryptography.SHA256.Create())
             {
                 hash = sha256.ComputeHash(bytes);
             }
+#pragma warning restore CA1850
             member.SetAttribute(
                 "Sha256",
                 CoreUtils.ToHexString(hash).ToLowerInvariant());

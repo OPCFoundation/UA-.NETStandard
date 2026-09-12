@@ -437,6 +437,32 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void DataTypeDefinitionSurvivesAReadWriteRoundTrip()
+        {
+            // The attribute's data type is Structure, whose identifier is the
+            // same number as BuiltInType.ExtensionObject, so the gate resolves
+            // it without needing the structured-type override the permission
+            // attributes need. This pins that, because the two look alike.
+            var node = new DataTypeNode
+            {
+                NodeId = new NodeId(2603u),
+                BrowseName = QualifiedName.From("Custom"),
+                DataTypeDefinition = new ExtensionObject(new StructureDefinition())
+            };
+
+            var read = new DataValue();
+            ServiceResult readResult = node.Read(null, Attributes.DataTypeDefinition, ref read);
+            ServiceResult result = node.Write(Attributes.DataTypeDefinition, read);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(readResult.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(node.DataTypeDefinition.IsNull, Is.False);
+            });
+        }
+
+        [Test]
         public void RolePermissionAttributesSurviveAReadWriteRoundTrip()
         {
             // RolePermissionType is not a built-in type, so the gate derived

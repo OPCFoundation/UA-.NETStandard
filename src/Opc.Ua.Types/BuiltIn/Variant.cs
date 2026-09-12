@@ -7432,9 +7432,23 @@ namespace Opc.Ua
             {
                 return 0;
             }
-            TypeInfo ourTypeInfo = IsNull ? other.TypeInfo : TypeInfo;
-            if (!IsNull && !other.IsNull &&
-                (m_typeInfo.BuiltInType != other.m_typeInfo.BuiltInType ||
+            if (IsNull || other.IsNull)
+            {
+                // Order the null versus typed case the way Equals decides it.
+                // Substituting the typed side's type info and then reading the
+                // null variant's zeroed union storage reported equality for
+                // every zero valued scalar, so a SortedSet or a
+                // SortedDictionary collapsed Variant.Null and Variant(0) into
+                // one entry even though Equals tells them apart.
+                Variant typed = IsNull ? other : this;
+                if (!typed.ValueIsValueType && typed.ValueIsDefaultOrNull)
+                {
+                    return 0;
+                }
+                return IsNull ? -1 : +1;
+            }
+            TypeInfo ourTypeInfo = TypeInfo;
+            if ((m_typeInfo.BuiltInType != other.m_typeInfo.BuiltInType ||
                  m_typeInfo.ValueRank != other.m_typeInfo.ValueRank) &&
                 !IsConvertible(TypeInfo, other.TypeInfo))
             {
