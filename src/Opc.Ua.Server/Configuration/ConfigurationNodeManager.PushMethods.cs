@@ -31,8 +31,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 #if !NET9_0_OR_GREATER
 using System.Runtime.InteropServices;
@@ -83,6 +85,7 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
             }
 
+            subject.ConfigureEncryption(m_configuration.CertificateManager as ICertificateRegistry);
             await subject.BindAsync(
                     folder,
                     SystemContext,
@@ -134,6 +137,10 @@ namespace Opc.Ua.Server
             CertificateCollection? newIssuerCollection = null;
             Certificate? newCertificateWithKey = null;
             Certificate? previousCertificateWithKey = null;
+            Certificate? consumedPendingKey = null;
+            PendingCertificateKeyContext? consumedPendingContext = null;
+            IMatchingPendingCertificateKeyStore? matchingKeyStore =
+                m_pendingKeyStore as IMatchingPendingCertificateKeyStore;
             try
             {
                 if (certificate.IsEmpty)
@@ -355,20 +362,30 @@ namespace Opc.Ua.Server
                         case "":
                             PendingCertificateKeyContext pendingKeyContext =
                                 CreatePendingKeyContext(certificateGroup, existingCertIdentifier);
-                            Certificate? pendingKey = await m_pendingKeyStore
-                                .TryTakeAsync(pendingKeyContext, ct).ConfigureAwait(false);
+                            if (matchingKeyStore != null)
+                            {
+                                consumedPendingContext = pendingKeyContext;
+                                consumedPendingKey = await matchingKeyStore
+                                    .TryTakeMatchingAsync(pendingKeyContext, newCert, ct).ConfigureAwait(false);
+                            }
+                            else if (previousCertificateWithKey == null ||
+                                !X509Utils.VerifyKeyPair(newCert, previousCertificateWithKey))
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadNotSupported,
+                                    "The pending-key store must support matching-only consumption.");
+                            }
 
                             Certificate exportableKey;
-                            if (pendingKey != null && X509Utils.VerifyKeyPair(newCert, pendingKey))
+                            if (consumedPendingKey != null)
                             {
                                 // The regenerated key from a matching
                                 // CreateSigningRequest(regeneratePrivateKey:
                                 // true) is consumed here.
-                                exportableKey = pendingKey;
+                                exportableKey = consumedPendingKey.AddRef();
                             }
                             else
                             {
-                                pendingKey?.Dispose();
                                 // CA2000: exportableKey is disposed by the
                                 // `using` immediately below; the analyzer
                                 // cannot track disposal through the
@@ -432,7 +449,7 @@ namespace Opc.Ua.Server
                             break;
                     }
                 }
-                catch (Exception ex) when (ex is not ServiceResultException)
+                catch (Exception ex) when (ex is not ServiceResultException and not OperationCanceledException)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadSecurityChecksFailed,
@@ -451,6 +468,7 @@ namespace Opc.Ua.Server
                 // committed in full), so it always reads the value
                 // CommitAsync wrote.
                 ArrayOf<string> stagedNewlyAddedIssuerThumbprints = ArrayOf<string>.Empty;
+                ct.ThrowIfCancellationRequested();
 
                 // CA2025: the coordinator guarantees CommitAsync/RollbackAsync
                 // always complete (awaited to conclusion) before it invokes
@@ -522,6 +540,26 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
+                if (consumedPendingKey != null && consumedPendingContext != null && matchingKeyStore != null)
+                {
+                    try
+                    {
+                        await PushConfigurationRollback.RunAsync(async rollbackToken =>
+                        {
+                            if (!await matchingKeyStore.TryRestoreAsync(
+                                consumedPendingContext, consumedPendingKey, rollbackToken).ConfigureAwait(false))
+                            {
+                                m_logger.PendingSigningKeyWasSuperseded(
+                                    consumedPendingContext.CertificateGroupId,
+                                    consumedPendingContext.CertificateTypeId);
+                            }
+                        }, m_timeProvider).ConfigureAwait(false);
+                    }
+                    catch (Exception restoreError)
+                    {
+                        m_logger.PendingSigningKeyRestoreFailed(restoreError);
+                    }
+                }
                 // report the failure of UpdateCertificate via an audit event
                 Server.ReportCertificateUpdatedAuditEvent(
                     context,
@@ -544,6 +582,7 @@ namespace Opc.Ua.Server
                 newIssuerCollection?.Dispose();
                 newCertificateWithKey?.Dispose();
                 previousCertificateWithKey?.Dispose();
+                consumedPendingKey?.Dispose();
             }
 
             // §7.10.17: the staged operation started/continued the active
@@ -657,10 +696,7 @@ namespace Opc.Ua.Server
             // the builder so an unsupported value is reported as
             // Bad_OutOfRange rather than a raw ArgumentException from the
             // certificate builder (or silently accepted for ECC types).
-            bool isRsaCertificateType = certificateTypeId.IsNull ||
-                certificateTypeId == ObjectTypeIds.ApplicationCertificateType ||
-                certificateTypeId == ObjectTypeIds.RsaMinApplicationCertificateType ||
-                certificateTypeId == ObjectTypeIds.RsaSha256ApplicationCertificateType;
+            bool isRsaCertificateType = CertificateIdentifier.IsRsaCertificateType(certificateTypeId);
             ValidateKeySizeForCertificateType(certificateTypeId, isRsaCertificateType, keySizeInBits);
 
             NodeId sessionId = GetSessionId(context);
@@ -1065,8 +1101,9 @@ namespace Opc.Ua.Server
             try
             {
                 m_logger.CreateSigningRequest(certWithPrivateKey);
-                var certificateRequest = ByteString.From(s_certificateFactory.CreateSigningRequest(
+                var certificateRequest = ByteString.From(DefaultCertificateFactory.CreateSigningRequest(
                     certWithPrivateKey,
+                    new X500DistinguishedName(subjectName),
                     X509Utils.GetDomainsFromCertificate(certWithPrivateKey).ToArray()));
 
                 return new CreateSigningRequestMethodStateResult
@@ -1202,5 +1239,16 @@ namespace Opc.Ua.Server
 
             return ServiceResult.Good;
         }
+    }
+
+    internal static partial class ConfigurationNodeManagerLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.PendingCertificateKey, Level = LogLevel.Error,
+            Message = "Could not restore a consumed pending signing key after the certificate upload failed.")]
+        public static partial void PendingSigningKeyRestoreFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = ServerEventIds.PendingCertificateKey + 1, Level = LogLevel.Debug,
+            Message = "Pending signing key for {GroupId}/{TypeId} was superseded; the newer key was retained.")]
+        public static partial void PendingSigningKeyWasSuperseded(this ILogger logger, NodeId groupId, NodeId typeId);
     }
 }

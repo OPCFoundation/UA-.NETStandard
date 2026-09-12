@@ -432,6 +432,12 @@ namespace Opc.Ua.Server
         {
             get
             {
+                if (MonitoringMode == MonitoringMode.Disabled ||
+                    (MonitoringMode != MonitoringMode.Reporting && !m_triggered))
+                {
+                    return false;
+                }
+
                 // check if aggregate interval has passed.
                 if (AggregateFilter?.HasEndTimePassed(DateTime.UtcNow) == true)
                 {
@@ -445,15 +451,9 @@ namespace Opc.Ua.Server
                 }
 
                 // check if it has been triggered.
-                if (MonitoringMode != MonitoringMode.Disabled && m_triggered)
+                if (m_triggered)
                 {
                     return true;
-                }
-
-                // check if monitoring was turned off.
-                if (MonitoringMode != MonitoringMode.Reporting)
-                {
-                    return false;
                 }
 
                 if (m_sourceSamplingInterval == 0)

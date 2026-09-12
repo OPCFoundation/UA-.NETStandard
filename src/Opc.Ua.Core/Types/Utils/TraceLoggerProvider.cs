@@ -170,7 +170,8 @@ namespace Opc.Ua
 
             public bool IsEnabled(LogLevel logLevel)
             {
-                return Tracing.IsEnabled();
+                return logLevel != LogLevel.None &&
+                    (Tracing.IsEnabled() || m_provider.HasEnabledTraceOutput());
             }
 
             public void Log<TState>(
@@ -189,6 +190,30 @@ namespace Opc.Ua
             }
 
             private readonly TraceLoggerProvider m_provider;
+        }
+
+        private bool HasEnabledTraceOutput()
+        {
+            if (TraceMask == Utils.TraceMasks.None)
+            {
+                return false;
+            }
+            lock (m_traceFileLock)
+            {
+                if (m_traceOutput == (int)Utils.TraceOutput.Off)
+                {
+                    return false;
+                }
+                if (!string.IsNullOrEmpty(m_traceFileName))
+                {
+                    return true;
+                }
+#if DEBUG
+                return m_traceOutput == (int)Utils.TraceOutput.DebugAndFile;
+#else
+                return false;
+#endif
+            }
         }
 
         /// <summary>
@@ -416,8 +441,8 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Debug.WriteLine("Could not write to trace file. Error={0}", e.Message);
-                        Debug.WriteLine("FilePath={1}", traceFileName);
+                        Debug.WriteLine($"Could not write to trace file. Error={e.Message}");
+                        Debug.WriteLine($"FilePath={traceFileName}");
                     }
                 }
             }

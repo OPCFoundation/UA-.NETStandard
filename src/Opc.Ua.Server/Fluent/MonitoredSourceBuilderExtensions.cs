@@ -338,6 +338,7 @@ namespace Opc.Ua.Server.Fluent
                     "The virtual node builder was not created by ResolveNodes.",
                     nameof(builder));
             }
+            registration.Owner.EnsureMonitoredSourceLifecycleRegistered();
             return registration.Owner.MonitoredSources!.Register(registration);
         }
     }

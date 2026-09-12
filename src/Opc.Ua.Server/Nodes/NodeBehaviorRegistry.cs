@@ -55,6 +55,12 @@ namespace Opc.Ua.Server.Nodes
     /// </remarks>
     internal sealed class NodeBehaviorRegistry
     {
+        public NodeBehaviorRegistry()
+        {
+            m_registrations = [];
+            m_resolvedChains = [];
+        }
+
         /// <summary>
         /// Initializes a registry for one activation pass.
         /// </summary>
@@ -116,7 +122,7 @@ namespace Opc.Ua.Server.Nodes
         /// </remarks>
         public ArrayOf<INodeBehaviorFactory> ResolveFactories(NodeId typeDefinitionId)
         {
-            if (typeDefinitionId.IsNull)
+            if (typeDefinitionId.IsNull || IsEmpty)
             {
                 return [];
             }
@@ -160,7 +166,7 @@ namespace Opc.Ua.Server.Nodes
                     }
                 }
 
-                current = m_typeTree.FindSuperType(current);
+                current = m_typeTree!.FindSuperType(current);
                 isOwnType = false;
             }
 
@@ -209,7 +215,7 @@ namespace Opc.Ua.Server.Nodes
             return resolved;
         }
 
-        private readonly ITypeTable m_typeTree;
+        private readonly ITypeTable? m_typeTree;
         private readonly Dictionary<NodeId, List<NodeBehaviorRegistration>> m_registrations;
         private readonly Dictionary<NodeId, ArrayOf<INodeBehaviorFactory>> m_resolvedChains;
     }

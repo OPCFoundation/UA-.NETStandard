@@ -340,7 +340,15 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void IsUriHttpRelatedSchemeWithHttp()
         {
-            Assert.That(Utils.IsUriHttpRelatedScheme("https://localhost:4840"), Is.True);
+            Assert.That(Utils.IsUriHttpRelatedScheme("http://localhost:4840"), Is.True);
+        }
+
+        [TestCase("http://localhost")]
+        [TestCase("https://localhost")]
+        [TestCase("opc.https://localhost")]
+        public void HttpRelatedSchemeRecognizesSupportedHttpForms(string url)
+        {
+            Assert.That(Utils.IsUriHttpRelatedScheme(url), Is.True);
         }
 
         [Test]

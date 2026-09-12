@@ -29,8 +29,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server.FileSystem
 {
@@ -132,8 +134,20 @@ namespace Opc.Ua.Server.FileSystem
 
             var binding = new FileDirectoryBinding(directory, provider, context,
                 options ?? new FileDirectoryBindingOptions(), registerNode);
-            await binding.InitializeAsync(cancellationToken).ConfigureAwait(false);
-            return binding;
+            bool initialized = false;
+            try
+            {
+                await binding.InitializeAsync(cancellationToken).ConfigureAwait(false);
+                initialized = true;
+                return binding;
+            }
+            finally
+            {
+                if (!initialized)
+                {
+                    await binding.DisposeAsync().ConfigureAwait(false);
+                }
+            }
         }
 
         private sealed class FileDirectoryBinding : IFileDirectoryBinding, IFileSystemHost
@@ -148,6 +162,7 @@ namespace Opc.Ua.Server.FileSystem
                 Directory = directory;
                 Provider = provider;
                 m_context = context;
+                m_logger = context.Telemetry.CreateLogger<FileDirectoryBinder>();
                 m_options = ValidateOptions(options);
                 m_registerNode = registerNode;
                 m_nodeIdPrefix = "FileDirectoryBinding:" + directory.NodeId;
@@ -167,9 +182,15 @@ namespace Opc.Ua.Server.FileSystem
 
             public async ValueTask RefreshAsync(CancellationToken cancellationToken = default)
             {
-                await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                if (!TryTrackOperation())
+                {
+                    return;
+                }
+                bool entered = false;
                 try
                 {
+                    await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    entered = true;
                     // The binding may have been disposed while this refresh was
                     // queued behind another one.
                     if (m_disposed)
@@ -177,14 +198,11 @@ namespace Opc.Ua.Server.FileSystem
                         return;
                     }
 
-                    var seen = new HashSet<string>(StringComparer.Ordinal);
-                    await ReconcileDirectoryAsync(Directory, string.Empty, 0, seen, cancellationToken)
-                        .ConfigureAwait(false);
-                    RemoveStaleNodes(seen);
+                    await RefreshCoreAsync(cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {
-                    m_gate.Release();
+                    CompleteOperation(entered);
                 }
             }
 
@@ -196,21 +214,35 @@ namespace Opc.Ua.Server.FileSystem
             /// </summary>
             public async ValueTask DisposeAsync()
             {
-                await m_gate.WaitAsync().ConfigureAwait(false);
+                if (!TryTrackOperation())
+                {
+                    return;
+                }
+                bool entered = false;
                 try
                 {
+                    await m_gate.WaitAsync().ConfigureAwait(false);
+                    entered = true;
                     if (m_disposed)
                     {
                         return;
                     }
 
-                    m_disposed = true;
+                    FileHandle[] handles;
+                    lock (m_lock)
+                    {
+                        m_disposed = true;
+                        m_lookupById = [];
+                        handles = new FileHandle[m_handles.Count];
+                        m_handles.Values.CopyTo(handles, 0);
+                        m_handles.Clear();
+                    }
                     DetachDirectoryCallbacks(Directory);
                     foreach (MaterializedNode entry in m_nodesByPath.Values)
                     {
                         DetachCallbacks(entry.Node);
                     }
-                    foreach (FileHandle handle in m_handles.Values)
+                    foreach (FileHandle handle in handles)
                     {
                         handle.Dispose();
                     }
@@ -220,14 +252,11 @@ namespace Opc.Ua.Server.FileSystem
                     }
                     m_nodesByPath.Clear();
                     m_nodesById.Clear();
-                    m_handles.Clear();
                 }
                 finally
                 {
-                    m_gate.Release();
+                    CompleteOperation(entered);
                 }
-
-                m_gate.Dispose();
             }
 
             public NodeId BuildDirectoryNodeId(string providerPath)
@@ -266,6 +295,10 @@ namespace Opc.Ua.Server.FileSystem
             {
                 lock (m_lock)
                 {
+                    if (m_disposed)
+                    {
+                        return null;
+                    }
                     if (m_handles.TryGetValue(nodeId, out FileHandle? handle))
                     {
                         return handle;
@@ -279,19 +312,61 @@ namespace Opc.Ua.Server.FileSystem
 
             public void ForgetHandle(NodeId nodeId)
             {
+                FileHandle? retired = null;
                 lock (m_lock)
                 {
                     if (m_handles.TryGetValue(nodeId, out FileHandle? handle))
                     {
-                        handle.Dispose();
                         m_handles.Remove(nodeId);
+                        retired = handle;
                     }
                 }
+                retired?.Dispose();
             }
 
-            public async ValueTask OnProviderChangedAsync(CancellationToken cancellationToken)
+            public async ValueTask ApplyMutationAsync(
+                FileSystemMutationKind kind,
+                string path,
+                string targetPath,
+                NodeId sourceNodeId,
+                CancellationToken cancellationToken)
             {
-                await RefreshAsync(cancellationToken).ConfigureAwait(false);
+                if (!TryTrackOperation())
+                {
+                    throw new ServiceResultException(StatusCodes.BadShutdown);
+                }
+                bool entered = false;
+                try
+                {
+                    await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    entered = true;
+                    if (m_disposed)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadShutdown);
+                    }
+                    if (m_refreshRequired)
+                    {
+                        await RefreshCoreAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    await CheckCapacityAsync(kind, path, targetPath, cancellationToken).ConfigureAwait(false);
+                    await FileSystemDirectoryOperations.ApplyProviderMutationAsync(
+                        this, kind, path, targetPath, sourceNodeId, cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        await RefreshCoreAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or
+                        NotSupportedException or ServiceResultException or OperationCanceledException or
+                        InvalidOperationException)
+                    {
+                        m_refreshRequired = true;
+                        m_logger.FileDirectoryRefreshFailed(ex, Directory.NodeId);
+                    }
+                }
+                finally
+                {
+                    CompleteOperation(entered);
+                }
             }
 
             public bool TryGetProviderPath(
@@ -300,19 +375,25 @@ namespace Opc.Ua.Server.FileSystem
                 out bool isDirectory,
                 out bool isRoot)
             {
-                if (nodeId == Directory.NodeId)
+                lock (m_lock)
                 {
-                    providerPath = string.Empty;
-                    isDirectory = true;
-                    isRoot = true;
-                    return true;
-                }
-                if (m_nodesById.TryGetValue(nodeId, out MaterializedNode? entry))
-                {
-                    providerPath = entry.ProviderPath;
-                    isDirectory = entry.IsDirectory;
-                    isRoot = false;
-                    return true;
+                    if (!m_disposed)
+                    {
+                        if (nodeId == Directory.NodeId)
+                        {
+                            providerPath = string.Empty;
+                            isDirectory = true;
+                            isRoot = true;
+                            return true;
+                        }
+                        if (m_lookupById.TryGetValue(nodeId, out MaterializedNode? entry))
+                        {
+                            providerPath = entry.ProviderPath;
+                            isDirectory = entry.IsDirectory;
+                            isRoot = false;
+                            return true;
+                        }
+                    }
                 }
 
                 providerPath = string.Empty;
@@ -333,6 +414,93 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     m_initializing = false;
                 }
+            }
+
+            private bool TryTrackOperation()
+            {
+                lock (m_lock)
+                {
+                    if (m_disposed)
+                    {
+                        return false;
+                    }
+                    m_activeOperations++;
+                    return true;
+                }
+            }
+
+            private void CompleteOperation(bool entered)
+            {
+                if (entered)
+                {
+                    m_gate.Release();
+                }
+                lock (m_lock)
+                {
+                    if (--m_activeOperations == 0 && m_disposed)
+                    {
+                        m_gate.Dispose();
+                    }
+                }
+            }
+
+            private async ValueTask CheckCapacityAsync(
+                FileSystemMutationKind kind,
+                string path,
+                string targetPath,
+                CancellationToken cancellationToken)
+            {
+                if (kind == FileSystemMutationKind.Delete)
+                {
+                    return;
+                }
+                string destination = kind is FileSystemMutationKind.Move or FileSystemMutationKind.Copy
+                    ? targetPath
+                    : path;
+                string parent = GetParentPath(destination);
+                if (kind == FileSystemMutationKind.Move && parent == GetParentPath(path))
+                {
+                    return;
+                }
+                if (await Provider.GetEntryAsync(destination, cancellationToken).ConfigureAwait(false) != null)
+                {
+                    return;
+                }
+
+                int count = 0;
+                await foreach (FileSystemEntry _ in Provider.EnumerateAsync(parent, cancellationToken)
+                    .ConfigureAwait(false))
+                {
+                    if (++count >= m_options.MaxEntries)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded,
+                            "The directory cannot admit another entry within the configured binding limit.");
+                    }
+                }
+                if (m_options.MaxEntries == 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded,
+                        "The directory binding does not admit entries.");
+                }
+            }
+
+            private async ValueTask RefreshCoreAsync(CancellationToken cancellationToken)
+            {
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                await ReconcileDirectoryAsync(Directory, string.Empty, 0, seen, cancellationToken)
+                    .ConfigureAwait(false);
+                RemoveStaleNodes(seen);
+                lock (m_lock)
+                {
+                    m_lookupById = new Dictionary<NodeId, MaterializedNode>(m_nodesById);
+                }
+                m_refreshRequired = false;
+            }
+
+            private static string GetParentPath(string path)
+            {
+                int slash = path.LastIndexOf('/');
+                return slash < 0 ? string.Empty : path[..slash];
             }
 
             private async ValueTask ReconcileDirectoryAsync(
@@ -389,6 +557,7 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     if (existing.Node is FileDirectoryState directory)
                     {
+                        await RegisterNodeAsync(existing, cancellationToken).ConfigureAwait(false);
                         return directory;
                     }
                     RemoveNode(existing);
@@ -402,8 +571,8 @@ namespace Opc.Ua.Server.FileSystem
                     isRoot: false,
                     this);
                 parent.AddChild(node);
-                AddMaterializedNode(entry.Path, node, isDirectory: true);
-                await RegisterNodeAsync(node, cancellationToken).ConfigureAwait(false);
+                MaterializedNode materialized = AddMaterializedNode(entry.Path, node, isDirectory: true);
+                await RegisterNodeAsync(materialized, cancellationToken).ConfigureAwait(false);
                 return node;
             }
 
@@ -416,6 +585,7 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     if (existing.Node is FileState file)
                     {
+                        await RegisterNodeAsync(existing, cancellationToken).ConfigureAwait(false);
                         return file;
                     }
                     RemoveNode(existing);
@@ -423,17 +593,22 @@ namespace Opc.Ua.Server.FileSystem
 
                 var node = new FileObjectState(m_context, BuildFileNodeId(entry.Path), entry.Path, entry.Name, this);
                 parent.AddChild(node);
-                AddMaterializedNode(entry.Path, node, isDirectory: false);
-                await RegisterNodeAsync(node, cancellationToken).ConfigureAwait(false);
+                MaterializedNode materialized = AddMaterializedNode(entry.Path, node, isDirectory: false);
+                await RegisterNodeAsync(materialized, cancellationToken).ConfigureAwait(false);
                 return node;
             }
 
-            private async ValueTask RegisterNodeAsync(NodeState node, CancellationToken cancellationToken)
+            private async ValueTask RegisterNodeAsync(MaterializedNode entry, CancellationToken cancellationToken)
             {
+                if (entry.Registered)
+                {
+                    return;
+                }
                 if (!m_initializing && m_registerNode != null)
                 {
-                    await m_registerNode(node, cancellationToken).ConfigureAwait(false);
+                    await m_registerNode(entry.Node, cancellationToken).ConfigureAwait(false);
                 }
+                entry.Registered = true;
             }
 
             private void RemoveStaleNodes(HashSet<string> seen)
@@ -481,11 +656,12 @@ namespace Opc.Ua.Server.FileSystem
                 m_nodesById.Remove(entry.Node.NodeId);
             }
 
-            private void AddMaterializedNode(string providerPath, BaseInstanceState node, bool isDirectory)
+            private MaterializedNode AddMaterializedNode(string providerPath, BaseInstanceState node, bool isDirectory)
             {
                 var entry = new MaterializedNode(providerPath, node, isDirectory);
                 m_nodesByPath[providerPath] = entry;
                 m_nodesById[node.NodeId] = entry;
+                return entry;
             }
 
             private void WireDirectoryCallbacks(FileDirectoryState directory, string providerPath)
@@ -612,12 +788,16 @@ namespace Opc.Ua.Server.FileSystem
             private readonly Dictionary<NodeId, MaterializedNode> m_nodesById = [];
             private readonly Dictionary<string, MaterializedNode> m_nodesByPath = new(StringComparer.Ordinal);
             private readonly ISystemContext m_context;
+            private readonly ILogger m_logger;
             private readonly FileDirectoryBindingOptions m_options;
             private readonly Func<NodeState, CancellationToken, ValueTask>? m_registerNode;
             private readonly Lock m_lock = new();
             private readonly string m_nodeIdPrefix;
+            private Dictionary<NodeId, MaterializedNode> m_lookupById = [];
             private bool m_disposed;
             private bool m_initializing;
+            private bool m_refreshRequired;
+            private int m_activeOperations;
 
             private sealed class MaterializedNode
             {
@@ -633,7 +813,17 @@ namespace Opc.Ua.Server.FileSystem
                 public BaseInstanceState Node { get; }
 
                 public bool IsDirectory { get; }
+
+                public bool Registered { get; set; }
             }
         }
+    }
+
+    internal static partial class FileDirectoryBinderLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.FileDirectoryBinder, Level = LogLevel.Error,
+            Message = "The provider mutation committed, but file-directory {DirectoryId} refresh failed. " +
+                "RefreshAsync or the next mutation will retry reconciliation.")]
+        public static partial void FileDirectoryRefreshFailed(this ILogger logger, Exception ex, NodeId directoryId);
     }
 }

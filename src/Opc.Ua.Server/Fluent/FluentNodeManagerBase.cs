@@ -531,10 +531,9 @@ namespace Opc.Ua.Server.Fluent
             }
 
             var activation = new NodeBehaviorActivation(
-                new NodeBehaviorRegistry(
-                    typeRegistrations,
-                    Server.NamespaceUris,
-                    Server.TypeTree),
+                typeRegistrations.Count == 0
+                    ? new NodeBehaviorRegistry()
+                    : new NodeBehaviorRegistry(typeRegistrations, Server.NamespaceUris, Server.TypeTree),
                 new NodeBehaviorAddressSpace(Server.NamespaceUris, Find),
                 SystemContext,
                 telemetry,

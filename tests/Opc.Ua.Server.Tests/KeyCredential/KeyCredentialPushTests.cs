@@ -62,8 +62,8 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                     credentialNode.NodeId,
                     "credential-1",
                     ByteString.From(secret),
-                    "thumbprint",
-                    SecurityPolicies.Basic256Sha256,
+                    string.Empty,
+                    string.Empty,
                     CancellationToken.None)
                 .ConfigureAwait(false);
 

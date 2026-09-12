@@ -531,6 +531,31 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(endpoint.SelectedUserTokenPolicy.TokenType, Is.EqualTo(UserTokenType.Anonymous));
         }
 
+        [TestCase(0)]
+        [TestCase(1)]
+        public void SelectedUserTokenPolicySetterPreservesMatchingPolicy(int index)
+        {
+            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            {
+                EndpointUrl = "opc.tcp://localhost",
+                UserIdentityTokens =
+                [
+                    new UserTokenPolicy(UserTokenType.Anonymous),
+                    new UserTokenPolicy(UserTokenType.UserName)
+                ]
+            });
+            UserTokenPolicy selected = endpoint.Description.UserIdentityTokens[index];
+            endpoint.SelectedUserTokenPolicy = selected;
+            Assert.That(endpoint.SelectedUserTokenPolicyIndex, Is.EqualTo(index));
+            Assert.That(endpoint.SelectedUserTokenPolicy, Is.SameAs(selected));
+
+            endpoint.SelectedUserTokenPolicy = new UserTokenPolicy(UserTokenType.Certificate);
+            Assert.That(endpoint.SelectedUserTokenPolicyIndex, Is.EqualTo(-1));
+            Assert.That(endpoint.SelectedUserTokenPolicy, Is.Null);
+            endpoint.SelectedUserTokenPolicy = null;
+            Assert.That(endpoint.SelectedUserTokenPolicyIndex, Is.EqualTo(-1));
+        }
+
         [Test]
         public void SelectedUserTokenPolicyIndexOutOfRangeReturnsNull()
         {

@@ -109,18 +109,23 @@ namespace Opc.Ua.Bindings
             }
             catch (ServiceResultException sre)
             {
-                OnTransportError(sre.Result);
+                OnTransportError(transport, sre.Result, ct);
                 return;
             }
             catch (Exception ex)
             {
-                OnTransportError(ServiceResult.Create(
+                OnTransportError(transport, ServiceResult.Create(
                     ex,
                     StatusCodes.BadTcpInternalError,
-                    ex.Message));
+                    ex.Message), ct);
                 return;
             }
 
+            if (ct.IsCancellationRequested || !ReferenceEquals(Transport, transport))
+            {
+                BufferManager.ReturnBuffer(chunk.Array, nameof(ReadReverseHelloOnceAsync));
+                return;
+            }
             await OnChunkReceivedAsync(chunk, ct).ConfigureAwait(false);
         }
 

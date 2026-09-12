@@ -736,6 +736,14 @@ namespace Opc.Ua
         /// </summary>
         public static RSADiffieHellman Create(byte[] nonce)
         {
+            if (nonce == null)
+            {
+                throw new ArgumentNullException(nameof(nonce));
+            }
+            if (nonce.Length is not (256 or 384 or 512))
+            {
+                throw new CryptographicException("Invalid RSA DH public-key length.");
+            }
             var dh = new RSADiffieHellman();
 
             byte[] bytes = new byte[nonce.Length + 1];
@@ -774,6 +782,10 @@ namespace Opc.Ua
         /// <exception cref="NotSupportedException"></exception>
         public byte[] DeriveRawSecretAgreement(RSADiffieHellman remoteKey)
         {
+            if (remoteKey == null)
+            {
+                throw new ArgumentNullException(nameof(remoteKey));
+            }
             if (m_privateKey.IsZero)
             {
                 throw new InvalidOperationException("Private key not available.");
@@ -796,6 +808,12 @@ namespace Opc.Ua
                     throw new NotSupportedException("Unsupported RSA DH finite group type.");
             }
 
+            if (remoteKey.m_nonceLength != m_nonceLength ||
+                remoteKey.m_publicKey <= BigInteger.One ||
+                remoteKey.m_publicKey >= p - BigInteger.One)
+            {
+                throw new CryptographicException("Invalid RSA DH public key for the negotiated group.");
+            }
             var shared = BigInteger.ModPow(remoteKey.m_publicKey, m_privateKey, p);
 
             byte[] bytes = shared.ToByteArray();

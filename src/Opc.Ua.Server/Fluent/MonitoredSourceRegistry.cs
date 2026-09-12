@@ -541,17 +541,21 @@ namespace Opc.Ua.Server.Fluent
         /// </remarks>
         public async ValueTask ReleaseAsync(ISystemContext context)
         {
-            MonitoredSourceLifecycleHandler? lastSubscriber = null;
-            NodeState? source = null;
+            ValueTask callback = default;
 
             await m_updateLock.WaitAsync().ConfigureAwait(false);
             try
             {
-                if (!m_releasing && m_disposeStarted == 0 && HasActiveItems())
+                if (!m_releasing && m_disposeStarted == 0 && m_lifecycleActive)
                 {
-                    lastSubscriber = m_lastSubscriber;
-                    source = m_desiredSource;
+                    m_lifecycleActive = false;
                     m_items.Clear();
+                    m_releasing = true;
+                    if (m_desiredSource != null)
+                    {
+                        callback = InvokeLifecycleAsync(
+                            m_lastSubscriber, context, m_desiredSource, "OnLastSubscriber");
+                    }
                 }
 
                 // Enter the terminal state while still holding the lock. Clearing the
@@ -566,15 +570,7 @@ namespace Opc.Ua.Server.Fluent
                 m_updateLock.Release();
             }
 
-            if (lastSubscriber != null && source != null)
-            {
-                await InvokeLifecycleAsync(
-                        lastSubscriber,
-                        context,
-                        source,
-                        "OnLastSubscriber")
-                    .ConfigureAwait(false);
-            }
+            await callback.ConfigureAwait(false);
 
             await DisposeAsync().ConfigureAwait(false);
         }
@@ -688,26 +684,20 @@ namespace Opc.Ua.Server.Fluent
                 switch (action)
                 {
                     case ReconcileAction.Activate:
-                        await InvokeLifecycleAsync(
-                            m_firstSubscriber,
-                            context,
-                            source,
-                            "OnFirstSubscriber").ConfigureAwait(false);
+                        await InvokeCurrentLifecycleAsync(true, context, source).ConfigureAwait(false);
                         await RestartWorkerAsync(
                             context,
                             source,
                             effectivePeriod).ConfigureAwait(false);
                         break;
                     case ReconcileAction.Deactivate:
-                        _ = await StopWorkerAsync(
+                        if (await StopWorkerAsync(
                             requireInactive: true,
                             source,
-                            effectivePeriod).ConfigureAwait(false);
-                        await InvokeLifecycleAsync(
-                            m_lastSubscriber,
-                            context,
-                            source,
-                            "OnLastSubscriber").ConfigureAwait(false);
+                            effectivePeriod).ConfigureAwait(false))
+                        {
+                            await InvokeCurrentLifecycleAsync(false, context, source).ConfigureAwait(false);
+                        }
                         break;
                     case ReconcileAction.Restart:
                         await RestartWorkerAsync(
@@ -717,6 +707,15 @@ namespace Opc.Ua.Server.Fluent
                         break;
                 }
 
+                await m_updateLock.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    isEmpty = m_items.Count == 0;
+                }
+                finally
+                {
+                    m_updateLock.Release();
+                }
                 return isEmpty;
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -726,6 +725,31 @@ namespace Opc.Ua.Server.Fluent
                     FormatNodeId(source.NodeId));
                 return false;
             }
+        }
+
+        private async ValueTask InvokeCurrentLifecycleAsync(bool activate, ISystemContext context, NodeState source)
+        {
+            ValueTask callback;
+            await m_updateLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (m_releasing || m_disposeStarted != 0 ||
+                    HasActiveItems() != activate || m_lifecycleActive == activate)
+                {
+                    return;
+                }
+                m_lifecycleActive = activate;
+                callback = InvokeLifecycleAsync(
+                    activate ? m_firstSubscriber : m_lastSubscriber,
+                    context,
+                    source,
+                    activate ? "OnFirstSubscriber" : "OnLastSubscriber");
+            }
+            finally
+            {
+                m_updateLock.Release();
+            }
+            await callback.ConfigureAwait(false);
         }
 
         private async ValueTask RestartWorkerAsync(
@@ -1021,6 +1045,7 @@ namespace Opc.Ua.Server.Fluent
         /// that was already dispatched cannot re-acquire behind it.
         /// </summary>
         private bool m_releasing;
+        private bool m_lifecycleActive;
 
         private enum ReconcileAction
         {

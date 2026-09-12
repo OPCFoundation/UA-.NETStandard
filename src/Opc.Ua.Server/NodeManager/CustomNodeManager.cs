@@ -2485,7 +2485,7 @@ namespace Opc.Ua.Server
             if (cache != null)
             {
                 // lookup component in local cache for request.
-                if (!cache.TryGetValue(handle.NodeId, out NodeState? target))
+                if (cache.TryGetValue(handle.NodeId, out NodeState? target))
                 {
                     return target;
                 }
@@ -4186,14 +4186,7 @@ namespace Opc.Ua.Server
             IList<CallMethodResult> results,
             IList<ServiceResult> errors)
         {
-#pragma warning disable CA2012 // Use ValueTasks correctly
-            _ = CallInternalAsync(
-                context,
-                methodsToCall,
-                results,
-                errors,
-                sync: true);
-#pragma warning restore CA2012 // Use ValueTasks correctly
+            CallSynchronousBatch(context, methodsToCall, results, errors);
         }
 
         /// <summary>
@@ -4265,84 +4258,18 @@ namespace Opc.Ua.Server
             bool sync,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
-
-            for (int ii = 0; ii < methodsToCall.Count; ii++)
+            if (sync)
             {
-                CallMethodRequest methodToCall = methodsToCall[ii];
-
-                // skip items that have already been processed.
-                if (methodToCall.Processed)
-                {
-                    continue;
-                }
-
-                MethodState? method = null;
-
-                // check for valid handle.
-                NodeHandle? handle = GetManagerHandle(
-                    systemContext,
-                    methodToCall.ObjectId,
-                    operationCache);
-
-                if (handle == null)
-                {
-                    continue;
-                }
-
-                lock (Lock)
-                {
-                    // owned by this node manager.
-                    methodToCall.Processed = true;
-
-                    // validate the source node.
-                    NodeState? source = ValidateNode(systemContext, handle, operationCache);
-
-                    if (source == null)
-                    {
-                        errors[ii] = StatusCodes.BadNodeIdUnknown;
-                        continue;
-                    }
-
-                    method = FindMethodState(context, methodToCall);
-                    if (method == null)
-                    {
-                        errors[ii] = StatusCodes.BadMethodInvalid;
-                        continue;
-                    }
-
-                    // validate the role permissions for method to be executed,
-                    // it may be a different MethodState that does not have the MethodId specified in the method call
-                    errors[ii] = ValidateRolePermissions(
-                        context,
-                        method.NodeId,
-                        PermissionType.Call);
-
-                    if (ServiceResult.IsBad(errors[ii]))
-                    {
-                        continue;
-                    }
-                }
-
-                // call the method.
-                CallMethodResult result = results[ii] = new CallMethodResult();
-
-                if (sync)
-                {
-#pragma warning disable CA1849 // Call async methods when in an async method
-                    errors[ii] = Call(systemContext, methodToCall, method, result);
-#pragma warning restore CA1849 // Call async methods when in an async method
-                }
-                else
-                {
-                    errors[ii] = await CallAsync(
-                        systemContext,
-                        methodToCall,
-                        method,
-                        result,
-                        cancellationToken).ConfigureAwait(false);
-                }
+                CallSynchronousBatch(context, methodsToCall, results, errors);
+                return;
+            }
+            ServerSystemContext systemContext = SystemContext.Copy(context);
+            foreach ((int index, CallMethodRequest request, MethodState method) in
+                GetMethodCalls(context, systemContext, methodsToCall, errors))
+            {
+                CallMethodResult result = results[index] = new CallMethodResult();
+                errors[index] = await CallAsync(
+                    systemContext, request, method, result, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -4357,95 +4284,20 @@ namespace Opc.Ua.Server
             bool sync,
             CancellationToken cancellationToken = default)
         {
-            var systemContext = context as ServerSystemContext;
-            var argumentErrors = new List<ServiceResult>();
-            var outputArguments = new List<Variant>();
-
-            ServiceResult callResult;
-
             if (sync)
             {
-                callResult = method.Call(
-                    context,
-                    methodToCall.ObjectId,
-                    methodToCall.InputArguments,
-                    argumentErrors,
-                    outputArguments);
+                return CallSynchronousMethod(context, methodToCall, method, result);
             }
-            else
-            {
-                callResult = await method.CallAsync(
-                   context,
-                   methodToCall.ObjectId,
-                   methodToCall.InputArguments,
-                   argumentErrors,
-                   outputArguments,
-                   cancellationToken
-                ).ConfigureAwait(false);
-            }
-
-            if (ServiceResult.IsBad(callResult))
-            {
-                return callResult;
-            }
-
-            // check for argument errors.
-            bool argumentsValid = true;
-
-            var inputArgumentResults = new List<StatusCode>();
-            var inputArgumentDiagnosticInfos = new List<DiagnosticInfo>();
-            for (int jj = 0; jj < argumentErrors.Count; jj++)
-            {
-                ServiceResult argumentError = argumentErrors[jj];
-
-                if (argumentError != null)
-                {
-                    inputArgumentResults.Add(argumentError.StatusCode);
-
-                    if (ServiceResult.IsBad(argumentError))
-                    {
-                        argumentsValid = false;
-                    }
-
-                    // only fill in diagnostic info if it is requested.
-                    if (systemContext!.OperationContext != null &&
-                        (systemContext.OperationContext.DiagnosticsMask &
-                            DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        if (ServiceResult.IsBad(argumentError))
-                        {
-                            inputArgumentDiagnosticInfos.Add(
-                                new DiagnosticInfo(
-                                    argumentError,
-                                    systemContext.OperationContext.DiagnosticsMask,
-                                    false,
-                                    systemContext.OperationContext.StringTable,
-                                    m_logger));
-                        }
-                        else
-                        {
-                            inputArgumentDiagnosticInfos.Add(null!);
-                        }
-                    }
-                }
-            }
-
-            // check for validation errors.
-            if (!argumentsValid)
-            {
-                // Per OPC UA Part 4, Section 5.12: InputArgumentResults must be empty
-                // when StatusCode is Good. Therefore only set here.
-                result.InputArgumentResults = inputArgumentResults;
-                result.InputArgumentDiagnosticInfos = inputArgumentDiagnosticInfos;
-                result.StatusCode = StatusCodes.BadInvalidArgument;
-                return result.StatusCode;
-            }
-
-            // return output arguments.
-            result.OutputArguments = outputArguments;
-
-            // return the actual result of the original call
-            return callResult;
+            var argumentErrors = new List<ServiceResult>();
+            var outputArguments = new List<Variant>();
+            ServiceResult callResult = await method.CallAsync(
+                context,
+                methodToCall.ObjectId,
+                methodToCall.InputArguments,
+                argumentErrors,
+                outputArguments,
+                cancellationToken).ConfigureAwait(false);
+            return CompleteMethodCall(context, result, callResult, argumentErrors, outputArguments);
         }
 
         /// <summary>
@@ -4476,15 +4328,7 @@ namespace Opc.Ua.Server
             MethodState method,
             CallMethodResult result)
         {
-#pragma warning disable CA2012 // Use ValueTasks correctly
-            ValueTask<ServiceResult> syncResult = CallInternalAsync(
-                context,
-                methodToCall,
-                method,
-                result,
-                sync: true);
-#pragma warning restore CA2012 // Use ValueTasks correctly
-            return syncResult.Result;
+            return CallSynchronousMethod(context, methodToCall, method, result);
         }
 
         /// <summary>
@@ -4958,10 +4802,12 @@ namespace Opc.Ua.Server
 
             monitoredItem = restoredItem;
 
-            // report change.
-            OnMonitoredItemCreated(context, handle, restoredItem);
+            if (success)
+            {
+                OnMonitoredItemCreated(context, handle, restoredItem);
+            }
 
-            return true;
+            return success;
         }
 
         /// <summary>
@@ -5165,6 +5011,9 @@ namespace Opc.Ua.Server
                 return error;
             }
 
+            bool componentCacheReferenceAdded =
+                m_monitoredItemManager is MonitoredNodeMonitoredItemManager &&
+                !m_monitoredItemManager.MonitoredNodes.ContainsKey(handle.NodeId);
             ISampledDataChangeMonitoredItem dataChangeMonitoredItem =
                 m_monitoredItemManager.CreateMonitoredItem(
                     Server,
@@ -5185,24 +5034,40 @@ namespace Opc.Ua.Server
                     AddNodeToComponentCache);
 
             monitoredItem = dataChangeMonitoredItem;
-
-            // report the initial value.
-            error = ReadInitialValue(context, handle, dataChangeMonitoredItem);
-            if (ServiceResult.IsBad(error))
+            bool created = false;
+            try
             {
-                if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
-                    error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
-                    error.StatusCode == StatusCodes.BadDataEncodingUnsupported)
+                error = ReadInitialValue(context, handle, dataChangeMonitoredItem);
+                if (ServiceResult.IsBad(error))
                 {
-                    return error;
+                    if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
+                        error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
+                        error.StatusCode == StatusCodes.BadDataEncodingUnsupported)
+                    {
+                        return error;
+                    }
+                    error = StatusCodes.Good;
                 }
-                error = StatusCodes.Good;
+
+                OnMonitoredItemCreated(context, handle, dataChangeMonitoredItem);
+                created = true;
+
+                return error;
             }
-
-            // report change.
-            OnMonitoredItemCreated(context, handle, dataChangeMonitoredItem);
-
-            return error;
+            finally
+            {
+                if (!created)
+                {
+                    StatusCode statusCode = m_monitoredItemManager.DeleteMonitoredItem(
+                        context, dataChangeMonitoredItem, handle);
+                    if (StatusCode.IsGood(statusCode) && componentCacheReferenceAdded)
+                    {
+                        RemoveNodeFromComponentCache(context, handle);
+                    }
+                    dataChangeMonitoredItem.Dispose();
+                    monitoredItem = null;
+                }
+            }
         }
 
         /// <summary>
@@ -5496,13 +5361,9 @@ namespace Opc.Ua.Server
                 filterToUse.ProcessingInterval = Server.AggregateManager.MinimumProcessingInterval;
             }
 
-            DateTime earliestStartTime = DateTime.UtcNow.AddMilliseconds(
-                -(queueSize - 1) * filterToUse.ProcessingInterval);
-
-            if (earliestStartTime > filterToUse.StartTime)
-            {
-                filterToUse.StartTime = earliestStartTime;
-            }
+            DateTimeUtc currentTime = ((Server as ITimeProviderProvider)?.TimeProvider ??
+                TimeProvider.System).GetUtcNow().UtcDateTime;
+            filterToUse.ReviseStartTime(currentTime, queueSize);
 
             if (filterToUse.AggregateConfiguration.UseServerCapabilitiesDefaults)
             {

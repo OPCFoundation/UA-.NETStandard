@@ -84,6 +84,8 @@ namespace Opc.Ua.Redundancy
             m_renewInterval = renewInterval;
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_logger = logger;
+            m_expiryTimer = m_timeProvider.CreateTimer(
+                _ => OnLeaseExpiry(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         }
 
         /// <inheritdoc/>
@@ -91,10 +93,18 @@ namespace Opc.Ua.Redundancy
         {
             get
             {
+                bool expired;
+                bool isLeader;
                 lock (m_lock)
                 {
-                    return m_isLeader;
+                    expired = ExpireLeaseIfNeeded();
+                    isLeader = m_isLeader;
                 }
+                if (expired)
+                {
+                    LeadershipChanged?.Invoke(false);
+                }
+                return isLeader;
             }
         }
 
@@ -104,7 +114,28 @@ namespace Opc.Ua.Redundancy
         /// <inheritdoc/>
         public async ValueTask<bool> TryAcquireOrRenewAsync(CancellationToken ct = default)
         {
+            bool expired;
+            long attempt;
+            lock (m_lock)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(SharedStoreLeaseElection));
+                }
+                expired = ExpireLeaseIfNeeded();
+                attempt = ++m_attempt;
+            }
+            if (expired)
+            {
+                LeadershipChanged?.Invoke(false);
+            }
+
             (bool found, ByteString current) = await m_store.TryGetAsync(m_leaseKey, ct).ConfigureAwait(false);
+            if (!IsCurrentAttempt(attempt))
+            {
+                return false;
+            }
+            long timestamp = m_timeProvider.GetTimestamp();
             long nowTicks = m_timeProvider.GetUtcNow().UtcTicks;
 
             bool canTake = !found;
@@ -117,17 +148,16 @@ namespace Opc.Ua.Redundancy
 
             if (!canTake)
             {
-                SetLeader(false);
-                return false;
+                return CompleteAttempt(attempt, false, 0, 0);
             }
 
-            ByteString newLease = EncodeLease(m_nodeId, nowTicks + m_leaseDuration.Ticks);
+            long newExpiryTicks = nowTicks + m_leaseDuration.Ticks;
+            ByteString newLease = EncodeLease(m_nodeId, newExpiryTicks);
             ByteString expected = found ? current : default;
             bool acquired = await m_store
                 .CompareAndSwapAsync(m_leaseKey, expected, newLease, ct)
                 .ConfigureAwait(false);
-            SetLeader(acquired);
-            return acquired;
+            return CompleteAttempt(attempt, acquired, timestamp, newExpiryTicks);
         }
 
         /// <inheritdoc/>
@@ -147,6 +177,7 @@ namespace Opc.Ua.Redundancy
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
+            bool changed;
             lock (m_lock)
             {
                 if (m_disposed)
@@ -154,9 +185,18 @@ namespace Opc.Ua.Redundancy
                     return;
                 }
                 m_disposed = true;
+                ++m_attempt;
+                changed = m_isLeader;
+                m_isLeader = false;
+                m_expiryTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            }
+            if (changed)
+            {
+                LeadershipChanged?.Invoke(false);
             }
 
             m_cts.Cancel();
+            await m_expiryTimer.DisposeAsync().ConfigureAwait(false);
             if (m_loop != null)
             {
                 try
@@ -192,7 +232,7 @@ namespace Opc.Ua.Redundancy
                         m_logger?.SharedStoreLeaseElectionLogMessage0(ex, m_nodeId);
                     }
 
-                    await Task.Delay(m_renewInterval, ct).ConfigureAwait(false);
+                    await m_timeProvider.Delay(m_renewInterval, ct).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException)
@@ -221,18 +261,101 @@ namespace Opc.Ua.Redundancy
             }
         }
 
-        private void SetLeader(bool value)
+        private bool IsCurrentAttempt(long attempt)
         {
-            bool changed;
+            bool expired;
+            bool current;
             lock (m_lock)
             {
-                changed = m_isLeader != value;
-                m_isLeader = value;
+                expired = ExpireLeaseIfNeeded();
+                current = !m_disposed && attempt == m_attempt;
+            }
+            if (expired)
+            {
+                LeadershipChanged?.Invoke(false);
+            }
+            return current;
+        }
+
+        private bool CompleteAttempt(long attempt, bool acquired, long timestamp, long expiryTicks)
+        {
+            bool expired;
+            bool changed = false;
+            bool confirmed = false;
+            lock (m_lock)
+            {
+                expired = ExpireLeaseIfNeeded();
+                if (!m_disposed && attempt == m_attempt)
+                {
+                    TimeSpan remaining = acquired
+                        ? GetRemainingLeaseTime(timestamp, expiryTicks)
+                        : TimeSpan.Zero;
+                    confirmed = acquired && remaining > TimeSpan.Zero;
+                    changed = m_isLeader != confirmed;
+                    m_isLeader = confirmed;
+                    if (confirmed)
+                    {
+                        m_confirmedTimestamp = timestamp;
+                        m_confirmedExpiryTicks = expiryTicks;
+                        m_expiryTimer.Change(remaining, Timeout.InfiniteTimeSpan);
+                    }
+                    else
+                    {
+                        ++m_attempt;
+                        m_expiryTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+                    }
+                }
+            }
+            if (expired)
+            {
+                LeadershipChanged?.Invoke(false);
             }
             if (changed)
             {
-                LeadershipChanged?.Invoke(value);
+                LeadershipChanged?.Invoke(confirmed);
             }
+            return confirmed;
+        }
+
+        private void OnLeaseExpiry()
+        {
+            bool expired;
+            lock (m_lock)
+            {
+                expired = ExpireLeaseIfNeeded();
+                if (m_isLeader)
+                {
+                    m_expiryTimer.Change(
+                        GetRemainingLeaseTime(m_confirmedTimestamp, m_confirmedExpiryTicks),
+                        Timeout.InfiniteTimeSpan);
+                }
+            }
+            if (expired)
+            {
+                LeadershipChanged?.Invoke(false);
+            }
+        }
+
+        private bool ExpireLeaseIfNeeded()
+        {
+            if (!m_isLeader ||
+                GetRemainingLeaseTime(m_confirmedTimestamp, m_confirmedExpiryTicks) > TimeSpan.Zero)
+            {
+                return false;
+            }
+
+            m_isLeader = false;
+            // Replies belonging to the expired authority cannot establish a new lease.
+            ++m_attempt;
+            m_expiryTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            return true;
+        }
+
+        private TimeSpan GetRemainingLeaseTime(long timestamp, long expiryTicks)
+        {
+            TimeSpan utcRemaining = TimeSpan.FromTicks(expiryTicks - m_timeProvider.GetUtcNow().UtcTicks);
+            TimeSpan elapsedRemaining = m_leaseDuration - m_timeProvider.GetElapsedTime(timestamp);
+            return utcRemaining < elapsedRemaining ? utcRemaining : elapsedRemaining;
         }
 
         private static ByteString EncodeLease(string owner, long expiryUtcTicks)
@@ -271,9 +394,13 @@ namespace Opc.Ua.Redundancy
         private readonly TimeSpan m_renewInterval;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger? m_logger;
+        private readonly ITimer m_expiryTimer;
         private readonly Lock m_lock = new();
         private readonly CancellationTokenSource m_cts = new();
         private Task? m_loop;
+        private long m_attempt;
+        private long m_confirmedTimestamp;
+        private long m_confirmedExpiryTicks;
         private bool m_isLeader;
         private bool m_started;
         private bool m_disposed;

@@ -63,7 +63,8 @@ namespace Opc.Ua
             lock (m_lock)
             {
                 ThrowIfDisposed();
-                if (!m_sources.TryGetValue(sourceId, out SourceState? source))
+                if (!m_sources.TryGetValue(sourceId, out SourceState? source) ||
+                    (!source.HasSample && source.Fault == null))
                 {
                     return new ValueTask<GeoLocationSample>(
                         Task.FromException<GeoLocationSample>(
@@ -149,6 +150,7 @@ namespace Opc.Ua
                 ThrowIfDisposed();
                 SourceState source = GetOrAddSource(sourceId);
                 source.Current = sample;
+                source.HasSample = true;
                 source.Fault = null;
                 subscribers = [.. source.Subscribers];
             }
@@ -264,6 +266,8 @@ namespace Opc.Ua
             public List<Subscription> Subscribers { get; } = [];
 
             public GeoLocationSample Current { get; set; }
+
+            public bool HasSample { get; set; }
 
             public Exception? Fault { get; set; }
         }

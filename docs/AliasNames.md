@@ -30,6 +30,14 @@ side) and **`Opc.Ua.Client`** (client side). The implementation covers:
 
 ## Server side — `Opc.Ua.Server.AliasNames`
 
+Search patterns use OPC UA Like syntax with case-sensitive whole-string
+matching. Backslashes escape literal characters inside and outside
+character sets; `[^...]` negates a set (`[!...]` remains accepted for
+compatibility). Wildcards match line breaks. Invalid sets return
+`BadInvalidArgument` from both FindAlias variants even with an empty
+store. A 100 ms per-name evaluation budget produces `BadTimeout` on
+expiry, and scans observe request cancellation between names.
+
 The server library exposes a pluggable backend (`IAliasNameStore`) plus
 a default in-memory implementation. Apps assemble their alias inventory
 inside a store, then either:

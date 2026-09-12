@@ -337,6 +337,104 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Faulted));
         }
 
+        [Test]
+        public void UnstoredIntermediateChunkReturnsItsRental()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            byte[] buffer = channel.TakeBufferForTest(32);
+            channel.SaveReceivedPartForTest(0, new ArraySegment<byte>(buffer, 0, 32));
+
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        [Test]
+        public void ExceededIntermediateMessageLimitReturnsBothOldAndIncomingRentals()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            channel.SetMaxRequestMessageSizeForTest(1);
+            byte[] first = channel.TakeBufferForTest(32);
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(first, 0, 2));
+            byte[] second = channel.TakeBufferForTest(32);
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(second, 0, 1));
+
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        [Test]
+        public void TakingSavedChunksWithoutAnotherChunkReturnsEachRentalOnce()
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            byte[] first = channel.TakeBufferForTest(32);
+            channel.SaveReceivedPartForTest(1, new ArraySegment<byte>(first, 0, 2));
+            channel.ReleaseSavedPartsForTest(1);
+
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        [TestCase(0)]
+        [TestCase(4)]
+        [TestCase(7)]
+        public async Task TruncatedOpenSecureChannelReturnsDecryptedRentalAsync(int bodyLength)
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            ArraySegment<byte> chunk = channel.CreateTruncatedOpenChunkForTest(bodyLength);
+
+            await channel.FeedReceivedChunkAsync(chunk).ConfigureAwait(false);
+
+            Assert.That(pool.RentCount, Is.GreaterThanOrEqualTo(2));
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task DiscoveryOnlyRequestsReturnEveryReceiveRentalAsync(bool intermediate, bool rejected)
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            var transport = new GateByteTransport(expectedSendCount: 1, captureSentChunks: true);
+            transport.Complete();
+            channel.SetTransport(transport);
+            channel.SetDiscoveryOnlyForTest();
+            int delivered = 0;
+            channel.SetRequestReceivedCallback((_, _, _) => delivered++);
+            int count = intermediate ? 1 : 10;
+            for (uint index = 1; index <= count; index++)
+            {
+                IServiceRequest request = rejected ? new ReadRequest() : new GetEndpointsRequest();
+                await channel.FeedReceivedChunkAsync(channel.CreateRequestChunkForTest(
+                    40 + index, index, request, intermediate)).ConfigureAwait(false);
+            }
+            Assert.That(await WaitForOutstandingCountAsync(pool, expected: 0, 5).ConfigureAwait(false), Is.True);
+            Assert.That(pool.RentCount, Is.GreaterThanOrEqualTo(count));
+            Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+            Assert.That(delivered, Is.EqualTo(rejected ? 0 : count));
+            if (rejected)
+            {
+                byte[] sent = transport.LastSentChunk;
+                using var decoder = new BinaryDecoder(
+                    new ArraySegment<byte>(sent, 24, sent.Length - 24),
+                    ServiceMessageContext.Create(NUnitTelemetryContext.Create()));
+                ServiceFault fault = decoder.DecodeMessage<ServiceFault>();
+                Assert.That(fault.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+            }
+            Assert.That(channel.CurrentState,
+                Is.EqualTo(intermediate ? TcpChannelState.Closed : TcpChannelState.Open));
+        }
+
         private static TestServerChannel CreateOpenChannel(
             TrackingArrayPool pool,
             int maxBufferSize = 64 * 1024)
@@ -487,6 +585,22 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 MaxResponseMessageSize = maxResponseMessageSize;
             }
 
+            public void SetMaxRequestMessageSizeForTest(int maxRequestMessageSize)
+            {
+                MaxRequestMessageSize = maxRequestMessageSize;
+            }
+
+            public void SaveReceivedPartForTest(uint requestId, ArraySegment<byte> chunk)
+            {
+                SaveIntermediateChunk(requestId, chunk, true, gateHeld: false);
+            }
+
+            public void ReleaseSavedPartsForTest(uint requestId)
+            {
+                GetSavedChunks(requestId, default, true, gateHeld: false)
+                    .Release(BufferManager, nameof(ReleaseSavedPartsForTest));
+            }
+
             public void SetReceiveBufferSizeForTest(int receiveBufferSize)
             {
                 ReceiveBufferSize = receiveBufferSize;
@@ -500,6 +614,51 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public ValueTask FeedReceivedChunkAsync(ArraySegment<byte> chunk)
             {
                 return OnChunkReceivedAsync(chunk, CancellationToken.None);
+            }
+
+            public void SetDiscoveryOnlyForTest()
+            {
+                typeof(UaSCUaBinaryChannel).GetProperty(
+                    "DiscoveryOnly",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                    .SetValue(this, true);
+            }
+
+            public ArraySegment<byte> CreateRequestChunkForTest(
+                uint requestId, uint sequence, IServiceRequest request, bool intermediate)
+            {
+                using var body = new System.IO.MemoryStream();
+                BinaryEncoder.EncodeMessage(request, body, Quotas.MessageContext, true);
+                byte[] buffer = BufferManager.TakeBuffer(8192, nameof(CreateRequestChunkForTest));
+                using var encoder = new BinaryEncoder(buffer, 0, 8192, Quotas.MessageContext);
+                encoder.WriteUInt32(null, TcpMessageType.Message |
+                    (intermediate ? TcpMessageType.Intermediate : TcpMessageType.Final));
+                encoder.WriteUInt32(null, (uint)(body.Length + 24));
+                encoder.WriteUInt32(null, ChannelId);
+                encoder.WriteUInt32(null, CurrentToken!.TokenId);
+                encoder.WriteUInt32(null, sequence);
+                encoder.WriteUInt32(null, requestId);
+                encoder.WriteRawBytes(body.GetBuffer(), 0, (int)body.Length);
+                return new ArraySegment<byte>(buffer, 0, encoder.Close());
+            }
+
+            public ArraySegment<byte> CreateTruncatedOpenChunkForTest(int bodyLength)
+            {
+                byte[] buffer = BufferManager.TakeBuffer(1024, nameof(CreateTruncatedOpenChunkForTest));
+                using var encoder = new BinaryEncoder(buffer, 0, 1024, Quotas.MessageContext);
+                encoder.WriteUInt32(null, TcpMessageType.Open | TcpMessageType.Final);
+                encoder.WriteUInt32(null, 0);
+                encoder.WriteUInt32(null, 0);
+                encoder.WriteString(null, SecurityPolicies.None);
+                encoder.WriteByteString(null, ByteString.Empty);
+                encoder.WriteByteString(null, ByteString.Empty);
+                for (int i = 0; i < bodyLength; i++)
+                {
+                    encoder.WriteByte(null, 0);
+                }
+                int length = encoder.Close();
+                BitConverter.GetBytes(length).CopyTo(buffer, 4);
+                return new ArraySegment<byte>(buffer, 0, length);
             }
 
             protected override void OnTransportError(ServiceResult result)

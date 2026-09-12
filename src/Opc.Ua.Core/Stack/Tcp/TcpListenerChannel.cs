@@ -150,6 +150,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected override void Dispose(bool disposing)
         {
+            if (disposing)
+            {
+                Volatile.Write(ref m_disposed, 1);
+            }
             base.Dispose(disposing);
         }
 
@@ -222,15 +226,35 @@ namespace Opc.Ua.Bindings
         /// <exception cref="InvalidOperationException"></exception>
         public void Attach(uint channelId, Socket socket)
         {
+            using (Gate.Enter())
+            {
+                AttachCore(channelId, socket);
+            }
+        }
+
+        internal void AttachCore(uint channelId, Socket socket)
+        {
             if (socket == null)
             {
                 throw new ArgumentNullException(nameof(socket));
             }
-#pragma warning disable CA2000 // transport ownership is transferred to Attach below
-            IUaSCByteTransport transport = new TcpByteTransport(socket, BufferManager, ReceiveBufferSize, Telemetry);
-            transport = TransportDecorator?.Invoke(transport) ?? transport;
-            Attach(channelId, transport);
-#pragma warning restore CA2000
+            TcpByteTransport? socketTransport = new(socket, BufferManager, ReceiveBufferSize, Telemetry);
+            IUaSCByteTransport? transport = null;
+            try
+            {
+                transport = TransportDecorator?.Invoke(socketTransport) ?? socketTransport;
+                AttachCore(channelId, transport);
+                transport = null;
+                socketTransport = null;
+            }
+            finally
+            {
+                if (!ReferenceEquals(transport, socketTransport))
+                {
+                    transport?.Close();
+                }
+                socketTransport?.Dispose();
+            }
         }
 
         /// <summary>
@@ -249,23 +273,47 @@ namespace Opc.Ua.Bindings
 
             using (Gate.Enter())
             {
-                if (Transport != null)
-                {
-                    throw new InvalidOperationException("Channel is already attached to a transport.");
-                }
-
-                ChannelId = channelId;
-                State = TcpChannelState.Connecting;
-
-                Transport = transport;
-
-                m_logger.TcpListenChannelLog0(
-                    ChannelName,
-                    Transport.RemoteEndpoint,
-                    ChannelId);
-
-                StartReceiveLoop();
+                AttachCore(channelId, transport);
             }
+        }
+
+        private void AttachCore(uint channelId, IUaSCByteTransport transport)
+        {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                throw new ObjectDisposedException(nameof(TcpListenerChannel));
+            }
+            if (Transport != null)
+            {
+                throw new InvalidOperationException("Channel is already attached to a transport.");
+            }
+            ChannelId = channelId;
+            State = TcpChannelState.Connecting;
+            Transport = transport;
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                DetachTransportForHandoff()?.Close();
+                throw new ObjectDisposedException(nameof(TcpListenerChannel));
+            }
+            m_logger.TcpListenChannelLog0(ChannelName, transport.RemoteEndpoint, ChannelId);
+            StartReceiveLoop();
+        }
+
+        internal bool TryIdleCleanupForAdmission()
+        {
+            using (Gate.Enter())
+            {
+                if (Volatile.Read(ref m_disposed) != 0 || UsedBySession ||
+                    State is TcpChannelState.Closed or TcpChannelState.Closing)
+                {
+                    return false;
+                }
+                State = TcpChannelState.Closing;
+            }
+            OnCleanup(new ServiceResult(
+                StatusCodes.BadNoCommunication,
+                LocalizedText.From("Channel closed due to inactivity.")));
+            return true;
         }
 
         /// <summary>
@@ -519,6 +567,32 @@ namespace Opc.Ua.Bindings
             using (Gate.Enter())
             {
                 ChannelClosed();
+            }
+        }
+
+        private protected override void OnTransportError(
+            IUaSCByteTransport transport,
+            ServiceResult result,
+            CancellationToken ct)
+        {
+            if (ct.IsCancellationRequested || !ReferenceEquals(Transport, transport))
+            {
+                return;
+            }
+            using (Gate.Enter())
+            {
+                if (ct.IsCancellationRequested || !ReferenceEquals(Transport, transport))
+                {
+                    return;
+                }
+                if (ServiceResult.IsBad(result))
+                {
+                    ForceChannelFaultCore(result);
+                }
+                else
+                {
+                    ChannelClosed();
+                }
             }
         }
 
@@ -935,6 +1009,7 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly ILogger m_logger;
+        private int m_disposed;
         private volatile TcpChannelRequestEventHandler? m_requestReceived;
         private volatile ReportAuditOpenSecureChannelEventHandler? m_reportAuditOpenSecureChannelEvent;
         private volatile ReportAuditCloseSecureChannelEventHandler? m_reportAuditCloseSecureChannelEvent;

@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace Opc.Ua.Server.AliasNames
 {
@@ -168,6 +169,7 @@ namespace Opc.Ua.Server.AliasNames
             {
                 return result;
             }
+            Regex pattern = AliasNameWildcardMatcher.CreateRegex(aliasNameSearchPattern);
             if (!m_categories.TryGetValue(categoryId, out CategoryEntry? root))
             {
                 return result;
@@ -178,12 +180,13 @@ namespace Opc.Ua.Server.AliasNames
             {
                 CollectMatches(
                     root,
-                    aliasNameSearchPattern!,
+                    pattern,
                     referenceTypeFilter,
                     typeTree,
                     verbose: false,
                     nonVerboseSink: result,
-                    verboseSink: null);
+                    verboseSink: null,
+                    ct);
             }
             finally
             {
@@ -210,6 +213,7 @@ namespace Opc.Ua.Server.AliasNames
             {
                 return result;
             }
+            Regex pattern = AliasNameWildcardMatcher.CreateRegex(aliasNameSearchPattern);
             if (!m_categories.TryGetValue(categoryId, out CategoryEntry? root))
             {
                 return result;
@@ -220,12 +224,13 @@ namespace Opc.Ua.Server.AliasNames
             {
                 CollectMatches(
                     root,
-                    aliasNameSearchPattern!,
+                    pattern,
                     referenceTypeFilter,
                     typeTree,
                     verbose: true,
                     nonVerboseSink: null,
-                    verboseSink: result);
+                    verboseSink: result,
+                    ct);
             }
             finally
             {
@@ -494,19 +499,21 @@ namespace Opc.Ua.Server.AliasNames
 
         private void CollectMatches(
             CategoryEntry category,
-            string pattern,
+            Regex pattern,
             NodeId referenceTypeFilter,
             ITypeTable typeTree,
             bool verbose,
             List<AliasNameDataType>? nonVerboseSink,
-            List<AliasNameVerboseDataType>? verboseSink)
+            List<AliasNameVerboseDataType>? verboseSink,
+            CancellationToken ct)
         {
             ushort nsIndex = category.Descriptor.BrowseName.NamespaceIndex;
 
             foreach (KeyValuePair<string, Dictionary<MappingKey, string?>> alias
                 in category.Aliases)
             {
-                if (!AliasNameWildcardMatcher.IsMatch(alias.Key, pattern))
+                ct.ThrowIfCancellationRequested();
+                if (!AliasNameWildcardMatcher.Matches(alias.Key, pattern))
                 {
                     continue;
                 }
@@ -562,7 +569,8 @@ namespace Opc.Ua.Server.AliasNames
                         typeTree,
                         verbose,
                         nonVerboseSink,
-                        verboseSink);
+                        verboseSink,
+                        ct);
                 }
             }
         }

@@ -642,14 +642,23 @@ Callers that passed the state machine's `ObjectId` to
   `Executable` / `UserExecutable` attributes from `IsCausePermitted`
   — see [Executable causes](#executable-causes).
 * **Drive auto-transitions.** `WithTimedTransition(fromStateId,
-  timeout, transitionId, causeId)` arms a `System.Threading.Timer`
-  on every entry into `fromStateId` (including the initial state)
-  and cancels it on exit. The timer fires `DoTransition(...)` on a
-  thread-pool thread, so the standard transition machinery (events,
-  audit, observers) runs as expected.
+  timeout, transitionId, causeId)` uses the server's `TimeProvider`
+  to arm one timer on entry into `fromStateId`, including the initial
+  state. Re-arming disposes the previous timer. A queued callback
+  cannot transition after reset, replacement, or exit/re-entry.
+  `StopTimedTransitions()` permanently stops that builder's automatic
+  transitions without removing the machine or its lifecycle observers.
+  Timer-only causes emit transition events, not fabricated Method audit
+  events; real Method calls retain their normal audit events.
 * **Escape hatch.** `ConfigureStateMachine(Action<TState>)` is
   invoked synchronously with the underlying state machine. Use it
   for properties or methods the builder doesn't surface directly.
+
+Transitions are serialized per machine. Before/after handlers retain
+per-invocation source and destination snapshots, including nested callbacks.
+If a before-handler changes the state, the stale outer transition is rejected
+with `BadInvalidState`. Transition events capture their state data before
+after-handlers run, so a nested transition cannot rewrite an earlier event.
 
 ## Tests
 

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -39,9 +40,9 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Stress.Tests.Channels.Helpers;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 
-// CA2000: ownership of the rotated certificate copy is transferred to CertificateManager.
+// CA2007: NUnit invokes test code without requiring ConfigureAwait on framework calls.
 // CA2016: outage reconnects intentionally mirror CertificateManager's uncancelled reconnect path.
-#pragma warning disable CA2000, CA2007, CA2016
+#pragma warning disable CA2007, CA2016
 
 namespace Opc.Ua.Stress.Tests.Channels.Integration
 {
@@ -114,6 +115,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
             CancellationToken ct)
         {
             using MetricsCollector metrics = new();
+            var bindings = new TrackingTcpChannelBindings();
             await using ClientChannelManager manager = CreateChannelManager(
                 new ExponentialBackoffChannelReconnectPolicy
                 {
@@ -121,7 +123,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
                     MaxDelay = TimeSpan.FromMilliseconds(500),
                     MaxAttempts = 120
                 },
-                metrics.Telemetry);
+                metrics.Telemetry,
+                bindings);
             ConfiguredEndpoint endpoint = await GetEndpointAsync(SecurityPolicies.Basic256Sha256)
                 .ConfigureAwait(false);
             var sessions = new List<ManagedSessionType>(SessionCount);
@@ -176,11 +179,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
                         .ConfigureAwait(false),
                     Is.True,
                     "The recovered shared channel entry should be removed after all sessions are released.");
-                Assert.That(
-                    GetMetricTotal(metrics, ChannelCloseMetric),
-                    Is.LessThanOrEqualTo(2.0d),
-                    "Double perturbation (cert rotation + server restart) may cause at most one " +
-                    "teardown from each event; observed teardown count should not exceed 2.");
+                AssertTransportLifetimes(bindings, metrics, manager);
             }
             finally
             {
@@ -221,7 +220,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
 
             await certificateManager.UpdateApplicationCertificateAsync(
                 ObjectTypeIds.RsaSha256ApplicationCertificateType,
-                newCertificate.AddRef(),
+                newCertificate,
                 issuerChain: null,
                 ct).ConfigureAwait(false);
         }
@@ -376,8 +375,74 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
                 .Sum(measurement => measurement.Value);
         }
 
+        private static void AssertTransportLifetimes(
+            TrackingTcpChannelBindings bindings,
+            MetricsCollector metrics,
+            ClientChannelManager manager)
+        {
+            ArrayOf<TrackingTcpChannelBindings.TrackingTcpTransportChannel> transports = bindings.Channels;
+            double opened = GetMetricTotal(metrics, ChannelOpenMetric);
+            double closed = GetMetricTotal(metrics, ChannelCloseMetric);
+            string detail = DescribeChannelLifetimes(bindings, metrics);
+            int successfulOpens = 0;
+            foreach (TrackingTcpChannelBindings.TrackingTcpTransportChannel transport in transports)
+            {
+                successfulOpens += transport.OpenSucceededCount;
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(transports.Count, Is.GreaterThanOrEqualTo(2), detail);
+                Assert.That(manager.GetChannelDiagnostics(), Is.Empty, detail);
+                Assert.That(opened, Is.EqualTo(successfulOpens), detail);
+                Assert.That(closed, Is.EqualTo(opened), detail);
+                Assert.That(metrics.CountEvents("ChannelOpened"), Is.EqualTo(opened), detail);
+                Assert.That(metrics.CountEvents("ChannelClosed"), Is.EqualTo(closed), detail);
+                Assert.That(
+                    metrics.Measurements
+                        .Where(measurement => measurement.Name == ChannelActiveMetric && measurement.Value > 0)
+                        .Sum(measurement => measurement.Value),
+                    Is.EqualTo(1),
+                    detail);
+                Assert.That(
+                    metrics.Measurements
+                        .Where(measurement => measurement.Name == ChannelActiveMetric && measurement.Value < 0)
+                        .Sum(measurement => measurement.Value),
+                    Is.EqualTo(-1),
+                    detail);
+
+                foreach (TrackingTcpChannelBindings.TrackingTcpTransportChannel transport in transports)
+                {
+                    Assert.That(transport.OpenCount, Is.EqualTo(1), detail);
+                    Assert.That(transport.CloseCount, Is.EqualTo(transport.OpenSucceededCount), detail);
+                    Assert.That(transport.DisposeCount, Is.EqualTo(1), detail);
+                    Assert.That(transport.DisposeCompletedCount, Is.EqualTo(1), detail);
+                }
+            });
+        }
+
+        private static string DescribeChannelLifetimes(
+            TrackingTcpChannelBindings bindings,
+            MetricsCollector metrics)
+        {
+            return string.Create(
+                CultureInfo.InvariantCulture,
+                $"Opened={GetMetricTotal(metrics, ChannelOpenMetric)}, " +
+                $"closed={GetMetricTotal(metrics, ChannelCloseMetric)}, " +
+                $"active={GetMetricTotal(metrics, ChannelActiveMetric)}{Environment.NewLine}") +
+                bindings.Describe() +
+                Environment.NewLine +
+                string.Join(
+                    Environment.NewLine,
+                    metrics.Events.Select(record => record.Name +
+                        ": " +
+                        string.Join(", ", record.Payload.Select(property => property.Key + "=" + property.Value))));
+        }
+
         private const int SessionCount = 3;
+        private const string ChannelOpenMetric = "opc.ua.channel.open";
         private const string ChannelCloseMetric = "opc.ua.channel.close";
+        private const string ChannelActiveMetric = "opc.ua.channel.active";
         private const string ReconnectAttemptsMetric = "opc.ua.channel.reconnect.attempts";
 
         private static readonly MethodInfo s_recreateInPlaceAsync =

@@ -735,31 +735,21 @@ namespace Opc.Ua.Server.Historian
 
             if (config == null || config.UseServerCapabilitiesDefaults || isImplicitDefault)
             {
-                config = systemContext.Server != null
-                    ? systemContext.Server.AggregateManager.GetDefaultConfiguration(node.NodeId)
-                    : new AggregateConfiguration
-                    {
-                        PercentDataBad = 100,
-                        PercentDataGood = 100,
-                        // Part 13 v1.05.07 §4.2.1.2: the TreatUncertainAsBad default is True.
-                        TreatUncertainAsBad = true,
-                        UseSlopedExtrapolation = false,
-                        UseServerCapabilitiesDefaults = false
-                    };
+                config = CoreUtils.Clone(capabilities.DefaultAggregateConfiguration) ??
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError,
+                        "The historical node has no default aggregate configuration.");
+                config.UseServerCapabilitiesDefaults = false;
             }
-            else
+
+            // Validate both explicit inputs and the node's advertised defaults.
+            if (config.PercentDataGood > 100 ||
+                config.PercentDataBad > 100 ||
+                config.PercentDataGood < 100 - config.PercentDataBad)
             {
-                // Part 13 v1.05.07 §4.2.1.2: validate explicit AggregateConfiguration inputs.
-                // PercentDataGood and PercentDataBad must each be ≤ 100, and the relationship
-                // PercentDataGood ≥ (100 - PercentDataBad) must hold.
-                if (config.PercentDataGood > 100 ||
-                    config.PercentDataBad > 100 ||
-                    config.PercentDataGood < 100 - config.PercentDataBad)
-                {
-                    claim?.Retire();
-                    result.StatusCode = StatusCodes.BadAggregateInvalidInputs;
-                    return StatusCodes.BadAggregateInvalidInputs;
-                }
+                claim?.Retire();
+                result.StatusCode = StatusCodes.BadAggregateInvalidInputs;
+                return StatusCodes.BadAggregateInvalidInputs;
             }
 
             HistorianProcessedReadRequest processedRequest =
@@ -865,7 +855,7 @@ namespace Opc.Ua.Server.Historian
                 details.StartTime,
                 details.EndTime,
                 details.ProcessingInterval,
-                false,
+                capabilities.Stepped,
                 config);
 
             if (calculator == null)
@@ -897,8 +887,8 @@ namespace Opc.Ua.Server.Historian
 
                 foreach (HistoricalDataValue sample in page.Values)
                 {
-                    if (!calculator.QueueRawValue(sample.Value) &&
-                        !FlushCalculator(
+                    calculator.QueueRawValue(sample.Value);
+                    if (!FlushCalculator(
                             calculator,
                             values,
                             partial: false,

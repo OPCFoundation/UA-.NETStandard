@@ -29,6 +29,8 @@
 
 using Opc.Ua.Server.Historian;
 
+using System;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -60,5 +62,18 @@ namespace Opc.Ua.Server
         /// Structured-history key selector used when priming the aggregate calculator.
         /// </summary>
         internal IHistorianStructuredDataKeySelector? HistorianKeySelector { get; set; }
+
+        internal void ReviseStartTime(DateTimeUtc currentTime, uint queueSize)
+        {
+            double retainedWindow = Math.Max((long)queueSize - 1, 0) * ProcessingInterval;
+            DateTimeUtc earliestStartTime = retainedWindow.IsFinite() &&
+                retainedWindow <= (currentTime - DateTimeUtc.MinValue).TotalMilliseconds
+                    ? currentTime.SubtractMilliseconds(retainedWindow)
+                    : DateTimeUtc.MinValue;
+            if (earliestStartTime > StartTime)
+            {
+                StartTime = earliestStartTime;
+            }
+        }
     }
 }

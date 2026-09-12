@@ -261,11 +261,9 @@ namespace Opc.Ua.Server.Tests
         }
 
         [TestCaseSource(nameof(InvalidRoleIdJson))]
-        public void LoadInvalidRoleIdReturnsEmptyDatabase(string roleIdJson)
+        public void LoadInvalidRoleIdThrowsJsonException(string roleIdJson)
         {
-            JsonUserDatabase loaded = LoadDatabase(CreateDatabaseJson(roleIdJson));
-
-            Assert.That(loaded.GetUsers(), Is.Empty);
+            Assert.Throws<JsonException>(() => LoadDatabase(CreateDatabaseJson(roleIdJson)));
         }
 
         [Test]
@@ -281,23 +279,21 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void LoadInvalidJsonLogsAndReturnsEmptyDatabase()
+        public void LoadInvalidJsonLogsAndThrowsJsonException()
         {
             string fileName = CreateDatabasePath();
             File.WriteAllText(fileName, "{ invalid json }");
 
-            IUserDatabase loaded = JsonUserDatabase.Load(fileName, NUnitTelemetryContext.Create());
-
-            Assert.That(((JsonUserDatabase)loaded).FileName, Is.EqualTo(fileName));
-            Assert.That(loaded.GetUsers(), Is.Empty);
+            Assert.Throws<JsonException>(() => JsonUserDatabase.Load(fileName, NUnitTelemetryContext.Create()));
+            Assert.That(File.ReadAllText(fileName), Is.EqualTo("{ invalid json }"));
         }
 
         private static IEnumerable<TestCaseData> InvalidRoleIdJson()
         {
             yield return new TestCaseData("\"not-an-expanded-node-id\"")
-                .SetName("LoadInvalidRoleIdReturnsEmptyDatabaseForInvalidString");
+                .SetName("LoadInvalidRoleIdThrowsForInvalidString");
             yield return new TestCaseData("42")
-                .SetName("LoadInvalidRoleIdReturnsEmptyDatabaseForUnexpectedToken");
+                .SetName("LoadInvalidRoleIdThrowsForUnexpectedToken");
             yield return new TestCaseData(
                 """
                 {
@@ -309,7 +305,7 @@ namespace Opc.Ua.Server.Tests
                   "identifier": 1
                 }
                 """)
-                .SetName("LoadInvalidRoleIdReturnsEmptyDatabaseForInvalidNamespace");
+                .SetName("LoadInvalidRoleIdThrowsForInvalidNamespace");
             yield return new TestCaseData(
                 """
                 {
@@ -321,7 +317,7 @@ namespace Opc.Ua.Server.Tests
                   "identifier": null
                 }
                 """)
-                .SetName("LoadInvalidRoleIdReturnsEmptyDatabaseForInvalidNull");
+                .SetName("LoadInvalidRoleIdThrowsForInvalidNull");
             yield return new TestCaseData(
                 """
                 {
@@ -333,7 +329,7 @@ namespace Opc.Ua.Server.Tests
                   "identifier": 1
                 }
                 """)
-                .SetName("LoadInvalidRoleIdReturnsEmptyDatabaseForUnknownIdentifierType");
+                .SetName("LoadInvalidRoleIdThrowsForUnknownIdentifierType");
             yield return new TestCaseData(
                 """
                 {
@@ -345,7 +341,7 @@ namespace Opc.Ua.Server.Tests
                   "identifier": 1
                 }
                 """)
-                .SetName("LoadInvalidRoleIdReturnsEmptyDatabaseForMissingIdentifierType");
+                .SetName("LoadInvalidRoleIdThrowsForMissingIdentifierType");
             yield return new TestCaseData(
                 """
                 {
@@ -357,7 +353,7 @@ namespace Opc.Ua.Server.Tests
                   "identifier": null
                 }
                 """)
-                .SetName("LoadInvalidRoleIdReturnsEmptyDatabaseForNullStringIdentifier");
+                .SetName("LoadInvalidRoleIdThrowsForNullStringIdentifier");
             yield return new TestCaseData(
                 """
                 {
@@ -371,7 +367,7 @@ namespace Opc.Ua.Server.Tests
                   }
                 }
                 """)
-                .SetName("LoadInvalidRoleIdReturnsEmptyDatabaseForInvalidOpaqueIdentifier");
+                .SetName("LoadInvalidRoleIdThrowsForInvalidOpaqueIdentifier");
             yield return new TestCaseData(
                 """
                 {
@@ -385,7 +381,7 @@ namespace Opc.Ua.Server.Tests
                   }
                 }
                 """)
-                .SetName("LoadInvalidRoleIdReturnsEmptyDatabaseForNullOpaqueIdentifier");
+                .SetName("LoadInvalidRoleIdThrowsForNullOpaqueIdentifier");
         }
 
         private static JsonUserDatabase LoadDatabase(string json)

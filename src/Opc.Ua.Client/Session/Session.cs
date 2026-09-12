@@ -1294,6 +1294,18 @@ namespace Opc.Ua.Client
                 throw ServiceResultException.Unexpected(
                     "Transport channel is null or does not have a message context");
 
+            if (TransportChannel is ManagedTransportChannelLease lease)
+            {
+                using ClientChannelCertificateSnapshot certificates = lease.Entry.SnapshotClientCertificate();
+                CertificateEntry? replacement = BuildInstanceCertificateEntry(
+                    certificates.Certificate,
+                    certificates.Chain);
+                CertificateEntry? previous = m_instanceCertificateEntry;
+                m_instanceCertificateEntry = replacement;
+                m_effectiveEndpoint = m_endpoint;
+                previous?.Dispose();
+            }
+
             // Load certificate and chain if not already loaded.
             await LoadInstanceCertificateAsync(false, ct).ConfigureAwait(false);
 
@@ -5200,6 +5212,7 @@ namespace Opc.Ua.Client
                     m_configuration,
                     endpoint.Description.SecurityPolicyUri,
                     m_telemetry,
+                    useCertificateRegistry: m_channelManager != null,
                     ct).ConfigureAwait(false);
                 m_effectiveEndpoint = endpoint;
             }
@@ -5287,18 +5300,50 @@ namespace Opc.Ua.Client
         /// <see cref="CertificateEntry"/> (certificate plus issuers-only chain).
         /// </summary>
         /// <remarks>
-        /// The certificate is loaded fresh from the configured store (rather than
-        /// borrowed from the certificate manager) so the channel owns an
-        /// independent certificate whose lifetime is decoupled from the manager's
-        /// application-certificate hot-swap on rotation.
+        /// Managed callers prefer the active registry. Unmanaged callers retain
+        /// configured-store selection, including explicit store replacements.
+        /// The returned entry owns independent references.
         /// </remarks>
         /// <exception cref="ServiceResultException"></exception>
-        internal static async Task<CertificateEntry> LoadInstanceCertificateEntryAsync(
+        internal static Task<CertificateEntry> LoadInstanceCertificateEntryAsync(
             ApplicationConfiguration configuration,
             string securityProfile,
             ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
+            return LoadInstanceCertificateEntryAsync(configuration, securityProfile, telemetry, false, ct);
+        }
+
+        internal static async Task<CertificateEntry> LoadInstanceCertificateEntryAsync(
+            ApplicationConfiguration configuration,
+            string securityProfile,
+            ITelemetryContext telemetry,
+            bool useCertificateRegistry,
+            CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (useCertificateRegistry && configuration.CertificateManager != null)
+            {
+                using CertificateEntry? registered = configuration.CertificateManager
+                    .AcquireApplicationCertificateBySecurityPolicy(securityProfile);
+                if (registered != null)
+                {
+                    if (!registered.Certificate.HasPrivateKey)
+                    {
+                        throw ServiceResultException.ConfigurationError(
+                            "Active application certificate for security profile {0} is missing a private key.",
+                            securityProfile);
+                    }
+                    using CertificateCollection activeIssuers = configuration.SecurityConfiguration.SendCertificateChain
+                        ? registered.IssuerChain.AddRef()
+                        : new CertificateCollection();
+                    return new CertificateEntry(
+                        registered.Certificate,
+                        activeIssuers,
+                        registered.CertificateType);
+                }
+            }
+
             using Certificate certificate = await configuration.SecurityConfiguration
                 .FindApplicationCertificateAsync(
                     securityProfile,

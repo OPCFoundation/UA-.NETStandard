@@ -438,9 +438,15 @@ namespace Opc.Ua.Server.FileSystem
             return FileSystemNodeId.BuildFile(providerPath, NamespaceIndex);
         }
 
-        ValueTask IFileSystemHost.OnProviderChangedAsync(CancellationToken cancellationToken)
+        ValueTask IFileSystemHost.ApplyMutationAsync(
+            FileSystemMutationKind kind,
+            string path,
+            string targetPath,
+            NodeId sourceNodeId,
+            CancellationToken cancellationToken)
         {
-            return default;
+            return FileSystemDirectoryOperations.ApplyProviderMutationAsync(
+                this, kind, path, targetPath, sourceNodeId, cancellationToken);
         }
 
         bool IFileSystemHost.TryGetProviderPath(
@@ -449,7 +455,10 @@ namespace Opc.Ua.Server.FileSystem
             out bool isDirectory,
             out bool isRoot)
         {
-            if (!FileSystemNodeId.TryParse(nodeId, out FileSystemNodeId parsed))
+            if (nodeId.NamespaceIndex != NamespaceIndex ||
+                !FileSystemNodeId.TryParse(nodeId, out FileSystemNodeId parsed) ||
+                parsed.ComponentPath != null ||
+                (parsed.RootType == FileSystemNodeId.Root && !string.IsNullOrEmpty(parsed.ProviderPath)))
             {
                 providerPath = string.Empty;
                 isDirectory = false;
@@ -459,7 +468,7 @@ namespace Opc.Ua.Server.FileSystem
 
             providerPath = parsed.ProviderPath;
             isDirectory = parsed.RootType != FileSystemNodeId.File;
-            isRoot = parsed.RootType == FileSystemNodeId.Root;
+            isRoot = string.IsNullOrEmpty(providerPath);
             return true;
         }
 

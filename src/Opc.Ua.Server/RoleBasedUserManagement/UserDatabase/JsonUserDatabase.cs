@@ -36,6 +36,7 @@ using System.Runtime.Serialization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server.UserDatabase
@@ -54,8 +55,14 @@ namespace Opc.Ua.Server.UserDatabase
         /// Create a JSON database.
         /// </summary>
         public JsonUserDatabase(string fileName)
+            : this(fileName, null)
+        {
+        }
+
+        internal JsonUserDatabase(string fileName, Action<string, byte[]>? writeFile)
         {
             FileName = fileName;
+            m_writeFile = writeFile ?? WriteSnapshotFile;
         }
 
         /// <summary>
@@ -75,21 +82,38 @@ namespace Opc.Ua.Server.UserDatabase
 
             try
             {
-                if (File.Exists(fileName))
+                byte[] utf8Json = File.ReadAllBytes(fileName);
+                try
                 {
-                    byte[] utf8Json = File.ReadAllBytes(fileName);
                     var utf8JsonReader = new Utf8JsonReader(utf8Json, s_allowTrailingCommasInJsonReader);
-                    JsonUserDatabase? db = JsonSerializer.Deserialize<JsonUserDatabase>(ref utf8JsonReader, s_exchangeJsonSerializerOptions);
-                    db!.FileName = fileName;
+                    JsonUserDatabase db = JsonSerializer.Deserialize<JsonUserDatabase>(
+                        ref utf8JsonReader, s_exchangeJsonSerializerOptions) ??
+                        throw new JsonException("The user database must contain a JSON object.");
+                    if (utf8JsonReader.Read())
+                    {
+                        throw new JsonException("Unexpected data after the user database.");
+                    }
+                    db.FileName = fileName;
                     return db;
                 }
+                finally
+                {
+                    CryptoUtils.ZeroMemory(utf8Json);
+                }
             }
-            catch
+            catch (FileNotFoundException)
             {
-                ILogger logger = telemetry.CreateLogger<JsonUserDatabase>();
-                logger.UserDatabaseFileNameWasNotFound(fileName);
+                return new JsonUserDatabase(fileName);
             }
-            return new JsonUserDatabase(fileName);
+            catch (DirectoryNotFoundException)
+            {
+                return new JsonUserDatabase(fileName);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+            {
+                telemetry.CreateLogger<JsonUserDatabase>().UserDatabaseLoadFailed(ex, fileName);
+                throw;
+            }
         }
 
         /// <summary>
@@ -101,10 +125,31 @@ namespace Opc.Ua.Server.UserDatabase
             Justification = "Uses System.Text.Json with known user database types.")]
         protected override void Save()
         {
-            byte[] utf8Json = JsonSerializer.SerializeToUtf8Bytes(
-                this,
-                s_exchangeJsonSerializerOptions);
-            File.WriteAllBytes(FileName, utf8Json);
+            lock (m_saveLock)
+            {
+                byte[] utf8Json = JsonSerializer.SerializeToUtf8Bytes(this, s_exchangeJsonSerializerOptions);
+                string temporaryFile = FileName + "." + Guid.NewGuid().ToString("N") + ".tmp";
+                try
+                {
+                    m_writeFile(temporaryFile, utf8Json);
+                    if (File.Exists(FileName))
+                    {
+                        File.Replace(temporaryFile, FileName, null);
+                    }
+                    else
+                    {
+                        File.Move(temporaryFile, FileName);
+                    }
+                }
+                finally
+                {
+                    CryptoUtils.ZeroMemory(utf8Json);
+                    if (File.Exists(temporaryFile))
+                    {
+                        File.Delete(temporaryFile);
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -113,6 +158,16 @@ namespace Opc.Ua.Server.UserDatabase
         [IgnoreDataMember]
         [JsonIgnore]
         public string FileName { get; private set; }
+
+        private static void WriteSnapshotFile(string fileName, byte[] bytes)
+        {
+            using var stream = new FileStream(fileName, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            stream.Write(bytes, 0, bytes.Length);
+            stream.Flush(flushToDisk: true);
+        }
+
+        private readonly Action<string, byte[]> m_writeFile;
+        private readonly Lock m_saveLock = new();
 
         private static readonly JsonSerializerOptions s_exchangeJsonSerializerOptions = new()
         {
@@ -303,6 +358,10 @@ namespace Opc.Ua.Server.UserDatabase
     /// </summary>
     internal static partial class JsonUserDatabaseLog
     {
+        [LoggerMessage(EventId = ServerEventIds.JsonUserDatabase + 1, Level = LogLevel.Error,
+            Message = "Failed to load user database {FileName}.")]
+        public static partial void UserDatabaseLoadFailed(this ILogger logger, Exception ex, string fileName);
+
         [LoggerMessage(EventId = ServerEventIds.JsonUserDatabase + 0, Level = LogLevel.Warning,
             Message = "User database {FileName} was not found.")]
         public static partial void UserDatabaseFileNameWasNotFound(this ILogger logger, string? fileName);

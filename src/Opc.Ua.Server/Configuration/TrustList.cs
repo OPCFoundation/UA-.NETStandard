@@ -658,26 +658,12 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (context is ISessionSystemContext session &&
-                    m_sessionId != null! &&
-                    !m_sessionId.Equals(session.SessionId))
+                ServiceResult handleResult = ValidateFileHandle(context, fileHandle);
+                if (ServiceResult.IsBad(handleResult))
                 {
                     return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
                     {
-                        ServiceResult = ServiceResult.Create(
-                            StatusCodes.BadUserAccessDenied,
-                            "Session not authorized"),
-                        Data = default
-                    });
-                }
-
-                if (m_fileHandle != fileHandle)
-                {
-                    return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
-                    {
-                        ServiceResult = ServiceResult.Create(
-                            StatusCodes.BadInvalidArgument,
-                            "Invalid file handle"),
+                        ServiceResult = handleResult,
                         Data = default
                     });
                 }
@@ -756,21 +742,12 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (context is ISessionSystemContext session &&
-                    m_sessionId != null! &&
-                    !m_sessionId.Equals(session.SessionId))
+                ServiceResult handleResult = ValidateFileHandle(context, fileHandle);
+                if (ServiceResult.IsBad(handleResult))
                 {
                     return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
                     {
-                        ServiceResult = StatusCodes.BadUserAccessDenied
-                    });
-                }
-
-                if (m_fileHandle != fileHandle)
-                {
-                    return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
-                    {
-                        ServiceResult = StatusCodes.BadInvalidArgument
+                        ServiceResult = handleResult
                     });
                 }
 
@@ -799,6 +776,21 @@ namespace Opc.Ua.Server
             });
         }
 
+        private ServiceResult ValidateFileHandle(ISystemContext context, uint fileHandle)
+        {
+            if (m_strm == null)
+            {
+                return ServiceResult.Create(StatusCodes.BadInvalidArgument, "Invalid file handle");
+            }
+            if (context is ISessionSystemContext session && !m_sessionId.Equals(session.SessionId))
+            {
+                return ServiceResult.Create(StatusCodes.BadUserAccessDenied, "Session not authorized");
+            }
+            return m_fileHandle == fileHandle
+                ? ServiceResult.Good
+                : ServiceResult.Create(StatusCodes.BadInvalidArgument, "Invalid file handle");
+        }
+
         private ServiceResult Close(
             ISystemContext context,
             MethodState method,
@@ -825,21 +817,12 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (context is ISessionSystemContext session &&
-                    m_sessionId != null! &&
-                    !m_sessionId.Equals(session.SessionId))
+                ServiceResult handleResult = ValidateFileHandle(context, fileHandle);
+                if (ServiceResult.IsBad(handleResult))
                 {
                     return new ValueTask<CloseMethodStateResult>(new CloseMethodStateResult
                     {
-                        ServiceResult = StatusCodes.BadUserAccessDenied
-                    });
-                }
-
-                if (m_fileHandle != fileHandle)
-                {
-                    return new ValueTask<CloseMethodStateResult>(new CloseMethodStateResult
-                    {
-                        ServiceResult = StatusCodes.BadInvalidArgument
+                        ServiceResult = handleResult
                     });
                 }
 
@@ -915,22 +898,12 @@ namespace Opc.Ua.Server
             MemoryStream? strm;
             lock (m_lock)
             {
-                if (context is ISessionSystemContext session &&
-                    m_sessionId != null! &&
-                    !m_sessionId.Equals(session.SessionId))
+                ServiceResult handleResult = ValidateFileHandle(context, fileHandle);
+                if (ServiceResult.IsBad(handleResult))
                 {
                     return new CloseAndUpdateMethodStateResult
                     {
-                        ServiceResult = StatusCodes.BadUserAccessDenied,
-                        ApplyChangesRequired = false
-                    };
-                }
-
-                if (m_fileHandle != fileHandle)
-                {
-                    return new CloseAndUpdateMethodStateResult
-                    {
-                        ServiceResult = StatusCodes.BadInvalidArgument,
+                        ServiceResult = handleResult,
                         ApplyChangesRequired = false
                     };
                 }
@@ -1053,7 +1026,10 @@ namespace Opc.Ua.Server
                         m_sessionId = default;
                         m_strm?.Dispose();
                         m_strm = null;
-                        m_node.LastUpdateTime!.Value = DateTime.UtcNow;
+                        if (ServiceResult.IsGood(result))
+                        {
+                            m_node.LastUpdateTime!.Value = DateTime.UtcNow;
+                        }
                         m_node.OpenCount!.Value = 0;
                     }
                     m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
@@ -1123,6 +1099,8 @@ namespace Opc.Ua.Server
                 CertificateCollection? stagedOriginalTrustedCertificates = originalTrustedCertificates;
                 X509CRLCollection? stagedOriginalIssuerCrls = originalIssuerCrls;
                 X509CRLCollection? stagedOriginalTrustedCrls = originalTrustedCrls;
+                DateTimeUtc previousUpdateTime = default;
+                bool updateTimeChanged = false;
 
                 // Shared by RollbackAsync AND, self-compensating, by a
                 // partially applied CommitAsync below: the coordinator only
@@ -1133,25 +1111,35 @@ namespace Opc.Ua.Server
                 // must restore the pre-transaction snapshot itself.
                 async Task RestoreOriginalTrustListAsync(CancellationToken ct)
                 {
+                    bool restored = true;
                     if (stagedOriginalIssuerCertificates != null)
                     {
-                        await UpdateStoreCertificatesAsync(m_issuerStore, stagedOriginalIssuerCertificates, ct)
+                        restored &= await UpdateStoreCertificatesAsync(m_issuerStore, stagedOriginalIssuerCertificates, ct)
                             .ConfigureAwait(false);
                     }
                     if (stagedOriginalIssuerCrls != null)
                     {
-                        await UpdateStoreCrlsAsync(m_issuerStore, stagedOriginalIssuerCrls, ct)
+                        restored &= await UpdateStoreCrlsAsync(m_issuerStore, stagedOriginalIssuerCrls, ct)
                             .ConfigureAwait(false);
                     }
                     if (stagedOriginalTrustedCertificates != null)
                     {
-                        await UpdateStoreCertificatesAsync(m_trustedStore, stagedOriginalTrustedCertificates, ct)
+                        restored &= await UpdateStoreCertificatesAsync(m_trustedStore, stagedOriginalTrustedCertificates, ct)
                             .ConfigureAwait(false);
                     }
                     if (stagedOriginalTrustedCrls != null)
                     {
-                        await UpdateStoreCrlsAsync(m_trustedStore, stagedOriginalTrustedCrls, ct)
+                        restored &= await UpdateStoreCrlsAsync(m_trustedStore, stagedOriginalTrustedCrls, ct)
                             .ConfigureAwait(false);
+                    }
+                    if (!restored)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadCertificateInvalid,
+                            "Failed to restore the previous TrustList contents.");
+                    }
+                    if (updateTimeChanged)
+                    {
+                        SetLastUpdateTime(previousUpdateTime);
                     }
                 }
 
@@ -1193,14 +1181,24 @@ namespace Opc.Ua.Server
                         }
                         catch
                         {
-                            await RestoreOriginalTrustListAsync(ct).ConfigureAwait(false);
+                            try
+                            {
+                                TimeProvider clock = context is ServerSystemContext serverContext &&
+                                    serverContext.Server is ITimeProviderProvider provider
+                                        ? provider.TimeProvider
+                                        : TimeProvider.System;
+                                await PushConfigurationRollback.RunAsync(RestoreOriginalTrustListAsync, clock)
+                                    .ConfigureAwait(false);
+                            }
+                            catch (Exception rollbackException)
+                            {
+                                m_logger.TrustListRollbackFailed(rollbackException, trustListId);
+                            }
                             throw;
                         }
 
-                        lock (m_lock)
-                        {
-                            m_node.LastUpdateTime!.Value = DateTime.UtcNow;
-                        }
+                        previousUpdateTime = SetLastUpdateTime(DateTimeUtc.Now);
+                        updateTimeChanged = true;
 
                         m_node.ReportTrustListUpdatedAuditEvent(
                             context, objectId, "Method/CloseAndUpdate", method.NodeId, inputParameters,
@@ -1366,6 +1364,7 @@ namespace Opc.Ua.Server
                         NodeId trustListId = m_node.NodeId;
                         Certificate stagedCert = cert;
                         string stagedThumbprint = cert.Thumbprint;
+                        DateTimeUtc previousUpdateTime = default;
                         m_coordinator.Stage(sessionId, new PushConfigurationOperation
                         {
                             AffectedTrustList = trustListId,
@@ -1377,10 +1376,7 @@ namespace Opc.Ua.Server
                                 ICertificateStore store = GetStore(storeIdentifier);
                                 await store.AddAsync(stagedCert, null, ct).ConfigureAwait(false);
 
-                                lock (m_lock)
-                                {
-                                    m_node.LastUpdateTime!.Value = DateTime.UtcNow;
-                                }
+                                previousUpdateTime = SetLastUpdateTime(DateTimeUtc.Now);
 
                                 m_node.ReportTrustListUpdatedAuditEvent(
                                     context, objectId, "Method/AddCertificate", method.NodeId, inputParameters,
@@ -1392,7 +1388,12 @@ namespace Opc.Ua.Server
                                     ? m_trustedStore
                                     : m_issuerStore;
                                 ICertificateStore store = GetStore(storeIdentifier);
-                                await store.DeleteAsync(stagedThumbprint, ct).ConfigureAwait(false);
+                                if (!await store.DeleteAsync(stagedThumbprint, ct).ConfigureAwait(false))
+                                {
+                                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid,
+                                        "Failed to remove the staged certificate during rollback.");
+                                }
+                                SetLastUpdateTime(previousUpdateTime);
                             },
                             DisposeStaged = () => stagedCert.Dispose()
                         });
@@ -1607,6 +1608,7 @@ namespace Opc.Ua.Server
                             NodeId trustListId = m_node.NodeId;
                             CertificateCollection stagedRemovedCerts = certCollection;
                             X509CRLCollection stagedRemovedCrls = crlsToDelete;
+                            DateTimeUtc previousUpdateTime = default;
                             m_coordinator.Stage(sessionId, new PushConfigurationOperation
                             {
                                 AffectedTrustList = trustListId,
@@ -1629,10 +1631,7 @@ namespace Opc.Ua.Server
                                         }
                                     }
 
-                                    lock (m_lock)
-                                    {
-                                        m_node.LastUpdateTime!.Value = DateTime.UtcNow;
-                                    }
+                                    previousUpdateTime = SetLastUpdateTime(DateTimeUtc.Now);
 
                                     m_node.ReportTrustListUpdatedAuditEvent(
                                         context, objectId, "Method/RemoveCertificate", method.NodeId, inputParameters,
@@ -1649,6 +1648,7 @@ namespace Opc.Ua.Server
                                     {
                                         await rollbackStore.AddCRLAsync(crl, ct).ConfigureAwait(false);
                                     }
+                                    SetLastUpdateTime(previousUpdateTime);
                                 },
                                 DisposeStaged = () => stagedRemovedCerts.Dispose()
                             });
@@ -1683,6 +1683,16 @@ namespace Opc.Ua.Server
             {
                 ServiceResult = result
             };
+        }
+
+        private DateTimeUtc SetLastUpdateTime(DateTimeUtc timestamp)
+        {
+            lock (m_lock)
+            {
+                DateTimeUtc previous = m_node.LastUpdateTime!.Value;
+                m_node.LastUpdateTime.Value = timestamp;
+                return previous;
+            }
         }
 
         private static MemoryStream EncodeTrustListData(
@@ -1845,6 +1855,11 @@ namespace Opc.Ua.Server
 
     internal static partial class TrustListLog
     {
+        [LoggerMessage(EventId = ServerEventIds.TrustList + 2, Level = LogLevel.Critical,
+            Message = "Failed to restore partially committed TrustList {TrustListId}. " +
+                "Server configuration may be inconsistent.")]
+        public static partial void TrustListRollbackFailed(this ILogger logger, Exception ex, NodeId trustListId);
+
         [LoggerMessage(EventId = ServerEventIds.TrustList + 0, Level = LogLevel.Error,
             Message = "RemoveCertificate: Failed to delete CRL {Crl}.")]
         public static partial void RemoveCertificateFailedToDeleteCRLCrl(

@@ -207,12 +207,13 @@ namespace Opc.Ua.Robotics.Server
         /// <summary>
         /// Asynchronously disposes the execution hosts owned by this node manager.
         /// </summary>
-        public async ValueTask DisposeAsync()
+        public override async ValueTask DisposeAsync()
         {
             ArrayOf<IntentControllerHost> deferredHosts = await DisposeHostsAsync().ConfigureAwait(false);
             if (deferredHosts.Count == 0)
             {
                 DisposeBase(disposing: true);
+                await base.DisposeAsync().ConfigureAwait(false);
                 GC.SuppressFinalize(this);
                 return;
             }
@@ -435,6 +436,7 @@ namespace Opc.Ua.Robotics.Server
                 await Task.Delay(50).ConfigureAwait(false);
             }
             DisposeBase(disposing: true);
+            await base.DisposeAsync().ConfigureAwait(false);
         }
 
         private static bool AllResourcesDisposed(ArrayOf<IntentControllerHost> hosts)

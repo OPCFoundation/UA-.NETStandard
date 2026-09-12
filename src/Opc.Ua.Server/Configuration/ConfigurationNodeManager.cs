@@ -231,7 +231,8 @@ namespace Opc.Ua.Server
             m_certificateGroups = [];
             m_configuration = configuration;
             m_namespaceMetadata = new NamespaceMetadataRegistry(this, m_logger);
-            m_alarmScheduler = new CertificateAlarmScheduler(m_timeProvider, m_logger);
+            m_alarmScheduler = new CertificateAlarmScheduler(
+                m_timeProvider, m_logger, () => m_configuration.CertificateManager as ICertificateRegistry);
             // TODO: configure cert groups in configuration
             var defaultApplicationGroup = new ServerCertificateGroup
             {
@@ -534,6 +535,13 @@ namespace Opc.Ua.Server
         {
             StopAlarmMonitoring();
             CancelPendingApplyChanges();
+
+            UserManagement.UserManagementBinding? userManagement =
+                Interlocked.Exchange(ref m_userManagementBinding, null);
+            if (userManagement != null)
+            {
+                await userManagement.DisposeAsync().ConfigureAwait(false);
+            }
 
             Task pending;
             Task pumpPending;

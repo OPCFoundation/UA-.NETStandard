@@ -449,6 +449,10 @@ namespace Opc.Ua
         /// </summary>
         public bool SuppressTransitionEvents { get; set; }
 
+        internal StateMachineTransitionCallbackFactory? TransitionCallbackFactory { get; set; }
+
+        internal long StateRevision => Interlocked.Read(ref m_stateRevision);
+
         /// <summary>
         /// Invokes the callback function if it has been specified.
         /// </summary>
@@ -522,10 +526,13 @@ namespace Opc.Ua
         /// </summary>
         public virtual void SetState(ISystemContext context, uint newState)
         {
-            uint transitionId = GetTransitionToState(context, newState);
-
-            UpdateStateVariable(context, newState, CurrentState);
-            UpdateTransitionVariable(context, transitionId, LastTransition);
+            lock (m_transitionLock)
+            {
+                uint transitionId = GetTransitionToState(context, newState);
+                UpdateStateVariable(context, newState, CurrentState);
+                UpdateTransitionVariable(context, transitionId, LastTransition);
+                m_stateRevision++;
+            }
         }
 
         /// <summary>
@@ -533,7 +540,20 @@ namespace Opc.Ua
         /// </summary>
         public virtual ServiceResult DoCause(
             ISystemContext context,
-            MethodState causeMethod,
+            MethodState? causeMethod,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            lock (m_transitionLock)
+            {
+                return DoCauseCore(context, causeMethod, causeId, inputArguments, outputArguments);
+            }
+        }
+
+        private ServiceResult DoCauseCore(
+            ISystemContext context,
+            MethodState? causeMethod,
             uint causeId,
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
@@ -584,7 +604,7 @@ namespace Opc.Ua
             finally
             {
                 // report the event.
-                if (AreEventsMonitored)
+                if (AreEventsMonitored && causeMethod != null)
                 {
                     AuditUpdateStateEventState e = CreateAuditEvent(context, causeMethod, causeId);
                     UpdateAuditEvent(context, causeMethod, inputArguments, causeId, e, result);
@@ -697,6 +717,14 @@ namespace Opc.Ua
         /// <param name="causeId">The cause id.</param>
         public virtual void CauseProcessingCompleted(ISystemContext context, uint causeId)
         {
+            lock (m_transitionLock)
+            {
+                CompleteCauseCore(context, causeId);
+            }
+        }
+
+        private void CompleteCauseCore(ISystemContext context, uint causeId)
+        {
             // get the transition.
             uint transitionId = GetTransitionForCause(context, causeId);
 
@@ -714,15 +742,12 @@ namespace Opc.Ua
             }
 
             // save the last state.
-            (LastState ??= new FiniteStateVariableState(this)).SetChildValue(
-                context,
-                null,
-                CurrentState,
-                false);
+            LastState = CoreUtils.Clone(CurrentState);
 
             // update state and transition variables.
             UpdateStateVariable(context, newState, CurrentState);
             UpdateTransitionVariable(context, transitionId, LastTransition);
+            m_stateRevision++;
         }
 
         /// <summary>
@@ -735,6 +760,41 @@ namespace Opc.Ua
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
+            lock (m_transitionLock)
+            {
+                return DoTransitionCore(context, transitionId, causeId, inputArguments, outputArguments);
+            }
+        }
+
+        internal ServiceResult TryTimedTransition(
+            ISystemContext context,
+            uint fromState,
+            long stateRevision,
+            uint transitionId,
+            uint causeId,
+            Func<bool> isCurrent)
+        {
+            lock (m_transitionLock)
+            {
+                if (m_stateRevision != stateRevision || GetCurrentStateId() != fromState || !isCurrent())
+                {
+                    return StatusCodes.BadInvalidState;
+                }
+                return transitionId == 0
+                    ? DoCause(context, null, causeId, default, [])
+                    : DoTransition(context, transitionId, causeId, default, []);
+            }
+        }
+
+        private ServiceResult DoTransitionCore(
+            ISystemContext context,
+            uint transitionId,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            long revision = m_stateRevision;
+            uint fromState = GetCurrentStateId();
             // check for valid transition.
             uint newState = GetNewStateForTransition(context, transitionId);
 
@@ -750,8 +810,11 @@ namespace Opc.Ua
             }
 
             // do any pre-transition processing.
+            (StateMachineTransitionHandler? before, StateMachineTransitionHandler? after) =
+                TransitionCallbackFactory?.Invoke(fromState, newState, OnBeforeTransition, OnAfterTransition)
+                ?? (OnBeforeTransition, OnAfterTransition);
             ServiceResult result = InvokeCallback(
-                OnBeforeTransition,
+                before,
                 context,
                 this,
                 transitionId,
@@ -763,21 +826,32 @@ namespace Opc.Ua
             {
                 return result;
             }
+            if (m_stateRevision != revision || GetCurrentStateId() != fromState)
+            {
+                return StatusCodes.BadInvalidState;
+            }
 
             // save the last state.
-            (LastState ??= new FiniteStateVariableState(this)).SetChildValue(
-                context,
-                null,
-                CurrentState,
-                false);
+            LastState = CoreUtils.Clone(CurrentState);
 
             // update state and transition variables.
             UpdateStateVariable(context, newState, CurrentState);
             UpdateTransitionVariable(context, transitionId, LastTransition);
+            m_stateRevision++;
+
+            TransitionEventState? transitionEvent = null;
+            if (AreEventsMonitored && !SuppressTransitionEvents)
+            {
+                transitionEvent = CreateTransitionEvent(context, transitionId, causeId);
+                if (transitionEvent != null)
+                {
+                    UpdateTransitionEvent(context, transitionId, causeId, transitionEvent);
+                }
+            }
 
             // do any post-transition processing.
             InvokeCallback(
-                OnAfterTransition,
+                after,
                 context,
                 this,
                 transitionId,
@@ -786,15 +860,9 @@ namespace Opc.Ua
                 outputArguments);
 
             // report the event.
-            if (AreEventsMonitored && !SuppressTransitionEvents)
+            if (transitionEvent != null)
             {
-                TransitionEventState? e = CreateTransitionEvent(context, transitionId, causeId);
-
-                if (e != null)
-                {
-                    UpdateTransitionEvent(context, transitionId, causeId, e);
-                    ReportEvent(context, e);
-                }
+                ReportEvent(context, transitionEvent);
             }
 
             return ServiceResult.Good;
@@ -840,6 +908,8 @@ namespace Opc.Ua
         }
 
         private uint m_causeId;
+        private readonly Lock m_transitionLock = new();
+        private long m_stateRevision;
         private ILogger m_logger = LoggerUtils.Null.Logger;
     }
 
@@ -853,6 +923,13 @@ namespace Opc.Ua
         uint causeId,
         ArrayOf<Variant> inputArguments,
         List<Variant>? outputArguments);
+
+    internal delegate (StateMachineTransitionHandler? Before, StateMachineTransitionHandler? After)
+        StateMachineTransitionCallbackFactory(
+            uint fromState,
+            uint toState,
+            StateMachineTransitionHandler? before,
+            StateMachineTransitionHandler? after);
 
     /// <summary>
     /// Source-generated log messages for <see cref="FiniteStateMachineState"/>.

@@ -216,7 +216,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            List<Exception>? historianDisposalErrors = null;
+            List<Exception>? disposalErrors = null;
             Historian.HistorianBuilder[] historianBuilders;
             lock (m_historianBuildersLock)
             {
@@ -231,9 +231,26 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception exception)
                 {
-                    historianDisposalErrors ??= [];
-                    historianDisposalErrors.Add(exception);
+                    disposalErrors ??= [];
+                    disposalErrors.Add(exception);
                 }
+            }
+
+            try
+            {
+                if (NodeManager is IAsyncDisposable asyncNodeManager)
+                {
+                    await asyncNodeManager.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    (NodeManager as IDisposable)?.Dispose();
+                }
+            }
+            catch (Exception exception)
+            {
+                disposalErrors ??= [];
+                disposalErrors.Add(exception);
             }
 
             m_roleStateBinding?.Dispose();
@@ -250,7 +267,6 @@ namespace Opc.Ua.Server
             ModellingRulesManager = null!;
             ConformanceUnitsManager?.Dispose();
             ConformanceUnitsManager = null!;
-            (NodeManager as IDisposable)?.Dispose();
             NodeManager = null!;
             DiagnosticsNodeManager = null!;
             ConfigurationNodeManager = null!;
@@ -270,11 +286,11 @@ namespace Opc.Ua.Server
             MonitoredItemQueueFactory = null!;
             (AliasNameStoreRegistry as IDisposable)?.Dispose();
             (HistorianRegistry as IDisposable)?.Dispose();
-            if (historianDisposalErrors != null)
+            if (disposalErrors != null)
             {
                 throw new AggregateException(
-                    "One or more historian pipelines failed during shutdown.",
-                    historianDisposalErrors);
+                    "One or more server resources failed during shutdown.",
+                    disposalErrors);
             }
         }
 

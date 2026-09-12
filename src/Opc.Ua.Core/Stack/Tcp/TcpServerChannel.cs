@@ -319,6 +319,11 @@ namespace Opc.Ua.Bindings
 
             using (Gate.Enter())
             {
+                if (Volatile.Read(ref m_disposed) != 0 ||
+                    State is TcpChannelState.Closed or TcpChannelState.Closing)
+                {
+                    throw new ServiceResultException(StatusCodes.BadTcpSecureChannelUnknown);
+                }
                 // make sure the same client certificate is being used.
                 CompareCertificates(ClientCertificate, clientCertificate, false);
 
@@ -340,10 +345,16 @@ namespace Opc.Ua.Bindings
                     {
                         transportLimits.SetReceiveBufferSize(ReceiveBufferSize);
                     }
+                    IUaSCByteTransport? previousTransport = Transport;
                     Transport = transport;
+                    if (!ReferenceEquals(previousTransport, transport))
+                    {
+                        previousTransport?.Close();
+                    }
                     StartReceiveLoop();
 
                     // need to assign a new token id.
+                    token.ChannelId = ChannelId;
                     token.TokenId = GetNewTokenId();
 
                     // put channel back in open state.
@@ -871,11 +882,12 @@ namespace Opc.Ua.Bindings
                             request);
 
                         token = null;
+                        IUaSCByteTransport? adoptedTransport = DetachTransportForHandoff();
 
                         m_logger
                             .TcpServerLog5(
                                 ChannelName,
-                                Transport?.RemoteEndpoint,
+                                adoptedTransport?.RemoteEndpoint,
                                 CurrentToken != null ? CurrentToken.ChannelId : 0,
                                 CurrentToken != null ? CurrentToken.TokenId : 0);
 
@@ -1425,7 +1437,8 @@ namespace Opc.Ua.Bindings
                                 token,
                                 requestId,
                                 messageBody,
-                                out chunksToProcess))
+                                out chunksToProcess,
+                                chunkAlreadySaved: true))
                             {
                                 ChannelClosed();
                             }
@@ -1433,7 +1446,7 @@ namespace Opc.Ua.Bindings
                         else if (GetSavedChunksTotalSize() > TcpMessageLimits
                             .DefaultDiscoveryMaxMessageSize)
                         {
-                            chunksToProcess = GetSavedChunks(0, messageBody, true, gateHeld: true);
+                            chunksToProcess = GetSavedChunks(0, default, true, gateHeld: true);
                             SendServiceFault(
                                 token,
                                 requestId,
@@ -1648,7 +1661,8 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             uint requestId,
             ArraySegment<byte> messageBody,
-            out BufferCollection chunksToProcess)
+            out BufferCollection chunksToProcess,
+            bool chunkAlreadySaved = false)
         {
             chunksToProcess = null!;
             using var decoder = new BinaryDecoder(messageBody, Quotas.MessageContext);
@@ -1659,7 +1673,11 @@ namespace Opc.Ua.Bindings
                 typeId != ObjectIds.FindServersRequest_Encoding_DefaultBinary &&
                 typeId != ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultBinary)
             {
-                chunksToProcess = GetSavedChunks(0, messageBody, true, gateHeld: true);
+                chunksToProcess = GetSavedChunks(
+                    requestId,
+                    chunkAlreadySaved ? default : messageBody,
+                    true,
+                    gateHeld: true);
                 SendServiceFault(
                     token,
                     requestId,

@@ -102,7 +102,7 @@ namespace Opc.Ua.Server
 
                         try
                         {
-                            request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadServerHalted));
+                            request.TrySetException(new ServiceResultException(StatusCodes.BadServerHalted));
                             request.Dispose();
                         }
                         catch
@@ -128,15 +128,15 @@ namespace Opc.Ua.Server
                                                 IRequestParkSink? parkSink,
                                                 CancellationToken cancellationToken)
         {
-            if (m_queuedSubscriptions.IsEmpty)
-            {
-                return Task.FromException<ISubscriptionPublishPipeline>(
-                    new ServiceResultException(StatusCodes.BadNoSubscription));
-            }
-
             QueuedSubscription? subscriptionToPublish;
             lock (m_lock)
             {
+                if (m_queuedSubscriptions.IsEmpty)
+                {
+                    return Task.FromException<ISubscriptionPublishPipeline>(
+                        new ServiceResultException(StatusCodes.BadNoSubscription));
+                }
+
                 // find the waiting subscription with the highest priority.
                 subscriptionToPublish = GetSubscriptionToPublish();
 
@@ -145,15 +145,24 @@ namespace Opc.Ua.Server
                     return Task.FromResult(subscriptionToPublish.Subscription);
                 }
 
-                // check if queue is full.
-                if (m_queuedRequests.Count >= m_maxRequestCount)
+                RemoveCompletedRequests();
+
+                // Completion retires admission before exposing the completed task.
+                if (Volatile.Read(ref m_pendingRequestCount) >= m_maxRequestCount)
                 {
                     return Task.FromException<ISubscriptionPublishPipeline>(
                         new ServiceResultException(StatusCodes.BadTooManyPublishRequests));
                 }
 
                 // add to queue.
-                var request = new QueuedPublishRequest(secureChannelId, operationTimeout, m_timeProvider, cancellationToken);
+                Interlocked.Increment(ref m_pendingRequestCount);
+                var request = new QueuedPublishRequest(
+                    secureChannelId, operationTimeout, m_timeProvider, RequestCompleted, cancellationToken);
+                if (request.Tcs.Task.IsCompleted)
+                {
+                    request.Dispose();
+                    return request.Tcs.Task;
+                }
 
                 if (requeue)
                 {
@@ -190,7 +199,7 @@ namespace Opc.Ua.Server
                 {
                     QueuedPublishRequest request = m_queuedRequests.First!.Value;
                     m_queuedRequests.RemoveFirst();
-                    request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadSessionClosed));
+                    request.TrySetException(new ServiceResultException(StatusCodes.BadSessionClosed));
                     request.Dispose();
                 }
 
@@ -373,7 +382,7 @@ namespace Opc.Ua.Server
                 {
                     QueuedPublishRequest request = m_queuedRequests.First!.Value;
                     m_queuedRequests.RemoveFirst();
-                    request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadNoSubscription));
+                    request.TrySetException(new ServiceResultException(StatusCodes.BadNoSubscription));
                     request.Dispose();
                 }
             }
@@ -403,17 +412,21 @@ namespace Opc.Ua.Server
 
                     // for good status codes return to caller (SubscriptionManager) with null subscription
                     // to publish queued StatusMessages from there
+                    bool completed;
                     if (ServiceResult.IsGood(statusCode))
                     {
-                        request.Tcs.TrySetResult(null!);
+                        completed = request.TrySetResult(null!);
                     }
                     // throw a ServiceResultException for bad status codes
                     else
                     {
-                        request.Tcs.TrySetException(new ServiceResultException(statusCode));
+                        completed = request.TrySetException(new ServiceResultException(statusCode));
                     }
                     request.Dispose();
-                    return true;
+                    if (completed)
+                    {
+                        return true;
+                    }
                 }
 
                 return false;
@@ -795,14 +808,14 @@ namespace Opc.Ua.Server
                     m_logger.PublishAbandonedBecauseTheSecureChannelChanged(
                         m_session.Id,
                         subscription.Subscription.Id);
-                    request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid));
+                    request.TrySetException(new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid));
                     request.Dispose();
                     continue;
                 }
 
                 subscription.Publishing = true;
 
-                if (!request.Tcs.TrySetResult(subscription.Subscription))
+                if (!request.TrySetResult(subscription.Subscription))
                 {
                     // the request was cancelled or timed out in the meantime.
                     subscription.Publishing = false;
@@ -870,6 +883,28 @@ namespace Opc.Ua.Server
             return null;
         }
 
+        private void RequestCompleted()
+        {
+            // Cancellation registrations can be disposed while holding m_lock.
+            // Their callbacks must never acquire that lock.
+            Interlocked.Decrement(ref m_pendingRequestCount);
+        }
+
+        private void RemoveCompletedRequests()
+        {
+            LinkedListNode<QueuedPublishRequest>? node = m_queuedRequests.First;
+            while (node != null)
+            {
+                LinkedListNode<QueuedPublishRequest>? next = node.Next;
+                if (node.Value.Tcs.Task.IsCompleted)
+                {
+                    m_queuedRequests.Remove(node);
+                    node.Value.Dispose();
+                }
+                node = next;
+            }
+        }
+
         /// <summary>
         /// A request queued while waiting for a subscription to be ready to publish.
         /// </summary>
@@ -879,24 +914,45 @@ namespace Opc.Ua.Server
                 string secureChannelId,
                 DateTime operationTimeout,
                 TimeProvider timeProvider,
+                Action onCompleted,
                 CancellationToken cancellationToken)
             {
                 SecureChannelId = secureChannelId;
                 OperationTimeout = operationTimeout;
+                m_onCompleted = onCompleted;
                 Tcs = new TaskCompletionSource<ISubscriptionPublishPipeline>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
-                m_cancellationTokenRegistration = cancellationToken.Register(
-                    () => Tcs.TrySetCanceled());
-                // Cancel publish request if it times out
-                TimeSpan timeOut = operationTimeout < DateTime.MaxValue
-                    ? operationTimeout.AddMilliseconds(500) - timeProvider.GetUtcNow().UtcDateTime
-                    : TimeSpan.Zero;
-                if (operationTimeout < DateTime.MaxValue && timeOut.TotalMilliseconds > 0)
+                try
                 {
-                    m_cancellationTokenSource = timeProvider.CreateCancellationTokenSource(timeOut);
-                    m_cancellationTokenRegistration2 = m_cancellationTokenSource.Token.Register(
-                    () => Tcs.TrySetException(new ServiceResultException(StatusCodes.BadTimeout)));
+                    m_cancellationTokenRegistration = cancellationToken.Register(
+                        () => TrySetCanceled());
+                    // Cancel publish request if it times out
+                    TimeSpan timeOut = operationTimeout < DateTime.MaxValue
+                        ? operationTimeout.AddMilliseconds(500) - timeProvider.GetUtcNow().UtcDateTime
+                        : TimeSpan.Zero;
+                    if (operationTimeout < DateTime.MaxValue && timeOut.TotalMilliseconds > 0)
+                    {
+                        m_cancellationTokenSource = timeProvider.CreateCancellationTokenSource(timeOut);
+                        m_cancellationTokenRegistration2 = m_cancellationTokenSource.Token.Register(
+                            () => TrySetException(new ServiceResultException(StatusCodes.BadTimeout)));
+                    }
                 }
+                catch
+                {
+                    TrySetCanceled();
+                    Dispose();
+                    throw;
+                }
+            }
+
+            public bool TrySetResult(ISubscriptionPublishPipeline subscription)
+            {
+                return TryRetire() && Tcs.TrySetResult(subscription);
+            }
+
+            public bool TrySetException(Exception exception)
+            {
+                return TryRetire() && Tcs.TrySetException(exception);
             }
 
             public void Dispose()
@@ -906,12 +962,30 @@ namespace Opc.Ua.Server
                 m_cancellationTokenRegistration2.Dispose();
             }
 
+            private bool TrySetCanceled()
+            {
+                return TryRetire() && Tcs.TrySetCanceled();
+            }
+
+            private bool TryRetire()
+            {
+                if (Interlocked.CompareExchange(ref m_completed, 1, 0) != 0)
+                {
+                    return false;
+                }
+
+                m_onCompleted();
+                return true;
+            }
+
             public readonly string SecureChannelId;
             public readonly DateTime OperationTimeout;
             public readonly TaskCompletionSource<ISubscriptionPublishPipeline> Tcs;
             private readonly CancellationTokenRegistration m_cancellationTokenRegistration;
             private readonly CancellationTokenSource? m_cancellationTokenSource;
             private readonly CancellationTokenRegistration m_cancellationTokenRegistration2;
+            private readonly Action m_onCompleted;
+            private int m_completed;
         }
 
         /// <summary>
@@ -1001,7 +1075,7 @@ namespace Opc.Ua.Server
             {
                 sessionId = m_session?.Id;
                 subscriptionCount = m_queuedSubscriptions.Count;
-                requestCount = m_queuedRequests.Count;
+                requestCount = Volatile.Read(ref m_pendingRequestCount);
 
                 foreach (KeyValuePair<uint, QueuedSubscription> entry in m_queuedSubscriptions)
                 {
@@ -1039,6 +1113,7 @@ namespace Opc.Ua.Server
         private readonly Dictionary<uint, SubscriptionTransferClaim> m_transferClaims;
         private readonly int m_maxRequestCount;
         private readonly TimeProvider m_timeProvider;
+        private int m_pendingRequestCount;
     }
 
     /// <summary>

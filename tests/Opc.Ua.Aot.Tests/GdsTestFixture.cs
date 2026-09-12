@@ -54,27 +54,52 @@ namespace Opc.Ua.Aot.Tests
         public string EndpointUrl { get; private set; }
         public int BasePort { get; private set; }
 
-        /// <summary>
-        /// If non-null, the GDS fixture failed to initialize (e.g. under NativeAOT
-        /// where DataContractSerializer is not available). Tests should skip.
-        /// </summary>
-        public string SkipReason { get; private set; }
-
-        private ApplicationInstance m_serverApplication;
-        private ApplicationConfiguration m_clientConfiguration;
-        private string m_gdsRoot;
-        private string m_pkiRoot;
-        private CertificateGroup m_certificateGroup;
-
         public async Task InitializeAsync()
         {
+            bool initialized = false;
             try
             {
                 await InitializeCoreAsync().ConfigureAwait(false);
+                initialized = true;
             }
-            catch (Exception ex)
+            finally
             {
-                SkipReason = $"GDS fixture initialization failed: {ex.Message}";
+                if (!initialized)
+                {
+                    await DisposeAsync().ConfigureAwait(false);
+                }
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            try
+            {
+                await DisconnectClientAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                try
+                {
+                    await StopServerAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    try
+                    {
+                        CleanDirectory(m_pkiRoot);
+                        CleanDirectory(m_gdsRoot);
+                    }
+                    finally
+                    {
+                        if (Telemetry is IDisposable telemetry)
+                        {
+                            telemetry.Dispose();
+                        }
+                        Telemetry = null;
+                        GC.SuppressFinalize(this);
+                    }
+                }
             }
         }
 
@@ -104,12 +129,7 @@ namespace Opc.Ua.Aot.Tests
                 catch (ServiceResultException sre)
                 {
                     serverStartRetries--;
-                    if (Server != null)
-                    {
-                        await Server.StopAsync().ConfigureAwait(false);
-                        Server.Dispose();
-                        Server = null;
-                    }
+                    await StopServerAsync().ConfigureAwait(false);
                     testPort = UnsecureRandom.Shared.Next(
                         AotServerFixtureSupport.MinTestPort,
                         AotServerFixtureSupport.MaxTestPort);
@@ -168,6 +188,12 @@ namespace Opc.Ua.Aot.Tests
                 ClientConfiguration = new ClientConfiguration(),
                 ServerConfiguration = new ServerConfiguration()
             };
+            m_clientApplication = new ApplicationInstance(Telemetry)
+            {
+                ApplicationName = m_clientConfiguration.ApplicationName,
+                ApplicationType = ApplicationType.Client,
+                ApplicationConfiguration = m_clientConfiguration
+            };
             await m_clientConfiguration.ValidateAsync(ApplicationType.Client)
                 .ConfigureAwait(false);
 
@@ -175,31 +201,18 @@ namespace Opc.Ua.Aot.Tests
                 m_clientConfiguration.SecurityConfiguration, Telemetry);
             m_clientConfiguration.CertificateManager.AcceptError = static (cert, err) => true;
 
-            var clientApplication = new ApplicationInstance(Telemetry)
+            bool haveAppCertificate = await m_clientApplication
+                .CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false);
+            if (!haveAppCertificate)
             {
-                ApplicationName = m_clientConfiguration.ApplicationName,
-                ApplicationType = ApplicationType.Client,
-                ApplicationConfiguration = m_clientConfiguration
-            };
-            try
-            {
-                bool haveAppCertificate = await clientApplication
-                    .CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false);
-                if (!haveAppCertificate)
-                {
-                    throw new InvalidOperationException("Client application certificate invalid!");
-                }
-            }
-            finally
-            {
-                await clientApplication.DisposeAsync().ConfigureAwait(false);
+                throw new InvalidOperationException("Client application certificate invalid!");
             }
 
             // Create the GDS client with admin credentials
             GdsClient = new GlobalDiscoveryServerClient(
                 m_clientConfiguration);
 
-            // Select the None security endpoint for simplicity
+            // Prefer a secured endpoint for the administrative identity.
             var endpointConfiguration =
                 EndpointConfiguration.Create(m_clientConfiguration);
             using DiscoveryClient discoveryClient = await DiscoveryClient.CreateAsync(
@@ -257,47 +270,52 @@ namespace Opc.Ua.Aot.Tests
                 .ConfigureAwait(false);
         }
 
-        public async ValueTask DisposeAsync()
+        private async ValueTask DisconnectClientAsync()
         {
-            if (GdsClient != null)
+            try
             {
-                try
+                if (GdsClient != null)
                 {
-                    await GdsClient.DisconnectAsync().ConfigureAwait(false);
+                    GlobalDiscoveryServerClient client = GdsClient;
+                    GdsClient = null;
+                    await using (client.ConfigureAwait(false))
+                    {
+                        await client.DisconnectAsync().ConfigureAwait(false);
+                    }
                 }
-                catch
+            }
+            finally
+            {
+                ApplicationInstance application = m_clientApplication;
+                m_clientApplication = null;
+                m_clientConfiguration = null;
+                if (application != null)
                 {
-                    // ignore disconnect errors during cleanup
+                    await application.DisposeAsync().ConfigureAwait(false);
                 }
-                GdsClient.Dispose();
-                GdsClient = null;
             }
+        }
 
-            if (Server != null)
+        private async ValueTask StopServerAsync()
+        {
+            try
             {
-                using GlobalDiscoverySampleServer server = Server;
-                Server = null;
-                await server.StopAsync().ConfigureAwait(false);
-            }
-
-            m_certificateGroup?.Dispose();
-            m_certificateGroup = null;
-
-            if (m_serverApplication != null)
-            {
-                await m_serverApplication.DisposeAsync().ConfigureAwait(false);
+                ApplicationInstance application = m_serverApplication;
                 m_serverApplication = null;
+                if (application != null)
+                {
+                    await using (application.ConfigureAwait(false))
+                    {
+                        await application.StopAsync().ConfigureAwait(false);
+                    }
+                }
             }
-
-            if (m_clientConfiguration?.CertificateManager is IDisposable disposableManager)
+            finally
             {
-                disposableManager.Dispose();
-                m_clientConfiguration.CertificateManager = null;
+                Server = null;
+                m_certificateGroup?.Dispose();
+                m_certificateGroup = null;
             }
-
-            CleanDirectory(m_pkiRoot);
-            CleanDirectory(m_gdsRoot);
-            GC.SuppressFinalize(this);
         }
 
         [UnconditionalSuppressMessage("AOT",
@@ -438,15 +456,15 @@ namespace Opc.Ua.Aot.Tests
         {
             if (path != null && Directory.Exists(path))
             {
-                try
-                {
-                    Directory.Delete(path, true);
-                }
-                catch
-                {
-                    // ignore cleanup errors
-                }
+                Directory.Delete(path, true);
             }
         }
+
+        private ApplicationInstance m_serverApplication;
+        private ApplicationInstance m_clientApplication;
+        private ApplicationConfiguration m_clientConfiguration;
+        private string m_gdsRoot;
+        private string m_pkiRoot;
+        private CertificateGroup m_certificateGroup;
     }
 }

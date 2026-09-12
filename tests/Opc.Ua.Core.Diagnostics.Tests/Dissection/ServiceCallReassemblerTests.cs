@@ -334,6 +334,7 @@ namespace Opc.Ua.Pcap.Tests.Dissection
         }
 
         [Test]
+        [SetCulture("en-US")]
         public void PrivateRequestSummaryFormatsKnownRequestKinds()
         {
             Assert.That(
@@ -396,6 +397,23 @@ namespace Opc.Ua.Pcap.Tests.Dissection
             Assert.That(
                 InvokeCreateRequestSummary(new RegisterNodesRequest(), "RegisterNodesRequest", 108),
                 Is.EqualTo("handle=0 audit= RegisterNodesRequest body=108B"));
+        }
+
+        [Test]
+        [SetCulture("de-DE")]
+        public void RequestSummaryFormatsNumericDisplayValuesUsingCurrentCulture()
+        {
+            Assert.That(
+                InvokeCreateRequestSummary(
+                    new ReadRequest
+                    {
+                        RequestHeader = new RequestHeader { RequestHandle = 10, AuditEntryId = "audit" },
+                        NodesToRead = [new ReadValueId { NodeId = ObjectIds.Server }],
+                        MaxAge = 12.5
+                    },
+                    "ReadRequest",
+                    100),
+                Is.EqualTo("handle=10 audit=audit 1 nodes, maxAge=12,5"));
         }
 
         [Test]

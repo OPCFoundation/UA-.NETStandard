@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.FileSystem
 {
@@ -56,7 +57,15 @@ namespace Opc.Ua.Server.FileSystem
             {
                 lock (m_lock)
                 {
-                    return (ushort)(m_reads.Count + (m_write != null ? 1 : 0));
+                    int count = m_write?.Stream != null ? 1 : 0;
+                    foreach (OpenFile file in m_reads.Values)
+                    {
+                        if (file.Stream != null)
+                        {
+                            count++;
+                        }
+                    }
+                    return (ushort)count;
                 }
             }
         }
@@ -67,7 +76,7 @@ namespace Opc.Ua.Server.FileSystem
             {
                 lock (m_lock)
                 {
-                    if (!m_provider.IsWritable || m_reads.Count != 0 || m_write != null)
+                    if (!m_provider.IsWritable)
                     {
                         return false;
                     }
@@ -114,18 +123,20 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
-        public Stream? GetStream(NodeId sessionId, uint fileHandle)
+        public Stream? GetStream(NodeId sessionId, uint fileHandle, byte requiredMode = 0)
         {
             lock (m_lock)
             {
                 if (m_write != null &&
                     fileHandle == m_write.Handle &&
-                    m_write.SessionId.Equals(sessionId))
+                    m_write.SessionId.Equals(sessionId) &&
+                    (m_write.Mode & requiredMode) == requiredMode)
                 {
                     return m_write.Stream;
                 }
                 if (m_reads.TryGetValue(fileHandle, out OpenFile? openFile) &&
-                    openFile.SessionId.Equals(sessionId))
+                    openFile.SessionId.Equals(sessionId) &&
+                    (openFile.Mode & requiredMode) == requiredMode)
                 {
                     return openFile.Stream;
                 }
@@ -141,11 +152,106 @@ namespace Opc.Ua.Server.FileSystem
         public ServiceResult Open(NodeId sessionId, byte mode, out uint fileHandle)
         {
             fileHandle = 0u;
+            if (!TryReserveOpen(sessionId, mode, out OpenFile? pending, out ServiceResult error))
+            {
+                return error;
+            }
+            Stream? stream = null;
+            bool accepted = false;
+            try
+            {
+                stream = (mode & 1) != 0
+                    ? m_provider.OpenReadAsync(ProviderPath, CancellationToken.None).AsTask().GetAwaiter().GetResult()
+                    : m_provider.OpenWriteAsync(ProviderPath, GetWriteMode(mode), CancellationToken.None)
+                        .AsTask().GetAwaiter().GetResult();
+                error = CompleteOpen(pending!, stream);
+                accepted = ServiceResult.IsGood(error);
+                if (accepted)
+                {
+                    fileHandle = pending!.Handle;
+                }
+                return error;
+            }
+            catch (FileNotFoundException ex)
+            {
+                return ServiceResult.Create(ex, StatusCodes.BadNotFound, "File not found");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return ServiceResult.Create(ex, StatusCodes.BadUserAccessDenied, "Failed to open file");
+            }
+            catch (IOException ex)
+            {
+                return ServiceResult.Create(ex, StatusCodes.BadInvalidState, "Failed to open file");
+            }
+            finally
+            {
+                if (!accepted)
+                {
+                    CancelOpen(pending!);
+                    stream?.Dispose();
+                }
+            }
+        }
+
+        public async ValueTask<(ServiceResult Result, uint Handle)> OpenAsync(
+            NodeId sessionId,
+            byte mode,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!TryReserveOpen(sessionId, mode, out OpenFile? pending, out ServiceResult error))
+            {
+                return (error, 0);
+            }
+            Stream? stream = null;
+            bool accepted = false;
+            try
+            {
+                stream = (mode & 1) != 0
+                    ? await m_provider.OpenReadAsync(ProviderPath, cancellationToken).ConfigureAwait(false)
+                    : await m_provider.OpenWriteAsync(ProviderPath, GetWriteMode(mode), cancellationToken)
+                        .ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                error = CompleteOpen(pending!, stream);
+                accepted = ServiceResult.IsGood(error);
+                return (error, accepted ? pending!.Handle : 0);
+            }
+            catch (FileNotFoundException ex)
+            {
+                return (ServiceResult.Create(ex, StatusCodes.BadNotFound, "File not found"), 0);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return (ServiceResult.Create(ex, StatusCodes.BadUserAccessDenied, "Failed to open file"), 0);
+            }
+            catch (IOException ex)
+            {
+                return (ServiceResult.Create(ex, StatusCodes.BadInvalidState, "Failed to open file"), 0);
+            }
+            finally
+            {
+                if (!accepted)
+                {
+                    CancelOpen(pending!);
+                    stream?.Dispose();
+                }
+            }
+        }
+
+        private bool TryReserveOpen(
+            NodeId sessionId,
+            byte mode,
+            out OpenFile? pending,
+            out ServiceResult error)
+        {
+            pending = null;
             if (sessionId.IsNull)
             {
-                return ServiceResult.Create(
+                error = ServiceResult.Create(
                     StatusCodes.BadSessionIdInvalid,
                     "A valid Session is required to open a file.");
+                return false;
             }
 
             bool wantsRead = (mode & 0x1) != 0;
@@ -153,101 +259,90 @@ namespace Opc.Ua.Server.FileSystem
 
             if (!wantsRead && !wantsWrite)
             {
-                return ServiceResult.Create(
+                error = ServiceResult.Create(
                     StatusCodes.BadInvalidArgument,
                     "FileType.Open mode must include read or write.");
+                return false;
             }
             if (wantsRead && wantsWrite)
             {
-                return ServiceResult.Create(
+                error = ServiceResult.Create(
                     StatusCodes.BadInvalidArgument,
                     "Simultaneous read + write open not supported.");
+                return false;
             }
             if (wantsWrite && !m_provider.IsWritable)
             {
-                return ServiceResult.Create(
+                error = ServiceResult.Create(
                     StatusCodes.BadUserAccessDenied,
                     "Provider is read-only.");
+                return false;
             }
 
-            try
+            lock (m_lock)
             {
-                if (wantsRead)
+                if (m_disposed)
                 {
-                    Stream stream = m_provider
-                        .OpenReadAsync(ProviderPath, CancellationToken.None)
-                        .AsTask().GetAwaiter().GetResult();
-                    bool fileAlreadyOpen;
-                    lock (m_lock)
-                    {
-                        fileAlreadyOpen = m_write != null;
-                        if (!fileAlreadyOpen)
-                        {
-                            fileHandle = CreateFileHandle();
-                            m_reads.Add(fileHandle, new OpenFile(fileHandle, sessionId, stream));
-                        }
-                    }
-                    if (fileAlreadyOpen)
-                    {
-                        stream.Dispose();
-                        return ServiceResult.Create(
-                            StatusCodes.BadInvalidState,
-                            "File already open for write.");
-                    }
-                    return ServiceResult.Good;
+                    error = StatusCodes.BadShutdown;
+                    return false;
                 }
-
-                FileWriteMode writeMode;
-                if ((mode & 0x4) != 0)
+                if (m_write != null || (wantsWrite && m_reads.Count != 0))
                 {
-                    writeMode = FileWriteMode.Truncate;
+                    error = ServiceResult.Create(StatusCodes.BadInvalidState,
+                        "File already open with incompatible access.");
+                    return false;
                 }
-                else if ((mode & 0x8) != 0)
+                pending = new OpenFile(CreateFileHandle(), sessionId, mode);
+                if (wantsWrite)
                 {
-                    writeMode = FileWriteMode.Append;
+                    m_write = pending;
                 }
                 else
                 {
-                    writeMode = FileWriteMode.OpenOrCreate;
+                    m_reads.Add(pending.Handle, pending);
                 }
+            }
+            error = ServiceResult.Good;
+            return true;
+        }
 
-                Stream writeStream = m_provider
-                    .OpenWriteAsync(ProviderPath, writeMode, CancellationToken.None)
-                    .AsTask().GetAwaiter().GetResult();
-                bool fileAlreadyOpenForReadOrWrite;
-                lock (m_lock)
+        private ServiceResult CompleteOpen(OpenFile pending, Stream stream)
+        {
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(m_write, pending) &&
+                    (!m_reads.TryGetValue(pending.Handle, out OpenFile? current) || !ReferenceEquals(current, pending)))
                 {
-                    fileAlreadyOpenForReadOrWrite = m_reads.Count != 0 || m_write != null;
-                    if (!fileAlreadyOpenForReadOrWrite)
-                    {
-                        fileHandle = CreateFileHandle();
-                        m_write = new OpenFile(fileHandle, sessionId, writeStream);
-                    }
+                    return ServiceResult.Create(StatusCodes.BadSessionClosed,
+                        "The file open was closed before the provider completed.");
                 }
-                if (fileAlreadyOpenForReadOrWrite)
-                {
-                    writeStream.Dispose();
-                    return ServiceResult.Create(
-                        StatusCodes.BadInvalidState,
-                        "File already open for read or write.");
-                }
+                pending.Stream = stream;
                 return ServiceResult.Good;
             }
-            catch (FileNotFoundException ex)
+        }
+
+        private void CancelOpen(OpenFile pending)
+        {
+            lock (m_lock)
             {
-                return ServiceResult.Create(ex, StatusCodes.BadNotFound,
-                    "File not found");
+                if (ReferenceEquals(m_write, pending))
+                {
+                    m_write = null;
+                }
+                else if (m_reads.TryGetValue(pending.Handle, out OpenFile? current) && ReferenceEquals(current, pending))
+                {
+                    m_reads.Remove(pending.Handle);
+                }
             }
-            catch (UnauthorizedAccessException ex)
+        }
+
+        private static FileWriteMode GetWriteMode(byte mode)
+        {
+            if ((mode & 4) != 0)
             {
-                return ServiceResult.Create(ex, StatusCodes.BadUserAccessDenied,
-                    "Failed to open file");
+                return FileWriteMode.Truncate;
             }
-            catch (IOException ex)
-            {
-                return ServiceResult.Create(ex, StatusCodes.BadInvalidState,
-                    "Failed to open file");
-            }
+            return (mode & 8) != 0 ? FileWriteMode.Append : FileWriteMode.OpenOrCreate;
         }
 
         public bool Close(NodeId sessionId, uint fileHandle)
@@ -280,7 +375,10 @@ namespace Opc.Ua.Server.FileSystem
             {
                 if (m_write != null && m_write.SessionId.Equals(sessionId))
                 {
-                    streamsToClose.Add(m_write.Stream);
+                    if (m_write.Stream != null)
+                    {
+                        streamsToClose.Add(m_write.Stream);
+                    }
                     m_write = null;
                 }
 
@@ -289,7 +387,10 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     if (entry.Value.SessionId.Equals(sessionId))
                     {
-                        streamsToClose.Add(entry.Value.Stream);
+                        if (entry.Value.Stream != null)
+                        {
+                            streamsToClose.Add(entry.Value.Stream);
+                        }
                         handlesToClose.Add(entry.Key);
                     }
                 }
@@ -308,15 +409,19 @@ namespace Opc.Ua.Server.FileSystem
             List<Stream> streamsToClose;
             lock (m_lock)
             {
+                m_disposed = true;
                 streamsToClose = new List<Stream>(m_reads.Count + (m_write != null ? 1 : 0));
-                if (m_write != null)
+                if (m_write?.Stream != null)
                 {
                     streamsToClose.Add(m_write.Stream);
                 }
                 m_write = null;
                 foreach (OpenFile openFile in m_reads.Values)
                 {
-                    streamsToClose.Add(openFile.Stream);
+                    if (openFile.Stream != null)
+                    {
+                        streamsToClose.Add(openFile.Stream);
+                    }
                 }
                 m_reads.Clear();
             }
@@ -352,21 +457,24 @@ namespace Opc.Ua.Server.FileSystem
         private readonly Dictionary<uint, OpenFile> m_reads = [];
         private readonly IFileSystemProvider m_provider;
         private OpenFile? m_write;
+        private bool m_disposed;
 
         private sealed class OpenFile
         {
-            public OpenFile(uint handle, NodeId sessionId, Stream stream)
+            public OpenFile(uint handle, NodeId sessionId, byte mode)
             {
                 Handle = handle;
                 SessionId = sessionId;
-                Stream = stream;
+                Mode = mode;
             }
 
             public uint Handle { get; }
 
             public NodeId SessionId { get; }
 
-            public Stream Stream { get; }
+            public byte Mode { get; }
+
+            public Stream? Stream { get; set; }
         }
     }
 }

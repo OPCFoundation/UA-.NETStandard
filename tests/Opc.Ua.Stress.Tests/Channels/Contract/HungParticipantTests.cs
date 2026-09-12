@@ -28,11 +28,12 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Stress.Tests.Channels.Fakes;
@@ -61,18 +62,26 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             CancellationToken ct)
         {
             var participantTimeout = TimeSpan.FromMilliseconds(200);
+            var fakeTime = new FakeTimeProvider();
+            TimeProvider timeProvider = ObserveParticipantTimeout(
+                fakeTime,
+                participantTimeout,
+                out Task timeoutScheduled);
             using Certificate applicationCertificate = CreateCertificate("hung-participant-timeout");
             ContractTestEnvironment environment = CreateEnvironment(
                 applicationCertificate,
-                reconnectPolicy: CreateParticipantTimeoutPolicy(participantTimeout, maxAttempts: 2));
+                reconnectPolicy: CreateParticipantTimeoutPolicy(participantTimeout, maxAttempts: 2),
+                timeProvider: timeProvider);
             await using ConfiguredAsyncDisposable environmentAsyncDisposable = environment.ConfigureAwait(false);
             ConfiguredEndpoint endpoint = CreateEndpoint("hung-participant-shared");
             var participant1 = new FakeParticipant(endpoint);
+            var releaseParticipant = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             participant1.ConfigureOnReconnect(async (attempt, reconnectCt) =>
             {
                 if (attempt == 0)
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(2), reconnectCt).ConfigureAwait(false);
+                    await releaseParticipant.Task.WaitAsync(reconnectCt).ConfigureAwait(false);
                 }
 
                 return ParticipantReconnectResult.Reactivated;
@@ -85,20 +94,45 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
                 .ConfigureAwait(false);
             Assert.That(ch2.Key, Is.EqualTo(ch1.Key));
 
-            var sw = Stopwatch.StartNew();
-            await environment.Manager.ReconnectAsync(ch1, ct).ConfigureAwait(false);
-            sw.Stop();
-
-            ManagedChannelDiagnostic diagnostic = GetDiagnostic(environment.Manager, ch1.Key);
-            Assert.Multiple(() =>
+            try
             {
-                Assert.That(sw.Elapsed, Is.GreaterThanOrEqualTo(participantTimeout));
-                Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(3)));
-                Assert.That(diagnostic.State, Is.EqualTo(ChannelState.Ready));
-                Assert.That(participant1.NotificationCount, Is.GreaterThanOrEqualTo(2));
-                Assert.That(participant2.NotificationCount, Is.GreaterThanOrEqualTo(2));
-                Assert.That(participant2.LastAttempt, Is.GreaterThanOrEqualTo(1));
-            });
+                Task reconnectTask = environment.Manager.ReconnectAsync(ch1, ct).AsTask();
+                await timeoutScheduled.WaitAsync(AssertionTimeout, ct).ConfigureAwait(false);
+                await WaitUntilAsync(
+                    () => participant2.NotificationCount == 1,
+                    "The other participant did not receive the initial reconnect notification.",
+                    ct).ConfigureAwait(false);
+
+                fakeTime.Advance(participantTimeout - TimeSpan.FromTicks(1));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(reconnectTask.IsCompleted, Is.False);
+                    Assert.That(ch1.State, Is.EqualTo(ChannelState.TransportConnectedSessionReactivating));
+                    Assert.That(participant1.NotificationCount, Is.EqualTo(1));
+                    Assert.That(participant2.NotificationCount, Is.EqualTo(1));
+                });
+
+                fakeTime.Advance(TimeSpan.FromTicks(1));
+                await reconnectTask.WaitAsync(AssertionTimeout, ct).ConfigureAwait(false);
+
+                ManagedChannelDiagnostic diagnostic = GetDiagnostic(environment.Manager, ch1.Key);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(fakeTime.GetUtcNow() - fakeTime.Start, Is.EqualTo(participantTimeout));
+                    Assert.That(diagnostic.State, Is.EqualTo(ChannelState.Ready));
+                    Assert.That(ch1.State, Is.EqualTo(ChannelState.Ready));
+                    Assert.That(ch2.State, Is.EqualTo(ChannelState.Ready));
+                    Assert.That(participant1.NotificationCount, Is.EqualTo(2));
+                    Assert.That(participant2.NotificationCount, Is.EqualTo(2));
+                    Assert.That(participant1.LastAttempt, Is.EqualTo(1));
+                    Assert.That(participant2.LastAttempt, Is.EqualTo(1));
+                    Assert.That(releaseParticipant.Task.IsCompleted, Is.False);
+                });
+            }
+            finally
+            {
+                releaseParticipant.TrySetResult(true);
+            }
         }
 
         [Test]
@@ -107,21 +141,26 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
         public async Task HungParticipantTimesOutAfterBoundedWaitAsync(CancellationToken ct)
         {
             var participantTimeout = TimeSpan.FromMilliseconds(200);
+            var fakeTime = new FakeTimeProvider();
+            TimeProvider timeProvider = ObserveParticipantTimeout(
+                fakeTime,
+                participantTimeout,
+                out Task timeoutScheduled);
             using Certificate applicationCertificate = CreateCertificate("hung-participant-bounded-wait");
             ContractTestEnvironment environment = CreateEnvironment(
                 applicationCertificate,
-                reconnectPolicy: CreateParticipantTimeoutPolicy(participantTimeout, maxAttempts: 1));
+                reconnectPolicy: CreateParticipantTimeoutPolicy(participantTimeout, maxAttempts: 1),
+                timeProvider: timeProvider);
             await using ConfiguredAsyncDisposable environmentAsyncDisposable = environment.ConfigureAwait(false);
             ConfiguredEndpoint endpoint = CreateEndpoint("hung-participant-bounded-wait");
             var participant = new FakeParticipant(endpoint);
-            var participantEntered = new TaskCompletionSource<bool>(
+            var releaseParticipant = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             participant.ConfigureOnReconnect(async (attempt, reconnectCt) =>
             {
                 if (attempt == 0)
                 {
-                    participantEntered.TrySetResult(true);
-                    await Task.Delay(TimeSpan.FromSeconds(2), reconnectCt).ConfigureAwait(false);
+                    await releaseParticipant.Task.WaitAsync(reconnectCt).ConfigureAwait(false);
                 }
 
                 return ParticipantReconnectResult.Reactivated;
@@ -130,20 +169,37 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             IManagedTransportChannel channel = await environment.Manager.GetAsync(participant, ct)
                 .ConfigureAwait(false);
 
-            var sw = Stopwatch.StartNew();
-            Task reconnectTask = environment.Manager.ReconnectAsync(channel, ct).AsTask();
-            await participantEntered.Task.WaitAsync(AssertionTimeout, ct).ConfigureAwait(false);
-            await reconnectTask.WaitAsync(TimeSpan.FromSeconds(1), ct).ConfigureAwait(false);
-            sw.Stop();
-
-            ManagedChannelDiagnostic diagnostic = GetDiagnostic(environment.Manager, channel.Key);
-            Assert.Multiple(() =>
+            try
             {
-                Assert.That(sw.Elapsed, Is.GreaterThanOrEqualTo(participantTimeout));
-                Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(1)));
-                Assert.That(diagnostic.State, Is.EqualTo(ChannelState.Faulted));
-                Assert.That(channel.State, Is.EqualTo(ChannelState.Faulted));
-            });
+                Task reconnectTask = environment.Manager.ReconnectAsync(channel, ct).AsTask();
+                await timeoutScheduled.WaitAsync(AssertionTimeout, ct).ConfigureAwait(false);
+
+                fakeTime.Advance(participantTimeout - TimeSpan.FromTicks(1));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(reconnectTask.IsCompleted, Is.False);
+                    Assert.That(channel.State, Is.EqualTo(ChannelState.TransportConnectedSessionReactivating));
+                    Assert.That(participant.NotificationCount, Is.EqualTo(1));
+                });
+
+                fakeTime.Advance(TimeSpan.FromTicks(1));
+                await reconnectTask.WaitAsync(AssertionTimeout, ct).ConfigureAwait(false);
+
+                ManagedChannelDiagnostic diagnostic = GetDiagnostic(environment.Manager, channel.Key);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(fakeTime.GetUtcNow() - fakeTime.Start, Is.EqualTo(participantTimeout));
+                    Assert.That(diagnostic.State, Is.EqualTo(ChannelState.Faulted));
+                    Assert.That(channel.State, Is.EqualTo(ChannelState.Faulted));
+                    Assert.That(participant.NotificationCount, Is.EqualTo(2));
+                    Assert.That(participant.LastAttempt, Is.EqualTo(-1));
+                    Assert.That(releaseParticipant.Task.IsCompleted, Is.False);
+                });
+            }
+            finally
+            {
+                releaseParticipant.TrySetResult(true);
+            }
         }
 
         [Test]
@@ -152,32 +208,58 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
         public async Task BoundedParticipantTimeoutHonorsTimeoutAsync(CancellationToken ct)
         {
             var participantTimeout = TimeSpan.FromSeconds(5);
+            var fakeTime = new FakeTimeProvider();
+            TimeProvider timeProvider = ObserveParticipantTimeout(
+                fakeTime,
+                participantTimeout,
+                out Task timeoutScheduled);
             using Certificate applicationCertificate = CreateCertificate("participant-timeout-positive");
             ContractTestEnvironment environment = CreateEnvironment(
                 applicationCertificate,
-                reconnectPolicy: CreateParticipantTimeoutPolicy(participantTimeout, maxAttempts: 1));
+                reconnectPolicy: CreateParticipantTimeoutPolicy(participantTimeout, maxAttempts: 1),
+                timeProvider: timeProvider);
             await using ConfiguredAsyncDisposable environmentAsyncDisposable = environment.ConfigureAwait(false);
             ConfiguredEndpoint endpoint = CreateEndpoint("participant-timeout-positive");
             var participant = new FakeParticipant(endpoint);
+            var releaseParticipant = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             participant.ConfigureOnReconnect(async (_, reconnectCt) =>
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(50), reconnectCt).ConfigureAwait(false);
+                await releaseParticipant.Task.WaitAsync(reconnectCt).ConfigureAwait(false);
                 return ParticipantReconnectResult.Reactivated;
             });
 
             IManagedTransportChannel channel = await environment.Manager.GetAsync(participant, ct)
                 .ConfigureAwait(false);
 
-            var sw = Stopwatch.StartNew();
-            await environment.Manager.ReconnectAsync(channel, ct).ConfigureAwait(false);
-            sw.Stop();
-
-            Assert.Multiple(() =>
+            try
             {
-                Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(1)));
-                Assert.That(channel.State, Is.EqualTo(ChannelState.Ready));
-                Assert.That(participant.NotificationCount, Is.EqualTo(1));
-            });
+                Task reconnectTask = environment.Manager.ReconnectAsync(channel, ct).AsTask();
+                await timeoutScheduled.WaitAsync(AssertionTimeout, ct).ConfigureAwait(false);
+                fakeTime.Advance(participantTimeout - TimeSpan.FromTicks(1));
+
+                Assert.That(reconnectTask.IsCompleted, Is.False);
+                releaseParticipant.TrySetResult(true);
+                await reconnectTask.WaitAsync(AssertionTimeout, ct).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(channel.State, Is.EqualTo(ChannelState.Ready));
+                    Assert.That(participant.NotificationCount, Is.EqualTo(1));
+                    Assert.That(participant.LastAttempt, Is.Zero);
+                });
+
+                fakeTime.Advance(TimeSpan.FromTicks(1));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(fakeTime.GetUtcNow() - fakeTime.Start, Is.EqualTo(participantTimeout));
+                    Assert.That(channel.State, Is.EqualTo(ChannelState.Ready));
+                    Assert.That(participant.NotificationCount, Is.EqualTo(1));
+                });
+            }
+            finally
+            {
+                releaseParticipant.TrySetResult(true);
+            }
         }
 
         [Test]
@@ -200,28 +282,63 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             IManagedTransportChannel chB = await environment.Manager.GetAsync(normalParticipant, ct)
                 .ConfigureAwait(false);
 
-            using var ctsA = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+            using var ctsA = CancellationTokenSource.CreateLinkedTokenSource(ct);
             Task taskA = IgnoreOperationCanceledAsync(
                 environment.Manager.ReconnectAsync(chA, ctsA.Token).AsTask());
-            await WaitForHungReconnectAsync(environment.Manager, chA.Key, hungParticipant, ct)
-                .ConfigureAwait(false);
-
-            var sw = Stopwatch.StartNew();
-            await environment.Manager.ReconnectAsync(chB, ct).ConfigureAwait(false);
-            sw.Stop();
-
-            Assert.Multiple(() =>
+            try
             {
-                Assert.That(sw.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
-                Assert.That(chB.State, Is.EqualTo(ChannelState.Ready));
-            });
+                await WaitForHungReconnectAsync(environment.Manager, chA.Key, hungParticipant, ct)
+                    .ConfigureAwait(false);
+                await environment.Manager.ReconnectAsync(chB, ct).AsTask()
+                    .WaitAsync(TimeSpan.FromSeconds(2), ct).ConfigureAwait(false);
 
-            await taskA.ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(taskA.IsCompleted, Is.False);
+                    Assert.That(chB.State, Is.EqualTo(ChannelState.Ready));
+                    Assert.That(normalParticipant.NotificationCount, Is.EqualTo(1));
+                });
+            }
+            finally
+            {
+                await ctsA.CancelAsync().ConfigureAwait(false);
+                await taskA.WaitAsync(AssertionTimeout, CancellationToken.None).ConfigureAwait(false);
+            }
         }
 
         private static FakeParticipant CreateParticipant(ConfiguredEndpoint endpoint)
         {
             return new FakeParticipant(endpoint);
+        }
+
+        private static TimeProvider ObserveParticipantTimeout(
+            FakeTimeProvider fakeTime,
+            TimeSpan participantTimeout,
+            out Task timeoutScheduled)
+        {
+            var timerCreated = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var timeProvider = new Mock<TimeProvider>(MockBehavior.Strict);
+            timeProvider.Setup(provider => provider.GetUtcNow()).Returns(fakeTime.GetUtcNow);
+            timeProvider.Setup(provider => provider.GetTimestamp()).Returns(fakeTime.GetTimestamp);
+            timeProvider.SetupGet(provider => provider.TimestampFrequency).Returns(fakeTime.TimestampFrequency);
+            timeProvider.Setup(provider => provider.CreateTimer(
+                It.IsAny<TimerCallback>(),
+                It.IsAny<object?>(),
+                It.IsAny<TimeSpan>(),
+                It.IsAny<TimeSpan>()))
+                .Returns((TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) =>
+                {
+                    ITimer timer = fakeTime.CreateTimer(callback, state, dueTime, period);
+                    if (dueTime == participantTimeout)
+                    {
+                        timerCreated.TrySetResult(true);
+                    }
+                    return timer;
+                });
+
+            timeoutScheduled = timerCreated.Task;
+            return timeProvider.Object;
         }
 
         private static ExponentialBackoffChannelReconnectPolicy CreateParticipantTimeoutPolicy(

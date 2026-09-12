@@ -112,12 +112,20 @@ namespace Opc.Ua.Server.FileSystem
         void ForgetHandle(NodeId nodeId);
 
         /// <summary>
-        /// Notifies the host that the provider's contents changed so it can
-        /// refresh whatever it has materialised.
+        /// Applies an admitted provider mutation and reconciles the hosted address space.
         /// </summary>
+        /// <param name="kind">The operation to apply.</param>
+        /// <param name="path">The created, deleted, moved or copied provider path.</param>
+        /// <param name="targetPath">The destination for a move or copy.</param>
+        /// <param name="sourceNodeId">The source node whose handles must be retired for a delete or move.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
-        /// <returns>A task that completes once the host caught up.</returns>
-        ValueTask OnProviderChangedAsync(CancellationToken cancellationToken);
+        /// <returns>A task that completes once the mutation has been applied.</returns>
+        ValueTask ApplyMutationAsync(
+            FileSystemMutationKind kind,
+            string path,
+            string targetPath,
+            NodeId sourceNodeId,
+            CancellationToken cancellationToken);
 
         /// <summary>
         /// Resolves a NodeId back to the provider path it represents.
@@ -130,5 +138,14 @@ namespace Opc.Ua.Server.FileSystem
         /// <c>true</c> when the NodeId belongs to this host.
         /// </returns>
         bool TryGetProviderPath(NodeId nodeId, out string providerPath, out bool isDirectory, out bool isRoot);
+    }
+
+    internal enum FileSystemMutationKind
+    {
+        CreateFile,
+        CreateDirectory,
+        Delete,
+        Move,
+        Copy
     }
 }

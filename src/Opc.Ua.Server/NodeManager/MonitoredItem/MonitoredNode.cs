@@ -56,8 +56,8 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="node">The node.</param>
         /// <param name="enableMultipleEventConsumers">
-        /// When <c>true</c>, enables dynamic scaling of consumer tasks based on
-        /// the number of event monitored items. The Server node
+        /// When <c>true</c>, delivers each event concurrently to independent
+        /// monitored items while preserving event order. The Server node
         /// (<see cref="ObjectIds.Server"/>) always opts in automatically.
         /// </param>
         public MonitoredNode2(
@@ -77,7 +77,8 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="node">The node.</param>
         /// <param name="enableMultipleEventConsumers">
-        /// When <c>true</c>, enables dynamic scaling of consumer tasks.
+        /// When <c>true</c>, delivers each event concurrently to independent
+        /// monitored items while preserving event order.
         /// </param>
         /// <param name="timeProvider">
         /// Optional <see cref="TimeProvider"/> used for the operation-context
@@ -104,17 +105,13 @@ namespace Opc.Ua.Server
             m_useMultipleConsumers = enableMultipleEventConsumers || node.NodeId == ObjectIds.Server;
             m_channel = Channel.CreateBounded<INodeNotification>(new BoundedChannelOptions(k_defaultChannelCapacity)
             {
-                SingleReader = !m_useMultipleConsumers,
+                SingleReader = true,
                 FullMode = BoundedChannelFullMode.Wait,
                 AllowSynchronousContinuations = false
             });
             m_consumerCts = new CancellationTokenSource();
             m_consumerTask = Task.Run(() => ProcessChannelAsync(m_consumerCts.Token));
 
-            if (m_useMultipleConsumers)
-            {
-                m_additionalConsumers = [];
-            }
         }
 
         /// <summary>
@@ -219,20 +216,6 @@ namespace Opc.Ua.Server
 
                 Node.OnReportEventAsync = OnReportEventAsync;
 
-                // Scale up: add a consumer task for each new event MI beyond the first.
-                if (m_useMultipleConsumers && m_additionalConsumers != null)
-                {
-                    lock (m_additionalConsumersLock)
-                    {
-                        // The primary consumer task always runs; add additional ones
-                        // so total consumers = EventMonitoredItems.Count.
-                        int totalDesired = EventMonitoredItems.Count;
-                        if (totalDesired > m_additionalConsumers.Count + 1)
-                        {
-                            AddConsumer();
-                        }
-                    }
-                }
             }
         }
 
@@ -252,19 +235,6 @@ namespace Opc.Ua.Server
                     Node.OnReportEventAsync = null;
                 }
 
-                // Scale down: remove a consumer task when MIs decrease (keep at least 1 total = primary).
-                if (m_useMultipleConsumers && m_additionalConsumers != null)
-                {
-                    lock (m_additionalConsumersLock)
-                    {
-                        // Total consumers = 1 (primary) + m_additionalConsumers.Count
-                        int totalDesired = Math.Max(1, EventMonitoredItems.Count);
-                        while (m_additionalConsumers.Count + 1 > totalDesired)
-                        {
-                            RemoveLastConsumer();
-                        }
-                    }
-                }
             }
         }
 
@@ -574,40 +544,46 @@ namespace Opc.Ua.Server
             // per (item, eventType, sourceNode) avoids two role-validation
             // calls per delivered event.
             (NodeId eventTypeId, NodeId sourceNodeId) = ExtractEventIdentity(snapshot.EventTargetSnapshot);
-
-            foreach (KeyValuePair<uint, IEventMonitoredItem> kvp in EventMonitoredItems)
+            if (m_useMultipleConsumers)
             {
-                IEventMonitoredItem monitoredItem = kvp.Value;
-                IFilterTarget e = snapshot.EventTargetSnapshot;
-
-                if (e is AuditEventState || (e is InstanceStateSnapshot sn && sn.Handle is AuditEventState))
+                var deliveries = new List<Task>(EventMonitoredItems.Count);
+                foreach (IEventMonitoredItem item in EventMonitoredItems.Values)
                 {
-                    if (!m_server.Auditing)
-                    {
-                        continue;
-                    }
-                    if (monitoredItem?.Session?.EndpointDescription?.SecurityMode !=
-                            MessageSecurityMode.SignAndEncrypt &&
-                        monitoredItem?.Session?.EndpointDescription?.TransportProfileUri !=
-                            Profiles.HttpsBinaryTransport)
-                    {
-                        continue;
-                    }
+                    deliveries.Add(ProcessEventForItemAsync(
+                        item, snapshot.EventTargetSnapshot, eventTypeId, sourceNodeId, cancellationToken));
                 }
+                await Task.WhenAll(deliveries).ConfigureAwait(false);
+                return;
+            }
+            foreach (IEventMonitoredItem item in EventMonitoredItems.Values)
+            {
+                await ProcessEventForItemAsync(
+                    item, snapshot.EventTargetSnapshot, eventTypeId, sourceNodeId, cancellationToken).ConfigureAwait(false);
+            }
+        }
 
-                ServiceResult validationResult = await GetOrAddEventPermissionAsync(
-                    monitoredItem!,
-                    e,
-                    eventTypeId,
-                    sourceNodeId,
-                    cancellationToken).ConfigureAwait(false);
-
-                if (ServiceResult.IsBad(validationResult))
+        private async Task ProcessEventForItemAsync(
+            IEventMonitoredItem monitoredItem,
+            IFilterTarget target,
+            NodeId eventTypeId,
+            NodeId sourceNodeId,
+            CancellationToken cancellationToken)
+        {
+            if (target is AuditEventState || (target is InstanceStateSnapshot sn && sn.Handle is AuditEventState))
+            {
+                if (!m_server.Auditing ||
+                    (monitoredItem.Session?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
+                        monitoredItem.Session?.EndpointDescription?.TransportProfileUri != Profiles.HttpsBinaryTransport))
                 {
-                    continue;
+                    return;
                 }
+            }
 
-                monitoredItem?.QueueEvent(e);
+            ServiceResult validationResult = await GetOrAddEventPermissionAsync(
+                monitoredItem, target, eventTypeId, sourceNodeId, cancellationToken).ConfigureAwait(false);
+            if (!ServiceResult.IsBad(validationResult))
+            {
+                monitoredItem.QueueEvent(target);
             }
         }
 
@@ -918,50 +894,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Adds a new consumer task to the pool for the regular channel.
-        /// Must be called while holding the <see cref="m_additionalConsumersLock"/> lock.
-        /// </summary>
-        private void AddConsumer()
-        {
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(m_consumerCts.Token);
-            var task = Task.Run(() => ProcessChannelAsync(cts.Token));
-            m_additionalConsumers!.Add(new ConsumerEntry(task, cts));
-        }
-
-        /// <summary>
-        /// Removes the last additional consumer task from the pool.
-        /// Must be called while holding the <see cref="m_additionalConsumersLock"/> lock.
-        /// </summary>
-        private void RemoveLastConsumer()
-        {
-            if (m_additionalConsumers!.Count == 0)
-            {
-                return;
-            }
-
-            int lastIndex = m_additionalConsumers.Count - 1;
-            ConsumerEntry entry = m_additionalConsumers[lastIndex];
-            m_additionalConsumers.RemoveAt(lastIndex);
-            entry.Cts.Cancel();
-            entry.Cts.Dispose();
-        }
-
-        /// <summary>
-        /// Represents a single consumer task and its associated cancellation token.
-        /// </summary>
-        private readonly struct ConsumerEntry
-        {
-            public ConsumerEntry(Task task, CancellationTokenSource cts)
-            {
-                Task = task;
-                Cts = cts;
-            }
-
-            public Task Task { get; }
-            public CancellationTokenSource Cts { get; }
-        }
-
         private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, long CreatedAtTimestamp)> m_contextCache =
             new();
 
@@ -980,8 +912,6 @@ namespace Opc.Ua.Server
         private readonly CancellationTokenSource m_consumerCts;
         private readonly Task m_consumerTask;
         private readonly bool m_useMultipleConsumers;
-        private readonly List<ConsumerEntry>? m_additionalConsumers;
-        private readonly Lock m_additionalConsumersLock = new();
         private readonly Lock m_rebindLock = new();
         private bool m_disposed;
 
@@ -1007,54 +937,6 @@ namespace Opc.Ua.Server
             {
                 // Complete the writer; consumers drain remaining items and exit normally.
                 m_channel.Writer.TryComplete();
-
-                // Wait for additional consumer tasks to finish.
-                if (m_additionalConsumers != null)
-                {
-                    ConsumerEntry[] entries;
-                    lock (m_additionalConsumersLock)
-                    {
-                        entries = [.. m_additionalConsumers];
-                        m_additionalConsumers.Clear();
-                    }
-
-                    Task[] tasks = Array.ConvertAll(entries, e => e.Task);
-
-                    try
-                    {
-                        // Bound the wait — do not block indefinitely if consumers are stuck.
-                        bool completed = Task.WaitAll(tasks, TimeSpan.FromSeconds(5));
-
-                        if (!completed)
-                        {
-                            m_logger?.MonitoredNode2AdditionalConsumersDidNotDrainWithin();
-
-                            foreach (ConsumerEntry entry in entries)
-                            {
-                                entry.Cts.Cancel();
-                            }
-
-                            try
-                            {
-                                Task.WaitAll(tasks);
-                            }
-                            catch
-                            {
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        m_logger?.MonitoredNode2AdditionalConsumersFaultedDuring(ex);
-                    }
-                    finally
-                    {
-                        foreach (ConsumerEntry entry in entries)
-                        {
-                            entry.Cts.Dispose();
-                        }
-                    }
-                }
 
                 if (m_consumerTask != null)
                 {

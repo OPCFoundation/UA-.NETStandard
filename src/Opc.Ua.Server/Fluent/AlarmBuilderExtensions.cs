@@ -339,6 +339,7 @@ namespace Opc.Ua.Server.Fluent
                 browseName,
                 displayName: new LocalizedText(symbolicName),
                 assignNodeIds: false);
+            parent.Builder.Context.AssignInstanceChildNodeIds(alarm);
 
             // Record whether enabling is ours to undo, before doing it. A freshly
             // created condition is disabled, so today this is always true; it is captured
@@ -460,30 +461,42 @@ namespace Opc.Ua.Server.Fluent
                     Alarm.GetType().Name);
             }
 
-            _ = Builder.Builder.Context;
+            ISystemContext context = Builder.Builder.Context;
             if (!double.IsNaN(highHigh))
             {
-                limit.HighHighLimit ??=
-                    new PropertyState<double>.Implementation<VariantBuilder>(limit);
-                limit.HighHighLimit.Value = highHigh;
+                if (limit.HighHighLimit == null)
+                {
+                    FluentNodeRegistration.RegisterCreatedNode(
+                        Builder.Builder, limit.AddHighHighLimit(context).HighHighLimit!);
+                }
+                limit.HighHighLimit!.Value = highHigh;
             }
             if (!double.IsNaN(high))
             {
-                limit.HighLimit ??=
-                    new PropertyState<double>.Implementation<VariantBuilder>(limit);
-                limit.HighLimit.Value = high;
+                if (limit.HighLimit == null)
+                {
+                    FluentNodeRegistration.RegisterCreatedNode(
+                        Builder.Builder, limit.AddHighLimit(context).HighLimit!);
+                }
+                limit.HighLimit!.Value = high;
             }
             if (!double.IsNaN(low))
             {
-                limit.LowLimit ??=
-                    new PropertyState<double>.Implementation<VariantBuilder>(limit);
-                limit.LowLimit.Value = low;
+                if (limit.LowLimit == null)
+                {
+                    FluentNodeRegistration.RegisterCreatedNode(
+                        Builder.Builder, limit.AddLowLimit(context).LowLimit!);
+                }
+                limit.LowLimit!.Value = low;
             }
             if (!double.IsNaN(lowLow))
             {
-                limit.LowLowLimit ??=
-                    new PropertyState<double>.Implementation<VariantBuilder>(limit);
-                limit.LowLowLimit.Value = lowLow;
+                if (limit.LowLowLimit == null)
+                {
+                    FluentNodeRegistration.RegisterCreatedNode(
+                        Builder.Builder, limit.AddLowLowLimit(context).LowLowLimit!);
+                }
+                limit.LowLowLimit!.Value = lowLow;
             }
             return this;
         }

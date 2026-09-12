@@ -878,6 +878,24 @@ namespace Opc.Ua.Bindings
             ForceReconnect(result);
         }
 
+        private protected override void OnTransportError(
+            IUaSCByteTransport transport,
+            ServiceResult result,
+            CancellationToken ct)
+        {
+            if (ct.IsCancellationRequested || !ReferenceEquals(Transport, transport))
+            {
+                return;
+            }
+            using (Gate.Enter())
+            {
+                if (!ct.IsCancellationRequested && ReferenceEquals(Transport, transport))
+                {
+                    ForceReconnectCore(result);
+                }
+            }
+        }
+
         /// <summary>
         /// Called when a write operation completes.
         /// </summary>
@@ -1801,19 +1819,23 @@ namespace Opc.Ua.Bindings
             }
 
             // check if operation is still available.
-            if (!m_requests.TryGetValue(requestId, out WriteOperation? operation))
+            m_requests.TryGetValue(requestId, out WriteOperation? operation);
+
+            // check for replay attacks.
+            if (!VerifySequenceNumber(sequenceNumber, "ProcessResponseMessage"))
+            {
+                m_logger.InvalidResponseSequence(ChannelId, sequenceNumber);
+                var error = new ServiceResult(StatusCodes.BadSecurityChecksFailed);
+                operation?.Fault(true, error);
+                ForceReconnect(error);
+                return false;
+            }
+            if (operation == null)
             {
                 return false;
             }
 
             BufferCollection? chunksToProcess = null;
-
-            // check for replay attacks.
-            if (!VerifySequenceNumber(sequenceNumber, "ProcessResponseMessage"))
-            {
-                throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
-            }
-
             try
             {
                 // check for an abort.
@@ -2121,6 +2143,10 @@ namespace Opc.Ua.Bindings
         public static partial void UaSCClientLog36(
             this ILogger logger,
             global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 37, Level = LogLevel.Error,
+            Message = "ChannelId {ChannelId}: BadSequenceNumberInvalid in response (sequence {SequenceNumber}).")]
+        public static partial void InvalidResponseSequence(this ILogger logger, uint channelId, uint sequenceNumber);
     }
 
 }

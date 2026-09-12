@@ -1122,6 +1122,7 @@ namespace Opc.Ua.Server.Fluent
 
         internal void RegisterMultiConsumerNode(NodeState node, bool enable)
         {
+            ThrowIfSealed();
             if (NodeManager is not AsyncCustomNodeManager acnm)
             {
                 throw ServiceResultException.Create(
@@ -1663,7 +1664,7 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
-        private void ThrowIfSealed()
+        internal void ThrowIfSealed()
         {
             if (m_sealed)
             {
@@ -1674,11 +1675,12 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
-        private static void ThrowIfDuplicate<T>(
+        private void ThrowIfDuplicate<T>(
             Dictionary<NodeId, T> map,
             NodeState node,
             string what)
         {
+            ThrowIfSealed();
             if (map.ContainsKey(node.NodeId))
             {
                 throw ServiceResultException.Create(

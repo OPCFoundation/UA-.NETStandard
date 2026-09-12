@@ -436,6 +436,7 @@ namespace Opc.Ua.Server.Fluent
 
         private void ThrowIfSlotOccupied(Delegate? existing, string what)
         {
+            m_parent.ThrowIfSealed();
             if (existing != null)
             {
                 throw ServiceResultException.Create(
