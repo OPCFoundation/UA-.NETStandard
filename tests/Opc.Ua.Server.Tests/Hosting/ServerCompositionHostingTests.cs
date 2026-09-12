@@ -998,6 +998,177 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(identity.Identity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
         }
 
+        [TestCase(false, false, false)]
+        [TestCase(true, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, true)]
+        [TestCase(false, true, true)]
+        public async Task PreStartupInitializedAliasesAreRegisteredBeforeAddressSpaceAsync(
+            bool materialize,
+            bool topics,
+            bool plainServer)
+        {
+            NodeId categoryId = topics ? ObjectIds.Topics : ObjectIds.TagVariables;
+            using var store = new InMemoryAliasNameStore(
+                [new AliasNameCategoryDescriptor(
+                    categoryId,
+                    QualifiedName.From(topics ? BrowseNames.Topics : BrowseNames.TagVariables),
+                    AliasNameCapabilities.All)]);
+            using var registry = new AliasNameStoreRegistry();
+            var entered = NewSignal<bool>();
+            var release = NewSignal<bool>();
+            int initializerResolutions = 0;
+            var initializer = new Mock<IServerPreStartupTask>(MockBehavior.Strict);
+            initializer.Setup(task => task.OnServerStartingAsync(
+                It.IsAny<IServerContext>(), It.IsAny<CancellationToken>()))
+                .Returns((IServerContext _, CancellationToken ct) => InitializeAsync(ct));
+            var followingTask = new Mock<IServerPreStartupTask>(MockBehavior.Strict);
+            followingTask.Setup(task => task.OnServerStartingAsync(
+                It.IsAny<IServerContext>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    Assert.That(registry.Stores, Does.Contain(store));
+                    return default;
+                });
+            var fixture = new HostedFixture((services, root) =>
+            {
+                services.AddTransient<IServerPreStartupTask>(_ =>
+                {
+                    initializerResolutions++;
+                    return initializer.Object;
+                });
+                services.AddSingleton(followingTask.Object);
+                IOpcUaBuilder builder = services.AddOpcUa();
+                IOpcUaServerBuilder server = plainServer
+                    ? builder.AddServer<StandardServer>(options => ConfigureOptions(options, root))
+                    : builder.AddServer(options => ConfigureOptions(options, root));
+                server.AddAliasNameStoreRegistry(registry);
+                if (materialize)
+                {
+                    server.ConfigureAliasNames(options => options.MaterializeAliasNodes = true);
+                }
+                return server;
+            });
+            await using var cleanup = fixture.ConfigureAwait(false);
+
+            Task starting = fixture.StartAsync();
+            try
+            {
+                await AwaitBoundedAsync(entered.Task).ConfigureAwait(false);
+                Assert.That(starting.IsCompleted, Is.False);
+                Assert.That(registry.Stores, Is.Empty);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            await AwaitBoundedAsync(starting).ConfigureAwait(false);
+
+            Assert.That(initializerResolutions, Is.EqualTo(1));
+            initializer.Verify(task => task.OnServerStartingAsync(
+                It.IsAny<IServerContext>(), It.IsAny<CancellationToken>()), Times.Once);
+            followingTask.Verify(task => task.OnServerStartingAsync(
+                It.IsAny<IServerContext>(), It.IsAny<CancellationToken>()), Times.Once);
+            AliasNameCategoryState category = fixture.Context
+                .FindPredefinedNode<AliasNameCategoryState>(categoryId);
+            ArrayOf<AliasNameDataType> aliases = await FindAliasesAsync(fixture.Context, category)
+                .ConfigureAwait(false);
+            Assert.That(aliases.Count, Is.EqualTo(1));
+            Assert.That(aliases[0].AliasName.Name, Is.EqualTo("InitializedAlias"));
+            Assert.That(aliases[0].ReferencedNodes[0],
+                Is.EqualTo((ExpandedNodeId)VariableIds.Server_ServerStatus_BuildInfo_ProductName));
+
+            var references = new List<IReference>();
+            category.GetReferences(fixture.Context.DefaultSystemContext, references);
+            IReference[] browseAliases = references.Where(reference =>
+                reference.ReferenceTypeId == ReferenceTypeIds.Organizes && !reference.IsInverse).ToArray();
+            Assert.That(browseAliases, Has.Length.EqualTo(materialize ? 1 : 0));
+            if (materialize)
+            {
+                var aliasId = ExpandedNodeId.ToNodeId(
+                    browseAliases[0].TargetId, fixture.Context.DefaultSystemContext.NamespaceUris);
+                AliasNameState alias = fixture.Context.FindPredefinedNode<AliasNameState>(aliasId);
+                Assert.That(alias.BrowseName.Name, Is.EqualTo("InitializedAlias"));
+                Assert.That(alias.ReferenceExists(ReferenceTypeIds.AliasFor, false,
+                    VariableIds.Server_ServerStatus_BuildInfo_ProductName), Is.True);
+                Assert.That(category.FindAliasVerbose, Is.Not.Null);
+            }
+
+            async ValueTask InitializeAsync(CancellationToken ct)
+            {
+                Assert.That(ct.CanBeCanceled, Is.True);
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                store.Seed(categoryId, "InitializedAlias",
+                    VariableIds.Server_ServerStatus_BuildInfo_ProductName, null, ReferenceTypeIds.AliasFor);
+                registry.Register(store);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedPreStartupInitializationDoesNotCopyAliasStoresAsync(bool cancel)
+        {
+            using var store = new InMemoryAliasNameStore(
+                [new AliasNameCategoryDescriptor(
+                    ObjectIds.TagVariables,
+                    QualifiedName.From(BrowseNames.TagVariables),
+                    AliasNameCapabilities.All)]);
+            var registry = new Mock<IAliasNameStoreRegistry>(MockBehavior.Strict);
+            registry.SetupGet(source => source.Stores).Returns([store]);
+            var entered = NewSignal<bool>();
+            var initializer = new Mock<IServerPreStartupTask>(MockBehavior.Strict);
+            initializer.Setup(task => task.OnServerStartingAsync(
+                It.IsAny<IServerContext>(), It.IsAny<CancellationToken>()))
+                .Returns((IServerContext _, CancellationToken ct) => InitializeAsync(ct));
+            var followingTask = new Mock<IServerPreStartupTask>(MockBehavior.Strict);
+            HostedFixture fixture = HostedFixture.Create(builder =>
+            {
+                builder.Services.AddSingleton(initializer.Object);
+                builder.Services.AddSingleton(followingTask.Object);
+                builder.AddAliasNameStoreRegistry(registry.Object);
+                builder.ConfigureAliasNames(options => options.MaterializeAliasNodes = true);
+            });
+            await using var cleanup = fixture.ConfigureAwait(false);
+
+            Task<Exception> failure = fixture.StartAndCaptureFailureAsync();
+            await AwaitBoundedAsync(entered.Task).ConfigureAwait(false);
+            if (cancel)
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+            await AwaitBoundedAsync(failure).ConfigureAwait(false);
+            Exception actual = await failure.ConfigureAwait(false);
+
+            Assert.That(fixture.ExecuteTask.IsCanceled, Is.EqualTo(cancel));
+            Assert.That(fixture.ExecuteTask.IsFaulted, Is.EqualTo(!cancel));
+            if (cancel)
+            {
+                Assert.That(actual, Is.InstanceOf<OperationCanceledException>());
+            }
+            else
+            {
+                Assert.That(actual, Is.InstanceOf<ServiceResultException>());
+            }
+            initializer.Verify(task => task.OnServerStartingAsync(
+                It.IsAny<IServerContext>(), It.IsAny<CancellationToken>()), Times.Once);
+            followingTask.Verify(task => task.OnServerStartingAsync(
+                It.IsAny<IServerContext>(), It.IsAny<CancellationToken>()), Times.Never);
+            registry.VerifyGet(source => source.Stores, Times.Never);
+
+            async ValueTask InitializeAsync(CancellationToken ct)
+            {
+                entered.TrySetResult(true);
+                if (cancel)
+                {
+                    await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                }
+                throw new InvalidOperationException("Alias initialization failed.");
+            }
+        }
+
         [TestCase(false, false)]
         [TestCase(true, false)]
         [TestCase(false, true)]

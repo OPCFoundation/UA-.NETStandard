@@ -536,6 +536,9 @@ overriding the published capabilities in a task.
 
 `AddAliasNameStore(store)` and `AddAliasNameStoreRegistry(registry)`
 make registered stores available before address-space startup.
+Application `IServerPreStartupTask` registrations run first, in their
+registration order, so they can initialize source registries before the
+stores are copied into the server's registry.
 `ConfigureAliasNames(Action<AliasNameServerOptions>)` controls whether
 the normal `ConfigurationNodeManager` also materializes their aliases
 and declared optional capabilities under the standard `TagVariables`
@@ -583,6 +586,10 @@ The server creates, retains, and disposes its own resource manager.
 These callbacks do not register a live `Opc.Ua.Server.ResourceManager`
 service for injection. Resolve supporting services from `sp` and use the
 manager passed to the callback.
+
+Translated text retains its original `TranslationInfo` fallback locale,
+template, and arguments. A retained result can therefore be translated for
+another session without losing its original fallback.
 
 ### Migrating with an existing configuration XML file
 
