@@ -262,7 +262,7 @@ namespace Opc.Ua.Core.Tests.Security
                 .Create("CN=Missing Signature")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
-            SignatureData? signature = signatureKind switch
+            SignatureData signature = signatureKind switch
             {
                 "null" => null,
                 "missing" => new SignatureData(),
@@ -274,7 +274,7 @@ namespace Opc.Ua.Core.Tests.Security
             };
 
             Assert.That(SecurityPolicies.Default.VerifySignatureData(
-                signature!, policyUri, certificate, [1, 2, 3]),
+                signature, policyUri, certificate, [1, 2, 3]),
                 Is.EqualTo(policyUri == SecurityPolicies.None));
         }
 
