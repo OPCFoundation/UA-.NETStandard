@@ -141,7 +141,7 @@ namespace Opc.Ua.SourceGeneration
                     Diagnostic.Create(
                         SourceGenerator.GenericError,
                         Location.None,
-                        "Opc UA stack is too old. Minimum required language version is CSharp 14."));
+                        "Opc UA stack is too old. Minimum required language version is CSharp 13."));
                 return false;
             }
 

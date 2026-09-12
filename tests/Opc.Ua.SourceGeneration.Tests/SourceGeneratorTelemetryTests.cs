@@ -105,6 +105,60 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// Regression: the generator's logger reports Critical as enabled, but
+        /// the level was not mapped to any descriptor, so every LogCritical
+        /// message - including "Could not parse NodeSet" - was silently dropped.
+        /// </summary>
+        [Test]
+        public void CriticalLogLevelMapsToADiagnostic()
+        {
+            bool mapped = SourceGenerator.TryGetDiagnostic(
+                Microsoft.Extensions.Logging.LogLevel.Critical,
+                default,
+                out DiagnosticDescriptor descriptor);
+
+            Assert.That(mapped, Is.True, "Critical must reach the build as a diagnostic");
+            Assert.That(descriptor.DefaultSeverity, Is.EqualTo(DiagnosticSeverity.Error));
+        }
+
+        /// <summary>
+        /// Levels below Warning still map to nothing - they are diagnostics-only
+        /// tracing, and the logger reports them as disabled.
+        /// </summary>
+        [TestCase(Microsoft.Extensions.Logging.LogLevel.Trace)]
+        [TestCase(Microsoft.Extensions.Logging.LogLevel.Debug)]
+        [TestCase(Microsoft.Extensions.Logging.LogLevel.Information)]
+        public void SubWarningLogLevelsMapToNothing(
+            Microsoft.Extensions.Logging.LogLevel level)
+        {
+            Assert.That(
+                SourceGenerator.TryGetDiagnostic(level, default, out _),
+                Is.False);
+        }
+
+        /// <summary>
+        /// Regression: MODELGEN003 declares two placeholders, so reporting it
+        /// with a single argument rendered the raw template. The [DataType]
+        /// paths now pass the annotated type name and the message separately.
+        /// </summary>
+        [Test]
+        public void ExceptionDescriptorWithBothArgumentsRendersTheMessage()
+        {
+            Diagnostic diagnostic = Diagnostic.Create(
+                SourceGenerator.Exception,
+                Location.None,
+                "TestApp.Config.ServerConfig",
+                "InvalidOperationException: boom");
+
+            string rendered = diagnostic.GetMessage(CultureInfo.InvariantCulture);
+
+            Assert.That(rendered, Does.Contain("TestApp.Config.ServerConfig"));
+            Assert.That(rendered, Does.Contain("boom"));
+            Assert.That(rendered, Does.Not.Contain("{0}"));
+            Assert.That(rendered, Does.Not.Contain("{1}"));
+        }
+
+        /// <summary>
         /// The formatted message is emitted safely even when it contains brace
         /// characters that would otherwise be interpreted as format placeholders.
         /// </summary>

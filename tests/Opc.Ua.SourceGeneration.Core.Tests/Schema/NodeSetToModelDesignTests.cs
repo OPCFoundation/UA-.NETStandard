@@ -427,6 +427,380 @@ namespace Opc.Ua.Schema.Model.Tests
             Assert.That(normalized, Is.SameAs(symbolicName));
         }
 
+        /// <summary>
+        /// Regression: a NodeSet without a &lt;Models&gt; entry crashed with an
+        /// unexplained NullReferenceException inside the constructor. It is
+        /// reported as the malformed input it is.
+        /// </summary>
+        [Test]
+        public void ConstructorNodeSetWithoutModelsThrowsInvalidDataException()
+        {
+            const string path = "memory://NoModels.NodeSet2.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(NoModelsNodeSet));
+
+            InvalidDataException ex = Assert.Throws<InvalidDataException>(
+                () => new NodeSetToModelDesign(
+                    m_fileSystem, path, new NodeSetReaderSettings(), CreateTelemetry()));
+
+            Assert.That(ex.Message, Does.Contain("Models"));
+        }
+
+        /// <summary>
+        /// Regression: an instance node carrying neither a ParentNodeId nor a
+        /// &lt;References&gt; element - both optional in the schema - crashed the
+        /// import with a NullReferenceException. Such a node has no type
+        /// definition either, so it is reported as the malformed input it is.
+        /// </summary>
+        [Test]
+        public void ImportInstanceWithoutParentOrReferencesReportsTheNode()
+        {
+            const string path = "memory://NoReferences.NodeSet2.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(NoReferencesNodeSet));
+
+            NodeSetToModelDesign importer = new(
+                m_fileSystem, path, new NodeSetReaderSettings(), CreateTelemetry());
+
+            InvalidDataException ex = Assert.Throws<InvalidDataException>(
+                () => importer.Import("NoRefs", "NoRefs"));
+
+            Assert.That(ex.Message, Does.Contain("Orphan"));
+        }
+
+        /// <summary>
+        /// An instance with references but no ParentNodeId and no inverse
+        /// hierarchical reference imports as a top-level node.
+        /// </summary>
+        [Test]
+        public void ImportInstanceWithoutParentImportsAsTopLevelNode()
+        {
+            const string path = "memory://NoParent.NodeSet2.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(NoParentNodeSet));
+
+            NodeSetToModelDesign importer = new(
+                m_fileSystem, path, new NodeSetReaderSettings(), CreateTelemetry());
+
+            ModelDesign model = null;
+            Assert.DoesNotThrow(() => model = importer.Import("NoParent", "NoParent"));
+            Assert.That(
+                model.Items.Select(x => x.SymbolicName?.Name),
+                Does.Contain("Orphan"));
+        }
+
+        /// <summary>
+        /// Regression: <c>AccessRestrictions="0"</c> means "no restrictions", but
+        /// the mapping fell through its switch and returned EncryptionRequired,
+        /// so an unrestricted node was imported as an encrypted one.
+        /// </summary>
+        [Test]
+        public void ImportZeroAccessRestrictionsLeavesThemUnspecified()
+        {
+            const string path = "memory://ZeroRestrictions.NodeSet2.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(ZeroAccessRestrictionsNodeSet));
+
+            NodeSetToModelDesign importer = new(
+                m_fileSystem, path, new NodeSetReaderSettings(), CreateTelemetry());
+
+            ModelDesign model = importer.Import("Restrictions", "Restrictions");
+            NodeDesign node = model.Items
+                .Single(x => x.SymbolicName?.Name == "Unrestricted");
+
+            Assert.That(
+                node.AccessRestrictionsSpecified,
+                Is.False,
+                "an empty mask carries no restriction the design schema can express");
+            Assert.That(
+                node.AccessRestrictions,
+                Is.Not.EqualTo(AccessRestrictions.EncryptionRequired));
+        }
+
+        /// <summary>
+        /// A real restriction mask is still imported.
+        /// </summary>
+        [Test]
+        public void ImportEncryptionAccessRestrictionsIsPreserved()
+        {
+            const string path = "memory://EncryptionRestrictions.NodeSet2.xml";
+            m_fileSystem.Add(
+                path,
+                Encoding.UTF8.GetBytes(
+                    ZeroAccessRestrictionsNodeSet.Replace(
+                        "AccessRestrictions=\"0\"",
+                        "AccessRestrictions=\"2\"",
+                        StringComparison.Ordinal)));
+
+            NodeSetToModelDesign importer = new(
+                m_fileSystem, path, new NodeSetReaderSettings(), CreateTelemetry());
+
+            ModelDesign model = importer.Import("Restrictions", "Restrictions");
+            NodeDesign node = model.Items
+                .Single(x => x.SymbolicName?.Name == "Unrestricted");
+
+            Assert.That(node.AccessRestrictionsSpecified, Is.True);
+            Assert.That(
+                node.AccessRestrictions,
+                Is.EqualTo(AccessRestrictions.EncryptionRequired));
+        }
+
+        /// <summary>
+        /// Regression: making the empty mask unspecified must not also drop a
+        /// real restriction that happens to carry a bit the design schema cannot
+        /// name. A mask of EncryptionRequired plus a reserved bit matches no case
+        /// in the switch, and returning "unspecified" there would publish an
+        /// encryption-required node with no protection at all.
+        /// </summary>
+        [Test]
+        public void ImportUnknownAccessRestrictionBitStaysRestricted()
+        {
+            const string path = "memory://UnknownRestrictions.NodeSet2.xml";
+
+            // 0x02 EncryptionRequired | 0x10 (reserved / vendor bit).
+            m_fileSystem.Add(
+                path,
+                Encoding.UTF8.GetBytes(
+                    ZeroAccessRestrictionsNodeSet.Replace(
+                        "AccessRestrictions=\"0\"",
+                        "AccessRestrictions=\"18\"",
+                        StringComparison.Ordinal)));
+
+            NodeSetToModelDesign importer = new(
+                m_fileSystem, path, new NodeSetReaderSettings(), CreateTelemetry());
+
+            ModelDesign model = importer.Import("Restrictions", "Restrictions");
+            NodeDesign node = model.Items
+                .Single(x => x.SymbolicName?.Name == "Unrestricted");
+
+            Assert.That(
+                node.AccessRestrictionsSpecified,
+                Is.True,
+                "an unrecognised combination must stay fail-closed");
+            Assert.That(
+                node.AccessRestrictions,
+                Is.EqualTo(AccessRestrictions.SessionWithEncryptionRequired));
+        }
+
+        private const string NoModelsNodeSet = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                <NamespaceUris>
+                    <Uri>http://test.org/UA/NoModels/</Uri>
+                </NamespaceUris>
+                <UAObjectType NodeId="i=58" BrowseName="BaseObjectType">
+                    <DisplayName>BaseObjectType</DisplayName>
+                </UAObjectType>
+            </UANodeSet>
+            """;
+
+        /// <summary>
+        /// Regression: the non-hierarchical fallback was repointed from the child
+        /// (where it never matched) to the parent, which made it reachable - and
+        /// it ran before the child's own inverse hierarchical reference was
+        /// considered. A parent that also declares a non-hierarchical forward
+        /// reference to its child therefore had the child classified as
+        /// non-hierarchical and dropped out of its Children entirely.
+        /// </summary>
+        [Test]
+        public void ImportChildWithNonHierarchicalParentReferenceIsStillLinked()
+        {
+            const string path = "memory://MixedRefs.NodeSet2.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(MixedReferencesNodeSet));
+
+            NodeSetToModelDesign importer = new(
+                m_fileSystem, path, new NodeSetReaderSettings(), CreateTelemetry());
+
+            ModelDesign model = importer.Import("MixedRefs", "MixedRefs");
+            NodeDesign parent = model.Items
+                .Single(x => x.SymbolicName?.Name == "ParentType");
+
+            Assert.That(parent.Children?.Items, Is.Not.Null, "the child must be linked");
+            Assert.That(
+                parent.Children.Items.Select(x => x.SymbolicName?.Name),
+                Does.Contain("Child"),
+                "the child's inverse HasComponent outranks the parent's " +
+                "non-hierarchical forward reference");
+        }
+
+        private const string MixedReferencesNodeSet = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                <NamespaceUris>
+                    <Uri>http://test.org/UA/MixedRefs/</Uri>
+                </NamespaceUris>
+                <Models>
+                    <Model ModelUri="http://test.org/UA/MixedRefs/"
+                        PublicationDate="2026-08-12T00:00:00Z"
+                        Version="1.0.0" />
+                </Models>
+                <Aliases>
+                    <Alias Alias="HasSubtype">i=45</Alias>
+                    <Alias Alias="HasTypeDefinition">i=40</Alias>
+                    <Alias Alias="HasComponent">i=47</Alias>
+                    <Alias Alias="HasCondition">i=9006</Alias>
+                </Aliases>
+                <UAReferenceType NodeId="i=33" BrowseName="HierarchicalReferences" IsAbstract="true">
+                    <DisplayName>HierarchicalReferences</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
+                    </References>
+                </UAReferenceType>
+                <UAReferenceType NodeId="i=47" BrowseName="HasComponent">
+                    <DisplayName>HasComponent</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
+                    </References>
+                </UAReferenceType>
+                <UAReferenceType NodeId="i=32" BrowseName="NonHierarchicalReferences" IsAbstract="true">
+                    <DisplayName>NonHierarchicalReferences</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
+                    </References>
+                </UAReferenceType>
+                <UAReferenceType NodeId="i=9006" BrowseName="HasCondition">
+                    <DisplayName>HasCondition</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
+                    </References>
+                </UAReferenceType>
+                <UAObjectType NodeId="i=58" BrowseName="BaseObjectType">
+                    <DisplayName>BaseObjectType</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+                    </References>
+                </UAObjectType>
+                <UAObjectType NodeId="ns=1;s=ParentType" BrowseName="1:ParentType">
+                    <DisplayName>ParentType</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+                        <Reference ReferenceType="HasCondition">ns=1;s=Child</Reference>
+                    </References>
+                </UAObjectType>
+                <UAObject NodeId="ns=1;s=Child" BrowseName="1:Child"
+                    ParentNodeId="ns=1;s=ParentType">
+                    <DisplayName>Child</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+                        <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=ParentType</Reference>
+                    </References>
+                </UAObject>
+            </UANodeSet>
+            """;
+
+        private const string NoReferencesNodeSet = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                <NamespaceUris>
+                    <Uri>http://test.org/UA/NoRefs/</Uri>
+                </NamespaceUris>
+                <Models>
+                    <Model ModelUri="http://test.org/UA/NoRefs/"
+                        PublicationDate="2026-08-12T00:00:00Z"
+                        Version="1.0.0" />
+                </Models>
+                <Aliases>
+                    <Alias Alias="HasSubtype">i=45</Alias>
+                    <Alias Alias="HasTypeDefinition">i=40</Alias>
+                </Aliases>
+                <UAReferenceType NodeId="i=33" BrowseName="HierarchicalReferences" IsAbstract="true">
+                    <DisplayName>HierarchicalReferences</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
+                    </References>
+                </UAReferenceType>
+                <UAObjectType NodeId="i=58" BrowseName="BaseObjectType">
+                    <DisplayName>BaseObjectType</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+                    </References>
+                </UAObjectType>
+                <UAObject NodeId="ns=1;s=Orphan" BrowseName="1:Orphan">
+                    <DisplayName>Orphan</DisplayName>
+                </UAObject>
+            </UANodeSet>
+            """;
+
+        private const string NoParentNodeSet = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                <NamespaceUris>
+                    <Uri>http://test.org/UA/NoParent/</Uri>
+                </NamespaceUris>
+                <Models>
+                    <Model ModelUri="http://test.org/UA/NoParent/"
+                        PublicationDate="2026-08-12T00:00:00Z"
+                        Version="1.0.0" />
+                </Models>
+                <Aliases>
+                    <Alias Alias="HasSubtype">i=45</Alias>
+                    <Alias Alias="HasTypeDefinition">i=40</Alias>
+                </Aliases>
+                <UAReferenceType NodeId="i=33" BrowseName="HierarchicalReferences" IsAbstract="true">
+                    <DisplayName>HierarchicalReferences</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
+                    </References>
+                </UAReferenceType>
+                <UAObjectType NodeId="i=58" BrowseName="BaseObjectType">
+                    <DisplayName>BaseObjectType</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+                    </References>
+                </UAObjectType>
+                <UAObject NodeId="ns=1;s=Orphan" BrowseName="1:Orphan">
+                    <DisplayName>Orphan</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+                    </References>
+                </UAObject>
+            </UANodeSet>
+            """;
+
+        private const string ZeroAccessRestrictionsNodeSet = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                <NamespaceUris>
+                    <Uri>http://test.org/UA/Restrictions/</Uri>
+                </NamespaceUris>
+                <Models>
+                    <Model ModelUri="http://test.org/UA/Restrictions/"
+                        PublicationDate="2026-08-12T00:00:00Z"
+                        Version="1.0.0" />
+                </Models>
+                <Aliases>
+                    <Alias Alias="HasSubtype">i=45</Alias>
+                    <Alias Alias="HasTypeDefinition">i=40</Alias>
+                </Aliases>
+                <UAReferenceType NodeId="i=33" BrowseName="HierarchicalReferences" IsAbstract="true">
+                    <DisplayName>HierarchicalReferences</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
+                    </References>
+                </UAReferenceType>
+                <UAObjectType NodeId="i=58" BrowseName="BaseObjectType">
+                    <DisplayName>BaseObjectType</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+                    </References>
+                </UAObjectType>
+                <UAObjectType NodeId="ns=1;s=Unrestricted"
+                    BrowseName="1:Unrestricted"
+                    AccessRestrictions="0">
+                    <DisplayName>Unrestricted</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+                    </References>
+                </UAObjectType>
+            </UANodeSet>
+            """;
+
         private static ITelemetryContext CreateTelemetry()
         {
             return NUnitTelemetryContext.Create(logLevel: LogLevel.Error);

@@ -222,5 +222,305 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(capturedPath, Does.Contain("Test.Constants.g.cs"));
             m_mockFileSystem.Verify(fs => fs.OpenWrite(It.IsAny<string>()), Times.Once);
         }
+
+        /// <summary>
+        /// Regression: when a namespace's XmlNamespace equals its URI, the URI
+        /// was queued twice and both entries rendered under the "...Xsd" name,
+        /// so the model got two identical Xsd constants (CS0102) and no plain
+        /// constant at all.
+        /// </summary>
+        [Test]
+        public void Emit_XmlNamespaceEqualToNamespaceUri_EmitsASinglePlainConstant()
+        {
+            const string uri = "http://test.org/UA/";
+            var targetNamespace = new Namespace
+            {
+                Value = uri,
+                XmlNamespace = uri,
+                Prefix = "Test",
+                Name = "TestNamespace"
+            };
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            m_mockModelDesign.Setup(m => m.Namespaces).Returns([targetNamespace]);
+
+            string output = EmitWithSingleObjectType(targetNamespace);
+
+            Assert.That(
+                output,
+                Does.Contain("public const string TestNamespace = \"http://test.org/UA/\";"),
+                "the namespace must get its plain constant");
+            Assert.That(
+                output,
+                Does.Not.Contain("TestNamespaceXsd"),
+                "no Xsd companion when the XML namespace is the namespace URI");
+        }
+
+        /// <summary>
+        /// A distinct XML namespace still gets its own "...Xsd" constant, next to
+        /// the plain one.
+        /// </summary>
+        [Test]
+        public void Emit_XmlNamespaceDifferentFromNamespaceUri_EmitsBothConstants()
+        {
+            var targetNamespace = new Namespace
+            {
+                Value = "http://test.org/UA/",
+                XmlNamespace = "http://test.org/UA/Types.xsd",
+                Prefix = "Test",
+                Name = "TestNamespace"
+            };
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            m_mockModelDesign.Setup(m => m.Namespaces).Returns([targetNamespace]);
+
+            string output = EmitWithSingleObjectType(targetNamespace);
+
+            Assert.That(
+                output,
+                Does.Contain("public const string TestNamespace = \"http://test.org/UA/\";"));
+            Assert.That(
+                output,
+                Does.Contain(
+                    "public const string TestNamespaceXsd = \"http://test.org/UA/Types.xsd\";"));
+        }
+
+        /// <summary>
+        /// Regression: the DefaultInstanceBrowseName value is authored data, not
+        /// a symbolic name, so it can contain spaces and punctuation. It used to
+        /// be emitted verbatim as the constant's identifier
+        /// (<c>public const string Pump 1 = ...</c>).
+        /// </summary>
+        [Test]
+        public void Emit_DefaultInstanceBrowseNameWithSpaces_EmitsALegalIdentifier()
+        {
+            var targetNamespace = new Namespace
+            {
+                Value = "http://test.org/UA/",
+                Prefix = "Test",
+                Name = "TestNamespace"
+            };
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            m_mockModelDesign.Setup(m => m.Namespaces).Returns([targetNamespace]);
+
+            var objectType = new ObjectTypeDesign
+            {
+                SymbolicName = new System.Xml.XmlQualifiedName(
+                    "PumpType", targetNamespace.Value),
+                SymbolicId = new System.Xml.XmlQualifiedName(
+                    "PumpType", targetNamespace.Value),
+                BrowseName = "PumpType",
+                Children = new ListOfChildren
+                {
+                    Items =
+                    [
+                        new PropertyDesign
+                        {
+                            SymbolicName = new System.Xml.XmlQualifiedName(
+                                Types.BrowseNames.DefaultInstanceBrowseName,
+                                Types.Namespaces.OpcUa),
+                            BrowseName = Types.BrowseNames.DefaultInstanceBrowseName,
+                            DecodedValue = new QualifiedName("Pump 1")
+                        }
+                    ]
+                },
+                HasChildren = true
+            };
+
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+
+            using var fileSystem = new VirtualFileSystem();
+            m_context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = m_mockModelDesign.Object,
+                Telemetry = m_mockTelemetry.Object,
+                Options = new GeneratorOptions()
+            };
+
+            new ConstantsGenerator(m_context).Emit();
+            string output = System.Text.Encoding.UTF8.GetString(
+                fileSystem.Get(Path.Combine("out", "Test.Constants.g.cs")));
+
+            Assert.That(
+                output,
+                Does.Contain("public const string Pump1 = \"Pump 1\";"),
+                "the identifier is sanitized while the value stays the browse name");
+            Assert.That(
+                output,
+                Does.Not.Contain("public const string Pump 1"),
+                "a name with a space is not a legal C# identifier");
+        }
+
+        /// <summary>
+        /// Regression: two namespaces can sanitize to the same constant name
+        /// (GetNameFromUri drops the host). Deduping on the name alone dropped
+        /// the second one's constant entirely while GetConstantSymbolForNamespace
+        /// still formatted that name for it, so every reference to the second
+        /// namespace silently resolved to the first one's URI. The Namespaces
+        /// class can only hold one member of the name, so this is reported.
+        /// </summary>
+        [Test]
+        public void Emit_TwoNamespacesWithTheSameNameButDifferentUris_Throws()
+        {
+            var targetNamespace = new Namespace
+            {
+                Value = "http://a.org/UA/Robotics/",
+                Prefix = "Test",
+                Name = "Robotics"
+            };
+            var other = new Namespace
+            {
+                Value = "http://b.org/UA/Robotics/",
+                Prefix = "Test",
+                Name = "Robotics"
+            };
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            m_mockModelDesign.Setup(m => m.Namespaces).Returns([targetNamespace, other]);
+
+            Assert.That(
+                () => EmitWithSingleObjectType(targetNamespace),
+                Throws.TypeOf<ServiceResultException>(),
+                "emitting both gives CS0102 and dropping one resolves to the wrong URI");
+        }
+
+        /// <summary>
+        /// The same namespace listed twice is not a collision - it collapses to
+        /// one constant.
+        /// </summary>
+        [Test]
+        public void Emit_TheSameNamespaceListedTwice_EmitsOneConstant()
+        {
+            var targetNamespace = new Namespace
+            {
+                Value = "http://a.org/UA/Robotics/",
+                Prefix = "Test",
+                Name = "Robotics"
+            };
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            m_mockModelDesign
+                .Setup(m => m.Namespaces)
+                .Returns([targetNamespace, targetNamespace]);
+
+            string output = EmitWithSingleObjectType(targetNamespace);
+
+            Assert.That(
+                CountOccurrences(output, "public const string Robotics ="),
+                Is.EqualTo(1));
+        }
+
+        private static int CountOccurrences(string text, string value)
+        {
+            int count = 0;
+            for (int index = text.IndexOf(value, StringComparison.Ordinal);
+                index >= 0;
+                index = text.IndexOf(value, index + value.Length, StringComparison.Ordinal))
+            {
+                count++;
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// Regression: sanitizing can land on a constant name a sibling already
+        /// claimed ("Pump Type" and the symbolic name "PumpType" both yield
+        /// "PumpType"). The dictionary mixes symbolic names with sanitized
+        /// browse names, so a hit is not necessarily a design error - it must
+        /// neither overwrite the existing entry nor fail the whole model.
+        /// </summary>
+        [Test]
+        public void Emit_DefaultInstanceBrowseNameCollidingWithASymbolicName_KeepsTheFirstEntry()
+        {
+            var targetNamespace = new Namespace
+            {
+                Value = "http://test.org/UA/",
+                Prefix = "Test",
+                Name = "TestNamespace"
+            };
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            m_mockModelDesign.Setup(m => m.Namespaces).Returns([targetNamespace]);
+
+            var objectType = new ObjectTypeDesign
+            {
+                SymbolicName = new System.Xml.XmlQualifiedName(
+                    "PumpType", targetNamespace.Value),
+                SymbolicId = new System.Xml.XmlQualifiedName(
+                    "PumpType", targetNamespace.Value),
+                BrowseName = "PumpType",
+                Children = new ListOfChildren
+                {
+                    Items =
+                    [
+                        new PropertyDesign
+                        {
+                            SymbolicName = new System.Xml.XmlQualifiedName(
+                                Types.BrowseNames.DefaultInstanceBrowseName,
+                                Types.Namespaces.OpcUa),
+                            BrowseName = Types.BrowseNames.DefaultInstanceBrowseName,
+                            // Sanitizes onto "PumpType", which the type above
+                            // already claimed with a different value.
+                            DecodedValue = new QualifiedName("Pump Type")
+                        }
+                    ]
+                },
+                HasChildren = true
+            };
+
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+
+            using var fileSystem = new VirtualFileSystem();
+            m_context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = m_mockModelDesign.Object,
+                Telemetry = m_mockTelemetry.Object,
+                Options = new GeneratorOptions()
+            };
+
+            var generator = new ConstantsGenerator(m_context);
+            Assert.That(() => generator.Emit(), Throws.Nothing);
+
+            string output = System.Text.Encoding.UTF8.GetString(
+                fileSystem.Get(Path.Combine("out", "Test.Constants.g.cs")));
+
+            Assert.That(
+                output,
+                Does.Contain("public const string PumpType = \"PumpType\";"),
+                "the symbolic name entry wins; it is the one generated code uses");
+            Assert.That(
+                output,
+                Does.Not.Contain("public const string PumpType = \"Pump Type\";"));
+        }
+
+        private string EmitWithSingleObjectType(Namespace targetNamespace)
+        {
+            var objectType = new ObjectTypeDesign
+            {
+                SymbolicName = new System.Xml.XmlQualifiedName(
+                    "TestObjectType", targetNamespace.Value),
+                SymbolicId = new System.Xml.XmlQualifiedName(
+                    "TestObjectType", targetNamespace.Value),
+                BrowseName = "TestObjectType"
+            };
+
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+
+            using var fileSystem = new VirtualFileSystem();
+            m_context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = m_mockModelDesign.Object,
+                Telemetry = m_mockTelemetry.Object,
+                Options = new GeneratorOptions()
+            };
+
+            new ConstantsGenerator(m_context).Emit();
+            return System.Text.Encoding.UTF8.GetString(
+                fileSystem.Get(Path.Combine("out", "Test.Constants.g.cs")));
+        }
     }
 }
