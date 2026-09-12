@@ -89,6 +89,12 @@ namespace Opc.Ua.Server.Tests
                 UseSamplingGroupsInReferenceNodeManager = false,
                 AutoAccept = true
             };
+            await m_fixture.LoadConfigurationAsync().ConfigureAwait(false);
+            m_fixture.Config.ServerConfiguration.UserTokenPolicies =
+            [
+                new UserTokenPolicy(UserTokenType.Anonymous),
+                new UserTokenPolicy(UserTokenType.UserName)
+            ];
             m_server = await m_fixture.StartAsync().ConfigureAwait(false);
         }
 
@@ -2753,13 +2759,19 @@ namespace Opc.Ua.Server.Tests
             // for WellKnownRole_AuthenticatedUser; anonymous sessions cannot read it.
             var restrictedNodeId = new NodeId("AccessRights_RolePermissions_AuthenticatedUser", 2);
 
-            // Username token for user1 (AuthenticatedUser role). PolicyId "1" is the first
-            // user-token policy registered by the ReferenceServer (username with Basic256Sha256).
+            EndpointDescription endpoint = m_server.GetEndpoints().Find(e =>
+                e.TransportProfileUri == Profiles.UaTcpTransport ||
+                e.TransportProfileUri == Profiles.HttpsBinaryTransport)
+                ?? throw new AssertionException("The fixture requires a TCP or HTTPS endpoint.");
+            UserTokenPolicy userNamePolicy = endpoint.UserIdentityTokens.Find(
+                policy => policy.TokenType == UserTokenType.UserName)
+                ?? throw new AssertionException("The endpoint must advertise a Username token policy.");
+
             var usernameToken = new UserNameIdentityToken
             {
                 UserName = "user1",
                 Password = System.Text.Encoding.UTF8.GetBytes("password").ToByteString(),
-                PolicyId = "1"
+                PolicyId = userNamePolicy.PolicyId
             };
 
             // Session A: authenticate as user1.

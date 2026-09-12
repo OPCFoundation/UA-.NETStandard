@@ -210,11 +210,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 long createdBefore = Certificate.InstancesCreated;
                 long disposedBefore = Certificate.InstancesDisposed;
 
-                Assert.ThrowsAsync<CryptographicException>(async () =>
+                Assert.That(async () =>
                 {
                     using CertificateCollection certificates = await trustList.GetCertificatesAsync(m_telemetry)
                         .ConfigureAwait(false);
-                });
+                }, Throws.InstanceOf<CryptographicException>());
 
                 Assert.That(Certificate.InstancesCreated - createdBefore, Is.GreaterThan(0));
                 AssertBalanced(createdBefore, disposedBefore);
