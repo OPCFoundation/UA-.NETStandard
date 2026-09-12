@@ -539,10 +539,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             Assert.Multiple(() =>
             {
-                Assert.That((new Variant((byte)0b1100) & new Variant((byte)0b1010)).GetInt32(), Is.EqualTo(0b1000));
-                Assert.That((new Variant((sbyte)0b0110) & new Variant((sbyte)0b0011)).GetInt32(), Is.EqualTo(0b0010));
-                Assert.That((new Variant((short)0b1100) & new Variant((short)0b1010)).GetInt32(), Is.EqualTo(0b1000));
-                Assert.That((new Variant((ushort)0b1100) & new Variant((ushort)0b1010)).GetInt32(), Is.EqualTo(0b1000));
+                // The result keeps the type of the left hand operand instead of
+                // widening 8/16 bit operands to Int32.
+                Assert.That((new Variant((byte)0b1100) & new Variant((byte)0b1010)).GetByte(), Is.EqualTo((byte)0b1000));
+                Assert.That((new Variant((sbyte)0b0110) & new Variant((sbyte)0b0011)).GetSByte(), Is.EqualTo((sbyte)0b0010));
+                Assert.That((new Variant((short)0b1100) & new Variant((short)0b1010)).GetInt16(), Is.EqualTo((short)0b1000));
+                Assert.That((new Variant((ushort)0b1100) & new Variant((ushort)0b1010)).GetUInt16(), Is.EqualTo((ushort)0b1000));
                 Assert.That((new Variant(0b1100u) & new Variant(0b1010u)).GetUInt32(), Is.EqualTo(0b1000u));
                 Assert.That((new Variant(0b1100L) & new Variant(0b1010L)).GetInt64(), Is.EqualTo(0b1000L));
                 Assert.That((new Variant(0b1100UL) & new Variant(0b1010UL)).GetUInt64(), Is.EqualTo(0b1000UL));
@@ -557,10 +559,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             Assert.Multiple(() =>
             {
-                Assert.That((new Variant((byte)0b1100) | new Variant((byte)0b1010)).GetInt32(), Is.EqualTo(0b1110));
-                Assert.That((new Variant((sbyte)0b0110) | new Variant((sbyte)0b0011)).GetInt32(), Is.EqualTo(0b0111));
-                Assert.That((new Variant((short)0b1100) | new Variant((short)0b1010)).GetInt32(), Is.EqualTo(0b1110));
-                Assert.That((new Variant((ushort)0b1100) | new Variant((ushort)0b1010)).GetInt32(), Is.EqualTo(0b1110));
+                // The result keeps the type of the left hand operand instead of
+                // widening 8/16 bit operands to Int32.
+                Assert.That((new Variant((byte)0b1100) | new Variant((byte)0b1010)).GetByte(), Is.EqualTo((byte)0b1110));
+                Assert.That((new Variant((sbyte)0b0110) | new Variant((sbyte)0b0011)).GetSByte(), Is.EqualTo((sbyte)0b0111));
+                Assert.That((new Variant((short)0b1100) | new Variant((short)0b1010)).GetInt16(), Is.EqualTo((short)0b1110));
+                Assert.That((new Variant((ushort)0b1100) | new Variant((ushort)0b1010)).GetUInt16(), Is.EqualTo((ushort)0b1110));
                 Assert.That((new Variant(0b1100u) | new Variant(0b1010u)).GetUInt32(), Is.EqualTo(0b1110u));
                 Assert.That((new Variant(0b1100L) | new Variant(0b1010L)).GetInt64(), Is.EqualTo(0b1110L));
                 Assert.That((new Variant(0b1100UL) | new Variant(0b1010UL)).GetUInt64(), Is.EqualTo(0b1110UL));

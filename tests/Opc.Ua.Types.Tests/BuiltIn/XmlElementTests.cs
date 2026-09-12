@@ -274,14 +274,27 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void XmlElementGetHashCodeShouldReturnCorrectHashCode()
+        public void XmlElementGetHashCodeShouldAgreeWithEquals()
         {
+            // The hash used to be the hash of the raw text, which broke the
+            // Equals/GetHashCode contract: Equals compares structurally, so two
+            // elements that differ only in quote character or an entity are
+            // equal and must hash the same.
             const string xmlString = "<root></root>";
             var xmlElement = new XmlElement(xmlString);
 
-            Assert.That(
-                xmlElement.GetHashCode(),
-                Is.EqualTo(xmlString.GetHashCode(StringComparison.Ordinal)));
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    xmlElement.GetHashCode(),
+                    Is.EqualTo(new XmlElement(xmlString).GetHashCode()));
+                Assert.That(
+                    XmlElement.From("<a x='1'/>").GetHashCode(),
+                    Is.EqualTo(XmlElement.From("<a x=\"1\"/>").GetHashCode()));
+                Assert.That(
+                    XmlElement.From("<root></root>").GetHashCode(),
+                    Is.Not.EqualTo(XmlElement.From("<other></other>").GetHashCode()));
+            });
         }
 
         [Test]

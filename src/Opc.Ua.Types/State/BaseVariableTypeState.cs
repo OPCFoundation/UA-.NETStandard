@@ -53,7 +53,7 @@ namespace Opc.Ua
         {
             if (source is BaseVariableTypeState type)
             {
-                m_value = m_value.Copy();
+                m_value = type.m_value.Copy();
                 m_dataType = type.m_dataType;
                 m_valueRank = type.m_valueRank;
                 m_arrayDimensions = type.m_arrayDimensions;

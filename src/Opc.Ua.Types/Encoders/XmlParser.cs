@@ -366,7 +366,16 @@ namespace Opc.Ua
             PushNamespace(typeName.Namespace);
 
             // read the message.
-            T encodeable = ReadEncodeable(name, (T)activator.CreateInstance());
+            if (activator.CreateInstance() is not T instance)
+            {
+                // The type name comes from the document and need not name a T.
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Type '{0}' is not a {1}.",
+                    typeName,
+                    typeof(T).Name);
+            }
+            T encodeable = ReadEncodeable(name, instance);
 
             PopNamespace();
 
@@ -598,10 +607,7 @@ namespace Opc.Ua
                 string? xml = SafeReadString();
 
                 // check the length.
-                if (Context.MaxStringLength > 0 && Context.MaxStringLength < xml!.Length)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
+                EncodingLimits.CheckStringLength(Context.MaxStringLength, xml);
 
                 if (!string.IsNullOrEmpty(xml))
                 {
@@ -652,7 +658,10 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
-                string? xml = SafeReadString();
+                // The base64 text is not a String on the wire - gating it by
+                // MaxStringLength would reject blobs that are well within
+                // MaxByteStringLength, which is checked below.
+                string? xml = ReadInnerText();
 
                 ByteString value;
 
@@ -1056,7 +1065,15 @@ namespace Opc.Ua
                     encodeableTypeId);
             }
 
-            var value = (T)activator.CreateInstance();
+            if (activator.CreateInstance() is not T value)
+            {
+                // The type id comes from the wire and need not name a T at all.
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Type '{0}' is not a {1}.",
+                    encodeableTypeId,
+                    typeof(T).Name);
+            }
             return ReadEncodeable(fieldName, value);
         }
 
@@ -1572,7 +1589,7 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxByteStringLength < values.Count)
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
@@ -1969,8 +1986,9 @@ namespace Opc.Ua
                     int[] dimensions = ReadInt32Array("Dimensions").ToArray() ?? [];
                     if (BeginField("Elements", true))
                     {
-                        value = ReadEncodeableArray<T>(null, encodeableTypeId)
-                            .ToMatrix(dimensions);
+                        value = ToMatrixOrThrow(
+                            ReadEncodeableArray<T>(null, encodeableTypeId),
+                            dimensions);
                         EndField("Elements");
                     }
 
@@ -2001,8 +2019,7 @@ namespace Opc.Ua
                     int[] dimensions = ReadInt32Array("Dimensions").ToArray() ?? [];
                     if (BeginField("Elements", true))
                     {
-                        value = ReadEncodeableArray<T>(null)
-                            .ToMatrix(dimensions);
+                        value = ToMatrixOrThrow(ReadEncodeableArray<T>(null), dimensions);
                         EndField("Elements");
                     }
 
@@ -2016,6 +2033,31 @@ namespace Opc.Ua
                 m_nestingLevel--;
             }
             return value;
+        }
+
+        /// <summary>
+        /// Builds a matrix from decoded elements and wire supplied dimensions.
+        /// MatrixOf throws ArgumentException for invalid dimensions (negative,
+        /// zero rank, overflowing product, or a length mismatch), which must be
+        /// reported through the decoder rejection channel instead of escaping.
+        /// </summary>
+        /// <typeparam name="T">The element type of the matrix.</typeparam>
+        /// <exception cref="ServiceResultException"></exception>
+        private static MatrixOf<T> ToMatrixOrThrow<T>(ArrayOf<T> elements, int[] dimensions)
+        {
+            try
+            {
+                return elements.ToMatrix(dimensions);
+            }
+            catch (ArgumentException ex)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    ex,
+                    "Encodeable matrix Dimensions [{0}] are inconsistent with {1} element(s).",
+                    string.Join(",", dimensions),
+                    elements.Count);
+            }
         }
 
         /// <inheritdoc/>
@@ -2410,7 +2452,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private DiagnosticInfo? ReadDiagnosticInfo(int depth)
         {
-            if (depth >= DiagnosticInfo.MaxInnerDepth)
+            if (depth > DiagnosticInfo.MaxInnerDepth)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
@@ -2679,23 +2721,34 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private string? SafeReadString([CallerMemberName] string? functionName = null)
         {
-            ElementContext context = m_contextStack.Peek();
-            string? value = context.Element?.InnerText;
+            string? value = ReadInnerText();
 
             // check the length.
-            if (value != null &&
-                Context.MaxStringLength > 0 &&
-                Context.MaxStringLength < value.Length)
+            if (EncodingLimits.StringExceedsLimit(
+                Context.MaxStringLength,
+                value,
+                out int byteLength))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "ReadString in {0} exceeds MaxStringLength: {1} > {2}",
                     functionName ?? string.Empty,
-                    value.Length,
+                    byteLength,
                     Context.MaxStringLength);
             }
 
             return value;
+        }
+
+        /// <summary>
+        /// Reads the InnerText of the current context element without applying
+        /// MaxStringLength. Used for payloads whose text is not a String on the
+        /// wire (base64 byte strings), which are bounded by their own limit.
+        /// </summary>
+        private string? ReadInnerText()
+        {
+            ElementContext context = m_contextStack.Peek();
+            return context.Element?.InnerText;
         }
 
         private static byte[] SafeConvertFromBase64String(string s)

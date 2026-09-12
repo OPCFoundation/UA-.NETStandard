@@ -226,8 +226,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override int GetHashCode()
         {
+            // Equality compares only these three members, so the hash must not
+            // mix in base.GetHashCode() - that is object identity and makes two
+            // equal references hash differently.
             var hash = new HashCode();
-            hash.Add(base.GetHashCode());
             hash.Add(ReferenceTypeId);
             hash.Add(IsInverse);
             hash.Add(TargetId);

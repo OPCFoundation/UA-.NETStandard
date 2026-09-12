@@ -516,7 +516,9 @@ namespace Opc.Ua
                 serializedNode.ReferenceTable.Count == 0)
             {
                 // index references.
-                foreach (ReferenceNode reference in node.References.OfType<ReferenceNode>())
+                // node.References resolves to the (still empty) ReferenceTable,
+                // so the unindexed list has to be read from the Node itself.
+                foreach (ReferenceNode reference in serializedNode.References)
                 {
                     // ignore invalid references.
                     if (reference.ReferenceTypeId.IsNull ||
@@ -541,8 +543,9 @@ namespace Opc.Ua
                     }
                 }
 
-                // clear unindexed reference list.
-                node.References.Clear();
+                // clear unindexed reference list - not the ReferenceTable that
+                // was just populated above.
+                serializedNode.References = [];
             }
 
             // add the node to the table.
@@ -616,8 +619,11 @@ namespace Opc.Ua
 
                 if (target is ILocalNode targetNode)
                 {
+                    // The reference on the target points the other way round,
+                    // so its direction has to be inverted here - otherwise the
+                    // reverse reference stays behind and dangles.
                     targetNode.References
-                        .Remove(reference.ReferenceTypeId, reference.IsInverse, sourceNode.NodeId);
+                        .Remove(reference.ReferenceTypeId, !reference.IsInverse, sourceNode.NodeId);
                 }
             }
 
