@@ -135,11 +135,19 @@ namespace Opc.Ua.Security.Certificates
                         pemCertificateDecoded);
                     if (thumbprint.Equals(certificate.Thumbprint, StringComparison.OrdinalIgnoreCase))
                     {
+                        // Substring takes a length, not an end index. Passing
+                        // the end index removed the wrong span - and for any
+                        // block that did not start at the beginning of the file
+                        // it ran off the end and threw, which this method
+                        // reports as "not found" and the caller then treats as
+                        // a file with nothing left in it.
+                        int blockStart = beginIndex - beginlabel.Length;
+                        int blockEnd = endIndex + endlabel.Length;
+                        int blockLength = blockEnd - blockStart;
+
                         modifiedPemDataBlob = Encoding.ASCII.GetBytes(
                             pemText.Replace(
-                                pemText.Substring(
-                                    beginIndex -= beginlabel.Length,
-                                    endIndex + endlabel.Length),
+                                pemText.Substring(blockStart, blockLength),
                                 string.Empty));
                         return true;
                     }
