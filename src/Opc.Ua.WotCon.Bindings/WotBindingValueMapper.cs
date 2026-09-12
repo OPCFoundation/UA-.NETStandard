@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Text;
+using Opc.Ua.Encoders;
 
 namespace Opc.Ua.WotCon.Bindings
 {
@@ -42,6 +44,8 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// Resolves a selected field's portable BrowseName without modifying the namespace table.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static QualifiedName ResolveBrowseName(string element, NamespaceTable namespaceUris)
         {
             if (element is null)
@@ -65,7 +69,7 @@ namespace Opc.Ua.WotCon.Bindings
                         "NamespaceUri-qualified browse name.");
                 }
                 namespaceUri = CoreUtils.UnescapeUri(element.AsSpan(4, separator - 4));
-                name = element.Substring(separator + 1);
+                name = element[(separator + 1)..];
             }
             else if (element.Length > 0 && element[0] == '{')
             {
@@ -77,8 +81,8 @@ namespace Opc.Ua.WotCon.Bindings
                         $"The event select-clause path element '{element}' is not a valid " +
                         "NamespaceUri-qualified browse name.");
                 }
-                namespaceUri = element.Substring(1, separator - 1);
-                name = element.Substring(separator + 1);
+                namespaceUri = element[1..separator];
+                name = element[(separator + 1)..];
             }
             if (namespaceUri is null)
             {
@@ -100,9 +104,10 @@ namespace Opc.Ua.WotCon.Bindings
         /// </summary>
         public static bool RequiresContext(in Variant value)
         {
-            return !value.IsNull && value.TypeInfo.BuiltInType is
-                BuiltInType.NodeId or BuiltInType.ExpandedNodeId or BuiltInType.QualifiedName or
-                BuiltInType.ExtensionObject or BuiltInType.DataValue or BuiltInType.Variant;
+            return !value.IsNull &&
+                value.TypeInfo.BuiltInType is
+                    BuiltInType.NodeId or BuiltInType.ExpandedNodeId or BuiltInType.QualifiedName or
+                    BuiltInType.ExtensionObject or BuiltInType.DataValue or BuiltInType.Variant;
         }
 
         /// <summary>
@@ -111,6 +116,8 @@ namespace Opc.Ua.WotCon.Bindings
         /// index fails explicitly; absolute ExpandedNodeIds can remain portable.
         /// Local projection contexts may opt into adding received namespaces.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static Variant Translate(
             in Variant value,
             IServiceMessageContext source,
@@ -199,12 +206,13 @@ namespace Opc.Ua.WotCon.Bindings
                     return;
                 }
                 if (extension.Encoding != ExtensionObjectEncoding.EncodeableObject ||
-                    !extension.TryGetValue(out IEncodeable? body, context) || body is not IStructure structure)
+                    !extension.TryGetValue(out IEncodeable? body, context))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadNotSupported,
                         "Namespace translation requires decoded structured values, not opaque ExtensionObjects.");
                 }
+                IStructure structure = body as IStructure ?? InspectStructure(body, context);
                 foreach (IStructureField field in structure.GetFields())
                 {
                     string? fieldName = field.Name;
@@ -216,6 +224,70 @@ namespace Opc.Ua.WotCon.Bindings
                     ValidateReferences(structure[fieldName], context, target, allowGrowth, depth + 1);
                 }
             }
+        }
+
+        private static Structure InspectStructure(IEncodeable body, IServiceMessageContext context)
+        {
+            var namespaces = new NamespaceTable(context.NamespaceUris);
+            if (!context.Factory.TryGetEncodeableType(body.TypeId, out IEncodeableType? type) ||
+                type is not IDataTypeDefinitionSource metadata ||
+                metadata.GetDataTypeDefinition(namespaces) is not StructureDefinition definition)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    "Namespace translation requires registered Structure metadata for decoded encodeables.");
+            }
+            var fieldTypes = new Dictionary<string, BuiltInType>(StringComparer.Ordinal);
+            foreach (StructureField field in definition.Fields)
+            {
+                if (string.IsNullOrEmpty(field.Name))
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError,
+                        "The registered Structure metadata contains an unnamed field.");
+                }
+                var fieldId = NodeId.ToExpandedNodeId(field.DataType, namespaces);
+                BuiltInType fieldType = context.Factory.TryGetEnumeratedType(fieldId, out _)
+                    ? BuiltInType.Enumeration : TypeInfo.GetBuiltInType(field.DataType);
+                if (!fieldTypes.TryAdd(field.Name, fieldType))
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError,
+                        "The registered Structure metadata contains duplicate fields.");
+                }
+            }
+            Structure structure = definition.StructureType switch
+            {
+                StructureType.Structure => new Structure(
+                    type.XmlName, body.TypeId, body.BinaryEncodingId, body.XmlEncodingId, definition, fieldTypes),
+                StructureType.StructureWithOptionalFields => new StructureWithOptionalFields(
+                    type.XmlName, body.TypeId, body.BinaryEncodingId, body.XmlEncodingId, definition, fieldTypes),
+                StructureType.Union => new Encoders.Union(
+                    type.XmlName, body.TypeId, body.BinaryEncodingId, body.XmlEncodingId, definition, fieldTypes),
+                _ => throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    "The decoded encodeable requires an inspectable Structure for its native layout.")
+            };
+            // A binary inspection copy retains even invalid source indexes, so validation cannot
+            // accidentally repair an unknown index while converting it to a URI.
+            var inspectionContext = new ServiceMessageContext(context, context.Telemetry)
+            {
+                NamespaceUris = namespaces,
+                ServerUris = new StringTable(context.ServerUris)
+            };
+            using var encoder = new BinaryEncoder(inspectionContext);
+            body.Encode(encoder);
+            byte[] encoded = encoder.CloseAndReturnBuffer() ??
+                throw new ServiceResultException(StatusCodes.BadEncodingError,
+                    "The decoded encodeable did not produce an inspection buffer.");
+            if (context.MaxMessageSize > 0 && encoded.Length > context.MaxMessageSize)
+            {
+                throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+            }
+            using var decoder = new BinaryDecoder(encoded, inspectionContext);
+            structure.Decode(decoder);
+            if (decoder.Position != encoded.Length)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError,
+                    "The decoded encodeable does not match its registered Structure metadata.");
+            }
+            return structure;
         }
 
         private static void ValidateExpanded(

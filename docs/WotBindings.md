@@ -93,7 +93,7 @@ All contracts live in the `Opc.Ua.WotCon.Bindings` namespace.
   * `IWotBindingExecutor` — `ActivateAsync` opens a per-form `IWotBindingChannel`.
   * `IWotBindingChannel` — `ReadAsync` / `WriteAsync` / `InvokeAsync` / `ObserveAsync` / `SubscribeEventAsync`, returning `WotReadResult` / `WotWriteResult` / `WotInvokeResult` with mapped `StatusCode`s.
   * `IWotPropertyBindingChannel` — optional contextual property capability. `WotReadRequest` carries `IndexRange`, `DataEncoding`, and the caller's message context; `WotWriteRequest` carries a value, its context, and a native index range. Existing channels do not need to implement this interface. `WotReadResult.WithContext` attaches the source context of returned values.
-  * `IWotContextualBindingChannel` — optional invocation capability using `WotInvokeRequest`. The HTTP channel preserves this request's source context rather than interpreting local namespace indexes in an unrelated table.
+  * `IWotContextualBindingChannel` — optional invocation capability using `WotInvokeRequest`. The HTTP and OPC UA channels preserve this request's source context rather than interpreting local namespace indexes in an unrelated table.
 * **Registry and structured diagnostics**
   * `IWotBinderRegistry` / `WotProtocolBinderRegistry` — the Prepare / Activate / Deactivate seam the coordinator uses.
   * `WotBindingDiagnostic` — severity + stable code + **RFC 6901 JSON Pointer**.
@@ -322,6 +322,57 @@ only to that form's upstream source. It returns the upstream call's status and
 any argument errors to the caller; invoking the local Method does not by itself
 count as success.
 
+The compiled input and output layouts retain every native position, including
+zero arguments and one whole Structure or Union. A named layout uses its complete
+`uav:fieldOrder`; JSON member order is not native argument order.
+`WotMethodArgumentLayout.GetArgumentName` also exposes the converter's effective
+single-argument name, including its `Input` or `Output` default. Before installing
+a projected handler, the runtime checks the actual Method argument names,
+DataTypes and ranks against those captured declarations. A mismatched signature
+fails activation rather than opening an upstream channel for a different contract.
+Abstract numeric declarations can be refined by compatible concrete native
+argument types; they do not require an existing explicit consumer to replace an
+Int64 signature with the abstract Integer DataType.
+
+The native adapter validates input counts, native types, nullability and ranks
+before any target browse-path service or Call. It validates every successful
+output position as well: missing, extra or mistyped outputs fail with
+`BadDecodingError`, without a partial successful response or a retry.
+JSON `required` must be a unique subset of the named arguments. JSON optionality,
+nullability and `default` annotations alone do not authorize shortening a native
+signature; a nullable value still occupies its argument position. In particular,
+a JSON default is not substituted for a supplied native null or a missing
+mandatory argument.
+
+Direct and DI consumers can supply an `IServiceMessageContext` to the registry
+or per channel activation. Native calls through the original context-free channel
+interface then use that explicitly configured input context. Without an explicit
+activation context, the legacy native interface retains its Session-relative
+interpretation; `WotInvokeRequest` always supplies an explicit caller context.
+Decoded native encodeables use registered Structure metadata when they do not
+implement `IStructure`; their nested namespace references are checked without
+reflection or modification of the source namespace table. Opaque bodies or
+missing required type metadata fail before the native Call.
+Public `WotFormExtractor.Extract` and `WotBindingPlanRequest.FromDocument` retain
+the captured schema facts even after the source document is disposed. Explicit
+requests built from extracted forms do not need internal property setters.
+
+An explicit consumer can preflight complete native inputs before opening a channel:
+
+```csharp
+ArrayOf<Variant> nativeInputs = form.ConditionInvocation is { } condition
+    ? condition.NormalizeInputs(inputs) : inputs;
+form.Payload.ValidateInputs(nativeInputs, messageContext);
+await using IWotBindingChannel channel =
+    await registry.OpenChannelAsync(form, messageContext, cancellationToken);
+WotInvokeResult reply = await channel.InvokeAsync(nativeInputs.Span.ToArray(), cancellationToken);
+```
+
+`ValidateArgumentLayouts` rejects inconsistent schema/layout combinations, and
+`ValidateMethodSignature` is available to other projected consumers. These checks
+use captured declarations, not the shape of the current value. Transport-only
+descriptors remain supported for existing explicit channel implementations.
+
 `WotInvokeResult.OperationResult` and `InputArgumentResults` carry resolved
 diagnostic text, not indexes into the source server's response StringTable.
 Argument results preserve their order and optional absence. The receiving
@@ -378,6 +429,10 @@ Condition-management actions use `uav:conditionAction` and same-document `uav:ac
 For a WoT invocation with an optional Comment, the OPC UA adapter supplies
 `LocalizedText.Null` when the caller provides only EventId. This does not change
 a native two-argument Method's signature: OPC UA callers supply both arguments.
+The planner checks the canonical scalar ByteString/LocalizedText input order and
+zero outputs for occurrence actions. Enable and Disable retain zero inputs and
+zero outputs. A shortened, reordered or mistyped Condition signature is not
+accepted as a new meaning for an inherited Core Method.
 After acknowledgement changes the occurrence, confirmation uses the updated
 EventId. Unbound standard Methods on a Condition proxy are disabled, so they
 cannot change only the local copy.

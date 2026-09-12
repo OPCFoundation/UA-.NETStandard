@@ -85,7 +85,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         }
                     }
                     WotBindingChannelSlot slot = GetOrCreateSlot(form);
-                    builder.OnCallWithResult(BuildMethodHandler(builder.Node, slot, condition, local.ConditionAction));
+                    builder.OnCallWithResult(BuildMethodHandler(
+                        builder.Node, form, slot, condition, local.ConditionAction));
                     if (condition?.Condition is { } state)
                     {
                         MethodState standard = state.FindChild(
@@ -106,7 +107,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             commentMethod.OnCallAsync = null;
                         }
                         m_builder.Node(standard.NodeId).OnCallWithResult(
-                            BuildMethodHandler(standard, slot, condition, local.ConditionAction));
+                            BuildMethodHandler(standard, form, slot, condition, local.ConditionAction));
                     }
                 }
             }
@@ -158,7 +159,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             // selection and security validation. Never retry a different source.
             foreach (WotCompiledForm form in plan.CompiledForms)
             {
-                if (form.IsExecutable && form.Operation == operation &&
+                if (form.IsExecutable &&
+                    form.Operation == operation &&
                     form.AffordanceKind == local.Kind &&
                     form.JsonPointer.StartsWith(local.JsonPointer + "/forms/", StringComparison.Ordinal))
                 {
@@ -193,10 +195,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private MethodCalledWithResultEventHandlerAsync BuildMethodHandler(
             MethodState method,
+            WotCompiledForm form,
             WotBindingChannelSlot slot,
             WotProjectedEventBinding? condition,
             string? conditionAction)
         {
+            form.Payload.ValidateMethodSignature(
+                method.InputArguments is { } inputArguments ? inputArguments.Value : [],
+                method.OutputArguments is { } outputArguments ? outputArguments.Value : [],
+                m_builder.Context.NamespaceUris, m_builder.Context.TypeTable);
             ArrayOf<ArgumentSignature> inputs = CaptureSignature(method.InputArguments);
             ArrayOf<ArgumentSignature> outputs = CaptureSignature(method.OutputArguments);
             bool occurrenceAction = conditionAction is "Acknowledge" or "Confirm" or "AddComment";
@@ -207,12 +214,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 for (int i = 0; i < inputs.Count; i++)
                 {
                     if (inputs[i].Name == Ua.BrowseNames.EventId &&
-                        inputs[i].DataType == Ua.DataTypeIds.ByteString && inputs[i].ValueRank == ValueRanks.Scalar)
+                        inputs[i].DataType == Ua.DataTypeIds.ByteString &&
+                        inputs[i].ValueRank == ValueRanks.Scalar)
                     {
                         eventIdIndex = i;
                     }
                     else if (inputs[i].Name == Ua.BrowseNames.Comment &&
-                        inputs[i].DataType == Ua.DataTypeIds.LocalizedText && inputs[i].ValueRank == ValueRanks.Scalar)
+                        inputs[i].DataType == Ua.DataTypeIds.LocalizedText &&
+                        inputs[i].ValueRank == ValueRanks.Scalar)
                     {
                         commentIndex = i;
                     }
@@ -329,7 +338,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 IServiceMessageContext sourceContext = response.Context ??
                     new ServiceMessageContext(context.Telemetry, context.EncodeableFactory);
-                ArrayOf<Variant> values = response.Outputs.Select(value => WotBindingValueMapper.Translate(
+                var values = response.Outputs.Select(value => WotBindingValueMapper.Translate(
                     value.WrappedValue, sourceContext, localContext, allowNamespaceGrowth: true)).ToArrayOf();
                 ServiceResult outputStatus = ValidateArguments(context, values, outputs);
                 if (ServiceResult.IsBad(outputStatus))

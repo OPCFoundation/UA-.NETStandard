@@ -188,7 +188,18 @@ namespace Opc.Ua.Wot
                 _ => WotMethodArgumentLayoutKind.None
             };
             return new WotConversionResult<WotMethodArgumentLayout>(
-                new WotMethodArgumentLayout(kind, schema, [.. shape.Members]), []);
+                new WotMethodArgumentLayout(kind, schema, [.. shape.Members],
+                    member == InputMember ? DefaultInputArgumentName : DefaultOutputArgumentName), []);
+        }
+
+        /// <summary>
+        /// Names the one argument a bare DataSchema denotes.
+        /// </summary>
+        internal static string ReadArgumentName(JsonElement schema, string defaultName)
+        {
+            return LocalName(GetElementString(schema, "uav:browseName")) ??
+                SanitizeName(GetElementString(schema, "title")) ??
+                defaultName;
         }
 
         /// <summary>
@@ -745,10 +756,9 @@ namespace Opc.Ua.Wot
                 {
                     return new WotArgumentShape(WotArgumentShapeKind.Invalid, []);
                 }
-                var names = new List<string>();
-                foreach (JsonProperty property in namedProperties.EnumerateObject())
+                if (!TryReadArgumentNames(schema, namedProperties, out List<string> names))
                 {
-                    names.Add(property.Name);
+                    return new WotArgumentShape(WotArgumentShapeKind.Invalid, []);
                 }
                 WotArgumentShape named = AnalyzeFieldOrder(namedOrder, namedProperties, names);
                 return named.Kind == WotArgumentShapeKind.Members && named.Members.Count == 0
@@ -774,10 +784,9 @@ namespace Opc.Ua.Wot
                     []);
             }
 
-            var declared = new List<string>();
-            foreach (JsonProperty property in properties.EnumerateObject())
+            if (!TryReadArgumentNames(schema, properties, out List<string> declared))
             {
-                declared.Add(property.Name);
+                return new WotArgumentShape(WotArgumentShapeKind.Invalid, []);
             }
             if (declared.Count == 0)
             {
@@ -796,6 +805,39 @@ namespace Opc.Ua.Wot
                 return new WotArgumentShape(WotArgumentShapeKind.Members, conditionOrder);
             }
             return new WotArgumentShape(WotArgumentShapeKind.AmbiguousOrder, declared);
+        }
+
+        private static bool TryReadArgumentNames(
+            JsonElement schema, JsonElement properties, out List<string> names)
+        {
+            names = [];
+            var declared = new HashSet<string>(StringComparer.Ordinal);
+            foreach (JsonProperty property in properties.EnumerateObject())
+            {
+                if (property.Name.Length == 0 || property.Value.ValueKind != JsonValueKind.Object ||
+                    !declared.Add(property.Name))
+                {
+                    return false;
+                }
+                names.Add(property.Name);
+            }
+            if (schema.TryGetProperty("required", out JsonElement required))
+            {
+                if (required.ValueKind != JsonValueKind.Array)
+                {
+                    return false;
+                }
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                foreach (JsonElement entry in required.EnumerateArray())
+                {
+                    if (entry.ValueKind != JsonValueKind.String ||
+                        entry.GetString() is not { } name || !declared.Contains(name) || !seen.Add(name))
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
         }
 
         /// <summary>
@@ -844,16 +886,6 @@ namespace Opc.Ua.Wot
                 schema.TryGetProperty("uav:dataTypeId", out _) ||
                 schema.TryGetProperty("uav:dataTypeName", out _) ||
                 schema.TryGetProperty("uav:dataTypeDefinition", out _);
-        }
-
-        /// <summary>
-        /// Names the one argument a bare DataSchema denotes.
-        /// </summary>
-        private static string ReadArgumentName(JsonElement schema, string defaultName)
-        {
-            return LocalName(GetElementString(schema, "uav:browseName")) ??
-                SanitizeName(GetElementString(schema, "title")) ??
-                defaultName;
         }
 
         /// <summary>

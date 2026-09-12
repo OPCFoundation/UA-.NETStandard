@@ -210,6 +210,14 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             {
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
+            if (!WotConditionInvocation.TryCreate(
+                form, payload, out WotConditionInvocation? invocation, out string? invocationError))
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.InvalidFieldValue, invocationError!,
+                    form.AffordancePointer(), "uav:conditionAction"));
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
             var addressing = new WotAddressingDescriptor(nodeId ?? string.Empty, metadata);
             if (pathTarget is not null)
             {
@@ -232,7 +240,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                     endpoint, addressing, operation, payload, security, Capability.IsExecutable,
                     targetMapping: null, eventSelection, securityFloor)
                     .WithOpcUaSecurityRequirements(exact)
-                    .WithConditionInvocation(WotConditionInvocation.FromAffordance(form)));
+                    .WithConditionInvocation(invocation));
             }
 
             if (entries.Count == 0)

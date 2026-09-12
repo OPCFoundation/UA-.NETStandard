@@ -105,7 +105,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             IReadOnlyList<Variant> inputs, CancellationToken cancellationToken = default)
         {
             return InvokeCoreAsync(
-                inputs is null ? [] : inputs.ToArrayOf(), null, DiagnosticsMasks.None, cancellationToken);
+                inputs is null ? [] : inputs.ToArrayOf(),
+                m_context.HasExplicitMessageContext ? m_context.MessageContext : null,
+                DiagnosticsMasks.None, cancellationToken);
         }
 
         public ValueTask<WotInvokeResult> InvokeAsync(
@@ -292,14 +294,6 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             }
             try
             {
-                ResolvedPathTarget target = await ResolveTargetAsync(NodeClass.Method, cancellationToken)
-                    .ConfigureAwait(false);
-                if (!TryResolveNodeId(objectRef!, out NodeId objectId, target.State?.NamespaceUris))
-                {
-                    return new WotInvokeResult(
-                        StatusCodes.BadNodeIdInvalid, null,
-                        $"An OPC UA action requires a valid {receiverTerm} receiver NodeId.");
-                }
                 if (Form.ConditionInvocation is { } invocation)
                 {
                     inputs = invocation.NormalizeInputs(inputs);
@@ -311,13 +305,14 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                                 "only an explicitly optional Comment can be supplied as a typed null.");
                     }
                 }
-                else if (Form.Payload.InputLayout is { } layout && inputs.Count != layout.ArgumentCount)
+                Form.Payload.ValidateInputs(inputs, inputContext ?? CreateSourceContext());
+                ResolvedPathTarget target = await ResolveTargetAsync(NodeClass.Method, cancellationToken)
+                    .ConfigureAwait(false);
+                if (!TryResolveNodeId(objectRef!, out NodeId objectId, target.State?.NamespaceUris))
                 {
                     return new WotInvokeResult(
-                        inputs.Count < layout.ArgumentCount
-                            ? StatusCodes.BadArgumentsMissing
-                            : StatusCodes.BadTooManyArguments,
-                        error: $"The action declares {layout.ArgumentCount} native arguments, but {inputs.Count} were supplied.");
+                        StatusCodes.BadNodeIdInvalid, null,
+                        $"An OPC UA action requires a valid {receiverTerm} receiver NodeId.");
                 }
                 if (inputContext is not null)
                 {
@@ -366,6 +361,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                         .WithContext(target.State?.CreateContext() ?? CreateSourceContext());
                 }
                 ArrayOf<Variant> outputs = result.OutputArguments;
+                ServiceMessageContext outputContext = target.State?.CreateContext() ?? CreateSourceContext();
+                Form.Payload.ValidateOutputs(outputs, outputContext);
                 var results = new DataValue[outputs.Count];
                 for (int i = 0; i < outputs.Count; i++)
                 {
@@ -373,7 +370,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 }
                 return new WotInvokeResult(result.StatusCode, results)
                     .WithResultDetails(operation, argumentResults)
-                    .WithContext(target.State?.CreateContext() ?? CreateSourceContext());
+                    .WithContext(outputContext);
             }
             catch (ServiceResultException ex)
             {
@@ -385,7 +382,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         {
             int resultsCount = result.InputArgumentResults.Count;
             int diagnosticsCount = result.InputArgumentDiagnosticInfos.Count;
-            if ((resultsCount != 0 && (resultsCount != inputCount || result.StatusCode != StatusCodes.BadInvalidArgument)) ||
+            if ((resultsCount != 0 &&
+                (resultsCount != inputCount || result.StatusCode != StatusCodes.BadInvalidArgument)) ||
                 (diagnosticsCount != 0 && diagnosticsCount != resultsCount))
             {
                 throw new ServiceResultException(

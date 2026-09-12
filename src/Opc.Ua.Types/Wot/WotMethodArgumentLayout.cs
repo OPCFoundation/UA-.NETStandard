@@ -62,11 +62,13 @@ namespace Opc.Ua.Wot
         internal WotMethodArgumentLayout(
             WotMethodArgumentLayoutKind kind,
             JsonElement schema,
-            ArrayOf<string> fieldOrder)
+            ArrayOf<string> fieldOrder,
+            string defaultName)
         {
             Kind = kind;
             Schema = schema.ValueKind == JsonValueKind.Undefined ? default : schema.Clone();
             FieldOrder = fieldOrder;
+            m_defaultName = defaultName;
         }
 
         /// <summary>
@@ -104,6 +106,18 @@ namespace Opc.Ua.Wot
             return GetArgumentSchema(Schema, index);
         }
 
+        /// <summary>
+        /// Gets the native argument name, including the converter's default for a single value.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public string GetArgumentName(int index)
+        {
+            JsonElement schema = GetArgumentSchema(index);
+            return Kind == WotMethodArgumentLayoutKind.Single
+                ? WotNodeSetConverter.ReadArgumentName(schema, m_defaultName)
+                : FieldOrder[index];
+        }
+
         internal JsonElement GetArgumentSchema(JsonElement sourceSchema, int index)
         {
             if (index < 0 || index >= ArgumentCount)
@@ -114,5 +128,7 @@ namespace Opc.Ua.Wot
                 ? sourceSchema
                 : sourceSchema.GetProperty("properties").GetProperty(FieldOrder[index]);
         }
+
+        private readonly string m_defaultName;
     }
 }

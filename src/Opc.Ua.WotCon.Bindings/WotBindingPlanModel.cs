@@ -328,7 +328,7 @@ namespace Opc.Ua.WotCon.Bindings
     /// <summary>
     /// Immutable payload metadata compiled from a form.
     /// </summary>
-    public sealed class WotPayloadDescriptor
+    public sealed partial class WotPayloadDescriptor
     {
         /// <summary>
         /// Initializes a new immutable payload descriptor.
@@ -392,6 +392,7 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// Returns the descriptor with the captured, context-resolved interaction schema.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public WotPayloadDescriptor WithSchema(WotPayloadSchema schema)
         {
             return new WotPayloadDescriptor(ContentType, CodecId, Metadata)

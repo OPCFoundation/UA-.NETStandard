@@ -359,6 +359,67 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(arguments.Select(argument => argument.DataType), Is.EqualTo(s_explicitInputTypes));
         }
 
+        [TestCase("input", "", "Input")]
+        [TestCase("output", "", "Output")]
+        [TestCase("input", "\"title\":\"NamedValue\",", "NamedValue")]
+        [TestCase("output", "\"uav:browseName\":\"pump:Explicit\",", "Explicit")]
+        public void PublicLayoutNamesMatchTheEffectiveNativeArgumentNames(
+            string member, string naming, string expected)
+        {
+            string action = "{\"" + member + "\":{" + naming + "\"type\":\"integer\",\"uav:dataTypeId\":\"i=6\"}}";
+            WotMethodArgumentLayout layout;
+            using (var document = JsonDocument.Parse(action))
+            {
+                WotConversionResult<WotMethodArgumentLayout> mapped =
+                    WotNodeSetConverter.GetMethodArgumentLayout(document.RootElement, member);
+                Assert.That(mapped.Success, Is.True);
+                layout = mapped.Value!;
+            }
+            WotConversionResult<UANodeSet> converted = Convert("\"actions\":{\"run\":" + action + "}");
+
+            Assert.That(converted.Success, Is.True);
+            List<DecodedArgument> arguments = ArgumentsOf(
+                converted.Value!, member == "input" ? "InputArguments" : "OutputArguments");
+            Assert.That(arguments, Has.Count.EqualTo(1));
+            Assert.That(arguments[0].Name, Is.EqualTo(expected));
+            Assert.That(layout.GetArgumentName(0), Is.EqualTo(expected));
+        }
+
+        [TestCase(-1)]
+        [TestCase(1)]
+        public void PublicLayoutNamesRejectAnOutOfRangePosition(int index)
+        {
+            using var document = JsonDocument.Parse("""{"input":{"type":"integer"}}""");
+            WotMethodArgumentLayout layout = WotNodeSetConverter.GetMethodArgumentLayout(
+                document.RootElement, "input").Value!;
+
+            Assert.Throws<ArgumentOutOfRangeException>(() => layout.GetArgumentName(index));
+        }
+
+        [TestCase("true")]
+        [TestCase("[7]")]
+        [TestCase("[\"Missing\"]")]
+        [TestCase("[\"Value\",\"Value\"]")]
+        public void MalformedRequiredSetsDoNotMaterializeNativeArguments(string required)
+        {
+            string action = "{\"input\":{\"type\":\"object\",\"uav:argumentLayout\":\"named\"," +
+                "\"uav:fieldOrder\":[\"Value\"],\"required\":" +
+                required +
+                ",\"properties\":{\"Value\":{\"type\":\"integer\"}}}}";
+            using var document = JsonDocument.Parse(action);
+
+            WotConversionResult<WotMethodArgumentLayout> layout =
+                WotNodeSetConverter.GetMethodArgumentLayout(document.RootElement, "input");
+            WotConversionResult<UANodeSet> converted = Convert("\"actions\":{\"run\":" + action + "}");
+
+            Assert.That(layout.Success, Is.False);
+            Assert.That(converted.Diagnostics.Any(diagnostic =>
+                diagnostic.Severity == WotDiagnosticSeverity.Error &&
+                diagnostic.Code == WotDiagnosticCode.MethodArgumentSchemaInvalid), Is.True);
+            Assert.That(converted.Value!.Items.OfType<UAVariable>().Any(
+                variable => variable.BrowseName == "InputArguments"), Is.False);
+        }
+
         [TestCase("\"uav:argumentLayout\":\"named\",")]
         [TestCase("\"uav:argumentLayout\":\"named\",\"uav:mapToType\":\"i=22\",\"uav:fieldOrder\":[\"Value\"],")]
         [TestCase("\"uav:argumentLayout\":\"flattened\",\"uav:fieldOrder\":[\"Value\"],")]

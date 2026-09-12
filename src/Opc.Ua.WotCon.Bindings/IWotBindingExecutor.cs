@@ -90,14 +90,18 @@ namespace Opc.Ua.WotCon.Bindings
         /// </summary>
         public IServiceMessageContext MessageContext { get; private init; }
 
+        internal bool HasExplicitMessageContext { get; private init; }
+
         /// <summary>
         /// Returns an executor context with the host's namespace and type-factory context.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public WotExecutorContext WithMessageContext(IServiceMessageContext context)
         {
             return new WotExecutorContext(Credentials, Codecs, Bounds, EndpointPolicy, Telemetry)
             {
-                MessageContext = context ?? throw new ArgumentNullException(nameof(context))
+                MessageContext = context ?? throw new ArgumentNullException(nameof(context)),
+                HasExplicitMessageContext = true
             };
         }
     }
@@ -201,6 +205,7 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// Returns a notification with the context of its selected values.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public WotNotification WithContext(IServiceMessageContext context)
         {
             if (context is null)
@@ -257,6 +262,7 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// Returns a read result with the context of its namespace-bearing value.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public WotReadResult WithContext(IServiceMessageContext context)
         {
             return new WotReadResult(Status, Value, Error)
@@ -353,6 +359,7 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// Returns a result with the context needed to interpret namespace-bearing outputs.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public WotInvokeResult WithContext(IServiceMessageContext context)
         {
             return new WotInvokeResult(Status, Outputs, Error)
@@ -366,6 +373,8 @@ namespace Opc.Ua.WotCon.Bindings
         /// <summary>
         /// Returns a result carrying resolved operation and per-input diagnostics.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
         public WotInvokeResult WithResultDetails(ServiceResult operationResult, ArrayOf<ServiceResult> inputResults)
         {
             if (operationResult is null)

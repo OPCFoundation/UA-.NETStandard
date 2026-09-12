@@ -74,6 +74,11 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             {
                 throw new ArgumentNullException(nameof(context));
             }
+            if (form.Operation == WoTBindingCapabilityEnum.InvokeAction)
+            {
+                form.Payload.ValidateArgumentLayouts();
+                form.ConditionInvocation?.ValidateLayout(form.Payload);
+            }
             if (form.Addressing.BrowsePathTarget is not null &&
                 (m_options.TimeProvider is null ||
                     m_options.BrowsePathRefreshInterval <= TimeSpan.Zero ||
