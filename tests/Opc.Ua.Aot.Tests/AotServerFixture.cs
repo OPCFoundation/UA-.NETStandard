@@ -99,7 +99,6 @@ namespace Opc.Ua.Aot.Tests
             }
 
             serverConfig
-                .SetMaxChannelCount(10)
                 .SetMaxMessageQueueSize(20)
                 .SetDiagnosticsEnabled(true)
                 .SetAuditingEnabled(true);
