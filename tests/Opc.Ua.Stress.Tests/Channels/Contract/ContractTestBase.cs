@@ -73,7 +73,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
         protected static ContractTestEnvironment CreateEnvironment(
             Certificate applicationCertificate,
             Func<string, FakeTransport>? transportFactory = null,
-            IChannelReconnectPolicy? reconnectPolicy = null)
+            IChannelReconnectPolicy? reconnectPolicy = null,
+            TimeProvider? timeProvider = null)
         {
             if (applicationCertificate == null)
             {
@@ -103,7 +104,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
                 configuration,
                 telemetry,
                 bindings,
-                reconnectPolicy ?? new ImmediateReconnectPolicy());
+                reconnectPolicy ?? new ImmediateReconnectPolicy(),
+                timeProvider);
             managerInstance.UpdateClientCertificate(applicationCertificate.AddRef(), null);
 
             return new ContractTestEnvironment(

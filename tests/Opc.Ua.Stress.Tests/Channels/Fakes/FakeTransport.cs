@@ -32,6 +32,7 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Stress.Tests.Channels.Fakes
 {
@@ -514,15 +515,19 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
             ct.ThrowIfCancellationRequested();
 
             ChannelToken? currentToken;
+            Certificate? serverCertificate;
             lock (m_lock)
             {
                 m_closeCount++;
                 m_isOpen = false;
                 currentToken = m_currentToken;
                 m_currentToken = null;
+                serverCertificate = m_serverCertificate;
+                m_serverCertificate = null;
             }
 
             currentToken?.Dispose();
+            serverCertificate?.Dispose();
             return new ValueTask();
         }
 
@@ -530,15 +535,19 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
         public void Dispose()
         {
             ChannelToken? currentToken;
+            Certificate? serverCertificate;
             lock (m_lock)
             {
                 m_disposeCount++;
                 m_isOpen = false;
                 currentToken = m_currentToken;
                 m_currentToken = null;
+                serverCertificate = m_serverCertificate;
+                m_serverCertificate = null;
             }
 
             currentToken?.Dispose();
+            serverCertificate?.Dispose();
         }
 
         private static Uri? TryCreateUri(string? endpointUrl)
@@ -673,15 +682,24 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
                 NamespaceUris = settings.NamespaceUris ?? new NamespaceTable()
             };
 
+            Certificate? serverCertificate = settings.ServerCertificate;
+            Certificate? previousServerCertificate;
             lock (m_lock)
             {
                 m_endpointDescription = description;
                 m_endpointConfiguration = configuration;
                 m_messageContext = messageContext;
                 m_clientCertificateThumbprint = settings.ClientCertificate?.Thumbprint;
+                // Successful opens take ownership of the server certificate parsed by the manager.
+                previousServerCertificate = m_serverCertificate;
+                m_serverCertificate = serverCertificate;
                 m_isOpen = true;
             }
 
+            if (!ReferenceEquals(previousServerCertificate, serverCertificate))
+            {
+                previousServerCertificate?.Dispose();
+            }
             ActivateToken();
         }
 
@@ -825,6 +843,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
         private EndpointConfiguration? m_endpointConfiguration;
         private IServiceMessageContext m_messageContext;
         private ChannelToken? m_currentToken;
+        private Certificate? m_serverCertificate;
         private IUaSCByteTransport? m_socket;
         private ChannelTokenActivatedEventHandler? m_onTokenActivated;
         private static int s_nextChannelId;
