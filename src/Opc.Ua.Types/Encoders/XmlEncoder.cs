@@ -1808,11 +1808,9 @@ namespace Opc.Ua
         /// </summary>
         internal void SetNodeSetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
         {
-            SetMappingTables(namespaceUris, serverUris);
-            if (m_serverMappings is { Length: > 0 })
-            {
-                m_serverMappings[0] = 0;
-            }
+            SetMappingTables(namespaceUris, null);
+            m_serverMappings = serverUris.CreateMapping(
+                Context.ServerUris, false, preserveLocalServerIndex: true);
         }
 
         /// <summary>

@@ -487,10 +487,8 @@ namespace Opc.Ua.Wot
             {
                 context.ServerUris.Update([string.Empty]);
             }
-            foreach (string uri in target.ServerUris ?? [])
-            {
-                context.ServerUris.GetIndexOrAppend(uri);
-            }
+            context.ServerUris.CreateMapping(
+                target.CreateServerMappingTable(), true, preserveLocalServerIndex: true);
             context.MaxStringLength = Bound(configured?.MaxStringLength ?? 0, options.MaxNodeSetSize);
             context.MaxByteStringLength = Bound(configured?.MaxByteStringLength ?? 0, options.MaxNodeSetSize);
             context.MaxArrayLength = Bound(configured?.MaxArrayLength ?? 0, options.MaxNodeSetSize);

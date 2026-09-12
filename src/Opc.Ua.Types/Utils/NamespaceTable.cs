@@ -176,15 +176,7 @@ namespace Opc.Ua
         /// </summary>
         public int GetIndex(string value)
         {
-            lock (m_syncRoot)
-            {
-                if (string.IsNullOrEmpty(value))
-                {
-                    return -1;
-                }
-
-                return m_strings.IndexOf(value);
-            }
+            return GetIndex(value, 0);
         }
 
         /// <summary>
@@ -266,18 +258,27 @@ namespace Opc.Ua
         /// <returns>A list of indexes in the current table.</returns>
         public ushort[]? CreateMapping(StringTable source, bool updateTable)
         {
+            return CreateMapping(source, updateTable, preserveLocalServerIndex: false);
+        }
+
+        /// <summary>
+        /// Maps tables with an optional reserved local server slot at index zero.
+        /// </summary>
+        internal ushort[]? CreateMapping(StringTable source, bool updateTable, bool preserveLocalServerIndex)
+        {
             if (source == null)
             {
                 return null;
             }
 
             ushort[] mapping = new ushort[source.Count];
+            int startIndex = preserveLocalServerIndex ? 1 : 0;
 
-            for (int ii = 0; ii < source.Count; ii++)
+            for (int ii = startIndex; ii < source.Count; ii++)
             {
                 string uri = source.GetString((uint)ii)!;
 
-                int index = GetIndex(uri);
+                int index = GetIndex(uri, startIndex);
 
                 if (index < 0)
                 {
@@ -294,6 +295,19 @@ namespace Opc.Ua
             }
 
             return mapping;
+        }
+
+        private int GetIndex(string value, int startIndex)
+        {
+            lock (m_syncRoot)
+            {
+                if (string.IsNullOrEmpty(value))
+                {
+                    return -1;
+                }
+
+                return m_strings.IndexOf(value, Math.Min(startIndex, m_strings.Count));
+            }
         }
 
         /// <summary>

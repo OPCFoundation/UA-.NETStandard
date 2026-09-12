@@ -2863,10 +2863,16 @@ namespace Opc.Ua
 
         /// <summary>
         /// Maps NodeSet tables with their implicit local server at index zero.
+        /// Rebasing keeps remote identities remote; native import resolves the actual destination server.
         /// </summary>
-        internal void SetNodeSetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
+        internal void SetNodeSetMappingTables(
+            NamespaceTable namespaceUris,
+            StringTable serverUris,
+            bool preserveRemoteServerIdentity = false)
         {
-            SetMappingTables(namespaceUris, serverUris);
+            SetMappingTables(namespaceUris, null);
+            m_serverMappings = Context.ServerUris?.CreateMapping(
+                serverUris, false, preserveLocalServerIndex: preserveRemoteServerIdentity);
             if (m_serverMappings is { Length: > 0 })
             {
                 m_serverMappings[0] = 0;

@@ -41,7 +41,7 @@ namespace Opc.Ua.Export
             IServiceMessageContext context,
             bool rebase)
         {
-            using XmlDecoder decoder = CreateDecoder(context, source);
+            using XmlDecoder decoder = CreateDecoder(context, source, preserveRemoteServerIdentity: true);
             decoder.RequireCompleteValue = true;
             decoder.AllowOpaqueValues = !rebase;
             Variant value = decoder.ReadVariant(null);
@@ -56,7 +56,7 @@ namespace Opc.Ua.Export
             document.LoadInnerXml(encoder.CloseAndReturnText()!);
             System.Xml.XmlElement result = document.DocumentElement ?? throw new ServiceResultException(
                 StatusCodes.BadEncodingError, "The value codec produced no XML element.");
-            using XmlDecoder verification = target.CreateDecoder(context, result);
+            using XmlDecoder verification = target.CreateDecoder(context, result, preserveRemoteServerIdentity: true);
             verification.RequireCompleteValue = true;
             if (value != verification.ReadVariant(null))
             {
@@ -66,27 +66,34 @@ namespace Opc.Ua.Export
             return result;
         }
 
+        /// <summary>
+        /// Includes the implicit local server slot without assigning it a URI.
+        /// </summary>
+        internal StringTable CreateServerMappingTable()
+        {
+            return new StringTable([string.Empty, .. ServerUris ?? []]);
+        }
+
         private XmlEncoder CreateEncoder(IServiceMessageContext context)
         {
             var encoder = new XmlEncoder(context);
             encoder.SetNodeSetMappingTables(
                 new NamespaceTable([Namespaces.OpcUa, .. NamespaceUris ?? []]),
-                CreateServerMappingTable(context));
+                CreateServerMappingTable());
             return encoder;
         }
 
-        private XmlDecoder CreateDecoder(IServiceMessageContext context, System.Xml.XmlElement source)
+        private XmlDecoder CreateDecoder(
+            IServiceMessageContext context,
+            System.Xml.XmlElement source,
+            bool preserveRemoteServerIdentity = false)
         {
             var decoder = new XmlDecoder(WrapAsVariant(source), context);
             decoder.SetNodeSetMappingTables(
                 new NamespaceTable([Namespaces.OpcUa, .. NamespaceUris ?? []]),
-                CreateServerMappingTable(context));
+                CreateServerMappingTable(),
+                preserveRemoteServerIdentity);
             return decoder;
-        }
-
-        private StringTable CreateServerMappingTable(IServiceMessageContext context)
-        {
-            return new StringTable([context.ServerUris.GetString(0) ?? string.Empty, .. ServerUris ?? []]);
         }
     }
 }

@@ -89,6 +89,16 @@ context's namespace/server tables and respects its encoding limits; it does not
 change the caller's factory or tables. Keeping the registration context's
 indexes is important for nested structure field definitions.
 
+The copied server table reserves index zero for the local server. A declared
+remote URI is matched only to positive server indexes, even when its URI equals
+the configured local slot's URI. If needed, a separate positive slot is added
+to the copy. Thus `svr=1;ns=1;i=42` remains remote after namespace relocation;
+neither values nor References are localized by a coincidentally equal URI.
+An empty configured server table or an empty local slot is also supported.
+The value encoding context is not a native import destination. Ordinary
+`UANodeSet.Import` continues to resolve server URIs against its actual
+destination context.
+
 Opaque XML values and binary ExtensionObject bodies are **not** heuristically
 rewritten. They can remain untouched when no namespace-table change is needed;
 their understood outer identities are still checked for declared indexes.
