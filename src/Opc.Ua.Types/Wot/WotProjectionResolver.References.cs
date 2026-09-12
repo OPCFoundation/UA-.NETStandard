@@ -109,6 +109,7 @@ namespace Opc.Ua.Wot
 
             public void Close(CancellationToken cancellationToken)
             {
+                InitializeDataTypeCarriage();
                 RegisterRootUriVariables();
                 foreach (ResolvedAffordance member in m_selection.Members)
                 {
@@ -163,6 +164,7 @@ namespace Opc.Ua.Wot
 
             private void RewriteReferences(ReferenceCarriage carriage)
             {
+                RewriteDataTypeReferences(carriage);
                 foreach (string term in s_locationReferences)
                 {
                     if (!carriage.Value.TryGetPropertyValue(term, out JsonNode? reference))
@@ -247,7 +249,8 @@ namespace Opc.Ua.Wot
                     return null;
                 }
                 m_definitions ??= [];
-                if ((long)m_selection.Members.Count + m_definitions.Count + m_uriVariableCount >= m_options.MaxNodeCount)
+                if ((long)m_selection.Members.Count + m_definitions.Count + m_uriVariableCount + m_dataTypeCount >=
+                    m_options.MaxNodeCount)
                 {
                     BudgetError();
                     return null;
@@ -381,7 +384,7 @@ namespace Opc.Ua.Wot
 
             private bool WithinBudget()
             {
-                if ((long)m_selection.Members.Count + (m_definitions?.Count ?? 0) + m_uriVariableCount <=
+                if ((long)m_selection.Members.Count + (m_definitions?.Count ?? 0) + m_uriVariableCount + m_dataTypeCount <=
                     m_options.MaxNodeCount)
                 {
                     return true;

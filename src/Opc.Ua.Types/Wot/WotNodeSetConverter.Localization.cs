@@ -212,7 +212,7 @@ namespace Opc.Ua.Wot
         /// a UANodeSet writes when it names one language and does not say
         /// which, and the second states the tag the Nodes carry.
         /// </remarks>
-        private static string? GetDeclaredLocale(
+        internal static string? GetDeclaredLocale(
             WotDocument document, JsonElement carryingNode = default, string? term = null)
         {
             if (term is not null &&
@@ -300,7 +300,8 @@ namespace Opc.Ua.Wot
                 ProjectedTextLocale(texts, defaultLocale) is not null;
             if (entries.Count == 1 &&
                 string.Equals(entries[0].Key, defaultLocale, StringComparison.Ordinal) &&
-                !forceMap && !explicitNonEnglish)
+                !forceMap &&
+                !explicitNonEnglish)
             {
                 writer.WriteString(singular, entries[0].Value);
                 return;

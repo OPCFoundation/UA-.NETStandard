@@ -146,7 +146,10 @@ namespace Opc.Ua.Wot
                 foreach (KeyValuePair<string, JsonElement> definition in definitions
                     .OrderBy(entry => entry.Key, WotCodePointComparer.Instance))
                 {
-                    if ((long)m_selection.Members.Count + (m_definitions?.Count ?? 0) + m_uriVariableCount >=
+                    if ((long)m_selection.Members.Count +
+                        (m_definitions?.Count ?? 0) +
+                        m_uriVariableCount +
+                        m_dataTypeCount >=
                         m_options.MaxNodeCount)
                     {
                         BudgetError();
@@ -233,7 +236,10 @@ namespace Opc.Ua.Wot
 
                 void AddVariable(string name, JsonElement definition, string pointer)
                 {
-                    if ((long)m_selection.Members.Count + (m_definitions?.Count ?? 0) + m_uriVariableCount >=
+                    if ((long)m_selection.Members.Count +
+                        (m_definitions?.Count ?? 0) +
+                        m_uriVariableCount +
+                        m_dataTypeCount >=
                         m_options.MaxNodeCount)
                     {
                         BudgetError();

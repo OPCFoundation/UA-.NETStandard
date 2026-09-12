@@ -607,11 +607,16 @@ namespace Opc.Ua.Wot
 
         internal static ArrayOf<JsonElement> ReadDataTypeDefinitionOccurrences(JsonElement root)
         {
-            var definitions = new List<JsonElement>();
-            Visit(root);
+            return ReadDataTypeDefinitionLocations(root).ToArrayOf(entry => entry.Definition);
+        }
+
+        internal static ArrayOf<(JsonElement Definition, string Pointer)> ReadDataTypeDefinitionLocations(JsonElement root)
+        {
+            var definitions = new List<(JsonElement Definition, string Pointer)>();
+            Visit(root, string.Empty);
             return definitions.ToArrayOf();
 
-            void Visit(JsonElement element)
+            void Visit(JsonElement element, string pointer)
             {
                 if (element.ValueKind == JsonValueKind.Object)
                 {
@@ -621,36 +626,43 @@ namespace Opc.Ua.Wot
                         {
                             continue;
                         }
+                        string location = pointer + "/" + EscapePointerToken(member.Name);
                         if (member.Name is "uav:dataTypeDefinition" or "uav:fieldDataTypeDefinition" &&
                             member.Value.ValueKind == JsonValueKind.Object)
                         {
-                            definitions.Add(member.Value);
+                            definitions.Add((member.Value, location));
                         }
                         else if (member.Name == "uav:dataTypeDefinitions" &&
                             member.Value.ValueKind == JsonValueKind.Array)
                         {
+                            int index = 0;
                             foreach (JsonElement definition in member.Value.EnumerateArray())
                             {
                                 if (definition.ValueKind == JsonValueKind.Object)
                                 {
-                                    definitions.Add(definition);
+                                    definitions.Add((definition, location +
+                                        "/" +
+                                        index.ToString(CultureInfo.InvariantCulture)));
                                 }
+                                index++;
                             }
                         }
                         else if (member.Name == "uav:dataTypeSubtypeOf" &&
                             member.Value.ValueKind == JsonValueKind.Object &&
                             IsReferenceOnlyDefinition(member.Value))
                         {
-                            definitions.Add(member.Value);
+                            definitions.Add((member.Value, location));
                         }
-                        Visit(member.Value);
+                        Visit(member.Value, location);
                     }
                 }
                 else if (element.ValueKind == JsonValueKind.Array)
                 {
+                    int index = 0;
                     foreach (JsonElement item in element.EnumerateArray())
                     {
-                        Visit(item);
+                        Visit(item, pointer + "/" + index.ToString(CultureInfo.InvariantCulture));
+                        index++;
                     }
                 }
             }
@@ -876,10 +888,10 @@ namespace Opc.Ua.Wot
             }
             UADataType dataType = root ??
                 new UADataType
-                    {
-                        NodeId = identity,
-                        BrowseName = browseName
-                    };
+                {
+                    NodeId = identity,
+                    BrowseName = browseName
+                };
             dataType.IsAbstract = isAbstract;
             ApplyDataTypeText(document, dataType, definition);
 

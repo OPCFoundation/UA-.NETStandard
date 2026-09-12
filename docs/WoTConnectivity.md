@@ -1145,6 +1145,27 @@ the same output definition. Reusable schemas count with affordances against
 `MaxNodeCount`. Missing or malformed known references fail rather than leaving
 a successful document with dangling local pointers.
 
+Known DataType definitions referenced by a selected schema are carried once in
+`uav:dataTypeDefinitions`. Inline full definitions become graph references;
+local field and base-type dependencies share the same closure. Native-ID and
+namespace-qualified name references also retain their known definitions.
+Base-reference objects retain every supplied graph, name and native-ID form;
+conflicting forms cannot disappear when a definition is carried. A local
+definition pointer must address an indexed semantic definition, not a literal
+lookalike. Reusing an outer definition still checks the other owner's
+transitive dependencies.
+Unreferenced source definitions are not copied merely because the source
+contains them. DataTypes participate in the same `MaxNodeCount` budget.
+
+Repeated complete definitions within one source are invalid. Across owners,
+reuse requires the same expanded graph and native identities and agreeing
+context-resolved facts. Unknown semantic terms retain captured context for a
+conservative comparison; localized text uses its original declared locale and
+known location references use their original document location. Opaque
+metadata remains literal. Distinct graph nodes cannot claim one native
+DataType identity. Malformed definition containers and reference shapes fail
+explicitly rather than disappearing during carriage.
+
 Known schema references (`$ref`, a source definition's `tm:ref`, and
 `uav:externalSchema`) retain their original document location. Relative external
 references become origin-relative absolute references where that location is
