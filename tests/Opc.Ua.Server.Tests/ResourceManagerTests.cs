@@ -1,3 +1,32 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
 using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -247,6 +276,85 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void TranslateRetainsOriginalFallbackForAnotherLocale()
+        {
+            var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create());
+            using var resources = new ResourceManager(configuration);
+            resources.Add("greeting", "de-DE", "Hallo {0}");
+            var original = new LocalizedText("greeting", "en-US", "Hello {0}", "User");
+
+            LocalizedText german = resources.Translate(["de-DE"], original);
+            LocalizedText english = resources.Translate(["en-US"], german);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(german.Locale, Is.EqualTo("de-DE"));
+                Assert.That(german.Text, Is.EqualTo("Hallo User"));
+                Assert.That(german.TranslationInfo, Is.EqualTo(original.TranslationInfo));
+                Assert.That(english.Locale, Is.EqualTo("en-US"));
+                Assert.That(english.Text, Is.EqualTo("Hello User"));
+                Assert.That(english.TranslationInfo, Is.EqualTo(original.TranslationInfo));
+                Assert.That(original.Locale, Is.EqualTo("en-US"));
+                Assert.That(original.Text, Is.EqualTo("Hello User"));
+            });
+        }
+
+        [Test]
+        public void MissingLocaleUsesOriginalFallbackAfterTranslation()
+        {
+            var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create());
+            using var resources = new ResourceManager(configuration);
+            resources.Add("greeting", "de-DE", "Hallo");
+            var original = new LocalizedText("greeting", "en-US", "Hello");
+            LocalizedText german = resources.Translate(["de-DE"], original);
+
+            LocalizedText result = resources.Translate(["fr-FR"], german);
+
+            Assert.That(result.Locale, Is.EqualTo("en-US"));
+            Assert.That(result.Text, Is.EqualTo("Hello"));
+            Assert.That(result.TranslationInfo, Is.EqualTo(original.TranslationInfo));
+        }
+
+        [Test]
+        public void NoLocalePreferencePreservesTheSelectedTranslation()
+        {
+            var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create());
+            using var resources = new ResourceManager(configuration);
+            resources.Add("greeting", "de-DE", "Hallo");
+            var original = new LocalizedText("greeting", "en-US", "Hello");
+            LocalizedText german = resources.Translate(["de-DE"], original);
+
+            LocalizedText result = resources.Translate([], german);
+
+            Assert.That(result.Locale, Is.EqualTo("de-DE"));
+            Assert.That(result.Text, Is.EqualTo("Hallo"));
+            Assert.That(result.TranslationInfo, Is.EqualTo(original.TranslationInfo));
+        }
+
+        [Test]
+        public void RetainedServiceResultCanBeTranslatedForAnotherSession()
+        {
+            var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create());
+            using var resources = new ResourceManager(configuration);
+            resources.Add("timeout", "de-DE", "Zeitlimit {0}");
+            var original = new ServiceResult(
+                StatusCodes.BadTimeout,
+                new LocalizedText("timeout", "en-US", "Timeout {0}", "Pump"));
+
+            ServiceResult german = resources.Translate(["de-DE"], original);
+            ServiceResult english = resources.Translate(["en-US"], german);
+
+            Assert.That(german.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+            Assert.That(german.LocalizedText.Text, Is.EqualTo("Zeitlimit Pump"));
+            Assert.That(german.LocalizedText.Locale, Is.EqualTo("de-DE"));
+            Assert.That(english.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+            Assert.That(english.LocalizedText.Text, Is.EqualTo("Timeout Pump"));
+            Assert.That(english.LocalizedText.Locale, Is.EqualTo("en-US"));
+            Assert.That(english.LocalizedText.TranslationInfo, Is.EqualTo(original.LocalizedText.TranslationInfo));
+            Assert.That(original.LocalizedText.Text, Is.EqualTo("Timeout Pump"));
+        }
+
+        [Test]
         public void TranslateUsesRegisteredTextAndLocaleInsteadOfFallback()
         {
             var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create());
@@ -258,7 +366,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(translated.Text, Is.EqualTo("Hallo User"));
             Assert.That(translated.Locale, Is.EqualTo("de-DE"));
             Assert.That(translated.TranslationInfo.Key, Is.EqualTo("greeting"));
-            Assert.That(translated.TranslationInfo.Text, Is.EqualTo("Hallo {0}"));
+            Assert.That(translated.TranslationInfo.Text, Is.EqualTo("Hello {0}"));
         }
 
         [TestCase(null)]
