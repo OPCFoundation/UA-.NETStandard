@@ -110,30 +110,31 @@ namespace Quickstarts.Servers
                     using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
                     IServiceMessageContext context = AmbientMessageContext.CurrentContext;
 
-                    using FileStream stream = File.OpenRead(filePath);
-                    using var decoder = new BinaryDecoder(stream, context, true);
-
-                    ArrayOf<string> nsUris = decoder.ReadStringArray(null)!;
-                    ArrayOf<string> srvUris = decoder.ReadStringArray(null)!;
-                    decoder.SetMappingTables(
-                        new NamespaceTable(nsUris.Memory.ToArray()),
-                        new StringTable(srvUris.Memory.ToArray()));
-
-                    lock (batch)
+                    using (FileStream stream = File.OpenRead(filePath))
+                    using (var decoder = new BinaryDecoder(stream, context, true))
                     {
-                        if (batch is DataChangeBatch dataChangeBatch)
+                        ArrayOf<string> nsUris = decoder.ReadStringArray(null)!;
+                        ArrayOf<string> srvUris = decoder.ReadStringArray(null)!;
+                        decoder.SetMappingTables(
+                            new NamespaceTable(nsUris.Memory.ToArray()),
+                            new StringTable(srvUris.Memory.ToArray()));
+
+                        lock (batch)
                         {
-                            DataChangeBatch? restored =
-                                DurableMonitoredItemQueueFactory.DecodeDataChangeBatch(decoder);
-                            dataChangeBatch.Restore(restored?.Values);
+                            if (batch is DataChangeBatch dataChangeBatch)
+                            {
+                                DataChangeBatch? restored =
+                                    DurableMonitoredItemQueueFactory.DecodeDataChangeBatch(decoder);
+                                dataChangeBatch.Restore(restored?.Values);
+                            }
+                            else if (batch is EventBatch eventBatch)
+                            {
+                                EventBatch? restored =
+                                    DurableMonitoredItemQueueFactory.DecodeEventBatch(decoder);
+                                eventBatch.Restore(restored?.Events);
+                            }
+                            m_batchesToRestore.TryRemove(batch.Id, out _);
                         }
-                        else if (batch is EventBatch eventBatch)
-                        {
-                            EventBatch? restored =
-                                DurableMonitoredItemQueueFactory.DecodeEventBatch(decoder);
-                            eventBatch.Restore(restored?.Events);
-                        }
-                        m_batchesToRestore.TryRemove(batch.Id, out _);
                     }
 
                     File.Delete(filePath);
