@@ -89,7 +89,7 @@ namespace Opc.Ua.Wot
             }
         }
 
-        private sealed class SchemaReferenceClosure
+        private sealed partial class SchemaReferenceClosure
         {
             public SchemaReferenceClosure(
                 JsonObject root,
@@ -109,12 +109,14 @@ namespace Opc.Ua.Wot
 
             public void Close(CancellationToken cancellationToken)
             {
+                RegisterRootUriVariables();
                 foreach (ResolvedAffordance member in m_selection.Members)
                 {
                     var owner = new ReferenceOwner(
                         member.Source.Document, member.Source.DocumentHref, member.Source.Source.SourceName);
                     string destination = "/" + MapName(member.Kind) + "/" + EscapePointer(member.Name);
                     m_locations.TryAdd((false, owner.Href, member.Pointer), destination);
+                    RegisterAffordanceUriVariables(member, owner, destination);
                     m_pending.Enqueue(new ReferenceCarriage(member.Value, owner, member.Pointer, destination));
                     ReferenceOwner formOwner = member.Source.Source.Routing == WotProjectionRouting.Projection
                         ? m_host
@@ -242,7 +244,7 @@ namespace Opc.Ua.Wot
                     return null;
                 }
                 m_definitions ??= [];
-                if ((long)m_selection.Members.Count + m_definitions.Count >= m_options.MaxNodeCount)
+                if ((long)m_selection.Members.Count + m_definitions.Count + m_uriVariableCount >= m_options.MaxNodeCount)
                 {
                     BudgetError();
                     return null;
@@ -306,9 +308,11 @@ namespace Opc.Ua.Wot
                         {
                             if (entry.Value is JsonObject schema)
                             {
-                                m_pending.Enqueue(new ReferenceCarriage(schema, carriage.Owner,
-                                    sourcePointer + "/" + EscapePointer(entry.Key),
-                                    destination + "/" + EscapePointer(entry.Key)));
+                                m_pending.Enqueue(m_uriVariableCarriages.TryGetValue(schema, out ReferenceCarriage? owned)
+                                    ? owned
+                                    : new ReferenceCarriage(schema, carriage.Owner,
+                                        sourcePointer + "/" + EscapePointer(entry.Key),
+                                        destination + "/" + EscapePointer(entry.Key)));
                             }
                         }
                     }
@@ -371,7 +375,8 @@ namespace Opc.Ua.Wot
 
             private bool WithinBudget()
             {
-                if ((long)m_selection.Members.Count + (m_definitions?.Count ?? 0) <= m_options.MaxNodeCount)
+                if ((long)m_selection.Members.Count + (m_definitions?.Count ?? 0) + m_uriVariableCount <=
+                    m_options.MaxNodeCount)
                 {
                     return true;
                 }

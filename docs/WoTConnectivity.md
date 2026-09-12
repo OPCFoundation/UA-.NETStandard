@@ -1153,6 +1153,26 @@ absolute; this step does not fetch external schemas. Named
 definitions, so a host form cannot silently select a same-named source schema,
 or vice versa.
 
+URI-template variables required by carried forms use that form owner's
+declarations. Source-affordance declarations take precedence over the source
+root; required root declarations are carried at the resulting affordance scope.
+Variables from different sources remain distinct even when their names match.
+Projection-owned forms use the projection root's declarations, never surviving
+source declarations. The projection annotation whitelist does not permit an
+enumerated member to restate `uriVariables`.
+
+Carried variables preserve their original ordered and term-scoped contexts and
+schema-reference ownership. Duplicate containers or declarations must agree;
+equivalent facts coalesce and contradictory facts fail. Variable maps are emitted
+in code-point order without changing the URI template. Retained variables count
+with affordances and reusable schemas against `MaxNodeCount`.
+
+Dependency discovery reads supported RFC 6570 expressions, including prefix and
+explode modifiers and literal percent-encoded variable names. Missing required
+declarations and malformed templates fail explicitly. Escaped braces and
+template-like text in defaults or opaque metadata do not create dependencies;
+this step does not expand templates or perform an interaction.
+
 An enumerated selection may annotate the affordance it names, but Section 12.5
 closes the set of members it may annotate with. Permitted beside `tm:ref` are
 `title`, `titles`, `description`, `descriptions`, additional `@type` values,

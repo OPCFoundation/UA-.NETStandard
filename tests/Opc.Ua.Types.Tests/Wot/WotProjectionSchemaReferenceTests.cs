@@ -41,7 +41,7 @@ namespace Opc.Ua.Types.Tests.Wot
 {
     [TestFixture]
     [Category("WoT")]
-    public sealed class WotProjectionSchemaReferenceTests
+    public sealed partial class WotProjectionSchemaReferenceTests
     {
         [TestCase(false)]
         [TestCase(true)]

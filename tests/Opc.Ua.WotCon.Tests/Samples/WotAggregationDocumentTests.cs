@@ -357,7 +357,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         public async Task PumpAssetProjectionDocumentsResolveToExpectedGroupsAndMembers()
         {
             var resolver = new WotProjectionResolver(
-                new WotAggregationDocumentGenerator.SampleThingResolver(ReadManifestDocuments()),
+                new WotAggregationDocumentGenerator.SampleThingResolver(ReadSubstitutedManifestDocuments()),
                 WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
 
             foreach (string pumpName in s_pumpAssetNames)
@@ -369,7 +369,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 WotConversionResult<WotDocument> assetResult = await resolver
                     .ResolveAsync(asset).ConfigureAwait(false);
 
-                Assert.That(assetResult.Success, Is.True, pumpName);
+                Assert.That(assetResult.Success, Is.True, pumpName + ": " + string.Join("; ", assetResult.Diagnostics));
                 using WotDocument assetView = assetResult.Value!;
                 JsonElement root = assetView.RootElement;
                 Assert.That(TypeNames(root), Does.Not.Contain("uav:projection"));
@@ -500,11 +500,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         [TestCase("Pump2")]
         public async Task ManagementProjectionsCompileWithTheirConditionEvents(string pumpName)
         {
-            var documents = ReadManifestDocuments().ToArrayOf(document => document with
-            {
-                Json = ByteString.From(Encoding.UTF8.GetBytes(
-                    SubstituteEndpoints(Encoding.UTF8.GetString(document.Json.ToArray()))))
-            });
+            ArrayOf<SampleDocument> documents = ReadSubstitutedManifestDocuments();
             var thingResolver = new WotAggregationDocumentGenerator.SampleThingResolver(documents);
             var projectionResolver = new WotProjectionResolver(
                 thingResolver, WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
@@ -1337,6 +1333,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
             return WotAggregationDocumentGenerator.ReadManifestDocuments(DocumentPath(string.Empty));
         }
 
+        private static ArrayOf<SampleDocument> ReadSubstitutedManifestDocuments()
+        {
+            return SubstituteEndpoints(ReadManifestDocuments());
+        }
+
         private static ArrayOf<SampleDocument> ReadPumpDocuments()
         {
             return ReadManifestDocuments().Filter(document =>
@@ -1360,7 +1361,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             JsonElement map = view.RootElement.GetProperty(mapName);
             Assert.That(TypeNames(view.RootElement), Does.Not.Contain("uav:projection"), fileName);
             string pumpName = fileName[..fileName.IndexOf('.', StringComparison.Ordinal)];
-            ArrayOf<SampleDocument> sources = ReadPumpDocuments();
+            ArrayOf<SampleDocument> sources = SubstituteEndpoints(ReadPumpDocuments());
             var units = new Dictionary<string, Affordance>(StringComparer.Ordinal);
             if (mapName == "properties")
             {
@@ -1827,6 +1828,15 @@ namespace Opc.Ua.WotCon.Tests.Samples
         private static string SourceEndpoint(string source)
         {
             return source == "SourceA" ? "${SOURCE_A_ENDPOINT}" : "${SOURCE_B_ENDPOINT}";
+        }
+
+        private static ArrayOf<SampleDocument> SubstituteEndpoints(ArrayOf<SampleDocument> documents)
+        {
+            return documents.ToArrayOf(document => document with
+            {
+                Json = ByteString.From(Encoding.UTF8.GetBytes(
+                    SubstituteEndpoints(Encoding.UTF8.GetString(document.Json.ToArray()))))
+            });
         }
 
         private static string SubstituteEndpoints(string json)

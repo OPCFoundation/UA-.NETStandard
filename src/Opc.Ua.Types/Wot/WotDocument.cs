@@ -189,6 +189,23 @@ namespace Opc.Ua.Wot
             return false;
         }
 
+        internal ArrayOf<JsonElement> GetContextSequence(JsonElement carryingNode)
+        {
+            m_contextScopes ??= CreateContextScopes();
+            if (!m_contextScopes.TryGetValue(carryingNode, out ContextScope? scope))
+            {
+                throw new ArgumentException(
+                    "The context owner must be an original semantic object.", nameof(carryingNode));
+            }
+            var contexts = new List<JsonElement>();
+            for (; scope is not null; scope = scope.Parent)
+            {
+                contexts.Add(scope.Context);
+            }
+            contexts.Reverse();
+            return contexts.ToArrayOf();
+        }
+
         private static bool TryFindContextTerm(
             ContextScope? scope, string term, out JsonElement definition)
         {
