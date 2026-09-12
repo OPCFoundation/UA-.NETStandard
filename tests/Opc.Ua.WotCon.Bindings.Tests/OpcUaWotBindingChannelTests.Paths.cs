@@ -119,15 +119,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         [Test]
         public async Task LivePathCallUsesTheResolvedMethodAndItsExplicitSourceReceiver()
         {
-            JsonNode input = JsonNode.Parse("""
-                {
-                  "type":"object", "uav:argumentLayout":"named", "uav:fieldOrder":["x","y"],
-                  "properties":{"x":{"type":"number"},"y":{"type":"integer"}},
-                  "required":["x","y"]
-                }
-                """)!;
             WotBindingPlan plan = PathPlan(m_registry, "actions", "invokeaction",
-                "t:Methods_Add", MethodsObjectNodeId, input);
+                "t:Methods_Add", MethodsObjectNodeId, PathAddInput(),
+                JsonNode.Parse("""{"type":"number","uav:dataTypeId":"i=10"}"""));
             await using IWotBindingChannel channel = await m_registry.OpenChannelAsync(plan.CompiledForms.Single())
                 .ConfigureAwait(false);
 
@@ -138,6 +132,25 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Outputs, Has.Count.EqualTo(1));
             Assert.That(result.Outputs[0].WrappedValue.TryGetValue(out float sum), Is.True);
             Assert.That(sum, Is.EqualTo(5.5f));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LivePathCallRejectsAnUnannotatedUnsignedInputOrUndeclaredOutput(bool missingOutput)
+        {
+            WotBindingPlan plan = PathPlan(m_registry, "actions", "invokeaction",
+                "t:Methods_Add", MethodsObjectNodeId, PathAddInput(annotateUnsigned: missingOutput),
+                missingOutput ? null : JsonNode.Parse("""{"type":"number","uav:dataTypeId":"i=10"}"""));
+            await using IWotBindingChannel channel = await m_registry.OpenChannelAsync(plan.CompiledForms.Single())
+                .ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync([new Variant(2.5f), new Variant(3u)])
+                .ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(missingOutput
+                ? StatusCodes.BadDecodingError : StatusCodes.BadTypeMismatch));
+            Assert.That(result.Outputs, Is.Empty);
+            Assert.That(result.Error, Is.Not.Null.And.Not.Empty);
         }
 
         [TestCase(false)]
@@ -300,7 +313,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
         private WotBindingPlan PathPlan(
             WotProtocolBinderRegistry registry, string collection, string operation,
-            string path, string anchor, JsonNode? input = null)
+            string path, string anchor, JsonNode? input = null, JsonNode? output = null)
         {
             var form = new JsonObject
             {
@@ -317,6 +330,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             {
                 affordance["input"] = input;
             }
+            if (output is not null)
+            {
+                affordance["output"] = output;
+            }
             var root = new JsonObject
             {
                 ["@context"] = new JsonObject { ["t"] = ReferenceServerNamespace },
@@ -328,6 +345,22 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(plan.Diagnostics.Where(value => value.IsError), Is.Empty);
             Assert.That(plan.CompiledForms, Has.Length.EqualTo(1));
             return plan;
+        }
+
+        private static JsonNode PathAddInput(bool annotateUnsigned = true)
+        {
+            JsonNode input = JsonNode.Parse("""
+                {
+                  "type":"object", "uav:argumentLayout":"named", "uav:fieldOrder":["x","y"],
+                  "properties":{"x":{"type":"number","uav:dataTypeId":"i=10"},"y":{"type":"integer"}},
+                  "required":["x","y"]
+                }
+                """)!;
+            if (annotateUnsigned)
+            {
+                input["properties"]!["y"]!["uav:dataTypeId"] = "i=7";
+            }
+            return input;
         }
 
         private Mock<ISession> PathSessionProxy(
