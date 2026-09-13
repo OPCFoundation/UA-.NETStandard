@@ -2172,16 +2172,17 @@ namespace Opc.Ua.Server
                 case MonitoringMode.Reporting:
                 case MonitoringMode.Sampling:
                     // check if queuing is disabled.
-                    if (QueueSize == 0 && MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                    if (QueueSize == 0)
                     {
-                        QueueSize = 1;
-                    }
+                        if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                        {
+                            QueueSize = 1;
+                        }
 
-                    // Part 4 §7.21: 0 and 1 request the server default and minimum
-                    // event queue size; neither disables queueing for events.
-                    if (QueueSize <= 1 && (MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
-                    {
-                        QueueSize = EventManager.DefaultEventQueueSize;
+                        if ((MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
+                        {
+                            QueueSize = 1000;
+                        }
                     }
 
                     // create data queue.
@@ -2253,16 +2254,17 @@ namespace Opc.Ua.Server
                 case MonitoringMode.Reporting:
                 case MonitoringMode.Sampling:
                     // check if queuing is disabled.
-                    if (QueueSize == 0 && MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                    if (QueueSize == 0)
                     {
-                        QueueSize = 1;
-                    }
+                        if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                        {
+                            QueueSize = 1;
+                        }
 
-                    // Part 4 §7.21: 0 and 1 request the server default and minimum
-                    // event queue size; neither disables queueing for events.
-                    if (QueueSize <= 1 && (MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
-                    {
-                        QueueSize = EventManager.DefaultEventQueueSize;
+                        if ((MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
+                        {
+                            QueueSize = 1000;
+                        }
                     }
 
                     // create data queue.
@@ -2334,6 +2336,14 @@ namespace Opc.Ua.Server
                                 restoredQueue,
                                 m_discardOldest,
                                 m_server.Telemetry);
+
+                            // the queue may have been persisted with a size that was
+                            // revised since, e.g. a literal size of 1 before queueSize 1
+                            // was mapped to the server minimum (Part 4 §7.21).
+                            if (restoredQueue.QueueSize != QueueSize)
+                            {
+                                m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
+                            }
                         }
                         else
                         {

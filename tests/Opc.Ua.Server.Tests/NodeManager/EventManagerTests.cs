@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Moq;
 using NUnit.Framework;
 
@@ -160,11 +161,24 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Is.EqualTo(EventManager.DefaultEventQueueSize));
         }
 
-        [TestCase(0u)]
-        [TestCase(1u)]
-        public void CreateMonitoredItemClampsDefaultEventQueueSizeToMax(uint requestedQueueSize)
+        /// <summary>
+        /// The server default is still limited by the configured maximum, and a
+        /// configured maximum of 1 is honored rather than read as another
+        /// queueSize 1 request.
+        /// </summary>
+        [TestCase(0u, 3u)]
+        [TestCase(1u, 3u)]
+        [TestCase(0u, 1u)]
+        [TestCase(1u, 1u)]
+        public void CreateMonitoredItemClampsDefaultEventQueueSizeToMax(
+            uint requestedQueueSize,
+            uint maxQueueSize)
         {
-            EventManager manager = CreateManager(3, 3, out _, out Mock<IAsyncNodeManager> nm);
+            EventManager manager = CreateManager(
+                maxQueueSize,
+                10000,
+                out _,
+                out Mock<IAsyncNodeManager> nm);
             var idFactory = new MonitoredItemIdFactory();
 
             IEventMonitoredItem item = manager.CreateMonitoredItem(
@@ -172,7 +186,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 TimestampsToReturn.Both, 1000.0, NewCreateRequest(1000.0, requestedQueueSize),
                 new EventFilter(), false);
 
-            Assert.That(((MonitoredItem)item).QueueSize, Is.EqualTo(3));
+            Assert.That(((MonitoredItem)item).QueueSize, Is.EqualTo(maxQueueSize));
         }
 
         [Test]
@@ -235,7 +249,75 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var notifications = new Queue<EventFieldList>();
             ((MonitoredItem)item).Publish(NewContext(), notifications, 100);
 
-            Assert.That(notifications, Has.Count.EqualTo(3));
+            // an overflowing queue would drop events and append an
+            // EventQueueOverflowEvent, so compare the exact payloads.
+            Assert.That(
+                notifications.Select(n => n.EventFields[0].GetString()),
+                Is.EqualTo(new[] { "event0", "event1", "event2" }));
+        }
+
+        /// <summary>
+        /// A durable event queue persisted with the literal size 1 must be resized
+        /// to the revised size when the monitored item is restored.
+        /// </summary>
+        [Test]
+        public void RestoreMonitoredItemResizesRestoredEventQueue()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using var manager = new EventManager(server.Object, 10000, 10000);
+
+            IEventMonitoredItemQueue persisted = queueFactory.CreateEventQueue(false, 7);
+            persisted.SetQueueSize(1, true);
+            persisted.Enqueue(new EventFieldList
+            {
+                ClientHandle = 42,
+                EventFields = [new Variant("event0")]
+            });
+
+            var stored = new StoredMonitoredItem
+            {
+                Id = 7,
+                SubscriptionId = 1,
+                TypeMask = MonitoredItemTypeMask.Events,
+                MonitoringMode = MonitoringMode.Reporting,
+                NodeId = ObjectIds.Server,
+                AttributeId = Attributes.EventNotifier,
+                ClientHandle = 42,
+                QueueSize = 1,
+                DiscardOldest = true,
+                SamplingInterval = 0,
+                TimestampsToReturn = TimestampsToReturn.Both,
+                DiagnosticsMasks = DiagnosticsMasks.None,
+                OriginalFilter = new EventFilter(),
+                FilterToUse = new EventFilter(),
+                IndexRange = string.Empty,
+                ParsedIndexRange = NumericRange.Null,
+                RestoredEventQueue = persisted
+            };
+
+            var item = (MonitoredItem)manager.RestoreMonitoredItem(
+                new Mock<IAsyncNodeManager>().Object,
+                null!,
+                stored);
+
+            Assert.That(item.QueueSize, Is.EqualTo(EventManager.DefaultEventQueueSize));
+
+            for (int ii = 1; ii < 3; ii++)
+            {
+                item.QueueEvent(new EventFieldList
+                {
+                    ClientHandle = 42,
+                    EventFields = [new Variant("event" + ii)]
+                });
+            }
+
+            var notifications = new Queue<EventFieldList>();
+            item.Publish(NewContext(), notifications, 100);
+
+            Assert.That(
+                notifications.Select(n => n.EventFields[0].GetString()),
+                Is.EqualTo(new[] { "event0", "event1", "event2" }));
         }
 
         [Test]
