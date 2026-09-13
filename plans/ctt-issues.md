@@ -46,7 +46,7 @@ running the CTT is in [ctt-testing.md](ctt-testing.md).
 | C4 | Aggregates: DurationInState status thresholds | — | Not filed |
 | C5 | Aggregates: durations truncated to whole milliseconds | — | Not filed |
 | C6 | Aggregates: DurationGood/PercentGood first region | — | Not filed |
-| C7–C14 | Other unfiled script defects | — | Not filed |
+| C7–C15 | Other unfiled script defects | — | Not filed |
 
 Mantis states were last checked on 2026-09-13.
 
@@ -508,6 +508,20 @@ subscriber with the CTT's `AuthenticatedUser` role receives them (Part 3 §8.55)
 parameters, the `FindEntryVerbose` WhereClause, the `ClientAuditEntryId` comparison or publish
 timing; it has not been pinpointed to a line.
 
+### C15. Base Info Core Structure 2 — `InfoFactory.js` Organizes check dereferences an undefined type
+
+- **Test:** `maintree/Base Information/Base Info Core Structure 2/Test Cases/001.js`
+- **Helper:** `library/Information/InfoFactory.js`, `Organizes` validator, lines 454–473
+- **Error:** *"Result of expression 'sourceTypeNodeId' [undefined] is not an object"* (line 466), which aborts `001.js`
+
+For a node with an `Organizes` reference, the validator looks for a `HasTypeDefinition` reference in
+the same browse result to get `sourceTypeNodeId` (line 458), then calls `sourceTypeNodeId.equals(...)`
+unconditionally (line 466). Line 464 explicitly allows the source to be a **View**, and View nodes
+have no `HasTypeDefinition`, so `sourceTypeNodeId` stays undefined. The variable is also declared
+inside the inner loop, so a value can leak from an earlier node. **Fix:** declare
+`var sourceTypeNodeId = null;` before the inner loop, and run the FolderType check only when
+`isDefined( sourceTypeNodeId )` (i.e. for Object sources).
+
 ## Needs clarification
 
 ### U1. NumberOfTransitions with TreatUncertainAsBad=true
@@ -551,6 +565,9 @@ does not currently exercise:
 The last three only show once the CTT sends explicit aggregate configurations (C1).
 
 ## CTT project configuration notes
+
+Tests skipped because of reference server sample-data gaps or missing CTT project settings are
+tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479).
 
 - **Aggregate ProcessingInterval.** Set `/Server Test/NodeIds/Static/HA Profile/Aggregates/ProcessingInterval`
   to a positive value (see issue 4).
