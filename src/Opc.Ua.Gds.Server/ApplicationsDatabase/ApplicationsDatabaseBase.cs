@@ -284,6 +284,8 @@ namespace Opc.Ua.Gds.Server.Database
                     StatusCodes.BadInvalidArgument);
             }
 
+            ValidateMatchPatterns(applicationName, applicationUri, productUri);
+
             return null;
         }
 
@@ -317,7 +319,47 @@ namespace Opc.Ua.Gds.Server.Database
                     StatusCodes.BadInvalidArgument);
             }
 
+            ValidateMatchPatterns(applicationName, applicationUri, productUri);
+
             return null;
+        }
+
+        /// <summary>
+        /// Parses an optional QueryApplications/QueryServers filter. The
+        /// ApplicationName, ApplicationUri and ProductUri filters use the Like
+        /// syntax of OPC 10000-4 §7.7.3 and are not used if empty
+        /// (OPC 10000-12 §6.5.10, §6.5.11).
+        /// </summary>
+        /// <returns>The parsed pattern, or <c>null</c> for an empty filter.</returns>
+        /// <exception cref="ServiceResultException">
+        /// <see cref="StatusCodes.BadInvalidArgument"/> if the filter is not a
+        /// valid search string.
+        /// </exception>
+        protected static LikePattern? ParseMatchPattern(string? pattern)
+        {
+            if (string.IsNullOrEmpty(pattern))
+            {
+                return null;
+            }
+
+            if (!LikePattern.TryParse(pattern, out LikePattern? likePattern))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    $"'{pattern}' is not a valid search pattern.");
+            }
+
+            return likePattern;
+        }
+
+        private static void ValidateMatchPatterns(
+            string? applicationName,
+            string? applicationUri,
+            string? productUri)
+        {
+            ParseMatchPattern(applicationName);
+            ParseMatchPattern(applicationUri);
+            ParseMatchPattern(productUri);
         }
 
         public virtual bool SetApplicationCertificate(
@@ -360,11 +402,14 @@ namespace Opc.Ua.Gds.Server.Database
 
         /// <summary>
         /// Returns true if the target string matches the UA pattern string.
-        /// The pattern string may include UA wildcards %_\[]!
+        /// The pattern uses the Like syntax of OPC 10000-4 §7.7.3
+        /// (<c>%</c>, <c>_</c>, <c>\</c>, <c>[]</c> and <c>[^]</c>).
         /// </summary>
         /// <param name="target">String to check for a pattern match.</param>
         /// <param name="pattern">Pattern to match with the target string.</param>
-        /// <returns>true if the target string matches the pattern, otherwise false.</returns>
+        /// <returns>true if the target string matches the pattern, otherwise false.
+        /// An empty pattern matches every non-empty target; an invalid pattern
+        /// matches nothing.</returns>
         public static bool Match(string? target, string pattern)
         {
             if (string.IsNullOrEmpty(target))
@@ -377,21 +422,7 @@ namespace Opc.Ua.Gds.Server.Database
                 return true;
             }
 
-            List<string> tokens = Parse(pattern);
-
-            int targetIndex = 0;
-
-            for (int ii = 0; ii < tokens.Count; ii++)
-            {
-                targetIndex = Match(target, targetIndex, tokens, ref ii);
-
-                if (targetIndex < 0)
-                {
-                    return false;
-                }
-            }
-
-            return targetIndex >= target.Length;
+            return LikePattern.IsMatch(target, pattern);
         }
 
         /// <summary>
@@ -490,270 +521,6 @@ namespace Opc.Ua.Gds.Server.Database
             {
                 throw new ServiceResultException(StatusCodes.BadNotFound);
             }
-        }
-
-        private static List<string> Parse(string pattern)
-        {
-            var tokens = new List<string>();
-
-            int ii = 0;
-            var buffer = new StringBuilder();
-
-            while (ii < pattern.Length)
-            {
-                char ch = pattern[ii];
-
-                if (ch == '\\')
-                {
-                    ii++;
-
-                    if (ii >= pattern.Length)
-                    {
-                        break;
-                    }
-
-                    buffer.Append(pattern[ii]);
-                    ii++;
-                    continue;
-                }
-
-                if (ch == '_')
-                {
-                    if (buffer.Length > 0)
-                    {
-                        tokens.Add(buffer.ToString());
-                        buffer.Length = 0;
-                    }
-
-                    tokens.Add("_");
-                    ii++;
-                    continue;
-                }
-
-                if (ch == '%')
-                {
-                    if (buffer.Length > 0)
-                    {
-                        tokens.Add(buffer.ToString());
-                        buffer.Length = 0;
-                    }
-
-                    tokens.Add("%");
-                    ii++;
-
-                    while (ii < pattern.Length && pattern[ii] == '%')
-                    {
-                        ii++;
-                    }
-
-                    continue;
-                }
-
-                if (ch == '[')
-                {
-                    if (buffer.Length > 0)
-                    {
-                        tokens.Add(buffer.ToString());
-                        buffer.Length = 0;
-                    }
-
-                    buffer.Append(ch);
-                    ii++;
-                    while (ii < pattern.Length && pattern[ii] != ']')
-                    {
-                        if (pattern[ii] == '-' && ii > 0 && ii < pattern.Length - 1)
-                        {
-                            int start = Convert.ToInt32(pattern[ii - 1]) + 1;
-                            int end = Convert.ToInt32(pattern[ii + 1]);
-
-                            while (start < end)
-                            {
-                                buffer.Append(Convert.ToChar(start));
-                                start++;
-                            }
-
-                            buffer.Append(Convert.ToChar(end));
-                            ii += 2;
-                            continue;
-                        }
-
-                        buffer.Append(pattern[ii]);
-                        ii++;
-                    }
-
-                    buffer.Append(']');
-                    tokens.Add(buffer.ToString());
-                    buffer.Length = 0;
-
-                    ii++;
-                    continue;
-                }
-
-                buffer.Append(ch);
-                ii++;
-            }
-
-            if (buffer.Length > 0)
-            {
-                tokens.Add(buffer.ToString());
-                buffer.Length = 0;
-            }
-
-            return tokens;
-        }
-
-        private static int SkipToNext(
-            string target,
-            int targetIndex,
-            IList<string> tokens,
-            ref int tokenIndex)
-        {
-            if (targetIndex >= target.Length - 1)
-            {
-                return targetIndex + 1;
-            }
-
-            if (tokenIndex >= tokens.Count - 1)
-            {
-                return target.Length + 1;
-            }
-
-            if (!tokens[tokenIndex + 1].StartsWith("[^", StringComparison.Ordinal))
-            {
-                int nextTokenIndex = tokenIndex + 1;
-
-                // skip over unmatched chars.
-                while (targetIndex < target.Length &&
-                    Match(target, targetIndex, tokens, ref nextTokenIndex) < 0)
-                {
-                    targetIndex++;
-                    nextTokenIndex = tokenIndex + 1;
-                }
-
-                nextTokenIndex = tokenIndex + 1;
-
-                // skip over duplicate matches.
-                while (targetIndex < target.Length &&
-                    Match(target, targetIndex, tokens, ref nextTokenIndex) >= 0)
-                {
-                    targetIndex++;
-                    nextTokenIndex = tokenIndex + 1;
-                }
-
-                // return last match.
-                if (targetIndex <= target.Length)
-                {
-                    return targetIndex - 1;
-                }
-            }
-            else
-            {
-                int start = targetIndex;
-                int nextTokenIndex = tokenIndex + 1;
-
-                // skip over matches.
-                while (targetIndex < target.Length &&
-                    Match(target, targetIndex, tokens, ref nextTokenIndex) >= 0)
-                {
-                    targetIndex++;
-                    nextTokenIndex = tokenIndex + 1;
-                }
-
-                // no match in string.
-                if (targetIndex < target.Length)
-                {
-                    return -1;
-                }
-
-                // try the next token.
-                if (tokenIndex >= tokens.Count - 2)
-                {
-                    return target.Length + 1;
-                }
-
-                tokenIndex++;
-
-                return SkipToNext(target, start, tokens, ref tokenIndex);
-            }
-
-            return -1;
-        }
-
-        private static int Match(
-            string target,
-            int targetIndex,
-            IList<string> tokens,
-            ref int tokenIndex)
-        {
-            if (tokens == null || tokenIndex < 0 || tokenIndex >= tokens.Count)
-            {
-                return -1;
-            }
-
-            if (target == null || targetIndex < 0 || targetIndex >= target.Length)
-            {
-                if (tokens[tokenIndex] == "%" && tokenIndex == tokens.Count - 1)
-                {
-                    return targetIndex;
-                }
-
-                return -1;
-            }
-
-            string token = tokens[tokenIndex];
-
-            if (token == "_")
-            {
-                if (targetIndex >= target.Length)
-                {
-                    return -1;
-                }
-
-                return targetIndex + 1;
-            }
-
-            if (token == "%")
-            {
-                return SkipToNext(target, targetIndex, tokens, ref tokenIndex);
-            }
-
-            if (token.StartsWith('[') &&
-                token.EndsWith(']') &&
-                token.Length > 1)
-            {
-                bool inverse = false;
-                bool match = false;
-
-                for (int ii = 1; ii < token.Length - 1; ii++)
-                {
-                    if (token[ii] == '^')
-                    {
-                        inverse = true;
-                        continue;
-                    }
-
-                    if (!inverse && target[targetIndex] == token[ii])
-                    {
-                        return targetIndex + 1;
-                    }
-
-                    match |= inverse && target[targetIndex] == token[ii];
-                }
-
-                if (inverse && !match)
-                {
-                    return targetIndex + 1;
-                }
-
-                return -1;
-            }
-
-            if (target[targetIndex..].StartsWith(token, StringComparison.Ordinal))
-            {
-                return targetIndex + token.Length;
-            }
-
-            return -1;
         }
     }
 }

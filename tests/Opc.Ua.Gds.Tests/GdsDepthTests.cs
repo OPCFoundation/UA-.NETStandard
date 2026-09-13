@@ -349,9 +349,23 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task AppDirFindApplicationsEmptyUriAsync()
         {
-            List<ApplicationRecordDataType> results = await FindAppsAsync(string.Empty)
-                .ConfigureAwait(false);
-            Assert.That(results, Is.Not.Null);
+            // OPC 10000-12 §6.5.4: an empty ApplicationUri is not a valid URI
+            // and must not return every registered application
+            // (CTT GDS Application Directory 004.js).
+            CallResponse response = await Session.CallAsync(
+                null,
+                new CallMethodRequest[] {
+                    new() {
+                        ObjectId = m_directoryNodeId,
+                        MethodId = ToNodeId(MethodIds.Directory_FindApplications),
+                        InputArguments = new Variant[] { new(string.Empty) }.ToArrayOf()
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
         }
 
         [Test]

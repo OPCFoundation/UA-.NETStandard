@@ -1374,6 +1374,17 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.AuthenticatedUser);
             m_logger.OnFindApplications(applicationUri);
+
+            // OPC 10000-12 §6.5.4: Bad_InvalidArgument if the ApplicationUri is
+            // not a valid URI. An empty ApplicationUri identifies no application;
+            // it is not a wildcard (the result holds at most one record).
+            if (string.IsNullOrWhiteSpace(applicationUri))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    LocalizedText.From("The ApplicationUri is empty."));
+            }
+
             applications = m_database.FindApplications(applicationUri) ?? [];
             return ServiceResult.Good;
         }
