@@ -61,7 +61,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             Notifier = notifier;
             EventTypeId = eventTypeId;
             Condition = condition;
-            m_sourceCondition = sourceCondition;
+            SourceCondition = sourceCondition;
             m_maxRoutes = maxRoutes;
             m_timeProvider = timeProvider;
             ResourceXid = resourceXid;
@@ -81,10 +81,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ArrayOf<QualifiedName> path = clause.PathElements
                     .ConvertAll(element => WotBindingValueMapper.ResolveBrowseName(element, context.NamespaceUris));
                 fields[i] = new Field(members[i], path);
+                if (path.Count == 1 && path[0] == QualifiedName.From(Ua.BrowseNames.EventId))
+                {
+                    m_eventIdMemberPath = members[i];
+                }
             }
             m_fields = fields;
-            if (condition is not null && !m_fields.Contains(field =>
-                field.Path.Count == 1 && field.Path[0] == QualifiedName.From(Ua.BrowseNames.EventId)))
+            if (condition is not null && m_eventIdMemberPath.Count == 0)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadConfigurationError,
@@ -96,7 +99,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     StatusCodes.BadConfigurationError,
                     "A projected Condition requires an unambiguous source-owned action target.");
             }
-            if (condition is not null && !m_fields.Contains(field => field.Path.Count == 0) &&
+            if (condition is not null &&
+                !m_fields.Contains(field => field.Path.Count == 0) &&
                 !CanIdentifyConditionWithoutField())
             {
                 throw new ServiceResultException(
@@ -117,7 +121,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         public string JsonPointer { get; }
 
-        public ExpandedNodeId SourceCondition => m_sourceCondition;
+        public ExpandedNodeId SourceCondition { get; }
 
         public BaseEventState? Project(WotNotification notification)
         {
@@ -131,12 +135,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     throw new ObjectDisposedException(nameof(WotProjectedEventBinding));
                 }
-                ExpandedNodeId sourceCondition = m_sourceCondition;
+                ExpandedNodeId sourceCondition = SourceCondition;
                 if (m_fields.Contains(field => field.Path.Count == 0) &&
-                    TryRead(notification, "ConditionId", out Variant conditionId))
+                    TryRead(notification, ["ConditionId"], out Variant conditionId))
                 {
                     sourceCondition = ReadPortableNodeId(conditionId, notification.NamespaceUris);
-                    if (!m_sourceCondition.IsNull && sourceCondition != m_sourceCondition)
+                    if (!SourceCondition.IsNull && sourceCondition != SourceCondition)
                     {
                         return null;
                     }
@@ -149,7 +153,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
 
                 ByteString originalEventId = default;
-                if (TryRead(notification, Ua.BrowseNames.EventId, out Variant eventId))
+                if (m_eventIdMemberPath.Count != 0 &&
+                    TryRead(notification, m_eventIdMemberPath, out Variant eventId))
                 {
                     if (!eventId.TryGetValue(out originalEventId) || originalEventId.IsEmpty)
                     {
@@ -162,7 +167,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 ExpandedNodeId branchId = m_fields.Contains(field => field.Path.Count == 1 &&
                     field.Path[0] == QualifiedName.From(Ua.BrowseNames.BranchId)) &&
-                    TryRead(notification, Ua.BrowseNames.BranchId, out Variant branch)
+                    TryRead(notification, [Ua.BrowseNames.BranchId], out Variant branch)
                     ? ReadPortableNodeId(branch, notification.NamespaceUris) : ExpandedNodeId.Null;
                 var occurrence = new Occurrence(originalEventId, sourceCondition, branchId);
                 if (!originalEventId.IsEmpty && m_occurrences.ContainsKey(occurrence))
@@ -170,7 +175,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     return null;
                 }
 
-                ByteString localEventId = Uuid.NewUuid().ToByteString();
+                var localEventId = Uuid.NewUuid().ToByteString();
                 var result = new WotProjectedEventState
                 {
                     NodeId = Condition is null ? NodeId.Null : Condition.NodeId,
@@ -268,13 +273,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private bool CanIdentifyConditionWithoutField()
         {
-            return !m_sourceCondition.IsNull &&
-                ExpandedNodeId.Parse(Source.Form.Addressing.Target) == m_sourceCondition;
+            return !SourceCondition.IsNull &&
+                ExpandedNodeId.Parse(Source.Form.Addressing.Target) == SourceCondition;
         }
 
-        private static bool TryRead(WotNotification notification, string name, out Variant value)
+        private static bool TryRead(
+            WotNotification notification, ArrayOf<string> memberPath, out Variant value)
         {
-            if (notification.Data.TryGetValue([name], out DataValue field))
+            if (notification.Data.TryGetValue(memberPath, out DataValue field))
             {
                 if (StatusCode.IsBad(field.StatusCode))
                 {
@@ -359,7 +365,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     return expanded;
                 }
-                NodeId local = ExpandedNodeId.ToNodeId(expanded, new NamespaceTable(namespaces.Span.ToArray()));
+                var local = ExpandedNodeId.ToNodeId(expanded, new NamespaceTable(namespaces.Span.ToArray()));
                 value = new Variant(local);
             }
             if (!value.TryGetValue(out NodeId nodeId))
@@ -384,12 +390,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ByteString EventId, ExpandedNodeId ConditionId, ExpandedNodeId BranchId);
 
         private readonly ISystemContext m_context;
-        private readonly ExpandedNodeId m_sourceCondition;
         private readonly int m_maxRoutes;
         private readonly TimeProvider m_timeProvider;
         private readonly WotProjectedEventRouteRegistry m_routeRegistry;
         private readonly IServiceMessageContext m_valueContext;
         private readonly ArrayOf<Field> m_fields;
+        private readonly ArrayOf<string> m_eventIdMemberPath;
         private readonly Lock m_gate = new();
         private readonly Dictionary<ByteString, Occurrence> m_routes = [];
         private readonly Dictionary<Occurrence, ByteString> m_occurrences = [];

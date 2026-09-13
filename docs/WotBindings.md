@@ -425,6 +425,13 @@ source, Condition, and branch. Wrong-source, unknown, or evicted IDs fail rather
 than falling back to another source. Retired-generation routes remain usable
 only while that generation is alive and the declaration and source still match.
 
+Occurrence identity comes only from a selected one-element namespace-zero
+`EventId` path, read at that selection's materialized data-member path.
+A vendor or nested field named `EventId` remains business data regardless of
+its value type; an unselected payload member cannot drive deduplication or
+Condition routing. Events without a selected occurrence identity still receive
+distinct local EventIds.
+
 Condition-management actions use `uav:conditionAction` and same-document `uav:actsOn`.
 For a WoT invocation with an optional Comment, the OPC UA adapter supplies
 `LocalizedText.Null` when the caller provides only EventId. This does not change
