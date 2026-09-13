@@ -131,6 +131,12 @@ reservation before a domain's durable structural commit. It uses the same file
 provider and session-handle lifecycle as normal reconciliation, which adopts the
 prepared entry after commit. Providers opt in through
 `IXRegistryProjectedPreservingResourceFile`; no second content store is introduced.
+`XRegistryResourceFileReservation.SessionClosedToken` invalidates a reservation
+when its owning Session is discarded. A domain must link this token into the
+existing creation transaction's cancellation token before the store's commit
+point. Complete the reservation only after commit and reconciliation; otherwise
+dispose it. Session cleanup after a completed store commit does not roll back the
+committed generation.
 
 ### File open modes
 

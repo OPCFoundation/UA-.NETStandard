@@ -76,6 +76,113 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        [TestCase(false, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, false, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, true)]
+        [TestCase(false, true, true)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, true)]
+        public async Task LegacyGroupCreationRejectsCaseCollidingTypedAssignment(
+            bool fileBacked,
+            bool tryCreate,
+            bool lowercaseAssignment)
+        {
+            string root = Path.Combine(Path.GetTempPath(), "wric-id-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var blobs = new Mock<IXRegistryResourceStore>(MockBehavior.Strict);
+                using FileWotRegistryStore? fileStore = fileBacked
+                    ? new FileWotRegistryStore(root, blobs.Object) : null;
+                IWotRegistryStore? persistent = fileStore;
+                IWotRegistryStore inner = persistent ?? new InMemoryWotRegistryStore();
+                var store = new Mock<IWotRegistryStore>(MockBehavior.Strict);
+                store.Setup(value => value.LoadAsync(It.IsAny<CancellationToken>()))
+                    .Returns((CancellationToken ct) => inner.LoadAsync(ct));
+                store.Setup(value => value.CommitAsync(
+                    It.IsAny<WotRegistrySnapshot>(), It.IsAny<CancellationToken>()))
+                    .Returns((WotRegistrySnapshot snapshot, CancellationToken ct) => inner.CommitAsync(snapshot, ct));
+                using var service = new WotRegistryService(store.Object);
+                await service.InitializeAsync().ConfigureAwait(false);
+                int changes = 0;
+                service.Changed += (_, _) => Interlocked.Increment(ref changes);
+                string catalogue = lowercaseAssignment ? "urn:review:case" : "urn:Review:Case";
+                WotDocumentGroupResult typed = await service.CreateDocumentGroupAsync(
+                    WoTDocumentKindEnum.ThingDescription, catalogue).ConfigureAwait(false);
+                WotRegistrySnapshot before = service.Current;
+                string manifestPath = Path.Combine(root, "manifest.json");
+                byte[] manifest = fileBacked ? File.ReadAllBytes(manifestPath) : [];
+                WotResourceGroup exact = await service.GetOrCreateGroupAsync(typed.Group.GroupId, typed.Group.Kind)
+                    .ConfigureAwait(false);
+                WotResourceGroup? duplicate = await service.TryCreateGroupAsync(typed.Group.GroupId, typed.Group.Kind)
+                    .ConfigureAwait(false);
+                string collision = lowercaseAssignment
+                    ? typed.Group.GroupId.ToUpperInvariant() : typed.Group.GroupId.ToLowerInvariant();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(typed.Group.GroupId,
+                        Is.EqualTo(lowercaseAssignment ? "td.urn.review.case" : "td.urn.Review.Case"));
+                    Assert.That(collision,
+                        Is.EqualTo(lowercaseAssignment ? "TD.URN.REVIEW.CASE" : "td.urn.review.case"));
+                    Assert.That(exact, Is.SameAs(typed.Group));
+                    Assert.That(duplicate, Is.Null);
+                    Assert.That(service.Current, Is.SameAs(before));
+                });
+
+                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                {
+                    if (tryCreate)
+                    {
+                        await service.TryCreateGroupAsync(collision, typed.Group.Kind).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await service.GetOrCreateGroupAsync(collision, typed.Group.Kind).ConfigureAwait(false);
+                    }
+                })!;
+
+                using var restarted = new WotRegistryService(inner);
+                await restarted.InitializeAsync().ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
+                    Assert.That(service.Current, Is.SameAs(before));
+                    Assert.That(changes, Is.EqualTo(1));
+                    Assert.That(restarted.Current.Generation, Is.EqualTo(before.Generation));
+                    Assert.That(restarted.Current.Groups, Has.Count.EqualTo(1));
+                    Assert.That(restarted.Current.FindGroup(collision), Is.Null);
+                    Assert.That(restarted.Current.FindGroup(typed.Group.GroupId)!.CatalogUri,
+                        Is.EqualTo(catalogue));
+                    Assert.That(blobs.Invocations, Is.Empty);
+                    if (fileBacked)
+                    {
+                        Assert.That(File.ReadAllBytes(manifestPath), Is.EqualTo(manifest));
+                    }
+                });
+                store.Verify(value => value.CommitAsync(
+                    It.IsAny<WotRegistrySnapshot>(), It.IsAny<CancellationToken>()), Times.Once);
+                string otherCatalogue = lowercaseAssignment ? "urn:Review:Case" : "urn:review:case";
+                WotDocumentGroupResult different = await service.GetOrCreateDocumentGroupAsync(
+                    typed.Group.Kind, otherCatalogue).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(different.Created, Is.True);
+                    Assert.That(different.Group.GroupId, Is.Not.EqualTo(typed.Group.GroupId).IgnoreCase);
+                    Assert.That(different.Group.CatalogUri, Is.EqualTo(otherCatalogue));
+                    Assert.That(service.Current.FindGroup(typed.Group.GroupId)!.CatalogUri,
+                        Is.EqualTo(catalogue));
+                });
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                {
+                    Directory.Delete(root, recursive: true);
+                }
+            }
+        }
+
         [TestCase("")]
         [TestCase("relative/catalogue")]
         [TestCase("urn-a-b")]

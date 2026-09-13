@@ -179,7 +179,7 @@ namespace Opc.Ua.WotCon.Server
             {
                 return StatusCodes.BadNotSupported;
             }
-            var preparation = new ResourcePreparation(this, context);
+            var preparation = new ResourcePreparation(this, context, cancellationToken);
             try
             {
                 WotDocumentResourceResult result;
@@ -187,7 +187,8 @@ namespace Opc.Ua.WotCon.Server
                 {
                     result = await stock.ProvisionDocumentResourceAsync(
                         groupId, kind, sourceId, versionId, getOrCreate,
-                        requestOpen ? preparation.PrepareAsync : null, cancellationToken).ConfigureAwait(false);
+                        requestOpen ? preparation.PrepareAsync : null, preparation.CancellationToken)
+                        .ConfigureAwait(false);
                 }
                 else
                 {
@@ -213,6 +214,10 @@ namespace Opc.Ua.WotCon.Server
                 preparation.Complete();
                 return ServiceResult.Good;
             }
+            catch (OperationCanceledException) when (preparation.SessionClosed)
+            {
+                return StatusCodes.BadSessionClosed;
+            }
             catch (ServiceResultException ex)
             {
                 return ex.Result;
@@ -225,13 +230,20 @@ namespace Opc.Ua.WotCon.Server
 
         private sealed class ResourcePreparation : IAsyncDisposable
         {
-            public ResourcePreparation(WotRegistryProjection projection, ISystemContext context)
+            public ResourcePreparation(
+                WotRegistryProjection projection,
+                ISystemContext context,
+                CancellationToken cancellationToken)
             {
                 m_projection = projection;
                 m_context = context;
+                m_transactionCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken, CancellationToken.None);
             }
 
             public uint FileHandle => m_reservation?.FileHandle ?? 0;
+            public CancellationToken CancellationToken => m_transactionCancellation.Token;
+            public bool SessionClosed => m_reservation?.SessionClosedToken.IsCancellationRequested == true;
 
             public async ValueTask PrepareAsync(
                 WotResource resource,
@@ -241,6 +253,8 @@ namespace Opc.Ua.WotCon.Server
                 await m_projection.m_engine.ReconcileProjectionAsync(cancellationToken).ConfigureAwait(false);
                 m_reservation = await m_projection.m_engine.ReserveResourceWriteAsync(
                     new ResourceAdapter(resource, version), m_context, cancellationToken).ConfigureAwait(false);
+                m_sessionClosedRegistration = m_reservation.SessionClosedToken
+                    .Register(m_transactionCancellation.Cancel);
             }
 
             public void Complete()
@@ -248,13 +262,20 @@ namespace Opc.Ua.WotCon.Server
                 m_reservation?.Complete();
             }
 
-            public ValueTask DisposeAsync()
+            public async ValueTask DisposeAsync()
             {
-                return (m_reservation?.DisposeAsync()) ?? default;
+                m_sessionClosedRegistration.Dispose();
+                m_transactionCancellation.Dispose();
+                if (m_reservation is not null)
+                {
+                    await m_reservation.DisposeAsync().ConfigureAwait(false);
+                }
             }
 
             private readonly WotRegistryProjection m_projection;
             private readonly ISystemContext m_context;
+            private readonly CancellationTokenSource m_transactionCancellation;
+            private CancellationTokenRegistration m_sessionClosedRegistration;
             private XRegistryResourceFileReservation? m_reservation;
         }
     }

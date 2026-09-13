@@ -402,6 +402,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 if (beforeCommit is not null)
                 {
                     await beforeCommit(existing!, resolved, cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
                 }
                 return new VersionCreateResult(existing, resolved, false);
             }
@@ -474,6 +475,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             if (beforeCommit is not null)
             {
                 await beforeCommit(resource, version, cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
             }
             long generation = snapshot.Generation + 1;
             WotRegistrySnapshot next = ReplaceResource(snapshot, group, resource, generation, resourceCreated);
@@ -2651,7 +2653,24 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <returns></returns>
         private string ResolveAssignedGroupId(string groupId)
         {
-            return m_snapshot.Groups.ContainsKey(groupId) ? groupId : NormalizeSegment(groupId, nameof(groupId));
+            if (m_snapshot.Groups.ContainsKey(groupId))
+            {
+                return groupId;
+            }
+            string normalized = NormalizeSegment(groupId, nameof(groupId));
+            foreach (WotResourceGroup group in m_snapshot.Groups.Values)
+            {
+                if (string.Equals(group.GroupId, normalized, StringComparison.OrdinalIgnoreCase) &&
+                    (group.CatalogUri is not null ||
+                        !string.Equals(group.GroupId, normalized, StringComparison.Ordinal)))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdExists,
+                        "The supplied group identifier collides with an existing assignment; " +
+                        "use its exact assigned ID.");
+                }
+            }
+            return normalized;
         }
 
         private string ResolveAssignedResourceId(string groupId, string resourceId)

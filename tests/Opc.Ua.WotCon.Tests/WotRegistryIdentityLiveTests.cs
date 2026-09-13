@@ -54,7 +54,7 @@ namespace Opc.Ua.WotCon.Tests
     [NonParallelizable]
     [Category("WotCon")]
     [Category("Integration")]
-    public sealed class WotRegistryIdentityLiveTests
+    public sealed partial class WotRegistryIdentityLiveTests
     {
         public WotRegistryIdentityLiveTests(bool useDependencyInjection)
         {
@@ -64,6 +64,7 @@ namespace Opc.Ua.WotCon.Tests
         [SetUp]
         public async Task SetUpAsync()
         {
+            TestContext.Out.WriteLine($"Runtime={Environment.Version}; framework={AppContext.TargetFrameworkName}");
             m_telemetry = NUnitTelemetryContext.Create();
             m_root = Path.Combine(Path.GetTempPath(), "wot-native-identities-" + Guid.NewGuid().ToString("N"));
             m_serverFixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry))
@@ -100,12 +101,14 @@ namespace Opc.Ua.WotCon.Tests
                 Configure(options);
                 m_registry = new WotRegistryService(m_store, options.Bounds, options.IdentityBindings);
             }
+            m_options = options;
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle),
                 documentConverter: new FakeWotDocumentConverter());
             var factory = new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator);
             Ua.Server.NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(factory, null)
                 .ConfigureAwait(false);
+            m_registration = registration;
             m_manager = (WotRegistryNodeManager)registration.NodeManager;
             m_clientFixture = new ClientFixture(false, false, m_telemetry);
             await m_clientFixture.LoadClientConfigurationAsync(m_root).ConfigureAwait(false);
@@ -131,6 +134,7 @@ namespace Opc.Ua.WotCon.Tests
         [TearDown]
         public async Task TearDownAsync()
         {
+            m_store?.ReleaseCommit();
             if (m_managed is not null)
             {
                 await m_managed.DisposeAsync().ConfigureAwait(false);
@@ -146,6 +150,11 @@ namespace Opc.Ua.WotCon.Tests
             }
             m_clientFixture?.Dispose();
             m_coordinator?.Dispose();
+            if (m_typedServices is not null)
+            {
+                await m_typedServices.DisposeAsync().ConfigureAwait(false);
+                m_typedServices = null;
+            }
             if (m_services is not null)
             {
                 await m_services.DisposeAsync().ConfigureAwait(false);
@@ -547,34 +556,86 @@ namespace Opc.Ua.WotCon.Tests
             public IXRegistryResourceStore ResourceStore => Blobs;
             public bool FailNextCommit { get; set; }
             public int CommitCount { get; private set; }
+            public int SuccessfulCommits { get; private set; }
+            public Task CommitEntered => m_entered!.Task;
 
             public ValueTask<WotRegistrySnapshot> LoadAsync(CancellationToken cancellationToken = default)
             {
                 return m_inner.LoadAsync(cancellationToken);
             }
 
-            public ValueTask CommitAsync(WotRegistrySnapshot snapshot, CancellationToken cancellationToken = default)
+            public async ValueTask CommitAsync(
+                WotRegistrySnapshot snapshot,
+                CancellationToken cancellationToken = default)
             {
                 CommitCount++;
+                if (!m_pauseAfterCommit)
+                {
+                    await WaitForReleaseAsync(cancellationToken).ConfigureAwait(false);
+                }
+                cancellationToken.ThrowIfCancellationRequested();
                 if (FailNextCommit)
                 {
                     FailNextCommit = false;
                     throw new ServiceResultException(StatusCodes.BadResourceUnavailable, "Injected non-commit.");
                 }
-                return m_inner.CommitAsync(snapshot, cancellationToken);
+                await m_inner.CommitAsync(snapshot, cancellationToken).ConfigureAwait(false);
+                SuccessfulCommits++;
+                if (m_pauseAfterCommit)
+                {
+                    await WaitForReleaseAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+
+            public void PauseNextCommit(bool afterCommit = false)
+            {
+                m_pauseAfterCommit = afterCommit;
+                m_entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                m_release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            }
+
+            public void ReleaseCommit()
+            {
+                m_release?.TrySetResult(true);
+            }
+
+            private async ValueTask WaitForReleaseAsync(CancellationToken cancellationToken)
+            {
+                if (m_release is { } release)
+                {
+                    m_entered!.TrySetResult(true);
+                    try
+                    {
+                        await release.Task.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        m_release = null;
+                    }
+                }
             }
 
             private readonly InMemoryWotRegistryStore m_inner = new();
+            private TaskCompletionSource<bool>? m_entered;
+            private TaskCompletionSource<bool>? m_release;
+            private bool m_pauseAfterCommit;
         }
 
         private sealed class CountingBlobs : IXRegistryResourceStore
         {
             public int Reads => Volatile.Read(ref m_reads);
             public int Writes => Volatile.Read(ref m_writes);
+            public bool FailNextRead { get; set; }
 
             public ValueTask<ByteString> ReadAsync(string resourceKey, long offset, int count, CancellationToken ct)
             {
                 Interlocked.Increment(ref m_reads);
+                if (FailNextRead)
+                {
+                    FailNextRead = false;
+                    throw new ServiceResultException(
+                        StatusCodes.BadResourceUnavailable, "Injected preserving-read fault.");
+                }
                 return m_inner.ReadAsync(resourceKey, offset, count, ct);
             }
 
@@ -613,5 +674,8 @@ namespace Opc.Ua.WotCon.Tests
         private WotRegistryNodeManager m_manager = null!;
         private WotRegistryClient m_client = null!;
         private NativeStore m_store = null!;
+        private WotRegistryServerOptions m_options = null!;
+        private Ua.Server.NodeManagerRegistration m_registration = null!;
+        private ServiceProvider? m_typedServices;
     }
 }

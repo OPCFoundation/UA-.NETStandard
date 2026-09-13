@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -54,10 +55,15 @@ namespace Opc.Ua.XRegistry.Server
     /// </summary>
     public sealed class XRegistryResourceFileReservation : IAsyncDisposable
     {
-        internal XRegistryResourceFileReservation(uint fileHandle, Func<ValueTask> release)
+        internal XRegistryResourceFileReservation(
+            uint fileHandle,
+            Func<ValueTask> release,
+            Action<XRegistryResourceFileReservation> untrack)
         {
             FileHandle = fileHandle;
             m_release = release;
+            m_untrack = untrack;
+            SessionClosedToken = m_sessionClosed.Token;
         }
 
         /// <summary>
@@ -66,20 +72,56 @@ namespace Opc.Ua.XRegistry.Server
         public uint FileHandle { get; }
 
         /// <summary>
+        /// Gets a token cancelled when Session discard invalidates the prepared handle.
+        /// Link it to the creation transaction before entering its store commit.
+        /// </summary>
+        public CancellationToken SessionClosedToken { get; }
+
+        /// <summary>
         /// Transfers the reserved handle after commit and projection reconciliation.
         /// </summary>
         public void Complete()
         {
-            Interlocked.Exchange(ref m_release, null);
+            End(complete: true);
         }
 
         /// <inheritdoc/>
         public ValueTask DisposeAsync()
         {
-            Func<ValueTask>? release = Interlocked.Exchange(ref m_release, null);
+            Func<ValueTask>? release = End(complete: false);
             return release is null ? default : release();
         }
 
+        internal void InvalidateSession()
+        {
+            lock (m_lifetimeGate)
+            {
+                if (m_release is not null)
+                {
+                    m_sessionClosed.Cancel();
+                }
+            }
+        }
+
+        private Func<ValueTask>? End(bool complete)
+        {
+            lock (m_lifetimeGate)
+            {
+                Func<ValueTask>? release = m_release;
+                if (release is null)
+                {
+                    return null;
+                }
+                m_release = null;
+                m_untrack(this);
+                m_sessionClosed.Dispose();
+                return complete ? null : release;
+            }
+        }
+
+        private readonly Lock m_lifetimeGate = new();
+        private readonly CancellationTokenSource m_sessionClosed = new();
+        private readonly Action<XRegistryResourceFileReservation> m_untrack;
         private Func<ValueTask>? m_release;
     }
 
@@ -154,8 +196,12 @@ namespace Opc.Ua.XRegistry.Server
                             StatusCodes.BadUnexpectedError, "The file provider returned an invalid zero handle.");
                     }
                     ResourceEntry reserved = entry;
-                    return new XRegistryResourceFileReservation(
-                        handle, () => ReleasePreparedResourceAsync(reserved, context, handle));
+                    var reservation = new XRegistryResourceFileReservation(
+                        handle,
+                        () => ReleasePreparedResourceAsync(reserved, context, handle),
+                        completed => m_resourceReservations.TryRemove(completed, out _));
+                    m_resourceReservations.TryAdd(reservation, SessionIdOf(context));
+                    return reservation;
                 }
                 catch
                 {
@@ -202,5 +248,6 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         private readonly Dictionary<NodeId, ResourceEntry> m_preparedVersions = [];
+        private readonly ConcurrentDictionary<XRegistryResourceFileReservation, NodeId> m_resourceReservations = new();
     }
 }

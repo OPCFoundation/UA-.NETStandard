@@ -179,10 +179,18 @@ namespace Opc.Ua.XRegistry.Server
             var files = new HashSet<IXRegistryProjectedResourceSessionDiscard>();
             var nodes = new HashSet<ResourceState>();
             var logicals = new List<LogicalResourceEntry>();
+            var reservations = new List<XRegistryResourceFileReservation>();
             bool unsupported = false;
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                foreach (KeyValuePair<XRegistryResourceFileReservation, NodeId> reservation in m_resourceReservations)
+                {
+                    if (reservation.Value == sessionId)
+                    {
+                        reservations.Add(reservation.Key);
+                    }
+                }
                 foreach (ResourceEntry prepared in m_preparedVersions.Values)
                 {
                     CaptureFile(prepared);
@@ -229,6 +237,10 @@ namespace Opc.Ua.XRegistry.Server
                 m_gate.Release();
             }
 
+            foreach (XRegistryResourceFileReservation reservation in reservations)
+            {
+                reservation.InvalidateSession();
+            }
             foreach (IXRegistryProjectedResourceSessionDiscard file in files)
             {
                 await file.DiscardSessionAsync(sessionId, CancellationToken.None).ConfigureAwait(false);

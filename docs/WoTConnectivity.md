@@ -674,6 +674,11 @@ the existing file manager. Its staged bytes initially equal committed content,
 its position is zero, and it does not request erase or append. A clean Close
 changes neither bytes nor epochs. Dirty Close validates exact source identity
 and kind before committing. Open/preparation failure cannot leave a new allocation.
+Session discard invalidates a prepared handle and cancels the same creation
+transaction passed to the store. A discard before the store's commit point rejects
+the call with `Bad_SessionClosed`, without publishing an allocation. Once the store
+has committed, normal snapshot publication completes even if the Session then
+closes; cleanup discards the handle, not the already committed registry generation.
 
 Inherited xRegistry signatures and legacy 1.02 model identities are unchanged.
 Already provisioned generic identifiers resolve normally. New generic names
@@ -696,7 +701,15 @@ actual assigned identities; aliases cannot allocate a second entity for an
 already mapped authority. Missing or contradictory authority is
 `Bad_InvalidArgument`. Existing unbound programmatic snapshots remain a legacy
 compatibility surface, not a claim of typed document-write conformance.
+Both legacy programmatic group creation APIs check case-insensitive identifier
+occupancy before entering any store. Exact assigned IDs still resolve, but a
+case-colliding supplied ID cannot create a second assignment or be normalized into
+a different typed assignment. The historical normalizer remains available for
+unbound legacy groups. These service checks do not depend on file-store validation.
 Custom services may implement `IWotTypedRegistryService` additively. The native
+fileless path uses the existing versioned projection, including distinct logical
+Resources, typed Versions containers and exact Versions, without requiring the
+separate legacy `IWotVersionedRegistryService` mutation capability. The
 atomic requested-file-open path currently requires the stock transactional
 service; other providers receive `Bad_NotSupported` before mutation rather than
 a post-commit or authority-dropping fallback.

@@ -62,11 +62,13 @@ namespace Opc.Ua.WotCon.Server
                     .ConfigureAwait(false),
                 manager.CheckManagementAccess,
                 options.XRegistryEvents);
-            m_strategy = registry is IWotVersionedRegistryService
+            m_strategy = UsesVersionedProjection
                 ? new VersionedStrategy(this)
                 : new Strategy(this);
             m_engine = new XRegistryProjectionEngine(context, m_strategy, RegistryNodeIdPath);
         }
+
+        private bool UsesVersionedProjection => m_registry is IWotVersionedRegistryService or IWotTypedRegistryService;
 
         /// <summary>
         /// Binds the projection to the well-known registry Object.
@@ -251,11 +253,11 @@ namespace Opc.Ua.WotCon.Server
             if (node is ThingDescriptionFileState td)
             {
                 bool useResourceDocumentId =
-                    m_registry is not IWotVersionedRegistryService ||
+                    !UsesVersionedProjection ||
                     resource.Versions.All(candidate =>
                         string.IsNullOrWhiteSpace(candidate.DocumentId));
                 bool useResourceTitle =
-                    m_registry is not IWotVersionedRegistryService ||
+                    !UsesVersionedProjection ||
                     resource.Versions.All(candidate =>
                         string.IsNullOrWhiteSpace(candidate.Title));
                 XRegistryProjectionEngine.SetValue(
@@ -276,7 +278,7 @@ namespace Opc.Ua.WotCon.Server
             {
                 XRegistryProjectionEngine.SetValue(tmNode.ModelId, resource.SourceId ?? string.Empty);
                 bool useResourceTitle =
-                    m_registry is not IWotVersionedRegistryService ||
+                    !UsesVersionedProjection ||
                     resource.Versions.All(candidate =>
                         string.IsNullOrWhiteSpace(candidate.Title));
                 XRegistryProjectionEngine.SetValue(
@@ -720,8 +722,7 @@ namespace Opc.Ua.WotCon.Server
                     adapter.Version?.VersionId ?? string.Empty);
             }
 
-            protected bool SupportsVersions =>
-                m_projection.m_registry is IWotVersionedRegistryService;
+            protected bool SupportsVersions => m_projection.UsesVersionedProjection;
 
             public async ValueTask<IXRegistryProjectionGroup?> CreateGroupAsync(
                 string groupId,
@@ -1113,7 +1114,7 @@ namespace Opc.Ua.WotCon.Server
             string versionId)
         {
             string path = $"{RegistryNodeIdPath}/groups/{groupId}/resources/{resourceId}";
-            if (m_registry is not IWotVersionedRegistryService)
+            if (!UsesVersionedProjection)
             {
                 return new NodeId(path, m_modelNs);
             }
