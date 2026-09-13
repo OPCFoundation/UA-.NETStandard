@@ -135,6 +135,109 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(((MonitoredItem)item).QueueSize, Is.EqualTo(3));
         }
 
+        /// <summary>
+        /// Part 4 §7.21: for event monitored items a requested queueSize of 0
+        /// means the server default and 1 means the minimum queue size the
+        /// server requires for Event Notifications. Neither may be taken
+        /// literally, otherwise a burst of events (for example the
+        /// OpenSecureChannel, CreateSession and ActivateSession audit events of
+        /// one connect) collapses to the last event before the next publish.
+        /// </summary>
+        [TestCase(0u)]
+        [TestCase(1u)]
+        public void CreateMonitoredItemRevisesSpecialEventQueueSizes(uint requestedQueueSize)
+        {
+            EventManager manager = CreateManager(10000, 10000, out _, out Mock<IAsyncNodeManager> nm);
+            var idFactory = new MonitoredItemIdFactory();
+
+            IEventMonitoredItem item = manager.CreateMonitoredItem(
+                NewContext(), nm.Object, null!, 1, idFactory,
+                TimestampsToReturn.Both, 1000.0, NewCreateRequest(1000.0, requestedQueueSize),
+                new EventFilter(), false);
+
+            Assert.That(
+                ((MonitoredItem)item).QueueSize,
+                Is.EqualTo(EventManager.DefaultEventQueueSize));
+        }
+
+        [TestCase(0u)]
+        [TestCase(1u)]
+        public void CreateMonitoredItemClampsDefaultEventQueueSizeToMax(uint requestedQueueSize)
+        {
+            EventManager manager = CreateManager(3, 3, out _, out Mock<IAsyncNodeManager> nm);
+            var idFactory = new MonitoredItemIdFactory();
+
+            IEventMonitoredItem item = manager.CreateMonitoredItem(
+                NewContext(), nm.Object, null!, 1, idFactory,
+                TimestampsToReturn.Both, 1000.0, NewCreateRequest(1000.0, requestedQueueSize),
+                new EventFilter(), false);
+
+            Assert.That(((MonitoredItem)item).QueueSize, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void ModifyMonitoredItemRevisesEventQueueSizeOne()
+        {
+            EventManager manager = CreateManager(10000, 10000, out _, out Mock<IAsyncNodeManager> nm);
+            var idFactory = new MonitoredItemIdFactory();
+
+            IEventMonitoredItem item = manager.CreateMonitoredItem(
+                NewContext(), nm.Object, null!, 1, idFactory,
+                TimestampsToReturn.Both, 1000.0, NewCreateRequest(1000.0, 5),
+                new EventFilter(), false);
+
+            manager.ModifyMonitoredItem(
+                NewContext(),
+                item,
+                TimestampsToReturn.Both,
+                new MonitoredItemModifyRequest
+                {
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = 42,
+                        SamplingInterval = 1000.0,
+                        QueueSize = 1,
+                        DiscardOldest = true
+                    }
+                },
+                new EventFilter());
+
+            Assert.That(
+                ((MonitoredItem)item).QueueSize,
+                Is.EqualTo(EventManager.DefaultEventQueueSize));
+        }
+
+        /// <summary>
+        /// Regression for the CTT "Auditing Connections" failures: the CTT audit
+        /// subscription requests QueueSize 1 on Server.EventNotifier. Every event
+        /// raised between two publishes must still be delivered.
+        /// </summary>
+        [Test]
+        public void EventBurstIsNotCollapsedWhenQueueSizeOneRequested()
+        {
+            EventManager manager = CreateManager(10000, 10000, out _, out Mock<IAsyncNodeManager> nm);
+            var idFactory = new MonitoredItemIdFactory();
+
+            IEventMonitoredItem item = manager.CreateMonitoredItem(
+                NewContext(), nm.Object, null!, 1, idFactory,
+                TimestampsToReturn.Both, 1000.0, NewCreateRequest(1000.0, 1),
+                new EventFilter(), false);
+
+            for (int ii = 0; ii < 3; ii++)
+            {
+                ((MonitoredItem)item).QueueEvent(new EventFieldList
+                {
+                    ClientHandle = 42,
+                    EventFields = [new Variant("event" + ii)]
+                });
+            }
+
+            var notifications = new Queue<EventFieldList>();
+            ((MonitoredItem)item).Publish(NewContext(), notifications, 100);
+
+            Assert.That(notifications, Has.Count.EqualTo(3));
+        }
+
         [Test]
         public void CreateMonitoredItemUsesPublishingIntervalWhenSamplingNegative()
         {

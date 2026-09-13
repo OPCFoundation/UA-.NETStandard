@@ -2172,17 +2172,16 @@ namespace Opc.Ua.Server
                 case MonitoringMode.Reporting:
                 case MonitoringMode.Sampling:
                     // check if queuing is disabled.
-                    if (QueueSize == 0)
+                    if (QueueSize == 0 && MonitoredItemType == MonitoredItemTypeMask.DataChange)
                     {
-                        if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
-                        {
-                            QueueSize = 1;
-                        }
+                        QueueSize = 1;
+                    }
 
-                        if ((MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
-                        {
-                            QueueSize = 1000;
-                        }
+                    // Part 4 §7.21: 0 and 1 request the server default and minimum
+                    // event queue size; neither disables queueing for events.
+                    if (QueueSize <= 1 && (MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
+                    {
+                        QueueSize = EventManager.DefaultEventQueueSize;
                     }
 
                     // create data queue.
@@ -2254,17 +2253,16 @@ namespace Opc.Ua.Server
                 case MonitoringMode.Reporting:
                 case MonitoringMode.Sampling:
                     // check if queuing is disabled.
-                    if (QueueSize == 0)
+                    if (QueueSize == 0 && MonitoredItemType == MonitoredItemTypeMask.DataChange)
                     {
-                        if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
-                        {
-                            QueueSize = 1;
-                        }
+                        QueueSize = 1;
+                    }
 
-                        if ((MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
-                        {
-                            QueueSize = 1000;
-                        }
+                    // Part 4 §7.21: 0 and 1 request the server default and minimum
+                    // event queue size; neither disables queueing for events.
+                    if (QueueSize <= 1 && (MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
+                    {
+                        QueueSize = EventManager.DefaultEventQueueSize;
                     }
 
                     // create data queue.
