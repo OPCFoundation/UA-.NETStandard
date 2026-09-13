@@ -414,6 +414,123 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
         }
 
         /// <summary>
+        /// GetReferencesAsync with includeSubtypes classified each reference
+        /// with a synchronous supertype walk. When a reference's own type was
+        /// not cached, that walk blocked the calling thread on
+        /// GetAwaiter().GetResult() until the type was fetched - and against
+        /// the atomic reference cache the fetch it waits on may need a
+        /// thread-pool thread itself. With the browse's retry delays and
+        /// several fixtures doing this at once on a small runner, the pool
+        /// starved and the Sessions test host hung until blame killed it.
+        /// Here the reference type's fetch is held open: the call must hand
+        /// back an incomplete task rather than park the caller on it.
+        /// </summary>
+        [Test]
+        public async Task SubtypeReferenceFilterNeverBlocksTheCallerAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            NodeId source = new("Source", 2);
+            NodeId target = new("Target", 2);
+            NodeId requested = new("RequestedRefType", 2);
+            NodeId subRef = new("SubRefType", 2);
+
+            // Released by the test only once the call has returned.
+            var subRefFetch = new TaskCompletionSource<ArrayOf<ReferenceDescription>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var context = new Mock<INodeCacheContext>();
+            context.SetupGet(c => c.NamespaceUris).Returns(new NamespaceTable());
+            context.SetupGet(c => c.ServerUris).Returns(new StringTable());
+            context
+                .Setup(c => c.FetchReferencesAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader _, NodeId id, CancellationToken _) =>
+                {
+                    if (id == source)
+                    {
+                        return new ValueTask<ArrayOf<ReferenceDescription>>(new[]
+                        {
+                            new ReferenceDescription
+                            {
+                                NodeId = new ExpandedNodeId(target),
+                                BrowseName = new QualifiedName("Target", 2),
+                                ReferenceTypeId = subRef,
+                                IsForward = true
+                            }
+                        }.ToArrayOf());
+                    }
+                    if (id == subRef)
+                    {
+                        // The one fetch the filter has to wait for.
+                        return new ValueTask<ArrayOf<ReferenceDescription>>(subRefFetch.Task);
+                    }
+                    // The requested type reports no forward subtypes, so its
+                    // hierarchy looks fully loaded once it is cached - which
+                    // is what let the synchronous fast path run at all.
+                    return new ValueTask<ArrayOf<ReferenceDescription>>(
+                        ArrayOf.Empty<ReferenceDescription>());
+                });
+            context
+                .Setup(c => c.FetchNodesAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<NodeId>>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((RequestHeader _, ArrayOf<NodeId> ids, bool _, CancellationToken _)
+                    => new ResultSet<Node>
+                    {
+                        Results = ids
+                            .ConvertAll(id => new Node { NodeId = id, NodeClass = NodeClass.Object })
+                            .ToList(),
+                        Errors = ids.ConvertAll(_ => ServiceResult.Good).ToList()
+                    });
+
+            using var nodeCache = new NodeCache(context.Object, telemetry);
+
+            // Cache the source's references and the requested type, but not
+            // the reference's own type.
+            await nodeCache
+                .GetReferencesAsync(source, subRef, false, false, default)
+                .ConfigureAwait(false);
+            await nodeCache
+                .GetReferencesAsync(requested, ReferenceTypeIds.HasComponent, false, false, default)
+                .ConfigureAwait(false);
+
+            var callReturned = new TaskCompletionSource<ValueTask<ArrayOf<INode>>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            try
+            {
+                _ = Task.Run(() => callReturned.TrySetResult(
+                    nodeCache.GetReferencesAsync(source, requested, false, true, default)));
+
+                Task winner = await Task
+                    .WhenAny(callReturned.Task, Task.Delay(TimeSpan.FromSeconds(10)))
+                    .ConfigureAwait(false);
+                Assert.That(
+                    ReferenceEquals(winner, callReturned.Task),
+                    Is.True,
+                    "classifying subtypes must not park the caller on a network fetch");
+            }
+            finally
+            {
+                // Always release: a blocking implementation is still parked on
+                // this fetch and would otherwise hold a pool thread forever.
+                subRefFetch.TrySetResult(new[] { InverseSubtypeOf(requested) }.ToArrayOf());
+            }
+
+            ArrayOf<INode> targets = await (await callReturned.Task.ConfigureAwait(false))
+                .AsTask()
+                .ConfigureAwait(false);
+            Assert.That(
+                targets.Count,
+                Is.EqualTo(1),
+                "the reference is a subtype of the requested type once resolved");
+        }
+
+        /// <summary>
         /// The browse path walker climbs supertypes when a name is not found,
         /// and that climb had no cycle guard: against a server whose HasSubtype
         /// chain loops back on itself it never reached Null and spun forever.
