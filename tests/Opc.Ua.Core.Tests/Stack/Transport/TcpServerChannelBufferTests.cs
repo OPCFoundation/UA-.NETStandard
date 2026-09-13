@@ -470,8 +470,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task DiscoveryChannelReadsTheFirstChunkBeforeItIsReturnedAsync()
         {
-            // a poisoned pool: a read after the return decodes garbage and
-            // throws, and the failure path then returns the buffer a second time.
+            // A poisoned pool zeroes what comes back to it. A zeroed body decodes
+            // as node id i=0, which the discovery check rejects - synchronously,
+            // by closing the channel - so a read after the return is observable
+            // without waiting on anything.
             var pool = new TrackingArrayPool(poisonOnReturn: true);
             using TestServerChannel channel = CreateOpenChannel(pool);
             channel.MakeDiscoveryOnlyForTest();
@@ -489,6 +491,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     body: body))
                 .ConfigureAwait(false);
 
+            // The type was read from the body that was sent, so a permitted
+            // discovery request stays permitted. Reading the returned array
+            // instead sees i=0 and closes the channel on it.
+            Assert.That(
+                channel.CurrentState,
+                Is.EqualTo(TcpChannelState.Open),
+                "the discovery check read the chunk after it had gone back to the pool.");
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
             Assert.That(pool.OutstandingCount, Is.Zero);
         }
@@ -916,9 +925,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         private sealed class TrackingArrayPool : ArrayPool<byte>
         {
             /// <param name="poisonOnReturn">
-            /// Overwrites a returned array, so that anything still reading it
-            /// afterwards decodes garbage and fails loudly instead of quietly
-            /// reading data that happens to still be there.
+            /// Zeroes a returned array, so that anything still reading it
+            /// afterwards sees different data from what was written instead of
+            /// quietly reading data that happens to still be there.
             /// </param>
             public TrackingArrayPool(bool poisonOnReturn = false)
             {
@@ -952,7 +961,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
                 if (m_poisonOnReturn)
                 {
-                    array.AsSpan().Fill(0xFF);
+                    array.AsSpan().Clear();
                 }
             }
 
