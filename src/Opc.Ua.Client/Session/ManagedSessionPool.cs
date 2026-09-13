@@ -163,11 +163,10 @@ namespace Opc.Ua.Client
         {
             foreach (string key in m_sessions.Keys)
             {
-                if (m_sessions.TryRemove(key, out Entry? entry))
-                {
-                    await CloseAndDisposeAsync(entry, CancellationToken.None)
-                        .ConfigureAwait(false);
-                }
+                // Same per-key teardown as RemoveAsync: removes the entry, and
+                // hands it to CloseAndDisposeAsync, which owns and disposes it.
+                // A key another caller already removed simply returns false.
+                _ = await RemoveAsync(key, CancellationToken.None).ConfigureAwait(false);
             }
         }
 

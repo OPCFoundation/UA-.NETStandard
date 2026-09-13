@@ -2028,6 +2028,7 @@ namespace Opc.Ua.Client
         public async ValueTask DisposeAsync()
         {
             await DisposeAsyncCoreAsync().ConfigureAwait(false);
+            GC.SuppressFinalize(this);
         }
 
         private async ValueTask DisposeAsyncCoreAsync()
@@ -2075,8 +2076,6 @@ namespace Opc.Ua.Client
             // Last: everything that could still be holding the lock (state
             // machine worker, background work, streaming) is torn down above.
             m_serviceLock.Dispose();
-
-            GC.SuppressFinalize(this);
         }
 
         private sealed class DelayState : IDisposable
