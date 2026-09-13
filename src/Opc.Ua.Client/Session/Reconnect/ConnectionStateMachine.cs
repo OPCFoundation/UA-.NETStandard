@@ -337,26 +337,14 @@ namespace Opc.Ua.Client
             {
                 // Disposed from a StateChanged handler (or work it spawned):
                 // the worker is the caller, so waiting for the close or for
-                // the worker itself would wait for this very call to return.
-                // Cancel the worker instead and let it finish the teardown once
-                // the handler has returned.
+                // the worker would wait for this very call to return. Abort
+                // the worker and return; once the handler returns it winds
+                // down and its finally releases the waiters. The two token
+                // sources hold no timer or wait handle, so on this path
+                // they are simply left to the GC rather than disposed out from
+                // under the exiting worker.
                 await m_cts.CancelAsync().ConfigureAwait(false);
                 m_trigger.Set();
-
-                Task? worker = m_worker;
-                if (worker != null)
-                {
-                    _ = worker.ContinueWith(
-                        static (t, s) => ((ConnectionStateMachine)s!).CompleteDispose(t),
-                        this,
-                        CancellationToken.None,
-                        TaskContinuationOptions.ExecuteSynchronously,
-                        TaskScheduler.Default);
-                }
-                else
-                {
-                    CompleteDispose(null);
-                }
                 GC.SuppressFinalize(this);
                 return;
             }
@@ -396,21 +384,16 @@ namespace Opc.Ua.Client
                 }
             }
 
-            CompleteDispose(null);
+            CompleteDispose();
             GC.SuppressFinalize(this);
         }
 
         /// <summary>
         /// Final teardown once the worker can no longer touch the token
-        /// sources. Runs inline on the disposing caller, or as the worker's
-        /// continuation when the machine was disposed from its own flow.
+        /// sources.
         /// </summary>
-        /// <param name="worker">The finished worker task, if this runs as
-        /// its continuation; its outcome is observed and discarded.</param>
-        private void CompleteDispose(Task? worker)
+        private void CompleteDispose()
         {
-            _ = worker?.Exception;
-
             m_cts.Dispose();
             m_closeRequested.Dispose();
 

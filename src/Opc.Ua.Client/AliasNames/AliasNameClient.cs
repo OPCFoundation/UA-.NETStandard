@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
 
 namespace Opc.Ua.Client.AliasNames
@@ -96,6 +97,7 @@ namespace Opc.Ua.Client.AliasNames
                 session,
                 categoryId,
                 session.MessageContext.Telemetry);
+            m_logger = session.MessageContext.Telemetry.CreateLogger<AliasNameClient>();
         }
 
         /// <summary>
@@ -498,7 +500,7 @@ namespace Opc.Ua.Client.AliasNames
             {
                 // Part 4 §5.9.3.2 requires releasing a continuation point the
                 // client stops following.
-                await Session.ReleaseContinuationPointAsync(continuationPoint)
+                await Session.ReleaseContinuationPointAsync(continuationPoint, m_logger)
                     .ConfigureAwait(false);
             }
         }
@@ -506,6 +508,8 @@ namespace Opc.Ua.Client.AliasNames
         // --------------------------------------------------------------
         // Internal helpers
         // --------------------------------------------------------------
+
+        private readonly ILogger m_logger;
 
         private static ReferenceDescription[] SnapshotReferences(
             ArrayOf<ReferenceDescription> references)

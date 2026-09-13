@@ -68,7 +68,11 @@ namespace Opc.Ua.Client
         /// engine (<see cref="DefaultSubscriptionEngineFactory"/>) via
         /// the <c>ManagedSessionBuilder</c>.
         /// </summary>
-        public ISubscriptionEngineFactory? SubscriptionEngineFactory { get; set; }
+        public ISubscriptionEngineFactory? SubscriptionEngineFactory
+        {
+            get => m_subscriptionEngineFactory;
+            init => m_subscriptionEngineFactory = value;
+        }
 
         /// <summary>
         /// Optional <see cref="TimeProvider"/> forwarded to every
@@ -76,7 +80,11 @@ namespace Opc.Ua.Client
         /// <see langword="null"/>, the session uses
         /// <see cref="TimeProvider.System"/>.
         /// </summary>
-        public TimeProvider? TimeProvider { get; init; }
+        public TimeProvider? TimeProvider
+        {
+            get => m_timeProvider;
+            init => m_timeProvider = value;
+        }
 
         /// <summary>
         /// Optional security policy registry forwarded to every channel and
@@ -106,6 +114,34 @@ namespace Opc.Ua.Client
         {
             Telemetry = telemetry;
         }
+
+        /// <inheritdoc/>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="engineFactory"/> is <see langword="null"/>.
+        /// </exception>
+        public virtual ISessionFactory WithSubscriptionEngine(
+            ISubscriptionEngineFactory engineFactory,
+            TimeProvider? timeProvider = null)
+        {
+            if (engineFactory == null)
+            {
+                throw new ArgumentNullException(nameof(engineFactory));
+            }
+
+            // A shallow copy keeps the runtime type, so a subclass keeps its
+            // overrides and every setting, and it leaves this instance -
+            // possibly the shared Instance - untouched.
+            var copy = (DefaultSessionFactory)MemberwiseClone();
+            copy.m_subscriptionEngineFactory = engineFactory;
+            if (timeProvider != null)
+            {
+                copy.m_timeProvider = timeProvider;
+            }
+            return copy;
+        }
+
+        private ISubscriptionEngineFactory? m_subscriptionEngineFactory;
+        private TimeProvider? m_timeProvider;
 
         /// <inheritdoc/>
         public virtual Task<ISession> CreateAsync(

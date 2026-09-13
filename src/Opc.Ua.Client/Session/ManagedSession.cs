@@ -224,35 +224,18 @@ namespace Opc.Ua.Client
             ILogger<ManagedSession> logger = telemetry.CreateLogger<ManagedSession>();
 
             // Default the engine factory to V2 so callers get the new
-            // ISubscriptionManager API by default. If the inner session
-            // factory is a DefaultSessionFactory and no engine factory is
-            // already configured on it, propagate this choice so the inner
-            // Session is constructed with the V2 engine.
+            // ISubscriptionManager API by default. If the session factory has
+            // no engine configured, propagate this choice so the inner
+            // Session is constructed with the V2 engine. The factory returns
+            // a copy, so a shared factory instance is never modified.
             engineFactory ??= timeProvider == null
                 ? DefaultSubscriptionEngineFactory.Instance
                 : new DefaultSubscriptionEngineFactory(timeProvider);
-            if (sessionFactory is DefaultSessionFactory dsf &&
-                dsf.SubscriptionEngineFactory is null)
+            if (sessionFactory.SubscriptionEngineFactory is null)
             {
-                if (sessionFactory.GetType() == typeof(DefaultSessionFactory))
-                {
-                    sessionFactory = new DefaultSessionFactory(dsf.Telemetry)
-                    {
-                        ReturnDiagnostics = dsf.ReturnDiagnostics,
-                        SubscriptionEngineFactory = engineFactory,
-                        TimeProvider = timeProvider ?? dsf.TimeProvider,
-                        SecurityPolicyRegistry = dsf.SecurityPolicyRegistry
-                    };
-                }
-                else
-                {
-                    // A subclass carries behaviour the caller deliberately
-                    // supplied (test doubles, overrides), and replacing it
-                    // with a plain DefaultSessionFactory would discard it. The
-                    // engine choice still has to be honoured, so set it on
-                    // the instance itself.
-                    dsf.SubscriptionEngineFactory = engineFactory;
-                }
+                sessionFactory = sessionFactory.WithSubscriptionEngine(
+                    engineFactory,
+                    timeProvider);
             }
 
             var managed = new ManagedSession(

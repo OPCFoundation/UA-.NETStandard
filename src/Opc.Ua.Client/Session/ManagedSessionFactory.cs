@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
@@ -50,10 +51,30 @@ namespace Opc.Ua.Client
     /// </remarks>
     public class ManagedSessionFactory : ISessionFactory
     {
-        private readonly DefaultSessionFactory m_innerFactory;
+        private DefaultSessionFactory m_innerFactory;
 
         /// <inheritdoc/>
         public ITelemetryContext Telemetry { get; init; }
+
+        /// <inheritdoc/>
+        public ISubscriptionEngineFactory? SubscriptionEngineFactory
+            => m_innerFactory.SubscriptionEngineFactory;
+
+        /// <inheritdoc/>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="engineFactory"/> is <see langword="null"/>.
+        /// </exception>
+        public virtual ISessionFactory WithSubscriptionEngine(
+            ISubscriptionEngineFactory engineFactory,
+            TimeProvider? timeProvider = null)
+        {
+            // A shallow copy keeps the runtime type and its overrides; only
+            // the inner factory is swapped, so this instance is untouched.
+            var copy = (ManagedSessionFactory)MemberwiseClone();
+            copy.m_innerFactory = (DefaultSessionFactory)m_innerFactory
+                .WithSubscriptionEngine(engineFactory, timeProvider);
+            return copy;
+        }
 
         /// <inheritdoc/>
         public DiagnosticsMasks ReturnDiagnostics

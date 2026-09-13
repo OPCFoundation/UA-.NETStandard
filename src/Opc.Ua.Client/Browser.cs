@@ -362,7 +362,7 @@ namespace Opc.Ua.Client
                 session = Session;
                 if (session != null)
                 {
-                    await session.ReleaseContinuationPointAsync(continuationPoint)
+                    await session.ReleaseContinuationPointAsync(continuationPoint, m_logger)
                         .ConfigureAwait(false);
                 }
                 throw;

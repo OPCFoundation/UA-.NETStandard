@@ -1476,9 +1476,11 @@ namespace Opc.Ua.Client.Subscriptions
                 }
 
                 uint minLifetimeInterval = (uint)options.MinLifetimeInterval.TotalMilliseconds;
-                // A sub-millisecond publishing interval truncates to zero and
-                // would divide by zero below; treat it as one millisecond,
-                // which is the smallest interval the wire format expresses.
+                // Only the local lifetime-count divisor is clamped: a
+                // sub-millisecond interval truncates to zero here and would
+                // divide by zero. The requested interval is sent unchanged, so
+                // 0 still asks the server for its fastest supported interval
+                // (Part 4 §5.14.3.2).
                 uint publishingInterval = Math.Max(
                     1u,
                     (uint)options.PublishingInterval.TotalMilliseconds);

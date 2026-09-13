@@ -499,12 +499,12 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
                 .GetReferencesAsync(requested, ReferenceTypeIds.HasComponent, false, false, default)
                 .ConfigureAwait(false);
 
-            var callReturned = new TaskCompletionSource<ValueTask<ArrayOf<INode>>>(
+            var callReturned = new TaskCompletionSource<Task<ArrayOf<INode>>>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             try
             {
                 _ = Task.Run(() => callReturned.TrySetResult(
-                    nodeCache.GetReferencesAsync(source, requested, false, true, default)));
+                    nodeCache.GetReferencesAsync(source, requested, false, true, default).AsTask()));
 
                 Task winner = await Task
                     .WhenAny(callReturned.Task, Task.Delay(TimeSpan.FromSeconds(10)))
@@ -522,7 +522,6 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
             }
 
             ArrayOf<INode> targets = await (await callReturned.Task.ConfigureAwait(false))
-                .AsTask()
                 .ConfigureAwait(false);
             Assert.That(
                 targets.Count,

@@ -35,6 +35,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client.FileSystem
 {
@@ -101,6 +102,7 @@ namespace Opc.Ua.Client.FileSystem
             Options = (options ?? new FileSystemClientOptions()).Clone();
             Options.Validate();
             m_pathCache = new PathCache(Options.PathCacheSize);
+            m_logger = session.MessageContext.Telemetry.CreateLogger<FileSystemClient>();
             Root = new UaDirectoryInfo(this, parent: null, rootDirectoryId, kRootBrowseName, []);
         }
 
@@ -598,7 +600,7 @@ namespace Opc.Ua.Client.FileSystem
                 // Part 4 §5.9.3.2: a consumer that stops enumerating early
                 // (break, Take, an exception) must not leave the point pinned
                 // against the session quota.
-                await Session.ReleaseContinuationPointAsync(continuation)
+                await Session.ReleaseContinuationPointAsync(continuation, m_logger)
                     .ConfigureAwait(false);
             }
         }
@@ -1381,6 +1383,7 @@ namespace Opc.Ua.Client.FileSystem
         private static readonly QualifiedName kRootBrowseName = new("FileSystem");
 
         private readonly PathCache m_pathCache;
+        private readonly ILogger m_logger;
         private bool m_typeTreeFetched;
     }
 }
