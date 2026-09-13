@@ -412,6 +412,255 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Verifies that the interval overlapping the start or end of data carries the Partial
+        /// bit in both time directions (Part 13 §5.3.3.2).
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task DirectAndLivePartialBitMarksIntervalOverlappingDataEdgeAsync(
+            bool reverse,
+            bool dataEndsInsideRange)
+        {
+            // Data starts at 5 s. It either ends inside the requested range (15 s) or at its
+            // end (20 s), so the edge that is overlapped depends on the case.
+            List<DataValue> rawValues =
+            [
+                CreateValue(1, StatusCodes.Good, 5),
+                CreateValue(2, StatusCodes.Good, 10),
+                CreateValue(3, StatusCodes.Good, dataEndsInsideRange ? 15 : 20)
+            ];
+            DateTimeUtc startTime = reverse ? AtSeconds(20) : s_baseTime;
+            DateTimeUtc endTime = reverse ? s_baseTime : AtSeconds(20);
+            AggregateConfiguration configuration = CreateConfiguration();
+
+            List<DataValue> direct = RunDirect(
+                ObjectIds.AggregateFunction_Count,
+                rawValues,
+                startTime,
+                endTime,
+                10_000,
+                configuration);
+
+            using var harness = new AggregateHarness();
+            List<DataValue> live = await harness.ReadProcessedAsync(
+                ObjectIds.AggregateFunction_Count,
+                rawValues,
+                startTime,
+                endTime,
+                10_000,
+                configuration).ConfigureAwait(false);
+
+            // The chronologically early interval overlaps the start of data; the late interval
+            // overlaps the end of data only when the data ends inside the range. Backward reads
+            // return the late interval first.
+            bool[] expectedPartialChronological = [true, dataEndsInsideRange];
+            AssertPartialBits(direct, expectedPartialChronological, reverse);
+            AssertPartialBits(live, expectedPartialChronological, reverse);
+        }
+
+        /// <summary>
+        /// Verifies that time-based status calculation treats Uncertain regions as Bad when
+        /// TreatUncertainAsBad is true (Part 13 §5.4.3.2.1).
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task DirectAndLiveMinimum2TreatsUncertainRegionsAsBadWhenConfiguredAsync(
+            bool treatUncertainAsBad)
+        {
+            StatusCode expectedCodeBits = treatUncertainAsBad
+                ? StatusCodes.Bad
+                : StatusCodes.UncertainDataSubNormal;
+
+            // Interval [15 s, 35 s): the start bound is Bad (the raw value at 10 s is Bad), the
+            // region 20-30 s ends on an Uncertain value and the region 30-35 s is Uncertain.
+            // With TreatUncertainAsBad every region is Bad (100% >= PercentDataBad); otherwise
+            // 25% is Bad and 75% Good, which meets neither threshold.
+            List<DataValue> rawValues =
+            [
+                CreateValue(0, StatusCodes.Good, 0),
+                CreateValue(1, StatusCodes.BadDataUnavailable, 10),
+                CreateValue(2, StatusCodes.Good, 20),
+                CreateValue(3, StatusCodes.UncertainSubstituteValue, 30),
+                CreateValue(4, StatusCodes.Good, 40),
+                CreateValue(5, StatusCodes.Good, 50)
+            ];
+            AggregateConfiguration configuration = CreateConfiguration(treatUncertainAsBad);
+            DateTimeUtc startTime = AtSeconds(15);
+            DateTimeUtc endTime = AtSeconds(35);
+
+            List<DataValue> direct = RunDirect(
+                ObjectIds.AggregateFunction_Minimum2,
+                rawValues,
+                startTime,
+                endTime,
+                20_000,
+                configuration);
+
+            using var harness = new AggregateHarness();
+            List<DataValue> live = await harness.ReadProcessedAsync(
+                ObjectIds.AggregateFunction_Minimum2,
+                rawValues,
+                startTime,
+                endTime,
+                20_000,
+                configuration).ConfigureAwait(false);
+
+            foreach (List<DataValue> results in new[] { direct, live })
+            {
+                Assert.That(results, Has.Count.EqualTo(1));
+                Assert.That(results[0].StatusCode.CodeBits, Is.EqualTo(expectedCodeBits));
+                Assert.That(
+                    results[0].StatusCode.AggregateBits & AggregateBits.Calculated,
+                    Is.EqualTo(AggregateBits.Calculated));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that the first DurationGood/DurationBad region takes the status of the raw
+        /// value at or before the interval start rather than of the simple bound
+        /// (Part 13 §5.4.3.31-.32).
+        /// </summary>
+        [TestCase("DurationBad", true, 15_000.0)]
+        [TestCase("DurationGood", true, 15_000.0)]
+        [TestCase("DurationBad", false, 10_000.0)]
+        [TestCase("DurationGood", false, 20_000.0)]
+        public async Task DirectAndLiveDurationFirstRegionUsesRawStatusBeforeIntervalAsync(
+            string aggregateName,
+            bool treatUncertainAsBad,
+            double expected)
+        {
+            // Interval [5 s, 35 s): the simple start bound is Uncertain because Bad data follows
+            // the Good value at 0 s, but the first region (5-10 s) is Good. 10-20 s is Bad,
+            // 20-30 s Good, and 30-35 s Uncertain (Bad only with TreatUncertainAsBad).
+            List<DataValue> rawValues =
+            [
+                CreateValue(0, StatusCodes.Good, 0),
+                CreateValue(1, StatusCodes.BadDataUnavailable, 10),
+                CreateValue(2, StatusCodes.Good, 20),
+                CreateValue(3, StatusCodes.UncertainSubstituteValue, 30),
+                CreateValue(4, StatusCodes.Good, 40)
+            ];
+            NodeId aggregateId = GetAggregateId(aggregateName);
+            AggregateConfiguration configuration = CreateConfiguration(treatUncertainAsBad);
+            DateTimeUtc startTime = AtSeconds(5);
+            DateTimeUtc endTime = AtSeconds(35);
+
+            List<DataValue> direct = RunDirect(
+                aggregateId,
+                rawValues,
+                startTime,
+                endTime,
+                30_000,
+                configuration);
+
+            using var harness = new AggregateHarness();
+            List<DataValue> live = await harness.ReadProcessedAsync(
+                aggregateId,
+                rawValues,
+                startTime,
+                endTime,
+                30_000,
+                configuration).ConfigureAwait(false);
+
+            AssertSingleNumericResult(direct, expected, startTime, AggregateBits.Calculated);
+            AssertSingleNumericResult(live, expected, startTime, AggregateBits.Calculated);
+        }
+
+        /// <summary>
+        /// Verifies that a backward WorstQuality2 read returns the forward results for the same
+        /// intervals, with the start bound taken at the early time (Part 13 §5.4.2.2, §5.4.3.36).
+        /// </summary>
+        [Test]
+        public async Task DirectAndLiveWorstQuality2BackwardMatchesForwardIntervalsAsync()
+        {
+            // No raw value sits on an interval boundary, so the forward [5,15) and [15,25) and
+            // backward (5,15] and (15,25] intervals contain the same raw values.
+            List<DataValue> rawValues =
+            [
+                CreateValue(0, StatusCodes.Good, 1),
+                CreateValue(1, StatusCodes.UncertainSubstituteValue, 9),
+                CreateValue(2, StatusCodes.Good, 12),
+                CreateValue(3, StatusCodes.BadDataUnavailable, 14),
+                CreateValue(4, StatusCodes.Good, 18),
+                CreateValue(5, StatusCodes.Good, 21),
+                CreateValue(6, StatusCodes.Good, 30)
+            ];
+            AggregateConfiguration configuration = CreateConfiguration();
+            using var harness = new AggregateHarness();
+
+            List<DataValue> forwardDirect = RunDirect(
+                ObjectIds.AggregateFunction_WorstQuality2,
+                rawValues,
+                AtSeconds(5),
+                AtSeconds(25),
+                10_000,
+                configuration);
+            List<DataValue> backwardDirect = RunDirect(
+                ObjectIds.AggregateFunction_WorstQuality2,
+                rawValues,
+                AtSeconds(25),
+                AtSeconds(5),
+                10_000,
+                configuration);
+            List<DataValue> backwardLive = await harness.ReadProcessedAsync(
+                ObjectIds.AggregateFunction_WorstQuality2,
+                rawValues,
+                AtSeconds(25),
+                AtSeconds(5),
+                10_000,
+                configuration).ConfigureAwait(false);
+
+            // Forward: [5,15) has the Uncertain start bound, Uncertain, Good and Bad values, so the
+            // worst is the single BadDataUnavailable; [15,25) starts on a Bad_NoData bound.
+            StatusCode[] expectedChronological = [StatusCodes.BadDataUnavailable, StatusCodes.BadNoData];
+            AssertWorstQualities(forwardDirect, expectedChronological, reverse: false);
+            AssertWorstQualities(backwardDirect, expectedChronological, reverse: true);
+            AssertWorstQualities(backwardLive, expectedChronological, reverse: true);
+        }
+
+        private static void AssertPartialBits(
+            List<DataValue> results,
+            bool[] expectedPartialChronological,
+            bool reverse)
+        {
+            Assert.That(results, Has.Count.EqualTo(expectedPartialChronological.Length));
+
+            for (int index = 0; index < results.Count; index++)
+            {
+                int interval = reverse ? results.Count - 1 - index : index;
+                bool isPartial = (results[index].StatusCode.AggregateBits & AggregateBits.Partial) != 0;
+                Assert.That(
+                    isPartial,
+                    Is.EqualTo(expectedPartialChronological[interval]),
+                    $"Partial bit at result {index} (chronological interval {interval})");
+            }
+        }
+
+        private static void AssertWorstQualities(
+            List<DataValue> results,
+            StatusCode[] expectedChronological,
+            bool reverse)
+        {
+            Assert.That(results, Has.Count.EqualTo(expectedChronological.Length));
+
+            for (int index = 0; index < results.Count; index++)
+            {
+                int interval = reverse ? results.Count - 1 - index : index;
+                Assert.That(results[index].WrappedValue.TryGetValue(out StatusCode worst), Is.True);
+                Assert.That(
+                    worst,
+                    Is.EqualTo(expectedChronological[interval]),
+                    $"worst quality at result {index} (chronological interval {interval})");
+                Assert.That(
+                    results[index].StatusCode.AggregateBits,
+                    Is.EqualTo(AggregateBits.Calculated),
+                    $"aggregate bits at result {index}");
+            }
+        }
+
         private static void AssertSharedTenIntervalResults(
             List<DataValue> results,
             string aggregateName,
@@ -589,6 +838,8 @@ namespace Opc.Ua.Server.Tests
                 "WorstQuality2" => ObjectIds.AggregateFunction_WorstQuality2,
                 "DurationInStateZero" => ObjectIds.AggregateFunction_DurationInStateZero,
                 "DurationInStateNonZero" => ObjectIds.AggregateFunction_DurationInStateNonZero,
+                "DurationGood" => ObjectIds.AggregateFunction_DurationGood,
+                "DurationBad" => ObjectIds.AggregateFunction_DurationBad,
                 _ => throw new ArgumentOutOfRangeException(nameof(aggregateName))
             };
         }
