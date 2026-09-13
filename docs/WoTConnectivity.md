@@ -1177,6 +1177,12 @@ not disambiguate it. Reuse compares known local references by their indexed
 graph targets and recognizes standard
 schema facets without treating irrelevant prefix aliases as different facts.
 Unknown semantic terms retain their context even when prefixed with `uav:`.
+When a base reference supplies both a standard DataType name and a native
+identity, they must agree unless the closure supplies a matching definitive
+custom type with that same BrowseName. Known definition identity takes
+precedence over the built-in fallback. Both native conversion and projection
+carriage use the reference's effective context and accept equivalent
+namespace-zero URI forms.
 
 Known schema references (`$ref`, a source definition's `tm:ref`, and
 `uav:externalSchema`) retain their original document location. Relative external

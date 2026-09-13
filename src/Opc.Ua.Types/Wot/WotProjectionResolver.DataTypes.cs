@@ -418,9 +418,16 @@ namespace Opc.Ua.Wot
                     }
                     CarryDataType(selected);
                 }
-                else if (name is not null && index.Names.ContainsKey(name))
+                else
                 {
-                    DataTypeError("The base DataType name is ambiguous without a definitive identity.", pointer);
+                    if (!WotNodeSetConverter.ValidateStandardDataTypeReference(owner.Document, original, m_diagnostics))
+                    {
+                        return;
+                    }
+                    if (name is not null && index.Names.ContainsKey(name))
+                    {
+                        DataTypeError("The base DataType name is ambiguous without a definitive identity.", pointer);
+                    }
                 }
             }
 

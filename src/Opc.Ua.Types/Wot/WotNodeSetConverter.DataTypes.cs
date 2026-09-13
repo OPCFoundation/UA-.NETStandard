@@ -775,6 +775,29 @@ namespace Opc.Ua.Wot
             return DeriveDataTypeNodeId(document, name, nodeSet, diagnostics, definition);
         }
 
+        internal static bool ValidateStandardDataTypeReference(
+            WotDocument document,
+            JsonElement reference,
+            List<WotDiagnostic> diagnostics)
+        {
+            string? id = GetElementString(reference, "uav:dataTypeId");
+            string? name = GetElementString(reference, "uav:dataTypeName");
+            if (id is null ||
+                name is null ||
+                !TryResolveDataTypeName(document, name, null, reference, out string? standardId) ||
+                standardId is null ||
+                NormalizeExpandedNodeId(id) == NormalizeExpandedNodeId(standardId))
+            {
+                return true;
+            }
+            diagnostics.Add(new WotDiagnostic(
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.DataTypeDefinitionInvalid,
+                $"The standard DataType name '{name}' identifies '{standardId}', not the supplied identity '{id}'.",
+                new WotLocation(reference: name)));
+            return false;
+        }
+
         private static string? ResolveDataTypeName(
             WotDocument document,
             string name,
@@ -1293,6 +1316,11 @@ namespace Opc.Ua.Wot
             {
                 return null;
             }
+            if (!ReferencesKnownNamedDataType(document, reference, context, nodeSet) &&
+                !ValidateStandardDataTypeReference(document, reference, diagnostics))
+            {
+                return null;
+            }
             string? graphId = GetElementString(reference, "@id");
             if (graphId is not null && context.Identities.TryGetValue(graphId, out string? resolved))
             {
@@ -1318,6 +1346,32 @@ namespace Opc.Ua.Wot
                     new WotLocation(reference: graphId)));
             }
             return null;
+        }
+
+        private static bool ReferencesKnownNamedDataType(
+            WotDocument document,
+            JsonElement reference,
+            DataTypeDefinitionContext context,
+            UANodeSet nodeSet)
+        {
+            string? id = GetElementString(reference, "uav:dataTypeId");
+            string? name = GetElementString(reference, "uav:dataTypeName");
+            if (id is null ||
+                name is null ||
+                !TrySplitCompactName(document, name, out string namespaceUri, out string localName, reference))
+            {
+                return false;
+            }
+            string identity = NormalizeDataTypeValidationIdentity(id, nodeSet);
+            if (context.NamedIdentities.TryGetValue((namespaceUri, localName), out string? named) && named == identity)
+            {
+                return true;
+            }
+            return context.ValidationTypes.TryGetValue(identity, out DataTypeValidationNode? definition) &&
+                TrySplitCompactName(definition.Document, definition.Name,
+                    out string declaredNamespace, out string declaredName, definition.Source) &&
+                namespaceUri == declaredNamespace &&
+                localName == declaredName;
         }
 
         /// <summary>
