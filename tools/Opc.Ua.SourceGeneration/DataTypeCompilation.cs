@@ -94,7 +94,10 @@ namespace Opc.Ua.SourceGeneration
         public static bool Handles(SyntaxNode node, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
-            return node is TypeDeclarationSyntax t && t.AttributeLists.Count > 0;
+            // BaseTypeDeclarationSyntax rather than TypeDeclarationSyntax: an
+            // enum declaration is not a TypeDeclarationSyntax, and [DataType] on
+            // an enum is supported (see BuildEnumModel).
+            return node is BaseTypeDeclarationSyntax t && t.AttributeLists.Count > 0;
         }
 
         /// <summary>
@@ -190,9 +193,9 @@ namespace Opc.Ua.SourceGeneration
             catch (Exception ex)
             {
                 HasErrors = true;
-                ErrorMessage =
-                    $"[DataType] generator error for '{symbol.Name}': " +
-                    $"{ex.GetType().Name}: {ex.Message}";
+                // The annotated type is reported as the diagnostic's first
+                // argument, so the message itself carries only the failure.
+                ErrorMessage = $"{ex.GetType().Name}: {ex.Message}";
                 ValidFields ??= [];
                 Diagnostics ??=
                     [];
@@ -220,24 +223,31 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
 
+                // MODELGEN003 takes two arguments ("... '{0}': {1}"); supplying
+                // only one leaves the message rendered as the raw template.
                 if (comp.ErrorMessage != null)
                 {
                     sourceContext.ReportDiagnostic(
                         Diagnostic.Create(
                             SourceGenerator.Exception,
                             comp.Location,
+                            comp.TypeName,
                             comp.ErrorMessage));
                 }
 
                 foreach (TypeSourceGeneratorDiagnostic diag in comp.Diagnostics)
                 {
                     sourceContext.ReportDiagnostic(
-                        Diagnostic.Create(
-                            diag.IsError
-                                ? SourceGenerator.Exception
-                                : SourceGenerator.GenericWarning,
-                            comp.Location,
-                            diag.Message));
+                        diag.IsError
+                            ? Diagnostic.Create(
+                                SourceGenerator.Exception,
+                                comp.Location,
+                                comp.TypeName,
+                                diag.Message)
+                            : Diagnostic.Create(
+                                SourceGenerator.GenericWarning,
+                                comp.Location,
+                                diag.Message));
                 }
             }
 
@@ -280,8 +290,12 @@ namespace Opc.Ua.SourceGeneration
                     allTypes,
                     allActivators);
 
+                // Keyed on the namespace itself, not on NamespaceSymbol: the
+                // latter has the dots stripped to form a C# identifier, so
+                // "A.BC" and "AB.C" would claim the same hint name and the
+                // second AddSource would fail the generator.
                 sourceContext.AddSource(
-                    first.NamespaceSymbol + ".Types.g.cs", source);
+                    first.Namespace + ".Types.g.cs", source);
             }
         }
 

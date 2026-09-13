@@ -141,6 +141,55 @@ namespace Opc.Ua.SourceGeneration
             return true;
         }
 
+        /// <summary>
+        /// Orders two model version strings. A model that declares no version
+        /// carries its publication date instead, and a date must not go through
+        /// <see cref="TryParse"/>: "2024-05-01" loses its month and day to the
+        /// pre-release split and comes back as major 2024, which outranks every
+        /// real version. Dates are therefore compared as dates, versions as
+        /// versions, and a date against a version is reported as equal - the two
+        /// are not comparable, and guessing would promote a stale model. Callers
+        /// break that tie on the publication date.
+        /// </summary>
+        public static int CompareVersionStrings(string left, string right)
+        {
+            bool leftIsDate = IsIsoDate(left);
+            bool rightIsDate = IsIsoDate(right);
+
+            if (leftIsDate || rightIsDate)
+            {
+                // ISO dates sort correctly as ordinal text.
+                return leftIsDate && rightIsDate ? string.CompareOrdinal(left, right) : 0;
+            }
+
+            bool leftParsed = TryParse(left, out SemVer leftVersion);
+            bool rightParsed = TryParse(right, out SemVer rightVersion);
+
+            if (leftParsed && rightParsed)
+            {
+                return leftVersion.CompareTo(rightVersion);
+            }
+
+            // Unspecified sorts below everything, which is not what an
+            // unparseable string means - fall back to the ordinal order.
+            return string.CompareOrdinal(left, right);
+        }
+
+        /// <summary>
+        /// True when the text is a bare ISO-8601 date, the form a model version
+        /// takes when it falls back to the publication date.
+        /// </summary>
+        public static bool IsIsoDate(string value)
+        {
+            return value != null &&
+                DateTime.TryParseExact(
+                    value,
+                    "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out _);
+        }
+
         /// <summary>Parses or throws.</summary>
         /// <exception cref="FormatException"></exception>
         public static SemVer Parse(string text)

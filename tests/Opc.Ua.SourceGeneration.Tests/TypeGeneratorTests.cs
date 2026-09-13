@@ -630,6 +630,82 @@ namespace TestApp.CloneRepro
                 "Clone() dropped the inherited field");
         }
 
+        /// <summary>
+        /// Regression: the syntax predicate only accepted TypeDeclarationSyntax,
+        /// which an enum declaration is not, so [DataType] on an enum was
+        /// silently ignored and the enum activator never generated.
+        /// </summary>
+        [Test]
+        public void EnumAnnotatedWithDataTypeIsGenerated()
+        {
+            const string source = @"
+using Opc.Ua;
+
+namespace TestApp.Enums
+{
+    [DataType]
+    public enum PumpState
+    {
+        Idle = 0,
+        Running = 1,
+        Faulted = 2
+    }
+}";
+            GeneratorRunResult result = RunGenerator(source);
+
+            Assert.That(
+                result.GeneratedSources,
+                Has.Length.EqualTo(1),
+                "[DataType] on an enum must produce generated source");
+
+            string generated = result.GeneratedSources[0].SourceText.ToString();
+            Assert.That(generated, Does.Contain("PumpState"));
+            Assert.That(generated, Does.Contain("Activator"));
+        }
+
+        /// <summary>
+        /// Regression: the generated file was named after the namespace with the
+        /// dots removed, so two namespaces differing only in where the dots sit
+        /// claimed the same hint name and the second AddSource failed.
+        /// </summary>
+        [Test]
+        public void NamespacesDifferingOnlyInDotPlacementGetDistinctHintNames()
+        {
+            const string source = @"
+using Opc.Ua;
+
+namespace A.BC
+{
+    [DataType]
+    public partial class First
+    {
+        public int Value { get; set; }
+    }
+}
+
+namespace AB.C
+{
+    [DataType]
+    public partial class Second
+    {
+        public int Value { get; set; }
+    }
+}";
+            GeneratorRunResult result = RunGenerator(source);
+
+            Assert.That(result.GeneratedSources, Has.Length.EqualTo(2));
+
+            string[] hintNames = [.. result.GeneratedSources
+                .Select(s => s.HintName)
+                .OrderBy(s => s, StringComparer.Ordinal)];
+            string[] expectedHintNames = ["A.BC.Types.g.cs", "AB.C.Types.g.cs"];
+
+            Assert.That(
+                hintNames,
+                Is.EqualTo(expectedHintNames),
+                "the hint name has to keep the namespace's dots to stay unique");
+        }
+
         private static GeneratorRunResult RunGenerator(
             string source,
             bool expectErrors = false,
