@@ -326,11 +326,19 @@ namespace Opc.Ua
         {
             if (!SupportsCRLs)
             {
-                // Reported, not thrown: the validator treats BadNotSupported as
-                // "this store cannot answer" and moves on, while a thrown
-                // ServiceResultException surfaces as an unsuppressible
-                // BadCertificateInvalid and fails every CA-issued certificate.
-                return StatusCodes.BadNotSupported;
+                // Reported, not thrown: a thrown ServiceResultException surfaces
+                // as an unsuppressible BadCertificateInvalid and fails every
+                // CA-issued certificate on the platforms without CRL support.
+                //
+                // And reported as unknown rather than unsupported. The status
+                // really is unknown - there is no list to consult - and this is
+                // what the Windows branch below and a directory store without a
+                // CRL both already return. The validator discards
+                // BadNotSupported outright, which would make revocation fail
+                // open even for an operator who set RejectUnknownRevocationStatus;
+                // BadCertificateRevocationUnknown is suppressible and lets that
+                // policy decide (OPC 10000-4 6.1.3, Find Revocation List).
+                return StatusCodes.BadCertificateRevocationUnknown;
             }
 
             if (issuer == null)

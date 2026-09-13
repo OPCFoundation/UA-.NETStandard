@@ -442,6 +442,84 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
+        /// Reconfiguring onto a security configuration that no longer names a
+        /// trust list removes the old registration. It used to be kept, so the
+        /// manager went on trusting certificates the new configuration had
+        /// removed - failing open on exactly the change meant to revoke trust.
+        /// </summary>
+        [Test]
+        public async Task UpdateAsyncWithoutATrustListStopsTrustingItAsync()
+        {
+            using Certificate cert = CertificateBuilder
+                .Create("CN=RemovedByReconfiguration")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            var trusting = new SecurityConfiguration
+            {
+                TrustedPeerCertificates = new CertificateTrustList()
+            };
+            trusting.AddTrustedPeer(cert.RawData);
+
+            using var manager = new CertificateManager(m_telemetry);
+            manager.MapFromSecurityConfiguration(trusting);
+
+            using var collection = new CertificateCollection { cert };
+
+            CertificateValidationResult before = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+            Assert.That(before.IsValid, Is.True);
+
+            await manager.UpdateAsync(new SecurityConfiguration
+            {
+                TrustedPeerCertificates = new CertificateTrustList()
+            }).ConfigureAwait(false);
+
+            Assert.That(manager.TrustLists, Does.Not.Contain(TrustListIdentifier.Peers));
+
+            CertificateValidationResult after = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+            Assert.That(after.IsValid, Is.False);
+        }
+
+        /// <summary>
+        /// Mapping a configuration in after a validation already ran takes
+        /// effect. That validation cached a core with no trust material, and the
+        /// mapping registered the list without evicting it, so every later
+        /// validation was still answered from the empty core.
+        /// </summary>
+        [Test]
+        public async Task MapFromSecurityConfigurationAfterAFailedValidationTakesEffectAsync()
+        {
+            using Certificate cert = CertificateBuilder
+                .Create("CN=MappedLate")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            using var manager = new CertificateManager(m_telemetry);
+            using var collection = new CertificateCollection { cert };
+
+            CertificateValidationResult before = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+            Assert.That(before.IsValid, Is.False);
+
+            var configuration = new SecurityConfiguration
+            {
+                TrustedPeerCertificates = new CertificateTrustList()
+            };
+            configuration.AddTrustedPeer(cert.RawData);
+            manager.MapFromSecurityConfiguration(configuration);
+
+            CertificateValidationResult after = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+            Assert.That(after.IsValid, Is.True);
+        }
+
+        /// <summary>
         /// A trust list with neither a store path nor inline certificates names
         /// no trust material, so there is nothing to register.
         /// </summary>

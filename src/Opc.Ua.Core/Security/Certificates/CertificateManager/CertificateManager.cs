@@ -333,6 +333,17 @@ namespace Opc.Ua
             // exactly the peers it was told to trust.
             if (string.IsNullOrEmpty(trustedStorePath) && explicitTrustedCertificates.IsEmpty)
             {
+                // When registering, there is simply nothing to add. When
+                // replacing, the new configuration no longer names this list at
+                // all, so the old registration has to go: keeping it would go on
+                // trusting the store and certificates the configuration just
+                // removed. A validation against a list that is not registered
+                // trusts nothing, which is the safe side to fail on.
+                if (replaceExisting && m_trustLists.TryRemove(trustList, out _))
+                {
+                    InvalidateCores();
+                }
+
                 return;
             }
 
@@ -348,8 +359,14 @@ namespace Opc.Ua
                 // at run time and read lock-free, so the compound form would let
                 // two registrations both decide the list was absent and the
                 // second silently replace the first.
-                if (!m_trustLists.TryAdd(trustList, entry) &&
-                    m_logger.IsEnabled(LogLevel.Debug))
+                if (m_trustLists.TryAdd(trustList, entry))
+                {
+                    // A validation before this registration cached a core with
+                    // no trust material at all, which would otherwise keep
+                    // rejecting everything this list now trusts.
+                    InvalidateCores();
+                }
+                else if (m_logger.IsEnabled(LogLevel.Debug))
                 {
                     m_logger.CertificateManagerLogMessage0(trustList.ToString());
                 }

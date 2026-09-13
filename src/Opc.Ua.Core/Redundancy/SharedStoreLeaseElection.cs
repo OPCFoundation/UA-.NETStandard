@@ -29,6 +29,8 @@
 
 using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -91,21 +93,16 @@ namespace Opc.Ua.Redundancy
         {
             get
             {
-                lock (m_lock)
-                {
-                    if (!m_isLeader)
-                    {
-                        return false;
-                    }
-                }
-
                 // The lease this replica last wrote has to still be running for
                 // it to count as the leader. Checked on read, not only where a
                 // renew fails: a store that hangs rather than throws never
                 // reaches the failure path at all, and every other replica
                 // watches the lease expire while this one keeps claiming it.
-                return m_timeProvider.GetUtcNow().UtcTicks <
-                    Interlocked.Read(ref m_localLeaseExpiryTicks);
+                lock (m_lock)
+                {
+                    return m_isLeader &&
+                        m_timeProvider.GetUtcNow().UtcTicks < m_localLeaseExpiryTicks;
+                }
             }
         }
 
@@ -149,12 +146,7 @@ namespace Opc.Ua.Redundancy
                 return false;
             }
 
-            if (acquired)
-            {
-                Interlocked.Exchange(ref m_localLeaseExpiryTicks, expiry);
-            }
-
-            SetLeader(acquired);
+            SetLeader(acquired, expiry);
             return acquired;
         }
 
@@ -177,7 +169,7 @@ namespace Opc.Ua.Redundancy
                 // announcing itself as leader on a lease every other replica
                 // has already watched expire.
                 m_watchdog = m_timeProvider.CreateTimer(
-                    _ => StepDownIfLeaseExpired(),
+                    _ => StepDownIfLeaseExpiredSafely(),
                     null,
                     m_renewInterval,
                     m_renewInterval);
@@ -248,7 +240,7 @@ namespace Opc.Ua.Redundancy
                         // once it does. Step down at the same moment rather than
                         // keep leading on a lease that is no longer held, which
                         // would put two leaders on the line.
-                        StepDownIfLeaseExpired();
+                        StepDownIfLeaseExpiredSafely();
                     }
 
                     await Task.Delay(m_renewInterval, ct).ConfigureAwait(false);
@@ -284,39 +276,128 @@ namespace Opc.Ua.Redundancy
         /// Gives up leadership once the lease last written to the store has
         /// run out locally.
         /// </summary>
+        /// <remarks>
+        /// The expiry check and the transition are one critical section. Taken
+        /// apart, a renewal could commit a fresh expiry between the two and this
+        /// would then revoke the lease the renewal had just extended.
+        /// </remarks>
         private void StepDownIfLeaseExpired()
         {
-            bool wasLeader;
             lock (m_lock)
             {
-                wasLeader = m_isLeader;
+                // IsLeader already reports false once the lease has run out;
+                // this makes the step-down explicit so LeadershipChanged fires
+                // and the replica releases whatever it holds as leader.
+                if (m_isLeader &&
+                    m_timeProvider.GetUtcNow().UtcTicks >= m_localLeaseExpiryTicks)
+                {
+                    m_isLeader = false;
+                    m_localLeaseExpiryTicks = 0;
+                    m_pendingNotifications.Enqueue(false);
+                }
             }
 
-            // IsLeader already reports false once the lease has run out; this
-            // makes the step-down explicit so LeadershipChanged fires and the
-            // replica releases whatever it holds as leader.
-            if (wasLeader && !IsLeader)
+            DispatchNotifications();
+        }
+
+        /// <summary>
+        /// <see cref="StepDownIfLeaseExpired"/> for callers with nowhere to
+        /// report a failure: the watchdog timer, where an escaping exception
+        /// would end the process, and the renew loop's own failure path.
+        /// </summary>
+        private void StepDownIfLeaseExpiredSafely()
+        {
+            try
             {
-                SetLeader(false);
+                StepDownIfLeaseExpired();
+            }
+            catch (Exception ex)
+            {
+                m_logger?.SharedStoreLeaseElectionLogMessage2(ex, m_nodeId);
             }
         }
 
-        private void SetLeader(bool value)
+        /// <summary>
+        /// Records the outcome of an acquire or renew.
+        /// </summary>
+        /// <param name="value">Whether this replica now holds the lease.</param>
+        /// <param name="expiryTicks">
+        /// When the lease it wrote runs out; ignored when <paramref name="value"/>
+        /// is <see langword="false"/>.
+        /// </param>
+        private void SetLeader(bool value, long expiryTicks = 0)
         {
-            bool changed;
             lock (m_lock)
             {
-                changed = m_isLeader != value;
-                m_isLeader = value;
+                // Leadership and the lease behind it change together, so no
+                // reader - IsLeader or the watchdog - sees one without the other.
+                m_localLeaseExpiryTicks = value ? expiryTicks : 0;
+
+                if (m_isLeader != value)
+                {
+                    m_isLeader = value;
+                    m_pendingNotifications.Enqueue(value);
+                }
             }
-            if (!value)
+
+            DispatchNotifications();
+        }
+
+        /// <summary>
+        /// Delivers queued <see cref="LeadershipChanged"/> notifications in the
+        /// order the transitions were made.
+        /// </summary>
+        /// <remarks>
+        /// The renew loop and the watchdog both make transitions, so two can
+        /// race. Each is queued under the state lock as it is made, and one
+        /// caller at a time drains the queue outside that lock: handlers run
+        /// without holding it, and a handler that itself causes a transition
+        /// queues it for after its own notification rather than being called
+        /// back re-entrantly with the newer value first.
+        /// </remarks>
+        private void DispatchNotifications()
+        {
+            lock (m_lock)
             {
-                Interlocked.Exchange(ref m_localLeaseExpiryTicks, 0);
+                if (m_notifying || m_pendingNotifications.Count == 0)
+                {
+                    return;
+                }
+
+                m_notifying = true;
             }
-            if (changed)
+
+            ExceptionDispatchInfo? firstFailure = null;
+
+            while (true)
             {
-                LeadershipChanged?.Invoke(value);
+                bool value;
+
+                lock (m_lock)
+                {
+                    if (m_pendingNotifications.Count == 0)
+                    {
+                        m_notifying = false;
+                        break;
+                    }
+
+                    value = m_pendingNotifications.Dequeue();
+                }
+
+                try
+                {
+                    LeadershipChanged?.Invoke(value);
+                }
+                catch (Exception ex)
+                {
+                    // Keep draining: a handler that throws must not strand the
+                    // notifications queued behind it. The first failure still
+                    // reaches the caller that made the transition.
+                    firstFailure ??= ExceptionDispatchInfo.Capture(ex);
+                }
             }
+
+            firstFailure?.Throw();
         }
 
         private static ByteString EncodeLease(string owner, long expiryUtcTicks)
@@ -372,9 +453,22 @@ namespace Opc.Ua.Redundancy
         /// <summary>
         /// When the lease this replica last wrote to the store runs out. Used to
         /// step down while the store is unreachable, because a lease that cannot
-        /// be renewed expires for everyone else too.
+        /// be renewed expires for everyone else too. Guarded by
+        /// <see cref="m_lock"/>, together with <see cref="m_isLeader"/>.
         /// </summary>
         private long m_localLeaseExpiryTicks;
+
+        /// <summary>
+        /// Leadership notifications not yet delivered, in transition order.
+        /// Guarded by <see cref="m_lock"/>.
+        /// </summary>
+        private readonly Queue<bool> m_pendingNotifications = new();
+
+        /// <summary>
+        /// Whether a caller is draining <see cref="m_pendingNotifications"/>.
+        /// Guarded by <see cref="m_lock"/>.
+        /// </summary>
+        private bool m_notifying;
     }
 
     /// <summary>
@@ -393,6 +487,13 @@ namespace Opc.Ua.Redundancy
         [LoggerMessage(EventId = CoreEventIds.SharedStoreLeaseElection + 1, Level = LogLevel.Error,
             Message = "Lease election release failed for {NodeId}.")]
         public static partial void SharedStoreLeaseElectionLogMessage1(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string nodeId);
+
+        [LoggerMessage(EventId = CoreEventIds.SharedStoreLeaseElection + 2, Level = LogLevel.Error,
+            Message = "Lease election step-down failed for {NodeId}; a LeadershipChanged handler threw.")]
+        public static partial void SharedStoreLeaseElectionLogMessage2(
             this ILogger logger,
             global::System.Exception? exception,
             string nodeId);

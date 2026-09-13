@@ -315,8 +315,21 @@ namespace Opc.Ua.Bindings
                 // queued here. Nothing else returns them, so a client that sends
                 // one intermediate chunk and disconnects would cost the pool a
                 // receive buffer per channel.
-                BufferCollection? partialChunks = m_partialMessageChunks;
-                m_partialMessageChunks = null;
+                //
+                // Dispose runs alongside the receive loop, which may be saving a
+                // chunk at this moment, so the collection is detached under the
+                // same lock every partial message operation takes, and closed so
+                // a chunk saved afterwards is not queued into a new collection
+                // nothing would ever release.
+                BufferCollection? partialChunks;
+
+                lock (m_partialMessageLock)
+                {
+                    m_partialMessageClosed = true;
+                    partialChunks = m_partialMessageChunks;
+                    m_partialMessageChunks = null;
+                }
+
                 partialChunks?.Release(BufferManager, "Dispose");
 
                 ServerCertificateChain?.Dispose();
@@ -540,46 +553,78 @@ namespace Opc.Ua.Bindings
             bool isServerContext,
             bool gateHeld)
         {
-            bool firstChunk = false;
-            if (m_partialMessageChunks == null)
-            {
-                firstChunk = true;
-                m_partialMessageChunks = [];
-            }
+            bool firstChunk;
+            bool chunkOrSizeLimitsExceeded;
 
-            bool chunkOrSizeLimitsExceeded = MessageLimitsExceeded(
-                isServerContext,
-                m_partialMessageChunks.TotalSize,
-                m_partialMessageChunks.Count);
-
-            if ((m_partialRequestId != requestId) || chunkOrSizeLimitsExceeded)
+            lock (m_partialMessageLock)
             {
-                if (m_partialMessageChunks.Count > 0)
+                // Disposal has already released the partial message and nothing
+                // will release it again, so a chunk arriving after that goes
+                // straight back to the pool rather than into a new collection.
+                if (m_partialMessageClosed)
                 {
-                    m_logger.UaSCChannelLog4(m_partialRequestId);
+                    ReturnBuffer(chunk, "SaveIntermediateChunk");
+                    return false;
                 }
 
-                m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
+                firstChunk = m_partialMessageChunks == null;
+                m_partialMessageChunks ??= [];
+
+                chunkOrSizeLimitsExceeded = MessageLimitsExceeded(
+                    isServerContext,
+                    m_partialMessageChunks.TotalSize,
+                    m_partialMessageChunks.Count);
+
+                if ((m_partialRequestId != requestId) || chunkOrSizeLimitsExceeded)
+                {
+                    if (m_partialMessageChunks.Count > 0)
+                    {
+                        m_logger.UaSCChannelLog4(m_partialRequestId);
+                    }
+
+                    m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
+                }
+
+                if (!chunkOrSizeLimitsExceeded && requestId != 0)
+                {
+                    m_partialRequestId = requestId;
+                    m_partialMessageChunks.Add(chunk);
+                }
+                else
+                {
+                    ReturnBuffer(chunk, "SaveIntermediateChunk");
+                }
             }
 
+            // Outside the lock: tearing the channel down can take the gate, and
+            // the partial message lock must stay a leaf.
             if (chunkOrSizeLimitsExceeded)
             {
-                ReturnBuffer(chunk, "SaveIntermediateChunk");
                 DoMessageLimitsExceeded(gateHeld);
-                return firstChunk;
-            }
-
-            if (requestId != 0)
-            {
-                m_partialRequestId = requestId;
-                m_partialMessageChunks.Add(chunk);
-            }
-            else
-            {
-                ReturnBuffer(chunk, "SaveIntermediateChunk");
             }
 
             return firstChunk;
+        }
+
+        /// <summary>
+        /// Whether chunks of a message are already waiting for the rest of it,
+        /// so that the next chunk continues a message rather than starting one.
+        /// </summary>
+        /// <remarks>
+        /// A caller that has to inspect the first chunk of a message checks this
+        /// before handing the chunk to <see cref="SaveIntermediateChunk"/>: that
+        /// call takes ownership and can return the buffer to the pool at once,
+        /// so the body is only safe to read beforehand.
+        /// </remarks>
+        protected bool HasPartialMessage
+        {
+            get
+            {
+                lock (m_partialMessageLock)
+                {
+                    return m_partialMessageChunks != null;
+                }
+            }
         }
 
         /// <summary>
@@ -617,9 +662,12 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected BufferCollection TakeSavedChunks()
         {
-            BufferCollection savedChunks = m_partialMessageChunks ?? [];
-            m_partialMessageChunks = null;
-            return savedChunks;
+            lock (m_partialMessageLock)
+            {
+                BufferCollection savedChunks = m_partialMessageChunks ?? [];
+                m_partialMessageChunks = null;
+                return savedChunks;
+            }
         }
 
         /// <summary>
@@ -627,7 +675,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected int GetSavedChunksTotalSize()
         {
-            return m_partialMessageChunks?.TotalSize ?? 0;
+            lock (m_partialMessageLock)
+            {
+                return m_partialMessageChunks?.TotalSize ?? 0;
+            }
         }
 
         /// <summary>
@@ -1636,6 +1687,20 @@ namespace Opc.Ua.Bindings
         private bool m_firstReceivedSequenceNumber = true;
         private uint m_partialRequestId;
         private BufferCollection? m_partialMessageChunks;
+
+        /// <summary>
+        /// Guards <see cref="m_partialMessageChunks"/>,
+        /// <see cref="m_partialRequestId"/> and
+        /// <see cref="m_partialMessageClosed"/>. The channel gate cannot serve:
+        /// it is not re-entrant, the client saves response chunks without it,
+        /// and disposal does not take it. Nothing is acquired while this is held.
+        /// </summary>
+        private readonly Lock m_partialMessageLock = new();
+
+        /// <summary>
+        /// Set once disposal has released the partial message.
+        /// </summary>
+        private bool m_partialMessageClosed;
 
         private IUaSCByteTransport? m_transport;
         private readonly BackgroundTaskScope m_backgroundWork;

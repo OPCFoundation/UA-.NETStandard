@@ -557,6 +557,48 @@ namespace Opc.Ua.Core.Tests.Redundancy
         }
 
         /// <summary>
+        /// LeadershipChanged notifications arrive in the order the transitions
+        /// were made. A handler that itself causes a transition used to be called
+        /// back re-entrantly with the newer value before its own call returned,
+        /// so a subscriber saw "not leader" and then "leader" - the reverse of
+        /// what happened - and was left believing it still led.
+        /// </summary>
+        [Test]
+        public async Task LeadershipNotificationsArriveInTransitionOrderAsync()
+        {
+            var time = new FakeTimeProvider();
+            using var store = new InMemorySharedKeyValueStore();
+            await using SharedStoreLeaseElection a = CreateElection(store, "A", time);
+            await using SharedStoreLeaseElection b = CreateElection(store, "B", time);
+
+            var observed = new List<bool>();
+            bool transitioned = false;
+
+            a.LeadershipChanged += value =>
+            {
+                if (value && !transitioned)
+                {
+                    transitioned = true;
+
+                    // A's lease runs out, B takes it over, and A's next renew
+                    // finds it held - a transition to false made from inside
+                    // the notification for true.
+                    time.Advance(s_leaseDuration + TimeSpan.FromSeconds(1));
+                    b.TryAcquireOrRenewAsync().AsTask().GetAwaiter().GetResult();
+                    a.TryAcquireOrRenewAsync().AsTask().GetAwaiter().GetResult();
+                }
+
+                observed.Add(value);
+            };
+
+            Assert.That(await a.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+
+            Assert.That(observed, Is.EqualTo(new[] { true, false }));
+            Assert.That(a.IsLeader, Is.False);
+            Assert.That(b.IsLeader, Is.True);
+        }
+
+        /// <summary>
         /// The lease expiry is computed before the store call. A call that took
         /// longer than the lease duration wrote a lease that has already run
         /// out, so it is not leadership however the swap went.

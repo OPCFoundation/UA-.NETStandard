@@ -459,6 +459,62 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
+        /// <summary>
+        /// A discovery-only channel reads the first chunk of a message to check
+        /// its type, and must do so before handing the chunk over: a request id
+        /// of zero is never queued, so the chunk goes straight back to the pool.
+        /// Reading it afterwards read an array another caller may already have
+        /// rented - reachable by any unauthenticated client of a server without
+        /// a None endpoint.
+        /// </summary>
+        [Test]
+        public async Task DiscoveryChannelReadsTheFirstChunkBeforeItIsReturnedAsync()
+        {
+            // a poisoned pool: a read after the return decodes garbage and
+            // throws, and the failure path then returns the buffer a second time.
+            var pool = new TrackingArrayPool(poisonOnReturn: true);
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            channel.MakeDiscoveryOnlyForTest();
+
+            // GetEndpointsRequest, four byte node id encoding: a type the
+            // discovery check lets through.
+            byte[] body = [0x01, 0x00, 0xAC, 0x01];
+
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(
+                    TcpMessageType.Message,
+                    isFinal: false,
+                    sequenceNumber: 1,
+                    requestId: 0,
+                    body: body))
+                .ConfigureAwait(false);
+
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+            Assert.That(pool.OutstandingCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// A chunk saved after the channel was disposed goes straight back to the
+        /// pool. Disposal has already released the partial message, so a chunk
+        /// queued into a fresh collection afterwards would never be released.
+        /// </summary>
+        [Test]
+        public void ChunkSavedAfterDisposeIsReturnedRatherThanQueued()
+        {
+            var pool = new TrackingArrayPool();
+            TestServerChannel channel = CreateOpenChannel(pool);
+
+            byte[] buffer = channel.TakeBufferForTest(64);
+            channel.Dispose();
+
+            channel.SaveIntermediateChunkForTest(
+                requestId: 1,
+                new ArraySegment<byte>(buffer, 0, 64));
+
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
         private static TestServerChannel CreateOpenChannel(
             TrackingArrayPool pool,
             int maxBufferSize = 64 * 1024)
@@ -634,13 +690,34 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// with <see cref="MessageSecurityMode.None"/>, so the body needs no
             /// signature or padding.
             /// </summary>
+            /// <summary>
+            /// Marks the channel as discovery only, the state a server without a
+            /// None endpoint gives every unauthenticated client. The setter is
+            /// private to the channel, so it is reached by reflection.
+            /// </summary>
+            public void MakeDiscoveryOnlyForTest()
+            {
+                typeof(UaSCUaBinaryChannel)
+                    .GetProperty(
+                        "DiscoveryOnly",
+                        System.Reflection.BindingFlags.Instance |
+                        System.Reflection.BindingFlags.NonPublic)!
+                    .SetValue(this, true);
+            }
+
             public ArraySegment<byte> CreateRequestChunkForTest(
                 uint baseMessageType,
                 bool isFinal,
                 uint sequenceNumber,
                 uint requestId,
-                int bodySize = 8)
+                int bodySize = 8,
+                byte[] body = null)
             {
+                if (body != null)
+                {
+                    bodySize = body.Length;
+                }
+
                 int length = TcpMessageLimits.SymmetricHeaderSize +
                     TcpMessageLimits.SequenceHeaderSize +
                     bodySize;
@@ -657,6 +734,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 BitConverter.GetBytes(CurrentToken!.TokenId).CopyTo(buffer, 12);
                 BitConverter.GetBytes(sequenceNumber).CopyTo(buffer, 16);
                 BitConverter.GetBytes(requestId).CopyTo(buffer, 20);
+
+                body?.CopyTo(buffer, TcpMessageLimits.SymmetricHeaderSize + TcpMessageLimits.SequenceHeaderSize);
 
                 return new ArraySegment<byte>(buffer, 0, length);
             }
@@ -836,6 +915,18 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         private sealed class TrackingArrayPool : ArrayPool<byte>
         {
+            /// <param name="poisonOnReturn">
+            /// Overwrites a returned array, so that anything still reading it
+            /// afterwards decodes garbage and fails loudly instead of quietly
+            /// reading data that happens to still be there.
+            /// </param>
+            public TrackingArrayPool(bool poisonOnReturn = false)
+            {
+                m_poisonOnReturn = poisonOnReturn;
+            }
+
+            private readonly bool m_poisonOnReturn;
+
             public override byte[] Rent(int minimumLength)
             {
                 byte[] buffer = new byte[minimumLength];
@@ -857,6 +948,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     {
                         DuplicateReturnCount++;
                     }
+                }
+
+                if (m_poisonOnReturn)
+                {
+                    array.AsSpan().Fill(0xFF);
                 }
             }
 
