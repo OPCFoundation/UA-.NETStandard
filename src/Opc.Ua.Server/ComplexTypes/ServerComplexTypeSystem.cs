@@ -91,7 +91,7 @@ namespace Opc.Ua.Server
             options ??= new ServerComplexTypeOptions();
 
             var resolver = new AddressSpaceComplexTypeResolver(server);
-            var complexTypeSystem = new ComplexTypeSystem(resolver, telemetry)
+            using var complexTypeSystem = new ComplexTypeSystem(resolver, telemetry)
             {
                 // The server builds types from the DataTypeDefinition attribute
                 // only; the OPC Binary/XML dictionary type system is not used.
@@ -140,7 +140,7 @@ namespace Opc.Ua.Server
             var resolver = new AddressSpaceComplexTypeResolver(
                 server,
                 additionalNodeManager);
-            var complexTypeSystem = new ComplexTypeSystem(resolver, telemetry)
+            using var complexTypeSystem = new ComplexTypeSystem(resolver, telemetry)
             {
                 DisableDataTypeDictionary = true
             };

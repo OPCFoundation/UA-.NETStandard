@@ -819,11 +819,11 @@ namespace Opc.Ua.Client
             }
             if (opts.LoadComplexTypes)
             {
-                // The resolver owns a NodeCache (and the Meter it registers);
-                // it is only needed for this one-shot load, so dispose it
-                // rather than leaving it rooted for the process lifetime.
-                using var resolver = new ComplexTypes.NodeCacheResolver(session, m_telemetry);
-                var complexTypeSystem = new ComplexTypeSystem(resolver, m_telemetry);
+                // The type system owns a resolver whose NodeCache registers a
+                // Meter; it is only needed for this one-shot load, so dispose
+                // it rather than leaving it rooted for the process lifetime.
+                using ComplexTypeSystem complexTypeSystem =
+                    ComplexTypes.ComplexTypeSystemClientExtensions.Create(session, m_telemetry);
                 await complexTypeSystem.LoadAsync(ct: ct).ConfigureAwait(false);
             }
 
