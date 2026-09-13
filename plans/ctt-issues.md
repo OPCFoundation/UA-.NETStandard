@@ -46,7 +46,7 @@ running the CTT is in [ctt-testing.md](ctt-testing.md).
 | C4 | Aggregates: DurationInState status thresholds | — | Not filed |
 | C5 | Aggregates: durations truncated to whole milliseconds | — | Not filed |
 | C6 | Aggregates: DurationGood/PercentGood first region | — | Not filed |
-| C7–C15 | Other unfiled script defects | — | Not filed |
+| C7–C18 | Other unfiled script defects | — | Not filed |
 
 Mantis states were last checked on 2026-09-13.
 
@@ -522,6 +522,38 @@ inside the inner loop, so a value can leak from an earlier node. **Fix:** declar
 `var sourceTypeNodeId = null;` before the inner loop, and run the FolderType check only when
 `isDefined( sourceTypeNodeId )` (i.e. for Object sources).
 
+### C16. Discovery Get Endpoints `003.js` rejects WebSocket transport profiles
+
+- **Test:** `maintree/Discovery Services/Discovery Get Endpoints/Test Cases/003.js`, lines 22–27 and 39
+- **Error:** *"Unexpected type: http://opcfoundation.org/UA-Profile/Transport/wss-uasc-uabinary"*
+
+`AcceptedProfileUris` lists only UA TCP, SOAP/HTTP and HTTPS transport profiles. The reference
+server also exposes an `opc.wss` endpoint with the valid Part 7 transport profile
+`http://opcfoundation.org/UA-Profile/Transport/wss-uasc-uabinary`. **Fix:** add the WebSocket
+profiles (`wss-uasc-uabinary`, `wss-uajson`) to `AcceptedProfileUris`.
+
+### C17. Monitor Basic `039.js` calls `getMatrixValues` without including its library
+
+- **Test:** `maintree/Monitored Item Services/Monitor Basic/Test Cases/039.js`, lines 45, 78, 84, 90
+- **Error:** *"Can't find variable: getMatrixValues"* (ReferenceError, line 45)
+
+`getMatrixValues` is defined in `library/Base/indexRangeRelatedUtilities.js`. Monitor Value Change V2
+and Monitor Items Deadband Filter include that file in their `initialize.js`, but Monitor Basic
+does not, so `039.js` only works when another CU has loaded the library earlier in the same run.
+**Fix:** add `include( "./library/Base/indexRangeRelatedUtilities.js" );` to
+`maintree/Monitored Item Services/Monitor Basic/Test Cases/initialize.js`.
+
+### C18. A & C Acknowledge / Confirm cannot find recommended state texts for `en-US`
+
+- **Tests:** A & C Acknowledge `Test_001.js`–`Test_003.js`, `Err_004.js`; A & C Confirm `Test_001.js`–`Test_003.js`
+- **Warning:** *"CTT cannot retrieve recommended text for AckedState in the supplied locale en-US"* (also for
+  ConfirmedState), about 130 times per run
+
+The warning comes from the CTT's own lookup of the Part 9 recommended TwoStateVariable texts, not
+from a server value, and appears for every condition type. Not yet pinpointed. **Fix direction:**
+fall back from a specific locale (`en-US`) to its base language (`en`) when looking up the
+recommended texts.
+
 ## Needs clarification
 
 ### U1. NumberOfTransitions with TreatUncertainAsBad=true
@@ -564,6 +596,45 @@ does not currently exercise:
 
 The last three only show once the CTT sends explicit aggregate configurations (C1).
 
+### Open server findings to investigate
+
+Failures that are not explained by a known CTT defect yet. Each needs a focused reproduction before
+it is classified as a server or CTT issue.
+
+- **Auditing Connections cannot find audit events.** `011.js`/`012.js` (ClientAuditEntryId) and
+  `001.js`/`007.js`/`020.js` (AuditOpenSecureChannel/CreateSession/ActivateSession event types). See
+  C14; a separate root-cause investigation is running.
+- **A & C Refresh `Err_004.js` invalidates the alarm subscription.** The test adds 10 event
+  subscriptions and calls ConditionRefresh five times near-simultaneously, expecting Good or
+  `BadRefreshInProgress`. The call returns `BadSubscriptionIdInvalid`. Afterwards the CTT alarm
+  subscription stays invalid, so A & C Refresh `cleanup.js` and A & C Refresh2 `initialize.js`,
+  `Test_002.js`–`Test_004.js` fail with `BadSubscriptionIdInvalid`. Check per-session subscription
+  limits and subscription handling under concurrent ConditionRefresh.
+- **A & C Comment skips 5 of 11 test cases.** For every alarm type the CTT reports *"0 tests passed
+  1 tests skipped (retry count 3)"*: the alarms did not reach the state the test needs within three
+  retries. Check the CTT-mode alarm simulation timing.
+- **Slow A & C units.** A & C Exclusive/Non-Exclusive Limit/Level (28 cases) and
+  A & C CertificateExpiration did not finish within 15 minutes each and have no results yet; Shelving
+  alone takes about 2.5 minutes, Comment about 4. Run them individually with a long timeout.
+- **GDS QueryServers / QueryApplications Like filters.** Against the GDS node manager in CTT mode
+  (`src/Opc.Ua.Gds.Server`, `ApplicationsDatabaseBase.IsMatchPattern`):
+  - Application Directory `066.js`, `068.js`, `071.js`, `073.js`, `075.js` and Query Applications
+    `011.js`–`024.js` return the wrong number of records for patterns such as `%_erver%` and `[%]`.
+  - `067.js`/`069.js`: patterns containing an escaped `%` or `\` are rejected with
+    `BadInvalidArgument` instead of Good.
+  - `078.js` (`%[a^j-l]%`, an invalid `^` position) and Query Applications `038.js`
+    (applicationType = max UInt32) are accepted with Good instead of `BadInvalidArgument`.
+  - `036.js`: a registered reverse-connect client's DiscoveryUrl does not start with `rcp+`.
+  - `079.js` then aborts in `library/GDS/MethodCalls.js:286` on a null `servers` result.
+- **GDS AliasName Discovery.** `001.js` finds AliasName instances in the TagVariables (`i=23479`) and
+  Topics (`i=23488`) folders although no server is registered yet. `002.js`/`004.js`: the aliases and
+  custom categories of a registered server are not replicated to the GDS.
+- **RevisedSamplingInterval 0.** Monitor Basic `038.js` warns that a requested SamplingInterval of 0 is
+  returned unchanged. Part 4 says 0 means the fastest practical rate, and the revised value should
+  report that rate.
+- **AddNodes latency.** Node Management Delete Node `Err-002.js` reports AddNodes responses 300–600 ms
+  after the request (tolerance 100 ms).
+
 ## CTT project configuration notes
 
 Tests skipped because of reference server sample-data gaps or missing CTT project settings are
@@ -586,6 +657,25 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
   references valid for a Variable target (typically `Organizes`, `HasProperty`, `HasComponent`).
   Non-hierarchical references and `HasSubtype` correctly return `BadReferenceNotAllowed`
   (Part 4 §5.8.2).
+- **DI Base Model.** The 14 DI Base Model CUs (the `DI ITagNameplate`/`DI IVendorNameplate` units
+  under `maintree/OPC UA FX`) skip entirely: the reference server has no
+  `http://opcfoundation.org/UA/DI/` or `http://opcfoundation.org/UA/FX/Data/` namespace and no FxRoot
+  folder. Testing them needs a server that loads the DI and UA FX models.
+- **Discovery.** Find Servers Filter `002.js` needs at least two servers known to FindServers (an LDS);
+  Find Servers Self `010.js` and Get Endpoints `009.js` need a multi-homed host or several hostnames.
+  Find Servers Filter `003.js`/`006.js` and Get Endpoints `002.js` warn that `de-DE` was requested
+  but `en-US` returned, because the server has no `de-DE` ApplicationName.
+- **Auditing.** Auditing Connections `002.js`, `003.js`, `008.js`, `010.js`, `014.js` skip when no other
+  test case in the same run produces the audit event they look for. Run the Auditing group together
+  with the service groups whose actions it audits.
+- **GDS AliasName Discovery.** `005.js`–`015.js` need two or three AliasName sources configured
+  (`/Server Test/GDS/AliasName Discovery/AliasName Source N URL`).
+- **Monitor Value Change V2 `020.js`** needs the ByteString elements 0–2 of its configured array to be at
+  least 4 characters long.
+- **Alarms and Conditions coverage.** The single-case CUs (ConditionClasses, Condition Sub-Classes,
+  Suppression by Operator, Silencing, OutOfService, On-Off Delay, Re-Alarming, First in Group Alarm,
+  Audible Sound, Discrepancy, Trip, A&E Wrapper Mapping, Dialog) contain only manual
+  (*Not Implemented*) test cases.
 - **Historical Access coverage.** Every Historical Access CU except *Read Raw* contains only
   `NoTestCaseDefined.js` in scripts 1.05.513. Insert/Replace/Update/Delete (values and events),
   Annotations, ServerTimestamp, Modified, Time Instance and Structured Data are not tested.
