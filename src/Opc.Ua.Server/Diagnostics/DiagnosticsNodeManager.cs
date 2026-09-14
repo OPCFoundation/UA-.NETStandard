@@ -141,6 +141,7 @@ namespace Opc.Ua.Server
                 }
 
                 m_modifyAddressSpaceSemaphoreSlim.Dispose();
+                m_diagnosticsTransitionSemaphore.Dispose();
 
                 m_historyCapabilities = null;
 
@@ -713,9 +714,25 @@ namespace Opc.Ua.Server
             bool enabled,
             CancellationToken cancellationToken = default)
         {
+            // Transitions are serialized for their whole duration, including the removal of the
+            // dynamic nodes, so that an enable cannot restore nodes that a still running disable
+            // deletes afterwards. Once started, a transition is not cancelled half way.
+            await m_diagnosticsTransitionSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await SetDiagnosticsEnabledCoreAsync(context, enabled).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_diagnosticsTransitionSemaphore.Release();
+            }
+        }
+
+        private async ValueTask SetDiagnosticsEnabledCoreAsync(ServerSystemContext context, bool enabled)
+        {
             var nodesToDelete = new List<NodeState>();
 
-            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
                 if (enabled == DiagnosticsEnabled)
@@ -723,14 +740,18 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                DiagnosticsEnabled = enabled;
-
                 ServerDiagnosticsState diagnosticsNode = FindPredefinedNode<ServerDiagnosticsState>(
                     ObjectIds.Server_ServerDiagnostics);
 
                 if (!enabled)
                 {
-                    // stop scans.
+                    // stop scans; a scan that is already running holds the diagnostics lock, so
+                    // the flag and the Bad_NotReadable states below are applied after it.
+                    lock (m_diagnosticsLock)
+                    {
+                        DiagnosticsEnabled = false;
+                    }
+
                     m_diagnosticsScanTimer?.Dispose();
                     m_diagnosticsScanTimer = null;
 
@@ -754,32 +775,37 @@ namespace Opc.Ua.Server
                     }
 
                     // static diagnostic variables are not readable while disabled.
-                    if (m_serverDiagnostics != null)
+                    lock (m_diagnosticsLock)
                     {
-                        m_serverDiagnostics.Value = null!;
-                        m_serverDiagnostics.Error = StatusCodes.BadNotReadable;
-                        m_serverDiagnostics.Timestamp = DateTime.UtcNow;
-                        m_serverDiagnostics.ChangesComplete(SystemContext);
-                    }
+                        if (m_serverDiagnostics != null)
+                        {
+                            m_serverDiagnostics.Value = null!;
+                            m_serverDiagnostics.Error = StatusCodes.BadNotReadable;
+                            m_serverDiagnostics.Timestamp = DateTime.UtcNow;
+                            m_serverDiagnostics.ChangesComplete(SystemContext);
+                        }
 
-                    SetDiagnosticsArrayStatus(diagnosticsNode, StatusCodes.BadNotReadable);
+                        SetDiagnosticsArrayStatus(diagnosticsNode, StatusCodes.BadNotReadable);
+                    }
                 }
                 else
                 {
+                    DiagnosticsEnabled = true;
+
                     // restore the dynamic nodes of the sessions and subscriptions that are
                     // still alive. Sessions first, the subscriptions link to them.
                     for (int ii = 0; ii < m_sessions.Count; ii++)
                     {
                         m_sessions[ii] = await RestoreSessionDiagnosticsAsync(
                             m_sessions[ii],
-                            cancellationToken).ConfigureAwait(false);
+                            CancellationToken.None).ConfigureAwait(false);
                     }
 
                     for (int ii = 0; ii < m_subscriptions.Count; ii++)
                     {
                         m_subscriptions[ii] = await RestoreSubscriptionDiagnosticsAsync(
                             m_subscriptions[ii],
-                            cancellationToken).ConfigureAwait(false);
+                            CancellationToken.None).ConfigureAwait(false);
                     }
 
                     // reset all diagnostics nodes.
@@ -809,9 +835,11 @@ namespace Opc.Ua.Server
                 m_modifyAddressSpaceSemaphoreSlim.Release();
             }
 
+            // deleted outside the address space lock like DeleteSessionDiagnosticsAsync does,
+            // but still inside the transition.
             for (int ii = 0; ii < nodesToDelete.Count; ii++)
             {
-                await DeleteNodeAsync(context, nodesToDelete[ii].NodeId, cancellationToken).ConfigureAwait(false);
+                await DeleteNodeAsync(context, nodesToDelete[ii].NodeId, CancellationToken.None).ConfigureAwait(false);
             }
         }
 
@@ -2509,6 +2537,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly SemaphoreSlim m_modifyAddressSpaceSemaphoreSlim = new(1, 1);
+        private readonly SemaphoreSlim m_diagnosticsTransitionSemaphore = new(1, 1);
         private readonly Lock m_diagnosticsLock = new();
         private readonly TimeProvider m_timeProvider;
         private readonly ushort m_namespaceIndex;

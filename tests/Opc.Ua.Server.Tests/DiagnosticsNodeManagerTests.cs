@@ -654,6 +654,50 @@ ObjectIds.Server,
             Assert.That(manager.FindPredefinedNode<NodeState>(liveSessionId), Is.Null);
         }
 
+        [Test]
+        public async Task SetDiagnosticsEnabledAsync_EnableDuringDisable_KeepsRestoredNodesAsync()
+        {
+            var config = new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() };
+            SetupServerMock();
+
+            using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
+            var externalRefs = new Dictionary<NodeId, IList<IReference>>();
+            await manager.CreateAddressSpaceAsync(externalRefs).ConfigureAwait(false);
+
+            // make the removal of the dynamic nodes asynchronous, as it is on a running server.
+            var slowNodeManager = new Mock<IMasterNodeManager>();
+            slowNodeManager.Setup(m => m.RemoveReferencesAsync(It.IsAny<List<LocalReference>>(), It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask(Task.Delay(50)));
+            m_serverMock.Setup(s => s.NodeManager).Returns(slowNodeManager.Object);
+
+            static ServiceResult UpdateCallback(ISystemContext ctx, NodeState node, ref Variant value) => ServiceResult.Good;
+            var sessionIds = new List<NodeId>();
+            for (int ii = 0; ii < 3; ii++)
+            {
+                sessionIds.Add(await manager.CreateSessionDiagnosticsAsync(
+                    manager.SystemContext,
+                    new SessionDiagnosticsDataType { SessionName = "RacingSession" + ii },
+                    UpdateCallback,
+                    new SessionSecurityDiagnosticsDataType(),
+                    UpdateCallback).ConfigureAwait(false));
+            }
+
+            // the enable starts while the disable still has to delete the session node; it must
+            // run after the disable has finished and leave the restored node in place.
+            ValueTask disable = manager.SetDiagnosticsEnabledAsync(manager.SystemContext, false);
+            ValueTask enable = manager.SetDiagnosticsEnabledAsync(manager.SystemContext, true);
+            await disable.ConfigureAwait(false);
+            await enable.ConfigureAwait(false);
+
+            Assert.That(manager.DiagnosticsEnabled, Is.True);
+            foreach (NodeId sessionId in sessionIds)
+            {
+                Assert.That(
+                    manager.FindPredefinedNode<SessionDiagnosticsObjectState>(sessionId),
+                    Is.Not.Null,
+                    "A disable that finishes after the enable started must not delete the restored nodes.");
+            }
+        }
         private static DataValue ReadValue(DiagnosticsNodeManager manager, NodeState node)
         {
             var value = new DataValue();

@@ -1332,8 +1332,8 @@ namespace Opc.Ua.Server
                 = OnReadDiagnosticsEnabledFlagUserAccessLevel;
             serverObject.ServerDiagnostics.EnabledFlag.OnSimpleReadValue
                 = OnReadDiagnosticsEnabledFlag;
-            serverObject.ServerDiagnostics.EnabledFlag.OnSimpleWriteValue
-                = OnWriteDiagnosticsEnabledFlag;
+            serverObject.ServerDiagnostics.EnabledFlag.OnSimpleWriteValueAsync
+                = OnWriteDiagnosticsEnabledFlagAsync;
             serverObject.ServerDiagnostics.EnabledFlag.MinimumSamplingInterval = 1000;
 
             // initialize status.
@@ -1531,20 +1531,23 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Sets the Diagnostics.EnabledFlag
         /// </summary>
-        private ServiceResult OnWriteDiagnosticsEnabledFlag(
+        private async ValueTask<AttributeWriteResult> OnWriteDiagnosticsEnabledFlagAsync(
             ISystemContext context,
             NodeState node,
-            ref Variant value)
+            Variant value,
+            CancellationToken cancellationToken)
         {
             if (!value.TryGetValue(out bool enabled))
             {
-                return StatusCodes.BadTypeMismatch;
+                return new AttributeWriteResult(StatusCodes.BadTypeMismatch);
             }
 
-            DiagnosticsNodeManager.SetDiagnosticsEnabledAsync(DefaultSystemContext, enabled)
-                .AsTask().GetAwaiter().GetResult();
+            await DiagnosticsNodeManager.SetDiagnosticsEnabledAsync(
+                DefaultSystemContext,
+                enabled,
+                cancellationToken).ConfigureAwait(false);
 
-            return ServiceResult.Good;
+            return new AttributeWriteResult(ServiceResult.Good);
         }
 
         /// <summary>

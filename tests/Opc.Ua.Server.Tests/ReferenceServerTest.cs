@@ -808,7 +808,13 @@ namespace Opc.Ua.Server.Tests
         {
             ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
                 Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
-            string[] suffixes = ["Boolean", "Int32", "Integer", "UInteger", "Number", "String", "Variant", "XmlElement"];
+            string[] suffixes =
+            [
+                "Boolean", "Byte", "ByteString", "DateTime", "Double", "Duration", "Float", "Guid",
+                "Int16", "Int32", "Int64", "Integer", "LocaleId", "LocalizedText", "NodeId", "Number",
+                "QualifiedName", "SByte", "String", "UInt16", "UInt32", "UInt64", "UInteger", "UtcTime",
+                "Variant", "XmlElement"
+            ];
             var nodesToRead = new List<ReadValueId>();
             foreach (string suffix in suffixes)
             {
@@ -837,6 +843,10 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(arrayDimensions.ToArray(), Is.EqualTo(new uint[] { 5, 5 }), suffixes[ii]);
                 Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good), suffixes[ii]);
                 Assert.That(value.WrappedValue.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.TwoDimensions), suffixes[ii]);
+                Assert.That(value.WrappedValue.AsBoxedObject(), Is.InstanceOf<IConvertableToMatrix>(), suffixes[ii]);
+                Matrix matrix = ((IConvertableToMatrix)value.WrappedValue.AsBoxedObject())
+                    .ToMatrix(value.WrappedValue.TypeInfo.BuiltInType);
+                Assert.That(matrix.Dimensions, Is.EqualTo(new[] { 5, 5 }), suffixes[ii]);
             }
         }
 
