@@ -1144,6 +1144,9 @@ original effective context in an isolated scope, so a same-spelled prefix in
 another source or the projection does not change its meaning. Local and
 term-scoped overrides and explicit null resets remain effective; source-only
 prefixes do not become projection-wide declarations.
+Implicit `ua` and `uav` bindings are used only when no declaration or reset
+blocks them. A total null context reset does not reintroduce those defaults;
+an explicit later prefix declaration can restore the intended binding.
 
 The known [TD 1.1 context](https://www.w3.org/2022/wot/td/v1.1) includes its
 standard vocabulary and prefix scopes: TD terms at the root, JSON Schema terms

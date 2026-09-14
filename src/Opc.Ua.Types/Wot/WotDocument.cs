@@ -240,37 +240,23 @@ namespace Opc.Ua.Wot
             ContextBindingScope? scope, string term, out JsonElement definition, out bool uncertain,
             out ContextBindingScope? definedAt)
         {
-            for (; scope is not null; scope = scope.Parent)
-            {
-                if (!scope.IsKnown)
-                {
-                    definition = default;
-                    uncertain = true;
-                    definedAt = null;
-                    return false;
-                }
-                ContextTermState state = ReadKnownContextTerm(scope.Context, term, out definition);
-                if (state != ContextTermState.Absent)
-                {
-                    uncertain = state == ContextTermState.Unknown;
-                    definedAt = state == ContextTermState.Defined ? scope : null;
-                    return state == ContextTermState.Defined;
-                }
-            }
-            definition = default;
-            uncertain = false;
-            definedAt = null;
-            return false;
+            ContextTermState state = FindKnownContextTerm(scope, term, out definition, out definedAt);
+            uncertain = state == ContextTermState.Unknown;
+            return state == ContextTermState.Defined;
         }
 
         internal static bool TryGetKnownContextPrefix(
             ContextBindingScope? scope, string prefix, out string namespaceUri, out bool uncertain,
             out ContextBindingScope? definedAt)
         {
-            namespaceUri = TryGetKnownContextTerm(
-                scope, prefix, out JsonElement definition, out uncertain, out definedAt)
-                ? ReadContextPrefix(definition)
-                : uncertain ? string.Empty : ReadImplicitContextPrefix(prefix);
+            ContextTermState state = FindKnownContextTerm(scope, prefix, out JsonElement definition, out definedAt);
+            uncertain = state == ContextTermState.Unknown;
+            namespaceUri = state switch
+            {
+                ContextTermState.Defined => ReadContextPrefix(definition),
+                ContextTermState.Absent => ReadImplicitContextPrefix(prefix),
+                _ => string.Empty
+            };
             return namespaceUri.Length != 0;
         }
 
@@ -308,6 +294,29 @@ namespace Opc.Ua.Wot
             ContextScope? scope, string term, out JsonElement definition, out bool uncertain)
         {
             return TryGetKnownContextTerm(scope?.Bindings, term, out definition, out uncertain, out _);
+        }
+
+        private static ContextTermState FindKnownContextTerm(
+            ContextBindingScope? scope, string term, out JsonElement definition, out ContextBindingScope? definedAt)
+        {
+            for (; scope is not null; scope = scope.Parent)
+            {
+                if (!scope.IsKnown)
+                {
+                    definition = default;
+                    definedAt = null;
+                    return ContextTermState.Unknown;
+                }
+                ContextTermState state = ReadKnownContextTerm(scope.Context, term, out definition);
+                if (state != ContextTermState.Absent)
+                {
+                    definedAt = state == ContextTermState.Defined ? scope : null;
+                    return state;
+                }
+            }
+            definition = default;
+            definedAt = null;
+            return ContextTermState.Absent;
         }
 
         private static ContextBindingScope? CreateContextBindings(
