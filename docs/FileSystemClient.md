@@ -284,6 +284,14 @@ Both lazy `FileSystemNodeManager` nodes and materialized
 move, and copy. A NodeId from another namespace, an invalid encoded type,
 or a component identifier cannot alias a file-system object.
 
+Before Delete or MoveOrCopy reaches an arbitrary provider, the lazy host
+validates the decoded provider path. Separator-only root aliases, including
+backslashes, resolve to the protected empty root. Nonroot paths must use
+forward slashes and contain no empty, `.` or `..` segments, backslashes,
+or drive/stream qualifiers. Valid relative paths are passed unchanged.
+The root remains a valid move/copy **destination** for a child, but never
+the object being deleted, moved, or copied.
+
 `FileType.Read` requires a positive length and may return fewer bytes than
 requested. The server advertises `MaxByteStringLength` and bounds each
 read by the file's limit, the server byte-string limit, and the available
@@ -313,8 +321,15 @@ queued operations before disposing its synchronization resources.
 If a provider mutation commits but the subsequent refresh fails, the
 mutation remains successful and an error identifies the unsynchronized
 binding. `RefreshAsync` retries reconciliation, as does the next mutation
-before it changes the provider again. Failed registration callbacks are
-retried rather than treating an unregistered node as complete.
+before it changes the provider again. A recoverable pre-mutation refresh
+failure is also logged, without blocking a corrective mutation such as
+deleting an entry after external changes exceeded `MaxEntries`. The error
+records whether the current provider mutation has committed. Capacity
+admission and provider errors still apply; cancellation before commit
+still stops the operation. Reconciliation does not truncate over-limit
+directories, and an explicit `RefreshAsync` still reports its failure to
+the caller. Failed registration callbacks are retried rather than treating
+an unregistered node as complete.
 
 ## See also
 

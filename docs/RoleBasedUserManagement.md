@@ -179,11 +179,15 @@ serverInternal.SetUserManagement(userManagement);
 SignAndEncrypt) and `RoleAuthorizationGate.CheckSelfUserName` on
 `ChangePassword`, and closes a deactivated user's sessions **and
 subscriptions** through the server's coordinated teardown. `ModifyUser`
-and `RemoveUser` wait for that teardown before reporting success.
+and `RemoveUser` wait for that teardown and return the user-change result.
+A session-close failure is logged; it does not turn a committed user change
+into a failed method result.
 The binding resolves the server's session manager when needed because
 the diagnostics address space is created before the session manager.
 External deactivation notifications are tracked; `DisposeAsync` drains
-accepted work, and the configuration manager awaits it during shutdown.
+accepted work. The master drains configuration shutdown work before acquiring
+the address-space teardown gate, so pending session-close notifications can
+complete without deadlocking shutdown.
 
 Spec result codes honoured:
 

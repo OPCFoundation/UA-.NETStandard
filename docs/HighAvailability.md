@@ -124,8 +124,10 @@ OPC 10000-4 Table 105 defines `ServiceLevel` as a byte split into mandatory sub-
 confirmed lease. Its injected `TimeProvider` drives both renewal and an
 independent expiry timer, so failed or blocked store operations cannot keep a
 replica authoritative past that deadline. `IsLeader` also checks the deadline
-when read, and expiry raises `LeadershipChanged(false)` to update dependent
-service levels. Lease validity starts at the write attempt, not at receipt of
+when read, without invoking application callbacks. The expiry timer raises
+`LeadershipChanged(false)` to update dependent service levels. Subscriber
+failures are logged without interrupting other subscribers or lease operations.
+Lease validity starts at the write attempt, not at receipt of
 its reply; an expired or superseded operation cannot restore leadership. A
 fresh, confirmed acquisition is required after expiry. The UTC lease record is
 also bounded by local elapsed time, so moving the local clock backwards cannot

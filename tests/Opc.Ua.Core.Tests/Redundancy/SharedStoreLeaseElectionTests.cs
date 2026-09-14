@@ -635,6 +635,89 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(election.IsLeader, Is.False);
         }
 
+        [Test]
+        public async Task ThrowingLeadershipSubscriberDoesNotFailAcquireOrDisposeAsync()
+        {
+            var time = new FakeTimeProvider();
+            using var store = new InMemorySharedKeyValueStore();
+            var logger = new RecordingLogger();
+            await using SharedStoreLeaseElection election = CreateElection(store, "A", time, logger: logger);
+            var observed = new List<bool>();
+            election.LeadershipChanged += _ => throw new InvalidOperationException("Subscriber failed.");
+            election.LeadershipChanged += observed.Add;
+
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            Assert.That(election.IsLeader, Is.True);
+            Assert.That(observed, Has.Count.EqualTo(1));
+            Assert.That(observed[0], Is.True);
+            Assert.That(logger.ErrorCount, Is.EqualTo(1));
+
+            await election.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(election.IsLeader, Is.False);
+            Assert.That(observed, Is.EqualTo(s_acquireThenLoss));
+            Assert.That(logger.ErrorCount, Is.EqualTo(2));
+            (bool found, _) = await store.TryGetAsync(LeaseKey).ConfigureAwait(false);
+            Assert.That(found, Is.False);
+        }
+
+        [Test]
+        public async Task ExpiryNotifiesOtherSubscribersWhenOneThrowsAsync()
+        {
+            var time = new FakeTimeProvider();
+            using var store = new InMemorySharedKeyValueStore();
+            var logger = new RecordingLogger();
+            await using SharedStoreLeaseElection election = CreateElection(store, "A", time, logger: logger);
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            var observed = new List<bool>();
+            election.LeadershipChanged += _ => throw new InvalidOperationException("Subscriber failed.");
+            election.LeadershipChanged += observed.Add;
+
+            Assert.That(() => time.Advance(s_leaseDuration), Throws.Nothing);
+
+            Assert.That(election.IsLeader, Is.False);
+            Assert.That(observed, Has.Count.EqualTo(1));
+            Assert.That(observed[0], Is.False);
+            Assert.That(logger.ErrorCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task IsLeaderDoesNotDispatchExpiryNotificationsAsync()
+        {
+            var clock = new FakeTimeProvider();
+            var timer = new Mock<ITimer>();
+            timer.Setup(value => value.Change(It.IsAny<TimeSpan>(), It.IsAny<TimeSpan>())).Returns(true);
+            timer.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
+            var time = new Mock<TimeProvider>();
+            time.Setup(value => value.GetUtcNow()).Returns(clock.GetUtcNow);
+            time.Setup(value => value.GetTimestamp()).Returns(clock.GetTimestamp);
+            time.SetupGet(value => value.TimestampFrequency).Returns(clock.TimestampFrequency);
+            Action fireTimer = () => throw new InvalidOperationException("The expiry timer was not created.");
+            time.Setup(value => value.CreateTimer(
+                    It.IsAny<TimerCallback>(),
+                    It.IsAny<object?>(),
+                    It.IsAny<TimeSpan>(),
+                    It.IsAny<TimeSpan>()))
+                .Callback<TimerCallback, object?, TimeSpan, TimeSpan>(
+                    (callback, state, _, _) => fireTimer = () => callback(state))
+                .Returns(timer.Object);
+            using var store = new InMemorySharedKeyValueStore();
+            await using SharedStoreLeaseElection election = CreateElection(store, "A", time.Object);
+            var observed = new List<bool>();
+            election.LeadershipChanged += observed.Add;
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+
+            clock.Advance(s_leaseDuration);
+
+            Assert.That(election.IsLeader, Is.False);
+            Assert.That(observed, Has.Count.EqualTo(1), "Reading leadership must not invoke application callbacks.");
+            Assert.That(observed[0], Is.True);
+
+            fireTimer();
+
+            Assert.That(observed, Is.EqualTo(s_acquireThenLoss));
+        }
+
         private static SharedStoreLeaseElection CreateElection(
             ISharedKeyValueStore store,
             string nodeId,
@@ -668,6 +751,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             public Task ErrorLogged => m_errorLogged.Task;
+            public int ErrorCount => Volatile.Read(ref m_errorCount);
 
             public IDisposable BeginScope<TState>(TState state)
                 where TState : notnull
@@ -689,9 +773,12 @@ namespace Opc.Ua.Core.Tests.Redundancy
             {
                 if (logLevel == LogLevel.Error)
                 {
+                    Interlocked.Increment(ref m_errorCount);
                     m_errorLogged.TrySetResult(true);
                 }
             }
+
+            private int m_errorCount;
 
             private sealed class NullScope : IDisposable
             {

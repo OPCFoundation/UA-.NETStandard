@@ -2240,6 +2240,78 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Event deletion releases a retired generation's notification snapshot even when
+        /// its unsubscribe reports a failure; the deleted item is never replayed at finalization.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RetiredAllEventsDeletionCompletesBookkeepingAndReleasesGenerationAsync(
+            bool unsubscribeFails)
+        {
+            StatusCode unsubscribeStatus = unsubscribeFails ? StatusCodes.BadCommunicationError : StatusCodes.Good;
+            TrackingLifecycleNodeManager retiredManager = null;
+            NodeManagerRegistration original = await m_server.NodeManagerLifecycle
+                .AddAsync(CreateTrackingNodeManagementFactory(
+                    kGeneration1Value,
+                    manager => retiredManager = manager), null)
+                .ConfigureAwait(false);
+
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
+            var valueNodeId = new NodeId(kValueNodeId, ns);
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            (uint dataSubscriptionId, uint dataMonitoredItemId) =
+                await CreateSubscriptionAndMonitoredItemAsync(
+                    services, valueNodeId, clientHandle: 1).ConfigureAwait(false);
+            (uint eventSubscriptionId, uint eventMonitoredItemId) =
+                await CreateSubscriptionAndEventMonitoredItemAsync(
+                    services, ObjectIds.Server).ConfigureAwait(false);
+            IEventMonitoredItem eventItem = server.EventManager.GetMonitoredItems()
+                .Single(item => item.Id == eventMonitoredItemId);
+            ISubscription eventSubscription = server.SubscriptionManager.GetSubscriptions()
+                .Single(subscription => subscription.Id == eventSubscriptionId);
+            NodeManagerRegistration replacement = await m_server.NodeManagerLifecycle
+                .ShadowReloadAsync(original, CreateNodeManagementFactory(kGeneration2Value, includeEuRange: false))
+                .ConfigureAwait(false);
+            retiredManager.AllEventsUnsubscribeResult = new ServiceResult(unsubscribeStatus);
+
+            RequestHeader header = m_requestHeader;
+            header.Timestamp = DateTimeUtc.Now;
+            DeleteMonitoredItemsResponse response = await services
+                .DeleteMonitoredItemsAsync(header, eventSubscriptionId, [eventMonitoredItemId])
+                .ConfigureAwait(false);
+
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.Results[0], Is.EqualTo(unsubscribeStatus));
+            Assert.That(eventSubscription.MonitoredItemCount, Is.Zero);
+            Assert.That(server.EventManager.GetMonitoredItems().Any(item => item.Id == eventMonitoredItemId), Is.False);
+            MasterNodeManager.NotificationDispatchLease[] remaining =
+                master.GetAllEventUnsubscribeDispatches(eventItem);
+            bool retainsDeletedEvent;
+            try
+            {
+                retainsDeletedEvent = remaining.Any(dispatch =>
+                    ReferenceEquals(dispatch.NodeManager, retiredManager));
+            }
+            finally
+            {
+                MasterNodeManager.DisposeNotificationDispatches(remaining);
+            }
+
+            await DeleteMonitoredItemAsync(services, dataSubscriptionId, dataMonitoredItemId).ConfigureAwait(false);
+            await retiredManager.DisposalCompleted.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.That(retiredManager.Find(valueNodeId), Is.Null);
+            Assert.That(retainsDeletedEvent, Is.False, "Deleted event items must leave the retired snapshot.");
+            Assert.That(retiredManager.AllEventsUnsubscribeCount, Is.EqualTo(1),
+                "Finalization must not replay an unsubscribe for an already deleted item.");
+            await DeleteSubscriptionAsync(services, dataSubscriptionId).ConfigureAwait(false);
+            await DeleteSubscriptionAsync(services, eventSubscriptionId).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.RemoveAsync(replacement, null).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// If prompt cleanup suspends a graceful retiree and its request drain fails, a
         /// monitored item that appears during the drain keeps the retiree alive. Its session
         /// and retained all-events notifications must be restored until the item drains.
@@ -7815,6 +7887,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public int DisposeCount =>
                 Volatile.Read(ref m_disposeCount);
 
+            public Task DisposalCompleted => m_disposalCompleted.Task;
+
+            public ServiceResult AllEventsUnsubscribeResult { get; set; } = ServiceResult.Good;
+
             public int DeleteAddressSpaceFailuresRemaining
             {
                 get => Volatile.Read(ref m_deleteAddressSpaceFailuresRemaining);
@@ -7909,7 +7985,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         cancellationToken).ConfigureAwait(false);
                 }
 
-                return await base
+                ServiceResult result = await base
                     .SubscribeToAllEventsAsync(
                         context,
                         subscriptionId,
@@ -7917,6 +7993,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         unsubscribe,
                         cancellationToken)
                     .ConfigureAwait(false);
+                return unsubscribe && ServiceResult.IsGood(result) ? AllEventsUnsubscribeResult : result;
             }
 
             public override async ValueTask<ServiceResult> ConditionRefreshAsync(
@@ -7951,6 +8028,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
             }
 
+            public override async ValueTask DisposeAsync()
+            {
+                await base.DisposeAsync().ConfigureAwait(false);
+                m_disposalCompleted.TrySetResult(true);
+            }
+
             protected override void Dispose(bool disposing)
             {
                 if (disposing)
@@ -7981,6 +8064,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 return false;
             }
+
+            private readonly TaskCompletionSource<bool> m_disposalCompleted =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         /// <summary>

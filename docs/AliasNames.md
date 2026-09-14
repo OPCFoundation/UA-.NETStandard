@@ -35,8 +35,9 @@ matching. Backslashes escape literal characters inside and outside
 character sets; `[^...]` negates a set (`[!...]` remains accepted for
 compatibility). Wildcards match line breaks. Invalid sets return
 `BadInvalidArgument` from both FindAlias variants even with an empty
-store. A 100 ms per-name evaluation budget produces `BadTimeout` on
-expiry, and scans observe request cancellation between names.
+store. Matching each alias name has a 100 ms time limit; exceeding it returns
+`BadTimeout`. The server also checks for request cancellation before matching
+the next name.
 
 The server library exposes a pluggable backend (`IAliasNameStore`) plus
 a default in-memory implementation. Apps assemble their alias inventory

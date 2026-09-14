@@ -96,6 +96,22 @@ to replace those snapshots and invalidate cached validation results.
 An explicit-only list can validate certificates without a `StorePath`;
 store-management operations still require a configured backing store.
 
+**Inline issuer revocation policy:** when an inline issuer's list has a backing
+store that checks CRLs, `RejectUnknownRevocationStatus = true` rejects
+`BadCertificateRevocationUnknown` (or `BadCertificateIssuerRevocationUnknown`)
+if that store has no current CRL for the issuer. An inline entry does not
+implicitly suppress this check. This intentionally tightens compatibility with
+validators that accepted inline issuers without checking the configured store:
+provide the issuer's current CRL when using strict revocation policy.
+An explicit-only list without a backing store retains its no-store behavior.
+Disabling unknown-status rejection, or explicitly suppressing unknown status,
+never suppresses an actual `BadCertificateRevoked` or `BadCertificateIssuerRevoked`
+result. If the issuer is present both in the store and inline, the store's
+certificate and validation options take precedence.
+This follows the distinction between a suppressible missing revocation list
+and non-suppressible revocation in
+[OPC 10000-4, 6.1.3, Table 100](https://reference.opcfoundation.org/specs/OPC-10000-4/v1.05.07/6.1.3).
+
 > **Concurrency & caching:** `ValidateAsync` is designed for highly concurrent
 > use — a single shared `CertificateManager` validates many certificates in
 > parallel without serializing on an internal lock. Each trust-list is backed by
@@ -280,8 +296,11 @@ TrustList changes made with `AddCertificateAsync` / `RemoveCertificateAsync` / `
   per configured scope within the process; distributed stores use conditional
   compare-and-swap, including atomic deletion, across replicas. Custom stores
   implement this capability to support uploads using regenerated keys; a legacy
-  store is never destructively probed for an unverified match. Its existing
-  explicit `TryTakeAsync` API remains available.
+  store is never destructively probed for an unverified match.
+  With only `IPendingCertificateKeyStore`, `CreateSigningRequest` rejects
+  `regeneratePrivateKey: true` with `Bad_NotSupported` before generating or
+  saving a key. Existing-key signing requests and updates remain supported.
+  The provider's explicit `TryTakeAsync` API remains available.
 - `IPushCertificateKeyGenerator` (default: `AdditionalEntropyCertificateKeyGenerator`) generates the regenerated signing-request key pair, **genuinely mixing the caller-supplied §7.10.10 `Nonce` into the private key** (see *Method security and validation* below).
 
 Both are also constructor parameters on `ConfigurationNodeManager`/`MainNodeManagerFactory` for applications that construct the server directly instead of through DI; omitting them lets `ConfigurationNodeManager` create its own private defaults.
@@ -310,7 +329,13 @@ HTTPS slot can subsequently be reloaded and activated with its private key.
 and ECC requests even when `regeneratePrivateKey` is false. In that case
 the request retains the existing public key and subject alternative names
 without changing the active certificate; a null or empty subject retains
-the active certificate's subject.
+the active certificate's subject, including when only the store can resolve it.
+For regeneration, that subject is resolved before creating the new key.
+If neither metadata nor an existing certificate supplies a subject, regeneration
+returns `Bad_InvalidArgument` before key generation.
+A malformed subject returns `Bad_InvalidArgument` before key generation or
+pending-key changes; the active certificate and any earlier pending key remain
+unchanged.
 
 `CreateSigningRequest(regeneratePrivateKey: true)` additionally requires the caller to supply at least **32 bytes** of additional entropy in the `Nonce` argument (§7.10.10); a shorter or missing `Nonce` is rejected with `Bad_InvalidArgument` and leaves all state unchanged. The default `AdditionalEntropyCertificateKeyGenerator` genuinely incorporates that entropy: it instantiates a NIST SP 800-90A HMAC-DRBG from a fresh server-side cryptographic seed concatenated with the caller `Nonce`, and derives the RSA primes (via managed `BigInteger` prime generation, on every target framework) or the EC private scalar from that DRBG. Because the server seed is always present, a weak or adversarial `Nonce` can never weaken the key; a strong `Nonce` genuinely adds entropy. On .NET Framework and `netstandard2.1` the platform cannot import a private-only EC scalar, so genuine additional-entropy incorporation into an ECC key is unavailable there: an ECC `regeneratePrivateKey: true` request is rejected with `Bad_NotSupported` rather than silently generating a key that ignores the mandated `Nonce` (use an RSA `CertificateType`, or run the server on .NET 8 or later, to regenerate an ECC key). RSA keys remain fully nonce-derived on all frameworks.
 
@@ -780,6 +805,15 @@ Built-in providers:
 - `Pkcs11StoreProvider` — a hardware token, smart card or HSM addressed by an RFC 7512 `pkcs11:` URI (store type `PKCS11`); the private key is used but never leaves the device. Ships in the optional `OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` package. See [CryptoProvider](CryptoProvider.md).
 
 Custom providers are passed to the `CertificateManager` constructor (or via `CertificateManagerOptions.AddStoreProvider`):
+
+Provider-aware resolution applies both when registering trust-list paths and
+when validating certificates against those stores. It resolves the default
+directory fallback for provider-specific URIs without replacing a configured
+custom store type. Validation caches retain the selected provider's store and
+release it when the validation core is retired.
+The built-in directory provider is used as a fallback during path resolution,
+even when listed before a custom provider. Native `CurrentUser\...` and
+`LocalMachine\...` paths continue to select the X509 store.
 
 ```csharp
 var manager = new CertificateManager(

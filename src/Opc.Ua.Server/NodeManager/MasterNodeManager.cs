@@ -244,6 +244,7 @@ namespace Opc.Ua.Server
 
         private async Task DisposeNodeManagersAsync()
         {
+            await PrepareNodeManagersForShutdownAsync().ConfigureAwait(false);
             await m_startupShutdownSemaphoreSlim.WaitAsync().ConfigureAwait(false);
             var errors = new List<Exception>();
             try
@@ -485,6 +486,8 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public virtual async ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            await PrepareNodeManagersForShutdownAsync().ConfigureAwait(false);
             await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
 
             try
@@ -538,6 +541,17 @@ namespace Opc.Ua.Server
             finally
             {
                 m_startupShutdownSemaphoreSlim.Release();
+            }
+        }
+
+        private async ValueTask PrepareNodeManagersForShutdownAsync()
+        {
+            foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+            {
+                if (nodeManager is INodeManagerShutdown shutdown)
+                {
+                    await shutdown.PrepareForShutdownAsync().ConfigureAwait(false);
+                }
             }
         }
 
@@ -910,6 +924,10 @@ namespace Opc.Ua.Server
 
             await FinalizeRetiredGenerationNotificationsAsync(nodeManager, ct)
                 .ConfigureAwait(false);
+            if (nodeManager is INodeManagerShutdown shutdown)
+            {
+                await shutdown.PrepareForShutdownAsync().ConfigureAwait(false);
+            }
             await m_startupShutdownSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
             try
             {

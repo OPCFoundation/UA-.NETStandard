@@ -46,7 +46,10 @@ namespace Opc.Ua.Server
     /// certificate alarms and namespace metadata live in the sibling
     /// <c>ConfigurationNodeManager.*.cs</c> files.
     /// </summary>
-    public partial class ConfigurationNodeManager : DiagnosticsNodeManager, IConfigurationNodeManager
+    public partial class ConfigurationNodeManager :
+        DiagnosticsNodeManager,
+        IConfigurationNodeManager,
+        INodeManagerShutdown
     {
         /// <summary>
         /// Initializes the configuration and diagnostics manager.
@@ -533,14 +536,26 @@ namespace Opc.Ua.Server
         /// </summary>
         public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
+            await PrepareForShutdownAsync().ConfigureAwait(false);
+            await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        ValueTask INodeManagerShutdown.PrepareForShutdownAsync()
+        {
+            return PrepareForShutdownAsync();
+        }
+
+        private async ValueTask PrepareForShutdownAsync()
+        {
             StopAlarmMonitoring();
             CancelPendingApplyChanges();
 
             UserManagement.UserManagementBinding? userManagement =
-                Interlocked.Exchange(ref m_userManagementBinding, null);
+                Volatile.Read(ref m_userManagementBinding);
             if (userManagement != null)
             {
                 await userManagement.DisposeAsync().ConfigureAwait(false);
+                Interlocked.CompareExchange(ref m_userManagementBinding, null, userManagement);
             }
 
             Task pending;
@@ -573,8 +588,6 @@ namespace Opc.Ua.Server
             {
                 m_logger.DeferredApplyChangesFaultedDuringShutdown(ex);
             }
-
-            await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

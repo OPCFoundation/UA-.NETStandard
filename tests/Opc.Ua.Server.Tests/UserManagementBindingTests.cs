@@ -503,13 +503,23 @@ namespace Opc.Ua.Server.Tests
             session.Verify(s => s.Dispose(), Times.Never);
         }
 
-        [Test]
-        public async Task UserDeactivatedLogsCloseFailureAndContinuesAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CommittedUserChangeKeepsResultAndPublishedUsersWhenCloseFailsAsync(bool remove)
         {
             var loggerFactory = new Mock<ILoggerFactory>();
             loggerFactory.Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(m_mockLogger.Object);
             Mock.Get(m_mockServer.Object.Telemetry).Setup(t => t.LoggerFactory).Returns(loggerFactory.Object);
             m_mockLogger.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
+            m_userManagement.SetupSequence(m => m.SnapshotUsers())
+                .Returns([new UserManagementDataType { UserName = "bob" }])
+                .Returns(remove
+                    ? []
+                    : [new UserManagementDataType
+                    {
+                        UserName = "bob",
+                        UserConfiguration = (uint)UserConfigurationMask.Disabled
+                    }]);
             (TestableAsyncCustomNodeManager manager, UserManagementState state) =
                 CreateNodeManagerWithCreatedUserManagementNode();
             using var managerLifetime = manager;
@@ -521,22 +531,22 @@ namespace Opc.Ua.Server.Tests
                 .Throws(failure);
             var sessionManager = new Mock<ISessionManager>();
             sessionManager.Setup(m => m.GetSessions()).Returns([session.Object, anotherSession.Object]);
-            m_userManagement.Setup(m => m.RemoveUser("bob", "admin"))
-                .Callback(() => m_userManagement.Raise(
-                    u => u.UserDeactivated += null, new UserDeactivatedEventArgs("bob")))
-                .Returns(ServiceResult.Good);
+            SetupUserDeactivation();
 
             using var binding =
                 UserManagementBinding.Bind(manager, m_userManagement.Object, sessionManager.Object);
 
-            RemoveUserMethodStateResult result = await state.RemoveUser!.OnCallAsync!(
-                BuildAdminContext(),
-                state.RemoveUser,
-                state.NodeId,
-                "bob",
-                CancellationToken.None).ConfigureAwait(false);
+            ServiceResult result = await InvokeUserChangeAsync(
+                state, BuildAdminContext(), remove, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That(state.Users!.Value, Has.Count.EqualTo(remove ? 0 : 1));
+            if (!remove)
+            {
+                Assert.That(state.Users.Value[0].UserName, Is.EqualTo("bob"));
+                Assert.That(state.Users.Value[0].UserConfiguration,
+                    Is.EqualTo((uint)UserConfigurationMask.Disabled));
+            }
+            m_userManagement.Verify(m => m.SnapshotUsers(), Times.Exactly(2));
             m_mockServer.Verify(s => s.CloseSessionAsync(
                 It.IsAny<OperationContext>(), anotherSession.Object.Id, true, CancellationToken.None), Times.Once);
             m_mockLogger.Verify(l => l.Log(
@@ -546,6 +556,40 @@ namespace Opc.Ua.Server.Tests
                 failure,
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
             session.Verify(s => s.Dispose(), Times.Never);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good),
+                "A logged session-close failure must not report the committed user change as failed.");
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedUserChangeKeepsPublishedUsersAndDoesNotCloseSessionsAsync(bool remove)
+        {
+            m_userManagement.Setup(m => m.SnapshotUsers())
+                .Returns([new UserManagementDataType { UserName = "alice" }]);
+            m_userManagement.Setup(m => m.RemoveUser("bob", "admin"))
+                .Returns(new ServiceResult(StatusCodes.BadNotFound));
+            m_userManagement.Setup(m => m.ModifyUser(
+                    "bob", false, string.Empty, true, UserConfigurationMask.Disabled, false, string.Empty, "admin"))
+                .Returns(new ServiceResult(StatusCodes.BadNotFound));
+            (TestableAsyncCustomNodeManager manager, UserManagementState state) =
+                CreateNodeManagerWithCreatedUserManagementNode();
+            using var managerLifetime = manager;
+            var sessionManager = new Mock<ISessionManager>();
+            using var binding =
+                UserManagementBinding.Bind(manager, m_userManagement.Object, sessionManager.Object);
+
+            ServiceResult result = await InvokeUserChangeAsync(
+                state, BuildAdminContext(), remove, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
+            Assert.That(state.Users!.Value, Has.Count.EqualTo(1));
+            Assert.That(state.Users.Value[0].UserName, Is.EqualTo("alice"));
+            Assert.That(state.Users.Value[0].UserConfiguration, Is.Zero);
+            m_userManagement.Verify(m => m.SnapshotUsers(), Times.Once);
+            sessionManager.Verify(m => m.GetSessions(), Times.Never);
+            m_mockServer.Verify(s => s.CloseSessionAsync(
+                It.IsAny<OperationContext>(), It.IsAny<NodeId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+                Times.Never);
         }
 
         [Test]

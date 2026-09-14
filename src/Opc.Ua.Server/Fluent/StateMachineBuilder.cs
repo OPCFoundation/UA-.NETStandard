@@ -413,10 +413,12 @@ namespace Opc.Ua.Server.Fluent
                 m_currentStateForTimer = ReadCurrentStateId();
                 m_currentStateEnteredAt = m_timeProvider.GetTimestamp();
                 m_currentStateRevision = StateMachine.StateRevision;
+                m_lastTimedRejection = null;
                 return;
             }
 
             uint stateId = m_currentStateForTimer;
+            long revision = m_currentStateRevision;
             long enteredAt = m_currentStateEnteredAt;
             double elapsedSinceEnter = m_timeProvider.GetElapsedTime(enteredAt).TotalSeconds;
 
@@ -440,10 +442,19 @@ namespace Opc.Ua.Server.Fluent
                 }
 
                 ServiceResult result = StateMachine.TryTimedTransition(
-                    context, t.FromStateId, m_currentStateRevision, transitionId: 0, t.CauseId, static () => true);
+                    context, t.FromStateId, revision, transitionId: 0, t.CauseId, static () => true);
                 if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadInvalidState)
                 {
-                    m_logger.FluentTimedTransitionRejected(t.FromStateId, result);
+                    var rejection = (t.FromStateId, revision, result.StatusCode);
+                    if (m_lastTimedRejection != rejection)
+                    {
+                        m_lastTimedRejection = rejection;
+                        m_logger.FluentTimedTransitionRejected(t.FromStateId, result);
+                    }
+                }
+                else
+                {
+                    m_lastTimedRejection = null;
                 }
                 // After firing, the entered-at field has been refreshed
                 // in CoordinatorAfter via the state transition.
@@ -513,6 +524,7 @@ namespace Opc.Ua.Server.Fluent
         private long m_currentStateRevision;
         private uint m_currentStateForTimer;
         private long m_currentStateEnteredAt;
+        private (uint StateId, long Revision, StatusCode Status)? m_lastTimedRejection;
         private bool m_simulationRegistered;
 
         private static readonly TimeSpan s_timedTransitionTickInterval =

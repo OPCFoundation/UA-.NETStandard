@@ -1030,6 +1030,13 @@ namespace Opc.Ua.Server
             NodeId sessionId = GetSessionId(context);
             m_coordinator.ValidateSessionCanParticipate(sessionId);
 
+            if (regeneratePrivateKey && m_pendingKeyStore is not IMatchingPendingCertificateKeyStore)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "Regenerating a private key requires a pending-key store with matching-only consumption.");
+            }
+
             CertificateIdentifier existingCertIdentifier =
                 FindCertificateIdentifier(certificateGroup, certificateTypeId);
 
@@ -1045,6 +1052,36 @@ namespace Opc.Ua.Server
             if (string.IsNullOrEmpty(subjectName))
             {
                 subjectName = (currentCert?.Subject ?? existingCertIdentifier.SubjectName)!;
+            }
+
+            if (regeneratePrivateKey && currentCert == null && string.IsNullOrEmpty(subjectName))
+            {
+                using Certificate? existingCertificate = await CertificateIdentifierResolver.ResolveAsync(
+                    existingCertIdentifier,
+                    registry: null,
+                    needPrivateKey: false,
+                    m_configuration.ApplicationUri,
+                    Server.Telemetry,
+                    cancellationToken).ConfigureAwait(false);
+                subjectName = existingCertificate?.Subject ?? throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "The SubjectName must be specified when an existing certificate cannot be resolved.");
+            }
+
+            X500DistinguishedName? requestedSubject = null;
+            if (!string.IsNullOrEmpty(subjectName))
+            {
+                try
+                {
+                    requestedSubject = new X500DistinguishedName(subjectName);
+                }
+                catch (CryptographicException ex)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidArgument,
+                        "The SubjectName is not a valid X.500 distinguished name.",
+                        ex);
+                }
             }
 
             PendingCertificateKeyContext pendingKeyContext =
@@ -1063,19 +1100,6 @@ namespace Opc.Ua.Server
                     domainNames,
                     nonce,
                     cancellationToken);
-
-                // A repeated signing request replaces (and disposes) any
-                // previously pending key for this slot (§7.10.10).
-                if (!await m_pendingKeyStore
-                    .SaveAsync(pendingKeyContext, certWithPrivateKey, cancellationToken)
-                    .ConfigureAwait(false))
-                {
-                    certWithPrivateKey.Dispose();
-                    throw new ServiceResultException(
-                        StatusCodes.BadNotSupported,
-                        "Secure persistence of the regenerated private key is not supported " +
-                        "for this certificate store.");
-                }
             }
             else
             {
@@ -1091,11 +1115,6 @@ namespace Opc.Ua.Server
                         cancellationToken)
                     .ConfigureAwait(false) ??
                     throw ServiceResultException.Create(StatusCodes.BadInternalError, "Failed to load private key");
-
-                // No regenerated key accompanies this request; discard any
-                // previously pending one so a later UpdateCertificate does
-                // not pick up a stale key.
-                await m_pendingKeyStore.RemoveAsync(pendingKeyContext, cancellationToken).ConfigureAwait(false);
             }
 
             try
@@ -1103,8 +1122,27 @@ namespace Opc.Ua.Server
                 m_logger.CreateSigningRequest(certWithPrivateKey);
                 var certificateRequest = ByteString.From(DefaultCertificateFactory.CreateSigningRequest(
                     certWithPrivateKey,
-                    new X500DistinguishedName(subjectName),
+                    requestedSubject ?? certWithPrivateKey.SubjectName,
                     X509Utils.GetDomainsFromCertificate(certWithPrivateKey).ToArray()));
+
+                if (regeneratePrivateKey)
+                {
+                    // Replace the pending key only after its signing request is ready.
+                    if (!await m_pendingKeyStore
+                        .SaveAsync(pendingKeyContext, certWithPrivateKey, cancellationToken)
+                        .ConfigureAwait(false))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadNotSupported,
+                            "Secure persistence of the regenerated private key is not supported " +
+                            "for this certificate store.");
+                    }
+                }
+                else
+                {
+                    // A successful existing-key request supersedes any pending regenerated key.
+                    await m_pendingKeyStore.RemoveAsync(pendingKeyContext, cancellationToken).ConfigureAwait(false);
+                }
 
                 return new CreateSigningRequestMethodStateResult
                 {

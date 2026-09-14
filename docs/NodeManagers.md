@@ -163,6 +163,17 @@ mutations participate in the same lifetime. `MasterNodeManager` and the server's
 asynchronous teardown await this cleanup; prefer `await using` when directly
 owning a manager. Subclasses release deferred resources in `DisposeAsyncCore`,
 which runs after admitted operations drain, and await its base implementation.
+Cleanup starts outside the admission lock, including when all operations have
+already completed. Guarded helpers remain available within the active
+`DisposeAsyncCore` async context, but new caller operations remain rejected.
+Subclasses must await their teardown operations before the callback returns.
+Operation lifetime extends through post-processing callbacks even after their
+semaphore scope has ended.
+
+Before serializing address-space deletion or disposal, the master drains
+configuration work that can call back into the server. Session-closing
+notifications and the address space remain available until accepted user
+deactivations and deferred configuration effects complete.
 
 The core manager owns and imports built-in nodes that other server components need to expose as part of the standard server address space. It is also the target for nodes loaded by the diagnostics/configuration manager from generated model output: `DiagnosticsNodeManager.CreateAddressSpaceAsync` loads predefined diagnostics/configuration nodes and then imports them into the core manager with `ImportNodesAsync(..., isInternal: true)`. When application nodes are imported with `isInternal: false`, the core manager updates the diagnostics manager so diagnostics metadata stays in sync.
 

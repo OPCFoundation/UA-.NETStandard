@@ -342,7 +342,6 @@ namespace Opc.Ua.Server.UserManagement
             try
             {
                 ServiceResult result;
-                ServiceResult[] closeResults;
                 try
                 {
                     result = change();
@@ -359,19 +358,9 @@ namespace Opc.Ua.Server.UserManagement
                     {
                         pending = deactivations.ToArray();
                     }
-                    closeResults = await Task.WhenAll(pending).ConfigureAwait(false);
+                    await Task.WhenAll(pending).ConfigureAwait(false);
                 }
 
-                if (ServiceResult.IsGood(result))
-                {
-                    foreach (ServiceResult closeResult in closeResults)
-                    {
-                        if (ServiceResult.IsBad(closeResult))
-                        {
-                            return closeResult;
-                        }
-                    }
-                }
                 return result;
             }
             finally

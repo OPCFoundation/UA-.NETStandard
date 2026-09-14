@@ -115,12 +115,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(untrusted.IsValid, Is.False);
         }
 
-        [TestCase("Peers")]
-        [TestCase("Users")]
-        [TestCase("Https")]
-        public async Task ExplicitIssuerChainIsHonoredWithoutStorePathAsync(string scope)
+        [TestCase("Peers", false)]
+        [TestCase("Peers", true)]
+        [TestCase("Users", false)]
+        [TestCase("Users", true)]
+        [TestCase("Https", false)]
+        [TestCase("Https", true)]
+        public async Task ExplicitIssuerChainIsHonoredWithoutStorePathAsync(string scope, bool strict)
         {
             SecurityConfiguration configuration = CreateConfiguration();
+            configuration.RejectUnknownRevocationStatus = strict;
             GetTrustedList(configuration, scope).TrustedCertificates =
                 [new CertificateIdentifier { RawData = m_root.RawData }];
             GetIssuerList(configuration, scope).TrustedCertificates =
@@ -315,6 +319,144 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Directory.Delete(path, recursive: true);
                 }
             }
+        }
+
+        [Test]
+        public async Task InlineIssuerWithStoreHonorsStrictUnknownRevocationPolicyAsync(
+            [Values(false, true)] bool trustedIssuer,
+            [Values(false, true)] bool strict)
+        {
+            string path = Path.Combine(Path.GetTempPath(), "opcua-inline-unknown-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                using Certificate leaf = CreateInlineIssuerLeaf();
+                SecurityConfiguration configuration = CreateConfiguration();
+                configuration.RejectUnknownRevocationStatus = strict;
+                configuration.AddTrustedPeer(leaf.RawData);
+                CertificateTrustList issuerList = trustedIssuer
+                    ? configuration.TrustedPeerCertificates
+                    : configuration.TrustedIssuerCertificates;
+                issuerList.StorePath = path;
+                issuerList.TrustedCertificates += new CertificateIdentifier { RawData = m_root.RawData };
+                await using var manager = new CertificateManager(m_telemetry);
+                manager.MapFromSecurityConfiguration(configuration);
+
+                CertificateValidationResult result = await manager.ValidateAsync(leaf, TrustListIdentifier.Peers)
+                    .ConfigureAwait(false);
+
+                Assert.That(result.StatusCode,
+                    Is.EqualTo(strict ? StatusCodes.BadCertificateRevocationUnknown : StatusCodes.Good));
+                Assert.That(result.IsValid, Is.EqualTo(!strict));
+            }
+            finally
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, recursive: true);
+                }
+            }
+        }
+
+        [Test]
+        public async Task InlineIssuerRevocationIsNeverSuppressedAsync(
+            [Values(false, true)] bool trustedIssuer,
+            [Values(false, true)] bool strict)
+        {
+            string path = Path.Combine(Path.GetTempPath(), "opcua-inline-revoked-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                using Certificate leaf = CreateInlineIssuerLeaf();
+                SecurityConfiguration configuration = CreateConfiguration();
+                configuration.RejectUnknownRevocationStatus = strict;
+                configuration.AddTrustedPeer(leaf.RawData);
+                CertificateTrustList issuerList = trustedIssuer
+                    ? configuration.TrustedPeerCertificates
+                    : configuration.TrustedIssuerCertificates;
+                issuerList.StorePath = path;
+                issuerList.TrustedCertificates += new CertificateIdentifier
+                {
+                    RawData = m_root.RawData,
+                    ValidationOptions = CertificateValidationOptions.SuppressRevocationStatusUnknown
+                };
+                var crl = new X509CRL(CrlBuilder.Create(m_root.SubjectName)
+                    .AddRevokedCertificate(leaf).CreateForRSA(m_root));
+                using (ICertificateStore store = issuerList.OpenStore(m_telemetry))
+                {
+                    await store.AddAsync(m_root, null).ConfigureAwait(false);
+                    await store.AddCRLAsync(crl).ConfigureAwait(false);
+                    Assert.That(await store.DeleteAsync(m_root.Thumbprint).ConfigureAwait(false), Is.True);
+                    using CertificateCollection certificates = await store.EnumerateAsync().ConfigureAwait(false);
+                    Assert.That(certificates, Is.Empty, "The issuer must be resolved from the inline entry.");
+                }
+                await using var manager = new CertificateManager(m_telemetry);
+                manager.MapFromSecurityConfiguration(configuration);
+
+                CertificateValidationResult result = await manager.ValidateAsync(leaf, TrustListIdentifier.Peers)
+                    .ConfigureAwait(false);
+
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateRevoked));
+                Assert.That(result.IsValid, Is.False);
+                Assert.That(result.IsSuppressible, Is.False);
+            }
+            finally
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, recursive: true);
+                }
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StoreIssuerPolicyTakesPrecedenceOverInlineUnknownSuppressionAsync(bool trustedIssuer)
+        {
+            string path = Path.Combine(Path.GetTempPath(), "opcua-store-first-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                using Certificate leaf = CreateInlineIssuerLeaf();
+                SecurityConfiguration configuration = CreateConfiguration();
+                configuration.RejectUnknownRevocationStatus = true;
+                configuration.AddTrustedPeer(leaf.RawData);
+                CertificateTrustList issuerList = trustedIssuer
+                    ? configuration.TrustedPeerCertificates
+                    : configuration.TrustedIssuerCertificates;
+                issuerList.StorePath = path;
+                issuerList.TrustedCertificates += new CertificateIdentifier
+                {
+                    RawData = m_root.RawData,
+                    ValidationOptions = CertificateValidationOptions.SuppressRevocationStatusUnknown
+                };
+                using (ICertificateStore store = issuerList.OpenStore(m_telemetry))
+                {
+                    await store.AddAsync(m_root).ConfigureAwait(false);
+                }
+                await using var manager = new CertificateManager(m_telemetry);
+                manager.MapFromSecurityConfiguration(configuration);
+
+                CertificateValidationResult result = await manager.ValidateAsync(leaf, TrustListIdentifier.Peers)
+                    .ConfigureAwait(false);
+
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateRevocationUnknown));
+                Assert.That(result.IsValid, Is.False);
+            }
+            finally
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, recursive: true);
+                }
+            }
+        }
+
+        private Certificate CreateInlineIssuerLeaf()
+        {
+            return CertificateBuilder.Create("CN=Inline Issuer Revocation Peer")
+                .SetNotBefore(s_validFrom)
+                .SetNotAfter(s_validTo)
+                .SetIssuer(m_root)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
         }
 
         private static SecurityConfiguration CreateConfiguration()

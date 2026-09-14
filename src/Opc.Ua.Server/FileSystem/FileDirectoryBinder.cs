@@ -346,22 +346,14 @@ namespace Opc.Ua.Server.FileSystem
                     }
                     if (m_refreshRequired)
                     {
-                        await RefreshCoreAsync(cancellationToken).ConfigureAwait(false);
+                        await RefreshForMutationAsync(mutationCommitted: false, cancellationToken)
+                            .ConfigureAwait(false);
                     }
                     await CheckCapacityAsync(kind, path, targetPath, cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
                     await FileSystemDirectoryOperations.ApplyProviderMutationAsync(
                         this, kind, path, targetPath, sourceNodeId, cancellationToken).ConfigureAwait(false);
-                    try
-                    {
-                        await RefreshCoreAsync(cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or
-                        NotSupportedException or ServiceResultException or OperationCanceledException or
-                        InvalidOperationException)
-                    {
-                        m_refreshRequired = true;
-                        m_logger.FileDirectoryRefreshFailed(ex, Directory.NodeId);
-                    }
+                    await RefreshForMutationAsync(mutationCommitted: true, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -481,6 +473,21 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded,
                         "The directory binding does not admit entries.");
+                }
+            }
+
+            private async ValueTask RefreshForMutationAsync(bool mutationCommitted, CancellationToken cancellationToken)
+            {
+                try
+                {
+                    await RefreshCoreAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or
+                    NotSupportedException or ServiceResultException or InvalidOperationException ||
+                    (mutationCommitted && ex is OperationCanceledException))
+                {
+                    m_refreshRequired = true;
+                    m_logger.FileDirectoryRefreshFailed(ex, Directory.NodeId, mutationCommitted);
                 }
             }
 
@@ -822,8 +829,10 @@ namespace Opc.Ua.Server.FileSystem
     internal static partial class FileDirectoryBinderLog
     {
         [LoggerMessage(EventId = ServerEventIds.FileDirectoryBinder, Level = LogLevel.Error,
-            Message = "The provider mutation committed, but file-directory {DirectoryId} refresh failed. " +
+            Message = "File-directory {DirectoryId} refresh failed (current provider mutation committed: " +
+                "{MutationCommitted}). " +
                 "RefreshAsync or the next mutation will retry reconciliation.")]
-        public static partial void FileDirectoryRefreshFailed(this ILogger logger, Exception ex, NodeId directoryId);
+        public static partial void FileDirectoryRefreshFailed(
+            this ILogger logger, Exception ex, NodeId directoryId, bool mutationCommitted);
     }
 }

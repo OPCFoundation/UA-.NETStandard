@@ -268,6 +268,14 @@ public partial class MyNodeManager
 ensures the underlying node is a `FiniteStateMachineState` subclass
 at compile time — no runtime casts.
 
+The fluent pipeline retries an expired timed cause on subsequent simulation
+ticks if a guard rejects it. It warns only once for an unchanged rejected
+state, state revision, and status code; changing the status or entering a
+new state revision permits another warning. `BadInvalidState` remains
+silent but resets the previous rejection, so a later different failure is
+reported. Warning suppression does not delay retries or prevent recovery
+when the guard starts allowing the transition.
+
 ### Lifecycle ordering
 
 For every transition the dispatcher fires handlers in this order:

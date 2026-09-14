@@ -32,6 +32,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -135,6 +136,202 @@ namespace Opc.Ua.Server.Tests.FileSystem
             await binding.RefreshAsync().ConfigureAwait(false);
             Assert.That(((IFileSystemHost)binding).TryGetProviderPath(returnedId, out string path, out _, out _), Is.True);
             Assert.That(path, Is.EqualTo("created"));
+        }
+
+        [Test]
+        public async Task CorrectiveDeleteRecoversAfterPersistentOverLimitRefreshFailureAsync()
+        {
+            using var harness = new BindingHarness();
+            await harness.Physical.CreateFileAsync("keep", CancellationToken.None).ConfigureAwait(false);
+            await harness.Physical.CreateFileAsync("delete-me", CancellationToken.None).ConfigureAwait(false);
+            await using IFileDirectoryBinding binding = await harness.BindAsync(2).ConfigureAwait(false);
+            var host = (IFileSystemHost)binding;
+            NodeId originalId = harness.FindFile("keep").NodeId;
+            NodeId deletedId = harness.FindFile("delete-me").NodeId;
+            await harness.Physical.CreateFileAsync("external", CancellationToken.None).ConfigureAwait(false);
+
+            (ServiceResult renamed, List<Variant> output) = await FileReadRegressionTests.CallAsync(
+                harness.Root.MoveOrCopy, harness.Context, harness.Root.NodeId,
+                [originalId, harness.Root.NodeId, false, "renamed"]).ConfigureAwait(false);
+
+            Assert.That(renamed.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(output[0].TryGetValue(out NodeId renamedId), Is.True);
+            Assert.That(harness.MutationCount, Is.EqualTo(1));
+            Assert.That(await harness.Physical.GetEntryAsync("keep", CancellationToken.None).ConfigureAwait(false),
+                Is.Null);
+            Assert.That(await harness.Physical.GetEntryAsync("renamed", CancellationToken.None).ConfigureAwait(false),
+                Is.Not.Null);
+            Assert.That(host.TryGetProviderPath(renamedId, out _, out _, out _), Is.False);
+            harness.VerifyRefreshLimitFailures(1);
+            harness.VerifyRefreshCommitState(true, 1);
+            harness.VerifyRefreshCommitState(false, 0);
+
+            ServiceResultException refreshFailure = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await binding.RefreshAsync().ConfigureAwait(false))!;
+            Assert.That(refreshFailure.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(host.TryGetProviderPath(originalId, out _, out _, out _), Is.True);
+            Assert.That(host.TryGetProviderPath(host.BuildFileNodeId("external"), out _, out _, out _), Is.False);
+
+            (ServiceResult deleted, _) = await FileReadRegressionTests.CallAsync(
+                harness.Root.DeleteFileSystemObject, harness.Context, harness.Root.NodeId, [deletedId])
+                .ConfigureAwait(false);
+
+            Assert.That(deleted.StatusCode, Is.EqualTo(StatusCodes.Good),
+                "A failed pre-refresh must not block the delete that restores the binding limit.");
+            Assert.That(harness.MutationCount, Is.EqualTo(2));
+            harness.Provider.Verify(provider => provider.DeleteAsync("delete-me", It.IsAny<CancellationToken>()),
+                Times.Once);
+            var paths = new List<string>();
+            await foreach (FileSystemEntry entry in harness.Physical.EnumerateAsync(
+                string.Empty, CancellationToken.None).ConfigureAwait(false))
+            {
+                paths.Add(entry.Path);
+            }
+            Assert.That(paths, Is.EquivalentTo(s_recoveredPaths));
+            var children = new List<BaseInstanceState>();
+            harness.Root.GetChildren(harness.Context, children);
+            Assert.That(children.OfType<FileState>().Select(file => file.BrowseName.Name),
+                Is.EquivalentTo(s_recoveredPaths));
+            Assert.That(host.TryGetProviderPath(originalId, out _, out _, out _), Is.False);
+            Assert.That(host.TryGetProviderPath(deletedId, out _, out _, out _), Is.False);
+            Assert.That(host.TryGetProviderPath(renamedId, out string path, out _, out _), Is.True);
+            Assert.That(path, Is.EqualTo("renamed"));
+            harness.VerifyRefreshLimitFailures(2);
+            harness.VerifyRefreshCommitState(true, 1);
+            harness.VerifyRefreshCommitState(false, 1);
+
+            await binding.RefreshAsync().ConfigureAwait(false);
+            harness.VerifyRefreshLimitFailures(2);
+            Assert.That(harness.MutationCount, Is.EqualTo(2));
+        }
+
+        [Test]
+        public async Task PersistentRefreshFailureDoesNotBypassCapacityAdmissionAsync()
+        {
+            using var harness = new BindingHarness();
+            await harness.Physical.CreateFileAsync("keep", CancellationToken.None).ConfigureAwait(false);
+            await using IFileDirectoryBinding binding = await harness.BindAsync(1).ConfigureAwait(false);
+            NodeId originalId = harness.FindFile("keep").NodeId;
+            await harness.Physical.CreateFileAsync("external", CancellationToken.None).ConfigureAwait(false);
+            (ServiceResult renamed, _) = await FileReadRegressionTests.CallAsync(
+                harness.Root.MoveOrCopy, harness.Context, harness.Root.NodeId,
+                [originalId, harness.Root.NodeId, false, "renamed"]).ConfigureAwait(false);
+            Assert.That(renamed.StatusCode, Is.EqualTo(StatusCodes.Good));
+
+            (ServiceResult created, _) = await FileReadRegressionTests.CallAsync(
+                harness.Root.CreateFile, harness.Context, harness.Root.NodeId, ["blocked", false])
+                .ConfigureAwait(false);
+
+            Assert.That(created.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(harness.MutationCount, Is.EqualTo(1));
+            harness.Provider.Verify(provider => provider.CreateFileAsync(
+                It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            Assert.That(await harness.Physical.GetEntryAsync("blocked", CancellationToken.None).ConfigureAwait(false),
+                Is.Null);
+            harness.VerifyRefreshLimitFailures(2);
+            harness.VerifyRefreshCommitState(true, 1);
+            harness.VerifyRefreshCommitState(false, 1);
+        }
+
+        [Test]
+        public async Task PreMutationRefreshCancellationDoesNotReachProviderAsync()
+        {
+            using var harness = new BindingHarness();
+            await harness.Physical.CreateFileAsync("keep", CancellationToken.None).ConfigureAwait(false);
+            await using IFileDirectoryBinding binding = await harness.BindAsync(2).ConfigureAwait(false);
+            NodeId keptId = harness.FindFile("keep").NodeId;
+            harness.RefreshFailure = new IOException("post-refresh unavailable");
+            (ServiceResult created, _) = await FileReadRegressionTests.CallAsync(
+                harness.Root.CreateFile, harness.Context, harness.Root.NodeId, ["created", false])
+                .ConfigureAwait(false);
+            Assert.That(created.StatusCode, Is.EqualTo(StatusCodes.Good));
+            harness.RefreshFailure = new OperationCanceledException("pre-refresh cancelled");
+
+            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await harness.Root.DeleteFileSystemObject!.OnCallAsync!(
+                    harness.Context, harness.Root.DeleteFileSystemObject, harness.Root.NodeId, keptId,
+                    CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(harness.MutationCount, Is.EqualTo(1));
+            harness.Provider.Verify(provider => provider.DeleteAsync(
+                It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            Assert.That(await harness.Physical.GetEntryAsync("keep", CancellationToken.None).ConfigureAwait(false),
+                Is.Not.Null);
+            harness.VerifyRefreshCommitState(true, 1);
+            harness.VerifyRefreshCommitState(false, 0);
+        }
+
+        [Test]
+        public async Task CancellationDuringFailedPreRefreshDoesNotReachProviderAsync()
+        {
+            using var harness = new BindingHarness();
+            await harness.Physical.CreateFileAsync("keep", CancellationToken.None).ConfigureAwait(false);
+            await using IFileDirectoryBinding binding = await harness.BindAsync(2).ConfigureAwait(false);
+            NodeId keptId = harness.FindFile("keep").NodeId;
+            harness.RefreshFailure = new IOException("refresh unavailable");
+            (ServiceResult created, _) = await FileReadRegressionTests.CallAsync(
+                harness.Root.CreateFile, harness.Context, harness.Root.NodeId, ["created", false])
+                .ConfigureAwait(false);
+            Assert.That(created.StatusCode, Is.EqualTo(StatusCodes.Good));
+            using var cancellation = new CancellationTokenSource();
+            harness.BeforeEnumeration = cancellation.Cancel;
+
+            OperationCanceledException failure = Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await harness.Root.DeleteFileSystemObject!.OnCallAsync!(
+                    harness.Context, harness.Root.DeleteFileSystemObject, harness.Root.NodeId, keptId,
+                    cancellation.Token).ConfigureAwait(false))!;
+
+            Assert.That(failure.CancellationToken, Is.EqualTo(cancellation.Token));
+            Assert.That(harness.MutationCount, Is.EqualTo(1));
+            harness.Provider.Verify(provider => provider.DeleteAsync(
+                It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            Assert.That(await harness.Physical.GetEntryAsync("keep", CancellationToken.None).ConfigureAwait(false),
+                Is.Not.Null);
+            harness.VerifyRefreshCommitState(true, 1);
+            harness.VerifyRefreshCommitState(false, 1);
+        }
+
+        [TestCase("io")]
+        [TestCase("access")]
+        [TestCase("unsupported")]
+        [TestCase("limit")]
+        [TestCase("registration")]
+        [TestCase("missing-directory")]
+        public async Task PreMutationRefreshFailurePreservesProviderDeleteFailureAsync(string failure)
+        {
+            using var harness = new BindingHarness();
+            await harness.Physical.CreateFileAsync("keep", CancellationToken.None).ConfigureAwait(false);
+            await using IFileDirectoryBinding binding = await harness.BindAsync(2).ConfigureAwait(false);
+            NodeId keptId = harness.FindFile("keep").NodeId;
+            harness.RefreshFailure = failure switch
+            {
+                "io" => new IOException("refresh unavailable"),
+                "access" => new UnauthorizedAccessException("enumeration denied"),
+                "unsupported" => new NotSupportedException("enumeration unsupported"),
+                "limit" => new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded),
+                "registration" => new InvalidOperationException("registration unavailable"),
+                "missing-directory" => new DirectoryNotFoundException("refresh directory unavailable"),
+                _ => throw new ArgumentOutOfRangeException(nameof(failure))
+            };
+            (ServiceResult created, _) = await FileReadRegressionTests.CallAsync(
+                harness.Root.CreateFile, harness.Context, harness.Root.NodeId, ["created", false])
+                .ConfigureAwait(false);
+            Assert.That(created.StatusCode, Is.EqualTo(StatusCodes.Good));
+            harness.Provider.Setup(provider => provider.DeleteAsync("keep", It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new UnauthorizedAccessException("delete denied"));
+
+            (ServiceResult deleted, _) = await FileReadRegressionTests.CallAsync(
+                harness.Root.DeleteFileSystemObject, harness.Context, harness.Root.NodeId, [keptId])
+                .ConfigureAwait(false);
+
+            Assert.That(deleted.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(harness.MutationCount, Is.EqualTo(1));
+            harness.Provider.Verify(provider => provider.DeleteAsync("keep", It.IsAny<CancellationToken>()),
+                Times.Once);
+            Assert.That(await harness.Physical.GetEntryAsync("keep", CancellationToken.None).ConfigureAwait(false),
+                Is.Not.Null);
+            harness.VerifyRefreshCommitState(true, 1);
+            harness.VerifyRefreshCommitState(false, 1);
         }
 
         [Test]
@@ -308,6 +505,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(harness.MutationCount, Is.Zero);
         }
 
+        private static readonly string[] s_recoveredPaths = ["renamed", "external"];
+
         private sealed class BindingHarness : IDisposable
         {
             public BindingHarness()
@@ -327,6 +526,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
                     {
                         Interlocked.Increment(ref m_mutationCount);
                         return Physical.CreateDirectoryAsync(path, ct);
+                    });
+                Provider.Setup(value => value.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                    .Returns((string path, CancellationToken ct) =>
+                    {
+                        Interlocked.Increment(ref m_mutationCount);
+                        return Physical.DeleteAsync(path, ct);
                     });
                 Provider.Setup(value => value.MoveAsync(
                         It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -371,6 +576,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             public SessionSystemContext Context { get; }
             public FileDirectoryState Root { get; }
             public Exception? RefreshFailure { get; set; }
+            public Action? BeforeEnumeration { get; set; }
             public int MutationCount => m_mutationCount;
 
             public ValueTask<IFileDirectoryBinding> BindAsync(
@@ -400,6 +606,28 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 return Physical.CreateFileAsync(path, ct);
             }
 
+            public void VerifyRefreshLimitFailures(int count)
+            {
+                Logger.Verify(logger => logger.Log(
+                    LogLevel.Error,
+                    It.Is<EventId>(id => id.Name == "FileDirectoryRefreshFailed"),
+                    It.IsAny<It.IsAnyType>(),
+                    It.Is<Exception>(exception => exception is ServiceResultException &&
+                        ((ServiceResultException)exception).StatusCode == StatusCodes.BadEncodingLimitsExceeded),
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Exactly(count));
+            }
+
+            public void VerifyRefreshCommitState(bool committed, int count)
+            {
+                Logger.Verify(logger => logger.Log(
+                    LogLevel.Error,
+                    It.Is<EventId>(id => id.Name == "FileDirectoryRefreshFailed"),
+                    It.Is<It.IsAnyType>((state, _) =>
+                        state.ToString()!.Contains("current provider mutation committed: " + committed)),
+                    It.IsAny<Exception>(),
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Exactly(count));
+            }
+
             public void Dispose()
             {
                 Directory.Delete(m_path, recursive: true);
@@ -410,6 +638,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 [EnumeratorCancellation] CancellationToken ct)
             {
                 await Task.CompletedTask.ConfigureAwait(false);
+                BeforeEnumeration?.Invoke();
                 if (MutationCount != 0 && RefreshFailure != null)
                 {
                     throw RefreshFailure;

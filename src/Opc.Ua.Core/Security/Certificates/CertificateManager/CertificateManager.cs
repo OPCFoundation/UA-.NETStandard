@@ -156,13 +156,13 @@ namespace Opc.Ua
                 new CertificateTrustList
                 {
                     StorePath = trustedStorePath,
-                    StoreType = CertificateStoreIdentifier.DetermineStoreType(trustedStorePath)
+                    StoreType = ResolveStoreType(trustedStorePath)
                 },
                 issuerStorePath != null
                     ? new CertificateTrustList
                     {
                         StorePath = issuerStorePath,
-                        StoreType = CertificateStoreIdentifier.DetermineStoreType(issuerStorePath)
+                        StoreType = ResolveStoreType(issuerStorePath)
                     }
                     : null,
                 replaceExisting: false);
@@ -349,8 +349,8 @@ namespace Opc.Ua
             }
 
             var entry = new TrustListEntry(
-                CertificateTrustList.CreateSnapshot(trustedStore),
-                CertificateTrustList.CreateSnapshot(issuerStore));
+                CreateTrustListSnapshot(trustedStore),
+                CreateTrustListSnapshot(issuerStore));
 
             if (replaceExisting)
             {
@@ -366,6 +366,27 @@ namespace Opc.Ua
                 m_logger.CertificateManagerLogMessage0(trustList.ToString());
             }
             return false;
+        }
+
+        private CertificateTrustList? CreateTrustListSnapshot(CertificateStoreIdentifier? store)
+        {
+            CertificateTrustList? snapshot = CertificateTrustList.CreateSnapshot(store);
+            if (snapshot != null && !string.IsNullOrEmpty(snapshot.StorePath) &&
+                (string.IsNullOrEmpty(snapshot.StoreType) || snapshot.StoreType == CertificateStoreType.Directory))
+            {
+                // StorePath infers Directory without seeing injected providers.
+                // Preserve named custom stores while resolving that fallback here.
+                snapshot.StoreType = ResolveStoreType(snapshot.StorePath!);
+            }
+            return snapshot;
+        }
+
+        private string ResolveStoreType(string storePath)
+        {
+            // The built-in directory provider is a catch-all, not a path-specific provider.
+            return CertificateStoreIdentifier.DetermineStoreType(
+                storePath,
+                m_storeProviders.Where(static provider => provider is not DirectoryStoreProvider));
         }
 
         private static bool HasTrustSource(CertificateStoreIdentifier? store)
@@ -1382,7 +1403,11 @@ namespace Opc.Ua
                 CertificateValidationCore? core = GetCachedCore(trustList);
                 if (core == null)
                 {
-                    core = new CertificateValidationCore(m_telemetry);
+                    core = new CertificateValidationCore(
+                        m_telemetry,
+                        store => string.IsNullOrEmpty(store.StorePath)
+                            ? null
+                            : OpenStore(store.StorePath!, store.StoreType));
                     try
                     {
                         if (m_trustLists.TryGetValue(trustList, out TrustListEntry? entry))
@@ -1497,26 +1522,19 @@ namespace Opc.Ua
         /// </summary>
         private ICertificateStore OpenStore(string storePath, string? storeType)
         {
-            storeType ??= CertificateStoreIdentifier.DetermineStoreType(storePath, m_storeProviders);
+            storeType ??= ResolveStoreType(storePath);
 
-            foreach (ICertificateStoreProvider provider in m_storeProviders)
+            ICertificateStore store = CertificateStoreIdentifier.CreateStore(storeType, m_telemetry, m_storeProviders);
+            try
             {
-                if (string.Equals(
-                        provider.StoreTypeName,
-                        storeType,
-                        StringComparison.Ordinal))
-                {
-                    ICertificateStore store = provider.CreateStore(m_telemetry);
-                    store.Open(storePath);
-                    return store;
-                }
+                store.Open(storePath);
+                return store;
             }
-
-            // Fallback to the existing factory method for custom store types.
-            ICertificateStore fallbackStore =
-                CertificateStoreIdentifier.CreateStore(storeType, m_telemetry);
-            fallbackStore.Open(storePath);
-            return fallbackStore;
+            catch
+            {
+                store.Dispose();
+                throw;
+            }
         }
 
         /// <summary>

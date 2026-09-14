@@ -55,6 +55,7 @@ namespace Opc.Ua
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
+        private readonly Func<CertificateStoreIdentifier, ICertificateStore?> m_openStore;
         private readonly ConcurrentDictionary<string, byte[]> m_validatedCertificates;
 
         /// <summary>
@@ -81,9 +82,12 @@ namespace Opc.Ua
         /// Initializes a new instance of the
         /// <see cref="CertificateValidationCore"/> class.
         /// </summary>
-        public CertificateValidationCore(ITelemetryContext telemetry)
+        public CertificateValidationCore(
+            ITelemetryContext telemetry,
+            Func<CertificateStoreIdentifier, ICertificateStore?>? openStore = null)
         {
             m_telemetry = telemetry;
+            m_openStore = openStore ?? (store => store.OpenStore(telemetry));
             m_logger = telemetry.CreateLogger<CertificateValidationCore>();
             m_validatedCertificates = [];
             m_stores = [];
@@ -1380,7 +1384,7 @@ namespace Opc.Ua
             // OpenStore creates a new caller-owned store instance; a racing
             // thread may have cached its own instance first, in which case
             // this one must be disposed.
-            ICertificateStore? store = storeIdentifier.OpenStore(m_telemetry);
+            ICertificateStore? store = m_openStore(storeIdentifier);
             if (store == null)
             {
                 return null;

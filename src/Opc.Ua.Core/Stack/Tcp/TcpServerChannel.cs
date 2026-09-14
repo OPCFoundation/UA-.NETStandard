@@ -1373,9 +1373,9 @@ namespace Opc.Ua.Bindings
         /// <param name="RequestId">The request identifier.</param>
         /// <param name="Request">The decoded request.</param>
         /// <param name="Chunks">
-        /// The buffers the request was decoded from. The decoder does not copy
-        /// everything it reads, so these must outlive the handler and are
-        /// released only once it returns.
+        /// The buffers used during decoding, retained until the request callback returns.
+        /// Stream decoding copies the request's strings and byte strings; an asynchronous
+        /// callback may continue after these buffers are released.
         /// </param>
         private sealed record PendingRequestDispatch(
             uint RequestId,
@@ -1579,10 +1579,8 @@ namespace Opc.Ua.Bindings
                 // arbitrary request processing serialises the whole channel on
                 // it. The caller dispatches this once it has left the gate.
                 //
-                // Ownership of the chunks transfers with it. The decoder above
-                // does not copy everything it reads, so returning them to the
-                // pool here would let the request be overwritten underneath the
-                // handler by the next message on this channel.
+                // Transfer chunk cleanup to dispatch. Stream decoding has copied
+                // the request values, so they do not borrow these pooled arrays.
                 pending = new PendingRequestDispatch(requestId, request, chunksToProcess);
                 chunksToProcess = null;
 

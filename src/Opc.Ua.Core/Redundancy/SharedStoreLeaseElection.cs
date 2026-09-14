@@ -30,7 +30,6 @@
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
-using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -95,14 +94,11 @@ namespace Opc.Ua.Redundancy
         {
             get
             {
-                bool isLeader;
                 lock (m_lock)
                 {
-                    ExpireLeaseIfNeeded();
-                    isLeader = m_isLeader;
+                    return m_isLeader &&
+                        GetRemainingLeaseTime(m_confirmedTimestamp, m_confirmedExpiryTicks) > TimeSpan.Zero;
                 }
-                DispatchNotifications();
-                return isLeader;
             }
         }
 
@@ -370,8 +366,6 @@ namespace Opc.Ua.Redundancy
                 m_notifying = true;
             }
 
-            ExceptionDispatchInfo? firstFailure = null;
-
             while (true)
             {
                 bool value;
@@ -387,20 +381,28 @@ namespace Opc.Ua.Redundancy
                     value = m_pendingNotifications.Dequeue();
                 }
 
+                NotifyLeadershipChanged(value);
+            }
+        }
+
+        private void NotifyLeadershipChanged(bool value)
+        {
+            Action<bool>? handlers = LeadershipChanged;
+            if (handlers == null)
+            {
+                return;
+            }
+            foreach (Delegate handler in handlers.GetInvocationList())
+            {
                 try
                 {
-                    LeadershipChanged?.Invoke(value);
+                    ((Action<bool>)handler)(value);
                 }
                 catch (Exception ex)
                 {
-                    // Keep draining: a handler that throws must not strand the
-                    // notifications queued behind it. The first failure still
-                    // reaches the caller that made the transition.
-                    firstFailure ??= ExceptionDispatchInfo.Capture(ex);
+                    m_logger?.SharedStoreLeaseElectionLogMessage2(ex, m_nodeId);
                 }
             }
-
-            firstFailure?.Throw();
         }
 
         private static ByteString EncodeLease(string owner, long expiryUtcTicks)
@@ -484,7 +486,7 @@ namespace Opc.Ua.Redundancy
             string nodeId);
 
         [LoggerMessage(EventId = CoreEventIds.SharedStoreLeaseElection + 2, Level = LogLevel.Error,
-            Message = "Lease election step-down failed for {NodeId}; a LeadershipChanged handler threw.")]
+            Message = "Lease election notification failed for {NodeId}.")]
         public static partial void SharedStoreLeaseElectionLogMessage2(
             this ILogger logger,
             global::System.Exception? exception,

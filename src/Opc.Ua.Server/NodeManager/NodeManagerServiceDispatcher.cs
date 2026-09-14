@@ -2854,14 +2854,11 @@ namespace Opc.Ua.Server
                                     cancellationToken),
                                 cancellationToken)
                                 .ConfigureAwait(false);
-                            if (ServiceResult.IsBad(unsubscribe))
+                            if (ServiceResult.IsBad(unsubscribe) && ServiceResult.IsGood(result))
                             {
-                                if (ServiceResult.IsGood(result))
-                                {
-                                    result = unsubscribe;
-                                }
+                                result = unsubscribe;
                             }
-                            else if (dispatch.Notifications is not null)
+                            if (dispatch.Notifications is not null)
                             {
                                 m_owner.CompleteRetiredAllEventUnsubscribe(
                                     monitoredItem,

@@ -38,6 +38,7 @@ using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Transport
@@ -397,6 +398,39 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task OpenSecureChannelRejectionAfterDecryptionReturnsEveryRentalAsync(bool sequenceFailure)
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            using Certificate expectedCertificate = CertificateBuilder
+                .Create("CN=Open Rejection")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            if (sequenceFailure)
+            {
+                Assert.That(channel.AcceptSequenceForTest(1), Is.True);
+            }
+            else
+            {
+                channel.ExpectClientCertificateForTest(expectedCertificate);
+            }
+            Exception auditedError = null;
+            channel.SetReportOpenSecureChannelAuditCallback((_, _, _, error) => auditedError = error);
+
+            await channel.FeedReceivedChunkAsync(channel.CreateOpenChunkForTest(sequenceNumber: 0))
+                .ConfigureAwait(false);
+
+            Assert.That(auditedError, Is.InstanceOf<ServiceResultException>());
+            Assert.That(((ServiceResultException)auditedError).StatusCode,
+                Is.EqualTo(sequenceFailure ? StatusCodes.BadSequenceNumberInvalid : StatusCodes.BadCertificateInvalid));
+            Assert.That(await WaitForOutstandingCountAsync(pool, expected: 0, seconds: 5).ConfigureAwait(false), Is.True);
+            Assert.That(pool.RentCount, Is.GreaterThanOrEqualTo(2));
+            Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, true)]
@@ -433,6 +467,38 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
             Assert.That(channel.CurrentState,
                 Is.EqualTo(intermediate ? TcpChannelState.Closed : TcpChannelState.Open));
+        }
+
+        [Test]
+        public async Task DecodedRequestRetainsValuesAfterInputBuffersAreReturnedAsync()
+        {
+            var pool = new TrackingArrayPool(poisonOnReturn: true);
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            WriteRequest received = null;
+            channel.SetRequestReceivedCallback((_, _, request) => received = request as WriteRequest);
+            var request = new WriteRequest
+            {
+                NodesToWrite =
+                [
+                    new WriteValue
+                    {
+                        NodeId = new NodeId("retained-node", 1),
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant(ByteString.From([1, 2, 3, 4])))
+                    }
+                ]
+            };
+
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(1, 1, request, intermediate: false)).ConfigureAwait(false);
+
+            Assert.That(pool.OutstandingCount, Is.Zero);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+            Assert.That(received, Is.Not.Null);
+            Assert.That(received.NodesToWrite.Count, Is.EqualTo(1));
+            Assert.That(received.NodesToWrite[0].NodeId, Is.EqualTo(new NodeId("retained-node", 1)));
+            Assert.That(received.NodesToWrite[0].Value.WrappedValue.TryGetValue(out ByteString value), Is.True);
+            Assert.That(value, Is.EqualTo(ByteString.From([1, 2, 3, 4])));
         }
 
         /// <summary>
@@ -911,6 +977,24 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 int length = encoder.Close();
                 BitConverter.GetBytes(length).CopyTo(buffer, 4);
                 return new ArraySegment<byte>(buffer, 0, length);
+            }
+
+            public bool AcceptSequenceForTest(uint sequenceNumber)
+            {
+                return VerifySequenceNumber(sequenceNumber, nameof(AcceptSequenceForTest));
+            }
+
+            public void ExpectClientCertificateForTest(Certificate certificate)
+            {
+                ClientCertificate = certificate.AddRef();
+            }
+
+            public ArraySegment<byte> CreateOpenChunkForTest(uint sequenceNumber)
+            {
+                ArraySegment<byte> chunk = CreateTruncatedOpenChunkForTest(TcpMessageLimits.SequenceHeaderSize);
+                BitConverter.GetBytes(sequenceNumber).CopyTo(chunk.Array!, chunk.Count - 8);
+                BitConverter.GetBytes(1u).CopyTo(chunk.Array!, chunk.Count - 4);
+                return chunk;
             }
 
             protected override void OnTransportError(ServiceResult result)

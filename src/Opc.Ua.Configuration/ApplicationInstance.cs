@@ -752,13 +752,13 @@ namespace Opc.Ua.Configuration
                 }
             }
 
-            // check key size
-            int keySize = X509Utils.GetPublicKeySize(certificate);
-            if (minimumKeySize > keySize)
+            // RSA minimums are not comparable to EC curve sizes.
+            using RSA? rsaPublicKey = certificate.GetRSAPublicKey();
+            if (rsaPublicKey != null && minimumKeySize > rsaPublicKey.KeySize)
             {
                 string message = Utils.Format(
                     "The key size ({0}) in the certificate is less than the minimum provided ({1}). Use certificate anyway?",
-                    keySize,
+                    rsaPublicKey.KeySize,
                     minimumKeySize);
 
                 if (!await ApproveMessageAsync(message, silent).ConfigureAwait(false))

@@ -458,7 +458,8 @@ namespace Opc.Ua.Server.FileSystem
             if (nodeId.NamespaceIndex != NamespaceIndex ||
                 !FileSystemNodeId.TryParse(nodeId, out FileSystemNodeId parsed) ||
                 parsed.ComponentPath != null ||
-                (parsed.RootType == FileSystemNodeId.Root && !string.IsNullOrEmpty(parsed.ProviderPath)))
+                !TryNormalizeProviderPath(parsed.ProviderPath, out providerPath) ||
+                (parsed.RootType == FileSystemNodeId.Root && !string.IsNullOrEmpty(providerPath)))
             {
                 providerPath = string.Empty;
                 isDirectory = false;
@@ -466,9 +467,30 @@ namespace Opc.Ua.Server.FileSystem
                 return false;
             }
 
-            providerPath = parsed.ProviderPath;
             isDirectory = parsed.RootType != FileSystemNodeId.File;
             isRoot = string.IsNullOrEmpty(providerPath);
+            return true;
+        }
+
+        private static bool TryNormalizeProviderPath(string path, out string providerPath)
+        {
+            providerPath = string.Empty;
+            if (path.Trim(s_pathSeparators).Length == 0)
+            {
+                return true;
+            }
+            if (path.AsSpan().IndexOfAny('\\', ':') >= 0)
+            {
+                return false;
+            }
+            foreach (string segment in path.Split('/'))
+            {
+                if (string.IsNullOrWhiteSpace(segment) || segment is "." or "..")
+                {
+                    return false;
+                }
+            }
+            providerPath = path;
             return true;
         }
 
@@ -489,6 +511,7 @@ namespace Opc.Ua.Server.FileSystem
 
         private readonly Dictionary<NodeId, FileHandle> m_handles = [];
         private readonly Lock m_lock = new();
+        private static readonly char[] s_pathSeparators = ['/', '\\'];
 
         /// <summary>
         /// Boxes a <see cref="FileSystemNodeId"/> for storage in

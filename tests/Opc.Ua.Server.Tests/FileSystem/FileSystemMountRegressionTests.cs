@@ -46,7 +46,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         [Test]
         public async Task AlternateRootIdsCannotDeleteMoveOrCopyMountAsync(
             [Values("delete", "move", "copy")] string operation,
-            [Values("0:", "1:", "2:")] string identifier)
+            [Values("0:", "1:", "2:", "0:/", "0:\\", "0://")] string identifier)
         {
             Mock<IFileSystemProvider> provider = CreateProvider();
             using FileSystemNodeManager manager = CreateManager(provider.Object);
@@ -63,6 +63,115 @@ namespace Opc.Ua.Server.Tests.FileSystem
                     : StatusCodes.BadInvalidArgument));
                 VerifyNoMutation(provider);
             });
+        }
+
+        [Test]
+        public async Task NonCanonicalObjectPathsCannotDeleteMoveOrCopyAsync(
+            [Values("delete", "move", "copy")] string operation,
+            [ValueSource(nameof(s_nonCanonicalProviderPaths))] string providerPath,
+            [Values(false, true)] bool isDirectory)
+        {
+            Mock<IFileSystemProvider> provider = CreateProvider();
+            using FileSystemNodeManager manager = CreateManager(provider.Object);
+            var root = CreateRoot(manager);
+            NodeId source = isDirectory
+                ? FileSystemNodeId.BuildDirectory(providerPath, manager.NamespaceIndex)
+                : FileSystemNodeId.BuildFile(providerPath, manager.NamespaceIndex);
+
+            ServiceResult result = await MutateAsync(root, manager.SystemContext, source, operation)
+                .ConfigureAwait(false);
+
+            StatusCode expectedStatus = operation != "delete"
+                ? StatusCodes.BadInvalidArgument
+                : providerPath is "/" or "\\" or "//" or "\\\\" or "/\\/"
+                    ? StatusCodes.BadUserAccessDenied
+                    : StatusCodes.BadInvalidState;
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(expectedStatus));
+                VerifyNoMutation(provider);
+            });
+        }
+
+        [Test]
+        public async Task NonCanonicalMoveOrCopyTargetsDoNotInvokeProviderAsync(
+            [Values(false, true)] bool createCopy,
+            [ValueSource(nameof(s_invalidNonRootPaths))] string providerPath)
+        {
+            Mock<IFileSystemProvider> provider = CreateProvider();
+            using FileSystemNodeManager manager = CreateManager(provider.Object);
+            var root = CreateRoot(manager);
+            NodeId source = FileSystemNodeId.BuildFile("sub/keep.txt", manager.NamespaceIndex);
+            NodeId target = FileSystemNodeId.BuildDirectory(providerPath, manager.NamespaceIndex);
+
+            MoveOrCopyMethodStateResult result = await root.MoveOrCopy!.OnCallAsync!(
+                manager.SystemContext, root.MoveOrCopy, root.NodeId, source, target,
+                createCopy, "renamed.txt", CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(result.NewNodeId.IsNull, Is.True);
+                VerifyNoMutation(provider);
+            });
+        }
+
+        [Test]
+        public async Task OrdinaryNestedProviderPathsRemainUnchangedAsync(
+            [Values("delete", "move", "copy")] string operation,
+            [Values("sub/keep.txt", "sub/.hidden", "sub/name..txt", "sub/.../file",
+                "data dir/nested file.txt", "sub/a&b?c.txt")] string providerPath,
+            [Values(false, true)] bool isDirectory)
+        {
+            Mock<IFileSystemProvider> provider = CreateProvider();
+            using FileSystemNodeManager manager = CreateManager(provider.Object);
+            var root = CreateRoot(manager);
+            NodeId source = isDirectory
+                ? FileSystemNodeId.BuildDirectory(providerPath, manager.NamespaceIndex)
+                : FileSystemNodeId.BuildFile(providerPath, manager.NamespaceIndex);
+            const string TargetPath = "destination/nested/renamed.txt";
+
+            if (operation == "delete")
+            {
+                ServiceResult result = await MutateAsync(root, manager.SystemContext, source, operation)
+                    .ConfigureAwait(false);
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+            else
+            {
+                NodeId target = FileSystemNodeId.BuildDirectory("destination/nested", manager.NamespaceIndex);
+                MoveOrCopyMethodStateResult result = await root.MoveOrCopy!.OnCallAsync!(
+                    manager.SystemContext, root.MoveOrCopy, root.NodeId, source, target,
+                    operation == "copy", "renamed.txt", CancellationToken.None).ConfigureAwait(false);
+                NodeId expectedId = isDirectory
+                    ? FileSystemNodeId.BuildDirectory(TargetPath, manager.NamespaceIndex)
+                    : FileSystemNodeId.BuildFile(TargetPath, manager.NamespaceIndex);
+                Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(result.NewNodeId, Is.EqualTo(expectedId));
+            }
+            VerifySingleMutation(provider, operation, providerPath, TargetPath);
+        }
+
+        [Test]
+        public async Task SeparatorOnlyTargetsResolveToCanonicalMountRootAsync(
+            [Values(false, true)] bool createCopy,
+            [Values("", "/", "\\", "//", "\\\\", "/\\/")] string providerPath,
+            [Values(FileSystemNodeId.Root, FileSystemNodeId.Directory)] int rootType)
+        {
+            Mock<IFileSystemProvider> provider = CreateProvider();
+            using FileSystemNodeManager manager = CreateManager(provider.Object);
+            var root = CreateRoot(manager);
+            NodeId source = FileSystemNodeId.BuildFile("sub/keep.txt", manager.NamespaceIndex);
+            NodeId target = new FileSystemNodeId(rootType, providerPath, manager.NamespaceIndex).ToNodeId();
+
+            MoveOrCopyMethodStateResult result = await root.MoveOrCopy!.OnCallAsync!(
+                manager.SystemContext, root.MoveOrCopy, root.NodeId, source, target,
+                createCopy, "renamed.txt", CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.NewNodeId,
+                Is.EqualTo(FileSystemNodeId.BuildFile("renamed.txt", manager.NamespaceIndex)));
+            VerifySingleMutation(provider, createCopy ? "copy" : "move", "sub/keep.txt", "renamed.txt");
         }
 
         [Test]
@@ -231,6 +340,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
             var provider = new Mock<IFileSystemProvider>();
             provider.SetupGet(p => p.MountName).Returns("MountRegression");
             provider.SetupGet(p => p.IsWritable).Returns(true);
+            provider.Setup(p => p.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            provider.Setup(p => p.MoveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            provider.Setup(p => p.CopyAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
             return provider;
         }
 
@@ -275,5 +390,37 @@ namespace Opc.Ua.Server.Tests.FileSystem
             provider.Verify(p => p.CopyAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
                 Times.Never);
         }
+
+        private static void VerifySingleMutation(
+            Mock<IFileSystemProvider> provider,
+            string operation,
+            string source,
+            string target)
+        {
+            provider.Verify(p => p.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                Times.Exactly(operation == "delete" ? 1 : 0));
+            provider.Verify(p => p.MoveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                Times.Exactly(operation == "move" ? 1 : 0));
+            provider.Verify(p => p.CopyAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                Times.Exactly(operation == "copy" ? 1 : 0));
+            provider.Verify(p => p.DeleteAsync(source, It.IsAny<CancellationToken>()),
+                Times.Exactly(operation == "delete" ? 1 : 0));
+            provider.Verify(p => p.MoveAsync(source, target, It.IsAny<CancellationToken>()),
+                Times.Exactly(operation == "move" ? 1 : 0));
+            provider.Verify(p => p.CopyAsync(source, target, It.IsAny<CancellationToken>()),
+                Times.Exactly(operation == "copy" ? 1 : 0));
+        }
+
+        private static readonly string[] s_invalidNonRootPaths =
+        [
+            ".", "..", "sub/..", "sub\\..", "sub/../", "sub\\..\\", "../sub", "sub/../leaf", "sub\\..\\leaf",
+            "sub//leaf", "sub\\\\leaf", "sub/./leaf", "sub\\.\\leaf", "/sub", "sub/", "\\sub", "sub\\leaf",
+            "C:/sub", "C:\\sub", "sub/stream:name", " ", "sub/ /leaf"
+        ];
+
+        private static readonly string[] s_nonCanonicalProviderPaths =
+        [
+            "/", "\\", "//", "\\\\", "/\\/", .. s_invalidNonRootPaths
+        ];
     }
 }
