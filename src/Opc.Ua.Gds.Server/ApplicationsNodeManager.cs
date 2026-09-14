@@ -1375,14 +1375,17 @@ namespace Opc.Ua.Gds.Server
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.AuthenticatedUser);
             m_logger.OnFindApplications(applicationUri);
 
-            // OPC 10000-12 §6.5.4: Bad_InvalidArgument if the ApplicationUri is
-            // not a valid URI. An empty ApplicationUri identifies no application;
-            // it is not a wildcard (the result holds at most one record).
-            if (!ApplicationsDatabaseBase.IsValidApplicationUri(applicationUri))
+            // OPC 10000-12 §6.5.4: the result holds at most the one application
+            // with this ApplicationUri, so an empty ApplicationUri is not a
+            // wildcard; it is rejected with Bad_InvalidArgument. Any other string
+            // that is not a registered ApplicationUri returns an empty array
+            // ("the GDS does not have an entry"), which the CTT GDS Application
+            // Directory 003.js/005.js string length tests expect.
+            if (string.IsNullOrWhiteSpace(applicationUri))
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
-                    LocalizedText.From("The ApplicationUri is not a valid URI."));
+                    LocalizedText.From("The ApplicationUri is empty."));
             }
 
             applications = m_database.FindApplications(applicationUri) ?? [];

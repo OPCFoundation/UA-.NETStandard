@@ -604,7 +604,7 @@ drop these cases, or expect all records.
 ### C22. `callQueryServers()` dereferences the output arguments of a failed call
 
 - **Tests:** GDS Application Directory `079.js` step 2 (`ServerCapabilities = [ "NA", "DA", "AC" ]`) and
-  `078.js` (`%[a^j-l]%`, since the server rejects the invalid pattern)
+  `078.js` (`%[a^j-l]%`, since the server rejects the invalid pattern); `078.js` lines 19–20
 - **Helper:** `library/GDS/MethodCalls.js`, lines 279–286
 - **Error:** *"Result of expression 'servers' [null] is not an object"* (TypeError, line 286), which aborts the test
 
@@ -613,7 +613,11 @@ other capability"*, Part 12 Annex D; an invalid Like pattern for `078.js`) with 
 `OutputArguments` array. The helper's
 `isDefined( OutputArguments[0] ) && isDefined( OutputArguments[1] )` guard does not detect the
 empty array, and `toExtensionObjectArray()` of the empty variant returns null. `callQueryApplications()`
-in the same file checks `applications.isEmpty()` first. **Fix:** only read the output arguments when
+in the same file checks `applications.isEmpty()` first. With the helper fixed, `078.js` still aborts at
+line 20 (*"Result of expression 'queryServersResult.Servers' [undefined] is not an object"*): it reads
+`Servers` after the expected Bad result, and its condition is inverted
+(`if( Assert.Equal( 0, … ) ) TC_Variables.Result = false;` fails the test when no record is returned).
+**Fix:** only read the output arguments when
 `Results[0].StatusCode.isGood()`, and check `isEmpty()` before `toExtensionObjectArray()`.
 
 ### C23. GDS Application Directory `018.js` selects `ActionTimestamp` instead of `ActionTimeStamp`
@@ -624,11 +628,15 @@ in the same file checks `applications.isEmpty()` first. **Fix:** only read the o
   Received: '0001-01-01T00:00:00Z'"*
 
 The AuditEventType property's BrowseName is `ActionTimeStamp` (OPC 10000-5 §6.4.3), so the select
-clause built from `"ActionTimestamp"` resolves to nothing and the event field is null. In other runs
+clause built from `"ActionTimestamp"` resolves to nothing and the event field is null. The
+validator in `library/ClassBased/Events.js` line 78 also reads `args.ActionTimestamp`; the CTT's own
+`library/__regressionTesting/_Events.js` passes `ActionTimeStamp`. In other runs
 the same test instead reports *"Did not receive an ApplicationRegistrationChangedAuditEventType
 event"*: the monitored item is created with QueueSize 1, and the server kept only the newest audit
 event (server side, fixed by [#4480](https://github.com/OPCFoundation/UA-.NETStandard/pull/4480)).
-**Fix:** use `"ActionTimeStamp"` in the field list.
+With both names corrected and a larger queue in a copy of the scripts, the event is received and
+SourceNode, SourceName, MethodId and InputArguments verify. **Fix:** use `"ActionTimeStamp"` in the
+field list and in `Events.js`.
 
 ### C24. GDS Application Directory `019.js` step 3 batch RegisterApplication never reaches the server
 
@@ -691,26 +699,22 @@ ApplicationId is not known to the GDS"* (§6.5.7 UpdateApplication, §6.5.9 GetA
 the GDS. **Fix:** expect `Bad_NotFound` (accept `Bad_InvalidArgument` as well for `029.js`, whose record
 fields are also invalid).
 
-### C29. GDS Application Directory `005.js` uses random characters as ApplicationUri and expects Good
+### C29. GDS Application Directory `005.js` expects `BadInvalidArgument` for a string above MaxStringLength
 
 - **Test:** `maintree/GDS/GDS Application Directory/Test Cases/005.js`, lines 20, 31, 37
-- **Error (2026-09-14 run):** *"Call.Results[0].StatusCode incorrect. Received: Good. Expected: BadInvalidArgument"*
-  (second call)
+- **Error:** *"Call.Results[0].StatusCode incorrect. Received: Good. Expected: BadInvalidArgument"* (second call)
 
 The script builds the ApplicationUri from `String.fromCharCode( Math.floor( Math.random() * 256 ) )`,
-first with MaxStringLength (1,048,576) characters and then 10 % more. Both calls returned Good with an
-empty result. A string above the server's `MaxStringLength` cannot be decoded: the binary decoder
-rejects it with `Bad_EncodingLimitsExceeded` (`BinaryDecoder.ReadString`, limit set from the transport
-quotas in `TcpTransportListener`), so the request cannot reach FindApplications. The Good results show
-that the over-limit string did not reach the server as generated; a likely cause is the `\0` and
-non-ASCII code points in the random string, which the CTT does not pass through unchanged.
-
-The first call also expects Good, but random characters are not a valid URI, and FindApplications now
-returns `Bad_InvalidArgument` for it as OPC 10000-12 §6.5.4 requires (*"The ApplicationUri is too long
-or not a valid URI"*). **Fix:** use a valid URI made of printable ASCII characters (for example
-`urn:` followed by letters) of MaxStringLength, and accept `Bad_EncodingLimitsExceeded` as the service
-result for the oversized call.
-
+first with MaxStringLength (1,048,576) characters and then 10 % more, and expects Good and then
+`Bad_InvalidArgument`. Both calls returned Good with an empty result. A string above the server's
+`MaxStringLength` cannot be decoded: `BinaryDecoder.ReadString` rejects it with
+`Bad_EncodingLimitsExceeded` (limit from the transport quotas, `TcpTransportListener`), so the request
+never reaches FindApplications. A copy of the script that uses printable characters (`urn:` + letters)
+confirms this: the first call returns Good, and the second call gets a ServiceFault
+`Bad_EncodingLimitsExceeded` (server log *"MaxStringLength 1048576 < 1153434"*). So the original random
+string does not reach the server as generated; a likely cause is its `\0` and non-ASCII code points.
+**Fix:** use printable ASCII characters, and expect the ServiceFault `Bad_EncodingLimitsExceeded` for
+the oversized call.
 ### C30. GDS Query Applications `036.js` expects `rcp+` URLs the test never registered
 
 - **Test:** `maintree/GDS/GDS Query Applications/Test Cases/036.js`, lines 23–28; records from
@@ -810,9 +814,10 @@ it is classified as a server or CTT issue.
     the RecordId of every DiscoveryUrl record, so `StartingRecordId` paging skipped the remaining
     DiscoveryUrls of an application (§6.5.11 Table 15 returns one record per DiscoveryUrl). Fixes
     Application Directory `045.js`, `075.js`.
-  - FindApplications with an empty ApplicationUri returned every application, and a malformed
-    ApplicationUri returned Good (§6.5.4: array size 0 or 1, `Bad_InvalidArgument` for an invalid URI).
-    Fixes Application Directory `004.js`.
+  - FindApplications with an empty ApplicationUri returned every application (§6.5.4: array size 0 or
+    1, `Bad_InvalidArgument` for an invalid URI). Fixes Application Directory `004.js`. Other strings
+    that are not a registered ApplicationUri still return an empty array, which `003.js` (up to
+    MaxStringLength `X` characters) expects.
 
   CTT GDS rerun with the fixes: 47 errors (baseline 60). `074.js` and Query Applications `025.js`
   newly fail as described in C21. CTT defects: C19–C31. Not applicable to this server: GDS AliasName

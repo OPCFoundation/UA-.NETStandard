@@ -348,13 +348,11 @@ namespace Opc.Ua.Gds.Tests
 
         [TestCase("")]
         [TestCase(" ")]
-        [TestCase("not a URI")]
-        [TestCase("urn:with a space")]
-        public async Task AppDirFindApplicationsInvalidUriAsync(string applicationUri)
+        public async Task AppDirFindApplicationsEmptyUriAsync(string applicationUri)
         {
-            // OPC 10000-12 §6.5.4: Bad_InvalidArgument if the ApplicationUri is
-            // not a valid URI; an empty ApplicationUri must not return every
-            // registered application (CTT GDS Application Directory 004.js).
+            // OPC 10000-12 §6.5.4: an empty ApplicationUri is not a valid URI
+            // and must not return every registered application
+            // (CTT GDS Application Directory 004.js).
             CallResponse response = await Session.CallAsync(
                 null,
                 new CallMethodRequest[] {
@@ -371,6 +369,21 @@ namespace Opc.Ua.Gds.Tests
                 Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// A string that is not a registered ApplicationUri, even one that is not
+        /// a URI, returns an empty result (CTT GDS Application Directory 003.js
+        /// calls FindApplications with 100 to MaxStringLength 'X' characters).
+        /// </summary>
+        [TestCase("not a URI")]
+        [TestCase(100)]
+        [TestCase(50000)]
+        public async Task AppDirFindApplicationsUnknownNonUriReturnsEmptyAsync(object value)
+        {
+            string applicationUri = value is int length ? new string('X', length) : (string)value;
+            List<ApplicationRecordDataType> results = await FindAppsAsync(applicationUri)
+                .ConfigureAwait(false);
+            Assert.That(results, Is.Empty);
+        }
         [Test]
         public async Task AppDirFindApplicationsAfterMultipleRegistrationsAsync()
         {

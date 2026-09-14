@@ -262,19 +262,8 @@ namespace Opc.Ua.Gds.Server.Database
         public virtual ApplicationRecordDataType[]? FindApplications(string applicationUri)
         {
             // OPC 10000-12 §6.5.4: at most the one application with this
-            // ApplicationUri; the node manager rejects an invalid ApplicationUri.
+            // ApplicationUri; the node manager rejects an empty ApplicationUri.
             return null;
-        }
-
-        /// <summary>
-        /// Returns <c>true</c> if <paramref name="applicationUri"/> is an absolute
-        /// URI, the check RegisterApplication applies to ApplicationUri
-        /// (FindApplications returns Bad_InvalidArgument otherwise, OPC 10000-12 §6.5.4).
-        /// </summary>
-        public static bool IsValidApplicationUri(string? applicationUri)
-        {
-            return !string.IsNullOrWhiteSpace(applicationUri) &&
-                Uri.IsWellFormedUriString(applicationUri, UriKind.Absolute);
         }
 
         public virtual ServerOnNetwork[]? QueryServers(
