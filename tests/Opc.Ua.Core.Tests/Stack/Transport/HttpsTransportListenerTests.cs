@@ -621,6 +621,48 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(4711u));
         }
 
+        /// <summary>
+        /// Without a matching JSON endpoint the listener only serves discovery;
+        /// the fault for another decoded request echoes its RequestHandle.
+        /// </summary>
+        [Test]
+        public async Task SendJsonAsyncDiscoveryOnlyFaultEchoesRequestHandleAsync()
+        {
+            await using HttpsTransportListener listener = CreatePartiallyOpenedListener();
+            var request = new ReadRequest
+            {
+                RequestHeader = new RequestHeader { Timestamp = DateTime.UtcNow, RequestHandle = 2024 },
+                NodesToRead = [new ReadValueId { NodeId = new NodeId(1u), AttributeId = Attributes.Value }]
+            };
+            byte[] payload;
+            using (var memory = new MemoryStream())
+            {
+                using (var encoder = new JsonEncoder(memory, ServiceMessageContext.Create(m_telemetry), JsonEncoderOptions.Compact))
+                {
+                    encoder.EncodeMessage(request, request.TypeId);
+                }
+                payload = memory.ToArray();
+            }
+            var context = new DefaultHttpContext();
+            context.Request.Method = "POST";
+            context.Request.ContentType = Profiles.OpcUaJsonContentType;
+            context.Request.ContentLength = payload.Length;
+            context.Request.Body = new MemoryStream(payload);
+            using var responseBody = new MemoryStream();
+            context.Response.Body = responseBody;
+
+            await listener.SendJsonAsync(context).ConfigureAwait(false);
+
+            IServiceResponse response = JsonDecoder.DecodeMessage<IServiceResponse>(
+                responseBody.ToArray(),
+                ServiceMessageContext.Create(m_telemetry));
+            Assert.That(response, Is.InstanceOf<ServiceFault>());
+            Assert.That(
+                response.ResponseHeader.ServiceResult,
+                Is.EqualTo((StatusCode)StatusCodes.BadSecurityPolicyRejected));
+            Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(2024u));
+        }
+
         private static ReadRequest CreateReadRequestWithLongNodeId(uint requestHandle, int nodeIdLength)
         {
             return new ReadRequest

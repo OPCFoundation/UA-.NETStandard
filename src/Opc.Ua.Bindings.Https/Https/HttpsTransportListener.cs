@@ -1415,13 +1415,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (ServiceResultException sre)
                 {
-                    // echo the RequestHandle of a request that could not be
-                    // decoded (OPC 10000-4 §7.33).
-                    IServiceResponse fault = EndpointBase.CreateFault(
-                        m_logger,
-                        null,
-                        sre,
-                        payload == null ? 0 : RequestHandleReader.FromJson(payload));
+                    IServiceResponse fault = JsonRequestMapper.CreateFault(m_logger, payload, sre);
                     await WriteJsonResponseAsync(context, fault, ct).ConfigureAwait(false);
                     return;
                 }
@@ -1940,20 +1934,12 @@ namespace Opc.Ua.Bindings
                     }
                     catch (ServiceResultException sre)
                     {
-                        responseToSend = EndpointBase.CreateFault(
-                            m_logger,
-                            null,
-                            sre,
-                            RequestHandleReader.FromJson(messageBytes));
+                        responseToSend = JsonRequestMapper.CreateFault(m_logger, messageBytes, sre);
                     }
                     catch (Exception ex)
                     {
                         m_logger.ErrorProcessingJsonRequest(ex);
-                        responseToSend = EndpointBase.CreateFault(
-                            m_logger,
-                            null,
-                            ex,
-                            RequestHandleReader.FromJson(messageBytes));
+                        responseToSend = JsonRequestMapper.CreateFault(m_logger, messageBytes, ex);
                     }
 
                     byte[] responseBytes = JsonRequestMapper.EncodeResponse(
@@ -2147,20 +2133,12 @@ namespace Opc.Ua.Bindings
                     }
                     catch (ServiceResultException sre)
                     {
-                        responseToSend = EndpointBase.CreateFault(
-                            m_logger,
-                            null,
-                            sre,
-                            RequestHandleReader.FromJson(messageBytes));
+                        responseToSend = JsonRequestMapper.CreateFault(m_logger, messageBytes, sre);
                     }
                     catch (Exception ex)
                     {
                         m_logger.ErrorProcessingOpenApiRequest(ex);
-                        responseToSend = EndpointBase.CreateFault(
-                            m_logger,
-                            null,
-                            ex,
-                            RequestHandleReader.FromJson(messageBytes));
+                        responseToSend = JsonRequestMapper.CreateFault(m_logger, messageBytes, ex);
                     }
 
                     byte[] responseBytes = JsonRequestMapper.EncodeResponse(

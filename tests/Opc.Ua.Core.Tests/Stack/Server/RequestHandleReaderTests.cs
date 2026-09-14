@@ -126,6 +126,25 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(RequestHandleReader.FromBinary(message), Is.Zero);
         }
 
+        [Test]
+        public void FromBinaryReturnsZeroForFailingOrTruncatedNonSeekableStream()
+        {
+            byte[] message = BinaryEncoder.EncodeMessage(CreateOversizedRequest(true), CreateContext(0));
+
+            using var throwing = new ThrowingStream();
+            Assert.That(RequestHandleReader.FromBinary(throwing), Is.Zero);
+            using var truncated = new NonSeekableStream(message.AsSpan(0, 10).ToArray());
+            Assert.That(RequestHandleReader.FromBinary(truncated), Is.Zero);
+            using var truncatedHandle = new NonSeekableStream(message.AsSpan(0, message.Length - 50).ToArray());
+            Assert.That(RequestHandleReader.FromBinary(truncatedHandle), Is.EqualTo(kRequestHandle));
+            // encoding id (four byte, 4) + token "session-token" (1 + 2 + 4 + 13)
+            // + timestamp (8): the handle starts at offset 32.
+            Assert.That(BitConverter.ToUInt32(message, 32), Is.EqualTo(kRequestHandle));
+            using var shortHandle = new MemoryStream(message.AsSpan(0, 34).ToArray());
+            Assert.That(RequestHandleReader.FromBinary(shortHandle), Is.Zero);
+        }
+
+
         [TestCase(0)]
         [TestCase(3)]
         [TestCase(12)]
@@ -203,6 +222,14 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 new ServiceResultException(StatusCodes.BadSecurityPolicyRejected),
                 kRequestHandle);
             Assert.That(fault.ResponseHeader.RequestHandle, Is.EqualTo(7u));
+        }
+
+        private sealed class ThrowingStream : MemoryStream
+        {
+            public override int ReadByte()
+            {
+                throw new IOException("read failed");
+            }
         }
 
         private sealed class NonSeekableStream : MemoryStream

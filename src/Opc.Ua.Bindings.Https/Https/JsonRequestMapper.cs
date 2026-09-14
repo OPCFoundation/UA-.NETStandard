@@ -31,6 +31,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
@@ -94,6 +95,24 @@ namespace Opc.Ua.Bindings
                 .ConfigureAwait(false);
 
             return DecodeRequest(payload, context);
+        }
+
+        /// <summary>
+        /// Creates the ServiceFault for a JSON request that could not be decoded
+        /// or processed. The RequestHandle is read from the payload, so the fault
+        /// echoes it as OPC 10000-4 §7.33 recommends.
+        /// </summary>
+        /// <param name="logger">The logger for the fault.</param>
+        /// <param name="payload">The UTF-8 encoded request, if it was read.</param>
+        /// <param name="exception">The error to report.</param>
+        /// <returns>The fault response.</returns>
+        internal static ServiceFault CreateFault(ILogger logger, byte[]? payload, Exception exception)
+        {
+            return EndpointBase.CreateFault(
+                logger,
+                null,
+                exception,
+                payload == null ? 0 : RequestHandleReader.FromJson(payload));
         }
 
         /// <summary>
