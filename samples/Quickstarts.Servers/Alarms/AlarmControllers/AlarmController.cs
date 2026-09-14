@@ -199,11 +199,11 @@ namespace Alarms
             ref int intValue,
             ref bool boolValue)
         {
-            int incrementValue = 5;
-            if (m_isBoolean)
-            {
-                incrementValue = 10;
-            }
+            // Boolean and analog sources step alike, so every alarm condition changes
+            // state on the same simulation tick. A client that waits for an event from
+            // each alarm type (CTT A and C Enable Test_003) then sees all of them in one
+            // notification instead of on two unrelated periods.
+            const int incrementValue = 5;
             if (m_increment)
             {
                 m_value += incrementValue;
@@ -235,7 +235,7 @@ namespace Alarms
         public bool IsBooleanActive()
         {
             bool isActive = false;
-            if (m_value is >= AlarmDefines.BOOL_HIGH_ALARM or <= AlarmDefines.BOOL_LOW_ALARM)
+            if (m_value is >= AlarmDefines.HIGH_ALARM or <= AlarmDefines.LOW_ALARM)
             {
                 isActive = true;
             }
