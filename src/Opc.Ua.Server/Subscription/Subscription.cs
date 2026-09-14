@@ -1479,6 +1479,26 @@ namespace Opc.Ua.Server
             // check if a keep alive should be sent if there is no data.
             bool keepAliveIfNoData = m_keepAliveCounter >= m_maxKeepAliveCount;
 
+            // The publish timer only moves ready monitored items to the publish list while a
+            // Session owns the subscription. Values queued while it was abandoned (durable
+            // subscriptions, TransferSubscriptions) are still in the check list when the first
+            // Publish after the transfer arrives with the keep-alive already due. A keep-alive
+            // is only sent when no notifications are available (OPC 10000-4 §5.14.1.1).
+            if (keepAliveIfNoData && m_publishingEnabled && m_itemsToPublish.Count == 0)
+            {
+                LinkedListNode<IMonitoredItem>? current = m_itemsToCheck.First;
+                while (current != null)
+                {
+                    LinkedListNode<IMonitoredItem>? next = current.Next;
+                    if (current.Value.IsResendData || current.Value.IsReadyToPublish)
+                    {
+                        m_itemsToCheck.Remove(current);
+                        m_itemsToPublish.AddLast(current);
+                    }
+                    current = next;
+                }
+            }
+
             List<uint> availableSequenceNumberList = [];
 
             moreNotifications = false;

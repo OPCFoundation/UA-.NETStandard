@@ -1665,6 +1665,101 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task FirstPublishAfterTransferOfAbandonedSubscriptionReturnsQueuedDataAsync()
+        {
+            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            using SubscriptionManager manager = fixture.Manager;
+            Subscription subscription = fixture.Subscription;
+            using var queueFactory = new MonitoredItemQueueFactory(m_telemetry);
+            m_serverMock.Setup(server => server.MonitoredItemQueueFactory).Returns(queueFactory);
+            var itemOwner = new Mock<IAsyncNodeManager>();
+            using var monitoredItem = new MonitoredItem(
+                m_serverMock.Object,
+                itemOwner.Object,
+                new object(),
+                subscription.Id,
+                id: 12,
+                new ReadValueId
+                {
+                    NodeId = new NodeId("AbandonedTransferValue", 2),
+                    AttributeId = Attributes.Value
+                },
+                DiagnosticsMasks.None,
+                TimestampsToReturn.Both,
+                MonitoringMode.Reporting,
+                clientHandle: 13,
+                originalFilter: null,
+                filterToUse: null,
+                range: null,
+                samplingInterval: 1000,
+                queueSize: 10,
+                discardOldest: true,
+                sourceSamplingInterval: 1000);
+            await RegisterMonitoredItemsAsync(subscription, monitoredItem).ConfigureAwait(false);
+            m_nodeManagerMock
+                .Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<MonitoredItemTransferOptions>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<OperationContext, bool, IList<IMonitoredItem>, IList<ServiceResult>, MonitoredItemTransferOptions, CancellationToken>(
+                    (_, _, monitoredItems, errors, _, _) =>
+                    {
+                        for (int ii = 0; ii < monitoredItems.Count; ii++)
+                        {
+                            errors[ii] = ServiceResult.Good;
+                        }
+                    })
+                .Returns(default(ValueTask));
+
+            // The client closes its Session without deleting the (durable) subscription.
+            m_sessionMock.SetupGet(session => session.IsClosing).Returns(true);
+            await manager.SessionClosingAsync(
+                    fixture.SourceContext,
+                    fixture.SourceContext.SessionId,
+                    deleteSubscriptions: false,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+
+            // A value is sampled while no Session owns the subscription, and the publish
+            // timer keeps running until the keep-alive is due.
+            monitoredItem.QueueValue(new DataValue(new Variant(42)), null);
+            uint maxKeepAliveCount = GetPrivateField<uint>(subscription, "m_maxKeepAliveCount");
+            for (uint ii = 0; ii < maxKeepAliveCount; ii++)
+            {
+                SetExpiryTime(
+                    subscription,
+                    TimeProvider.System.GetTimestampMilliseconds() - 100);
+                manager.ProcessAbandonedPublishTimers(
+                    manager.CaptureAbandonedPublishTimerSnapshot());
+            }
+            Assert.That(GetPrivateField<bool>(subscription, "m_waitingForPublish"), Is.True);
+
+            TransferSubscriptionsResponse transferred = await manager.TransferSubscriptionsAsync(
+                fixture.DestinationContext,
+                [subscription.Id],
+                sendInitialValues: false).ConfigureAwait(false);
+            Assert.That(transferred.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+
+            // OPC 10000-4 §5.14.1.1: a keep-alive is only sent when no notifications are
+            // available; the value buffered while the client was away must be returned.
+            NotificationMessage message = subscription.Publish(
+                fixture.DestinationContext,
+                out _,
+                out _);
+
+            Assert.That(message, Is.Not.Null);
+            Assert.That(message.NotificationData, Has.Count.EqualTo(1));
+            Assert.That(
+                message.NotificationData[0].TryGetValue(out DataChangeNotification dataChange),
+                Is.True);
+            Assert.That(dataChange.MonitoredItems, Has.Count.EqualTo(1));
+            Assert.That(dataChange.MonitoredItems[0].Value.WrappedValue, Is.EqualTo(new Variant(42)));
+        }
+
+        [Test]
         public async Task AbandonedTimerSnapshotDoesNotExpireTransferredSubscriptionAsync()
         {
             var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
