@@ -41,6 +41,17 @@ namespace Opc.Ua.Server
     public class EventManager : IDisposable
     {
         /// <summary>
+        /// The queue size used for an event monitored item that requests the
+        /// server default (queueSize 0) or the server minimum (queueSize 1),
+        /// before it is limited by the configured maximum event queue size.
+        /// </summary>
+        /// <remarks>
+        /// Part 4 §7.21: for event monitored items these two values do not
+        /// disable queueing as they do for data change items.
+        /// </remarks>
+        public const uint DefaultEventQueueSize = 1000;
+
+        /// <summary>
         /// Creates a new instance of a sampling group.
         /// </summary>
         public EventManager(IServerInternal server, uint maxQueueSize, uint maxDurableQueueSize)
@@ -257,8 +268,19 @@ namespace Opc.Ua.Server
         /// <summary>
         /// calculates a revised queue size based on the application confiugration limits
         /// </summary>
+        /// <remarks>
+        /// Part 4 §7.21: for event monitored items a requested queueSize of 0 returns
+        /// the server default and 1 the minimum queue size the server requires for
+        /// Event Notifications. Taking 1 literally keeps only the last event raised
+        /// between two publishes.
+        /// </remarks>
         private uint CalculateRevisedQueueSize(bool isDurable, uint queueSize)
         {
+            if (queueSize <= 1)
+            {
+                queueSize = DefaultEventQueueSize;
+            }
+
             if (queueSize > m_maxEventQueueSize && !isDurable)
             {
                 queueSize = m_maxEventQueueSize;
