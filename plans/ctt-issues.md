@@ -48,6 +48,8 @@ running the CTT is in [ctt-testing.md](ctt-testing.md).
 | C6 | Aggregates: DurationGood/PercentGood first region | — | Not filed |
 | C7–C18 | Other unfiled script defects | — | Not filed |
 | C19–C31 | GDS Application Directory / Query Applications script defects | — | Not filed |
+| C37 | Session Base: secure test cases send CreateSession with the `opc.wss` EndpointUrl | — | Not filed |
+| C38 | Subscription Durable `012.js`: denied diagnostics Browse and missing braces | — | Not filed |
 
 Mantis states were last checked on 2026-09-13.
 
@@ -303,6 +305,10 @@ CTT defect. A server must not reuse a PolicyId for differently configured token 
 
 Line 101 uses `MoreNotifcations`, so the drain loop never runs, and lines 105–108 lack braces, which
 makes `result = false` unconditional.
+
+Scripts 1.05.513 still contain both defects. Against the reference server the test case passes
+anyway (2026-09-14): all of its data changes fit into one Publish response, and `Test.Execute`
+reports from `addError`, not from the return value.
 
 ### 19. Subscription Minimum 02 `020.js` accepts unrelated audit events
 
@@ -746,6 +752,49 @@ mask values are: 0x1 - Servers; 0x2 - Clients; If the mask is 0 then all applica
 The script's expectation (*"no records"*) matches neither reading. **Fix:** expect Good with all
 records for `3`, and use a value with an undefined bit (for example `4`) for the invalid case.
 
+### C37. Session Base secure test cases send CreateSession with the `opc.wss` EndpointUrl
+
+- **Tests:** `maintree/Session Services/Session Base/Test Cases/Err-002.js`, `Err-005.js` and
+  `Err-022.js`, line 14 (`Test.Session.Execute( { EndpointUrl: epSecureEncrypt.EndpointUrl } )`)
+- **Helpers:** `maintree/Session Services/Session Base/Test Cases/initialize.js`, lines 27–37;
+  `library/ClassBased/UaH.js`, line 64 (`HostnameFromUrl`)
+- **Error:** *"Expected CreateSession.Response.ServerCertificate to contain valid information."*, with the
+  warning *"UaPkiCertificate.IsValid(...) for Endpoint=opc.wss://…/Quickstarts/ReferenceServer/ Expected
+  hostname in EndpointUrl ('') to match the Endpoint in the Server's Certificate"*
+
+`initialize.js` skips endpoints whose URL starts with `http` and keeps the **last** SignAndEncrypt
+endpoint in `epSecureEncrypt`. The reference server lists its `opc.wss` endpoints after the
+`opc.tcp` ones, so the scripts open a UA TCP SecureChannel and then send that channel's CreateSession
+with the `opc.wss://` EndpointUrl. The server accepts the request and returns its certificate.
+`CreateSession.js` line 183 then checks the certificate against the request's EndpointUrl through
+`UaPkiCertificate.IsValid`, and `HostnameFromUrl` only matches `opc.tcp` and `http(s)` URLs
+(`^(?:opc.tcp|http)(?:s)?\://([^/]+):`). The host name is therefore empty and the certificate
+check fails. The server certificate contains the machine's host name, and Session Base `004.js`
+validates the same certificate successfully over `opc.tcp`. Related to C16 (WebSocket transport
+profiles) and to C35 of #4486 (Security User Anonymous `initialize.js` also selects the `opc.wss` endpoint).
+**Fix:** select `epSecureEncrypt` by `TransportProfileUri`
+(`http://opcfoundation.org/UA-Profile/Transport/uatcp-uasc-uabinary`) or by the scheme of the channel
+the test opens, and let `HostnameFromUrl` accept any `scheme://host:port` URL (`opc.wss`, `opc.https`).
+
+### C38. Subscription Durable `012.js` does not handle a denied diagnostics Browse
+
+- **Test:** `maintree/Subscription Services/Subscription Durable/Test Cases/012.js`, lines 23–37
+- **Errors:** *"Browse.Results[0].StatusCode is: BadUserAccessDenied"* (line 23), then
+  *"Read.Response.ResponseHeader.ServiceResult is Bad: BadNothingToDo"* (line 30)
+
+Step 3 reads `Server.ServerDiagnostics.EnabledFlag` and, when it is TRUE, browses
+`SubscriptionDiagnosticsArray` to find the durable subscription's `MaxLifetimeCount`. The CU session
+uses the CTT's default SecurityMode None channel. The reference server only lets a SecurityAdmin over
+SignAndEncrypt see server-wide subscription diagnostics (`DiagnosticsNodeManager.OnReadUserRolePermissions`
+/ `HasApplicationSecureAdminAccess`), because they reveal other clients' subscriptions, so Browse
+returns `Bad_UserAccessDenied`, a valid operation result (Part 4 §7.38.2). The script ignores the Browse
+status and reads an empty node list, which the server correctly rejects with `Bad_NothingToDo`
+(Part 4 §5.10.2). Line 37 has the same missing-braces pattern as issue 18
+(`if( … ) addError( … ); result = false;`), and `diagsObject` is undefined when no entry matches.
+Steps 4–6 (lifetime honoured after SetSubscriptionDurable, reset by ModifySubscription) pass.
+**Fix:** check `BrowseHelper.Response.Results[0].StatusCode` and skip Step 3 with a message when it is
+Bad or has no references, add braces on line 37, and guard `diagsObject`.
+
 ## Needs clarification
 
 ### U1. NumberOfTransitions with TreatUncertainAsBad=true
@@ -843,6 +892,30 @@ it is classified as a server or CTT issue.
   report that rate.
 - **AddNodes latency.** Node Management Delete Node `Err-002.js` reports AddNodes responses 300–600 ms
   after the request (tolerance 100 ms).
+- **Session Services stopped accepting sessions after a session timeout (fixed 2026-09-14).** Session
+  Base `002.js` lets a session time out and calls ActivateSession on it. `SessionManager.ActivateSessionAsync`
+  found the expired session while holding the session-manager `SemaphoreSlim` and closed it through
+  `IServerInternal.CloseSessionAsync`, which ends in `SessionManager.CloseSessionAsync` waiting for the same
+  non-reentrant semaphore. The activation never returned (the CTT reported *"Good"* after its 20 s
+  timeout), and every later CreateSession timed out with `BadTimeout`: 19 Session Base test cases, all of
+  Session Change User and the `initialize.js` of Session Cancel and Session Multiple failed. The session is
+  now closed after the lock is released and ActivateSession returns `Bad_SessionClosed`
+  (`SessionManagerExpiryTests`). The session monitor only checks sessions every `MinSessionTimeout` ms, so an
+  activation shortly after the timeout usually reaches the expired session before the monitor does.
+- **Subscription Durable `004.js` received a keep-alive after TransferSubscriptions (fixed 2026-09-14).**
+  The test disconnects with DeleteSubscriptions=FALSE, waits 10 s, reconnects, transfers the durable
+  subscription and expects the first Publish to return the values buffered meanwhile
+  (*"Didn't receive the data from the transferred subscription"*, line 78; passed in a CU run, failed in a
+  group run). While a subscription is abandoned the publish timer keeps counting its keep-alive but only
+  moves ready monitored items to the publish list when a Session owns it (`Subscription.PublishTimerExpired`,
+  `Session != null`). After the transfer the first Publish found the keep-alive due and nothing to
+  publish, and returned an empty keep-alive although notifications were available (Part 4 §5.14.1.1). The
+  data only came one Publish later. `InnerPublish` now collects ready items before it sends a keep-alive
+  (`SubscriptionTests.FirstPublishAfterTransferOfAbandonedSubscriptionReturnsQueuedDataAsync`).
+- **CloseSession latency.** Subscription Basic `Err-011.js` and Subscription Publish Basic `cleanup.js` warn
+  that CloseSession responses arrive 600–700 ms after the request (tolerance 100 ms). Closing a session with
+  and without a subscription on the in-process `ReferenceServer` takes 0–19 ms, so the time is not spent in
+  `SessionManager`/`SubscriptionManager.SessionClosingAsync`; not investigated further (warning only).
 
 ## CTT project configuration notes
 
@@ -904,6 +977,19 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
   Suppression by Operator, Silencing, OutOfService, On-Off Delay, Re-Alarming, First in Group Alarm,
   Audible Sound, Discrepancy, Trip, A&E Wrapper Mapping, Dialog) contain only manual
   (*Not Implemented*) test cases.
+- **Subscription Publish Min 05 `003.js`** creates 5 subscriptions in each of half the
+  `/Server Test/Capabilities/Max Supported Sessions` sessions (75 → 38 sessions, 190 subscriptions). With
+  `/Server Test/Capabilities/Max Supported Subscriptions` = 100 (the server's `MaxSubscriptionCount` in
+  `Ctt.ReferenceServer.Config.xml`) it warns *"Not enough subscriptions for all sessions. Reducing session
+  amount to 20"* and still passes. The warning is informational; raising both limits to 200 removes it.
+- **Session and Subscription coverage.** Manual (*Not Implemented*) test cases: Subscription Basic `072.js`,
+  `073.js`; Subscription Multiple `001.js`–`003.js`; Subscription Publish Basic `005.js`–`007.js`, `Err-001.js`;
+  Subscription PublishRequest Queue Overflow `001.js`, `002.js`; Subscription Durable `013.js`. Subscription
+  Durable StorageLevel High/Medium/Small and Subscription Retransmission Queue contain only
+  `NoTestCaseDefined.js`. Skipped by the scripts: Subscription Basic `067.js` (under Working Group review),
+  Subscription Durable `006.js` (server restart) and `009.js` (events), Subscription Transfer `Err-010.js`
+  (no script), Session Base `Err-009.js` (the CTT has no Kerberos token) and `Err-023.js` (the server offers
+  SecurityPolicy None, correct for `--ctt`).
 - **Historical Access coverage.** Every Historical Access CU except *Read Raw* contains only
   `NoTestCaseDefined.js` in scripts 1.05.513. Insert/Replace/Update/Delete (values and events),
   Annotations, ServerTimestamp, Modified, Time Instance and Structured Data are not tested.
