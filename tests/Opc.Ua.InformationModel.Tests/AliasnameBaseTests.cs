@@ -360,13 +360,13 @@ namespace Opc.Ua.InformationModel.Tests
             (NodeId category, NodeId method) = await FindCategoryAsync(
                 Session, "TagVariables").ConfigureAwait(false);
 
-            // Unclosed character class — server may either reject the
-            // pattern (BadInvalidArgument) or treat it as no-match.
+            // Unclosed character class is not a valid search string:
+            // Part 17 §6.3.2 Table 4 requires Bad_InvalidArgument.
             CallMethodResult result = await CallFindAliasAsync(
                 Session, category, method, "[abc", AliasForNodeId)
                 .ConfigureAwait(false);
 
-            AssertInvalidPatternHandled(result, "[abc");
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Description("Call the FindAlias method on the Aliases object, passing in a string of &quot;A\\&quot;. Pass in the AliasFor Reference type.")]
@@ -376,11 +376,13 @@ namespace Opc.Ua.InformationModel.Tests
             (NodeId category, NodeId method) = await FindCategoryAsync(
                 Session, "TagVariables").ConfigureAwait(false);
 
+            // A trailing escape character is not a valid search string
+            // (Part 17 §6.3.2 Table 4).
             CallMethodResult result = await CallFindAliasAsync(
                 Session, category, method, "abc\\", AliasForNodeId)
                 .ConfigureAwait(false);
 
-            AssertInvalidPatternHandled(result, "abc\\");
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Description("Call the FindAlias method on the Aliases object, passing in a string of &quot;A\\\\\\&quot;. Pass in the AliasFor Reference type.")]
@@ -405,21 +407,14 @@ namespace Opc.Ua.InformationModel.Tests
             (NodeId category, NodeId method) = await FindCategoryAsync(
                 Session, "TagVariables").ConfigureAwait(false);
 
-            // HasComponent is not AliasFor or any of its subtypes — the
-            // server should either return BadInvalidArgument or filter the
-            // results to an empty list.
+            // HasComponent is not AliasFor or any of its subtypes; the
+            // ReferenceTypeFilter shall be AliasFor or a subtype (Part 17
+            // §6.3.2), so the call is rejected.
             CallMethodResult result = await CallFindAliasAsync(
                 Session, category, method, "%", ReferenceTypeIds.HasComponent)
                 .ConfigureAwait(false);
 
-            if (StatusCode.IsBad(result.StatusCode))
-            {
-                return;
-            }
-
-            IList<AliasRecord> records = DecodeAliasResults(Session, result);
-            Assert.That(records, Is.Empty,
-                "FindAlias with a non-AliasFor reference type should return no aliases.");
+            Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         /// <summary>

@@ -68,6 +68,19 @@ namespace Opc.Ua.Server.AliasNames
             NodeId referenceTypeFilter,
             CancellationToken ct)
         {
+            ServiceResult? invalid = ValidateFindArguments(
+                typeTree,
+                aliasNameSearchPattern,
+                referenceTypeFilter);
+            if (invalid != null)
+            {
+                return new FindAliasMethodStateResult
+                {
+                    ServiceResult = invalid,
+                    AliasNodeList = []
+                };
+            }
+
             (ServiceResult result, IReadOnlyList<AliasNameDataType> aliases) = await registry
                 .DispatchFindAliasAsync(
                     categoryId,
@@ -95,6 +108,19 @@ namespace Opc.Ua.Server.AliasNames
             NodeId referenceTypeFilter,
             CancellationToken ct)
         {
+            ServiceResult? invalid = ValidateFindArguments(
+                typeTree,
+                aliasNameSearchPattern,
+                referenceTypeFilter);
+            if (invalid != null)
+            {
+                return new FindAliasVerboseMethodStateResult
+                {
+                    ServiceResult = invalid,
+                    AliasNodeList = []
+                };
+            }
+
             (ServiceResult result, IReadOnlyList<AliasNameVerboseDataType> aliases) = await registry
                 .DispatchFindAliasVerboseAsync(
                     categoryId,
@@ -227,6 +253,43 @@ namespace Opc.Ua.Server.AliasNames
                     .Contains(ObjectIds.WellKnownRole_SecurityAdmin) == true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Validates the <c>FindAlias</c>/<c>FindAliasVerbose</c> input
+        /// arguments (Part 17 §6.3.2/§6.3.3). Returns <c>null</c> when the
+        /// call may proceed, or a <c>Bad_InvalidArgument</c> result when the
+        /// search string is not a valid Like pattern (Part 4 §7.7.3) or the
+        /// ReferenceTypeFilter is not <c>AliasFor</c> or one of its subtypes.
+        /// </summary>
+        /// <remarks>
+        /// A null filter and <c>References</c> remain accepted and match every
+        /// alias, as before.
+        /// </remarks>
+        private static ServiceResult? ValidateFindArguments(
+            ITypeTable typeTree,
+            string aliasNameSearchPattern,
+            NodeId referenceTypeFilter)
+        {
+            if (!AliasNameWildcardMatcher.IsValidPattern(aliasNameSearchPattern))
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "AliasNameSearchPattern is not a valid search string.");
+            }
+
+            if (!referenceTypeFilter.IsNull &&
+                !referenceTypeFilter.Equals(ReferenceTypeIds.References) &&
+                !referenceTypeFilter.Equals(ReferenceTypeIds.AliasFor) &&
+                (typeTree == null ||
+                    !typeTree.IsTypeOf(referenceTypeFilter, ReferenceTypeIds.AliasFor)))
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "ReferenceTypeFilter must be AliasFor or one of its subtypes.");
+            }
+
+            return null;
         }
 
         private static ArrayOf<T> ToArrayOf<T>(IReadOnlyList<T> items)
