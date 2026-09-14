@@ -503,6 +503,79 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// A request the decoder rejects, here for a string above MaxStringLength,
+        /// is answered with a ServiceFault that echoes the RequestHandle of its
+        /// RequestHeader (OPC 10000-4 §7.33) and carries a response timestamp. The
+        /// channel used to send RequestHandle 0, which the CTT reports.
+        /// </summary>
+        [Test]
+        public async Task UndecodableRequestServiceFaultEchoesRequestHandleAsync()
+        {
+            const int maxStringLength = 64;
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool, maxStringLength: maxStringLength);
+            var transport = new GateByteTransport(expectedSendCount: 1, captureSentChunks: true);
+            channel.SetTransport(transport);
+
+            var request = new ReadRequest
+            {
+                RequestHeader = new RequestHeader
+                {
+                    AuthenticationToken = new NodeId("session", 0),
+                    Timestamp = DateTime.UtcNow,
+                    RequestHandle = 4711
+                },
+                NodesToRead =
+                [
+                    new ReadValueId
+                    {
+                        NodeId = new NodeId(new string('n', 10 * maxStringLength), 1),
+                        AttributeId = Attributes.Value
+                    }
+                ]
+            };
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var encodeContext = ServiceMessageContext.Create(telemetry);
+            encodeContext.MaxStringLength = 0;
+            byte[] body = BinaryEncoder.EncodeMessage(request, encodeContext);
+
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(
+                    TcpMessageType.Message,
+                    isFinal: true,
+                    sequenceNumber: 1,
+                    requestId: 9,
+                    body: body))
+                .ConfigureAwait(false);
+
+            Assert.That(
+                await CompletesWithinAsync(transport.AllSendsStarted, 30).ConfigureAwait(false),
+                Is.True,
+                "the channel never answered the request");
+            byte[] sentChunk = transport.LastSentChunk;
+            transport.Complete();
+
+            Assert.That(TcpMessageType.IsFinal(GetMessageType(sentChunk)), Is.True);
+            Assert.That(
+                BitConverter.ToUInt32(sentChunk, TcpMessageLimits.SymmetricHeaderSize + 4),
+                Is.EqualTo(9u),
+                "request id of the fault");
+
+            var decodeContext = ServiceMessageContext.Create(telemetry);
+            int bodyOffset = TcpMessageLimits.SymmetricHeaderSize + TcpMessageLimits.SequenceHeaderSize;
+            ServiceFault fault = BinaryDecoder.DecodeMessage<ServiceFault>(
+                sentChunk.AsSpan(bodyOffset).ToArray(),
+                decodeContext);
+            Assert.That(
+                fault.ResponseHeader.ServiceResult,
+                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(fault.ResponseHeader.RequestHandle, Is.EqualTo(4711u));
+            Assert.That(
+                (DateTime)fault.ResponseHeader.Timestamp,
+                Is.GreaterThan(DateTime.UtcNow.AddMinutes(-1)));
+        }
+
+        /// <summary>
         /// A chunk saved after the channel was disposed goes straight back to the
         /// pool. Disposal has already released the partial message, so a chunk
         /// queued into a fresh collection afterwards would never be released.
@@ -526,10 +599,15 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         private static TestServerChannel CreateOpenChannel(
             TrackingArrayPool pool,
-            int maxBufferSize = 64 * 1024)
+            int maxBufferSize = 64 * 1024,
+            int? maxStringLength = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.Create(telemetry);
+            if (maxStringLength.HasValue)
+            {
+                context.MaxStringLength = maxStringLength.Value;
+            }
             var quotas = new ChannelQuotas(context)
             {
                 MaxBufferSize = maxBufferSize,

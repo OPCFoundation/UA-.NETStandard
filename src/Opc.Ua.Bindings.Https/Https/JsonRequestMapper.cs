@@ -93,6 +93,21 @@ namespace Opc.Ua.Bindings
             byte[] payload = await ReadAllBoundedAsync(body, context.MaxMessageSize, ct)
                 .ConfigureAwait(false);
 
+            return DecodeRequest(payload, context);
+        }
+
+        /// <summary>
+        /// Decodes a single OPC UA service request from a JSON message payload.
+        /// </summary>
+        /// <param name="payload">The UTF-8 encoded message.</param>
+        /// <param name="context">The encoding context.</param>
+        /// <returns>The decoded service request.</returns>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadDecodingError"/> if the payload
+        /// is malformed or not a recognized OPC UA JSON service request.
+        /// </exception>
+        internal static IServiceRequest DecodeRequest(byte[] payload, IServiceMessageContext context)
+        {
             try
             {
                 return JsonDecoder.DecodeMessage<IServiceRequest>(payload, context);
