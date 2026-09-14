@@ -91,7 +91,7 @@ Things to know:
 - The results file is written only when the run ends. Wait with a timeout instead of `-Wait`
   (`$p.WaitForExit($ms)`, then `Stop-Process` on timeout): scripts that open a message box still
   do so with `--hidden` and wait for input forever (A & C CertificateExpiration, see
-  [ctt-issues.md](ctt-issues.md) C24). A killed run leaves no results, so split long selections.
+  [ctt-issues.md](ctt-issues.md) C44). A killed run leaves no results, so split long selections.
 - Only one CTT instance should talk to the server at a time. Check with
   `Get-Process uacompliancetest` before starting another.
 - Full CTT documentation: `<CttDir>\help\command_line_interface.htm`.
@@ -242,7 +242,7 @@ takes about 87 minutes plus a hang.
 
 1. **Selection:** every CU of the group except `A & C CertificateExpiration` (27 CUs, 128 test
    cases). CertificateExpiration asks the operator to change the server clock through modal
-   dialogs and hangs a `--hidden` run ([ctt-issues.md](ctt-issues.md) C24); run it in the GUI if
+   dialogs and hangs a `--hidden` run ([ctt-issues.md](ctt-issues.md) C44); run it in the GUI if
    needed. The manual single-case CUs cost nothing.
 2. **One CTT process, fresh server.** The CTT keeps one alarm thread for the whole group, so the
    initial event capture (one Alarm Cycle Time) is paid once, by the first A&C CU.
@@ -255,7 +255,7 @@ takes about 87 minutes plus a hang.
 
 If you must split the group, do not start a part with a Limit/Level CU unless
 `/Server Test/Session/RequestedSessionTimeout` is larger than Alarm Cycle Time × 1000: the CU session
-idles during the initial capture, times out, and four test cases run to their maximum (C20).
+idles during the initial capture, times out, and four test cases run to their maximum (C40).
 
 ### Where the time goes
 
@@ -264,26 +264,26 @@ Measured on 2026-09-14 (CTT 1.05.06, scripts 1.05.513, `ConsoleReferenceServer -
 | CU | Own run, fresh server, cycle 60, before | Whole group, cycle 30, after | Dominant wait |
 | --- | --- | --- | --- |
 | Basic | 1:39 | 0:12 | initial capture (60 s) when first |
-| Enable | 4:50 | 0:25 | `Test_003.js` phase race (C22), `Err_004.js`/`Err_005.js` event stall (C23) |
+| Enable | 4:50 | 0:25 | `Test_003.js` phase race (C42), `Err_004.js`/`Err_005.js` event stall (C43) |
 | Acknowledge | 2:48 | 1:43 | initial capture (first CU of the group run: 44 s), events |
 | Confirm | 2:53 | 0:59 | events |
-| Alarm | 4:48 | 1:54 | `Test_002.js` always runs to 3 × cycle (C21) |
+| Alarm | 4:48 | 1:54 | `Test_002.js` always runs to 3 × cycle (C41) |
 | Refresh | 2:44 | 1:28 | fixed waits: `Test_006.js` 20 s, `Err_004.js` 30 s |
 | Refresh2 | 3:02 | 1:44 | fixed waits: `Test_006.js` 20 s, `Err_003.js` 30 s |
 | Shelving | 3:16 | 1:02 | one analog period in `Test_002.js` |
-| Comment | 4:21 | 2:21 | four skipped test cases retry three times each (C19) |
-| Exclusive Limit | 14:23 | 1:45 | before: session timeout during capture (C20); after: one limit sweep in `Test_002.js`/`Test_003.js` |
+| Comment | 4:21 | 2:21 | four skipped test cases retry three times each (C39) |
+| Exclusive Limit | 14:23 | 1:45 | before: session timeout during capture (C40); after: one limit sweep in `Test_002.js`/`Test_003.js` |
 | Exclusive Level | 14:04 | 1:34 | same |
 | Non-Exclusive Limit | 14:09 | 1:46 | same |
 | Non-Exclusive Level | 14:05 | 1:46 | same |
-| CertificateExpiration | hangs (modal dialog) | excluded | C24 |
+| CertificateExpiration | hangs (modal dialog) | excluded | C44 |
 | 13 manual CUs (incl. Dialog) | seconds | seconds | — |
 | **Total** | **about 87 min + hang** | **18:45** | |
 
 The same group run with the default cycle of 60 s took 24:21 and 29:23. The spread comes from A & C
 Enable: `Test_003.js` missed alarm types while the server's boolean and analog alarm sources stepped a
-tick apart (C22, fixed on the server side), and after the `Err_004.js` burst the CTT alarm thread can stop
-returning events (C23), so `Err_004.js` and `Err_005.js` run to 3 × cycle (6 minutes at cycle 60, 3 at
+tick apart (C42, fixed on the server side), and after the `Err_004.js` burst the CTT alarm thread can stop
+returning events (C43), so `Err_004.js` and `Err_005.js` run to 3 × cycle (6 minutes at cycle 60, 3 at
 cycle 30).
 
 How the A&C scripts spend time:
@@ -292,7 +292,7 @@ How the A&C scripts spend time:
   CU that starts the alarm thread (`library/AlarmsAndConditions/AlarmCollector.js`, lines 305–319).
 - **Collector test cases** (`AlarmCollector.RunSingleTest`) track one condition per alarm type that sent
   an event and end when each has a pass, fail or skip, otherwise after 3 × Alarm Cycle Time
-  (`GetMaximumTestTime`). A test case whose script never records a result for one type (C21, C22)
+  (`GetMaximumTestTime`). A test case whose script never records a result for one type (C41, C42)
   always costs the maximum.
 - **Server alarm simulation.** `Alarms.AnalogSource` and `Alarms.BooleanSource` step by 5 per second
   from 50 to 100, down to 0 and back (40 s). Every condition changes state at the same ticks (70, 90,
@@ -312,8 +312,8 @@ copy with `SuppressLogEntries` unchecked (section 4); counters per alarm type
 ### Expected result
 
 With the server fixes of 2026-09-14, the recommended run reports errors only in A & C Alarm
-`Test_002.js` (C10) and `Test_004.js` (C11), and A & C Enable `Test_002.js` (C12/C19). A & C Comment
-skips `Test_001.js`–`Test_004.js` (C19) and `Err_006.js`; ten Shelving test cases pass without testing
+`Test_002.js` (C10) and `Test_004.js` (C11), and A & C Enable `Test_002.js` (C12/C39). A & C Comment
+skips `Test_001.js`–`Test_004.js` (C39) and `Err_006.js`; ten Shelving test cases pass without testing
 anything unless chattering alarms are configured (see ctt-issues.md, CTT project configuration notes).
 
 ## Pitfalls

@@ -46,7 +46,9 @@ running the CTT is in [ctt-testing.md](ctt-testing.md).
 | C4 | Aggregates: DurationInState status thresholds | — | Not filed |
 | C5 | Aggregates: durations truncated to whole milliseconds | — | Not filed |
 | C6 | Aggregates: DurationGood/PercentGood first region | — | Not filed |
-| C7–C24 | Other unfiled script defects | — | Not filed |
+| C7–C18 | Other unfiled script defects | — | Not filed |
+| C19–C31 | GDS Application Directory / Query Applications script defects | — | Not filed |
+| C39–C44 | Alarms and Conditions script defects | — | Not filed |
 
 Mantis states were last checked on 2026-09-13.
 
@@ -489,7 +491,7 @@ The global `ReadHelper` runs synchronously inside the alarm callback and fails c
 `collector.AddMessage(testCase, category, conditionId, reason)` drops `reason`. The result is empty
 `Error: ns=...` entries that hide which check failed. **Fix:** combine `conditionId` and `reason`
 into the third argument. With the reason logged, the failing check is the event `Time` comparison
-against `GetCallTime()`, which is broken (C19).
+against `GetCallTime()`, which is broken (C39).
 
 ### C13. Base Info Currency `004.js` drops the CurrencyUnit Exponent
 
@@ -555,7 +557,198 @@ from a server value, and appears for every condition type. Not yet pinpointed. *
 fall back from a specific locale (`en-US`) to its base language (`en`) when looking up the
 recommended texts.
 
-### C19. A & C `AlarmCollector.GetCallTime()` returns an unset time, so Comment skips every alarm type
+### C19. GDS Application Directory `060.js`, `067.js`, `069.js` register an ApplicationUri that is not a URI
+
+- **Tests:** `maintree/GDS/GDS Application Directory/Test Cases/060.js` and `067.js` line 15
+  (`urn:OPCFoundation:ServerApplicationWith%WildcardCharacter`), `069.js` line 15
+  (`urn:OPCFoundation:ServerApplicationWith\BackslashCharacter`)
+- **Error:** *"Call.Results[0].StatusCode incorrect. Received: BadInvalidArgument. Expected: Good"*, then
+  *"Failed to register a temporary application record …"*
+
+The patterns under test (`[%]`, `%\%%`, `%\\%`) are never sent. RegisterApplication rejects the
+temporary record: a raw `%` that is not followed by two hex digits and a `\` are not allowed in a URI
+(RFC 3986 §2.1, §3.3), and OPC 10000-12 §6.5.6 returns `Bad_InvalidArgument` when *"one of the
+fields of the application record is not valid"* (§6.5.4 treats *"not a valid URI"* the same way).
+Query Applications `011.js`/`018.js` avoid this by putting the `%` into the ApplicationName.
+**Fix:** use a valid URI (the percent-encoded `…With%25WildcardCharacter` still contains a literal
+`%`), or test `%` and `\` through the ApplicationName filter of QueryServers. `060.js` also has the
+defect of C20.
+
+### C20. GDS `[_]` / `[%]` patterns are evaluated as "contains"
+
+- **Tests:** GDS Application Directory `065.js` line 10 (`[_]`), `060.js` line 10 (`[%]`); GDS Query
+  Applications `011.js` line 10 (`[%]`), `016.js` line 10 (`[_]`)
+- **Error:** *"Did not receive the expected list of servers"* / *"Received unexpected array length for
+  OutputArgument 'applications'"*, *"Expected <2> but got <0>"*
+
+The scripts expect every record whose ApplicationUri/ApplicationName *contains* `_` or `%`
+(`cab:other_foundation:ClientAndServer`, *"… with % wildcard character"*). A Like pattern matches the
+whole string: OPC 10000-4 §7.7.3 gives *"5[%] would match '5%'"*, and `main%` only matches strings
+that start with `main`. `[_]` therefore only matches the one-character string `_`, and the GDS
+correctly returns no record. **Fix:** use `%[_]%` and `%[%]%` (or `%\_%` and `%\%%`, which
+`068.js`, `018.js` and `019.js` already test).
+
+### C21. GDS `%[^f-h]%` / `%[^w-y]%` patterns are evaluated as "contains none of"
+
+- **Tests:** GDS Application Directory `074.js` line 11 (`%[^f-h]%`); GDS Query Applications `025.js`
+  line 11 (`%[^w-y]%`)
+- **Error (with a spec-conformant matcher):** *"Expected <3> but got <5>"* / *"Expected <3> but got <4>"*
+
+The scripts expect the pattern to exclude `cab:other_foundation:ClientAndServer` (contains `f` and
+`h`) and *"Example_Vendor - ClientAndServer"* (contains `x`). Per OPC 10000-4 §7.7.3, `[^f-h]` matches
+**one** character that is not in the list, and the surrounding `%` match anything, so the pattern
+matches every string that has at least one character outside `f`–`h`, which is every registered
+record. No Like pattern can express "contains none of these characters". Both tests passed before
+2026-09-14 only because the GDS matcher (`ApplicationsDatabaseBase.SkipToNext`) special-cased `[^`.
+**Fix:** test the negated list at a fixed position (`073.js`/`024.js` already do with `%[^q-s]`) and
+drop these cases, or expect all records.
+
+### C22. `callQueryServers()` dereferences the output arguments of a failed call
+
+- **Tests:** GDS Application Directory `079.js` step 2 (`ServerCapabilities = [ "NA", "DA", "AC" ]`) and
+  `078.js` (`%[a^j-l]%`, since the server rejects the invalid pattern); `078.js` lines 19–20
+- **Helper:** `library/GDS/MethodCalls.js`, lines 279–286
+- **Error:** *"Result of expression 'servers' [null] is not an object"* (TypeError, line 286), which aborts the test
+
+The server returns the expected `BadInvalidArgument` (NA *"cannot be used in combination with any
+other capability"*, Part 12 Annex D; an invalid Like pattern for `078.js`) with an empty
+`OutputArguments` array. The helper's
+`isDefined( OutputArguments[0] ) && isDefined( OutputArguments[1] )` guard does not detect the
+empty array, and `toExtensionObjectArray()` of the empty variant returns null. `callQueryApplications()`
+in the same file checks `applications.isEmpty()` first. With the helper fixed, `078.js` still aborts at
+line 20 (*"Result of expression 'queryServersResult.Servers' [undefined] is not an object"*): it reads
+`Servers` after the expected Bad result, and its condition is inverted
+(`if( Assert.Equal( 0, … ) ) TC_Variables.Result = false;` fails the test when no record is returned).
+**Fix:** only read the output arguments when
+`Results[0].StatusCode.isGood()`, and check `isEmpty()` before `toExtensionObjectArray()`.
+
+### C23. GDS Application Directory `018.js` selects `ActionTimestamp` instead of `ActionTimeStamp`
+
+- **Test:** `maintree/GDS/GDS Application Directory/Test Cases/initialize.js` line 44
+  (`ApplicationRegistrationChangedAuditEventType_Fields`), used by `018.js`
+- **Error:** *"AuditEventType.ActionTimestamp should contain a valid timestamp that is somewhat current.
+  Received: '0001-01-01T00:00:00Z'"*
+
+The AuditEventType property's BrowseName is `ActionTimeStamp` (OPC 10000-5 §6.4.3), so the select
+clause built from `"ActionTimestamp"` resolves to nothing and the event field is null. The
+validator in `library/ClassBased/Events.js` line 78 also reads `args.ActionTimestamp`; the CTT's own
+`library/__regressionTesting/_Events.js` passes `ActionTimeStamp`. In other runs
+the same test instead reports *"Did not receive an ApplicationRegistrationChangedAuditEventType
+event"*: the monitored item is created with QueueSize 1, and the server kept only the newest audit
+event (server side, fixed by [#4480](https://github.com/OPCFoundation/UA-.NETStandard/pull/4480)).
+With both names corrected and a larger queue in a copy of the scripts, the event is received, it
+carries a current ActionTimeStamp (for example `2026-09-14T11:12:58.148Z`), and SourceNode,
+SourceName, MethodId and InputArguments verify. The validator then aborts at `Events.js` line 85
+(*"'this.ActionTimestamp.isNull' [undefined] is not a function"*) because it calls `isNull()` on the
+event field Variant instead of a `UaDateTime`. The other audit tests of the CU (`011.js`, `028.js`) use
+the same QueueSize 1 subscription and miss their event in some runs. **Fix:** use `"ActionTimeStamp"`
+in the field list and in `Events.js`, convert the field with `toDateTime()`, and create the audit
+monitored items with a queue size above 1.
+
+### C24. GDS Application Directory `019.js` step 3 batch RegisterApplication never reaches the server
+
+- **Test:** `maintree/GDS/GDS Application Directory/Test Cases/019.js`, line 53
+- **Error:** *"Call the ErrorCode in the Error Message received doesn't match the expectation. Expected:
+  Good but received: BadNotFound"*, then *"Step 3: Failed to register all ApplicationRecords in one call"*
+
+`BadNotFound` is the CTT client's own status for `session.call()`. With `-l` logging, the server log
+shows no `OnRegisterApplication` entry and no *"Service Fault Occurred"* for this request. The next
+entries are the four individual registrations of the script's fallback path. The same four records
+registered in one Call request succeed with four Good results (`GdsApplicationDirectoryTests.
+RegisterApplicationBatchedInOneCallRequestAsync`). **Fix:** CTT client: find out why the Call request
+with four `ApplicationRecordDataType` ExtensionObjects fails before it is sent.
+
+### C25. GDS Application Directory `010.js` dereferences the ApplicationId of a rejected registration
+
+- **Test:** `maintree/GDS/GDS Application Directory/Test Cases/010.js`, line 37
+- **Error:** *"Result of expression 'registerApplicationResult.ApplicationId' [undefined] is not an object"*
+
+RegisterApplication of an already registered ApplicationUri correctly returns `Bad_EntryExists`
+(OPC 10000-12 §6.5.6) with no output arguments, so `callRegisterApplication()` does not set
+`ApplicationId`, and line 37 calls `.clone()` on undefined before checking the StatusCode.
+**Fix:** clone only when `isDefined( registerApplicationResult.ApplicationId )`.
+
+### C26. GDS Application Directory `012.js` / `032.js` require ServerCapabilities for a Server
+
+- **Tests:** `012.js` step 5 (line 66, RegisterApplication), `032.js` line 52 (UpdateApplication)
+- **Error:** *"Call.Results[0].StatusCode incorrect. Received: Good. Expected: BadInvalidArgument"*
+
+The scripts expect `Bad_InvalidArgument` when a Server record has an empty ServerCapabilities array.
+OPC 10000-12 §6.5.5 (Table 7) and §6.5.6/§6.5.7 define no such requirement: the only ServerCapabilities
+rules are the RCP and NA rules for Clients and ClientAndServer, and Annex D describes `NA` as *"No
+capability information is available"* without making it mandatory. **Fix:** accept Good or
+`Bad_InvalidArgument`, or ask for a Part 12 clarification that Servers shall register `NA`.
+
+### C27. GDS Application Directory `027.js` changes a Server with a DiscoveryUrl into a Client
+
+- **Test:** `maintree/GDS/GDS Application Directory/Test Cases/027.js`, line 39
+  (`UaVariant.Increment` of the embedded server's ApplicationType)
+- **Error:** *"Call.Results[0].StatusCode incorrect. Received: BadInvalidArgument. Expected: Good"*,
+  *"Step 1: UpdateApplication call was not successful on iteration #0"*
+
+The updated record is a Client with DiscoveryUrl `opc.tcp://…:4842` and ServerCapabilities `NA`. A
+Client may only register DiscoveryUrls for reverse connect: *"all DiscoveryUrls shall begin with the
+rcp+ prefix"* and ServerCapabilities *"shall include RCP"* (OPC 10000-12 §6.5.5), and OPC 10000-4 §7.2
+requires an empty discoveryUrls list for a CLIENT. UpdateApplication returns `Bad_InvalidArgument` for
+an invalid field (§6.5.7). **Fix:** when changing the type to Client, clear the DiscoveryUrls (or
+change the type to ClientAndServer), or expect `Bad_InvalidArgument`.
+
+### C28. GDS Application Directory `029.js`, `038.js`, `039.js` expect `BadInvalidArgument` for unknown ApplicationIds
+
+- **Tests:** `029.js` line 16 (UpdateApplication with an empty record, ApplicationId null),
+  `038.js` line 15 (GetApplication with a null NodeId), `039.js` line 18 (GetApplication with
+  `Settings.Advanced.NodeIds.Invalid.NodeId1`)
+- **Error:** *"Call.Results[0].StatusCode incorrect. Received: BadNotFound. Expected: BadInvalidArgument"*
+
+The only result code OPC 10000-12 defines for an ApplicationId problem is `Bad_NotFound` *"The
+ApplicationId is not known to the GDS"* (§6.5.7 UpdateApplication, §6.5.9 GetApplication);
+`Bad_InvalidArgument` is not listed for GetApplication at all. A null or foreign NodeId is not known to
+the GDS. **Fix:** expect `Bad_NotFound` (accept `Bad_InvalidArgument` as well for `029.js`, whose record
+fields are also invalid).
+
+### C29. GDS Application Directory `005.js` expects `BadInvalidArgument` for a string above MaxStringLength
+
+- **Test:** `maintree/GDS/GDS Application Directory/Test Cases/005.js`, lines 20, 31, 37
+- **Error:** *"Call.Results[0].StatusCode incorrect. Received: Good. Expected: BadInvalidArgument"* (second call)
+
+The script builds the ApplicationUri from `String.fromCharCode( Math.floor( Math.random() * 256 ) )`,
+first with MaxStringLength (1,048,576) characters and then 10 % more, and expects Good and then
+`Bad_InvalidArgument`. Both calls returned Good with an empty result. A string above the server's
+`MaxStringLength` cannot be decoded: `BinaryDecoder.ReadString` rejects it with
+`Bad_EncodingLimitsExceeded` (limit from the transport quotas, `TcpTransportListener`), so the request
+never reaches FindApplications. A copy of the script that uses printable characters (`urn:` + letters)
+confirms this: the first call returns Good, and the second call gets a ServiceFault
+`Bad_EncodingLimitsExceeded` (server log *"MaxStringLength 1048576 < 1153434"*). So the original random
+string does not reach the server as generated; a likely cause is its `\0` and non-ASCII code points.
+**Fix:** use printable ASCII characters, and expect the ServiceFault `Bad_EncodingLimitsExceeded` for
+the oversized call.
+### C30. GDS Query Applications `036.js` expects `rcp+` URLs the test never registered
+
+- **Test:** `maintree/GDS/GDS Query Applications/Test Cases/036.js`, lines 23–28; records from
+  `initialize.js`
+- **Error:** *"Received DiscoveryUrl 'opc.tcp://ClientAndServer:12345' does not start with 'rcp+' prefix"*
+  (and `:12346`)
+
+The only registered application with the `RCP` capability is `cab:other_foundation:ClientAndServer`,
+whose DiscoveryUrls are the plain `opc.tcp://ClientAndServer:12345/12346`. QueryApplications copies the
+record's DiscoveryUrls unchanged (OPC 10000-12 §6.5.10 Table 13). For ClientAndServer, only *"DiscoveryUrls
+that support reverse connect have the rcp+ prefix"* (§6.5.5), and *"DiscoveryUrls without the prefix are
+used for forward connections"* (§4.4.3). **Fix:** register the RCP client or ClientAndServer with
+`rcp+opc.tcp://…` URLs, and check only that each returned record has at least one `rcp+` URL.
+
+### C31. GDS Query Applications `038.js` treats applicationType 3 as invalid
+
+- **Test:** `maintree/GDS/GDS Query Applications/Test Cases/038.js`, lines 17 and 48 (step 5)
+- **Error:** *"Call.Results[0].StatusCode incorrect. Received: Good. Expected: BadInvalidArgument"*
+
+Step 6 (`applicationType = 0xFFFFFFFF`) already returns `Bad_InvalidArgument`; only step 5 fails.
+QueryApplications' ApplicationType is *"A mask indicating what types of applications are returned. The
+mask values are: 0x1 - Servers; 0x2 - Clients; If the mask is 0 then all applications are returned"*
+(OPC 10000-12 §6.5.10). `3` is `Servers | Clients`, a valid mask, and the server returns all records.
+The script's expectation (*"no records"*) matches neither reading. **Fix:** expect Good with all
+records for `3`, and use a value with an undefined bit (for example `4`) for the invalid case.
+
+### C39. A & C `AlarmCollector.GetCallTime()` returns an unset time, so Comment skips every alarm type
 
 - **Helper:** `library/AlarmsAndConditions/AlarmCollector.js`, lines 1839–1842
   (`return new UaDateTime( callHelper.ServerTimeOfCall )`)
@@ -575,7 +768,7 @@ same helper but short-circuit the comparison (`IgnoreEventByCallTime` returns fa
 compare it with a tolerance, because the condition event is created before the response is sent),
 or use the request time corrected by the device time differential.
 
-### C20. A & C Limit/Level CUs create their filter subscriptions on a session that has timed out
+### C40. A & C Limit/Level CUs create their filter subscriptions on a session that has timed out
 
 - **Tests:** A & C Exclusive Limit, Exclusive Level, Non-Exclusive Limit and Non-Exclusive Level
   (all use `maintree/Alarms and Conditions/A and C Base/Limit/Test Cases/`), `Test_003.js`–`Test_006.js`
@@ -595,7 +788,7 @@ Limit CUs take about 100 s). `Test_005.js` line 22 also sets `TestName = "Test_0
 the `LimitHelper` before the initial capture, keep the CU session alive during the capture, or use
 the alarm thread session for the filter subscriptions.
 
-### C21. A & C Alarm `Test_002.js` always runs to the maximum test time
+### C41. A & C Alarm `Test_002.js` always runs to the maximum test time
 
 - **Test:** `maintree/Alarms and Conditions/A and C Alarm/Test Cases/Test_002.js`, line 38;
   `initialize.js`, lines 15–36
@@ -608,7 +801,7 @@ gets a result, and `IsTestComplete` only ends the test at 3 × Alarm Cycle Time 
 Line 22 also compares with `Identifier.ConditionId` where `Identifier.ConditionType` is meant.
 **Fix:** increment `TestsSkipped` (or set IgnoreSkip) for types that `CanRunTest` rejects.
 
-### C22. A & C Enable `Test_003.js` depends on all alarm types going active within cycle/10
+### C42. A & C Enable `Test_003.js` depends on all alarm types going active within cycle/10
 
 - **Test:** `maintree/Alarms and Conditions/A and C Enable/Test Cases/Test_003.js`, lines 64–68, 89,
   129–132, 201–215, 233–237
@@ -625,7 +818,7 @@ conditions it disabled are only re-enabled when the RefreshEnd event arrives (li
 until the refresh is started for all non-ignored types, or mark types without an active event as
 skipped when the refresh is issued.
 
-### C23. A & C Enable `Err_004.js` feedback burst; the CTT alarm thread then drops received events
+### C43. A & C Enable `Err_004.js` feedback burst; the CTT alarm thread then drops received events
 
 - **Test:** `maintree/Alarms and Conditions/A and C Enable/Test Cases/Err_004.js`, lines 25–40
 
@@ -654,7 +847,7 @@ stalled run was repeated against a server build that logs every notification mes
 **Fix:** handle each condition once (`TestCaseMap`), like the other Enable test cases, which removes
 the burst; and find why the alarm thread's event buffer stops filling after about 700 events arrive
 within a few seconds.
-### C24. A & C CertificateExpiration blocks a `--hidden` run on a modal dialog
+### C44. A & C CertificateExpiration blocks a `--hidden` run on a modal dialog
 
 - **Test:** `maintree/Alarms and Conditions/A and C CertificateExpiration/Test Cases/initialize.js`,
   lines 135–149
@@ -732,29 +925,46 @@ it is classified as a server or CTT issue.
   subscriptions was ever refreshed. Fixed: the check is now keyed by subscription and monitored item
   (`AlarmsAndConditionsRefreshTests.ConditionRefresh*OfDifferentSubscriptionsInOneCallSucceedsAsync`).
 - **A & C Comment skips 5 of 11 test cases.** CTT defect: `Test_001.js`–`Test_004.js` compare the
-  comment event time with an unset call time (C19); the server delivers the comment event with the
+  comment event time with an unset call time (C39); the server delivers the comment event with the
   expected text. The fifth skip is `Err_006.js` (*"Unable to find event that does not support
   comments"*), a coverage gap rather than a failure.
 - **Slow A & C units (resolved).** See [ctt-testing.md](ctt-testing.md#6-alarms-and-conditions) for the
   timing breakdown and the recommended run. Limit/Level CUs are slow only when they run first in a CTT
-  process (C20); CertificateExpiration hangs on a modal dialog (C24); Alarm `Test_002.js` always and
-  Enable `Test_003.js` often ran to 3 × Alarm Cycle Time (C21, C22), and Enable intermittently stops receiving events
-  after `Err_004.js` bursts (C23). The reference server's boolean
+  process (C40); CertificateExpiration hangs on a modal dialog (C44); Alarm `Test_002.js` always and
+  Enable `Test_003.js` often ran to 3 × Alarm Cycle Time (C41, C42), and Enable intermittently stops receiving events
+  after `Err_004.js` bursts (C43). The reference server's boolean
   and analog alarm sources now change state in the same simulation pass; with that Enable
   `Test_003.js` passed in 6 of 6 runs.
-- **GDS QueryServers / QueryApplications Like filters.** Against the GDS node manager in CTT mode
-  (`src/Opc.Ua.Gds.Server`, `ApplicationsDatabaseBase.IsMatchPattern`):
-  - Application Directory `066.js`, `068.js`, `071.js`, `073.js`, `075.js` and Query Applications
-    `011.js`–`024.js` return the wrong number of records for patterns such as `%_erver%` and `[%]`.
-  - `067.js`/`069.js`: patterns containing an escaped `%` or `\` are rejected with
-    `BadInvalidArgument` instead of Good.
-  - `078.js` (`%[a^j-l]%`, an invalid `^` position) and Query Applications `038.js`
-    (applicationType = max UInt32) are accepted with Good instead of `BadInvalidArgument`.
-  - `036.js`: a registered reverse-connect client's DiscoveryUrl does not start with `rcp+`.
-  - `079.js` then aborts in `library/GDS/MethodCalls.js:286` on a null `servers` result.
-- **GDS AliasName Discovery.** `001.js` finds AliasName instances in the TagVariables (`i=23479`) and
-  Topics (`i=23488`) folders although no server is registered yet. `002.js`/`004.js`: the aliases and
-  custom categories of a registered server are not replicated to the GDS.
+- **GDS (triaged 2026-09-14).** The 60 GDS errors are classified below. Server defects fixed:
+  - Like filters of QueryServers/QueryApplications (`ApplicationsDatabaseBase.Match`, now the shared
+    `Opc.Ua.LikePattern`, OPC 10000-4 §7.7.3). The old tokenizer returned no records or all records
+    for `%_erver%`, `%e_`, `%\_%`, `%\%%`, `%[q-s]`, `%[^q-s]` and `%_ompliance%`, and accepted the
+    malformed `%[a^j-l]%`. Fixes Application Directory `062.js`, `066.js`, `068.js`, `071.js`,
+    `073.js` and Query Applications `013.js`, `017.js`–`019.js`, `022.js`, `024.js`. `078.js` now
+    gets the expected `BadInvalidArgument` but then aborts in the CTT helper (C22).
+  - QueryServers RecordIds (`LinqApplicationsDatabase.QueryServers`). The application id was used as
+    the RecordId of every DiscoveryUrl record, so `StartingRecordId` paging skipped the remaining
+    DiscoveryUrls of an application (§6.5.11 Table 15 returns one record per DiscoveryUrl). Fixes
+    Application Directory `045.js`, `075.js`.
+  - FindApplications with an empty ApplicationUri returned every application (§6.5.4: array size 0 or
+    1, `Bad_InvalidArgument` for an invalid URI). Fixes Application Directory `004.js`. Other strings
+    that are not a registered ApplicationUri still return an empty array, which `003.js` (up to
+    MaxStringLength `X` characters) expects.
+
+  CTT GDS rerun with the fixes: 47 errors (baseline 60); 48 in a later run where `028.js` missed its
+  audit event (C23). `074.js` and Query Applications `025.js` newly fail as described in C21. A run
+  against a copy of the scripts with the recommended fixes of C19, C20, C22, C23, C25 and C29 applied
+  leaves 41 errors: `010.js`, `060.js`, `065.js`, `067.js`, `078.js`, `079.js` and Query Applications
+  `011.js`, `016.js` then pass, `018.js` receives a correct audit event, and `005.js` shows the expected
+  `Bad_EncodingLimitsExceeded` ServiceFault. That fault carries RequestHandle 0 (Part 4 §7.33: the
+  requestHandle *should* be echoed even for invalid requests), a transport-level observation outside
+  the GDS. CTT defects: C19–C31. Not applicable to this server: GDS AliasName
+  Discovery `001.js`, `002.js`,
+  `004.js` (see *CTT project configuration notes*). Application Directory `018.js` also needs the
+  event queue size fix of [#4480](https://github.com/OPCFoundation/UA-.NETStandard/pull/4480) (C23).
+  Spec conflict, server unchanged: §6.5.10/§6.5.11 say QueryApplications/QueryServers *"shall not
+  return records with a ServerCapabilities that includes NA"*, but the CTT registers its reference
+  Servers with `NA` and expects them in the results (for example `066.js`, `079.js` step 1).
 - **RevisedSamplingInterval 0.** Monitor Basic `038.js` warns that a requested SamplingInterval of 0 is
   returned unchanged. Part 4 says 0 means the fastest practical rate, and the revised value should
   report that rate.
@@ -794,8 +1004,27 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
 - **Auditing.** Auditing Connections `002.js`, `003.js`, `008.js`, `010.js`, `014.js` skip when no other
   test case in the same run produces the audit event they look for. Run the Auditing group together
   with the service groups whose actions it audits.
-- **GDS AliasName Discovery.** `005.js`–`015.js` need two or three AliasName sources configured
+- **GDS target server.** Application Directory and Query Applications exercise the same code
+  (`ApplicationsNodeManager` + `LinqApplicationsDatabase` from `src/Opc.Ua.Gds.Server`) on the
+  reference server in `--ctt` mode and on a dedicated GDS, so either target gives the same results.
+  The reference server keeps its GDS database in memory (empty `DatabaseStorePath`), so every server
+  start begins with an empty directory; a GDS with a JSON database (`DatabaseStorePath` set, as in the
+  `opc.tcp://localhost:58810/GlobalDiscoveryServer` sample GDS project) keeps records of aborted
+  earlier runs and changes the record counts every test expects. Delete that file before each run.
+  Run the four GDS CUs in one run: the test cases within a CU depend on the records registered by
+  its `initialize.js` and earlier test cases (`012.js` and `019.js` unregister and re-register them).
+- **GDS AliasName Discovery.** Not applicable: this CU belongs to the *GDS AliasName Server Facet*
+  (OPC 10000-17 Annex C.2: aggregate the AliasNames of registered Servers into TagVariables/Topics
+  and add their ServerUri to ServerArray), which `Opc.Ua.Gds.Server` does not implement, so `002.js`
+  and `004.js` fail on any GDS built from it. `001.js` additionally fails only against the reference
+  server: it expects empty TagVariables (`i=23479`) and Topics (`i=23488`) folders on a GDS without
+  registrations, but the reference server is itself an AliasName Server and exposes its own aliases
+  there (`Devices.Heater_Power`, `TIC101_PV`, `ServerEvents`, …). Deselect the CU until the facet is
+  implemented. `005.js`–`015.js` also need two or three AliasName sources configured
   (`/Server Test/GDS/AliasName Discovery/AliasName Source N URL`).
+- **GDS LDS-ME Connectivity.** `initialize.js` skips the CU unless QueryApplications with
+  `ServerCapabilities = ["LDS"]` returns a record: register an LDS/LDS-ME with the GDS first. The
+  reference server does not include an LDS.
 - **Monitor Value Change V2 `020.js`** needs the ByteString elements 0–2 of its configured array to be at
   least 4 characters long.
 - **Alarms and Conditions coverage.** The single-case CUs (ConditionClasses, Condition Sub-Classes,
@@ -811,7 +1040,7 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
   sets the initial event capture (1 ×), the maximum time of every collector test case (3 ×) and the
   Enable `Test_003.js` refresh delay (1/10). Keep it below
   `/Server Test/Session/RequestedSessionTimeout` (ms) when a Limit/Level CU can be the first A&C CU of a
-  run (C20).
+  run (C40).
 - **Historical Access coverage.** Every Historical Access CU except *Read Raw* contains only
   `NoTestCaseDefined.js` in scripts 1.05.513. Insert/Replace/Update/Delete (values and events),
   Annotations, ServerTimestamp, Modified, Time Instance and Structured Data are not tested.
