@@ -1008,11 +1008,8 @@ namespace Opc.Ua.Bindings
 
         /// <summary>
         /// Returns the certificate validation error that may be reported to the client of a
-        /// failed OpenSecureChannel request. Part 4 §6.1.3 (Table 106) requires
-        /// Bad_SecurityChecksFailed for the certificate structure, chain, signature, security
-        /// policy, trust list and revocation checks, including an unavailable revocation list,
-        /// so that a client cannot probe the server's trust configuration. Only validity
-        /// period, host name, URI and usage errors are reported with their own code.
+        /// failed OpenSecureChannel request (see <see cref="CertificateErrorReporting"/>).
+        /// Every other failure is reported as Bad_SecurityChecksFailed.
         /// </summary>
         /// <param name="e">The exception that failed the request.</param>
         /// <param name="reportable">The exception carrying the code to report.</param>
@@ -1021,38 +1018,18 @@ namespace Opc.Ua.Bindings
             Exception e,
             [NotNullWhen(true)] out ServiceResultException? reportable)
         {
-            reportable = null;
-
             // the certificate validation failure is thrown directly or as the inner exception.
             if ((e as ServiceResultException ?? e.InnerException as ServiceResultException)
-                is not ServiceResultException error ||
-                !IsReportableCertificateError(error.StatusCode))
+                    is ServiceResultException error &&
+                CertificateErrorReporting.IsReportedToClient(
+                    CertificateErrorReporting.GetClientStatusCode(error.Result)))
             {
-                return false;
+                reportable = error;
+                return true;
             }
 
-            // the validator nests every failed check below the last one; a single check
-            // that must stay hidden hides the whole result.
-            for (ServiceResult? inner = error.Result.InnerResult; inner != null; inner = inner.InnerResult)
-            {
-                if (!IsReportableCertificateError(inner.StatusCode))
-                {
-                    return false;
-                }
-            }
-
-            reportable = error;
-            return true;
-        }
-
-        private static bool IsReportableCertificateError(StatusCode statusCode)
-        {
-            return statusCode == StatusCodes.BadCertificateTimeInvalid ||
-                statusCode == StatusCodes.BadCertificateIssuerTimeInvalid ||
-                statusCode == StatusCodes.BadCertificateHostNameInvalid ||
-                statusCode == StatusCodes.BadCertificateUriInvalid ||
-                statusCode == StatusCodes.BadCertificateUseNotAllowed ||
-                statusCode == StatusCodes.BadCertificateIssuerUseNotAllowed;
+            reportable = null;
+            return false;
         }
 
         /// <inheritdoc/>
