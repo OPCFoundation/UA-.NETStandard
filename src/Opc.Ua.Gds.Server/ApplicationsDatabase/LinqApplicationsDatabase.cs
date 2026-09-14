@@ -96,6 +96,12 @@ namespace Opc.Ua.Gds.Server.Database.Linq
     [Serializable]
     internal class ServerEndpoint
     {
+        /// <summary>
+        /// The QueryServers record identifier. OPC 10000-12 §6.5.11 returns
+        /// one ServerOnNetwork record per DiscoveryUrl, so every endpoint
+        /// needs its own identifier for StartingRecordId paging.
+        /// </summary>
+        public uint ID { get; set; }
         public Guid ApplicationId { get; set; }
         public string? DiscoveryUrl { get; set; }
     }
@@ -377,10 +383,11 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             lock (Lock)
             {
-                // Per OPC UA Part 12, an empty applicationUri filter matches
-                // all registered Applications.
-                IEnumerable<Application> results = string.IsNullOrEmpty(applicationUri)
-                    ? Applications
+                // OPC 10000-12 §6.5.4: the result holds at most the one
+                // application with this ApplicationUri; an empty
+                // ApplicationUri identifies no application.
+                IEnumerable<Application> results = string.IsNullOrWhiteSpace(applicationUri)
+                    ? []
                     : from x in Applications
                       where x.ApplicationUri == applicationUri
                       select x;
@@ -454,16 +461,13 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             out DateTimeUtc lastCounterResetTime,
             out uint nextRecordId)
         {
-            base.QueryApplications(
-                startingRecordId,
-                maxRecordsToReturn,
-                applicationName,
-                applicationUri,
-                applicationType,
-                productUri,
-                serverCapabilities,
-                out lastCounterResetTime,
-                out nextRecordId);
+            (LikePattern? applicationNamePattern, LikePattern? applicationUriPattern, LikePattern? productUriPattern) =
+                ValidateQueryApplicationsArguments(
+                    applicationName,
+                    applicationUri,
+                    applicationType,
+                    productUri,
+                    serverCapabilities);
 
             lastCounterResetTime = DateTimeUtc.MinValue;
             nextRecordId = 0;
@@ -473,7 +477,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             {
                 IOrderedEnumerable<Application> results =
                     from x in Applications
-                    where (int)startingRecordId == 0 || (int)startingRecordId < x.ID
+                    where x.ID > startingRecordId
                     orderby x.ID
                     select x;
 
@@ -482,19 +486,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                 foreach (Application result in results)
                 {
-                    if (!string.IsNullOrEmpty(applicationName) &&
-                        !Match(result.ApplicationName, applicationName))
-                    {
-                        continue;
-                    }
-
-                    if (!string.IsNullOrEmpty(applicationUri) &&
-                        !Match(result.ApplicationUri, applicationUri))
-                    {
-                        continue;
-                    }
-
-                    if (!string.IsNullOrEmpty(productUri) && !Match(result.ProductUri, productUri))
+                    if (!IsMatch(applicationNamePattern, result.ApplicationName) ||
+                        !IsMatch(applicationUriPattern, result.ApplicationUri) ||
+                        !IsMatch(productUriPattern, result.ProductUri))
                     {
                         continue;
                     }
@@ -617,27 +611,33 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             ArrayOf<string> serverCapabilities,
             out DateTimeUtc lastCounterResetTime)
         {
-            base.QueryServers(
-                startingRecordId,
-                maxRecordsToReturn,
-                applicationName,
-                applicationUri,
-                productUri,
-                serverCapabilities,
-                out lastCounterResetTime);
+            (LikePattern? applicationNamePattern, LikePattern? applicationUriPattern, LikePattern? productUriPattern) =
+                ValidateQueryServersArguments(
+                    applicationName,
+                    applicationUri,
+                    productUri,
+                    serverCapabilities);
 
             lock (Lock)
             {
                 lastCounterResetTime = QueryCounterResetTime;
+                if (AssignServerEndpointIds())
+                {
+                    // Endpoints of a database saved before endpoints had an
+                    // identifier: persist the migrated identifiers.
+                    Save();
+                }
 
+                // One ServerOnNetwork record per DiscoveryUrl, identified by
+                // the endpoint record id (OPC 10000-12 §6.5.11 Table 15).
                 var results =
                     from x in ServerEndpoints
                     join y in Applications on x.ApplicationId equals y.ApplicationId
-                    where y.ID > startingRecordId
-                    orderby y.ID
+                    where x.ID > startingRecordId
+                    orderby x.ID
                     select new
                     {
-                        y.ID,
+                        x.ID,
                         y.ApplicationName,
                         y.ApplicationUri,
                         y.ProductUri,
@@ -650,19 +650,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                 foreach (var result in results)
                 {
-                    if (!string.IsNullOrEmpty(applicationName) &&
-                        !Match(result.ApplicationName, applicationName))
-                    {
-                        continue;
-                    }
-
-                    if (!string.IsNullOrEmpty(applicationUri) &&
-                        !Match(result.ApplicationUri, applicationUri))
-                    {
-                        continue;
-                    }
-
-                    if (!string.IsNullOrEmpty(productUri) && !Match(result.ProductUri, productUri))
+                    if (!IsMatch(applicationNamePattern, result.ApplicationName) ||
+                        !IsMatch(applicationUriPattern, result.ApplicationUri) ||
+                        !IsMatch(productUriPattern, result.ProductUri))
                     {
                         continue;
                     }
@@ -1101,8 +1091,46 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         application.ID = appMax;
                     }
                 }
+                _ = AssignServerEndpointIds();
                 Save();
             }
+        }
+
+        /// <summary>
+        /// Assigns monotonically increasing record identifiers to endpoints that
+        /// have none: endpoints added by RegisterApplication/UpdateApplication
+        /// and endpoints loaded from a database saved before endpoints had an
+        /// identifier. Identifiers are not reused after an endpoint is removed.
+        /// </summary>
+        /// <returns><c>true</c> if an identifier was assigned.</returns>
+        internal bool AssignServerEndpointIds()
+        {
+            uint endpointMax = LastServerEndpointId;
+            bool unassigned = false;
+            foreach (ServerEndpoint endpoint in ServerEndpoints)
+            {
+                endpointMax = Math.Max(endpointMax, endpoint.ID);
+                unassigned |= endpoint.ID == 0;
+            }
+
+            if (unassigned)
+            {
+                foreach (ServerEndpoint endpoint in ServerEndpoints)
+                {
+                    if (endpoint.ID == 0)
+                    {
+                        endpoint.ID = ++endpointMax;
+                    }
+                }
+            }
+
+            LastServerEndpointId = endpointMax;
+            return unassigned;
+        }
+
+        private static bool IsMatch(LikePattern? pattern, string? value)
+        {
+            return pattern == null || (!string.IsNullOrEmpty(value) && pattern.IsMatch(value));
         }
 
         [OnDeserialized]
@@ -1126,6 +1154,12 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         [JsonInclude]
         internal ICollection<ServerEndpoint> ServerEndpoints = [];
+
+        /// <summary>
+        /// The highest QueryServers record identifier assigned to an endpoint.
+        /// </summary>
+        [JsonInclude]
+        internal uint LastServerEndpointId;
 
         [JsonInclude]
         internal ICollection<CertificateRequest> CertificateRequests

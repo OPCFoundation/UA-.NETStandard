@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
 
 namespace Opc.Ua
 {
@@ -36,11 +35,7 @@ namespace Opc.Ua
     /// This class contains functions used to evaluate a ContentFilter and report the
     /// results of the evaluation.
     /// </summary>
-    public sealed
-#if NET8_0_OR_GREATER
-        partial
-#endif
-        class FilterEvaluator
+    public sealed class FilterEvaluator
     {
         /// <summary>
         /// Create evaluator
@@ -496,8 +491,19 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Like FilterOperator
+        /// Like FilterOperator (OPC 10000-4 §7.7.3). The pattern syntax and the
+        /// whole-string, case-sensitive match are implemented by
+        /// <see cref="LikePattern"/>.
         /// </summary>
+        /// <remarks>
+        /// The operator resolves to FALSE if an operand cannot be resolved to a
+        /// string. A pattern that is not a valid search string is treated the
+        /// same way: it matches nothing. A literal pattern operand is already
+        /// rejected with Bad_FilterOperandInvalid when the filter is validated
+        /// (<see cref="ContentFilterElement.Validate"/>); patterns that are only
+        /// known at evaluation time (for example from an AttributeOperand)
+        /// can only be handled here.
+        /// </remarks>
         private Variant Like(ContentFilterElement element)
         {
             FilterOperand[] operands = GetOperands(element, 2);
@@ -530,7 +536,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            return Match(lhs, rhs);
+            return LikePattern.IsMatch(lhs, rhs);
         }
 
         /// <summary>
@@ -782,64 +788,6 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// Returns true if the target string matches the UA pattern string.
-        /// The pattern string may include UA wildcards %_\[]!
-        /// </summary>
-        /// <param name="target">String to check for a pattern match.</param>
-        /// <param name="pattern">Pattern to match with the target string.</param>
-        /// <returns>true if the target string matches the pattern, otherwise false.</returns>
-        private static bool Match(string target, string pattern)
-        {
-            string expression = pattern;
-
-            // 1) Suppress unused regular expression characters with special meaning
-            // the following characters have special meaning in a regular expression []\^$.|?*+()
-            // the following characters are OPC UA wildcards %_\[]!
-            // The specail meaning of the regular expression characters not coincident with the
-            // OPC UA wildcards must be suppressed so as not to interfere with matching.
-            // preceed all '^', '$', '.', '|', '?', '*', '+', '(', ')' with a '\'
-            expression = SuppressUnusedCharacters.Replace(expression, "\\$1");
-
-            // Replace all OPC UA wildcards with their regular expression equivalents
-            // replace all '%' with ".+", except "\%"
-            expression = ReplaceWildcards.Replace(expression, ".*");
-
-            // replace all '_' with '.', except "\_"
-            expression = ReplaceUnderscores.Replace(expression, ".");
-
-            // replace all "[!" with "[^", except "\[!"
-            expression = ReplaceBrackets.Replace(expression, "[^");
-
-            return Regex.IsMatch(target, expression);
-        }
-
-#if NET8_0_OR_GREATER
-        [GeneratedRegex("([\\^\\$\\.\\|\\?\\*\\+\\(\\)])", RegexOptions.Compiled)]
-        private static partial Regex _SuppressUnusedCharacters();
-        private static Regex SuppressUnusedCharacters => _SuppressUnusedCharacters();
-
-        [GeneratedRegex("(?<!\\\\)%", RegexOptions.Compiled)]
-        private static partial Regex _ReplaceWildcards();
-        private static Regex ReplaceWildcards => _ReplaceWildcards();
-
-        [GeneratedRegex("(?<!\\\\)_", RegexOptions.Compiled)]
-        private static partial Regex _ReplaceUnderscores();
-        private static Regex ReplaceUnderscores => _ReplaceUnderscores();
-
-        [GeneratedRegex("(?<!\\\\)(\\[!)", RegexOptions.Compiled)]
-        private static partial Regex _ReplaceBrackets();
-        private static Regex ReplaceBrackets => _ReplaceBrackets();
-#else
-        private static Regex SuppressUnusedCharacters { get; }
-            = new("([\\^\\$\\.\\|\\?\\*\\+\\(\\)])", RegexOptions.Compiled);
-        private static Regex ReplaceWildcards { get; }
-            = new("(?<!\\\\)%", RegexOptions.Compiled);
-        private static Regex ReplaceUnderscores { get; }
-            = new("(?<!\\\\)_", RegexOptions.Compiled);
-        private static Regex ReplaceBrackets { get; }
-            = new("(?<!\\\\)(\\[!)", RegexOptions.Compiled);
-#endif
         private readonly ContentFilter m_filter;
         private readonly IFilterContext m_context;
         private readonly IFilterTarget m_target;
