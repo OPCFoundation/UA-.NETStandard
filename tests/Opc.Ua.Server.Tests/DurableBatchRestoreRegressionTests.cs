@@ -36,10 +36,16 @@ using Quickstarts.Servers;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies that durable queues wait for resident batches and release file readers before deleting restored data.
+    /// </summary>
     [TestFixture]
     [Parallelizable]
     public sealed class DurableBatchRestoreRegressionTests
     {
+        /// <summary>
+        /// Verifies that a nonresident data-change batch requests restoration without losing its queued value.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void DataBatchMustBecomeResidentBeforeDequeue(bool persisted)
@@ -73,6 +79,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that a nonresident event batch requests restoration without consuming the pending event.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void EventBatchMustBecomeResidentBeforeDequeue(bool persisted)
@@ -105,6 +114,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.ItemsInQueue, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that restoring a persisted batch closes its reader so the backing file can be deleted.
+        /// </summary>
         [Test]
         [NonParallelizable]
         public void RestoreClosesItsReaderBeforeDeletingTheBatchFile()

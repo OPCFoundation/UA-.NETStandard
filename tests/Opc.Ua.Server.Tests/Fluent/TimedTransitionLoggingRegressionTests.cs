@@ -43,10 +43,17 @@ using FluentFiniteStateMachineState = Opc.Ua.Server.StateMachines.FluentFiniteSt
 
 namespace Opc.Ua.Server.Tests.Fluent
 {
+    /// <summary>
+    /// Verifies timed-transition rejection log suppression without suppressing retries or recovery.
+    /// </summary>
     [TestFixture]
     [Category("Fluent")]
     public sealed class TimedTransitionLoggingRegressionTests
     {
+        /// <summary>
+        /// Verifies that repeated identical rejections log once while retries continue until the guard permits
+        /// transition.
+        /// </summary>
         [TestCaseSource(nameof(s_rejectionStatuses))]
         public async Task RepeatedTimedRejectionLogsOnceAndRecoversAsync(StatusCode rejectionStatus)
         {
@@ -76,6 +83,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(harness.Machine.StateRevision, Is.GreaterThan(initialRevision));
         }
 
+        /// <summary>
+        /// Verifies that changed rejection statuses permit new warnings while BadInvalidState remains silent.
+        /// </summary>
         [Test]
         public async Task ChangedRejectionStatusLogsAgainIncludingAfterInvalidStateAsync()
         {
@@ -111,6 +121,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(harness.CurrentState, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that reentering a state creates a new revision that may log the same rejection again.
+        /// </summary>
         [Test]
         public async Task ReenteringSameStateAllowsRejectionWarningForNewRevisionAsync()
         {
@@ -137,6 +150,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(harness.CurrentState, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that entering another state resets warning suppression and still permits later recovery.
+        /// </summary>
         [Test]
         public async Task EnteringDifferentStateAllowsRejectionWarningAndRecoveryAsync()
         {
@@ -161,6 +177,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(harness.CurrentState, Is.EqualTo(3));
         }
 
+        /// <summary>
+        /// Supplies guard failures that should be warned once per unchanged state revision and status.
+        /// </summary>
         private static readonly StatusCode[] s_rejectionStatuses =
         [
             StatusCodes.BadWaitingForInitialData,
@@ -168,8 +187,14 @@ namespace Opc.Ua.Server.Tests.Fluent
             StatusCodes.BadStateNotActive
         ];
 
+        /// <summary>
+        /// Runs a three-state machine with a fake clock, a configurable guard, and captured rejection warnings.
+        /// </summary>
         private sealed class TimedHarness : IAsyncDisposable
         {
+            /// <summary>
+            /// Configures and starts timed transitions with the requested initial guard rejection.
+            /// </summary>
             public TimedHarness(StatusCode rejectionStatus)
             {
                 GuardStatus = rejectionStatus;
@@ -220,19 +245,48 @@ namespace Opc.Ua.Server.Tests.Fluent
                 m_manager.Simulations.Start();
             }
 
+            /// <summary>
+            /// Gets the clock used to advance timed transitions deterministically.
+            /// </summary>
             public FakeTimeProvider Clock { get; } = new();
+
+            /// <summary>
+            /// Gets the server context used by manual and timed state transitions.
+            /// </summary>
             public ServerSystemContext Context { get; }
+
+            /// <summary>
+            /// Gets the state machine whose revision and current state are observed.
+            /// </summary>
             public FluentFiniteStateMachineState Machine { get; }
+
+            /// <summary>
+            /// Gets the number of timed transition attempts that reached the guard.
+            /// </summary>
             public int GuardCalls => Volatile.Read(ref m_guardCalls);
+
+            /// <summary>
+            /// Gets the numeric identifier of the machine's active state.
+            /// </summary>
             public uint CurrentState => Machine.GetStateId(Machine.CurrentState!.Id!.Value);
+
+            /// <summary>
+            /// Gets the captured warning payloads as state identifiers paired with rejection status codes.
+            /// </summary>
             public ArrayOf<(uint State, uint Status)> Rejections => m_rejections.ToArray();
 
+            /// <summary>
+            /// Gets or sets the result returned by the next timed-transition guard evaluation.
+            /// </summary>
             public StatusCode GuardStatus
             {
                 get => new(Volatile.Read(ref m_guardStatus));
                 set => Volatile.Write(ref m_guardStatus, value.Code);
             }
 
+            /// <summary>
+            /// Advances the fake clock and waits for a timed transition to reach its guard.
+            /// </summary>
             public async ValueTask TickAsync(TimeSpan? elapsed = null)
             {
                 Clock.Advance(elapsed ?? TimeSpan.FromMilliseconds(100));
@@ -240,6 +294,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                 Assert.That(reached, Is.True, "The registered simulation did not attempt its timed transition.");
             }
 
+            /// <summary>
+            /// Performs a manual transition while bypassing the timed guard's configured rejection.
+            /// </summary>
             public void Transition(uint transitionId)
             {
                 Volatile.Write(ref m_manualTransition, true);
@@ -254,6 +311,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                 }
             }
 
+            /// <summary>
+            /// Stops simulations and verifies that transition retries produced no error-level logs.
+            /// </summary>
             public async ValueTask StopAsync()
             {
                 await m_manager.Simulations.StopAsync().ConfigureAwait(false);
@@ -265,6 +325,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Never);
             }
 
+            /// <summary>
+            /// Stops simulations, disposes the node manager, and releases the guard notification semaphore.
+            /// </summary>
             public async ValueTask DisposeAsync()
             {
                 await m_manager.Simulations.StopAsync().ConfigureAwait(false);
@@ -272,6 +335,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                 m_guardReached.Dispose();
             }
 
+            /// <summary>
+            /// Records timed attempts and supplies their configured rejection while allowing manual transitions.
+            /// </summary>
             private ServiceResult BeforeTransition()
             {
                 if (Volatile.Read(ref m_manualTransition))
@@ -284,6 +350,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                 return result;
             }
 
+            /// <summary>
+            /// Extracts and validates the structured state and status recorded by a rejection warning.
+            /// </summary>
             private void CaptureRejection(IInvocation invocation)
             {
                 if (invocation.Arguments[2] is not IReadOnlyList<KeyValuePair<string, object?>> values)
@@ -308,15 +377,45 @@ namespace Opc.Ua.Server.Tests.Fluent
                 m_rejections.Add((state, status));
             }
 
+            /// <summary>
+            /// Owns the state machine and real simulation loop exercised with the fake clock.
+            /// </summary>
             private readonly TimedManager m_manager;
+
+            /// <summary>
+            /// Captures rejection warnings and verifies the absence of unexpected errors.
+            /// </summary>
             private readonly Mock<ILogger> m_logger = new();
+
+            /// <summary>
+            /// Preserves rejection payloads in emission order for exact logging assertions.
+            /// </summary>
             private readonly List<(uint State, uint Status)> m_rejections = [];
+
+            /// <summary>
+            /// Signals that a clock tick reached the timed-transition guard.
+            /// </summary>
             private readonly SemaphoreSlim m_guardReached = new(0);
+
+            /// <summary>
+            /// Supplies the next timed-transition guard result.
+            /// </summary>
             private uint m_guardStatus;
+
+            /// <summary>
+            /// Counts retry attempts independently of how many warnings are emitted.
+            /// </summary>
             private int m_guardCalls;
+
+            /// <summary>
+            /// Bypasses the controlled rejection while a test performs a manual state change.
+            /// </summary>
             private bool m_manualTransition;
         }
 
+        /// <summary>
+        /// Supplies the fluent node manager and simulation lifetime for timed-transition logging tests.
+        /// </summary>
         private sealed class TimedManager(IServerInternal server)
             : FluentNodeManagerBase(server, "urn:timed-transition-logging")
         {

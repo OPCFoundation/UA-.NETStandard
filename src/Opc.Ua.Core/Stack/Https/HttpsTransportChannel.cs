@@ -566,6 +566,9 @@ namespace Opc.Ua.Bindings
             return true;
         }
 
+        /// <summary>
+        /// Creates an HTTP client with transport quotas, certificate validation, and automatic redirects disabled.
+        /// </summary>
         private HttpClient CreateDirectHttpClient()
         {
             // auto validate server cert, if supported

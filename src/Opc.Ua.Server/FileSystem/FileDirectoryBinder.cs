@@ -150,8 +150,14 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Owns materialized directory nodes, open handles, and serialized provider reconciliation.
+        /// </summary>
         private sealed class FileDirectoryBinding : IFileDirectoryBinding, IFileSystemHost
         {
+            /// <summary>
+            /// Creates a directory binding with validated materialization limits and an optional node registrar.
+            /// </summary>
             public FileDirectoryBinding(
                 FileDirectoryState directory,
                 IFileSystemProvider provider,
@@ -168,18 +174,25 @@ namespace Opc.Ua.Server.FileSystem
                 m_nodeIdPrefix = "FileDirectoryBinding:" + directory.NodeId;
             }
 
+            /// <inheritdoc/>
             public FileDirectoryState Directory { get; }
 
+            /// <inheritdoc/>
             public IFileSystemProvider Provider { get; }
 
+            /// <inheritdoc/>
             public bool AllowCreate => m_options.AllowCreate;
 
+            /// <inheritdoc/>
             public bool AllowDelete => m_options.AllowDelete;
 
+            /// <inheritdoc/>
             public bool AllowMoveOrCopy => m_options.AllowMoveOrCopy;
 
+            /// <inheritdoc/>
             public bool UsesVirtualDirectoryBrowsing => false;
 
+            /// <inheritdoc/>
             public async ValueTask RefreshAsync(CancellationToken cancellationToken = default)
             {
                 if (!TryTrackOperation())
@@ -259,6 +272,7 @@ namespace Opc.Ua.Server.FileSystem
                 }
             }
 
+            /// <inheritdoc/>
             public NodeId BuildDirectoryNodeId(string providerPath)
             {
                 return string.IsNullOrEmpty(providerPath)
@@ -266,11 +280,13 @@ namespace Opc.Ua.Server.FileSystem
                     : CreateMaterializedNodeId("dir", providerPath);
             }
 
+            /// <inheritdoc/>
             public NodeId BuildFileNodeId(string providerPath)
             {
                 return CreateMaterializedNodeId("file", providerPath);
             }
 
+            /// <inheritdoc/>
             public string CombineProviderPath(string parent, string name)
             {
                 if (string.IsNullOrEmpty(parent))
@@ -280,6 +296,7 @@ namespace Opc.Ua.Server.FileSystem
                 return parent.TrimEnd('/') + "/" + name;
             }
 
+            /// <inheritdoc/>
             public NodeId GetParentNodeId(string providerPath)
             {
                 if (string.IsNullOrEmpty(providerPath))
@@ -291,6 +308,7 @@ namespace Opc.Ua.Server.FileSystem
                 return string.IsNullOrEmpty(parent) ? Directory.NodeId : BuildDirectoryNodeId(parent);
             }
 
+            /// <inheritdoc/>
             public FileHandle? GetOrCreateHandle(NodeId nodeId, string providerPath)
             {
                 lock (m_lock)
@@ -310,6 +328,7 @@ namespace Opc.Ua.Server.FileSystem
                 }
             }
 
+            /// <inheritdoc/>
             public void ForgetHandle(NodeId nodeId)
             {
                 FileHandle? retired = null;
@@ -324,6 +343,7 @@ namespace Opc.Ua.Server.FileSystem
                 retired?.Dispose();
             }
 
+            /// <inheritdoc/>
             public async ValueTask ApplyMutationAsync(
                 FileSystemMutationKind kind,
                 string path,
@@ -361,6 +381,7 @@ namespace Opc.Ua.Server.FileSystem
                 }
             }
 
+            /// <inheritdoc/>
             public bool TryGetProviderPath(
                 NodeId nodeId,
                 out string providerPath,
@@ -394,6 +415,9 @@ namespace Opc.Ua.Server.FileSystem
                 return false;
             }
 
+            /// <summary>
+            /// Wires directory methods and completes the initial provider reconciliation before publishing the binding.
+            /// </summary>
             public async ValueTask InitializeAsync(CancellationToken cancellationToken)
             {
                 WireDirectoryCallbacks(Directory, providerPath: string.Empty);
@@ -806,8 +830,14 @@ namespace Opc.Ua.Server.FileSystem
             private bool m_refreshRequired;
             private int m_activeOperations;
 
+            /// <summary>
+            /// Associates one provider entry with its address-space node and registration state.
+            /// </summary>
             private sealed class MaterializedNode
             {
+                /// <summary>
+                /// Captures the provider path, materialized node, and file-or-directory kind.
+                /// </summary>
                 public MaterializedNode(string providerPath, BaseInstanceState node, bool isDirectory)
                 {
                     ProviderPath = providerPath;
@@ -815,19 +845,37 @@ namespace Opc.Ua.Server.FileSystem
                     IsDirectory = isDirectory;
                 }
 
+                /// <summary>
+                /// Gets the provider-relative path represented by the node.
+                /// </summary>
                 public string ProviderPath { get; }
 
+                /// <summary>
+                /// Gets the address-space node materialized for the provider entry.
+                /// </summary>
                 public BaseInstanceState Node { get; }
 
+                /// <summary>
+                /// Gets whether the provider entry is a directory rather than a file.
+                /// </summary>
                 public bool IsDirectory { get; }
 
+                /// <summary>
+                /// Gets or sets whether node registration completed successfully.
+                /// </summary>
                 public bool Registered { get; set; }
             }
         }
     }
 
+    /// <summary>
+    /// Records materialized directory reconciliation failures and their mutation context.
+    /// </summary>
     internal static partial class FileDirectoryBinderLog
     {
+        /// <summary>
+        /// Reports a failed refresh and whether its provider mutation had already committed.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.FileDirectoryBinder, Level = LogLevel.Error,
             Message = "File-directory {DirectoryId} refresh failed (current provider mutation committed: " +
                 "{MutationCommitted}). " +

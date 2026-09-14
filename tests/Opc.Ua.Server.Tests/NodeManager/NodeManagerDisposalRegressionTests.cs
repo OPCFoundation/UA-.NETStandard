@@ -39,9 +39,15 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
+    /// <summary>
+    /// Verifies two-phase node-manager shutdown retains resources until admitted operations and semaphore owners drain.
+    /// </summary>
     [TestFixture]
     public sealed class NodeManagerDisposalRegressionTests
     {
+        /// <summary>
+        /// Verifies that shutdown rejects new writes but retains address-space nodes until admitted writes unwind.
+        /// </summary>
         [Test]
         // TODO: Remove when CA2025 can represent a two-phase shutdown race test.
         [SuppressMessage("Reliability", "CA2025:Do not pass disposables into unawaited tasks",
@@ -88,6 +94,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(manager.RetainedNodes, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that cleanup waits for each actual semaphore owner before disposing the synchronization resource.
+        /// </summary>
         [TestCase("m_writeSemaphore")]
         [TestCase("m_monitoredItemSemaphore")]
         [TestCase("m_componentCacheSemaphore")]
@@ -119,6 +128,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await DisposeAsync(manager).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that diagnostics work queued before shutdown is rejected without using a disposed semaphore.
+        /// </summary>
         [Test]
         public async Task QueuedDiagnosticsMutationCannotReleaseOrUseADisposedGateAsync()
         {
@@ -155,6 +167,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that master-manager disposal waits for a child's outstanding write before releasing its nodes.
+        /// </summary>
         [Test]
         public async Task MasterDisposalWaitsForItsChildManagersOutstandingOperationAsync()
         {
@@ -189,12 +204,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(child.RetainedNodes, Is.Zero);
         }
 
+        /// <summary>
+        /// Locates the selected manager semaphore to hold an actual ownership lease during disposal.
+        /// </summary>
         private static SemaphoreSlim ReadGate(AsyncCustomNodeManager manager, string name, bool diagnostics)
         {
             Type type = diagnostics ? typeof(DiagnosticsNodeManager) : typeof(AsyncCustomNodeManager);
             return (SemaphoreSlim)type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(manager)!;
         }
 
+        /// <summary>
+        /// Awaits asynchronous manager disposal when supported, otherwise invokes synchronous disposal.
+        /// </summary>
         private static Task DisposeAsync(AsyncCustomNodeManager manager)
         {
             if (manager is IAsyncDisposable asyncDisposable)
@@ -205,6 +226,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Submits one value write that can remain admitted while the node manager begins shutdown.
+        /// </summary>
         private static Task WriteAsync(AsyncCustomNodeManager manager, CancellationToken ct)
         {
             var context = new OperationContext(
@@ -219,6 +243,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ], new List<ServiceResult> { ServiceResult.Good }, ct).AsTask();
         }
 
+        /// <summary>
+        /// Creates the minimal server services and context required by the disposal test managers.
+        /// </summary>
         private static IServerInternal NewServer()
         {
             var server = new Mock<IServerInternal>();
@@ -234,8 +261,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return server.Object;
         }
 
+        /// <summary>
+        /// Retains one node while pausing handle resolution to expose an admitted operation during shutdown.
+        /// </summary>
         private sealed class BlockingNodeManager : AsyncCustomNodeManager
         {
+            /// <summary>
+            /// Registers the node whose retention is observed while outstanding writes drain.
+            /// </summary>
             public BlockingNodeManager(IServerInternal server)
                 : base(server, "urn:disposal-regression")
             {
@@ -248,12 +281,26 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 PredefinedNodes[node.NodeId] = node;
             }
 
+            /// <summary>
+            /// Gets the number of predefined nodes not yet released by shutdown.
+            /// </summary>
             public int RetainedNodes => PredefinedNodes.Count;
+
+            /// <summary>
+            /// Gets the signal raised when a write enters the blocking handle lookup.
+            /// </summary>
             public TaskCompletionSource<bool> Entered { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Gets the gate allowing the admitted handle lookup to finish.
+            /// </summary>
             public TaskCompletionSource<bool> Release { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+            /// <summary>
+            /// Pauses handle resolution until released or cancelled, keeping the write admitted for the lifetime test.
+            /// </summary>
             protected override async ValueTask<NodeHandle> GetManagerHandleAsync(
                 ServerSystemContext context,
                 NodeId nodeId,

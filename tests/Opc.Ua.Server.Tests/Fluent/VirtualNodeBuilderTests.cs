@@ -510,6 +510,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             return item;
         }
 
+        /// <summary>
+        /// Verifies that deleting the address space releases each monitored virtual source still active at shutdown.
+        /// </summary>
         [Test]
         public async Task VirtualMonitoredSourcesReleaseEveryLiveInstanceAtShutdownAsync()
         {

@@ -531,6 +531,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(endpoint.SelectedUserTokenPolicy.TokenType, Is.EqualTo(UserTokenType.Anonymous));
         }
 
+        /// <summary>
+        /// Verifies selecting an advertised user-token policy preserves its index and clears unmatched selections.
+        /// </summary>
         [TestCase(0)]
         [TestCase(1)]
         public void SelectedUserTokenPolicySetterPreservesMatchingPolicy(int index)

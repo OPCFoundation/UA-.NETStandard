@@ -855,6 +855,9 @@ namespace Opc.Ua
             /// </summary>
             public Uri? DiscoveryUrl { get; set; }
 
+            /// <summary>
+            /// Gets the transport profiles explicitly requested for this base address.
+            /// </summary>
             internal ArrayOf<string> RequestedProfiles { get; init; }
         }
 

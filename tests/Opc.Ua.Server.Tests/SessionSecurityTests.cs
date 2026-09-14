@@ -429,6 +429,9 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that decoded and binary identity tokens cannot select a policy for a different token type.
+        /// </summary>
         [TestCase(UserTokenType.UserName, false)]
         [TestCase(UserTokenType.UserName, true)]
         [TestCase(UserTokenType.Certificate, false)]
@@ -471,6 +474,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
         }
 
+        /// <summary>
+        /// Verifies that certificate user authentication requires a valid signature even on an unsecured channel.
+        /// </summary>
         [TestCase("null")]
         [TestCase("missing")]
         [TestCase("empty")]
@@ -1175,6 +1181,10 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(StatusCodes.BadApplicationSignatureInvalid));
         }
 
+        /// <summary>
+        /// Verifies that activation attempts from another channel cannot exhaust the victim application's lockout
+        /// budget.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task WrongChannelActivationNeverChargesVictimLockoutAsync(bool differentPolicy)
@@ -1209,6 +1219,10 @@ namespace Opc.Ua.Server.Tests
                 differentPolicy ? StatusCodes.BadSecurityPolicyRejected : StatusCodes.BadSecureChannelIdInvalid));
         }
 
+        /// <summary>
+        /// Verifies that invalid signatures lock out their originating application without blocking another
+        /// application.
+        /// </summary>
         [Test]
         public async Task InvalidSignaturesStillLockOutTheOriginatingApplicationAsync()
         {

@@ -610,6 +610,9 @@ namespace Opc.Ua.Server.Tests
                 "server shutdown must stop alarm monitoring");
         }
 
+        /// <summary>
+        /// Verifies that expiration alarms track the active registry's earliest certificate and observe replacements.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task StoreBackedCertificatesDriveExpirationAndReplacementFromActiveRegistryAsync(bool inline)

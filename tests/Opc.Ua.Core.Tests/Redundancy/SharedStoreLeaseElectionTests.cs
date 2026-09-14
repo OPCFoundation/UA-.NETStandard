@@ -635,6 +635,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(election.IsLeader, Is.False);
         }
 
+        /// <summary>
+        /// Verifies subscriber failures are logged without preventing acquisition, later subscribers, or lease release.
+        /// </summary>
         [Test]
         public async Task ThrowingLeadershipSubscriberDoesNotFailAcquireOrDisposeAsync()
         {
@@ -661,6 +664,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(found, Is.False);
         }
 
+        /// <summary>
+        /// Verifies lease expiry reaches healthy subscribers even when an earlier subscriber throws.
+        /// </summary>
         [Test]
         public async Task ExpiryNotifiesOtherSubscribersWhenOneThrowsAsync()
         {
@@ -681,6 +687,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(logger.ErrorCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies reading expired leadership does not invoke application callbacks before the expiry timer runs.
+        /// </summary>
         [Test]
         public async Task IsLeaderDoesNotDispatchExpiryNotificationsAsync()
         {
@@ -750,20 +759,33 @@ namespace Opc.Ua.Core.Tests.Redundancy
             private readonly TaskCompletionSource<bool> m_errorLogged =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+            /// <summary>
+            /// Gets completion of the first observed error-level log entry.
+            /// </summary>
             public Task ErrorLogged => m_errorLogged.Task;
+
+            /// <summary>
+            /// Gets the number of error-level messages observed across concurrent election callbacks.
+            /// </summary>
             public int ErrorCount => Volatile.Read(ref m_errorCount);
 
+            /// <inheritdoc/>
             public IDisposable BeginScope<TState>(TState state)
                 where TState : notnull
             {
                 return NullScope.Instance;
             }
 
+            /// <inheritdoc/>
             public bool IsEnabled(LogLevel logLevel)
             {
                 return true;
             }
 
+            /// <summary>
+            /// Counts error messages and signals the test when an election failure is logged.
+            /// </summary>
+            /// <typeparam name="TState">The structured state supplied by the logging caller.</typeparam>
             public void Log<TState>(
                 LogLevel logLevel,
                 EventId eventId,

@@ -414,6 +414,10 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <summary>
+        /// Refreshes endpoint metadata, validates its domain, and installs the active client certificate in the
+        /// manager.
+        /// </summary>
         private async Task<ServiceMessageContext> PrepareEndpointAndManagerAsync(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection? connection,

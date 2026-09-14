@@ -36,11 +36,17 @@ using Opc.Ua.X509StoreExtensions;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
+    /// <summary>
+    /// Covers the revocation status returned when the platform certificate store cannot process CRLs.
+    /// </summary>
     [TestFixture]
     [Category("CertificateStore")]
     [NonParallelizable]
     public sealed class StoreRevocationContractRegressionTests
     {
+        /// <summary>
+        /// Verifies unsupported operating-system revocation checks return BadCertificateRevocationUnknown.
+        /// </summary>
         [Test]
         public async Task UnsupportedOsRevocationReturnsUnknownStatusAsync()
         {

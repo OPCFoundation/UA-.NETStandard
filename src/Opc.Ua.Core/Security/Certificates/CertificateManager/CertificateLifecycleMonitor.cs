@@ -85,6 +85,9 @@ namespace Opc.Ua
             m_timer = m_timeProvider.CreateTimer(CheckExpiry, null, TimeSpan.Zero, checkInterval);
         }
 
+        /// <summary>
+        /// Inspects an owned certificate snapshot and emits expiry notices only for the current monitor generation.
+        /// </summary>
         private void CheckExpiry(object? state)
         {
             long generation;
@@ -175,8 +178,20 @@ namespace Opc.Ua
         private readonly ITimer m_timer;
         private readonly ILogger m_logger;
         private readonly HashSet<string> m_alreadyNotified = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Serializes notification bookkeeping with monitor reset and disposal.
+        /// </summary>
         private readonly Lock m_lock = new();
+
+        /// <summary>
+        /// Invalidates callbacks that started before the latest reset or disposal.
+        /// </summary>
         private long m_generation;
+
+        /// <summary>
+        /// Prevents further expiry notifications after the monitor is disposed.
+        /// </summary>
         private bool m_disposed;
     }
 

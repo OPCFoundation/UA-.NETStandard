@@ -139,6 +139,9 @@ namespace Opc.Ua.Server
             return new ValueTask<bool>(true);
         }
 
+        /// <summary>
+        /// Transfers ownership of the pending key to the caller when any requested certificate match succeeds.
+        /// </summary>
         private ValueTask<Certificate?> TryTakeCore(
             PendingCertificateKeyContext context,
             Certificate? matchingCertificate,

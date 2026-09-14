@@ -232,6 +232,9 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Wraps an accepted socket in its decorated byte transport and releases both wrappers if attachment fails.
+        /// </summary>
         internal void AttachCore(uint channelId, Socket socket)
         {
             if (socket == null)
@@ -277,6 +280,9 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Installs a transport on an undisposed channel and starts receiving its messages.
+        /// </summary>
         private void AttachCore(uint channelId, IUaSCByteTransport transport)
         {
             if (Volatile.Read(ref m_disposed) != 0)
@@ -299,6 +305,9 @@ namespace Opc.Ua.Bindings
             StartReceiveLoop();
         }
 
+        /// <summary>
+        /// Closes an unused channel to make room for admission unless it is disposed, closing, or serving a session.
+        /// </summary>
         internal bool TryIdleCleanupForAdmission()
         {
             using (Gate.Enter())
@@ -570,6 +579,9 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Applies a receive failure or clean closure only while the reporting transport is still attached.
+        /// </summary>
         private protected override void OnTransportError(
             IUaSCByteTransport transport,
             ServiceResult result,
@@ -1009,6 +1021,10 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly ILogger m_logger;
+
+        /// <summary>
+        /// Prevents new transport attachment or admission cleanup after disposal begins.
+        /// </summary>
         private int m_disposed;
         private volatile TcpChannelRequestEventHandler? m_requestReceived;
         private volatile ReportAuditOpenSecureChannelEventHandler? m_reportAuditOpenSecureChannelEvent;

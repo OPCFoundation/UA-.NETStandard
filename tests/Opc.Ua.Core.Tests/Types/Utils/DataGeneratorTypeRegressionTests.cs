@@ -34,11 +34,17 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
+    /// <summary>
+    /// Verifies generated doubles preserve random bits and typed variant arrays honor scalar and boundary selections.
+    /// </summary>
     [TestFixture]
     [Category("DataGenerator")]
     [Parallelizable(ParallelScope.All)]
     public sealed class DataGeneratorTypeRegressionTests
     {
+        /// <summary>
+        /// Verifies double generation preserves the exact 64-bit input representation without narrowing to Single.
+        /// </summary>
         [TestCase(1.0000000000000002)]
         [TestCase(-1.25)]
         [TestCase(double.MaxValue)]
@@ -53,6 +59,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 Is.EqualTo(BitConverter.DoubleToInt64Bits(expected)));
         }
 
+        /// <summary>
+        /// Verifies typed variant arrays use the selected scalar built-in type for every element.
+        /// </summary>
         [TestCase("unsigned", BuiltInType.UInt16)]
         [TestCase("integer", BuiltInType.Int16)]
         [TestCase("number", BuiltInType.Byte)]
@@ -75,6 +84,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             }
         }
 
+        /// <summary>
+        /// Verifies boundary-value selection remains distinct from ordinary typed-array generation.
+        /// </summary>
         [Test]
         public void TypedVariantArraysHonorBoundaryValueSelection()
         {
@@ -90,34 +102,58 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.That(boundaryValue, Is.EqualTo(ushort.MaxValue));
         }
 
+        /// <summary>
+        /// Supplies an exact byte sequence to expose any loss of floating-point precision.
+        /// </summary>
         private sealed class FixedRandomBytes : Test.ISecureRandomSource
         {
+            /// <summary>
+            /// Captures the bit pattern that each byte request must consume in full.
+            /// </summary>
             public FixedRandomBytes(byte[] bytes)
             {
                 m_bytes = bytes;
             }
 
+            /// <summary>
+            /// Copies the fixed bytes and verifies the generator requested the complete representation.
+            /// </summary>
             public void NextBytes(byte[] bytes, int offset, int count)
             {
                 Assert.That(count, Is.EqualTo(m_bytes.Length));
                 m_bytes.AsSpan().CopyTo(bytes.AsSpan(offset, count));
             }
 
+            /// <summary>
+            /// Selects the first available alternative deterministically.
+            /// </summary>
             public int NextInt32(int max)
             {
                 return 0;
             }
 
+            /// <summary>
+            /// Stores the exact floating-point representation supplied to the generator.
+            /// </summary>
             private readonly byte[] m_bytes;
         }
 
+        /// <summary>
+        /// Uses deterministic unit-valued choices to distinguish typed values from boundary-value substitutions.
+        /// </summary>
         private sealed class UnitRandomSource : Test.ISecureRandomSource
         {
+            /// <summary>
+            /// Fills the requested byte range with the deterministic ordinary value.
+            /// </summary>
             public void NextBytes(byte[] bytes, int offset, int count)
             {
                 bytes.AsSpan(offset, count).Fill(1);
             }
 
+            /// <summary>
+            /// Returns one when a choice exists and zero for an empty range.
+            /// </summary>
             public int NextInt32(int max)
             {
                 return max == 0 ? 0 : 1;

@@ -339,6 +339,9 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             m_process.Dispose();
         }
 
+        /// <summary>
+        /// Returns the requested trailing captured lines without accessing the possibly disposed process.
+        /// </summary>
         internal string GetOutputTail(int maximumLines)
         {
             lock (m_lock)

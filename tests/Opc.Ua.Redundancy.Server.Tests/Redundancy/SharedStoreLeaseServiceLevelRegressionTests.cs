@@ -39,11 +39,17 @@ using Opc.Ua.Redundancy.Server;
 
 namespace Opc.Ua.Server.Tests.Redundancy
 {
+    /// <summary>
+    /// Verifies published service levels follow confirmed lease expiry even when renewal storage is blocked.
+    /// </summary>
     [TestFixture]
     [Category("Distributed")]
     [Parallelizable(ParallelScope.All)]
     public sealed class SharedStoreLeaseServiceLevelRegressionTests
     {
+        /// <summary>
+        /// Verifies demotion at the exact deadline and standby takeover without waiting for a blocked renewal.
+        /// </summary>
         [TestCase(RedundancySupport.Cold, ServiceLevels.NoData)]
         [TestCase(RedundancySupport.Warm, ServiceLevels.DegradedMaximum)]
         public async Task BlockedRenewalDemotesServiceLevelAtConfirmedExpiryAsync(
@@ -119,8 +125,19 @@ namespace Opc.Ua.Server.Tests.Redundancy
             }
         }
 
+        /// <summary>
+        /// Identifies the lease record shared by the active and standby participants.
+        /// </summary>
         private const string kLeaseKey = "lease/service-level-expiry";
+
+        /// <summary>
+        /// Defines the confirmed leadership lifetime used by deadline assertions.
+        /// </summary>
         private static readonly TimeSpan s_leaseDuration = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// Starts renewal before expiry so its storage read can be held across the deadline.
+        /// </summary>
         private static readonly TimeSpan s_renewInterval = TimeSpan.FromSeconds(10);
     }
 }

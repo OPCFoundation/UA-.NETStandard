@@ -53,6 +53,9 @@ namespace Opc.Ua
         {
         }
 
+        /// <summary>
+        /// Initializes the platform store with an optional certificate-snapshot provider.
+        /// </summary>
         internal X509CertificateStore(
             ITelemetryContext telemetry,
             Func<X509Store, X509Certificate2Collection>? getCertificates)
@@ -511,6 +514,9 @@ namespace Opc.Ua
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Retrieves certificate snapshots whose handles are released after each store operation.
+        /// </summary>
         private readonly Func<X509Store, X509Certificate2Collection> m_getCertificates;
         private readonly ILogger m_logger;
         private string m_storeName;

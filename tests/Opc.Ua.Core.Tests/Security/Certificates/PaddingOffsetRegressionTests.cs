@@ -34,10 +34,17 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
+    /// <summary>
+    /// Covers symmetric padding validation for offset buffers and one- or two-byte padding lengths.
+    /// </summary>
     [TestFixture]
     [Category("CryptoUtils")]
     public sealed class PaddingOffsetRegressionTests
     {
+        /// <summary>
+        /// Verifies every corrupted padding byte is rejected even when its signature is valid and the payload is
+        /// offset.
+        /// </summary>
         [TestCase(0)]
         [TestCase(8)]
         [TestCase(24)]
@@ -86,6 +93,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Verifies padding round trips retain the prefix and payload for both padding-length encodings.
+        /// </summary>
         [TestCase(16, 0)]
         [TestCase(16, 24)]
         [TestCase(512, 0)]
@@ -103,6 +113,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(unpadded.AsSpan().ToArray(), Is.All.EqualTo(0x31));
         }
 
+        /// <summary>
+        /// Verifies missing padding-length bytes produce a cryptographic protocol error rather than an indexing
+        /// failure.
+        /// </summary>
         [TestCase(0, 16)]
         [TestCase(0, 512)]
         [TestCase(1, 512)]
@@ -112,6 +126,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.Throws<CryptographicException>(() => remove(new ArraySegment<byte>(new byte[count]), blockSize));
         }
 
+        /// <summary>
+        /// Binds a private padding helper to a typed delegate for direct boundary-condition checks.
+        /// </summary>
+        /// <typeparam name="T">The delegate signature matching the private padding helper.</typeparam>
         private static T Bind<T>(string methodName) where T : Delegate
         {
             MethodInfo method = typeof(CryptoUtils).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Static)!;

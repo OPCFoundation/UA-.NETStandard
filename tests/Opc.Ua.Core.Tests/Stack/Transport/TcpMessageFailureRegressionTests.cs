@@ -46,10 +46,17 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Transport
 {
+    /// <summary>
+    /// Verifies immediate sequence-failure reporting and well-formed secured abort messages with balanced buffers.
+    /// </summary>
     [TestFixture]
     [NonParallelizable]
     public sealed class TcpMessageFailureRegressionTests
     {
+        /// <summary>
+        /// Verifies that invalid response sequences fault a pending request promptly while the next valid sequence
+        /// succeeds.
+        /// </summary>
         [Test]
         public async Task ResponseSequenceFailureCompletesPendingRequestWithoutWaitingForTimeoutAsync(
             [Values(4u, 5u, 6u)] uint sequence)
@@ -128,6 +135,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.Duplicates, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that quota rejection encodes a valid secured abort even when the remaining payload is very short.
+        /// </summary>
         [Test]
         public void ShortFinalPayloadStillEncodesAValidSecuredAbort(
             [Range(1, 7)] int tailLength,
@@ -169,6 +179,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.Duplicates, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies empty and exact-capacity payloads remain valid final messages rather than quota aborts.
+        /// </summary>
         [Test]
         public void EmptyAndExactBoundaryPayloadsRemainValidWithoutExceedingLimits(
             [Values(false, true)] bool empty,
@@ -197,6 +210,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.Duplicates, Is.Zero);
         }
 
+        /// <summary>
+        /// Encodes a pooled read-response chunk with controlled request and sequence identifiers.
+        /// </summary>
         private static ArraySegment<byte> BuildResponse(
             BufferManager buffers, IServiceMessageContext context, uint requestId, uint sequence)
         {
@@ -218,8 +234,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             return new ArraySegment<byte>(buffer, 0, encoder.Close());
         }
 
+        /// <summary>
+        /// Exposes an initialized client receive path without reconnect scheduling or a real network.
+        /// </summary>
         private sealed class ClientProbe : UaSCUaBinaryClientChannel
         {
+            /// <summary>
+            /// Creates an unsecured client channel with injectable buffers and a deterministic clock.
+            /// </summary>
             public ClientProbe(BufferManager buffers, ChannelQuotas quotas, ITelemetryContext telemetry)
                 : base("response-sequence", buffers, Mock.Of<IUaSCByteTransportFactory>(), quotas,
                     null, null, null, new EndpointDescription
@@ -231,8 +253,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
             }
 
+            /// <summary>
+            /// Gets the transport state after response processing.
+            /// </summary>
             public TcpChannelState CurrentState => State;
 
+            /// <summary>
+            /// Installs a token and fake transport and seeds the previously accepted sequence number.
+            /// </summary>
             public void OpenForTest(IUaSCByteTransport transport)
             {
                 // Successful OpenSecureChannel leaves reconnect scheduling to its transport owner.
@@ -248,14 +276,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Assert.That(VerifySequenceNumber(5, "seed"), Is.True);
             }
 
+            /// <summary>
+            /// Delivers a pooled response chunk to the real channel receive path.
+            /// </summary>
             public ValueTask FeedAsync(ArraySegment<byte> message)
             {
                 return OnChunkReceivedAsync(message, CancellationToken.None);
             }
         }
 
+        /// <summary>
+        /// Exposes symmetric message encoding and decoding under configurable security and chunk limits.
+        /// </summary>
         private sealed class SymmetricProbe : UaSCUaBinaryChannel
         {
+            /// <summary>
+            /// Installs a token and deterministic key material for the selected message security mode.
+            /// </summary>
             public SymmetricProbe(
                 BufferManager buffers, ChannelQuotas quotas, ITelemetryContext telemetry, MessageSecurityMode mode)
                 : base("abort", buffers, quotas, (Certificate?)null, null, mode,
@@ -272,8 +309,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 ActivateToken(token);
             }
 
+            /// <summary>
+            /// Gets the maximum size of one encoded chunk.
+            /// </summary>
             public int BufferSize => SendBufferSize;
 
+            /// <summary>
+            /// Gets the payload capacity after accounting for the sequence header, signature, and padding.
+            /// </summary>
             public int PayloadCapacity
             {
                 get
@@ -285,6 +328,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
             }
 
+            /// <summary>
+            /// Sets matching request and response chunk-count limits.
+            /// </summary>
             public int LimitChunks
             {
                 set
@@ -294,32 +340,47 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
             }
 
+            /// <summary>
+            /// Encodes a request or response using the fixed request identifier and current security token.
+            /// </summary>
             public BufferCollection Encode(ArraySegment<byte> payload, bool request, out bool exceeded)
             {
                 return WriteSymmetricMessage(
                     TcpMessageType.Message, 17, CurrentToken!, payload, request, out exceeded);
             }
 
+            /// <summary>
+            /// Verifies and decodes the secured chunk to expose its payload and request identifier.
+            /// </summary>
             public ArraySegment<byte> Decode(ArraySegment<byte> chunk, bool request, out uint requestId)
             {
                 return ReadSymmetricMessage(chunk, request, out _, out requestId, out _);
             }
         }
 
+        /// <summary>
+        /// Captures formatted channel diagnostics for exact security-failure assertions.
+        /// </summary>
         private sealed class CaptureLogger : ILogger
         {
+            /// <summary>
+            /// Gets messages in the order they were recorded.
+            /// </summary>
             public ConcurrentQueue<string> Messages { get; } = new();
 
+            /// <inheritdoc/>
             public IDisposable? BeginScope<TState>(TState state) where TState : notnull
             {
                 return null;
             }
 
+            /// <inheritdoc/>
             public bool IsEnabled(LogLevel logLevel)
             {
                 return true;
             }
 
+            /// <inheritdoc/>
             public void Log<TState>(
                 LogLevel logLevel, EventId eventId, TState state, Exception? exception,
                 Func<TState, Exception?, string> formatter)
@@ -328,11 +389,24 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        /// <summary>
+        /// Tracks outstanding pooled arrays and duplicate returns across message failure paths.
+        /// </summary>
         private sealed class CountingPool : ArrayPool<byte>
         {
+            /// <summary>
+            /// Gets the number of rentals not yet returned.
+            /// </summary>
             public int Outstanding => m_owned.Count;
+
+            /// <summary>
+            /// Gets the number of arrays returned without a matching outstanding rental.
+            /// </summary>
             public int Duplicates { get; private set; }
 
+            /// <summary>
+            /// Allocates and records an independently owned array for each rental.
+            /// </summary>
             public override byte[] Rent(int minimumLength)
             {
                 byte[] result = new byte[minimumLength];
@@ -340,6 +414,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return result;
             }
 
+            /// <summary>
+            /// Completes a rental or records a duplicate return.
+            /// </summary>
             public override void Return(byte[] array, bool clearArray = false)
             {
                 if (!m_owned.TryRemove(array, out _))
@@ -348,6 +425,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
             }
 
+            /// <summary>
+            /// Records arrays whose ownership has not yet been released.
+            /// </summary>
             private readonly ConcurrentDictionary<byte[], byte> m_owned = new();
         }
     }

@@ -41,10 +41,16 @@ using UserManagementFacade = Opc.Ua.Server.UserManagement.UserManagement;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies atomic user persistence, stable snapshots, and reliable credential verification cleanup.
+    /// </summary>
     [TestFixture]
     [Category("Server")]
     public sealed class UserDatabaseReliabilityRegressionTests
     {
+        /// <summary>
+        /// Verifies that a partial snapshot-write failure preserves the committed database and removes temporary files.
+        /// </summary>
         [Test]
         public void FailedSnapshotWritePreservesThePreviousCommittedDatabase()
         {
@@ -69,6 +75,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(Directory.GetFiles(files.DirectoryName), Has.Length.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that readers retain the old database until the complete replacement snapshot is ready.
+        /// </summary>
         [Test]
         public void SnapshotBecomesVisibleOnlyAfterTheCompleteWrite()
         {
@@ -94,6 +103,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(Directory.GetFiles(files.DirectoryName), Has.Length.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that malformed or null JSON throws without rewriting the database as an empty successful load.
+        /// </summary>
         [TestCase("{")]
         [TestCase("null")]
         public void CorruptOrNullDatabaseDoesNotBecomeAnEmptySuccessfulLoad(string json)
@@ -104,6 +116,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(File.ReadAllText(files.FileName), Is.EqualTo(json));
         }
 
+        /// <summary>
+        /// Verifies that an exclusively locked database reports an I/O failure instead of silently loading no users.
+        /// </summary>
         [Test]
         public void InaccessibleDatabaseDoesNotBecomeAnEmptySuccessfulLoad()
         {
@@ -114,6 +129,9 @@ namespace Opc.Ua.Server.Tests
             Assert.Throws<IOException>(() => JsonUserDatabase.Load(files.FileName, NUnitTelemetryContext.Create()));
         }
 
+        /// <summary>
+        /// Verifies that temporary derived credential keys are cleared after acceptance, rejection, or failure.
+        /// </summary>
         [TestCase("accepted")]
         [TestCase("rejected")]
         [TestCase("failure")]
@@ -143,6 +161,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(Array.TrueForAll(observed, value => value == 0), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a stored derived key with an invalid length cannot authenticate by matching only a prefix.
+        /// </summary>
         [TestCase(1)]
         [TestCase(31)]
         [TestCase(33)]
@@ -170,6 +191,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(database.CheckCredentials("alice", "credential"u8), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that updating credentials and roles preserves earlier snapshots and the user's stable identity.
+        /// </summary>
         [Test]
         public void UserSnapshotsRemainStableAcrossSubsequentCredentialAndRoleUpdates()
         {
@@ -187,6 +211,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(database.GetUserRoles("alice").Single(), Is.EqualTo(Role.Operator));
         }
 
+        /// <summary>
+        /// Verifies that concurrent user creations persist one complete snapshot containing every accepted credential.
+        /// </summary>
         [Test]
         public async Task ConcurrentUserUpdatesLeaveACompleteReloadableSnapshotAsync()
         {
@@ -214,6 +241,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(Directory.GetFiles(files.DirectoryName), Has.Length.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that unknown and inactive users still derive and clear a verification key before rejection.
+        /// </summary>
         [TestCase("active")]
         [TestCase("inactive")]
         [TestCase("unknown")]
@@ -244,20 +274,43 @@ namespace Opc.Ua.Server.Tests
             CryptoUtils.ZeroMemory(handler.DecryptedPassword);
         }
 
+        /// <summary>
+        /// Defines the users expected when a failed write leaves the original snapshot committed.
+        /// </summary>
         private static readonly string[] s_oneUser = ["alice"];
+
+        /// <summary>
+        /// Defines the users expected after a complete replacement snapshot is committed.
+        /// </summary>
         private static readonly string[] s_twoUsers = ["alice", "bob"];
 
+        /// <summary>
+        /// Owns an isolated directory for the committed database and any transient snapshot files.
+        /// </summary>
         private sealed class DatabaseFiles : IDisposable
         {
+            /// <summary>
+            /// Creates a unique temporary directory for one persistence scenario.
+            /// </summary>
             public DatabaseFiles()
             {
                 DirectoryName = Path.Combine(Path.GetTempPath(), "UserDatabaseRegression-" + Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(DirectoryName);
             }
 
+            /// <summary>
+            /// Gets the isolated directory used to check for leftover temporary files.
+            /// </summary>
             public string DirectoryName { get; }
+
+            /// <summary>
+            /// Gets the path of the committed user database.
+            /// </summary>
             public string FileName => Path.Combine(DirectoryName, "users.json");
 
+            /// <summary>
+            /// Removes the isolated directory and any database or temporary files created by the test.
+            /// </summary>
             public void Dispose()
             {
                 Directory.Delete(DirectoryName, recursive: true);

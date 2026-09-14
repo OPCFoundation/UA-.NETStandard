@@ -54,6 +54,9 @@ namespace Opc.Ua.Aot.Tests
         public string EndpointUrl { get; private set; }
         public int BasePort { get; private set; }
 
+        /// <summary>
+        /// Starts the GDS fixture and releases partially initialized resources if startup fails.
+        /// </summary>
         public async Task InitializeAsync()
         {
             bool initialized = false;
@@ -71,6 +74,9 @@ namespace Opc.Ua.Aot.Tests
             }
         }
 
+        /// <summary>
+        /// Releases the client, server, temporary stores, and telemetry even when an earlier cleanup step fails.
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
             try
@@ -103,6 +109,9 @@ namespace Opc.Ua.Aot.Tests
             }
         }
 
+        /// <summary>
+        /// Starts an in-process GDS and connects its administrative client using programmatically built configurations.
+        /// </summary>
         private async Task InitializeCoreAsync()
         {
             Telemetry = DefaultTelemetry.Create(builder =>
@@ -270,6 +279,9 @@ namespace Opc.Ua.Aot.Tests
                 .ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Disconnects the GDS client and disposes its application instance regardless of disconnect failure.
+        /// </summary>
         private async ValueTask DisconnectClientAsync()
         {
             try
@@ -296,6 +308,9 @@ namespace Opc.Ua.Aot.Tests
             }
         }
 
+        /// <summary>
+        /// Stops and disposes the server application, then releases its certificate group.
+        /// </summary>
         private async ValueTask StopServerAsync()
         {
             try
@@ -452,6 +467,9 @@ namespace Opc.Ua.Aot.Tests
             }
         }
 
+        /// <summary>
+        /// Deletes an existing fixture storage directory when a path was initialized.
+        /// </summary>
         private static void CleanDirectory(string path)
         {
             if (path != null && Directory.Exists(path))
@@ -461,6 +479,10 @@ namespace Opc.Ua.Aot.Tests
         }
 
         private ApplicationInstance m_serverApplication;
+
+        /// <summary>
+        /// Owns the client configuration and certificate services for the connected GDS client.
+        /// </summary>
         private ApplicationInstance m_clientApplication;
         private ApplicationConfiguration m_clientConfiguration;
         private string m_gdsRoot;

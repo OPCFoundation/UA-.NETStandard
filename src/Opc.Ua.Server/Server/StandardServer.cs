@@ -262,6 +262,9 @@ namespace Opc.Ua.Server
             return new ValueTask(dispose);
         }
 
+        /// <summary>
+        /// Performs orderly shutdown before releasing registration, configuration and owned server resources.
+        /// </summary>
         private async Task DisposeCoreAsync()
         {
             // Run the orderly server shutdown (idempotent) before releasing base resources,
@@ -2981,6 +2984,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Attempts discovery registration and schedules the next retry only for the active registration generation.
+        /// </summary>
         private async Task RegisterServerIterationAsync(long generation, CancellationToken cancellationToken)
         {
             try
@@ -3025,6 +3031,10 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Prevents registration rearming, cancels the active attempt and drains it before releasing cancellation
+        /// state.
+        /// </summary>
         private async ValueTask StopRegistrationAsync()
         {
             CancellationTokenSource? cancellation;
@@ -5043,9 +5053,25 @@ namespace Opc.Ua.Server
         private ConfiguredEndpointCollection? m_registrationEndpoints;
         private RegisteredServer? m_registrationInfo;
         private ITimer? m_registrationTimer;
+
+        /// <summary>
+        /// Cancels the currently owned discovery-registration attempt during shutdown.
+        /// </summary>
         private CancellationTokenSource? m_registrationCts;
+
+        /// <summary>
+        /// Tracks the registration attempt that shutdown must drain.
+        /// </summary>
         private Task? m_registrationTask;
+
+        /// <summary>
+        /// Distinguishes current registration callbacks from callbacks belonging to a retired timer.
+        /// </summary>
         private long m_registrationGeneration;
+
+        /// <summary>
+        /// Prevents discovery-registration callbacks from starting or rearming after shutdown.
+        /// </summary>
         private bool m_registrationStopped = true;
         private int m_minRegistrationInterval;
         private int m_maxRegistrationInterval;

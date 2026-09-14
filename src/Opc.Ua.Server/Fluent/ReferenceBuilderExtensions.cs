@@ -327,27 +327,40 @@ namespace Opc.Ua.Server.Fluent
             INodeBuilder<TState>
             where TState : NodeState
         {
+            /// <summary>
+            /// Wraps a node outside the predefined-node dictionary while retaining its owning builder.
+            /// </summary>
             internal AdHocNodeBuilder(INodeManagerBuilder ownerBuilder, TState node)
             {
                 Builder = ownerBuilder ?? throw new ArgumentNullException(nameof(ownerBuilder));
                 Node = node ?? throw new ArgumentNullException(nameof(node));
             }
 
+            /// <inheritdoc/>
             public TState Node { get; }
+
+            /// <inheritdoc/>
             NodeState INodeBuilder.Node => Node;
+
+            /// <inheritdoc/>
             NodeState INodeStateBuilder.Node => Node;
+
+            /// <inheritdoc/>
             public INodeManagerBuilder Builder { get; }
 
+            /// <inheritdoc/>
             INodeStateBuilder INodeStateBuilder.Child(QualifiedName browseName)
             {
                 return Child(browseName);
             }
 
+            /// <inheritdoc/>
             INodeStateBuilder<TChild> INodeStateBuilder.Child<TChild>(QualifiedName browseName)
             {
                 return Child<TChild>(browseName);
             }
 
+            /// <inheritdoc/>
             public INodeBuilder<TOther> As<TOther>() where TOther : NodeState
             {
                 if (Node is not TOther typed)
@@ -361,56 +374,67 @@ namespace Opc.Ua.Server.Fluent
                 return new AdHocNodeBuilder<TOther>(Builder, typed);
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnRead(NodeValueEventHandler handler)
             {
                 return SetVariable(v => v.OnReadValue = handler);
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnRead(NodeValueSimpleEventHandler handler)
             {
                 return SetVariable(v => v.OnSimpleReadValue = handler);
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnWrite(NodeValueEventHandler handler)
             {
                 return SetVariable(v => v.OnWriteValue = handler);
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnWrite(NodeValueSimpleEventHandler handler)
             {
                 return SetVariable(v => v.OnSimpleWriteValue = handler);
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnRead(NodeValueEventHandlerAsync handler)
             {
                 return SetVariable(v => v.OnReadValueAsync = handler);
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnRead(NodeValueSimpleEventHandlerAsync handler)
             {
                 return SetVariable(v => v.OnSimpleReadValueAsync = handler);
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnWrite(NodeValueWriteEventHandlerAsync handler)
             {
                 return SetVariable(v => v.OnWriteValueAsync = handler);
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnWrite(NodeValueSimpleWriteEventHandlerAsync handler)
             {
                 return SetVariable(v => v.OnSimpleWriteValueAsync = handler);
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnCall(GenericMethodCalledEventHandler2 handler)
             {
                 return SetMethod(m => m.OnCallMethod2 = handler);
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnCall(GenericMethodCalledEventHandler2Async handler)
             {
                 return SetMethod(m => m.OnCallMethod2Async = handler);
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnNodeAdded(NodeLifecycleHandler handler)
             {
                 FluentNodeRegistration.EnsureGraphAuthoringOpen(Builder);
@@ -418,60 +442,70 @@ namespace Opc.Ua.Server.Fluent
                 return this;
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnNodeRemoved(NodeLifecycleHandler handler)
             {
                 FluentNodeRegistration.GetHandlerBuilder(Builder, Node).OnNodeRemoved(handler);
                 return this;
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnHistoryRead(HistoryReadHandler handler)
             {
                 FluentNodeRegistration.GetHandlerBuilder(Builder, Node).OnHistoryRead(handler);
                 return this;
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnHistoryUpdate(HistoryUpdateHandler handler)
             {
                 FluentNodeRegistration.GetHandlerBuilder(Builder, Node).OnHistoryUpdate(handler);
                 return this;
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnConditionRefresh(ConditionRefreshHandler handler)
             {
                 FluentNodeRegistration.GetHandlerBuilder(Builder, Node).OnConditionRefresh(handler);
                 return this;
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnMonitoredItemCreated(MonitoredItemCreatedHandler handler)
             {
                 FluentNodeRegistration.GetHandlerBuilder(Builder, Node).OnMonitoredItemCreated(handler);
                 return this;
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnCreateMonitoredItem(MonitoredItemCreatingHandler handler)
             {
                 FluentNodeRegistration.GetHandlerBuilder(Builder, Node).OnCreateMonitoredItem(handler);
                 return this;
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnMonitoredItemModified(MonitoredItemModifiedHandler handler)
             {
                 FluentNodeRegistration.GetHandlerBuilder(Builder, Node).OnMonitoredItemModified(handler);
                 return this;
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnMonitoredItemDeleted(MonitoredItemDeletedHandler handler)
             {
                 FluentNodeRegistration.GetHandlerBuilder(Builder, Node).OnMonitoredItemDeleted(handler);
                 return this;
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnMonitoringModeChanged(MonitoringModeChangedHandler handler)
             {
                 FluentNodeRegistration.GetHandlerBuilder(Builder, Node).OnMonitoringModeChanged(handler);
                 return this;
             }
 
+            /// <inheritdoc/>
             public INodeBuilder OnEvent(EventNotificationHandler handler)
             {
                 FluentNodeRegistration.EnsureGraphAuthoringOpen(Builder);
@@ -479,12 +513,14 @@ namespace Opc.Ua.Server.Fluent
                 return this;
             }
 
+            /// <inheritdoc/>
             public INodeBuilder AllowMultipleEventConsumers(bool enable = true)
             {
                 FluentNodeRegistration.GetHandlerBuilder(Builder, Node).AllowMultipleEventConsumers(enable);
                 return this;
             }
 
+            /// <inheritdoc/>
             public INodeBuilder Child(QualifiedName browseName)
             {
                 NodeState? c = Node.FindChild(Builder.Context, browseName) ??
@@ -496,6 +532,7 @@ namespace Opc.Ua.Server.Fluent
                 return new AdHocNodeBuilder<NodeState>(Builder, c);
             }
 
+            /// <inheritdoc/>
             public INodeBuilder<TChild> Child<TChild>(QualifiedName browseName)
                 where TChild : NodeState
             {
@@ -510,6 +547,7 @@ namespace Opc.Ua.Server.Fluent
                 return new AdHocNodeBuilder<TChild>(Builder, typed);
             }
 
+            /// <inheritdoc/>
             public IVariableBuilder<TValue> Variable<TValue>(QualifiedName browseName)
             {
                 NodeState? c = Node.FindChild(Builder.Context, browseName);

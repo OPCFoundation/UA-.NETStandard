@@ -893,6 +893,9 @@ namespace Opc.Ua.Bindings
             ForceReconnect(result);
         }
 
+        /// <summary>
+        /// Starts reconnect only for failures from the currently attached, uncancelled transport.
+        /// </summary>
         private protected override void OnTransportError(
             IUaSCByteTransport transport,
             ServiceResult result,
@@ -2159,6 +2162,9 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             global::System.Exception? exception);
 
+        /// <summary>
+        /// Reports a response sequence number rejected by the secure-channel sequence checks.
+        /// </summary>
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 37, Level = LogLevel.Error,
             Message = "ChannelId {ChannelId}: BadSequenceNumberInvalid in response (sequence {SequenceNumber}).")]
         public static partial void InvalidResponseSequence(this ILogger logger, uint channelId, uint sequenceNumber);

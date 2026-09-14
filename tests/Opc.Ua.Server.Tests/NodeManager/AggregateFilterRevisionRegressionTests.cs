@@ -36,10 +36,17 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
+    /// <summary>
+    /// Verifies bounded aggregate retention arithmetic in synchronous and asynchronous node-manager filter revision.
+    /// </summary>
     [TestFixture]
     [Category("NodeManager")]
     public sealed class AggregateFilterRevisionRegressionTests
     {
+        /// <summary>
+        /// Verifies that extreme queue sizes and intervals revise retention consistently without overflowing start
+        /// times.
+        /// </summary>
         [TestCase(0u, 1000.0, 0.0)]
         [TestCase(1u, 1000.0, 0.0)]
         [TestCase(2u, 1000.0, 1000.0)]
@@ -91,32 +98,53 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Exposes synchronous aggregate-filter revision for comparison with the asynchronous implementation.
+        /// </summary>
         private sealed class SyncHooks : CustomNodeManager2
         {
+            /// <summary>
+            /// Creates a synchronous node manager using the deterministic server's aggregate services and clock.
+            /// </summary>
             public SyncHooks(IServerInternal server)
                 : base(server, NullLogger.Instance, "urn:tests:sync-aggregate-revision")
             {
             }
 
+            /// <summary>
+            /// Revises aggregate retention for the supplied queue size and mutable filter.
+            /// </summary>
             public StatusCode Revise(uint queueSize, ServerAggregateFilter filter)
             {
                 return ReviseAggregateFilter(SystemContext, CreateHandle(), 0, queueSize, filter);
             }
         }
 
+        /// <summary>
+        /// Exposes asynchronous aggregate-filter revision for comparison with the synchronous implementation.
+        /// </summary>
         private sealed class AsyncHooks : AsyncCustomNodeManager
         {
+            /// <summary>
+            /// Creates an asynchronous node manager using the deterministic server's aggregate services and clock.
+            /// </summary>
             public AsyncHooks(IServerInternal server)
                 : base(server, NullLogger.Instance, "urn:tests:async-aggregate-revision")
             {
             }
 
+            /// <summary>
+            /// Revises aggregate retention asynchronously for the supplied queue size and mutable filter.
+            /// </summary>
             public ValueTask<StatusCode> ReviseAsync(uint queueSize, ServerAggregateFilter filter)
             {
                 return ReviseAggregateFilterAsync(SystemContext, CreateHandle(), 0, queueSize, filter);
             }
         }
 
+        /// <summary>
+        /// Creates the variable handle required by aggregate-filter revision.
+        /// </summary>
         private static NodeHandle CreateHandle()
         {
             var node = new BaseDataVariableState(null) { NodeId = new NodeId(1, 1) };

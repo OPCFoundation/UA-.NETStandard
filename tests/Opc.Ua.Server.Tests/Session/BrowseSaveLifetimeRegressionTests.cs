@@ -38,10 +38,16 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies browse continuation ownership when saving points races session closure or mirrored persistence.
+    /// </summary>
     [TestFixture]
     [Category("Session")]
     public sealed class BrowseSaveLifetimeRegressionTests
     {
+        /// <summary>
+        /// Verifies that a closed session rejects a browse save without persisting or disposing the caller's point.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void ClosedSessionRejectsBrowseSaveWithoutTakingCallerOwnership(bool mirrored)
@@ -60,6 +66,9 @@ namespace Opc.Ua.Server.Tests
             payload.Verify(value => value.Dispose(), Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that closure during persistence removes a late mirror entry and leaves ownership with the caller.
+        /// </summary>
         [Test]
         public async Task CloseDuringBrowsePersistenceCannotResurrectTheMirrorAsync()
         {
@@ -102,6 +111,9 @@ namespace Opc.Ua.Server.Tests
             payload.Verify(value => value.Dispose(), Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that an accepted save transfers ownership so repeated clearing disposes and removes the point once.
+        /// </summary>
         [Test]
         public void AcceptedBrowseSaveTransfersOwnershipAndClearDisposesExactlyOnce()
         {
@@ -118,6 +130,9 @@ namespace Opc.Ua.Server.Tests
             point.Data = null;
         }
 
+        /// <summary>
+        /// Identifies the session owning the local and mirrored browse continuation entries.
+        /// </summary>
         private static readonly NodeId s_sessionId = new(100, 1);
     }
 }

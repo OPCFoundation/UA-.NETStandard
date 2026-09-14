@@ -724,6 +724,9 @@ namespace Opc.Ua.Server
             m_lock.Dispose();
         }
 
+        /// <summary>
+        /// Checks a role's application and endpoint restrictions before evaluating the user's identity rules.
+        /// </summary>
         private static bool RoleMatches(
             MutableRole role,
             IUserIdentity identity,
@@ -788,6 +791,9 @@ namespace Opc.Ua.Server
             return false;
         }
 
+        /// <summary>
+        /// Matches one identity rule, distinguishing user-certificate attributes from application-certificate identity.
+        /// </summary>
         private static bool IdentityRuleMatches(
             IdentityMappingRuleType rule,
             IUserIdentity identity,

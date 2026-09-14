@@ -47,6 +47,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [NonParallelizable]
     public sealed class CertificateTrustListExplicitEntryTests
     {
+        /// <summary>
+        /// Creates two reusable RSA certificates and telemetry for explicit-entry ownership checks.
+        /// </summary>
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -55,6 +58,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_second = CreateCertificate("CN=Explicit Trust Entry Two");
         }
 
+        /// <summary>
+        /// Releases the fixture-owned certificates and telemetry after all ownership checks.
+        /// </summary>
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
@@ -63,6 +69,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             (m_telemetry as IDisposable)?.Dispose();
         }
 
+        /// <summary>
+        /// Verifies repeated explicit-entry resolution releases every temporary and returned certificate handle.
+        /// </summary>
         [Test]
         public async Task ExplicitTrustListResolutionBalancesHandlesAsync()
         {
@@ -96,6 +105,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 "Disposing each returned list must also release every temporary explicit-entry handle.");
         }
 
+        /// <summary>
+        /// Verifies separately resolved collections and borrowed certificates survive disposal of the other owners.
+        /// </summary>
         [Test]
         public async Task ReturnedExplicitCertificatesHaveIndependentOwnershipAsync()
         {
@@ -125,6 +137,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             AssertBalanced(createdBefore, disposedBefore);
         }
 
+        /// <summary>
+        /// Verifies an unresolved explicit entry does not discard valid certificates before or after it.
+        /// </summary>
         [Test]
         public async Task NullExplicitResolutionDoesNotDiscardOtherEntriesAsync()
         {
@@ -151,6 +166,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             AssertBalanced(createdBefore, disposedBefore);
         }
 
+        /// <summary>
+        /// Verifies combining stored and explicit certificates preserves both results and balances their ownership.
+        /// </summary>
         [Test]
         public async Task MixedStoreAndExplicitEntriesOwnTheirCertificatesAsync()
         {
@@ -183,6 +201,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Verifies malformed explicit certificate data releases already resolved entries, including stored
+        /// certificates.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ExplicitResolutionFailureDisposesPartialCollectionAsync(bool includeStore)
@@ -225,6 +247,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Verifies cancellation retains its original token and leaves no certificate handles behind.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task CancelledExplicitResolutionPropagatesWithoutLeakingAsync(bool includeStore)
@@ -263,6 +288,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Seeds a trust store with a public-only copy of a fixture certificate.
+        /// </summary>
         private async Task AddPublicCertificateAsync(CertificateTrustList trustList, Certificate certificate)
         {
             using var publicCertificate = Certificate.FromRawData(certificate.RawData);
@@ -270,12 +298,18 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             await store.AddAsync(publicCertificate).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Checks that all certificate handles created since a captured baseline have been disposed.
+        /// </summary>
         private static void AssertBalanced(long createdBefore, long disposedBefore)
         {
             Assert.That(Certificate.InstancesDisposed - disposedBefore,
                 Is.EqualTo(Certificate.InstancesCreated - createdBefore));
         }
 
+        /// <summary>
+        /// Creates an isolated temporary directory for a test's stored trust entries.
+        /// </summary>
         private static string CreateStorePath()
         {
             string path = Path.Combine(Path.GetTempPath(), "opcua-explicit-entry-" + Guid.NewGuid().ToString("N"));
@@ -283,6 +317,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return path;
         }
 
+        /// <summary>
+        /// Creates a long-lived RSA certificate with the requested subject for repeated trust-list resolution.
+        /// </summary>
         private static Certificate CreateCertificate(string subject)
         {
             return CertificateBuilder
@@ -293,8 +330,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
         }
 
+        /// <summary>
+        /// Supplies diagnostics for store access and certificate resolution.
+        /// </summary>
         private ITelemetryContext m_telemetry;
+
+        /// <summary>
+        /// Holds the first explicit certificate and the subject of independent-ownership checks.
+        /// </summary>
         private Certificate m_first;
+
+        /// <summary>
+        /// Holds the second valid certificate used in mixed-source and partial-failure scenarios.
+        /// </summary>
         private Certificate m_second;
     }
 }

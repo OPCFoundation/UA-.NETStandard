@@ -35,10 +35,16 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies reverse-connect configuration replacement without losing dynamically registered connections.
+    /// </summary>
     [TestFixture]
     [Category("ReverseConnect")]
     public sealed class ReverseConnectReloadRegressionTests
     {
+        /// <summary>
+        /// Verifies that reload removes obsolete configured connections while retaining dynamic connection settings.
+        /// </summary>
         [Test]
         public void ReloadRemovesEveryConfiguredEntryAndPreservesDynamicConnections()
         {
@@ -68,6 +74,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(retained.Enabled, Is.False);
         }
 
+        /// <summary>
+        /// Creates disabled reverse-connect entries whose endpoint paths identify each configured connection.
+        /// </summary>
         private static ApplicationConfiguration CreateConfiguration(params string[] names)
         {
             var clients = new ReverseConnectClient[names.Length];

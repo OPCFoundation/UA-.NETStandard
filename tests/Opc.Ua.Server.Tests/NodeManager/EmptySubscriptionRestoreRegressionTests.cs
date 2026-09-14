@@ -36,10 +36,17 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
+    /// <summary>
+    /// Verifies durable restoration of subscriptions that have no monitored items.
+    /// </summary>
     [TestFixture]
     [Category("NodeManager")]
     public sealed class EmptySubscriptionRestoreRegressionTests
     {
+        /// <summary>
+        /// Verifies that an empty durable subscription retains identity, lifetime, diagnostics, and restore-completion
+        /// state.
+        /// </summary>
         [Test]
         public async Task RestoreSubscriptionWithoutMonitoredItemsSucceedsAsync()
         {

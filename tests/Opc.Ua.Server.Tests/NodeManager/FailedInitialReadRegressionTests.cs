@@ -35,10 +35,17 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
+    /// <summary>
+    /// Verifies monitored-item registration cleanup when the initial value read fails or throws.
+    /// </summary>
     [TestFixture]
     [Category("NodeManager")]
     public sealed class FailedInitialReadRegressionTests
     {
+        /// <summary>
+        /// Verifies that fatal initial-read errors remove unaccepted items while communication errors retain
+        /// monitoring.
+        /// </summary>
         [TestCase(false, 0)]
         [TestCase(false, 1)]
         [TestCase(false, 2)]
@@ -86,6 +93,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that rejecting a later item preserves an existing item and its shared component-cache entry.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void FailedInitialReadPreservesPreviouslyRegisteredItem(bool samplingGroups)
@@ -109,6 +119,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that an initial-read exception releases partial registration and permits a later successful create.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void ThrowingInitialReadAlsoRemovesTheUnacceptedItem(bool samplingGroups)
@@ -128,8 +141,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Exposes monitored-item creation and cache state with controllable initial-read failures.
+        /// </summary>
         private sealed class CreateHooks : CustomNodeManager2
         {
+            /// <summary>
+            /// Registers a readable variable using the selected sampling-group implementation.
+            /// </summary>
             public CreateHooks(IServerInternal server, bool samplingGroups)
                 : base(
                     server,
@@ -150,13 +169,35 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 AddPredefinedNode(SystemContext, m_node);
             }
 
+            /// <summary>
+            /// Gets or sets the status returned by the variable's value-read callback.
+            /// </summary>
             public StatusCode ReadStatus { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether initial-value acquisition throws before the normal read.
+            /// </summary>
             public bool ThrowOnRead { get; set; }
+
+            /// <summary>
+            /// Gets the number of creation callbacks raised for accepted monitored items.
+            /// </summary>
             public int CreatedCount { get; private set; }
+
+            /// <summary>
+            /// Gets the number of monitored items retained in the manager's registry.
+            /// </summary>
             public int ItemCount => MonitoredItems.Count;
+
+            /// <summary>
+            /// Gets the variable retained in the component cache, if any.
+            /// </summary>
             public NodeState CachedNode => LookupNodeInComponentCache(
                 SystemContext, new NodeHandle { NodeId = m_node.NodeId });
 
+            /// <summary>
+            /// Attempts to create a disabled data-change item and returns its admission result and registered instance.
+            /// </summary>
             public (ServiceResult Status, IMonitoredItem Item) Create()
             {
                 using var context = new OperationContext(
@@ -181,11 +222,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return (errors[0], items[0]);
             }
 
+            /// <summary>
+            /// Gets the registered item by identifier to check that prior ownership is preserved.
+            /// </summary>
             public IMonitoredItem GetItem(uint id)
             {
                 return MonitoredItems[id];
             }
 
+            /// <summary>
+            /// Counts creation callbacks to distinguish accepted items from rejected partial registrations.
+            /// </summary>
             protected override void OnMonitoredItemCreated(
                 ServerSystemContext context,
                 NodeHandle handle,
@@ -194,6 +241,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CreatedCount++;
             }
 
+            /// <summary>
+            /// Injects an initial-read exception when configured, otherwise delegates to normal value acquisition.
+            /// </summary>
             protected override ServiceResult ReadInitialValue(
                 ISystemContext context,
                 NodeHandle handle,
@@ -206,13 +256,23 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return base.ReadInitialValue(context, handle, monitoredItem);
             }
 
+            /// <summary>
+            /// Returns a fixed value with the status selected for the current initial-read scenario.
+            /// </summary>
             private ServiceResult OnRead(ISystemContext context, NodeState node, ref Variant value)
             {
                 value = new Variant(1);
                 return ReadStatus;
             }
 
+            /// <summary>
+            /// Supplies the readable variable shared by successful and rejected monitored-item creates.
+            /// </summary>
             private readonly BaseDataVariableState m_node;
+
+            /// <summary>
+            /// Allocates distinct identifiers across repeated creation attempts.
+            /// </summary>
             private readonly MonitoredItemIdFactory m_ids = new();
         }
     }

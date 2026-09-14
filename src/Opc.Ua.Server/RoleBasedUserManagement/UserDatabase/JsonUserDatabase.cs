@@ -59,6 +59,9 @@ namespace Opc.Ua.Server.UserDatabase
         {
         }
 
+        /// <summary>
+        /// Creates a file-backed user database with an optional snapshot writer for persistence testing.
+        /// </summary>
         internal JsonUserDatabase(string fileName, Action<string, byte[]>? writeFile)
         {
             FileName = fileName;
@@ -159,6 +162,9 @@ namespace Opc.Ua.Server.UserDatabase
         [JsonIgnore]
         public string FileName { get; private set; }
 
+        /// <summary>
+        /// Writes a new snapshot file and flushes its contents to disk before it replaces the database.
+        /// </summary>
         private static void WriteSnapshotFile(string fileName, byte[] bytes)
         {
             using var stream = new FileStream(fileName, FileMode.CreateNew, FileAccess.Write, FileShare.None);
@@ -166,7 +172,14 @@ namespace Opc.Ua.Server.UserDatabase
             stream.Flush(flushToDisk: true);
         }
 
+        /// <summary>
+        /// Writes temporary snapshots before atomic replacement of the database file.
+        /// </summary>
         private readonly Action<string, byte[]> m_writeFile;
+
+        /// <summary>
+        /// Serializes snapshot creation and database-file replacement.
+        /// </summary>
         private readonly Lock m_saveLock = new();
 
         private static readonly JsonSerializerOptions s_exchangeJsonSerializerOptions = new()
@@ -358,6 +371,9 @@ namespace Opc.Ua.Server.UserDatabase
     /// </summary>
     internal static partial class JsonUserDatabaseLog
     {
+        /// <summary>
+        /// Reports a database read or parse failure instead of treating damaged storage as an empty database.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.JsonUserDatabase + 1, Level = LogLevel.Error,
             Message = "Failed to load user database {FileName}.")]
         public static partial void UserDatabaseLoadFailed(this ILogger logger, Exception ex, string fileName);

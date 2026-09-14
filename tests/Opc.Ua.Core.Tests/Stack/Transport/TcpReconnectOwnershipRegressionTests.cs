@@ -45,10 +45,16 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Transport
 {
+    /// <summary>
+    /// Verifies transport ownership transfer and receive-loop generation isolation during TCP reconnect.
+    /// </summary>
     [TestFixture]
     [NonParallelizable]
     public sealed class TcpReconnectOwnershipRegressionTests
     {
+        /// <summary>
+        /// Verifies that disposing a temporary channel cannot close a transport adopted by the renewed channel.
+        /// </summary>
         [Test]
         public async Task RenewHandoffDoesNotCloseTheAdoptedTransportAsync()
         {
@@ -119,6 +125,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        /// <summary>
+        /// Verifies a replacement receive loop starts immediately and ignores the previous transport's late failure.
+        /// </summary>
         [Test]
         public async Task NewReceiveLoopRunsBeforeOldLoopExitsAndIgnoresItsLateFailureAsync()
         {
@@ -172,11 +181,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        /// <summary>
+        /// Creates an asynchronous barrier that never runs test continuations inline.
+        /// </summary>
         private static TaskCompletionSource<bool> Signal()
         {
             return new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
+        /// <summary>
+        /// Copies outgoing chunks into a single stable message for decoding after transport dispatch.
+        /// </summary>
         private static byte[] Flatten(BufferCollection chunks)
         {
             using var stream = new MemoryStream();
@@ -187,6 +202,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             return stream.ToArray();
         }
 
+        /// <summary>
+        /// Creates a pooled unsecured OpenSecureChannel renewal targeting the existing channel.
+        /// </summary>
         private static ArraySegment<byte> CreateRenewChunk(BufferManager buffers, IServiceMessageContext context)
         {
             using var body = new MemoryStream();
@@ -213,8 +231,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             return new ArraySegment<byte>(buffer, 0, size);
         }
 
+        /// <summary>
+        /// Exposes server-channel renewal without starting a real receive loop.
+        /// </summary>
         private sealed class HandoffChannel : TcpServerChannel
         {
+            /// <summary>
+            /// Creates a server channel for controlled ownership transfer between listener entries.
+            /// </summary>
             public HandoffChannel(
                 ITcpChannelListener listener, BufferManager buffers, ChannelQuotas quotas, ITelemetryContext telemetry)
                 : base("handoff", listener, buffers, quotas, null!, [
@@ -229,44 +253,75 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
             }
 
+            /// <summary>
+            /// Gets or sets the channel state used to reproduce the reconnect handoff.
+            /// </summary>
             public TcpChannelState CurrentState
             {
                 get => State;
                 set => State = value;
             }
 
+            /// <summary>
+            /// Delivers the renewal chunk through the real server receive path.
+            /// </summary>
             public ValueTask FeedAsync(ArraySegment<byte> chunk)
             {
                 return OnChunkReceivedAsync(chunk, CancellationToken.None);
             }
 
+            /// <summary>
+            /// Suppresses network reads so the test controls every incoming chunk.
+            /// </summary>
             protected internal override void StartReceiveLoop()
             {
             }
         }
 
+        /// <summary>
+        /// Observes receive-loop replacement while an earlier transport remains blocked.
+        /// </summary>
         private sealed class ReceiveChannel : UaSCUaBinaryChannel
         {
+            /// <summary>
+            /// Creates a channel whose transports and pooled input are supplied by the test.
+            /// </summary>
             public ReceiveChannel(BufferManager buffers, ChannelQuotas quotas, ITelemetryContext telemetry)
                 : base("loops", buffers, quotas, (Certificate?)null, null,
                     MessageSecurityMode.None, SecurityPolicies.None, telemetry)
             {
             }
 
+            /// <summary>
+            /// Signals receipt of a chunk by the replacement loop.
+            /// </summary>
             public TaskCompletionSource<bool> Received { get; } = Signal();
+
+            /// <summary>
+            /// Gets transport errors delivered to the current channel generation.
+            /// </summary>
             public int Errors { get; private set; }
 
+            /// <summary>
+            /// Installs a transport and immediately starts its receive generation.
+            /// </summary>
             public void Install(IUaSCByteTransport transport)
             {
                 Transport = transport;
                 StartReceiveLoop();
             }
 
+            /// <summary>
+            /// Joins tracked receive work so late errors and buffer returns are observable before assertions.
+            /// </summary>
             public async Task DrainOldLoopAsync()
             {
                 await BackgroundWork.DisposeAsync().ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Processes one chunk and holds the current loop until it is canceled.
+            /// </summary>
             protected override async ValueTask OnChunkReceivedAsync(ArraySegment<byte> message, CancellationToken ct)
             {
                 await base.OnChunkReceivedAsync(message, ct).ConfigureAwait(false);
@@ -274,6 +329,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Records current-generation transport failures and closes the installed transport.
+            /// </summary>
             protected override void OnTransportError(ServiceResult result)
             {
                 Errors++;
@@ -281,11 +339,24 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        /// <summary>
+        /// Counts receive-buffer returns and detects duplicate ownership release.
+        /// </summary>
         private sealed class CountingPool : ArrayPool<byte>
         {
+            /// <summary>
+            /// Gets the total number of return attempts.
+            /// </summary>
             public int Returns => Volatile.Read(ref m_returns);
+
+            /// <summary>
+            /// Gets return attempts for arrays that were no longer owned.
+            /// </summary>
             public int Duplicates => Volatile.Read(ref m_duplicates);
 
+            /// <summary>
+            /// Allocates a fresh array and records its outstanding ownership.
+            /// </summary>
             public override byte[] Rent(int minimumLength)
             {
                 byte[] buffer = new byte[minimumLength];
@@ -293,6 +364,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return buffer;
             }
 
+            /// <summary>
+            /// Releases the rental and counts duplicate release attempts.
+            /// </summary>
             public override void Return(byte[] array, bool clearArray = false)
             {
                 if (!m_owned.TryRemove(array, out _))
@@ -302,8 +376,19 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Interlocked.Increment(ref m_returns);
             }
 
+            /// <summary>
+            /// Tracks outstanding receive-buffer rentals by array identity.
+            /// </summary>
             private readonly ConcurrentDictionary<byte[], byte> m_owned = new();
+
+            /// <summary>
+            /// Counts all buffer-return calls.
+            /// </summary>
             private int m_returns;
+
+            /// <summary>
+            /// Counts buffer-return calls without a matching rental.
+            /// </summary>
             private int m_duplicates;
         }
     }

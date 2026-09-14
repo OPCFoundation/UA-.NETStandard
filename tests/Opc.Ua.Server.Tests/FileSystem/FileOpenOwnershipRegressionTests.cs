@@ -38,10 +38,16 @@ using Opc.Ua.Server.Tests.NodeManager;
 
 namespace Opc.Ua.Server.Tests.FileSystem
 {
+    /// <summary>
+    /// Verifies file-open reservations, per-handle access modes, and cleanup of interrupted provider opens.
+    /// </summary>
     [TestFixture]
     [Category("FileSystem")]
     public sealed class FileOpenOwnershipRegressionTests
     {
+        /// <summary>
+        /// Verifies that an existing reader or writer rejects an erase-open before the destructive provider is invoked.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task RejectedEraseNeverOpensTheDestructiveProviderAsync(bool existingWriter)
@@ -58,6 +64,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(harness.GetHandle().GetStream(harness.SessionId, original), Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that a pending reader reserves access before its provider stream is returned.
+        /// </summary>
         [Test]
         public async Task ReaderReservationExcludesWriterBeforeProviderReadCompletesAsync()
         {
@@ -91,6 +100,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             }
         }
 
+        /// <summary>
+        /// Verifies that the granted file mode restricts operations even when the provider stream supports both.
+        /// </summary>
         [TestCase((byte)1)]
         [TestCase((byte)2)]
         public async Task FileModeNotStreamCapabilitiesControlsReadWriteAccessAsync(byte mode)
@@ -108,6 +120,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(stream.Position, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that oversized unsigned positions clamp to the file length before conversion to a signed offset.
+        /// </summary>
         [TestCase(4ul)]
         [TestCase(5ul)]
         [TestCase(ulong.MaxValue)]
@@ -124,6 +139,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 Is.EqualTo(4));
         }
 
+        /// <summary>
+        /// Verifies that advertised writability follows the provider rather than currently open handles.
+        /// </summary>
         [TestCase((byte)1)]
         [TestCase((byte)2)]
         public async Task WritableCapabilityDoesNotDependOnOpenHandlesAsync(byte mode)
@@ -136,6 +154,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(harness.GetHandle().IsWriteable, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that interrupted opens retire their reservation, release returned streams, and preserve future
+        /// admission.
+        /// </summary>
         [TestCase("failure")]
         [TestCase("cancellation")]
         [TestCase("sessionClose")]
@@ -197,8 +219,14 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(nextId == 0, Is.EqualTo(outcome == "dispose"));
         }
 
+        /// <summary>
+        /// Owns a file-system manager with a controllable provider and a shared test session.
+        /// </summary>
         private sealed class FileHarness : IDisposable
         {
+            /// <summary>
+            /// Creates a writable four-byte file whose provider opens can be observed or suspended.
+            /// </summary>
             public FileHarness()
             {
                 Mock<IServerInternal> server = DeterministicServerMock.Create(out m_queues);
@@ -217,22 +245,46 @@ namespace Opc.Ua.Server.Tests.FileSystem
                     Manager.SystemContext, FileSystemNodeId.BuildFile("file", Manager.NamespaceIndex), "file", "file");
             }
 
+            /// <summary>
+            /// Gets the provider mock used to control stream acquisition and file capabilities.
+            /// </summary>
             public Mock<IFileSystemProvider> Provider { get; } = new();
+
+            /// <summary>
+            /// Gets the manager that owns the file's open-handle state.
+            /// </summary>
             public FileSystemNodeManager Manager { get; }
+
+            /// <summary>
+            /// Gets the file node exposing the protocol methods under test.
+            /// </summary>
             public FileObjectState File { get; }
+
+            /// <summary>
+            /// Gets the session identity owning successful opens and in-flight reservations.
+            /// </summary>
             public NodeId SessionId { get; } = new(100, 1);
 
+            /// <summary>
+            /// Gets the manager-owned handle state for the test file.
+            /// </summary>
             public FileHandle GetHandle()
             {
                 return Manager.GetOrCreateHandle(File.NodeId, File.ProviderPath);
             }
 
+            /// <summary>
+            /// Disposes the file-system manager and monitored-item queue factory.
+            /// </summary>
             public void Dispose()
             {
                 Manager.Dispose();
                 m_queues.Dispose();
             }
 
+            /// <summary>
+            /// Owns the monitored-item queues used by the test node manager.
+            /// </summary>
             private readonly MonitoredItemQueueFactory m_queues;
         }
     }

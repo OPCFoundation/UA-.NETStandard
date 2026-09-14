@@ -45,6 +45,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
     [Parallelizable]
     public sealed class FakeTransportCertificateOwnershipTests : ContractTestBase
     {
+        /// <summary>
+        /// Verifies a successfully opened transport releases its adopted server certificate on close or disposal.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task SuccessfulOpenReleasesServerCertificateOnCloseOrDisposeAsync(bool close)
@@ -70,6 +73,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             AssertCertificateReleased(certificate);
         }
 
+        /// <summary>
+        /// Verifies a failed open leaves the server certificate owned and usable by the caller.
+        /// </summary>
         [Test]
         public void FailedOpenLeavesServerCertificateWithCaller()
         {
@@ -88,6 +94,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             Assert.That(retained.Thumbprint, Is.EqualTo(thumbprint));
         }
 
+        /// <summary>
+        /// Verifies reopening with a different certificate releases the previous certificate and adopts the new one.
+        /// </summary>
         [Test]
         public async Task SuccessfulReopenReleasesPreviousServerCertificateAsync()
         {
@@ -111,6 +120,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             AssertCertificateReleased(second);
         }
 
+        /// <summary>
+        /// Verifies reopening with the same certificate does not prematurely dispose its adopted handle.
+        /// </summary>
         [Test]
         public async Task SuccessfulReopenWithSameServerCertificateRetainsOwnershipAsync()
         {
@@ -129,6 +141,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             AssertCertificateReleased(certificate);
         }
 
+        /// <summary>
+        /// Requires the released certificate handle to reject new ownership references.
+        /// </summary>
         private static void AssertCertificateReleased(Certificate certificate)
         {
             Assert.Throws<ObjectDisposedException>(() =>

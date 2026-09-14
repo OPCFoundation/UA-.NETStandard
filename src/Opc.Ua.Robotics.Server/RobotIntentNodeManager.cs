@@ -429,6 +429,9 @@ namespace Opc.Ua.Robotics.Server
             return deferredHosts.ToArray().ToArrayOf();
         }
 
+        /// <summary>
+        /// Defers base node-manager disposal until every outstanding controller host has released its resources.
+        /// </summary>
         private async Task DisposeBaseWhenHostsCompleteAsync(ArrayOf<IntentControllerHost> deferredHosts)
         {
             while (!AllResourcesDisposed(deferredHosts))

@@ -34,10 +34,16 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server.Tests.Roles
 {
+    /// <summary>
+    /// Verifies that role rules distinguish application certificates from authenticated user certificates.
+    /// </summary>
     [TestFixture]
     [Category("Roles")]
     public sealed class RoleCertificateRegressionTests
     {
+        /// <summary>
+        /// Creates distinct application and user certificates for role identity and application-filter checks.
+        /// </summary>
         [OneTimeSetUp]
         public void CreateCertificates()
         {
@@ -45,6 +51,9 @@ namespace Opc.Ua.Server.Tests.Roles
             m_user = CreateCertificate("CN=Role User", "urn:role:user");
         }
 
+        /// <summary>
+        /// Releases the application and user certificates after role-resolution cases complete.
+        /// </summary>
         [OneTimeTearDown]
         public void DisposeCertificates()
         {
@@ -52,6 +61,9 @@ namespace Opc.Ua.Server.Tests.Roles
             m_application.Dispose();
         }
 
+        /// <summary>
+        /// Verifies that application inclusion and exclusion filters require a certificate on a signed channel.
+        /// </summary>
         [Test]
         public void ApplicationRestrictionsRequireSignedChannelEvenWhenExcluded(
             [Values(false, true)] bool exclude,
@@ -79,6 +91,9 @@ namespace Opc.Ua.Server.Tests.Roles
             Assert.That(granted.Contains(ObjectIds.WellKnownRole_Operator), Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that roles without application restrictions can be granted without an application certificate.
+        /// </summary>
         [Test]
         public void EmptyApplicationFilterDoesNotRequireAnApplicationCertificate()
         {
@@ -90,6 +105,10 @@ namespace Opc.Ua.Server.Tests.Roles
             Assert.That(granted, Has.Member(ObjectIds.WellKnownRole_Operator));
         }
 
+        /// <summary>
+        /// Verifies that subject and thumbprint identity rules use only certificate user tokens, not channel
+        /// certificates.
+        /// </summary>
         [TestCase(IdentityCriteriaType.Thumbprint, UserTokenType.Certificate)]
         [TestCase(IdentityCriteriaType.X509Subject, UserTokenType.Certificate)]
         [TestCase(IdentityCriteriaType.Thumbprint, UserTokenType.Anonymous)]
@@ -122,6 +141,9 @@ namespace Opc.Ua.Server.Tests.Roles
             Assert.That(granted, Has.Member(ObjectIds.WellKnownRole_Observer));
         }
 
+        /// <summary>
+        /// Registers a role identity rule and verifies that its criteria are accepted.
+        /// </summary>
         private static void AddIdentity(RoleManager manager, NodeId role, IdentityCriteriaType type, string criteria)
         {
             Assert.That(manager.AddIdentity(role, new IdentityMappingRuleType
@@ -131,6 +153,9 @@ namespace Opc.Ua.Server.Tests.Roles
             }).StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
+        /// <summary>
+        /// Creates an RSA certificate containing the requested subject and application URI.
+        /// </summary>
         private static Certificate CreateCertificate(string subject, string uri)
         {
             return CertificateBuilder.Create(subject)
@@ -140,7 +165,14 @@ namespace Opc.Ua.Server.Tests.Roles
                 .SetRSAKeySize(2048).CreateForRSA();
         }
 
+        /// <summary>
+        /// Supplies the secure-channel application identity used by application restrictions.
+        /// </summary>
         private Certificate m_application;
+
+        /// <summary>
+        /// Supplies the authenticated certificate user identity used by subject and thumbprint rules.
+        /// </summary>
         private Certificate m_user;
     }
 }

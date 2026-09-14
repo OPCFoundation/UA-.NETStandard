@@ -100,6 +100,9 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(queue.NextSequenceNumber, Is.EqualTo(1u));
         }
 
+        /// <summary>
+        /// Verifies restored queue state retains sequence positions while owning a separate message-list snapshot.
+        /// </summary>
         [Test]
         public void CreateRestoredPreservesProvidedState()
         {
@@ -260,6 +263,9 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(queue.FindForRepublish(4), Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies partial overflow evicts only the oldest messages needed to fit the new batch.
+        /// </summary>
         [Test]
         public void EnqueuePartiallyEvictsOldestWhenQueueFull()
         {
@@ -454,6 +460,9 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(capturedRemoved, Is.EqualTo(new List<uint> { 1, 2 }));
         }
 
+        /// <summary>
+        /// Verifies retransmission deltas report exactly the sequence numbers removed by partial eviction.
+        /// </summary>
         [Test]
         public void EnqueueDeltaReportsRemovedSequenceNumbersOnPartialEviction()
         {

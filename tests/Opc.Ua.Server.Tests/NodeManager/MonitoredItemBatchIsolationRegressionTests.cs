@@ -36,10 +36,16 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
+    /// <summary>
+    /// Verifies per-owner failure isolation and request cancellation during monitored-item batch dispatch.
+    /// </summary>
     [TestFixture]
     [Category("NodeManager")]
     public sealed class MonitoredItemBatchIsolationRegressionTests
     {
+        /// <summary>
+        /// Verifies that one owner's failure preserves completed item results and still dispatches later owners.
+        /// </summary>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -56,6 +62,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(harness.Calls, Is.EqualTo(s_allOwners));
         }
 
+        /// <summary>
+        /// Verifies that request cancellation stops batch dispatch rather than being converted to an item-level
+        /// failure.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void RequestCancellationStillStopsDispatchInsteadOfBecomingAnItemFailure(bool setMode)
@@ -68,6 +78,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(harness.Errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
+        /// <summary>
+        /// Verifies that event unsubscribe failures do not skip other owners or independently monitored events.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task EventUnsubscribeFailureDoesNotSkipOtherManagersOrItemsAsync(bool allEvents)
@@ -80,6 +93,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(harness.EventCalls, Is.EqualTo(allEvents ? s_allEventOwners : s_singleEventOwners));
         }
 
+        /// <summary>
+        /// Verifies that a failing event mode change leaves the next event item eligible for processing.
+        /// </summary>
         [Test]
         public async Task EventModeFailureDoesNotSkipTheNextMonitoredItemAsync()
         {
@@ -92,8 +108,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             other.Verify(item => item.SetMonitoringMode(MonitoringMode.Disabled), Times.Once);
         }
 
+        /// <summary>
+        /// Supplies three monitored-item owners with controlled partial failures, cancellation, and event callbacks.
+        /// </summary>
         private sealed class BatchHarness : IDisposable
         {
+            /// <summary>
+            /// Creates the master manager and owner mocks, configuring the middle owner to fail or cancel dispatch.
+            /// </summary>
             public BatchHarness(bool partial, CancellationTokenSource cancellation = null)
             {
                 Mock<IServerInternal> server = DeterministicServerMock.Create(out m_queues);
@@ -145,10 +167,24 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
             }
 
+            /// <summary>
+            /// Gets the result slots populated by monitored-item batch dispatch.
+            /// </summary>
             public ServiceResult[] Errors { get; } = new ServiceResult[4];
+
+            /// <summary>
+            /// Gets owner indices in the order their data-change batch callbacks ran.
+            /// </summary>
             public List<int> Calls { get; } = [];
+
+            /// <summary>
+            /// Gets recorded event unsubscribe owners, with an offset distinguishing single-source callbacks.
+            /// </summary>
             public List<int> EventCalls { get; } = [];
 
+            /// <summary>
+            /// Replaces the data-change batch with two event items and configures their unsubscribe failures.
+            /// </summary>
             public void UseEventItems(bool allEvents)
             {
                 for (int i = 0; i < m_owners.Length; i++)
@@ -179,6 +215,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 m_items[3] = null;
             }
 
+            /// <summary>
+            /// Dispatches either disabling or deletion of the configured items through the master node manager.
+            /// </summary>
             public async ValueTask DispatchAsync(bool setMode, CancellationToken ct)
             {
                 using var context = new OperationContext(
@@ -194,6 +233,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
             }
 
+            /// <summary>
+            /// Makes the first event item's mode change throw and returns the second item for progress verification.
+            /// </summary>
             public Mock<IEventMonitoredItem> FailFirstEventModeChange()
             {
                 Mock.Get((IEventMonitoredItem)m_items[0]).Setup(item => item.SetMonitoringMode(It.IsAny<MonitoringMode>()))
@@ -201,6 +243,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return Mock.Get((IEventMonitoredItem)m_items[1]);
             }
 
+            /// <summary>
+            /// Releases the master manager, event manager, and queue factory used by the batch.
+            /// </summary>
             public void Dispose()
             {
                 m_master.Dispose();
@@ -208,6 +253,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 m_queues.Dispose();
             }
 
+            /// <summary>
+            /// Records an event unsubscribe and injects a failure for the middle owner.
+            /// </summary>
             private ValueTask<ServiceResult> Unsubscribe(int owner, bool all)
             {
                 EventCalls.Add(owner + (all ? 0 : 10));
@@ -218,6 +266,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return new ValueTask<ServiceResult>(ServiceResult.Good);
             }
 
+            /// <summary>
+            /// Records owner dispatch and injects cancellation or failure before or after partial item processing.
+            /// </summary>
             private void Process(
                 int owner,
                 IList<bool> processed,
@@ -251,16 +302,50 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
             }
 
+            /// <summary>
+            /// Routes item batches to their registered node-manager owners.
+            /// </summary>
             private readonly MasterNodeManager m_master;
+
+            /// <summary>
+            /// Owns the monitored-item queues supplied by the deterministic server.
+            /// </summary>
             private readonly MonitoredItemQueueFactory m_queues;
+
+            /// <summary>
+            /// Supplies event-item bookkeeping for event deletion and mode-change scenarios.
+            /// </summary>
             private readonly EventManager m_events;
+
+            /// <summary>
+            /// Stores the item batch, including null slots when testing only event items.
+            /// </summary>
             private readonly IMonitoredItem[] m_items = new IMonitoredItem[4];
+
+            /// <summary>
+            /// Stores the ordered owners used to verify dispatch isolation.
+            /// </summary>
             private readonly IAsyncNodeManager[] m_owners = new IAsyncNodeManager[3];
         }
 
+        /// <summary>
+        /// Defines the owner sequence expected when an item-level failure does not stop dispatch.
+        /// </summary>
         private static readonly int[] s_allOwners = [0, 1, 2];
+
+        /// <summary>
+        /// Defines the owner sequence expected when cancellation stops dispatch at the middle owner.
+        /// </summary>
         private static readonly int[] s_cancelledOwners = [0, 1];
+
+        /// <summary>
+        /// Defines all-events unsubscribe attempts followed by the independent single-source unsubscribe.
+        /// </summary>
         private static readonly int[] s_allEventOwners = [0, 1, 2, 12];
+
+        /// <summary>
+        /// Defines the independent single-source unsubscribe attempts despite the first owner's failure.
+        /// </summary>
         private static readonly int[] s_singleEventOwners = [11, 12];
     }
 }

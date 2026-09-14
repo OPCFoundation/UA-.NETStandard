@@ -80,6 +80,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Verifies the directory store retains all submitted certificates at zero and none for negative limits.
+        /// </summary>
         [TestCase(0, 3)]
         [TestCase(-1, 0)]
         [TestCase(-5, 0)]
@@ -96,6 +99,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(stored, Has.Count.EqualTo(expectedCount));
         }
 
+        /// <summary>
+        /// Verifies switching a directory store to unlimited retention preserves existing history when adding a
+        /// certificate.
+        /// </summary>
         [Test]
         public async Task DirectoryStorePreservesHistoryWhenTheMaximumBecomesZeroAsync()
         {
@@ -135,6 +142,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(stored, Has.Count.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies the shared store retains all submitted certificates at zero and none for negative limits.
+        /// </summary>
         [TestCase(0, 3)]
         [TestCase(-1, 0)]
         [TestCase(-5, 0)]

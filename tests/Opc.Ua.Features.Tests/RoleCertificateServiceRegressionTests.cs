@@ -38,12 +38,18 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Features.Tests
 {
+    /// <summary>
+    /// Verifies role assignment uses authenticated user certificates and authenticated application identity.
+    /// </summary>
     [TestFixture]
     [Category("Roles")]
     [Category("Integration")]
     [NonParallelizable]
     public sealed class RoleCertificateServiceRegressionTests : TestFixture
     {
+        /// <summary>
+        /// Verifies certificate-user roles match the user token rather than the channel's application certificate.
+        /// </summary>
         [TestCase(IdentityCriteriaType.Thumbprint)]
         [TestCase(IdentityCriteriaType.X509Subject)]
         public async Task ActivatedCertificateUserGetsOnlyItsOwnCertificateRoleAsync(IdentityCriteriaType type)
@@ -98,6 +104,10 @@ namespace Opc.Ua.Features.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies an application-exclusion rule cannot grant a role to a session without authenticated application
+        /// data.
+        /// </summary>
         [Test]
         public async Task ExcludedApplicationRoleIsNotGrantedToTheUnsignedSessionAsync()
         {

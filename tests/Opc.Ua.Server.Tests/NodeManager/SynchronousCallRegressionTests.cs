@@ -37,10 +37,16 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
+    /// <summary>
+    /// Verifies completed results, validation, and failure propagation on synchronous and asynchronous Call paths.
+    /// </summary>
     [TestFixture]
     [Category("NodeManager")]
     public sealed class SynchronousCallRegressionTests
     {
+        /// <summary>
+        /// Verifies that synchronous dispatch throws its original failure instead of publishing an unfinished result.
+        /// </summary>
         [Test]
         public void SynchronousCallPropagatesDispatchFailureInsteadOfReturningAnUnfinishedResult()
         {
@@ -57,6 +63,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that a method callback failure is retained as a service error rather than a dispatch exception.
+        /// </summary>
         [Test]
         public void SynchronousMethodCallbackFailureRemainsAServiceError()
         {
@@ -71,6 +80,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that only the awaitable Call path invokes and waits for a suspending asynchronous hook.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task SuspendingAsyncHookIsUsedOnlyByTheAwaitableSurfaceAsync(bool asynchronous)
@@ -104,6 +116,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that both Call surfaces return the same successful method output and argument results.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task MethodArgumentsAndResultsRemainConsistentAcrossCallSurfacesAsync(bool asynchronous)
@@ -126,6 +141,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies matching input-type errors and successful calls on both dispatch surfaces.
+        /// </summary>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -164,8 +182,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Owns a method request and operation context with shared result assertions for both Call surfaces.
+        /// </summary>
         private sealed class CallCase : IDisposable
         {
+            /// <summary>
+            /// Creates a request for the harness method with the supplied input arguments.
+            /// </summary>
             public CallCase(CallHooks manager, ArrayOf<Variant> arguments = default)
             {
                 m_context = new OperationContext(new RequestHeader(), null, RequestType.Call, RequestLifetime.None);
@@ -177,18 +201,30 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 };
             }
 
+            /// <summary>
+            /// Gets the result slot populated by method dispatch.
+            /// </summary>
             public List<CallMethodResult> Results { get; } = [null];
 
+            /// <summary>
+            /// Dispatches the request through the synchronous compatibility surface.
+            /// </summary>
             public void Execute(CallHooks manager)
             {
                 manager.Call(m_context, [m_request], Results, m_errors);
             }
 
+            /// <summary>
+            /// Dispatches the request through the asynchronous surface.
+            /// </summary>
             public ValueTask ExecuteAsync(CallHooks manager)
             {
                 return manager.CallAsync(m_context, [m_request], Results, m_errors);
             }
 
+            /// <summary>
+            /// Requires a processed request, successful status, and the expected Int32 output.
+            /// </summary>
             public void AssertOutput()
             {
                 Assert.That(m_request.Processed, Is.True);
@@ -200,24 +236,47 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(output, Is.EqualTo(42));
             }
 
+            /// <summary>
+            /// Requires the expected service failure without any method output arguments.
+            /// </summary>
             public void AssertFailure(StatusCode expected)
             {
                 Assert.That(m_errors[0].StatusCode, Is.EqualTo(expected));
                 Assert.That(Results[0].OutputArguments.Count, Is.Zero);
             }
 
+            /// <summary>
+            /// Releases the request's operation context.
+            /// </summary>
             public void Dispose()
             {
                 m_context.Dispose();
             }
 
+            /// <summary>
+            /// Retains request authorization and lifetime state for dispatch.
+            /// </summary>
             private readonly OperationContext m_context;
+
+            /// <summary>
+            /// Identifies the object, method, and arguments supplied to the selected Call surface.
+            /// </summary>
             private readonly CallMethodRequest m_request;
+
+            /// <summary>
+            /// Receives the per-operation status independently of the method output.
+            /// </summary>
             private readonly List<ServiceResult> m_errors = [null];
         }
 
+        /// <summary>
+        /// Exposes a callable method with controlled dispatch failures and asynchronous suspension.
+        /// </summary>
         private sealed class CallHooks : CustomNodeManager2
         {
+            /// <summary>
+            /// Registers an executable method returning the fixed result used by the Call assertions.
+            /// </summary>
             public CallHooks(IServerInternal server)
                 : base(server, NullLogger.Instance, "urn:tests:synchronous-call")
             {
@@ -257,18 +316,47 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 AddPredefinedNode(SystemContext, Parent);
             }
 
+            /// <summary>
+            /// Gets the object owning the callable method.
+            /// </summary>
             public BaseObjectState Parent { get; }
+
+            /// <summary>
+            /// Gets the registered method whose arguments and callback can be configured by a test.
+            /// </summary>
             public MethodState Method { get; }
+
+            /// <summary>
+            /// Gets or sets whether asynchronous dispatch pauses until explicitly released.
+            /// </summary>
             public bool DelayAsyncHook { get; set; }
+
+            /// <summary>
+            /// Gets or sets the exception thrown before invoking the method callback.
+            /// </summary>
             public InvalidOperationException DispatchFailure { get; set; }
+
+            /// <summary>
+            /// Gets the number of suspending asynchronous hook invocations.
+            /// </summary>
             public int AsyncHookCalls { get; private set; }
+
+            /// <summary>
+            /// Gets completion of the last suspended dispatch for deterministic teardown.
+            /// </summary>
             public Task LastHook { get; private set; } = Task.CompletedTask;
 
+            /// <summary>
+            /// Allows the suspended asynchronous dispatch to invoke the base implementation.
+            /// </summary>
             public void ReleaseAsyncHook()
             {
                 m_release.TrySetResult(true);
             }
 
+            /// <summary>
+            /// Optionally suspends the asynchronous dispatch and records its completion.
+            /// </summary>
             protected override ValueTask CallInternalAsync(
                 OperationContext context,
                 ArrayOf<CallMethodRequest> methodsToCall,
@@ -286,6 +374,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return new ValueTask(LastHook);
             }
 
+            /// <summary>
+            /// Injects a configured dispatch exception before invoking the registered method.
+            /// </summary>
             protected override ServiceResult Call(
                 ISystemContext context,
                 CallMethodRequest methodToCall,
@@ -299,6 +390,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return base.Call(context, methodToCall, method, result);
             }
 
+            /// <summary>
+            /// Waits for the test barrier before forwarding the original request and result slots.
+            /// </summary>
             private async Task WaitThenCallAsync(
                 OperationContext context,
                 ArrayOf<CallMethodRequest> methodsToCall,
@@ -312,6 +406,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     context, methodsToCall, results, errors, sync, cancellationToken).ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Controls when a suspended asynchronous hook may continue.
+            /// </summary>
             private readonly TaskCompletionSource<bool> m_release =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
         }

@@ -39,9 +39,15 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests
 {
+    /// <summary>
+    /// Covers certificate selection and independent certificate lifetimes for managed and unmanaged sessions.
+    /// </summary>
     [TestFixture]
     public sealed class SessionCertificateRotationRegressionTests
     {
+        /// <summary>
+        /// Verifies registry certificate and optional issuer references survive disposal of their original owners.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task SessionCertificateUsesTheActiveRegistryAndRetainsItsOwnKeyAsync(bool sendChain)
@@ -101,6 +107,9 @@ namespace Opc.Ua.Client.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies a cancelled certificate load never acquires a reference from the active registry.
+        /// </summary>
         [Test]
         public void CancelledCertificateLoadDoesNotAcquireARegistryEntry()
         {
@@ -122,6 +131,9 @@ namespace Opc.Ua.Client.Tests
             manager.Verify(m => m.AcquireApplicationCertificateBySecurityPolicy(It.IsAny<string>()), Times.Never);
         }
 
+        /// <summary>
+        /// Verifies an absent registry entry and configured certificate produce BadConfigurationError.
+        /// </summary>
         [Test]
         public void MissingRegistryAndConfiguredCertificateIsAnExplicitConfigurationError()
         {
@@ -142,6 +154,9 @@ namespace Opc.Ua.Client.Tests
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies an active public-only certificate is rejected with an explicit missing-private-key error.
+        /// </summary>
         [Test]
         public void ActiveRegistryCertificateWithoutAPrivateKeyIsRejectedExplicitly()
         {
@@ -176,6 +191,9 @@ namespace Opc.Ua.Client.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies unmanaged loading uses the configured replacement rather than an older active registry certificate.
+        /// </summary>
         [Test]
         public async Task UnmanagedCertificateLoadHonorsAnExplicitConfiguredStoreReplacementAsync()
         {

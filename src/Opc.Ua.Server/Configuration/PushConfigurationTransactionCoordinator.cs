@@ -246,6 +246,9 @@ namespace Opc.Ua.Server
             return ApplyChangesCoreAsync(sessionId, committedEffects, cancellationToken);
         }
 
+        /// <summary>
+        /// Commits the owning session's staged operations, compensates failures and records post-commit effects.
+        /// </summary>
         private async ValueTask<ServiceResult> ApplyChangesCoreAsync(
             NodeId sessionId,
             PushConfigurationApplyEffects? committedEffects,
@@ -723,8 +726,14 @@ namespace Opc.Ua.Server
         private ArrayOf<TransactionErrorType> m_lastErrors;
     }
 
+    /// <summary>
+    /// Gives push-configuration rollback its own bounded cancellation lifetime.
+    /// </summary>
     internal static class PushConfigurationRollback
     {
+        /// <summary>
+        /// Runs failure compensation with a thirty-second timeout independent of the original request.
+        /// </summary>
         public static async Task RunAsync(Func<CancellationToken, Task> rollback, TimeProvider timeProvider)
         {
             using CancellationTokenSource lifetime =

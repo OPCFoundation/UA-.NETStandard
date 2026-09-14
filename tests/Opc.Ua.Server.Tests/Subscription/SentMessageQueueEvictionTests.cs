@@ -37,11 +37,17 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies bounded retransmission eviction and ordered delivery when an enqueue partially overflows the queue.
+    /// </summary>
     [TestFixture]
     [Category("Subscription")]
     [Parallelizable]
     public sealed class SentMessageQueueEvictionTests
     {
+        /// <summary>
+        /// Verifies that partial overflow evicts only the excess oldest message and persists the exact queue delta.
+        /// </summary>
         [TestCase(10u, 5, 6)]
         [TestCase(5u, 4, 2)]
         public void EnqueuePartialOverflowEvictsOnlyExcess(uint capacity, int oldCount, int newCount)
@@ -96,6 +102,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.TryDequeueQueued(available, false, out _), Is.Null);
         }
 
+        /// <summary>
+        /// Creates notifications with consecutive sequence numbers for eviction and dequeue-order assertions.
+        /// </summary>
         private static List<NotificationMessage> CreateMessages(int first, int count)
         {
             return Enumerable.Range(first, count)

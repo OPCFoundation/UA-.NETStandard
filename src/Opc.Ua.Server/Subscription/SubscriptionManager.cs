@@ -2735,6 +2735,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Returns the configured ordinary or durable subscription lifetime limit in milliseconds.
+        /// </summary>
         private ulong GetMaximumLifetimeMilliseconds(bool isDurableSubscription)
         {
             return isDurableSubscription

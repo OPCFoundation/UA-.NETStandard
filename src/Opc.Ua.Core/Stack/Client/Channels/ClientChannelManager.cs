@@ -747,6 +747,9 @@ namespace Opc.Ua
 
         internal ILogger? Logger { get; }
 
+        /// <summary>
+        /// Gets an independently retained snapshot of the manager's current client certificate material and version.
+        /// </summary>
         internal ClientChannelCertificateSnapshot CurrentClientCertificateSnapshot
         {
             get
@@ -874,6 +877,10 @@ namespace Opc.Ua
                 entry.State is ChannelState.Closed or ChannelState.Faulted;
         }
 
+        /// <summary>
+        /// Reattaches a lease to a usable entry after reconnect backoff, opening a replacement with current
+        /// certificates.
+        /// </summary>
         private async ValueTask<ChannelEntry> SwapFaultedEntryAsync(
             ManagedTransportChannelLease lease,
             CancellationToken ct)
@@ -985,6 +992,9 @@ namespace Opc.Ua
             return TimeProvider.Delay(delay, ct);
         }
 
+        /// <summary>
+        /// Acquires a participant lease from a matching channel entry, creating it with retained certificate material.
+        /// </summary>
         private async ValueTask<IManagedTransportChannel> GetCoreAsync(
             ConfiguredEndpoint endpoint,
             Func<IManagedTransportChannel, IReconnectParticipant> participantFactory,
@@ -1219,6 +1229,9 @@ namespace Opc.Ua
             return SnapshotEntries();
         }
 
+        /// <summary>
+        /// Takes ownership of replacement certificate handles and advances the version when their material differs.
+        /// </summary>
         void IChannelCertRotationHost.ReplaceClientCertificate(
             Certificate? clientCertificate,
             CertificateCollection? clientCertificateChain)
@@ -1279,11 +1292,17 @@ namespace Opc.Ua
             m_diagnostics.EmitChannelClosed(entry, reason);
         }
 
+        /// <summary>
+        /// Acquires a certificate snapshot whose lifetime is independent of later manager updates.
+        /// </summary>
         ClientChannelCertificateSnapshot IChannelEntryHost.SnapshotClientCertificate()
         {
             return CurrentClientCertificateSnapshot;
         }
 
+        /// <summary>
+        /// Creates a transport using certificate handles already retained by its owning channel entry.
+        /// </summary>
         ValueTask<ITransportChannel> IChannelEntryHost.CreateChannelAsync(
             ConfiguredEndpoint endpoint,
             Certificate? clientCertificate,

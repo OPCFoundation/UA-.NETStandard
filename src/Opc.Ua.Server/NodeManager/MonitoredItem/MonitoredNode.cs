@@ -105,6 +105,8 @@ namespace Opc.Ua.Server
             m_useMultipleConsumers = enableMultipleEventConsumers || node.NodeId == ObjectIds.Server;
             m_channel = Channel.CreateBounded<INodeNotification>(new BoundedChannelOptions(k_defaultChannelCapacity)
             {
+                // One loop dequeues notifications in order. Parallel delivery fans out within
+                // an event and completes before the next event can reach the same monitored item.
                 SingleReader = true,
                 FullMode = BoundedChannelFullMode.Wait,
                 AllowSynchronousContinuations = false
@@ -562,6 +564,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Checks audit visibility and event permissions before queuing an event for one monitored item.
+        /// </summary>
         private async Task ProcessEventForItemAsync(
             IEventMonitoredItem monitoredItem,
             IFilterTarget target,

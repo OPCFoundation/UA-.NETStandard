@@ -104,6 +104,9 @@ namespace Opc.Ua.Server.UserDatabase
         {
         }
 
+        /// <summary>
+        /// Creates an empty database with an optional observer for verifying derived-key cleanup.
+        /// </summary>
         internal LinqUserDatabase(Action<byte[]>? keyDerived)
         {
             m_keyDerived = keyDerived;
@@ -298,6 +301,9 @@ namespace Opc.Ua.Server.UserDatabase
             Save();
         }
 
+        /// <summary>
+        /// Creates a salted PBKDF2-SHA512 password verifier and clears temporary key material.
+        /// </summary>
         private static string Hash(ReadOnlySpan<byte> password)
         {
 #if NET10_0_OR_GREATER // Use span and non obsoleted APIs
@@ -356,6 +362,9 @@ namespace Opc.Ua.Server.UserDatabase
 #endif // !NET10_0_OR_GREATER
         }
 
+        /// <summary>
+        /// Checks a stored password verifier with a fixed-time key comparison and clears the derived key afterward.
+        /// </summary>
         private bool Check(string hash, ReadOnlySpan<byte> password)
         {
 #if NET6_0_OR_GREATER
@@ -422,6 +431,9 @@ namespace Opc.Ua.Server.UserDatabase
             }
         }
 
+        /// <summary>
+        /// Copies a user and its role collection so callers cannot mutate the stored record.
+        /// </summary>
         private static User SnapshotUser(User user)
         {
             return new User
@@ -433,6 +445,9 @@ namespace Opc.Ua.Server.UserDatabase
             };
         }
 
+        /// <summary>
+        /// Creates a random password verifier for performing equivalent derivation work on unknown-user checks.
+        /// </summary>
         private static string CreateUnknownUserHash()
         {
             byte[] secret = new byte[kKeySize];
@@ -454,7 +469,14 @@ namespace Opc.Ua.Server.UserDatabase
             Initialize();
         }
 
+        /// <summary>
+        /// Observes the derived key before cleanup so tests can verify that the buffer is cleared.
+        /// </summary>
         private readonly Action<byte[]>? m_keyDerived;
+
+        /// <summary>
+        /// Supplies a real verifier for credential checks that do not find a stored user.
+        /// </summary>
         private static readonly string s_unknownUserHash = CreateUnknownUserHash();
         private ConcurrentDictionary<string, User> m_users = new();
     }

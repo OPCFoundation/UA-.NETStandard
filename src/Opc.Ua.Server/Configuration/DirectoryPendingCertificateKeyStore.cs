@@ -70,6 +70,9 @@ namespace Opc.Ua.Server
                 context, ct => SaveCoreAsync(context, certificateWithPrivateKey, ct), cancellationToken);
         }
 
+        /// <summary>
+        /// Replaces the scope's pending certificate and private key in its dedicated directory store.
+        /// </summary>
         private static async ValueTask<bool> SaveCoreAsync(
             PendingCertificateKeyContext context,
             Certificate certificateWithPrivateKey,
@@ -144,6 +147,9 @@ namespace Opc.Ua.Server
                 context, ct => RestoreCoreAsync(context, certificateWithPrivateKey, ct), cancellationToken);
         }
 
+        /// <summary>
+        /// Restores a consumed key only when the scope has no newer pending certificate.
+        /// </summary>
         private static async ValueTask<bool> RestoreCoreAsync(
             PendingCertificateKeyContext context,
             Certificate certificate,
@@ -173,6 +179,9 @@ namespace Opc.Ua.Server
             return true;
         }
 
+        /// <summary>
+        /// Loads and consumes a pending private key, leaving the entry intact when a requested key match fails.
+        /// </summary>
         private static async ValueTask<Certificate?> TryTakeCoreAsync(
             PendingCertificateKeyContext context,
             Certificate? matchingCertificate,
@@ -268,6 +277,9 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Clears pending certificates from the directory store for the requested scope.
+        /// </summary>
         private static async ValueTask RemoveCoreAsync(
             PendingCertificateKeyContext context,
             CancellationToken cancellationToken)

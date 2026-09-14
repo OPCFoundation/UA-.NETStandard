@@ -43,10 +43,16 @@ using Opc.Ua.Server.FileSystem;
 
 namespace Opc.Ua.Server.Tests.FileSystem
 {
+    /// <summary>
+    /// Verifies directory capacity admission, refresh publication, and cleanup across concurrent binding operations.
+    /// </summary>
     [TestFixture]
     [Category("FileSystem")]
     public sealed class FileDirectoryLifecycleRegressionTests
     {
+        /// <summary>
+        /// Verifies that create, copy, and move operations check destination capacity before mutating the provider.
+        /// </summary>
         [TestCase("file", 2)]
         [TestCase("directory", 2)]
         [TestCase("copy", 2)]
@@ -90,6 +96,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(source.HasValue, Is.EqualTo(!admitted || operation != "move"));
         }
 
+        /// <summary>
+        /// Verifies that renaming within a full directory succeeds without reserving an additional entry.
+        /// </summary>
         [Test]
         public async Task RenameWithinFullDirectoryDoesNotConsumeAnotherEntryAsync()
         {
@@ -107,6 +116,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(path, Is.EqualTo("renamed"));
         }
 
+        /// <summary>
+        /// Verifies that post-commit refresh failures are logged without reporting a successful mutation as failed.
+        /// </summary>
         [TestCase("io")]
         [TestCase("limit")]
         [TestCase("cancellation")]
@@ -138,6 +150,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(path, Is.EqualTo("created"));
         }
 
+        /// <summary>
+        /// Verifies that a corrective deletion can restore capacity and publish a fresh lookup after repeated failures.
+        /// </summary>
         [Test]
         public async Task CorrectiveDeleteRecoversAfterPersistentOverLimitRefreshFailureAsync()
         {
@@ -205,6 +220,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(harness.MutationCount, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that repeated refresh failures do not permit a create operation to exceed directory capacity.
+        /// </summary>
         [Test]
         public async Task PersistentRefreshFailureDoesNotBypassCapacityAdmissionAsync()
         {
@@ -233,6 +251,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             harness.VerifyRefreshCommitState(false, 1);
         }
 
+        /// <summary>
+        /// Verifies that cancellation thrown by the pre-mutation refresh prevents provider deletion.
+        /// </summary>
         [Test]
         public async Task PreMutationRefreshCancellationDoesNotReachProviderAsync()
         {
@@ -261,6 +282,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             harness.VerifyRefreshCommitState(false, 0);
         }
 
+        /// <summary>
+        /// Verifies that request cancellation during a failing pre-refresh is propagated before provider mutation.
+        /// </summary>
         [Test]
         public async Task CancellationDuringFailedPreRefreshDoesNotReachProviderAsync()
         {
@@ -291,6 +315,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             harness.VerifyRefreshCommitState(false, 1);
         }
 
+        /// <summary>
+        /// Verifies that recoverable pre-refresh failures do not replace the error returned by a corrective deletion.
+        /// </summary>
         [TestCase("io")]
         [TestCase("access")]
         [TestCase("unsupported")]
@@ -334,6 +361,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             harness.VerifyRefreshCommitState(false, 1);
         }
 
+        /// <summary>
+        /// Verifies that refresh retains the old lookup until registration of replacement nodes completes.
+        /// </summary>
         [Test]
         public async Task RefreshPublishesLookupOnlyAfterRegistrationCompletesAsync()
         {
@@ -366,6 +396,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(path, Is.EqualTo("new"));
         }
 
+        /// <summary>
+        /// Verifies that disposal retires path lookup and handle admission before invoking provider stream cleanup.
+        /// </summary>
         [Test]
         public async Task DisposalRetiresLookupAndHandlesBeforeCallingProviderCleanupAsync()
         {
@@ -393,6 +426,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             await binding.RefreshAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that concurrent create requests serialize capacity admission and only one uses the final slot.
+        /// </summary>
         [Test]
         public async Task ConcurrentCreatesCannotBothConsumeTheLastCapacitySlotAsync()
         {
@@ -434,6 +470,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that failed node registration is retried before a committed provider entry becomes discoverable.
+        /// </summary>
         [Test]
         public async Task FailedRegistrationIsRetriedBeforeLookupIsPublishedAsync()
         {
@@ -458,6 +497,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(host.TryGetProviderPath(host.BuildFileNodeId("created"), out _, out _, out _), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a cancelled waiter leaves the active refresh protected and queued disposal rejects late
+        /// mutation.
+        /// </summary>
         [Test]
         public async Task CancelledWaiterAndQueuedDisposalDrainWithoutReleasingAnotherOperationsGateAsync()
         {
@@ -505,10 +548,19 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(harness.MutationCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Defines the entries expected after corrective deletion restores an over-capacity directory.
+        /// </summary>
         private static readonly string[] s_recoveredPaths = ["renamed", "external"];
 
+        /// <summary>
+        /// Supplies an isolated physical directory with observable mutations and injectable refresh failures.
+        /// </summary>
         private sealed class BindingHarness : IDisposable
         {
+            /// <summary>
+            /// Creates a writable provider, session context, root node, and logger for binding lifecycle tests.
+            /// </summary>
             public BindingHarness()
             {
                 m_path = Path.Combine(Path.GetTempPath(), "FileDirectoryRegression-" + Guid.NewGuid().ToString("N"));
@@ -570,15 +622,49 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 };
             }
 
+            /// <summary>
+            /// Gets the physical provider used to inspect or change backing entries independently of the binding.
+            /// </summary>
             public PhysicalFileSystemProvider Physical { get; }
+
+            /// <summary>
+            /// Gets the observable provider injected into the directory binding.
+            /// </summary>
             public Mock<IFileSystemProvider> Provider { get; } = new();
+
+            /// <summary>
+            /// Gets the logger used to verify refresh failures and commit-state diagnostics.
+            /// </summary>
             public Mock<ILogger> Logger { get; } = new();
+
+            /// <summary>
+            /// Gets the session and namespace context for directory method calls.
+            /// </summary>
             public SessionSystemContext Context { get; }
+
+            /// <summary>
+            /// Gets the directory node whose children and methods are populated by the binding.
+            /// </summary>
             public FileDirectoryState Root { get; }
+
+            /// <summary>
+            /// Gets or sets the exception raised during enumeration after the first observed mutation.
+            /// </summary>
             public Exception? RefreshFailure { get; set; }
+
+            /// <summary>
+            /// Gets or sets a callback invoked before enumeration to trigger controlled cancellation.
+            /// </summary>
             public Action? BeforeEnumeration { get; set; }
+
+            /// <summary>
+            /// Gets the number of provider mutations admitted through the observable provider.
+            /// </summary>
             public int MutationCount => m_mutationCount;
 
+            /// <summary>
+            /// Binds the root with an entry limit and optional asynchronous node-registration callback.
+            /// </summary>
             public ValueTask<IFileDirectoryBinding> BindAsync(
                 int maximum,
                 Func<NodeState, CancellationToken, ValueTask>? registerNode = null)
@@ -588,24 +674,36 @@ namespace Opc.Ua.Server.Tests.FileSystem
                     registerNode);
             }
 
+            /// <summary>
+            /// Finds a materialized child directory and fails the test if it is absent.
+            /// </summary>
             public FileDirectoryState FindDirectory(string name)
             {
                 return (FileDirectoryState)(Root.FindChild(Context, new QualifiedName(name, 1)) ??
                     throw new AssertionException("The expected directory was not materialized."));
             }
 
+            /// <summary>
+            /// Finds a materialized child file and fails the test if it is absent.
+            /// </summary>
             public FileState FindFile(string name)
             {
                 return (FileState)(Root.FindChild(Context, new QualifiedName(name, 1)) ??
                     throw new AssertionException("The expected file was not materialized."));
             }
 
+            /// <summary>
+            /// Counts an admitted file creation before forwarding it to the physical provider.
+            /// </summary>
             public ValueTask CreateFileAsync(string path, CancellationToken ct)
             {
                 Interlocked.Increment(ref m_mutationCount);
                 return Physical.CreateFileAsync(path, ct);
             }
 
+            /// <summary>
+            /// Verifies the exact number of logged refresh failures caused by exceeding the entry limit.
+            /// </summary>
             public void VerifyRefreshLimitFailures(int count)
             {
                 Logger.Verify(logger => logger.Log(
@@ -617,6 +715,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Exactly(count));
             }
 
+            /// <summary>
+            /// Verifies how many refresh failures were logged before or after the current provider mutation committed.
+            /// </summary>
             public void VerifyRefreshCommitState(bool committed, int count)
             {
                 Logger.Verify(logger => logger.Log(
@@ -628,11 +729,17 @@ namespace Opc.Ua.Server.Tests.FileSystem
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Exactly(count));
             }
 
+            /// <summary>
+            /// Removes the temporary directory and all backing entries created by the test.
+            /// </summary>
             public void Dispose()
             {
                 Directory.Delete(m_path, recursive: true);
             }
 
+            /// <summary>
+            /// Enumerates the provider entries after running the configured refresh barrier or failure.
+            /// </summary>
             private async IAsyncEnumerable<FileSystemEntry> EnumerateAsync(
                 string path,
                 [EnumeratorCancellation] CancellationToken ct)
@@ -649,12 +756,25 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 }
             }
 
+            /// <summary>
+            /// Locates the temporary directory owned by this binding harness.
+            /// </summary>
             private readonly string m_path;
+
+            /// <summary>
+            /// Counts provider mutations independently of address-space refresh success.
+            /// </summary>
             private int m_mutationCount;
         }
 
+        /// <summary>
+        /// Invokes a callback during first disposal to inspect binding state from provider cleanup.
+        /// </summary>
         private sealed class CleanupStream(Action onDispose) : MemoryStream(new byte[1])
         {
+            /// <summary>
+            /// Runs the inspection callback once before releasing the readable stream.
+            /// </summary>
             protected override void Dispose(bool disposing)
             {
                 if (disposing && CanRead)

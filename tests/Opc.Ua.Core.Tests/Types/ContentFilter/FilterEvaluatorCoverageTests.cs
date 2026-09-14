@@ -245,6 +245,9 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             Assert.That(Filter(element).Evaluate(m_context, m_target), Is.True);
         }
 
+        /// <summary>
+        /// Verifies a leading string mismatch does not prevent InList from finding a later matching operand.
+        /// </summary>
         [Test]
         public void InListWithStringMemberAfterLeadingMismatchYieldsTrue()
         {
@@ -269,6 +272,9 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             Assert.That(Filter(element).Evaluate(m_context, m_target), Is.False);
         }
 
+        /// <summary>
+        /// Verifies InList evaluates every string operand position.
+        /// </summary>
         [TestCase("a")]
         [TestCase("b")]
         [TestCase("c")]

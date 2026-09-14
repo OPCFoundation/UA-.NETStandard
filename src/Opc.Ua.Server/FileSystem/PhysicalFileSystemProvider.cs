@@ -324,6 +324,9 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Rejects destructive or copy operations that target the mounted root directory itself.
+        /// </summary>
         private void EnsureNotRoot(string fullPath)
         {
             StringComparison comparison = Path.DirectorySeparatorChar == '\\'

@@ -44,6 +44,9 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class SentMessageQueueTests
     {
+        /// <summary>
+        /// Verifies that restoration preserves sequence state and dequeues an independent copy of the queued message.
+        /// </summary>
         [Test]
         public void CreateRestoredPreservesQueueStateAndDequeuesExistingMessages()
         {

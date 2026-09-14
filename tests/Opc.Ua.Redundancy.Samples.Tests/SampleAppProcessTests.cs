@@ -103,6 +103,9 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             Assert.That(process.HasExited, Is.True);
         }
 
+        /// <summary>
+        /// Verifies captured output and bounded tail selection remain available after process disposal.
+        /// </summary>
         [Test]
         public async Task CapturedOutputRemainsAvailableAfterProcessDisposalAsync()
         {

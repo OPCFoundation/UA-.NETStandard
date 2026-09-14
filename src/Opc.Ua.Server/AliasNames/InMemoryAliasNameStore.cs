@@ -497,6 +497,9 @@ namespace Opc.Ua.Server.AliasNames
             return notifications;
         }
 
+        /// <summary>
+        /// Searches a category and its descendants, grouping matching targets by alias and reference type.
+        /// </summary>
         private void CollectMatches(
             CategoryEntry category,
             Regex pattern,

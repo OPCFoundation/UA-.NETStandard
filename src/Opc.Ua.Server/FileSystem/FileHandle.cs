@@ -51,6 +51,9 @@ namespace Opc.Ua.Server.FileSystem
 
         public string ProviderPath { get; }
 
+        /// <summary>
+        /// Gets the number of completed file opens, excluding reservations still waiting for provider streams.
+        /// </summary>
         public ushort OpenCount
         {
             get
@@ -70,6 +73,9 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Gets whether both the provider and the current file entry permit writing.
+        /// </summary>
         public bool IsWriteable
         {
             get
@@ -123,6 +129,9 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Returns a session-owned stream only when its open mode includes all requested access bits.
+        /// </summary>
         public Stream? GetStream(NodeId sessionId, uint fileHandle, byte requiredMode = 0)
         {
             lock (m_lock)
@@ -194,6 +203,9 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Reserves compatible access, opens the provider stream and publishes the handle if the reservation survives.
+        /// </summary>
         public async ValueTask<(ServiceResult Result, uint Handle)> OpenAsync(
             NodeId sessionId,
             byte mode,
@@ -239,6 +251,9 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Validates the session and mode and reserves compatible access before opening the provider stream.
+        /// </summary>
         private bool TryReserveOpen(
             NodeId sessionId,
             byte mode,
@@ -306,6 +321,9 @@ namespace Opc.Ua.Server.FileSystem
             return true;
         }
 
+        /// <summary>
+        /// Attaches an opened stream only if its reservation has not been closed or disposed.
+        /// </summary>
         private ServiceResult CompleteOpen(OpenFile pending, Stream stream)
         {
             lock (m_lock)
@@ -321,6 +339,9 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Removes an unsuccessful open reservation without disturbing a replacement.
+        /// </summary>
         private void CancelOpen(OpenFile pending)
         {
             lock (m_lock)
@@ -336,6 +357,9 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Maps FileType erase and append flags to the provider's write mode.
+        /// </summary>
         private static FileWriteMode GetWriteMode(byte mode)
         {
             if ((mode & 4) != 0)
@@ -368,6 +392,9 @@ namespace Opc.Ua.Server.FileSystem
             return stream != null;
         }
 
+        /// <summary>
+        /// Cancels a session's pending opens and disposes all streams already opened by that session.
+        /// </summary>
         public void CloseSession(NodeId sessionId)
         {
             List<Stream> streamsToClose = [];
@@ -404,6 +431,7 @@ namespace Opc.Ua.Server.FileSystem
             DisposeStreams(streamsToClose);
         }
 
+        /// <inheritdoc/>
         public void Dispose()
         {
             List<Stream> streamsToClose;
@@ -457,10 +485,20 @@ namespace Opc.Ua.Server.FileSystem
         private readonly Dictionary<uint, OpenFile> m_reads = [];
         private readonly IFileSystemProvider m_provider;
         private OpenFile? m_write;
+
+        /// <summary>
+        /// Prevents new open reservations after the handle bag has been disposed.
+        /// </summary>
         private bool m_disposed;
 
+        /// <summary>
+        /// Retains a session-owned open reservation and its eventual provider stream.
+        /// </summary>
         private sealed class OpenFile
         {
+            /// <summary>
+            /// Creates an open reservation for a session with the requested FileType mode bits.
+            /// </summary>
             public OpenFile(uint handle, NodeId sessionId, byte mode)
             {
                 Handle = handle;
@@ -468,12 +506,24 @@ namespace Opc.Ua.Server.FileSystem
                 Mode = mode;
             }
 
+            /// <summary>
+            /// Gets the nonzero FileType handle allocated for this reservation.
+            /// </summary>
             public uint Handle { get; }
 
+            /// <summary>
+            /// Gets the session authorized to access the reserved handle.
+            /// </summary>
             public NodeId SessionId { get; }
 
+            /// <summary>
+            /// Gets the access and positioning flags accepted when reserving the handle.
+            /// </summary>
             public byte Mode { get; }
 
+            /// <summary>
+            /// Gets or sets the opened stream, or null while the provider open is still pending.
+            /// </summary>
             public Stream? Stream { get; set; }
         }
     }

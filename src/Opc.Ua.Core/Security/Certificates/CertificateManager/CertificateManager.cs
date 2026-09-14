@@ -253,6 +253,10 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Applies global validation flags and snapshots configured trust sources, reporting whether registration
+        /// changed.
+        /// </summary>
         private bool MapSecurityConfigurationCore(SecurityConfiguration config, bool replaceExisting)
         {
             if (config == null)
@@ -316,6 +320,9 @@ namespace Opc.Ua
             return changed;
         }
 
+        /// <summary>
+        /// Registers trust-list snapshots and invalidates cached validation cores when the registration changes.
+        /// </summary>
         private void RegisterOrReplaceTrustList(
             TrustListIdentifier trustList,
             CertificateStoreIdentifier? trustedStore,
@@ -337,6 +344,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Adds, replaces, or removes a named trust list according to its configured stores and explicit certificates.
+        /// </summary>
         private bool RegisterTrustListCore(
             TrustListIdentifier trustList,
             CertificateStoreIdentifier? trustedStore,
@@ -368,6 +378,9 @@ namespace Opc.Ua
             return false;
         }
 
+        /// <summary>
+        /// Copies trust-list metadata and resolves inferred store types using the manager's registered providers.
+        /// </summary>
         private CertificateTrustList? CreateTrustListSnapshot(CertificateStoreIdentifier? store)
         {
             CertificateTrustList? snapshot = CertificateTrustList.CreateSnapshot(store);
@@ -381,6 +394,9 @@ namespace Opc.Ua
             return snapshot;
         }
 
+        /// <summary>
+        /// Resolves a path-specific store provider before allowing the directory-store fallback.
+        /// </summary>
         private string ResolveStoreType(string storePath)
         {
             // The built-in directory provider is a catch-all, not a path-specific provider.
@@ -389,6 +405,9 @@ namespace Opc.Ua
                 m_storeProviders.Where(static provider => provider is not DirectoryStoreProvider));
         }
 
+        /// <summary>
+        /// Determines whether a trust source supplies a store path or explicitly listed certificates.
+        /// </summary>
         private static bool HasTrustSource(CertificateStoreIdentifier? store)
         {
             return store != null &&
@@ -1427,6 +1446,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Retrieves a registered trust-list snapshot or reports that the requested list is unknown.
+        /// </summary>
         private TrustListEntry GetTrustListEntry(TrustListIdentifier trustList)
         {
             lock (m_certificatesLock)
@@ -1550,6 +1572,9 @@ namespace Opc.Ua
             CertificateTrustList? TrustedStore,
             CertificateTrustList? IssuerStore);
 
+        /// <summary>
+        /// Acquires a caller-owned reference to the first application certificate while the manager remains active.
+        /// </summary>
         private CertificateEntry? AcquirePrimaryCertificate()
         {
             lock (m_certificatesLock)
@@ -1559,6 +1584,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Rejects operations after the manager has released its owned resources.
+        /// </summary>
         private void ThrowIfDisposed()
         {
             if (Volatile.Read(ref m_disposed))
@@ -1567,6 +1595,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Holds the trusted and issuer source snapshots registered under each trust-list identifier.
+        /// </summary>
         private readonly Dictionary<TrustListIdentifier, TrustListEntry> m_trustLists = [];
         private readonly Dictionary<TrustListIdentifier, CertificateValidationCore> m_customCores = [];
         private readonly List<CertificateEntry> m_applicationCertificates = [];

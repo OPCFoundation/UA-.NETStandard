@@ -1572,6 +1572,9 @@ namespace Opc.Ua
             return fileInfo;
         }
 
+        /// <summary>
+        /// Writes replacement PEM contents to a temporary file and atomically replaces the existing file.
+        /// </summary>
         private static async Task ReplacePemFileAsync(string fileName, byte[] contents, CancellationToken ct)
         {
             string temporaryFile = fileName + "." + Guid.NewGuid().ToString("N") + ".tmp";

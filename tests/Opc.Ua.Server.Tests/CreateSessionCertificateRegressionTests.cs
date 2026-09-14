@@ -38,12 +38,18 @@ using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies certificate validation and transport binding when creating secured and unsecured sessions.
+    /// </summary>
     [TestFixture]
     [Category("Session")]
     [Category("Security")]
     [Category("Integration")]
     public sealed class CreateSessionCertificateRegressionTests
     {
+        /// <summary>
+        /// Starts an isolated server with trusted, untrusted, expired, and issuer-signed client certificates.
+        /// </summary>
         [OneTimeSetUp]
         public async Task StartServerAsync()
         {
@@ -70,6 +76,9 @@ namespace Opc.Ua.Server.Tests
             await m_fixture.StartAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Stops the server, releases test certificates, and removes its temporary PKI stores.
+        /// </summary>
         [OneTimeTearDown]
         public async Task StopServerAsync()
         {
@@ -86,6 +95,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that an empty application URI does not bypass trust or validity checks or leave a session behind.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void EmptyApplicationUriCannotBypassCertificateValidation(bool expired)
@@ -100,6 +112,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(m_fixture.Server.CurrentInstance.SessionManager.GetSessions(), Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that even a trusted certificate requires the client description to contain its application URI.
+        /// </summary>
         [TestCase(null)]
         [TestCase("")]
         [TestCase("urn:wrong:application")]
@@ -112,6 +127,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUriInvalid));
         }
 
+        /// <summary>
+        /// Verifies that secure-conversation transports reject a session certificate different from the channel's leaf.
+        /// </summary>
         [TestCase(Profiles.UaTcpTransport)]
         [TestCase(Profiles.UaWssTransport)]
         public void SecureConversationRejectsADifferentApplicationCertificate(string profile)
@@ -123,6 +141,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
+        /// <summary>
+        /// Verifies that a secured session cannot omit its application certificate.
+        /// </summary>
         [Test]
         public void SecuredSessionRequiresTheApplicationCertificate()
         {
@@ -132,6 +153,10 @@ namespace Opc.Ua.Server.Tests
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
+        /// <summary>
+        /// Verifies that appending an issuer chain does not break matching of the channel and session leaf
+        /// certificates.
+        /// </summary>
         [Test]
         public async Task SameLeafWithAnAppendedIssuerChainIsAcceptedAsync()
         {
@@ -143,6 +168,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(response.SessionId.IsNull, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that HTTPS accepts distinct trusted transport and application certificates.
+        /// </summary>
         [Test]
         public async Task HttpsMayUseDistinctValidatedTransportAndApplicationCertificatesAsync()
         {
@@ -152,6 +180,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
         }
 
+        /// <summary>
+        /// Verifies that SecurityPolicy None ignores an optional certificate even when expired or malformed.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task NonePolicyDoesNotValidateAnOptionalApplicationCertificateAsync(bool malformed)
@@ -163,6 +194,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
         }
 
+        /// <summary>
+        /// Creates a channel context using the selected transport profile, security policy, and client certificate.
+        /// </summary>
         private SecureChannelContext CreateContext(Certificate channelCertificate, string profile, bool secure = true)
         {
             EndpointDescription template = m_fixture.Server.GetEndpoints().Find(endpoint =>
@@ -176,6 +210,9 @@ namespace Opc.Ua.Server.Tests
                 endpoint.ServerCertificate.ToArray());
         }
 
+        /// <summary>
+        /// Creates a session with the supplied application identity and closes any successfully created session.
+        /// </summary>
         private async Task<CreateSessionResponse> CreateAndCloseAsync(
             SecureChannelContext channel,
             string applicationUri,
@@ -203,6 +240,9 @@ namespace Opc.Ua.Server.Tests
             return response;
         }
 
+        /// <summary>
+        /// Creates an RSA client certificate with the test application URI and optional expiry or issuer.
+        /// </summary>
         private static Certificate CreateCertificate(string subject, bool expired = false, Certificate issuer = null)
         {
             ICertificateBuilder builder = CertificateBuilder.Create(subject)
@@ -216,16 +256,59 @@ namespace Opc.Ua.Server.Tests
             return builder.SetRSAKeySize(2048).CreateForRSA();
         }
 
+        /// <summary>
+        /// Identifies the application embedded in valid client certificate subject alternative names.
+        /// </summary>
         private const string kApplicationUri = "urn:servercore:certificate-regression";
+
+        /// <summary>
+        /// Defines the start of validity shared by the generated test certificates.
+        /// </summary>
         private static readonly DateTime s_notBefore = new(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        /// <summary>
+        /// Defines a future expiry for certificates intended to pass time validation.
+        /// </summary>
         private static readonly DateTime s_notAfter = new(2099, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        /// <summary>
+        /// Hosts the server whose CreateSession service performs certificate validation.
+        /// </summary>
         private ServerFixture<ReferenceServer> m_fixture;
+
+        /// <summary>
+        /// Stores the isolated PKI directory removed after server shutdown.
+        /// </summary>
         private string m_pkiRoot;
+
+        /// <summary>
+        /// Supplies the trusted client certificate normally bound to the secure channel.
+        /// </summary>
         private Certificate m_trusted;
+
+        /// <summary>
+        /// Supplies a distinct trusted certificate to test transport-to-session binding.
+        /// </summary>
         private Certificate m_otherTrusted;
+
+        /// <summary>
+        /// Supplies an otherwise valid certificate absent from the server's trust store.
+        /// </summary>
         private Certificate m_untrusted;
+
+        /// <summary>
+        /// Supplies a trusted certificate whose validity period has ended.
+        /// </summary>
         private Certificate m_expired;
+
+        /// <summary>
+        /// Supplies the trusted issuer used to test appended certificate chains.
+        /// </summary>
         private Certificate m_root;
+
+        /// <summary>
+        /// Supplies the client leaf signed by the trusted root certificate.
+        /// </summary>
         private Certificate m_issued;
     }
 }

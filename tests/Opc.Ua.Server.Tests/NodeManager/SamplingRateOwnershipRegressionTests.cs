@@ -33,10 +33,16 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
+    /// <summary>
+    /// Verifies that sampling-group disposal does not mutate rate tables borrowed by other groups or their manager.
+    /// </summary>
     [TestFixture]
     [Category("NodeManager")]
     public sealed class SamplingRateOwnershipRegressionTests
     {
+        /// <summary>
+        /// Verifies that disposing one group preserves shared rate definitions for surviving and newly created groups.
+        /// </summary>
         [Test]
         public void DisposingSamplingGroupPreservesBorrowedRatesForOtherGroups()
         {
@@ -70,6 +76,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that retiring a sampling group leaves the manager able to revise later items to the same rate.
+        /// </summary>
         [Test]
         public void DisposingSamplingGroupPreservesManagerRateRevision()
         {
@@ -102,6 +111,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Creates a session-backed monitored-item context for sampling-group ownership checks.
+        /// </summary>
         private static OperationContext CreateContext()
         {
             var session = new Mock<ISession>();
@@ -110,6 +122,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None, session.Object);
         }
 
+        /// <summary>
+        /// Creates a reporting data-change item with the requested sampling interval for rate revision.
+        /// </summary>
         private static MonitoredItem CreateItem(
             IServerInternal server,
             IAsyncNodeManager nodeManager,

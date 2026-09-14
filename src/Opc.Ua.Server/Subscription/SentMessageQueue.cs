@@ -69,6 +69,9 @@ namespace Opc.Ua.Server
         {
         }
 
+        /// <summary>
+        /// Initializes sequence tracking and takes independent copies of restored notification messages.
+        /// </summary>
         private SentMessageQueue(
             Func<uint> subscriptionIdProvider,
             uint maxMessageCount,
@@ -354,6 +357,9 @@ namespace Opc.Ua.Server
             SentMessages.Clear();
         }
 
+        /// <summary>
+        /// Persists copied retransmission messages as a delta when supported, otherwise as a complete snapshot.
+        /// </summary>
         private void StoreRetransmissionState(
             IList<NotificationMessage> addedMessages,
             ArrayOf<uint> removedSequenceNumbers)

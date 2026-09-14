@@ -41,9 +41,16 @@ using DefinitionBuilder = Opc.Ua.Server.StateMachines.StateMachineBuilder;
 
 namespace Opc.Ua.Server.Tests.StateMachines
 {
+    /// <summary>
+    /// Verifies timed-transition ownership and invocation-specific state snapshots across nested and concurrent
+    /// transitions.
+    /// </summary>
     [TestFixture]
     public sealed class StateMachineLifetimeRegressionTests
     {
+        /// <summary>
+        /// Verifies that rearming disposes the old timer and only the current callback can commit a transition.
+        /// </summary>
         [Test]
         public void RearmingCancelsThePreviousTimerAndOnlyTheCurrentCallbackCanTransition()
         {
@@ -65,6 +72,9 @@ namespace Opc.Ua.Server.Tests.StateMachines
             Assert.That(clock.Timers, Has.All.Property(nameof(CapturedTimer.Disposed)).True);
         }
 
+        /// <summary>
+        /// Verifies that leaving and reentering a state does not revive a callback from its earlier lifetime.
+        /// </summary>
         [Test]
         public void LeavingAndReenteringTheSameStateInvalidatesItsOldTimer()
         {
@@ -79,6 +89,10 @@ namespace Opc.Ua.Server.Tests.StateMachines
             Assert.That(Current(machine), Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that stopping timers prevents queued callbacks from transitioning and rejects new timer
+        /// registration.
+        /// </summary>
         [Test]
         public void StoppingTimerLifetimeDisposesTimersAndRejectsQueuedCallbacksAndRearming()
         {
@@ -95,6 +109,9 @@ namespace Opc.Ua.Server.Tests.StateMachines
                 dispatcher.AddTimedTransition(1, TimeSpan.FromSeconds(10), 10, 0));
         }
 
+        /// <summary>
+        /// Verifies that nested after-transition callbacks preserve each invocation's observer and event state pair.
+        /// </summary>
         [Test]
         public void NestedAfterCallbacksRetainEachInvocationsFromAndToStates(
             [Values(false, true)] bool fluent)
@@ -125,6 +142,9 @@ namespace Opc.Ua.Server.Tests.StateMachines
             Assert.That(events, Is.EquivalentTo(new[] { ("One", "Two"), ("Two", "Three") }));
         }
 
+        /// <summary>
+        /// Verifies that a transition committed inside a before callback invalidates the outer transition.
+        /// </summary>
         [Test]
         public void NestedBeforeTransitionCannotCommitItsNowStaleOuterTransition(
             [Values(false, true)] bool fluent)
@@ -147,6 +167,9 @@ namespace Opc.Ua.Server.Tests.StateMachines
             Assert.That(observed, Is.EqualTo(new[] { (1u, 3u) }));
         }
 
+        /// <summary>
+        /// Verifies that nonmethod causes can report transition events without generating method-specific audit events.
+        /// </summary>
         [Test]
         public void NonMethodCauseReportsTheTransitionWithoutFabricatingAMethodAudit(
             [Values(false, true)] bool methodCause,
@@ -174,6 +197,10 @@ namespace Opc.Ua.Server.Tests.StateMachines
                 Has.Count.EqualTo(monitored && methodCause ? 1 : 0));
         }
 
+        /// <summary>
+        /// Verifies that concurrent transitions complete in order and observers receive each transition's own state
+        /// pair.
+        /// </summary>
         [Test]
         public async Task ConcurrentTransitionsKeepTheirOwnOrderedStateSnapshotsAsync(
             [Values(false, true)] bool fluent)
@@ -217,6 +244,9 @@ namespace Opc.Ua.Server.Tests.StateMachines
             Assert.That(observed, Is.EqualTo(new[] { (1u, 2u), (2u, 3u) }));
         }
 
+        /// <summary>
+        /// Verifies that fluent timed simulation uses the injected server clock and emits a transition event.
+        /// </summary>
         [Test]
         public void FluentSimulationUsesTheServerClockAndReportsANonMethodTransition()
         {
@@ -249,6 +279,9 @@ namespace Opc.Ua.Server.Tests.StateMachines
             Assert.That(events[0], Is.InstanceOf<TransitionEventState>());
         }
 
+        /// <summary>
+        /// Verifies that stopping timed transitions through the public builder preserves the current state.
+        /// </summary>
         [Test]
         public void PublicBuilderCanStopItsTimerWithoutChangingTheMachinesState()
         {
@@ -264,6 +297,9 @@ namespace Opc.Ua.Server.Tests.StateMachines
             Assert.That(clock.Timers[0].Disposed, Is.True);
         }
 
+        /// <summary>
+        /// Creates a server context that exposes the supplied time provider to fluent simulations.
+        /// </summary>
         private static ServerSystemContext CreateTimedContext(TimeProvider clock)
         {
             var server = new Mock<IServerInternal>();
@@ -279,6 +315,9 @@ namespace Opc.Ua.Server.Tests.StateMachines
             return context;
         }
 
+        /// <summary>
+        /// Builds the three-state machine used to distinguish nested, concurrent, and timed transition paths.
+        /// </summary>
         private static FluentFiniteStateMachineState NewMachine(ISystemContext context)
         {
             return StateMachineTestFixtures.NewBuilder(context)
@@ -293,11 +332,17 @@ namespace Opc.Ua.Server.Tests.StateMachines
                 .StateMachine;
         }
 
+        /// <summary>
+        /// Resolves the machine's active state node to its numeric state identifier.
+        /// </summary>
         private static uint Current(FluentFiniteStateMachineState machine)
         {
             return machine.GetStateId(machine.CurrentState.Id.Value);
         }
 
+        /// <summary>
+        /// Registers a transition observer through either the fluent or definition-builder API.
+        /// </summary>
         private static void Observe(
             FluentFiniteStateMachineState machine, ISystemContext context, bool fluent, Action<uint, uint> observe)
         {
@@ -317,21 +362,34 @@ namespace Opc.Ua.Server.Tests.StateMachines
             }
         }
 
+        /// <summary>
+        /// Wraps a fake clock and retains timers so stale callbacks can be fired explicitly.
+        /// </summary>
         private sealed class CapturingClock : TimeProvider
         {
+            /// <summary>
+            /// Gets the timers created for checking disposal and delivering captured callbacks.
+            /// </summary>
             public List<CapturedTimer> Timers { get; } = [];
+
+            /// <inheritdoc/>
             public override long TimestampFrequency => m_clock.TimestampFrequency;
 
+            /// <inheritdoc/>
             public override DateTimeOffset GetUtcNow()
             {
                 return m_clock.GetUtcNow();
             }
 
+            /// <inheritdoc/>
             public override long GetTimestamp()
             {
                 return m_clock.GetTimestamp();
             }
 
+            /// <summary>
+            /// Creates a fake-clock timer and retains a wrapper that can replay its captured callback.
+            /// </summary>
             public override ITimer CreateTimer(TimerCallback callback, object state, TimeSpan dueTime, TimeSpan period)
             {
                 var timer = new CapturedTimer(callback, state, m_clock.CreateTimer(callback, state, dueTime, period));
@@ -339,39 +397,64 @@ namespace Opc.Ua.Server.Tests.StateMachines
                 return timer;
             }
 
+            /// <summary>
+            /// Advances the fake clock and runs timers that become due.
+            /// </summary>
             public void Advance(TimeSpan time)
             {
                 m_clock.Advance(time);
             }
 
+            /// <summary>
+            /// Advances the monotonic clock independently of captured timer callback execution.
+            /// </summary>
             private readonly FakeTimeProvider m_clock = new();
         }
 
+        /// <summary>
+        /// Supplies fluent simulation ownership for tests that use the server's injected clock.
+        /// </summary>
         private sealed class SimulationManager(IServerInternal server)
             : FluentNodeManagerBase(server, "urn:state-lifetime-regression")
         {
         }
 
+        /// <summary>
+        /// Tracks timer disposal while retaining the original callback to simulate queued invocations.
+        /// </summary>
         private sealed class CapturedTimer(TimerCallback callback, object state, ITimer inner) : ITimer
         {
+            /// <summary>
+            /// Gets whether the wrapper has disposed its underlying timer.
+            /// </summary>
             public bool Disposed { get; private set; }
 
+            /// <inheritdoc/>
             public bool Change(TimeSpan dueTime, TimeSpan period)
             {
                 return inner.Change(dueTime, period);
             }
 
+            /// <summary>
+            /// Invokes the captured callback independently of timer scheduling or disposal.
+            /// </summary>
             public void Fire()
             {
                 callback(state);
             }
 
+            /// <summary>
+            /// Records disposal and releases the underlying fake-clock timer.
+            /// </summary>
             public void Dispose()
             {
                 Disposed = true;
                 inner.Dispose();
             }
 
+            /// <summary>
+            /// Disposes the captured timer and completes without asynchronous work.
+            /// </summary>
             public ValueTask DisposeAsync()
             {
                 Dispose();

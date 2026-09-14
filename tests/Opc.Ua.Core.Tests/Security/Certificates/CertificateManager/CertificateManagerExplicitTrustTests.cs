@@ -44,6 +44,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [NonParallelizable]
     public sealed class CertificateManagerExplicitTrustTests
     {
+        /// <summary>
+        /// Creates same-subject peers and a root, intermediate, and leaf chain for explicit trust scenarios.
+        /// </summary>
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -74,6 +77,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
         }
 
+        /// <summary>
+        /// Releases the shared peer certificates, issuer chain, and fixture telemetry.
+        /// </summary>
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
@@ -85,6 +91,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             (m_telemetry as IDisposable)?.Dispose();
         }
 
+        /// <summary>
+        /// Verifies explicit peer, user, and HTTPS trust works without a store path and does not trust same-subject
+        /// peers.
+        /// </summary>
         [TestCase("Peers", false)]
         [TestCase("Peers", true)]
         [TestCase("Users", false)]
@@ -115,6 +125,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(untrusted.IsValid, Is.False);
         }
 
+        /// <summary>
+        /// Verifies explicit trusted roots and intermediate issuers validate a leaf without filesystem trust stores.
+        /// </summary>
         [TestCase("Peers", false)]
         [TestCase("Peers", true)]
         [TestCase("Users", false)]
@@ -139,6 +152,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.IsValid, Is.True);
         }
 
+        /// <summary>
+        /// Verifies explicit issuers complete the chain of a separately trusted leaf certificate.
+        /// </summary>
         [Test]
         public async Task ExplicitIssuerChainCompletesTrustedLeafAsync()
         {
@@ -159,6 +175,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.IsValid, Is.True);
         }
 
+        /// <summary>
+        /// Verifies issuer-only configuration supplies chain material without establishing a trust anchor.
+        /// </summary>
         [TestCase("Peers")]
         [TestCase("Users")]
         [TestCase("Https")]
@@ -181,6 +200,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.IsValid, Is.False);
         }
 
+        /// <summary>
+        /// Verifies a caller-supplied complete chain remains untrusted when no configured trust source accepts it.
+        /// </summary>
         [Test]
         public async Task ProvidedChainAloneDoesNotEstablishTrustAsync()
         {
@@ -195,6 +217,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.IsValid, Is.False);
         }
 
+        /// <summary>
+        /// Verifies explicit and stored peer certificates are both trusted while unrelated certificates remain
+        /// rejected.
+        /// </summary>
         [Test]
         public async Task ExplicitAndStoreTrustSourcesAreCombinedAsync()
         {
@@ -231,6 +257,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Verifies mutating configured trust entries affects validation only after an explicit manager update.
+        /// </summary>
         [Test]
         public async Task TrustConfigurationIsSnapshottedUntilAnExplicitUpdateAsync()
         {
@@ -262,6 +291,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(emptied.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
         }
 
+        /// <summary>
+        /// Verifies configured issuer mutations do not break a cached chain until the manager refreshes its snapshot.
+        /// </summary>
         [Test]
         public async Task IssuerConfigurationIsSnapshottedUntilAnExplicitUpdateAsync()
         {
@@ -282,6 +314,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(incomplete.StatusCode, Is.EqualTo(StatusCodes.BadCertificateChainIncomplete));
         }
 
+        /// <summary>
+        /// Verifies explicitly listed issuers still apply revocation lists from their configured store.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ExplicitIssuerDoesNotBypassConfiguredRevocationAsync(bool trustedIssuer)
@@ -321,6 +356,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Verifies an inline issuer with a store obeys the configured policy for unknown revocation status.
+        /// </summary>
         [Test]
         public async Task InlineIssuerWithStoreHonorsStrictUnknownRevocationPolicyAsync(
             [Values(false, true)] bool trustedIssuer,
@@ -357,6 +395,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Verifies a known revoked leaf is rejected even when its inline issuer suppresses unknown revocation status.
+        /// </summary>
         [Test]
         public async Task InlineIssuerRevocationIsNeverSuppressedAsync(
             [Values(false, true)] bool trustedIssuer,
@@ -407,6 +448,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Verifies a store-resolved issuer's strict revocation policy overrides suppression on a duplicate inline
+        /// entry.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task StoreIssuerPolicyTakesPrecedenceOverInlineUnknownSuppressionAsync(bool trustedIssuer)
@@ -449,6 +494,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Issues a leaf directly from the shared root for inline-issuer revocation scenarios.
+        /// </summary>
         private Certificate CreateInlineIssuerLeaf()
         {
             return CertificateBuilder.Create("CN=Inline Issuer Revocation Peer")
@@ -459,6 +507,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
         }
 
+        /// <summary>
+        /// Creates empty trust scopes with automatic acceptance disabled and a 2048-bit certificate minimum.
+        /// </summary>
         private static SecurityConfiguration CreateConfiguration()
         {
             return new SecurityConfiguration
@@ -475,6 +526,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             };
         }
 
+        /// <summary>
+        /// Selects the configured trusted-certificate list for a peer, user, or HTTPS test scope.
+        /// </summary>
         private static CertificateTrustList GetTrustedList(SecurityConfiguration configuration, string scope)
         {
             return scope switch
@@ -486,6 +540,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             };
         }
 
+        /// <summary>
+        /// Selects the configured issuer-certificate list corresponding to the validation scope.
+        /// </summary>
         private static CertificateTrustList GetIssuerList(SecurityConfiguration configuration, string scope)
         {
             return scope switch
@@ -497,6 +554,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             };
         }
 
+        /// <summary>
+        /// Maps the parameterized scope name to the manager's trust-list identifier.
+        /// </summary>
         private static TrustListIdentifier GetScope(string scope)
         {
             return scope switch
@@ -508,6 +568,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             };
         }
 
+        /// <summary>
+        /// Creates a self-signed RSA peer with the shared validity interval and requested subject.
+        /// </summary>
         private static Certificate CreateCertificate(string subject)
         {
             return CertificateBuilder
@@ -518,13 +581,44 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
         }
 
+        /// <summary>
+        /// Starts all fixture certificates before the trust-policy checks.
+        /// </summary>
         private static readonly DateTime s_validFrom = new(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        /// <summary>
+        /// Keeps certificate expiry separate from the trust and revocation assertions.
+        /// </summary>
         private static readonly DateTime s_validTo = new(2099, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        /// <summary>
+        /// Supplies logging for the fixture's certificate managers and stores.
+        /// </summary>
         private ITelemetryContext m_telemetry;
+
+        /// <summary>
+        /// Holds the peer explicitly accepted by the initial trust configuration.
+        /// </summary>
         private Certificate m_trusted;
+
+        /// <summary>
+        /// Holds a distinct same-subject peer used to detect unintended trust by subject name.
+        /// </summary>
         private Certificate m_untrusted;
+
+        /// <summary>
+        /// Holds the root trust anchor and signer for direct-leaf revocation scenarios.
+        /// </summary>
         private Certificate m_root;
+
+        /// <summary>
+        /// Holds the intermediate issuer used to exercise explicit chain completion.
+        /// </summary>
         private Certificate m_intermediate;
+
+        /// <summary>
+        /// Holds the leaf whose chain requires the shared intermediate and root.
+        /// </summary>
         private Certificate m_leaf;
     }
 }

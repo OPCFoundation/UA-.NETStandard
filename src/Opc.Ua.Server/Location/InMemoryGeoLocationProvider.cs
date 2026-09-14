@@ -263,12 +263,24 @@ namespace Opc.Ua
         /// </summary>
         private sealed class SourceState
         {
+            /// <summary>
+            /// Gets the consumers waiting for updates from this source.
+            /// </summary>
             public List<Subscription> Subscribers { get; } = [];
 
+            /// <summary>
+            /// Gets or sets the last supplied location sample.
+            /// </summary>
             public GeoLocationSample Current { get; set; }
 
+            /// <summary>
+            /// Gets or sets whether a location sample has been supplied for this source.
+            /// </summary>
             public bool HasSample { get; set; }
 
+            /// <summary>
+            /// Gets or sets the source failure reported to its consumers.
+            /// </summary>
             public Exception? Fault { get; set; }
         }
 
@@ -278,6 +290,9 @@ namespace Opc.Ua
         /// </summary>
         private sealed class Subscription : IDisposable
         {
+            /// <summary>
+            /// Buffers an update and signals the consumer while the subscription is active.
+            /// </summary>
             public void Enqueue(GeoLocationSample sample)
             {
                 lock (m_gate)
@@ -291,6 +306,9 @@ namespace Opc.Ua
                 }
             }
 
+            /// <summary>
+            /// Stops admission and wakes the consumer so it can finish draining queued samples.
+            /// </summary>
             public void Complete()
             {
                 lock (m_gate)
@@ -304,11 +322,17 @@ namespace Opc.Ua
                 }
             }
 
+            /// <summary>
+            /// Waits for a queued sample or completion signal with caller cancellation.
+            /// </summary>
             public Task WaitAsync(CancellationToken cancellationToken)
             {
                 return m_signal.WaitAsync(cancellationToken);
             }
 
+            /// <summary>
+            /// Removes the oldest buffered sample when one is available.
+            /// </summary>
             public bool TryDequeue(out GeoLocationSample sample)
             {
                 lock (m_gate)
@@ -323,6 +347,9 @@ namespace Opc.Ua
                 return false;
             }
 
+            /// <summary>
+            /// Closes the subscription and releases its notification semaphore.
+            /// </summary>
             public void Dispose()
             {
                 lock (m_gate)

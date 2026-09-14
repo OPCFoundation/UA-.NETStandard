@@ -883,6 +883,9 @@ namespace Opc.Ua.Server
             return null;
         }
 
+        /// <summary>
+        /// Releases a pending-request admission slot without acquiring the publish queue lock.
+        /// </summary>
         private void RequestCompleted()
         {
             // Cancellation registrations can be disposed while holding m_lock.
@@ -890,6 +893,9 @@ namespace Opc.Ua.Server
             Interlocked.Decrement(ref m_pendingRequestCount);
         }
 
+        /// <summary>
+        /// Removes completed request entries and disposes their cancellation registrations.
+        /// </summary>
         private void RemoveCompletedRequests()
         {
             LinkedListNode<QueuedPublishRequest>? node = m_queuedRequests.First;
@@ -910,6 +916,9 @@ namespace Opc.Ua.Server
         /// </summary>
         private sealed class QueuedPublishRequest : IDisposable
         {
+            /// <summary>
+            /// Creates a channel-bound publish wait with cancellation, timeout and one-time completion accounting.
+            /// </summary>
             public QueuedPublishRequest(
                 string secureChannelId,
                 DateTime operationTimeout,
@@ -945,16 +954,25 @@ namespace Opc.Ua.Server
                 }
             }
 
+            /// <summary>
+            /// Attempts to complete the request with a ready subscription after claiming its completion once.
+            /// </summary>
             public bool TrySetResult(ISubscriptionPublishPipeline subscription)
             {
                 return TryRetire() && Tcs.TrySetResult(subscription);
             }
 
+            /// <summary>
+            /// Attempts to fail the request after claiming its completion once.
+            /// </summary>
             public bool TrySetException(Exception exception)
             {
                 return TryRetire() && Tcs.TrySetException(exception);
             }
 
+            /// <summary>
+            /// Releases request cancellation registrations and any owned timeout source.
+            /// </summary>
             public void Dispose()
             {
                 m_cancellationTokenRegistration.Dispose();
@@ -978,8 +996,19 @@ namespace Opc.Ua.Server
                 return true;
             }
 
+            /// <summary>
+            /// Identifies the secure channel on which the Publish request was admitted.
+            /// </summary>
             public readonly string SecureChannelId;
+
+            /// <summary>
+            /// Specifies the request's absolute operation deadline.
+            /// </summary>
             public readonly DateTime OperationTimeout;
+
+            /// <summary>
+            /// Completes with the ready subscription or the request's terminal failure.
+            /// </summary>
             public readonly TaskCompletionSource<ISubscriptionPublishPipeline> Tcs;
             private readonly CancellationTokenRegistration m_cancellationTokenRegistration;
             private readonly CancellationTokenSource? m_cancellationTokenSource;
@@ -1113,6 +1142,10 @@ namespace Opc.Ua.Server
         private readonly Dictionary<uint, SubscriptionTransferClaim> m_transferClaims;
         private readonly int m_maxRequestCount;
         private readonly TimeProvider m_timeProvider;
+
+        /// <summary>
+        /// Counts admitted Publish requests that have not yet completed.
+        /// </summary>
         private int m_pendingRequestCount;
     }
 

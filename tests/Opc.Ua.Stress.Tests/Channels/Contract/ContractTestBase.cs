@@ -70,6 +70,10 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             return s_factory.CreateCertificate($"CN={commonName}").CreateForRSA();
         }
 
+        /// <summary>
+        /// Creates isolated channel-manager contracts with owned certificate references and injectable transport
+        /// timing.
+        /// </summary>
         protected static ContractTestEnvironment CreateEnvironment(
             Certificate applicationCertificate,
             Func<string, FakeTransport>? transportFactory = null,

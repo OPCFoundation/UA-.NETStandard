@@ -41,10 +41,16 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests.WebApi
 {
+    /// <summary>
+    /// Covers bounded OpenAPI response streaming and timeouts that remain effective while reading response bodies.
+    /// </summary>
     [TestFixture]
     [Category("WebApi")]
     public sealed class WebApiResponseQuotaRegressionTests
     {
+        /// <summary>
+        /// Verifies actual response length enforces the quota without buffering through HttpContent serialization.
+        /// </summary>
         [TestCase(-1)]
         [TestCase(0)]
         [TestCase(1)]
@@ -85,6 +91,9 @@ namespace Opc.Ua.Client.Tests.WebApi
             }
         }
 
+        /// <summary>
+        /// Verifies body reads respect the shorter timeout without mutating a shared HTTP client's settings.
+        /// </summary>
         [TestCase(false, false)]
         [TestCase(true, false)]
         [TestCase(true, true)]
@@ -154,6 +163,9 @@ namespace Opc.Ua.Client.Tests.WebApi
             }
         }
 
+        /// <summary>
+        /// Signals that a simulated body read began, then keeps it pending until its request token is cancelled.
+        /// </summary>
         private static async Task<int> WaitForCancellationAsync(
             TaskCompletionSource<bool> started,
             CancellationToken cancellationToken)
@@ -163,13 +175,22 @@ namespace Opc.Ua.Client.Tests.WebApi
             return 0;
         }
 
+        /// <summary>
+        /// Serves probe content without network I/O and captures the token passed to the HTTP request.
+        /// </summary>
         private sealed class ResponseHandler : HttpMessageHandler
         {
+            /// <summary>
+            /// Selects the probe body returned for requests other than the shared-client warmup.
+            /// </summary>
             public ResponseHandler(ProbeContent content)
             {
                 m_content = content;
             }
 
+            /// <summary>
+            /// Returns an empty warmup response or the probe body with the request cancellation token recorded.
+            /// </summary>
             protected override Task<HttpResponseMessage> SendAsync(
                 HttpRequestMessage request,
                 CancellationToken cancellationToken)
@@ -185,16 +206,28 @@ namespace Opc.Ua.Client.Tests.WebApi
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = m_content });
             }
 
+            /// <summary>
+            /// Holds the instrumented response body supplied to the Web API client.
+            /// </summary>
             private readonly ProbeContent m_content;
         }
 
+        /// <summary>
+        /// Exposes a response stream while recording serialization attempts and disposal.
+        /// </summary>
         private sealed class ProbeContent : HttpContent
         {
+            /// <summary>
+            /// Wraps fixed payload bytes in a read-only response stream with an optional length hint.
+            /// </summary>
             public ProbeContent(byte[] payload, long hint)
                 : this(new MemoryStream(payload, writable: false), hint)
             {
             }
 
+            /// <summary>
+            /// Uses the supplied stream and advertises a content length only when the hint is nonnegative.
+            /// </summary>
             public ProbeContent(Stream body, long hint)
             {
                 m_body = body;
@@ -204,34 +237,60 @@ namespace Opc.Ua.Client.Tests.WebApi
                 }
             }
 
+            /// <summary>
+            /// Gets how often HttpContent requested serialization instead of direct stream access.
+            /// </summary>
             public int SerializeCalls { get; private set; }
+
+            /// <summary>
+            /// Gets whether disposing the response also disposed its content.
+            /// </summary>
             public bool IsDisposed { get; private set; }
+
+            /// <summary>
+            /// Gets or sets the HTTP request token used if serialization copies the body.
+            /// </summary>
             public CancellationToken RequestToken { get; set; }
 
+            /// <summary>
+            /// Records a buffering attempt and copies the body using the captured request token.
+            /// </summary>
             protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
             {
                 SerializeCalls++;
                 return m_body.CopyToAsync(stream, 81920, RequestToken);
             }
 
+            /// <summary>
+            /// Returns the original body stream without serializing it into an intermediate buffer.
+            /// </summary>
             protected override Task<Stream> CreateContentReadStreamAsync()
             {
                 return Task.FromResult<Stream>(m_body);
             }
 
 #if NET5_0_OR_GREATER
+            /// <summary>
+            /// Supplies the original stream through the cancellation-aware content API.
+            /// </summary>
             protected override Task<Stream> CreateContentReadStreamAsync(CancellationToken cancellationToken)
             {
                 return Task.FromResult<Stream>(m_body);
             }
 #endif
 
+            /// <summary>
+            /// Leaves content length unknown unless an explicit header hint was supplied.
+            /// </summary>
             protected override bool TryComputeLength(out long length)
             {
                 length = 0;
                 return false;
             }
 
+            /// <summary>
+            /// Records content disposal and releases the stream used by the simulated response.
+            /// </summary>
             protected override void Dispose(bool disposing)
             {
                 if (disposing)
@@ -242,6 +301,9 @@ namespace Opc.Ua.Client.Tests.WebApi
                 base.Dispose(disposing);
             }
 
+            /// <summary>
+            /// Holds the payload or blocking stream consumed by the response reader.
+            /// </summary>
             private readonly Stream m_body;
         }
     }

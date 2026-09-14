@@ -34,10 +34,16 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Types.Nonce
 {
+    /// <summary>
+    /// Verifies finite-field Diffie-Hellman validates peer groups, encoded lengths, and permitted public-value bounds.
+    /// </summary>
     [TestFixture]
     [Category("NonceTests")]
     public sealed class RsaDhPeerValidationRegressionTests
     {
+        /// <summary>
+        /// Verifies malformed, wrong-group, and out-of-range peer values are rejected before key agreement.
+        /// </summary>
         [Test]
         public void RsaDhRejectsInvalidPeerValuesBeforeAgreement(
             [Values(RSADiffieHellmanGroup.FFDHE2048, RSADiffieHellmanGroup.FFDHE3072, RSADiffieHellmanGroup.FFDHE4096)]
@@ -73,6 +79,9 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
             }, Throws.ArgumentException);
         }
 
+        /// <summary>
+        /// Verifies valid peers derive identical full-width secrets and the legal boundary values remain accepted.
+        /// </summary>
         [TestCase(RSADiffieHellmanGroup.FFDHE2048)]
         [TestCase(RSADiffieHellmanGroup.FFDHE3072)]
         [TestCase(RSADiffieHellmanGroup.FFDHE4096)]
@@ -101,6 +110,9 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
             }
         }
 
+        /// <summary>
+        /// Reads the configured group prime for the requested encoded public-key width.
+        /// </summary>
         private static BigInteger GetPrime(int length)
         {
             FieldInfo field = typeof(RSADiffieHellman).GetField(
@@ -108,6 +120,9 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
             return ((Lazy<BigInteger>)field.GetValue(null)!).Value;
         }
 
+        /// <summary>
+        /// Encodes a test public value at the chosen big-endian width, including intentionally invalid lengths.
+        /// </summary>
         private static byte[] Encode(BigInteger value, int length)
         {
             byte[] encoded = new byte[length];

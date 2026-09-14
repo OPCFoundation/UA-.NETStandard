@@ -95,6 +95,9 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Validates and stages a certificate upload, restoring any consumed pending key if staging fails.
+        /// </summary>
         private async ValueTask<UpdateCertificateMethodStateResult> UpdateCertificateAsync(
             ISystemContext context,
             MethodState method,
@@ -993,6 +996,9 @@ namespace Opc.Ua.Server
             };
         }
 
+        /// <summary>
+        /// Creates a signing request and updates the scope's pending key only after request generation succeeds.
+        /// </summary>
         private async ValueTask<CreateSigningRequestMethodStateResult> CreateSigningRequestAsync(
             ISystemContext context,
             MethodState method,
@@ -1279,12 +1285,21 @@ namespace Opc.Ua.Server
         }
     }
 
+    /// <summary>
+    /// Records pending signing-key recovery outcomes during certificate push operations.
+    /// </summary>
     internal static partial class ConfigurationNodeManagerLog
     {
+        /// <summary>
+        /// Reports failure to restore a pending key after a certificate upload fails.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.PendingCertificateKey, Level = LogLevel.Error,
             Message = "Could not restore a consumed pending signing key after the certificate upload failed.")]
         public static partial void PendingSigningKeyRestoreFailed(this ILogger logger, Exception exception);
 
+        /// <summary>
+        /// Records that recovery retained a newer pending key instead of restoring a superseded one.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.PendingCertificateKey + 1, Level = LogLevel.Debug,
             Message = "Pending signing key for {GroupId}/{TypeId} was superseded; the newer key was retained.")]
         public static partial void PendingSigningKeyWasSuperseded(this ILogger logger, NodeId groupId, NodeId typeId);

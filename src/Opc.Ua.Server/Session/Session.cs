@@ -950,6 +950,10 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Resolves the endpoint's user-token policy and verifies the identity token
+        /// while retaining its decryption nonce.
+        /// </summary>
         private async ValueTask<(
             IUserIdentityTokenHandler IdentityToken,
             UserTokenPolicy? UserTokenPolicy)> ValidateUserIdentityTokenAsync(
@@ -1199,6 +1203,9 @@ namespace Opc.Ua.Server
             return (token, policy);
         }
 
+        /// <summary>
+        /// Borrows the current user-token nonce so replacement cannot dispose it during token validation.
+        /// </summary>
         private Nonce? AcquireUserTokenNonce()
         {
             lock (m_lock)
@@ -1218,6 +1225,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Releases a nonce borrow and disposes a retired nonce after its final borrower finishes.
+        /// </summary>
         private void ReleaseUserTokenNonce(Nonce? nonce)
         {
             if (nonce == null)
@@ -1244,6 +1254,9 @@ namespace Opc.Ua.Server
             retired?.Dispose();
         }
 
+        /// <summary>
+        /// Replaces the user-token nonce, returning the old nonce for disposal unless borrowers still need it.
+        /// </summary>
         private Nonce? ReplaceUserTokenNonce(Nonce? replacement)
         {
             Nonce? previous = m_userTokenNonce;
@@ -1467,8 +1480,20 @@ namespace Opc.Ua.Server
         private Nonce m_serverNonce;
         private string? m_userTokenSecurityPolicyUri;
         private Nonce? m_userTokenNonce;
+
+        /// <summary>
+        /// Counts active validation operations borrowing each user-token nonce.
+        /// </summary>
         private Dictionary<Nonce, int>? m_userTokenNonceBorrows;
+
+        /// <summary>
+        /// Retains replaced nonces until their outstanding validation operations release them.
+        /// </summary>
         private HashSet<Nonce>? m_retiredUserTokenNonces;
+
+        /// <summary>
+        /// Prevents new nonce borrows after session disposal starts.
+        /// </summary>
         private bool m_userTokenNonceStopped;
         private readonly CertificateCollection? m_clientIssuerCertificates;
         private readonly SessionContinuationPoints m_continuationPoints;

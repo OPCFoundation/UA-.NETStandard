@@ -46,6 +46,9 @@ namespace Opc.Ua.Server.Tests
         private ServerFixture<StandardServer> m_fixture;
         private StandardServer m_server;
 
+        /// <summary>
+        /// Starts the reference server with anonymous and username policies for authentication lockout tests.
+        /// </summary>
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
         {
@@ -221,6 +224,9 @@ namespace Opc.Ua.Server.Tests
                 RequestLifetime.None).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that successful username authentication clears prior failed attempts for the client application.
+        /// </summary>
         [Test]
         public async Task SuccessfulAuthenticationClearsFailedAttemptsAsync()
         {
@@ -337,6 +343,9 @@ namespace Opc.Ua.Server.Tests
                 RequestLifetime.None).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that disabling lockout permits valid authentication after failures exceed the normal threshold.
+        /// </summary>
         [Test]
         public async Task ClientIsNotLockedOutWhenLockoutDisabledAsync()
         {

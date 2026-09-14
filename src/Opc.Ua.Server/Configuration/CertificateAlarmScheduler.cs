@@ -366,6 +366,10 @@ namespace Opc.Ua.Server
 
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger m_logger;
+
+        /// <summary>
+        /// Resolves the active certificate registry when refreshing alarm inputs.
+        /// </summary>
         private readonly Func<ICertificateRegistry?>? m_certificateRegistry;
         private readonly List<MonitorEntry> m_monitors = [];
         private readonly Lock m_lock = new();

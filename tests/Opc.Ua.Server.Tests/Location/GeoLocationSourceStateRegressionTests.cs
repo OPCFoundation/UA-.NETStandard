@@ -35,10 +35,17 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests.Location
 {
+    /// <summary>
+    /// Verifies that geolocation watches, faults, and updates preserve the distinction between missing and sampled
+    /// sources.
+    /// </summary>
     [TestFixture]
     [Category("GeoLocation")]
     public sealed class GeoLocationSourceStateRegressionTests
     {
+        /// <summary>
+        /// Verifies that watching a missing source waits for its first update without making a sample readable.
+        /// </summary>
         [Test]
         public async Task WatchingUnknownSourceDoesNotInventAGoodSampleAsync()
         {
@@ -65,6 +72,9 @@ namespace Opc.Ua.Server.Tests.Location
             }
         }
 
+        /// <summary>
+        /// Verifies that cancelling a watch on a missing source leaves reads reporting not found.
+        /// </summary>
         [Test]
         public async Task CancelingAnUnknownWatchDoesNotMakeTheSourceReadableAsync()
         {
@@ -78,6 +88,9 @@ namespace Opc.Ua.Server.Tests.Location
             AssertMissing(provider);
         }
 
+        /// <summary>
+        /// Verifies that faults on missing sources are preserved until an update replaces them with a real sample.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task FaultingUnknownSourcePreservesTheInjectedFailureAndUpdateClearsItAsync(bool watchFirst)
@@ -111,6 +124,9 @@ namespace Opc.Ua.Server.Tests.Location
             }
         }
 
+        /// <summary>
+        /// Verifies that the watched source remains absent from readable geolocation state.
+        /// </summary>
         private static void AssertMissing(InMemoryGeoLocationProvider provider)
         {
             ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>

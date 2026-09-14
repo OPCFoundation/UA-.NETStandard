@@ -36,10 +36,17 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
+    /// <summary>
+    /// Verifies per-item event ordering without serializing independent monitored-item permission checks.
+    /// </summary>
     [TestFixture]
     [Category("MonitoredNode")]
     public sealed class EventDeliveryOrderRegressionTests
     {
+        /// <summary>
+        /// Verifies that a blocked event item retains enqueue order while another item continues delivery
+        /// independently.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ParallelEventItemsKeepEnqueueOrderWhileIndependentItemsProgressAsync(bool serverNode)
@@ -119,6 +126,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             });
         }
 
+        /// <summary>
+        /// Defines the event order that each monitored item must preserve independently.
+        /// </summary>
         private static readonly int[] s_order = [1, 2];
     }
 }

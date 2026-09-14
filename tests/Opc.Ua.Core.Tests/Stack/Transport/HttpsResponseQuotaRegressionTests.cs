@@ -43,10 +43,16 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Transport
 {
+    /// <summary>
+    /// Verifies bounded HTTPS body reads, response ownership, cancellation, and transport error translation.
+    /// </summary>
     [TestFixture]
     [Category("HttpsTransportChannel")]
     public sealed class HttpsResponseQuotaRegressionTests
     {
+        /// <summary>
+        /// Verifies that actual binary and JSON body bytes enforce the quota regardless of the declared length.
+        /// </summary>
         [TestCase(false, -1)]
         [TestCase(false, 0)]
         [TestCase(false, 1)]
@@ -91,6 +97,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        /// <summary>
+        /// Verifies that an unknown-length oversized body reads only the quota plus one detection byte.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task OversizedUnknownLengthBodyStopsAtLimitPlusOneAsync(bool json)
@@ -114,6 +123,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(content.IsDisposed, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that busy HTTP responses are disposed without reading or buffering their bodies.
+        /// </summary>
         [TestCase(429)]
         [TestCase(503)]
         public async Task BusyResponseDoesNotBufferItsBodyAndIsDisposedAsync(int status)
@@ -136,6 +148,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(content.IsDisposed, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that the request deadline and caller cancellation remain effective while streaming the response.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ResponseBodyKeepsTheRequestDeadlineAndCallerCancellationAsync(bool callerCancellation)
@@ -200,6 +215,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        /// <summary>
+        /// Verifies socket failures map to connection or timeout service results while preserving diagnostics.
+        /// </summary>
         [TestCase(SocketError.HostNotFound)]
         [TestCase(SocketError.ConnectionRefused)]
         [TestCase(SocketError.ConnectionReset)]
@@ -214,6 +232,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 new HttpRequestException("HTTP transport failed", new SocketException((int)socketError)), expected);
         }
 
+        /// <summary>
+        /// Verifies an HTTP failure without a recognized transport cause reports an unknown response.
+        /// </summary>
         [Test]
         public Task HttpFailureWithoutLegacyInnerExceptionUsesBadUnknownResponseAsync()
         {
@@ -221,6 +242,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 new HttpRequestException("HTTP transport failed"), StatusCodes.BadUnknownResponse);
         }
 
+        /// <summary>
+        /// Verifies legacy WebException causes retain their service-status mappings and original exception.
+        /// </summary>
         [TestCase(WebExceptionStatus.Timeout)]
         [TestCase(WebExceptionStatus.ConnectFailure)]
         [TestCase(WebExceptionStatus.ConnectionClosed)]
@@ -238,6 +262,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 expected);
         }
 
+        /// <summary>
+        /// Sends a request through a failing handler and checks the exact status and retained diagnostic.
+        /// </summary>
         private static async Task AssertHttpFailureAsync(HttpRequestException failure, StatusCode expected)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -254,6 +281,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(error.InnerException, Is.SameAs(failure));
         }
 
+        /// <summary>
+        /// Signals body-read entry and suspends until the supplied request token is canceled.
+        /// </summary>
         private static async Task<int> WaitForCancellationAsync(
             TaskCompletionSource<bool> started,
             CancellationToken cancellationToken)
@@ -263,6 +293,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             return 0;
         }
 
+        /// <summary>
+        /// Opens an HTTPS channel with the injected client, message quota, encoding, and optional clock.
+        /// </summary>
         private static async ValueTask<HttpsTransportChannel> CreateChannelAsync(
             ITelemetryContext telemetry,
             IServiceMessageContext context,
@@ -301,6 +334,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        /// <summary>
+        /// Encodes a known read response with an adjustable string payload for quota boundary tests.
+        /// </summary>
         private static byte[] EncodeResponse(IServiceMessageContext context, bool json, int textLength)
         {
             var response = new ReadResponse
@@ -320,14 +356,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             return BinaryEncoder.EncodeMessage(response, context);
         }
 
+        /// <summary>
+        /// Returns the controlled response body and status without network activity.
+        /// </summary>
         private sealed class SingleResponseHandler : HttpMessageHandler
         {
+            /// <summary>
+            /// Captures the body and HTTP status to return for the next request.
+            /// </summary>
             public SingleResponseHandler(TrackingContent content, HttpStatusCode status = HttpStatusCode.OK)
             {
                 m_content = content;
                 m_status = status;
             }
 
+            /// <summary>
+            /// Captures the request token and returns the configured response with a retry hint.
+            /// </summary>
             protected override Task<HttpResponseMessage> SendAsync(
                 HttpRequestMessage request,
                 CancellationToken cancellationToken)
@@ -338,17 +383,33 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return Task.FromResult(response);
             }
 
+            /// <summary>
+            /// Tracks body reads and disposal for the returned response.
+            /// </summary>
             private readonly TrackingContent m_content;
+
+            /// <summary>
+            /// Selects successful or busy-response handling in the channel.
+            /// </summary>
             private readonly HttpStatusCode m_status;
         }
 
+        /// <summary>
+        /// Fails HTTP requests with a controlled exception for service-status translation tests.
+        /// </summary>
         private sealed class FailureHandler : HttpMessageHandler
         {
+            /// <summary>
+            /// Captures the original diagnostic that request dispatch must preserve.
+            /// </summary>
             public FailureHandler(Exception failure)
             {
                 m_failure = failure;
             }
 
+            /// <summary>
+            /// Completes the HTTP request with the configured failure.
+            /// </summary>
             protected override Task<HttpResponseMessage> SendAsync(
                 HttpRequestMessage request,
                 CancellationToken cancellationToken)
@@ -356,16 +417,28 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return Task.FromException<HttpResponseMessage>(m_failure);
             }
 
+            /// <summary>
+            /// Supplies the exception returned by each request.
+            /// </summary>
             private readonly Exception m_failure;
         }
 
+        /// <summary>
+        /// Exposes a response stream while recording serialization, bytes consumed, and disposal.
+        /// </summary>
         private sealed class TrackingContent : HttpContent
         {
+            /// <summary>
+            /// Wraps a fixed payload with a possibly misleading declared content length.
+            /// </summary>
             public TrackingContent(byte[] payload, long contentLength)
                 : this(new MemoryStream(payload, writable: false), contentLength)
             {
             }
 
+            /// <summary>
+            /// Takes ownership of the controlled body stream and optional content-length header.
+            /// </summary>
             public TrackingContent(Stream body, long contentLength)
             {
                 m_body = body;
@@ -375,35 +448,65 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
             }
 
+            /// <summary>
+            /// Gets how often buffered serialization was requested instead of direct stream access.
+            /// </summary>
             public int SerializeCalls { get; private set; }
+
+            /// <summary>
+            /// Gets whether response ownership has released the content.
+            /// </summary>
             public bool IsDisposed { get; private set; }
+
+            /// <summary>
+            /// Gets the seekable body's consumed byte count, retained after disposal.
+            /// </summary>
             public long BytesRead => IsDisposed ? m_bytesRead : m_body.CanSeek ? m_body.Position : 0;
+
+            /// <summary>
+            /// Gets or sets the token received by HTTP dispatch.
+            /// </summary>
             public CancellationToken RequestToken { get; set; }
 
+            /// <summary>
+            /// Records serialization and copies the body with the captured request cancellation token.
+            /// </summary>
             protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
             {
                 SerializeCalls++;
                 return m_body.CopyToAsync(stream, 81920, RequestToken);
             }
 
+            /// <summary>
+            /// Exposes the existing body stream without buffering it.
+            /// </summary>
             protected override Task<Stream> CreateContentReadStreamAsync()
             {
                 return Task.FromResult<Stream>(m_body);
             }
 
 #if NET5_0_OR_GREATER
+            /// <summary>
+            /// Exposes the existing stream through the cancellation-aware content API without buffering.
+            /// </summary>
             protected override Task<Stream> CreateContentReadStreamAsync(CancellationToken cancellationToken)
             {
                 return Task.FromResult<Stream>(m_body);
             }
 #endif
 
+            /// <summary>
+            /// Leaves the body length unknown to force stream-based quota enforcement.
+            /// </summary>
             protected override bool TryComputeLength(out long length)
             {
                 length = 0;
                 return false;
             }
 
+            /// <summary>
+            /// Captures the final read position and disposes the owned body exactly once.
+            /// </summary>
             protected override void Dispose(bool disposing)
             {
                 if (disposing && !IsDisposed)
@@ -415,7 +518,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 base.Dispose(disposing);
             }
 
+            /// <summary>
+            /// Supplies response bytes or a controlled pending read.
+            /// </summary>
             private readonly Stream m_body;
+
+            /// <summary>
+            /// Retains the read position after the body can no longer be inspected.
+            /// </summary>
             private long m_bytesRead;
         }
     }

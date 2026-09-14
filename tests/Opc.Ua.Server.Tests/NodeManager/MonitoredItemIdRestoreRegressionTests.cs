@@ -33,10 +33,16 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
+    /// <summary>
+    /// Verifies monotonic monitored-item identifier restoration, concurrent uniqueness, and nonzero wraparound.
+    /// </summary>
     [TestFixture]
     [Category("NodeManager")]
     public sealed class MonitoredItemIdRestoreRegressionTests
     {
+        /// <summary>
+        /// Verifies that restoring an older or equal identifier never moves the allocation counter backward.
+        /// </summary>
         [Test]
         public void RestoringLowerMonitoredItemIdsDoesNotMoveCounterBackwards()
         {
@@ -54,6 +60,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(factory.GetNextId(), Is.EqualTo(202));
         }
 
+        /// <summary>
+        /// Verifies that concurrent lower restore values cannot duplicate identifiers or reduce the active counter.
+        /// </summary>
         [Test]
         public async Task RestoringLowerMonitoredItemIdsDuringConcurrentAllocationsKeepsIdsUniqueAsync()
         {
@@ -87,6 +96,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             });
         }
 
+        /// <summary>
+        /// Verifies that allocation wraps from the maximum identifier to one while reserving zero.
+        /// </summary>
         [Test]
         public void RestoredMonitoredItemCounterStillWrapsWithoutReturningZero()
         {

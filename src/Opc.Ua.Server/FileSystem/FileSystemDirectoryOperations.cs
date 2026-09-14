@@ -39,6 +39,9 @@ namespace Opc.Ua.Server.FileSystem
     /// </summary>
     internal static class FileSystemDirectoryOperations
     {
+        /// <summary>
+        /// Validates a directory name, applies its creation through the host and returns the new node identifier.
+        /// </summary>
         public static async ValueTask<CreateDirectoryMethodStateResult> CreateDirectoryAsync(
             IFileSystemHost host,
             string providerPath,
@@ -99,6 +102,9 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Creates a file through the host and optionally opens it for the requesting session.
+        /// </summary>
         public static async ValueTask<CreateFileMethodStateResult> CreateFileAsync(
             IFileSystemHost host,
             ISystemContext context,
@@ -192,6 +198,9 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Deletes a hosted file or directory while rejecting attempts to delete the mount root.
+        /// </summary>
         public static async ValueTask<DeleteFileMethodStateResult> DeleteAsync(
             IFileSystemHost host,
             NodeId objectToDelete,
@@ -263,6 +272,9 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Validates and applies a hosted move or copy and returns the destination node identifier.
+        /// </summary>
         public static async ValueTask<MoveOrCopyMethodStateResult> MoveOrCopyAsync(
             IFileSystemHost host,
             NodeId objectToMoveOrCopy,
@@ -356,6 +368,9 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Dispatches an admitted mutation to the provider and retires source handles after deletion or movement.
+        /// </summary>
         public static async ValueTask ApplyProviderMutationAsync(
             IFileSystemHost host,
             FileSystemMutationKind kind,

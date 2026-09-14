@@ -644,6 +644,9 @@ namespace Opc.Ua.Server
             return result.ServiceResult;
         }
 
+        /// <summary>
+        /// Reads bytes from the open TrustList stream after validating the handle and owning session.
+        /// </summary>
         private ValueTask<ReadMethodStateResult> ReadAsync(
             ISystemContext context,
             MethodState method,
@@ -730,6 +733,9 @@ namespace Opc.Ua.Server
             return result.ServiceResult;
         }
 
+        /// <summary>
+        /// Writes supplied bytes to the open TrustList stream after validating the handle and owning session.
+        /// </summary>
         private ValueTask<WriteMethodStateResult> WriteAsync(
             ISystemContext context,
             MethodState method,
@@ -776,6 +782,9 @@ namespace Opc.Ua.Server
             });
         }
 
+        /// <summary>
+        /// Checks that the TrustList stream is open and the handle belongs to the requesting session.
+        /// </summary>
         private ServiceResult ValidateFileHandle(ISystemContext context, uint fileHandle)
         {
             if (m_strm == null)
@@ -806,6 +815,9 @@ namespace Opc.Ua.Server
             return result.ServiceResult;
         }
 
+        /// <summary>
+        /// Closes an authorized TrustList handle and resets the node's open count.
+        /// </summary>
         private ValueTask<CloseMethodStateResult> CloseAsync(
             ISystemContext context,
             MethodState method,
@@ -857,6 +869,9 @@ namespace Opc.Ua.Server
             return result.ServiceResult;
         }
 
+        /// <summary>
+        /// Validates a written TrustList and applies or stages its certificate and CRL changes.
+        /// </summary>
         private async ValueTask<CloseAndUpdateMethodStateResult> CloseAndUpdateAsync(
             ISystemContext context,
             MethodState method,
@@ -1260,6 +1275,9 @@ namespace Opc.Ua.Server
             return result.ServiceResult;
         }
 
+        /// <summary>
+        /// Adds or stages a certificate in the trusted or issuer store after checking write access.
+        /// </summary>
         private async ValueTask<AddCertificateMethodStateResult> AddCertificateAsync(
             ISystemContext context,
             MethodState method,
@@ -1441,6 +1459,9 @@ namespace Opc.Ua.Server
             return result.ServiceResult;
         }
 
+        /// <summary>
+        /// Removes or stages removal of a certificate and its associated CRLs from the selected store.
+        /// </summary>
         private async ValueTask<RemoveCertificateMethodStateResult> RemoveCertificateAsync(
             ISystemContext context,
             MethodState method,
@@ -1685,6 +1706,9 @@ namespace Opc.Ua.Server
             };
         }
 
+        /// <summary>
+        /// Replaces the TrustList's last-update timestamp and returns the previous value for rollback.
+        /// </summary>
         private DateTimeUtc SetLastUpdateTime(DateTimeUtc timestamp)
         {
             lock (m_lock)
@@ -1855,6 +1879,9 @@ namespace Opc.Ua.Server
 
     internal static partial class TrustListLog
     {
+        /// <summary>
+        /// Reports failure to restore a partially committed TrustList.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.TrustList + 2, Level = LogLevel.Critical,
             Message = "Failed to restore partially committed TrustList {TrustListId}. " +
                 "Server configuration may be inconsistent.")]

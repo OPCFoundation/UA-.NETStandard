@@ -34,10 +34,16 @@ using Opc.Ua.Server.Tests.NodeManager;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies durable lifetime-unit conversion and publish errors for sessions without a publish queue.
+    /// </summary>
     [TestFixture]
     [Category("Subscription")]
     public sealed class DurableKeepAliveRegressionTests
     {
+        /// <summary>
+        /// Verifies that durable keep-alive limits convert configured hours to milliseconds before revising counts.
+        /// </summary>
         [TestCase(1, 1000.0, 0u, 3u)]
         [TestCase(1, 1000.0, 10u, 10u)]
         [TestCase(1, 1000.0, 3599u, 3599u)]
@@ -58,6 +64,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that long durable lifetimes are capped correctly without overflowing a 32-bit millisecond value.
+        /// </summary>
         [Test]
         public void DurableLifetimeConversionDoesNotOverflowUInt32Milliseconds()
         {
@@ -71,6 +80,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a missing publish queue distinguishes a closing session from one without subscriptions.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void PublishMissingQueueKeepsClosingSessionDistinct(bool closing)
@@ -90,8 +102,14 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Exposes subscription count revision using a configurable maximum durable lifetime.
+        /// </summary>
         private sealed class RevisionHooks : SubscriptionManager
         {
+            /// <summary>
+            /// Creates a manager with durable subscriptions enabled and the requested lifetime limit in hours.
+            /// </summary>
             public RevisionHooks(IServerInternal server, int hours)
                 : base(server, new ApplicationConfiguration
                 {
@@ -107,11 +125,17 @@ namespace Opc.Ua.Server.Tests
             {
             }
 
+            /// <summary>
+            /// Revises a keep-alive count for the supplied publishing interval and durability mode.
+            /// </summary>
             public uint KeepAlive(double interval, uint count, bool durable)
             {
                 return CalculateKeepAliveCount(interval, count, durable);
             }
 
+            /// <summary>
+            /// Revises a durable lifetime count using the supplied publishing interval and keep-alive count.
+            /// </summary>
             public uint Lifetime(double interval, uint keepAlive, uint count)
             {
                 return CalculateLifetimeCount(interval, keepAlive, count, true);

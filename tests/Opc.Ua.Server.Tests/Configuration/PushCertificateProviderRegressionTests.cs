@@ -42,11 +42,17 @@ using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies push-certificate behavior with injected pending-key providers and store-resolved certificate subjects.
+    /// </summary>
     [TestFixture]
     [Category("ConfigurationNodeManager")]
     [NonParallelizable]
     public sealed class PushCertificateProviderRegressionTests
     {
+        /// <summary>
+        /// Starts an isolated reference server and prepares a security-administrator call context.
+        /// </summary>
         [OneTimeSetUp]
         public async Task StartAsync()
         {
@@ -57,6 +63,9 @@ namespace Opc.Ua.Server.Tests
             m_context = CreateAdminContext();
         }
 
+        /// <summary>
+        /// Stops the reference server and removes its temporary certificate stores.
+        /// </summary>
         [OneTimeTearDown]
         public async Task StopAsync()
         {
@@ -67,6 +76,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a provider without matching claims rejects key regeneration before any key or store mutation.
+        /// </summary>
         [Test]
         public async Task LegacyPendingProviderRejectsRegenerationBeforeCreatingOrSavingAKeyAsync()
         {
@@ -106,6 +118,10 @@ namespace Opc.Ua.Server.Tests
             Assert.That(unchanged.HasPrivateKey, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that legacy pending-key providers still support signing and installing with the existing private
+        /// key.
+        /// </summary>
         [Test]
         public async Task LegacyPendingProviderCompletesExistingKeySigningAndUpdateAsync()
         {
@@ -181,6 +197,9 @@ namespace Opc.Ua.Server.Tests
                 It.IsAny<PendingCertificateKeyContext>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that an omitted signing-request subject is read from the stored certificate without replacing it.
+        /// </summary>
         [TestCase(null)]
         [TestCase("")]
         public async Task ExistingKeySigningRequestFallsBackToLoadedCertificateSubjectAsync(string subjectName)
@@ -221,6 +240,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that regeneration resolves an omitted subject from storage before creating a distinct pending key.
+        /// </summary>
         [TestCase(null)]
         [TestCase("")]
         public async Task RegeneratedSigningRequestResolvesStoredSubjectBeforeCreatingKeyAsync(string subjectName)
@@ -270,6 +292,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that regeneration without a resolvable subject fails before creating, saving, or removing keys.
+        /// </summary>
         [Test]
         public async Task RegenerationWithoutResolvableSubjectRejectsBeforeCreatingOrSavingKeyAsync()
         {
@@ -302,6 +327,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(certificates, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that malformed subjects report an argument error while preserving active and pending certificates.
+        /// </summary>
         [TestCase("not-a-distinguished-name", false)]
         [TestCase("not-a-distinguished-name", true)]
         [TestCase("CN=\"unterminated", false)]
@@ -354,6 +382,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that the certificate store retains exactly the expected certificate and its private key.
+        /// </summary>
         private async Task AssertStoredCertificateAsync(Harness harness, Certificate expected)
         {
             ITelemetryContext telemetry = m_fixture.Server.CurrentInstance.Telemetry;
@@ -369,6 +400,10 @@ namespace Opc.Ua.Server.Tests
             Assert.That(certificates[0].RawData, Is.EqualTo(expected.RawData));
         }
 
+        /// <summary>
+        /// Creates a configuration manager with isolated stores and the requested pending-key and key-generation
+        /// providers.
+        /// </summary>
         private async Task<Harness> CreateHarnessAsync(
             IPendingCertificateKeyStore pendingStore,
             IPushCertificateKeyGenerator keyGenerator,
@@ -427,6 +462,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Creates an encrypted call context with the security-administrator role required by push configuration.
+        /// </summary>
         private static SessionSystemContext CreateAdminContext()
         {
             var identity = new Mock<IUserIdentity>();
@@ -445,25 +483,57 @@ namespace Opc.Ua.Server.Tests
             };
         }
 
+        /// <summary>
+        /// Owns a configuration manager and exposes its certificate store and callable configuration node.
+        /// </summary>
         private sealed class Harness(
             ConfigurationNodeManager manager,
             ServerConfigurationState node,
             ApplicationConfiguration configuration,
             CertificateIdentifier identifier) : IDisposable
         {
+            /// <summary>
+            /// Gets the manager configured with the providers under test.
+            /// </summary>
             public ConfigurationNodeManager Manager { get; } = manager;
+
+            /// <summary>
+            /// Gets the server-configuration node used to invoke push-certificate methods.
+            /// </summary>
             public ServerConfigurationState Node { get; } = node;
+
+            /// <summary>
+            /// Gets the isolated application configuration that resolves certificates from storage.
+            /// </summary>
             public ApplicationConfiguration Configuration { get; } = configuration;
+
+            /// <summary>
+            /// Gets the identifier locating the active RSA certificate in the isolated store.
+            /// </summary>
             public CertificateIdentifier Identifier { get; } = identifier;
 
+            /// <summary>
+            /// Releases the configuration manager and its owned resources.
+            /// </summary>
             public void Dispose()
             {
                 Manager.Dispose();
             }
         }
 
+        /// <summary>
+        /// Stores the temporary root for the reference server and per-case certificate stores.
+        /// </summary>
         private string m_path;
+
+        /// <summary>
+        /// Hosts the reference server supplying the active application certificate.
+        /// </summary>
         private ServerFixture<ReferenceServer> m_fixture;
+
+        /// <summary>
+        /// Supplies the security-administrator identity for push-certificate method calls.
+        /// </summary>
         private SessionSystemContext m_context;
     }
 }

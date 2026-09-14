@@ -41,6 +41,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
     [Parallelizable]
     public sealed class TrackingTcpChannelBindingsTests
     {
+        /// <summary>
+        /// Verifies lifecycle instrumentation records repeated physical disposal instead of hiding duplicates.
+        /// </summary>
         [Test]
         public void CountsEveryDisposeCallIncludingDuplicates()
         {
@@ -68,6 +71,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
             });
         }
 
+        /// <summary>
+        /// Verifies unsupported schemes neither return a transport nor add an observation entry.
+        /// </summary>
         [Test]
         public void UnsupportedSchemeDoesNotCreateTransport()
         {

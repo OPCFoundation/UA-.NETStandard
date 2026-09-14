@@ -41,9 +41,15 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Configuration
 {
+    /// <summary>
+    /// Verifies matching, exclusive claims, and recovery of pending keys across certificate store implementations.
+    /// </summary>
     [TestFixture]
     public sealed class PendingKeyMatchingRegressionTests
     {
+        /// <summary>
+        /// Verifies that a rejected certificate leaves the pending key available for one matching claim by a replica.
+        /// </summary>
         [Test]
         public async Task RejectedMatchSurvivesAnotherStoreInstanceAndIsConsumedOnceAsync(
             [Values("memory", "directory", "hardware")] string kind)
@@ -66,6 +72,9 @@ namespace Opc.Ua.Server.Tests.Configuration
             Assert.That(again, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that restoring a failed claim succeeds only when no newer pending key has replaced it.
+        /// </summary>
         [Test]
         public async Task RestoringFailedClaimNeverOverwritesANewerSigningKeyAsync(
             [Values("memory", "directory", "hardware")] string kind,
@@ -90,6 +99,9 @@ namespace Opc.Ua.Server.Tests.Configuration
             AssertKeyWorks(final);
         }
 
+        /// <summary>
+        /// Verifies that concurrent matching claims transfer the usable private key to exactly one caller.
+        /// </summary>
         [Test]
         public async Task ConcurrentMatchingClaimsHaveExactlyOneOwnerAsync(
             [Values("memory", "directory", "hardware")] string kind)
@@ -115,6 +127,9 @@ namespace Opc.Ua.Server.Tests.Configuration
             }
         }
 
+        /// <summary>
+        /// Verifies that cancellation before a claim does not consume or damage the pending private key.
+        /// </summary>
         [Test]
         public async Task CancelledClaimLeavesThePendingKeyUntouchedAsync(
             [Values("memory", "directory", "hardware")] string kind)
@@ -132,6 +147,9 @@ namespace Opc.Ua.Server.Tests.Configuration
             AssertKeyWorks(final);
         }
 
+        /// <summary>
+        /// Creates a certificate containing the pending key's public key without attaching its private key.
+        /// </summary>
         private static Certificate CreateUploadCertificate(Certificate pending)
         {
             using RSA publicKey = pending.GetRSAPublicKey();
@@ -140,6 +158,9 @@ namespace Opc.Ua.Server.Tests.Configuration
             return CertificateBuilder.Create(pending.Subject).SetRSAPublicKey(publicKey).CreateForRSA(signature);
         }
 
+        /// <summary>
+        /// Verifies that a claimed certificate still has a private key capable of producing a valid signature.
+        /// </summary>
         private static void AssertKeyWorks(Certificate certificate)
         {
             using RSA privateKey = certificate.GetRSAPrivateKey();
@@ -149,8 +170,14 @@ namespace Opc.Ua.Server.Tests.Configuration
             Assert.That(publicKey.VerifyHash(hash, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1), Is.True);
         }
 
+        /// <summary>
+        /// Owns an isolated pending-key store and supplies replicas that share its backing storage.
+        /// </summary>
         private sealed class StoreHarness : IAsyncDisposable
         {
+            /// <summary>
+            /// Creates an isolated in-memory, directory, or simulated hardware store for matching-key tests.
+            /// </summary>
             public StoreHarness(string kind)
             {
                 m_kind = kind;
@@ -175,9 +202,19 @@ namespace Opc.Ua.Server.Tests.Configuration
                 };
             }
 
+            /// <summary>
+            /// Gets the certificate group, type, and backing-store identity used by all claims.
+            /// </summary>
             public PendingCertificateKeyContext Context { get; }
+
+            /// <summary>
+            /// Gets the store under test for saving and atomically claiming pending keys.
+            /// </summary>
             public IMatchingPendingCertificateKeyStore Store { get; }
 
+            /// <summary>
+            /// Creates another store over the same backing storage, or reuses the shared in-memory store.
+            /// </summary>
             public IMatchingPendingCertificateKeyStore CreateReplica()
             {
                 return m_kind switch
@@ -188,6 +225,9 @@ namespace Opc.Ua.Server.Tests.Configuration
                 };
             }
 
+            /// <summary>
+            /// Creates an RSA certificate whose private key is owned by the selected storage provider.
+            /// </summary>
             public Certificate CreateKey(string name)
             {
                 return m_hardware != null
@@ -195,6 +235,9 @@ namespace Opc.Ua.Server.Tests.Configuration
                     : DefaultCertificateFactory.Instance.CreateCertificate("CN=" + name).CreateForRSA();
             }
 
+            /// <summary>
+            /// Removes the pending key and releases the hardware provider and temporary directory.
+            /// </summary>
             public async ValueTask DisposeAsync()
             {
                 await Store.RemoveAsync(Context).ConfigureAwait(false);
@@ -205,8 +248,19 @@ namespace Opc.Ua.Server.Tests.Configuration
                 }
             }
 
+            /// <summary>
+            /// Selects the in-memory, directory, or hardware-backed pending-key implementation.
+            /// </summary>
             private readonly string m_kind;
+
+            /// <summary>
+            /// Locates the isolated backing store shared by replicas in a test.
+            /// </summary>
             private readonly string m_directory;
+
+            /// <summary>
+            /// Retains the simulated hardware key provider until test cleanup completes.
+            /// </summary>
             private readonly SimulatedHardwareCertificateStoreProvider m_hardware;
         }
     }

@@ -37,10 +37,16 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
+    /// <summary>
+    /// Verifies exclusive AddNodes identifier admission while preserving intentional runtime node replacement.
+    /// </summary>
     [TestFixture]
     [Category("NodeManagement")]
     public sealed class NodeIdAdmissionRegressionTests
     {
+        /// <summary>
+        /// Verifies that derived or custom identifier collisions preserve the original node and its references.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task CollidingDerivedNodeIdDoesNotReplaceExistingNodeAsync(bool customAllocator)
@@ -77,6 +83,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that concurrent AddNodes requests for one identifier register exactly one node and reference set.
+        /// </summary>
         [Test]
         public async Task ConcurrentNodeIdAdmissionHasOnlyOneWinnerAsync()
         {
@@ -112,6 +121,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that direct predefined-node registration can still replace a node outside AddNodes admission.
+        /// </summary>
         [Test]
         public async Task RuntimeReplacementRemainsAvailableOutsideAddNodesAsync()
         {
@@ -133,24 +145,55 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Creates the AddNodes operation context used for identifier admission.
+        /// </summary>
         private static OperationContext CreateContext()
         {
             return new OperationContext(new RequestHeader(), null, RequestType.AddNodes, RequestLifetime.None);
         }
 
+        /// <summary>
+        /// Exposes node-management admission with controllable identifier allocation and registration suspension.
+        /// </summary>
         private sealed class AdmissionHooks : AsyncCustomNodeManager
         {
+            /// <summary>
+            /// Creates a node manager that permits AddNodes requests in an isolated test namespace.
+            /// </summary>
             public AdmissionHooks(IServerInternal server)
                 : base(server, NullLogger.Instance, "urn:tests:node-admission")
             {
             }
 
+            /// <summary>
+            /// Gets whether AddNodes operations are permitted for this admission test manager.
+            /// </summary>
             public override bool AllowNodeManagement => true;
+
+            /// <summary>
+            /// Gets or sets a forced allocation result, or a null identifier to use normal derivation.
+            /// </summary>
             public NodeId ForcedId { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether the next predefined-node registration pauses before admission completes.
+            /// </summary>
             public bool PauseNextRegistration { get; set; }
+
+            /// <summary>
+            /// Gets the signal raised when the selected registration reaches its pause.
+            /// </summary>
             public TaskCompletionSource<bool> Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Gets the gate that releases the paused registration.
+            /// </summary>
             public TaskCompletionSource<bool> Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+            /// <summary>
+            /// Creates an object-add request under Objects with the requested browse name and reference type.
+            /// </summary>
             public AddNodesItem CreateItem(string name, NodeId referenceType)
             {
                 return new AddNodesItem
@@ -162,16 +205,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 };
             }
 
+            /// <summary>
+            /// Gets the currently registered node to identify which admission attempt won.
+            /// </summary>
             public NodeState GetNode(NodeId id)
             {
                 return PredefinedNodes[id];
             }
 
+            /// <summary>
+            /// Registers a predefined node directly to exercise intentional runtime replacement.
+            /// </summary>
             public ValueTask RegisterAsync(NodeState node)
             {
                 return AddPredefinedNodeAsync(SystemContext, node);
             }
 
+            /// <summary>
+            /// Returns a forced collision identifier when configured, otherwise uses normal identifier allocation.
+            /// </summary>
             protected override NodeId AllocateNodeIdForAddNodes(
                 ServerSystemContext context,
                 BaseInstanceState instance,
@@ -182,6 +234,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     : ForcedId;
             }
 
+            /// <summary>
+            /// Pauses one registration at the behavior hook so another AddNodes request can race admission.
+            /// </summary>
             protected override async ValueTask<NodeState> AddBehaviourToPredefinedNodeAsync(
                 ISystemContext context,
                 NodeState predefinedNode,

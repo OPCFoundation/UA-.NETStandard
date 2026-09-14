@@ -1336,6 +1336,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// Verifies the injected clock expires a stalled reactivation at its timeout and issues one final notification.
+        /// </summary>
         [Test]
         public async Task ReconnectParticipantTimeoutUsesInjectedClockAsync()
         {

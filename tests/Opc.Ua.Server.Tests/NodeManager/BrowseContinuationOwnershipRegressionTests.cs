@@ -36,10 +36,16 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
+    /// <summary>
+    /// Verifies ownership transfer and cleanup of browse continuations across failures, limits, and session closure.
+    /// </summary>
     [TestFixture]
     [Category("NodeManager")]
     public sealed class BrowseContinuationOwnershipRegressionTests
     {
+        /// <summary>
+        /// Verifies that permission denial disposes a claimed continuation for both continuation and release requests.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task PermissionDeniedReleasesTheClaimedContinuationAsync(bool release)
@@ -60,6 +66,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             resource.Verify(value => value.Dispose(), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that metadata lookup failure propagates while releasing the claimed continuation's resource.
+        /// </summary>
         [Test]
         public void MetadataFailureReleasesTheClaimedContinuation()
         {
@@ -79,6 +88,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             resource.Verify(value => value.Dispose(), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that a browse callback failure reports an error and disposes the claimed continuation.
+        /// </summary>
         [Test]
         public async Task BrowseFailureReleasesTheClaimedContinuationAsync()
         {
@@ -97,6 +109,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             resource.Verify(value => value.Dispose(), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that reference-filtering failure releases a replacement continuation without double-disposing the
+        /// original.
+        /// </summary>
         [Test]
         public async Task FilteringFailureReleasesTheReplacementContinuationAsync()
         {
@@ -128,6 +144,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             replacementResource.Verify(value => value.Dispose(), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that a returned continuation retains its resource until the client explicitly releases it.
+        /// </summary>
         [Test]
         public async Task RetainedContinuationStaysOwnedUntilItIsReleasedAsync()
         {
@@ -148,6 +167,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             resource.Verify(value => value.Dispose(), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that a browse callback consuming its point is not followed by a second resource disposal.
+        /// </summary>
         [Test]
         public async Task CompletedBrowseDoesNotDisposeItsConsumedPointTwiceAsync()
         {
@@ -171,6 +193,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             resource.Verify(value => value.Dispose(), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that continuation capacity retains the admitted page and immediately releases the rejected page.
+        /// </summary>
         [Test]
         public async Task ContinuationBudgetRetainsOnlyTheAdmittedPageAsync()
         {
@@ -196,6 +221,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             firstResource.Verify(value => value.Dispose(), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that batch cancellation disposes both the current continuation and earlier pages not returned to
+        /// the client.
+        /// </summary>
         [Test]
         public void CancellationReleasesCurrentAndEarlierUnreturnedPages()
         {
@@ -230,6 +259,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(harness.Points.RestoreBrowse(Token(first)), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that session closure during browse rejects resaving and disposes the claimed continuation once.
+        /// </summary>
         [Test]
         public async Task CloseDuringBrowseRejectsResavingAndDisposesTheClaimedPointOnceAsync()
         {
@@ -254,13 +286,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
             resource.Verify(value => value.Dispose(), Times.Once);
         }
 
+        /// <summary>
+        /// Encodes a continuation identifier as the token supplied to BrowseNext.
+        /// </summary>
         private static ByteString Token(ContinuationPoint point)
         {
             return point.Id.ToByteArray().ToByteString();
         }
 
+        /// <summary>
+        /// Supplies a master manager, controllable browse owner, and session continuation store.
+        /// </summary>
         private sealed class BrowseHarness : IDisposable
         {
+            /// <summary>
+            /// Creates a browse session with configurable per-request continuation capacity.
+            /// </summary>
             public BrowseHarness(int maxPerBrowse = 10)
             {
                 Mock<IServerInternal> server = DeterministicServerMock.Create(out m_queues);
@@ -296,12 +337,34 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     new RequestHeader(), null, RequestType.BrowseNext, RequestLifetime.None, session.Object);
             }
 
+            /// <summary>
+            /// Gets the node-manager mock providing metadata and browse callbacks.
+            /// </summary>
             public Mock<IAsyncNodeManager> Manager { get; } = new();
+
+            /// <summary>
+            /// Gets the master manager dispatching BrowseNext and enforcing continuation ownership.
+            /// </summary>
             public MasterNodeManager Master { get; }
+
+            /// <summary>
+            /// Gets mutable metadata for the browsed node and returned references.
+            /// </summary>
             public NodeMetadata Metadata { get; }
+
+            /// <summary>
+            /// Gets the session's continuation store used to observe save, restore, and clear behavior.
+            /// </summary>
             public SessionContinuationPoints Points { get; }
+
+            /// <summary>
+            /// Gets the session-backed BrowseNext operation context.
+            /// </summary>
             public OperationContext Context { get; }
 
+            /// <summary>
+            /// Creates and saves a continuation whose payload disposal can be verified.
+            /// </summary>
             public ContinuationPoint AddPoint(Mock<IDisposable> resource)
             {
                 ContinuationPoint point = NewPoint(resource);
@@ -309,6 +372,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return point;
             }
 
+            /// <summary>
+            /// Creates an unsaved continuation for the test node with the supplied disposable payload.
+            /// </summary>
             public ContinuationPoint NewPoint(Mock<IDisposable> resource)
             {
                 return new ContinuationPoint
@@ -323,6 +389,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 };
             }
 
+            /// <summary>
+            /// Configures browse to return one reference while retaining its continuation for another page.
+            /// </summary>
             public void ReturnAnotherPage()
             {
                 Manager.Setup(value => value.BrowseAsync(
@@ -336,6 +405,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     });
             }
 
+            /// <summary>
+            /// Clears remaining continuations and releases the operation context, master manager, and queue factory.
+            /// </summary>
             public void Dispose()
             {
                 Points.Clear();
@@ -344,6 +416,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 m_queues.Dispose();
             }
 
+            /// <summary>
+            /// Owns the monitored-item queue resources supplied by the deterministic server.
+            /// </summary>
             private readonly MonitoredItemQueueFactory m_queues;
         }
     }

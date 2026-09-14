@@ -42,10 +42,16 @@ using ServerSession = Opc.Ua.Server.Session;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies retirement and borrowed-use lifetimes of ephemeral keys used for session credential decryption.
+    /// </summary>
     [TestFixture]
     [Category("Session")]
     public sealed class EphemeralNonceLifetimeRegressionTests
     {
+        /// <summary>
+        /// Verifies that replacing a nonce, resetting its policy, or disposing the session releases unborrowed keys.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void ReplacingOrResettingPolicyDisposesThePreviousEphemeralKey(bool reset)
@@ -71,6 +77,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(GetKey(current), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that a retired nonce retains its key until every in-flight decryption succeeds or fails.
+        /// </summary>
         [TestCase(1, false)]
         [TestCase(2, false)]
         [TestCase(1, true)]
@@ -157,18 +166,30 @@ namespace Opc.Ua.Server.Tests
             Assert.That(GetKey(original), Is.Null);
         }
 
+        /// <summary>
+        /// Reads the session's current user-token nonce for direct key-lifetime assertions.
+        /// </summary>
         private static Nonce GetCurrentNonce(ServerSession session)
         {
             return (Nonce)s_nonceField.GetValue(session)!;
         }
 
+        /// <summary>
+        /// Reads the nonce's ECDH key to distinguish a retained key from a disposed one.
+        /// </summary>
         private static ECDiffieHellman? GetKey(Nonce nonce)
         {
             return (ECDiffieHellman?)s_keyField.GetValue(nonce);
         }
 
+        /// <summary>
+        /// Owns a secured session and matching client proof for exercising ephemeral credential decryption.
+        /// </summary>
         private sealed class NonceHarness : IDisposable
         {
+            /// <summary>
+            /// Creates elliptic-curve client and server certificates and a session with an ECC username policy.
+            /// </summary>
             public NonceHarness()
             {
                 ServerCertificate = CertificateBuilder.Create("CN=Nonce Lifetime Server")
@@ -216,14 +237,44 @@ namespace Opc.Ua.Server.Tests
                         channel.ServerChannelCertificate, channel.ClientChannelCertificate, clientNonce.Data!));
             }
 
+            /// <summary>
+            /// Gets the server certificate used to encrypt credentials and validate the client proof.
+            /// </summary>
             public Certificate ServerCertificate { get; }
+
+            /// <summary>
+            /// Gets the client certificate used for credential-envelope signing and session activation proof.
+            /// </summary>
             public Certificate ClientCertificate { get; }
+
+            /// <summary>
+            /// Gets the message context used to encode and decrypt credential envelopes.
+            /// </summary>
             public IServiceMessageContext MessageContext { get; }
+
+            /// <summary>
+            /// Gets the server session nonce included in activation signatures and encrypted credentials.
+            /// </summary>
             public Nonce ServerNonce { get; }
+
+            /// <summary>
+            /// Gets the valid client application signature supplied to activation validation.
+            /// </summary>
             public SignatureData ClientSignature { get; }
+
+            /// <summary>
+            /// Gets the activation context bound to the secured ECC channel.
+            /// </summary>
             public OperationContext Context { get; }
+
+            /// <summary>
+            /// Gets the session whose user-token nonce can be replaced during decryption.
+            /// </summary>
             public ServerSession Session { get; }
 
+            /// <summary>
+            /// Releases the session, operation context, session nonce, and client and server certificates.
+            /// </summary>
             public void Dispose()
             {
                 Session.Dispose();
@@ -234,6 +285,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Pauses ECDH borrowers at key agreement and records when the underlying key is disposed.
+        /// </summary>
         private sealed class BlockingKey(
             ECDiffieHellman inner,
             int borrowers,
@@ -241,10 +295,22 @@ namespace Opc.Ua.Server.Tests
             ManualResetEventSlim releaseFirst,
             ManualResetEventSlim releaseRest) : ECDiffieHellman
         {
+            /// <inheritdoc/>
             public override ECDiffieHellmanPublicKey PublicKey => inner.PublicKey;
+
+            /// <summary>
+            /// Gets the signal raised once every expected borrower has entered key agreement.
+            /// </summary>
             public TaskCompletionSource<bool> Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Gets whether the wrapper has released its underlying key.
+            /// </summary>
             public bool Disposed { get; private set; }
 
+            /// <summary>
+            /// Waits for the borrower's release gate before deriving key material with the retained key.
+            /// </summary>
             public override byte[] DeriveKeyMaterial(ECDiffieHellmanPublicKey otherPartyPublicKey)
             {
                 WaitForRelease();
@@ -252,6 +318,9 @@ namespace Opc.Ua.Server.Tests
             }
 
 #if NET8_0_OR_GREATER
+            /// <summary>
+            /// Waits for the borrower's release gate before deriving the raw shared secret with the retained key.
+            /// </summary>
             public override byte[] DeriveRawSecretAgreement(ECDiffieHellmanPublicKey otherPartyPublicKey)
             {
                 WaitForRelease();
@@ -259,6 +328,9 @@ namespace Opc.Ua.Server.Tests
             }
 #endif
 
+            /// <summary>
+            /// Records disposal and releases the wrapped agreement key exactly once.
+            /// </summary>
             protected override void Dispose(bool disposing)
             {
                 if (disposing && !Disposed)
@@ -269,6 +341,9 @@ namespace Opc.Ua.Server.Tests
                 base.Dispose(disposing);
             }
 
+            /// <summary>
+            /// Holds each key borrower at its barrier and optionally injects an agreement failure after release.
+            /// </summary>
             private void WaitForRelease()
             {
                 int position = Interlocked.Increment(ref m_entered);
@@ -287,13 +362,31 @@ namespace Opc.Ua.Server.Tests
                 }
             }
 
+            /// <summary>
+            /// Counts borrowers that have reached key agreement before a disposal request.
+            /// </summary>
             private int m_entered;
         }
 
+        /// <summary>
+        /// Selects the ECC security policy whose user-token nonce carries the ephemeral ECDH key.
+        /// </summary>
         private const string kPolicy = SecurityPolicies.ECC_nistP256;
+
+        /// <summary>
+        /// Supplies the plaintext expected from successful borrowed-key decryption.
+        /// </summary>
         private static readonly byte[] s_testSecret = [1, 2, 3, 4];
+
+        /// <summary>
+        /// Locates the session's currently published user-token nonce.
+        /// </summary>
         private static readonly FieldInfo s_nonceField = typeof(ServerSession)
             .GetField("m_userTokenNonce", BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+        /// <summary>
+        /// Locates the nonce key for replacement with a blocking wrapper and disposal checks.
+        /// </summary>
         private static readonly FieldInfo s_keyField = typeof(Nonce)
             .GetField("m_ecdh", BindingFlags.Instance | BindingFlags.NonPublic)!;
     }

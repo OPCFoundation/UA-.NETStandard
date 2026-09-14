@@ -41,10 +41,16 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
+    /// <summary>
+    /// Covers native store snapshot ownership and lossless, failure-safe replacement of PEM bundles.
+    /// </summary>
     [TestFixture]
     [Category("CertificateStore")]
     public sealed class CertificateStoreSnapshotRegressionTests
     {
+        /// <summary>
+        /// Verifies platform-store operations retain only returned certificates and release every other native handle.
+        /// </summary>
         [TestCase("findHit")]
         [TestCase("findMiss")]
         [TestCase("deleteMiss")]
@@ -107,6 +113,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(secondNative.Handle, Is.EqualTo(IntPtr.Zero));
         }
 
+        /// <summary>
+        /// Verifies PEM removal leaves exactly the retained certificate and optional private key without an old file
+        /// tail.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task RemovingOnePemCertificateLeavesExactRemainingContentAndNoOldTailAsync(bool privateKey)
@@ -170,6 +180,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Verifies a sharing violation during PEM replacement preserves the original bytes and leaves no temporary
+        /// file.
+        /// </summary>
         [Test]
         [Platform("Win")]
         public async Task FailedPemReplacementUnderWindowsFileSharingPreservesTheOriginalFileAsync()

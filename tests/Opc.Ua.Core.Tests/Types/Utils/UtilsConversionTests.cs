@@ -343,6 +343,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.That(Utils.IsUriHttpRelatedScheme("http://localhost:4840"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies the HTTP-scheme classifier accepts the supported plain, secure, and OPC-prefixed forms.
+        /// </summary>
         [TestCase("http://localhost")]
         [TestCase("https://localhost")]
         [TestCase("opc.https://localhost")]

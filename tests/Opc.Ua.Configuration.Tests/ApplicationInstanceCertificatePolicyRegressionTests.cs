@@ -37,11 +37,17 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Configuration.Tests
 {
+    /// <summary>
+    /// Covers algorithm inference and RSA minimum-key-size policy during application certificate checks.
+    /// </summary>
     [TestFixture]
     [Category("ApplicationInstance")]
     [Parallelizable(ParallelScope.All)]
     public sealed class ApplicationInstanceCertificatePolicyRegressionTests
     {
+        /// <summary>
+        /// Verifies an unspecified certificate slot preserves its stored ECC key and infers the matching ECC type.
+        /// </summary>
         [Test]
         public async Task SilentCertificateCheckPreservesUnspecifiedEccIdentityAsync()
         {
@@ -105,6 +111,9 @@ namespace Opc.Ua.Configuration.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies explicit RSA checks enforce the configured minimum without replacing the stored certificate.
+        /// </summary>
         [TestCase((ushort)2048, false)]
         [TestCase((ushort)3072, true)]
         public async Task ExplicitRsaCertificateCheckEnforcesConfiguredMinimumAsync(ushort keySize, bool accepted)
@@ -166,6 +175,9 @@ namespace Opc.Ua.Configuration.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies provisioning an HTTPS certificate retains its type and creates the configured 3072-bit RSA key.
+        /// </summary>
         [Test]
         public async Task HttpsCertificateProvisioningKeepsConfiguredRsaMinimumAsync()
         {
@@ -207,6 +219,9 @@ namespace Opc.Ua.Configuration.Tests
             }
         }
 
+        /// <summary>
+        /// Creates a client configuration with one certificate slot and an explicit minimum key size.
+        /// </summary>
         private static ApplicationConfiguration CreateConfiguration(
             CertificateIdentifier identifier, ushort minimumKeySize)
         {
@@ -225,10 +240,29 @@ namespace Opc.Ua.Configuration.Tests
             };
         }
 
+        /// <summary>
+        /// Names the application consistently in test configurations and generated certificates.
+        /// </summary>
         private const string kApplicationName = "Certificate Policy Regression";
+
+        /// <summary>
+        /// Identifies the application in certificate URI validation.
+        /// </summary>
         private const string kApplicationUri = "urn:localhost:certificate-policy-regression";
+
+        /// <summary>
+        /// Supplies the subject used to locate the test application certificate.
+        /// </summary>
         private const string kSubject = "CN=Certificate Policy Regression";
+
+        /// <summary>
+        /// Starts certificate validity before the policy checks under test.
+        /// </summary>
         private static readonly DateTime s_validFrom = new(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        /// <summary>
+        /// Keeps expiry independent of the key-policy assertions.
+        /// </summary>
         private static readonly DateTime s_validTo = new(2099, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     }
 }

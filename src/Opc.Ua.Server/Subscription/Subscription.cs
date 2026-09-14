@@ -2242,6 +2242,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Deletes and disposes created monitored items whose ownership was not transferred to the subscription.
+        /// </summary>
         private async ValueTask DeleteUnattachedMonitoredItemsAsync(
             OperationContext context,
             List<IMonitoredItem> monitoredItems)

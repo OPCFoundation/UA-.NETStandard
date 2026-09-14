@@ -36,11 +36,17 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
+    /// <summary>
+    /// Verifies trace-file failures report the actual path through Debug output without mistaken format overloads.
+    /// </summary>
     [TestFixture]
     [Category("Utils")]
     [NonParallelizable]
     public sealed class TraceLoggerDebugFallbackRegressionTests
     {
+        /// <summary>
+        /// Installs and verifies a deterministic capture listener for Debug output.
+        /// </summary>
         [SetUp]
         public void SetUp()
         {
@@ -53,6 +59,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             m_output.GetStringBuilder().Clear();
         }
 
+        /// <summary>
+        /// Removes and disposes the temporary Debug listener and its output buffer.
+        /// </summary>
         [TearDown]
         public void TearDown()
         {
@@ -61,6 +70,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             m_output.Dispose();
         }
 
+        /// <summary>
+        /// Verifies an exclusively locked trace file reports both the original IO error and its literal path.
+        /// </summary>
         [Test]
         public void TraceFileFailureReportsActualPathInDebugOutput()
         {
@@ -98,6 +110,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             }
         }
 
+        /// <summary>
+        /// Pins the Debug.WriteLine string overload's category semantics instead of assuming format substitution.
+        /// </summary>
         [Test]
         public void DebugStringSecondArgumentIsACategoryNotAFormatArgument()
         {
@@ -107,7 +122,14 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.That(m_output.ToString(), Is.EqualTo("category: FilePath={1}" + Environment.NewLine));
         }
 
+        /// <summary>
+        /// Captures invariant-culture Debug text for exact assertions.
+        /// </summary>
         private StringWriter m_output = null!;
+
+        /// <summary>
+        /// Routes Debug output to the per-test capture buffer.
+        /// </summary>
         private TextWriterTraceListener m_listener = null!;
     }
 }

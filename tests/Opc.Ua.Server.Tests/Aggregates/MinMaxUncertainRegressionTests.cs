@@ -32,11 +32,17 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Aggregates
 {
+    /// <summary>
+    /// Verifies how uncertain samples affect extrema, aggregate quality, and source timestamps.
+    /// </summary>
     [TestFixture]
     [Category("Aggregators")]
     [Parallelizable(ParallelScope.All)]
     public sealed class MinMaxUncertainRegressionTests
     {
+        /// <summary>
+        /// Verifies that an uncertain sample outside the good range lowers quality without replacing good extrema.
+        /// </summary>
         [TestCase(Objects.AggregateFunction_Minimum, 1.0, 5.0)]
         [TestCase(Objects.AggregateFunction_Maximum, 9.0, 5.0)]
         [TestCase(Objects.AggregateFunction_Range, 1.0, 0.0)]
@@ -83,6 +89,9 @@ namespace Opc.Ua.Server.Tests.Aggregates
             });
         }
 
+        /// <summary>
+        /// Verifies that uncertain samples within the good range preserve the good result and its timestamp.
+        /// </summary>
         [TestCase(Objects.AggregateFunction_Minimum, 5.0, 0, AggregateBits.Raw)]
         [TestCase(Objects.AggregateFunction_Maximum, 10.0, 0, AggregateBits.Calculated)]
         [TestCase(Objects.AggregateFunction_Range, 5.0, 0, AggregateBits.Calculated)]
@@ -127,6 +136,9 @@ namespace Opc.Ua.Server.Tests.Aggregates
             });
         }
 
+        /// <summary>
+        /// Verifies that an interval without good samples reports no data rather than a fabricated extremum.
+        /// </summary>
         [TestCase(Objects.AggregateFunction_Minimum, false)]
         [TestCase(Objects.AggregateFunction_Maximum, false)]
         [TestCase(Objects.AggregateFunction_Range, false)]

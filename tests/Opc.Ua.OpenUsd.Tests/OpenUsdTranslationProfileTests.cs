@@ -47,6 +47,9 @@ namespace Opc.Ua.OpenUsd.Tests
     [Parallelizable]
     public sealed class OpenUsdTranslationProfileTests
     {
+        /// <summary>
+        /// Verifies structured Cartesian coordinates produce the exact three-axis translation vector.
+        /// </summary>
         [Test]
         public void StructuredCartesianCoordinatesAreAccepted()
         {

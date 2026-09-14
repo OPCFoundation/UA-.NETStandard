@@ -260,6 +260,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(new ExpandedNodeId(ByteString.From([1, 2, 3, 4]), 1, null, 3)));
         }
 
+        /// <summary>
+        /// Verifies that malformed role identifiers fail loading rather than silently producing an empty database.
+        /// </summary>
         [TestCaseSource(nameof(InvalidRoleIdJson))]
         public void LoadInvalidRoleIdThrowsJsonException(string roleIdJson)
         {
@@ -278,6 +281,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(loaded.GetUsers().Select(user => user.UserName), Is.EqualTo(Array.Empty<string>()));
         }
 
+        /// <summary>
+        /// Verifies that malformed JSON is rejected without modifying the original database file.
+        /// </summary>
         [Test]
         public void LoadInvalidJsonLogsAndThrowsJsonException()
         {
@@ -288,6 +294,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(File.ReadAllText(fileName), Is.EqualTo("{ invalid json }"));
         }
 
+        /// <summary>
+        /// Supplies malformed expanded node identifiers covering invalid tokens, namespaces, and identifier payloads.
+        /// </summary>
         private static IEnumerable<TestCaseData> InvalidRoleIdJson()
         {
             yield return new TestCaseData("\"not-an-expanded-node-id\"")

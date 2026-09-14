@@ -338,6 +338,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Faulted));
         }
 
+        /// <summary>
+        /// Verifies a chunk without a request owner is returned immediately and exactly once.
+        /// </summary>
         [Test]
         public void UnstoredIntermediateChunkReturnsItsRental()
         {
@@ -351,6 +354,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies a request-size failure returns both saved chunks and the incoming chunk.
+        /// </summary>
         [Test]
         public void ExceededIntermediateMessageLimitReturnsBothOldAndIncomingRentals()
         {
@@ -367,6 +373,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies retrieving saved chunks without a new chunk transfers every rental for one release.
+        /// </summary>
         [Test]
         public void TakingSavedChunksWithoutAnotherChunkReturnsEachRentalOnce()
         {
@@ -381,6 +390,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies truncated OpenSecureChannel bodies release the decrypted buffer as well as received input.
+        /// </summary>
         [TestCase(0)]
         [TestCase(4)]
         [TestCase(7)]
@@ -398,6 +410,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies sequence and certificate failures after decryption preserve their audit status and return every
+        /// rental.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task OpenSecureChannelRejectionAfterDecryptionReturnsEveryRentalAsync(bool sequenceFailure)
@@ -431,6 +447,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies discovery-only admission or rejection releases all receive buffers with the correct service
+        /// outcome.
+        /// </summary>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, true)]
@@ -469,6 +489,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Is.EqualTo(intermediate ? TcpChannelState.Closed : TcpChannelState.Open));
         }
 
+        /// <summary>
+        /// Verifies decoded NodeId and ByteString values remain intact after returned receive buffers are poisoned.
+        /// </summary>
         [Test]
         public async Task DecodedRequestRetainsValuesAfterInputBuffersAreReturnedAsync()
         {
@@ -783,8 +806,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             return pool.OutstandingCount == expected;
         }
 
+        /// <summary>
+        /// Exposes the real server-channel ownership paths with controllable quotas, transport, and incoming chunks.
+        /// </summary>
         private sealed class TestServerChannel : TcpServerChannel
         {
+            /// <summary>
+            /// Creates a server channel using the supplied pool, quotas, telemetry, and test clock.
+            /// </summary>
             public TestServerChannel(
                 ITcpChannelListener listener,
                 BufferManager bufferManager,
@@ -803,10 +832,19 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
             }
 
+            /// <summary>
+            /// Gets the state reached after the controlled transport operation.
+            /// </summary>
             public TcpChannelState CurrentState => State;
 
+            /// <summary>
+            /// Gets the last error reported through the channel's transport-failure hook.
+            /// </summary>
             public ServiceResult LastTransportError { get; private set; } = ServiceResult.Good;
 
+            /// <summary>
+            /// Opens the channel with a deterministic token without performing a network handshake.
+            /// </summary>
             public void OpenForTest()
             {
                 State = TcpChannelState.Open;
@@ -823,52 +861,82 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     previous: null);
             }
 
+            /// <summary>
+            /// Installs the transport used for controlled send and receive observations.
+            /// </summary>
             public void SetTransport(IUaSCByteTransport transport)
             {
                 Transport = transport;
             }
 
+            /// <summary>
+            /// Invokes the real channel-closed cleanup path.
+            /// </summary>
             public void CloseForTest()
             {
                 ChannelClosed();
             }
 
+            /// <summary>
+            /// Sets the encoded response-size limit used by send-path tests.
+            /// </summary>
             public void SetMaxResponseMessageSizeForTest(int maxResponseMessageSize)
             {
                 MaxResponseMessageSize = maxResponseMessageSize;
             }
 
+            /// <summary>
+            /// Sets the request-size limit used when admitting intermediate chunks.
+            /// </summary>
             public void SetMaxRequestMessageSizeForTest(int maxRequestMessageSize)
             {
                 MaxRequestMessageSize = maxRequestMessageSize;
             }
 
+            /// <summary>
+            /// Transfers a received chunk to the intermediate-request ownership path.
+            /// </summary>
             public void SaveReceivedPartForTest(uint requestId, ArraySegment<byte> chunk)
             {
                 SaveIntermediateChunk(requestId, chunk, true, gateHeld: false);
             }
 
+            /// <summary>
+            /// Takes and releases the accumulated chunks without supplying another received chunk.
+            /// </summary>
             public void ReleaseSavedPartsForTest(uint requestId)
             {
                 GetSavedChunks(requestId, default, true, gateHeld: false)
                     .Release(BufferManager, nameof(ReleaseSavedPartsForTest));
             }
 
+            /// <summary>
+            /// Sets the accepted receive-chunk size limit.
+            /// </summary>
             public void SetReceiveBufferSizeForTest(int receiveBufferSize)
             {
                 ReceiveBufferSize = receiveBufferSize;
             }
 
+            /// <summary>
+            /// Rents input storage from the channel's tracked buffer manager.
+            /// </summary>
             public byte[] TakeBufferForTest(int size)
             {
                 return BufferManager.TakeBuffer(size, nameof(TakeBufferForTest));
             }
 
+            /// <summary>
+            /// Sets the number of chunks permitted in one incoming request.
+            /// </summary>
             public void SetMaxRequestChunkCountForTest(int maxRequestChunkCount)
             {
                 MaxRequestChunkCount = maxRequestChunkCount;
             }
 
+            /// <summary>
+            /// Transfers an incoming chunk into server-side intermediate-message ownership.
+            /// </summary>
             public void SaveIntermediateChunkForTest(uint requestId, ArraySegment<byte> chunk)
             {
                 SaveIntermediateChunk(requestId, chunk, isServerContext: true, gateHeld: false);
@@ -929,11 +997,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return new ArraySegment<byte>(buffer, 0, length);
             }
 
+            /// <summary>
+            /// Delivers a pooled chunk through the asynchronous server receive handler.
+            /// </summary>
             public ValueTask FeedReceivedChunkAsync(ArraySegment<byte> chunk)
             {
                 return OnChunkReceivedAsync(chunk, CancellationToken.None);
             }
 
+            /// <summary>
+            /// Enables the channel mode that permits discovery requests without a secured endpoint.
+            /// </summary>
             public void SetDiscoveryOnlyForTest()
             {
                 typeof(UaSCUaBinaryChannel).GetProperty(
@@ -942,6 +1016,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     .SetValue(this, true);
             }
 
+            /// <summary>
+            /// Encodes a pooled request chunk with controlled sequence, request identifier, and continuation flag.
+            /// </summary>
             public ArraySegment<byte> CreateRequestChunkForTest(
                 uint requestId, uint sequence, IServiceRequest request, bool intermediate)
             {
@@ -960,6 +1037,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return new ArraySegment<byte>(buffer, 0, encoder.Close());
             }
 
+            /// <summary>
+            /// Encodes an OpenSecureChannel header followed by a deliberately short body.
+            /// </summary>
             public ArraySegment<byte> CreateTruncatedOpenChunkForTest(int bodyLength)
             {
                 byte[] buffer = BufferManager.TakeBuffer(1024, nameof(CreateTruncatedOpenChunkForTest));
@@ -979,16 +1059,25 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return new ArraySegment<byte>(buffer, 0, length);
             }
 
+            /// <summary>
+            /// Seeds accepted sequence state for a later post-decryption rejection.
+            /// </summary>
             public bool AcceptSequenceForTest(uint sequenceNumber)
             {
                 return VerifySequenceNumber(sequenceNumber, nameof(AcceptSequenceForTest));
             }
 
+            /// <summary>
+            /// Retains the client certificate expected during OpenSecureChannel validation.
+            /// </summary>
             public void ExpectClientCertificateForTest(Certificate certificate)
             {
                 ClientCertificate = certificate.AddRef();
             }
 
+            /// <summary>
+            /// Creates an OpenSecureChannel chunk with a controlled sequence header and request identifier.
+            /// </summary>
             public ArraySegment<byte> CreateOpenChunkForTest(uint sequenceNumber)
             {
                 ArraySegment<byte> chunk = CreateTruncatedOpenChunkForTest(TcpMessageLimits.SequenceHeaderSize);

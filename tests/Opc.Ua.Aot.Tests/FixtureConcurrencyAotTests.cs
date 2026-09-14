@@ -38,6 +38,9 @@ namespace Opc.Ua.Aot.Tests
     [ClassDataSource<AotTestFixture>(Shared = SharedType.PerTestSession)]
     public sealed class FixtureConcurrencyAotTests(AotTestFixture fixture)
     {
+        /// <summary>
+        /// Verifies discovery and new sessions can overlap without disconnecting sessions already held by the fixture.
+        /// </summary>
         [Test]
         public async Task ConcurrentDiscoveryAndSessionCreationPreserveExistingSessionsAsync()
         {
@@ -88,6 +91,9 @@ namespace Opc.Ua.Aot.Tests
             }
         }
 
+        /// <summary>
+        /// Runs an independent discovery request and verifies the shared server still advertises endpoints.
+        /// </summary>
         private async Task GetEndpointsAsync()
         {
             var configuration = EndpointConfiguration.Create();
@@ -104,6 +110,9 @@ namespace Opc.Ua.Aot.Tests
             await client.CloseAsync(CancellationToken.None).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Confirms an established session remains connected and can read a good server status value.
+        /// </summary>
         private static async Task ReadServerStatusAsync(ISession session)
         {
             await Assert.That(session.Connected).IsTrue();
@@ -115,6 +124,9 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(StatusCode.IsGood(status.StatusCode)).IsTrue();
         }
 
+        /// <summary>
+        /// Closes a held test session and disposes it even if closing its subscriptions fails.
+        /// </summary>
         private static async Task CloseAndDisposeAsync(ISession session)
         {
             await using (session.ConfigureAwait(false))

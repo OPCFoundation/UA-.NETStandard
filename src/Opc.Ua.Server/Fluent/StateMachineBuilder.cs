@@ -55,6 +55,9 @@ namespace Opc.Ua.Server.Fluent
     internal sealed class StateMachineBuilder<TState> : IStateMachineBuilder<TState>
         where TState : FiniteStateMachineState
     {
+        /// <summary>
+        /// Composes fluent transition callbacks with the machine's existing callbacks and resolves timing services.
+        /// </summary>
         public StateMachineBuilder(INodeBuilder<TState> nodeBuilder)
         {
             m_nodeBuilder = nodeBuilder ?? throw new ArgumentNullException(nameof(nodeBuilder));
@@ -275,6 +278,9 @@ namespace Opc.Ua.Server.Fluent
             return this;
         }
 
+        /// <summary>
+        /// Captures stable source and destination states for one invocation's composed transition callbacks.
+        /// </summary>
         private (StateMachineTransitionHandler? Before, StateMachineTransitionHandler? After) CreateCallbacks(
             uint from,
             uint to,
@@ -292,6 +298,9 @@ namespace Opc.Ua.Server.Fluent
                     CoordinatorAfter(context, machine, transition, cause, inputs, outputs, from, to, after));
         }
 
+        /// <summary>
+        /// Runs the existing pre-transition handler and fluent guards against the captured source state.
+        /// </summary>
         private ServiceResult CoordinatorBefore(
             ISystemContext context,
             StateMachineState machine,
@@ -333,6 +342,9 @@ namespace Opc.Ua.Server.Fluent
             return ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Runs post-transition observers with captured states and arms timers only for the current state revision.
+        /// </summary>
         private ServiceResult CoordinatorAfter(
             ISystemContext context,
             StateMachineState machine,
@@ -404,6 +416,9 @@ namespace Opc.Ua.Server.Fluent
             return existingResult;
         }
 
+        /// <summary>
+        /// Fires an elapsed timed cause only while its observed state revision remains current.
+        /// </summary>
         private void OnSimulationTick(ISystemContext context, TimeSpan elapsed)
         {
             // No-op on the first tick after registration if we have not
@@ -486,6 +501,9 @@ namespace Opc.Ua.Server.Fluent
             return builder.Node;
         }
 
+        /// <summary>
+        /// Invokes state-entry or state-exit observers while logging failures without aborting the transition.
+        /// </summary>
         private void FireListSafely(
             List<Action<ISystemContext, TState>> list,
             ISystemContext context)
@@ -504,8 +522,20 @@ namespace Opc.Ua.Server.Fluent
         }
 
         private readonly INodeBuilder<TState> m_nodeBuilder;
+
+        /// <summary>
+        /// Preserves the callback factory installed before fluent transition coordination.
+        /// </summary>
         private readonly StateMachineTransitionCallbackFactory? m_existingCallbacks;
+
+        /// <summary>
+        /// Measures elapsed time for timed causes.
+        /// </summary>
         private readonly TimeProvider m_timeProvider;
+
+        /// <summary>
+        /// Reports timed-cause rejections and observer failures.
+        /// </summary>
         private readonly ILogger m_logger;
 
         private readonly Dictionary<uint, List<Action<ISystemContext, TState>>> m_onEnter
@@ -521,9 +551,17 @@ namespace Opc.Ua.Server.Fluent
             = [];
 
         private readonly List<TimedTransition> m_timedTransitions = [];
+
+        /// <summary>
+        /// Identifies the state entry for which the current timer was armed.
+        /// </summary>
         private long m_currentStateRevision;
         private uint m_currentStateForTimer;
         private long m_currentStateEnteredAt;
+
+        /// <summary>
+        /// Suppresses repeated reports of the same timed-cause rejection within one state revision.
+        /// </summary>
         private (uint StateId, long Revision, StatusCode Status)? m_lastTimedRejection;
         private bool m_simulationRegistered;
 
@@ -545,12 +583,21 @@ namespace Opc.Ua.Server.Fluent
         }
     }
 
+    /// <summary>
+    /// Records fluent state-machine timing and lifecycle observer failures.
+    /// </summary>
     internal static partial class StateMachineBuilderLog
     {
+        /// <summary>
+        /// Reports a timed cause rejected while its source state remains current.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.FluentStateMachineBuilder, Level = LogLevel.Warning,
             Message = "Timed cause from state {StateId} was rejected: {Result}.")]
         public static partial void FluentTimedTransitionRejected(this ILogger logger, uint stateId, ServiceResult result);
 
+        /// <summary>
+        /// Reports a state-entry or state-exit observer exception.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.FluentStateMachineBuilder + 1, Level = LogLevel.Error,
             Message = "State-machine lifecycle observer failed.")]
         public static partial void FluentStateObserverFailed(this ILogger logger, Exception exception);

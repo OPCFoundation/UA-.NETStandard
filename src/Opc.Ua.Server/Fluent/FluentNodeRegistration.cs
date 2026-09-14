@@ -33,6 +33,9 @@ namespace Opc.Ua.Server.Fluent
 {
     internal static class FluentNodeRegistration
     {
+        /// <summary>
+        /// Resolves an unsealed owning builder for registering handlers on an existing node.
+        /// </summary>
         internal static NodeBuilder GetHandlerBuilder(INodeManagerBuilder builder, NodeState node)
         {
             NodeManagerBuilder owner = builder as NodeManagerBuilder ??
@@ -43,6 +46,9 @@ namespace Opc.Ua.Server.Fluent
             return new NodeBuilder(owner, node);
         }
 
+        /// <summary>
+        /// Rejects further graph authoring when the resolved fluent owner has already been sealed.
+        /// </summary>
         internal static void EnsureGraphAuthoringOpen(INodeManagerBuilder builder)
         {
             NodeManagerBuilder? owner = builder as NodeManagerBuilder ??

@@ -35,11 +35,17 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies that accepted user mutations persist and rejected mutations leave stored credentials unchanged.
+    /// </summary>
     [TestFixture]
     [Category("Server")]
     [Parallelizable(ParallelScope.All)]
     public sealed class UserDatabasePersistenceRegressionTests
     {
+        /// <summary>
+        /// Verifies that deleting a user or changing a password remains effective after reloading the database.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void SuccessfulUserMutationSurvivesDatabaseReload(bool delete)
@@ -72,6 +78,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that rejected deletion and password changes preserve both file bytes and reloadable credentials.
+        /// </summary>
         [Test]
         public void RejectedUserMutationsPreservePersistedCredentials()
         {

@@ -40,12 +40,18 @@ using Opc.Ua.Server.Historian.InMemory;
 
 namespace Opc.Ua.History.Tests
 {
+    /// <summary>
+    /// Verifies live historian configuration, event-page boundaries, aggregate quality, and output limits.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Category("Integration")]
     [NonParallelizable]
     public sealed class HistorianBugRegressionTests : TestFixture
     {
+        /// <summary>
+        /// Registers the regression nodes and resolves their namespace through the live client session.
+        /// </summary>
         [OneTimeSetUp]
         public async Task RegisterHistoryNodesAsync()
         {
@@ -58,6 +64,9 @@ namespace Opc.Ua.History.Tests
             m_namespaceIndex = (ushort)namespaceIndex;
         }
 
+        /// <summary>
+        /// Verifies processed reads use each node's stepped or sloped interpolation in both time directions.
+        /// </summary>
         [TestCase("Stepped", false, 0.0)]
         [TestCase("Sloped", false, 5.0)]
         [TestCase("Stepped", true, 0.0)]
@@ -107,6 +116,9 @@ namespace Opc.Ua.History.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies advertised aggregate defaults are applied and per-request overrides do not mutate them.
+        /// </summary>
         [TestCase("UncertainIsGood", false, 100.0)]
         [TestCase("UncertainIsBad", true, 0.0)]
         public async Task ProcessedReadUsesAdvertisedNodeAggregateDefaultsAsync(
@@ -183,6 +195,9 @@ namespace Opc.Ua.History.Tests
                 Is.EqualTo(treatUncertainAsBad));
         }
 
+        /// <summary>
+        /// Verifies event paging includes the request start and excludes its end, preserving duplicate-time order.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task EventHistoryIncludesRequestStartAndExcludesRequestEndAcrossPagesAsync(bool reverse)
@@ -224,6 +239,9 @@ namespace Opc.Ua.History.Tests
             Assert.That(identifiers, Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Creates event history fields containing a unique event identifier, event type, and timestamp.
+        /// </summary>
         private static HistoryEventFieldList CreateEvent(byte identifier, DateTime timestamp)
         {
             return new HistoryEventFieldList
@@ -237,6 +255,9 @@ namespace Opc.Ua.History.Tests
             };
         }
 
+        /// <summary>
+        /// Verifies the exact processed-output cap and stops raw paging before exposing an oversized result.
+        /// </summary>
         [TestCase(99_999, true)]
         [TestCase(100_000, true)]
         [TestCase(100_001, false)]
@@ -289,6 +310,9 @@ namespace Opc.Ua.History.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies extrema retain good source values while uncertain candidates affect the aggregate quality.
+        /// </summary>
         [TestCase(Objects.AggregateFunction_Minimum, 5.0)]
         [TestCase(Objects.AggregateFunction_Maximum, 10.0)]
         [TestCase(Objects.AggregateFunction_Range, 5.0)]
@@ -343,21 +367,39 @@ namespace Opc.Ua.History.Tests
             });
         }
 
+        /// <summary>
+        /// Identifies the address space containing the live historian regression nodes.
+        /// </summary>
         private const string kNamespaceUri =
             "urn:opcfoundation:history-tests:server-core-regressions";
 
+        /// <summary>
+        /// Resolves regression NodeIds using the server's assigned namespace index.
+        /// </summary>
         private ushort m_namespaceIndex;
+
+        /// <summary>
+        /// Supplies controlled raw pages for exact aggregate-output-limit assertions.
+        /// </summary>
         private readonly StreamingPageProvider m_streamingProvider = new();
 
+        /// <summary>
+        /// Creates the regression address space with the shared raw-page provider.
+        /// </summary>
         private sealed class HistoryRegressionNodeManagerFactory : IAsyncNodeManagerFactory
         {
+            /// <summary>
+            /// Captures the provider whose read count is observed by output-limit tests.
+            /// </summary>
             public HistoryRegressionNodeManagerFactory(StreamingPageProvider streamingProvider)
             {
                 m_streamingProvider = streamingProvider;
             }
 
+            /// <inheritdoc/>
             public ArrayOf<string> NamespacesUris => [kNamespaceUri];
 
+            /// <inheritdoc/>
             public ValueTask<IAsyncNodeManager> CreateAsync(
                 IServerInternal server,
                 ApplicationConfiguration configuration,
@@ -367,11 +409,20 @@ namespace Opc.Ua.History.Tests
                     new HistoryRegressionNodeManager(server, configuration, m_streamingProvider));
             }
 
+            /// <summary>
+            /// Retains the controlled provider passed into the created node manager.
+            /// </summary>
             private readonly StreamingPageProvider m_streamingProvider;
         }
 
+        /// <summary>
+        /// Hosts history-enabled variables and event notifiers with distinct aggregate capabilities.
+        /// </summary>
         private sealed class HistoryRegressionNodeManager : AsyncCustomNodeManager
         {
+            /// <summary>
+            /// Creates the history regression manager with its controlled output-limit provider.
+            /// </summary>
             public HistoryRegressionNodeManager(
                 IServerInternal server,
                 ApplicationConfiguration configuration,
@@ -381,6 +432,9 @@ namespace Opc.Ua.History.Tests
                 m_streamingProvider = streamingProvider;
             }
 
+            /// <summary>
+            /// Registers interpolation, quality, event-paging, extrema, and output-limit nodes.
+            /// </summary>
             public override async ValueTask CreateAddressSpaceAsync(
                 IDictionary<NodeId, IList<IReference>> externalReferences,
                 CancellationToken cancellationToken = default)
@@ -421,6 +475,9 @@ namespace Opc.Ua.History.Tests
                     cancellationToken).ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Uses the controlled paging provider only for the output-limit node.
+            /// </summary>
             protected override IHistorianProvider? GetHistorianProvider(NodeState node)
             {
                 return node.NodeId == new NodeId("OutputLimit", NamespaceIndex)
@@ -428,6 +485,9 @@ namespace Opc.Ua.History.Tests
                     : m_provider;
             }
 
+            /// <summary>
+            /// Releases the owned in-memory history provider before base node-manager cleanup.
+            /// </summary>
             protected override void Dispose(bool disposing)
             {
                 if (disposing)
@@ -437,6 +497,9 @@ namespace Opc.Ua.History.Tests
                 base.Dispose(disposing);
             }
 
+            /// <summary>
+            /// Registers a historized Double variable and installs the advertised configuration for its capabilities.
+            /// </summary>
             private async ValueTask AddVariableAsync(
                 string identifier,
                 HistorianNodeCapabilities capabilities,
@@ -468,6 +531,9 @@ namespace Opc.Ua.History.Tests
                     SystemContext, variable, cancellationToken).ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Registers an event notifier supporting historical reads and writes of base events.
+            /// </summary>
             private async ValueTask AddNotifierAsync(string identifier, CancellationToken cancellationToken)
             {
                 var notifier = new BaseObjectState(null);
@@ -487,16 +553,35 @@ namespace Opc.Ua.History.Tests
                     SystemContext, notifier, cancellationToken).ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Stores data and events for the ordinary regression nodes.
+            /// </summary>
             private readonly InMemoryHistorianProvider m_provider = new();
+
+            /// <summary>
+            /// Supplies the specially spaced raw values for output-limit testing.
+            /// </summary>
             private readonly StreamingPageProvider m_streamingProvider;
         }
 
+        /// <summary>
+        /// Returns widely spaced raw points and an explicit final page to expose aggregate output-cap boundaries.
+        /// </summary>
         private sealed class StreamingPageProvider : HistorianProviderBase, IHistorianDataProvider
         {
+            /// <summary>
+            /// Gets the fixed UTC start of the controlled raw-history range.
+            /// </summary>
             public static DateTime Start { get; } = new(2025, 1, 4, 0, 0, 0, DateTimeKind.Utc);
 
+            /// <summary>
+            /// Gets the number of raw pages requested by the dispatcher.
+            /// </summary>
             public int ReadCount { get; private set; }
 
+            /// <summary>
+            /// Returns two bounding points on the first page and an empty terminal page on continuation.
+            /// </summary>
             public ValueTask<HistorianPage<HistoricalDataValue>> ReadRawAsync(
                 HistorianOperationContext context,
                 HistorianRawReadRequest request,
@@ -520,6 +605,9 @@ namespace Opc.Ua.History.Tests
                         new HistorianResumeToken(ByteString.From([1]))));
             }
 
+            /// <summary>
+            /// Rejects insertion because the controlled raw points are immutable.
+            /// </summary>
             public ValueTask<HistorianUpdateOutcome<DataValue>> InsertAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,
@@ -529,6 +617,9 @@ namespace Opc.Ua.History.Tests
                 throw new NotSupportedException();
             }
 
+            /// <summary>
+            /// Rejects replacement of the controlled raw points.
+            /// </summary>
             public ValueTask<HistorianUpdateOutcome<DataValue>> ReplaceAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,
@@ -538,6 +629,9 @@ namespace Opc.Ua.History.Tests
                 throw new NotSupportedException();
             }
 
+            /// <summary>
+            /// Rejects updates to the fixed output-limit scenario.
+            /// </summary>
             public ValueTask<HistorianUpdateOutcome<DataValue>> UpdateAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,
@@ -547,6 +641,9 @@ namespace Opc.Ua.History.Tests
                 throw new NotSupportedException();
             }
 
+            /// <summary>
+            /// Rejects deletion of the controlled raw-history range.
+            /// </summary>
             public ValueTask<HistorianUpdateOutcome<DataValue>> DeleteRawAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,
@@ -558,6 +655,9 @@ namespace Opc.Ua.History.Tests
                 throw new NotSupportedException();
             }
 
+            /// <summary>
+            /// Rejects timestamp-based deletion from the fixed raw-history scenario.
+            /// </summary>
             public ValueTask<HistorianUpdateOutcome<DataValue>> DeleteAtTimeAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,

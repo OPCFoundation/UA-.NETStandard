@@ -93,7 +93,14 @@ namespace Quickstarts.Servers
         /// </summary>
         public CancellationTokenSource? CancelBatchPersist { get; set; }
 
+        /// <summary>
+        /// Records whether the batch data has been written to disk and released from memory.
+        /// </summary>
         private bool m_isPersisted;
+
+        /// <summary>
+        /// Records whether a background persistence operation currently owns the batch.
+        /// </summary>
         private bool m_persistingInProgress;
     }
 }

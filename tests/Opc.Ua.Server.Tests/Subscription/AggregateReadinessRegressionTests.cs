@@ -37,10 +37,16 @@ using Opc.Ua.Server.Tests.NodeManager;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies that aggregate interval completion respects monitored-item reporting and trigger state.
+    /// </summary>
     [TestFixture]
     [Category("MonitoredItem")]
     public sealed class AggregateReadinessRegressionTests
     {
+        /// <summary>
+        /// Verifies that elapsed aggregate intervals publish only when monitoring mode and trigger state permit it.
+        /// </summary>
         [TestCase(MonitoringMode.Disabled, false, false, false)]
         [TestCase(MonitoringMode.Disabled, true, false, false)]
         [TestCase(MonitoringMode.Disabled, true, true, false)]
@@ -147,6 +153,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies the quality and numeric payload of a published aggregate value.
+        /// </summary>
         private static void AssertValue(in DataValue value, double expected)
         {
             Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));

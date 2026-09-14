@@ -290,6 +290,9 @@ namespace Opc.Ua.Server.AliasNames
             m_semaphore.Dispose();
         }
 
+        /// <summary>
+        /// Rejects malformed nonempty wildcard patterns before dispatching an alias search.
+        /// </summary>
         private static void ValidateSearchPattern(string? pattern)
         {
             if (!string.IsNullOrEmpty(pattern))

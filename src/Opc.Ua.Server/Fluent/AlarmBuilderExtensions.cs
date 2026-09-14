@@ -297,6 +297,10 @@ namespace Opc.Ua.Server.Fluent
             return builder.Builder;
         }
 
+        /// <summary>
+        /// Creates and registers an alarm beneath an object, assigning child identifiers and event-source ownership.
+        /// </summary>
+        /// <typeparam name="TState">The concrete alarm state created by the factory.</typeparam>
         private static TState AttachAlarm<TState>(
             INodeBuilder parent,
             QualifiedName browseName,
@@ -446,6 +450,7 @@ namespace Opc.Ua.Server.Fluent
         public TState Alarm { get; }
         public INodeBuilder Builder { get; }
 
+        /// <inheritdoc/>
         public IAlarmBuilder<TState> WithLimits(
             double highHigh = double.NaN,
             double high = double.NaN,

@@ -35,8 +35,14 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
+    /// <summary>
+    /// Reads HTTP response bodies while enforcing the transport's configured message-size limit.
+    /// </summary>
     internal static class HttpResponseBodyReader
     {
+        /// <summary>
+        /// Checks both the declared and actual response size and reports oversized bodies as BadResponseTooLarge.
+        /// </summary>
         public static async ValueTask<byte[]> ReadAsync(
             HttpContent content,
             int maxMessageSize,

@@ -107,6 +107,10 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
             }
         }
 
+        /// <summary>
+        /// Verifies certificate rotation during a live server restart recovers shared sessions with balanced
+        /// transports.
+        /// </summary>
         [Test]
         [Order(200)]
         [CancelAfter(180_000)]
@@ -211,6 +215,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
                 .CreateForRSA();
         }
 
+        /// <summary>
+        /// Publishes the replacement application certificate through the configured certificate manager.
+        /// </summary>
         private async Task RotateApplicationCertificateAsync(
             Certificate newCertificate,
             CancellationToken ct)
@@ -375,6 +382,10 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
                 .Sum(measurement => measurement.Value);
         }
 
+        /// <summary>
+        /// Requires balanced physical opens and closes, one logical entry lifetime, and exactly-once transport
+        /// disposal.
+        /// </summary>
         private static void AssertTransportLifetimes(
             TrackingTcpChannelBindings bindings,
             MetricsCollector metrics,
@@ -421,6 +432,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
             });
         }
 
+        /// <summary>
+        /// Formats transport counters, metric totals, and captured events for ownership-failure diagnostics.
+        /// </summary>
         private static string DescribeChannelLifetimes(
             TrackingTcpChannelBindings bindings,
             MetricsCollector metrics)
@@ -440,8 +454,16 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
         }
 
         private const int SessionCount = 3;
+
+        /// <summary>
+        /// Identifies the metric counting successful physical channel opens.
+        /// </summary>
         private const string ChannelOpenMetric = "opc.ua.channel.open";
         private const string ChannelCloseMetric = "opc.ua.channel.close";
+
+        /// <summary>
+        /// Identifies the metric tracking the logical managed-channel entry lifetime.
+        /// </summary>
         private const string ChannelActiveMetric = "opc.ua.channel.active";
         private const string ReconnectAttemptsMetric = "opc.ua.channel.reconnect.attempts";
 

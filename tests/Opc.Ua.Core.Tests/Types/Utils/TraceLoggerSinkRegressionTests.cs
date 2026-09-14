@@ -35,11 +35,17 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
+    /// <summary>
+    /// Verifies generated log delivery and formatting respect independently configured trace sinks and masks.
+    /// </summary>
     [TestFixture]
     [Category("Utils")]
     [NonParallelizable]
     public sealed partial class TraceLoggerSinkRegressionTests
     {
+        /// <summary>
+        /// Verifies generated messages reach each enabled file or event sink without bypassing its configured mask.
+        /// </summary>
         [TestCase(true, false, true)]
         [TestCase(true, false, false)]
         [TestCase(false, true, false)]
@@ -95,6 +101,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             }
         }
 
+        /// <summary>
+        /// Verifies disabled messages are rejected before invoking their formatter.
+        /// </summary>
         [Test]
         public void DisabledMaskDoesNotFormatRejectedMessages()
         {
@@ -110,6 +119,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.That(formatted, Is.Zero);
         }
 
+        /// <summary>
+        /// Emits the generated information message used to verify both trace sinks.
+        /// </summary>
         [LoggerMessage(EventId = 0, Level = LogLevel.Information, Message = "trace regression {Value}")]
         private static partial void LogRegression(ILogger logger, int value);
     }

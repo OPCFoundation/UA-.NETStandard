@@ -39,10 +39,16 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Client
 {
+    /// <summary>
+    /// Verifies transport-profile identity in managed channel sharing and discovery endpoint translation.
+    /// </summary>
     [TestFixture]
     [Category("Client")]
     public sealed class TransportProfileIdentityRegressionTests
     {
+        /// <summary>
+        /// Verifies distinct HTTPS codecs use separate managed channels while identical profiles share one.
+        /// </summary>
         [Test]
         public async Task DifferentHttpsCodecsNeverShareAManagedTransportAsync()
         {
@@ -86,6 +92,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// Verifies omitted profiles and the compatibility constructor resolve to the default binary channel identity.
+        /// </summary>
         [Test]
         public void MissingProfileAndLegacyConstructorKeepDefaultBinaryIdentity()
         {
@@ -102,6 +111,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(legacy, Is.EqualTo(explicitKey));
         }
 
+        /// <summary>
+        /// Verifies an omitted profile respects the endpoint's configured JSON encoding.
+        /// </summary>
         [Test]
         public void MissingProfileUsesTheConfiguredJsonEncoding()
         {
@@ -112,6 +124,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Is.EqualTo(ManagedChannelKey.FromEndpoint(explicitProfile)));
         }
 
+        /// <summary>
+        /// Verifies endpoint translation infers the TCP transport profile from the URL scheme.
+        /// </summary>
         [Test]
         public void OmittedBaseProfileUsesTheEndpointSchemesDefault()
         {
@@ -122,6 +137,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(result[0].TransportProfileUri, Is.EqualTo(Profiles.UaTcpTransport));
         }
 
+        /// <summary>
+        /// Verifies exact profile filtering and alternate-address rewriting preserve all distinct supported codecs.
+        /// </summary>
         [Test]
         public void DiscoveryTranslationPreservesProfilesAndHonorsExactProfileFilters(
             [Values("all", "binary", "json", "openapi", "pair", "unknown")] string selection,
@@ -145,6 +163,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(result.ToArray().Select(endpoint => endpoint.EndpointUrl), Is.All.EqualTo(expectedUrl));
         }
 
+        /// <summary>
+        /// Creates a reconnect participant whose endpoint selects the requested transport profile.
+        /// </summary>
         private static IReconnectParticipant NewParticipant(string profile)
         {
             var participant = new Mock<IReconnectParticipant>();
@@ -156,6 +177,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             return participant.Object;
         }
 
+        /// <summary>
+        /// Creates an HTTPS endpoint with an explicit or omitted profile and a fixed operation timeout.
+        /// </summary>
         private static ConfiguredEndpoint Endpoint(string profile)
         {
             return new ConfiguredEndpoint(null, new EndpointDescription
@@ -170,8 +194,14 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             };
         }
 
+        /// <summary>
+        /// Exposes discovery translation with controlled base and alternate addresses.
+        /// </summary>
         private sealed class TranslationServer : ServerBase
         {
+            /// <summary>
+            /// Configures local and public HTTPS addresses for profile-preserving translation.
+            /// </summary>
             public TranslationServer()
                 : base(NUnitTelemetryContext.Create())
             {
@@ -185,6 +215,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 });
             }
 
+            /// <summary>
+            /// Translates duplicate codec descriptions through profile filtering and the selected base address.
+            /// </summary>
             public ArrayOf<EndpointDescription> Translate(ArrayOf<string> profiles, bool alternate)
             {
                 var descriptions = new List<EndpointDescription>();
@@ -202,6 +235,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     new ApplicationDescription());
             }
 
+            /// <summary>
+            /// Translates a TCP endpoint whose transport profile was not specified.
+            /// </summary>
             public ArrayOf<EndpointDescription> TranslateImplicitTcp()
             {
                 var url = new Uri("opc.tcp://localhost:4840");
@@ -217,6 +253,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// Lists the binary, JSON, and OpenAPI profiles that must remain distinct.
+        /// </summary>
         private static readonly string[] s_profiles =
             [Profiles.HttpsBinaryTransport, Profiles.HttpsJsonTransport, Profiles.HttpsOpenApiTransport];
     }

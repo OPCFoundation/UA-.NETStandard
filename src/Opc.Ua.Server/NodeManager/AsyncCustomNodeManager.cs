@@ -196,8 +196,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Frees any unmanaged resources.
+        /// Stops admission and starts releasing the node manager's owned resources.
         /// </summary>
+        /// <remarks>
+        /// This compatibility entry point does not synchronously wait for admitted operations or
+        /// asynchronous cleanup. Call <see cref="DisposeAsync()"/> to await the shared completion and
+        /// observe cleanup failures. Blocking here could prevent an admitted callback from returning
+        /// and therefore prevent the drain that disposal is waiting for.
+        /// </remarks>
         public void Dispose()
         {
             Dispose(true);
@@ -205,7 +211,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// An overrideable version of the Dispose.
+        /// Closes operation admission and initiates cleanup when disposing managed resources.
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
@@ -225,12 +231,18 @@ namespace Opc.Ua.Server
                     m_operationsDrained.TrySetResult(true);
                 }
             }
+            // Cleanup starts inline until its first incomplete await, then publishes the shared
+            // success or failure that DisposeAsync awaits; no separate Task.Run is queued here.
             _ = DisposeOwnedResourcesAsync();
         }
 
         /// <summary>
         /// Stops admission and waits for active operations before releasing owned resources.
         /// </summary>
+        /// <remarks>
+        /// Concurrent callers join the same completion, including <see cref="DisposeAsyncCore()"/>
+        /// and every owned-resource cleanup attempt, even if <see cref="Dispose()"/> started it earlier.
+        /// </remarks>
         public virtual async ValueTask DisposeAsync()
         {
             Dispose();
@@ -246,6 +258,9 @@ namespace Opc.Ua.Server
             return default;
         }
 
+        /// <summary>
+        /// Admits an operation until it exits, allowing guarded access during the active teardown callback.
+        /// </summary>
         private protected NodeManagerOperation BeginNodeManagerOperation()
         {
             lock (m_operationLifetimeLock)
@@ -259,6 +274,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Rejects access after admission closes unless it belongs to the active teardown callback.
+        /// </summary>
         private protected void ThrowIfNodeManagerStopping()
         {
             lock (m_operationLifetimeLock)
@@ -270,6 +288,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Acquires a semaphore asynchronously and releases it if shutdown has already closed admission.
+        /// </summary>
         private async ValueTask<SemaphoreLease> AcquireSemaphoreAsync(
             SemaphoreSlim semaphore,
             CancellationToken ct)
@@ -287,6 +308,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Acquires a semaphore for a synchronous operation and verifies that access is still admitted.
+        /// </summary>
         private SemaphoreLease AcquireSemaphore(SemaphoreSlim semaphore)
         {
             semaphore.Wait();
@@ -302,6 +326,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Releases an admitted operation and signals shutdown when the final operation exits.
+        /// </summary>
         private void CompleteNodeManagerOperation()
         {
             lock (m_operationLifetimeLock)
@@ -314,6 +341,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Drains operations, runs subclass and owned-resource cleanup, and publishes the shared disposal result.
+        /// </summary>
         private async Task DisposeOwnedResourcesAsync()
         {
             try
@@ -364,6 +394,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Waits for a resource's semaphore owner, records cleanup failures, and disposes the semaphore.
+        /// </summary>
         private async ValueTask DisposeOwnedResourceAsync(
             SemaphoreSlim semaphore,
             Action cleanup,
@@ -386,33 +419,57 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Retains operation admission through semaphore scopes and any deferred callbacks.
+        /// </summary>
         private protected readonly struct NodeManagerOperation : IDisposable
         {
+            /// <summary>
+            /// Captures the node manager whose admitted operation this scope completes.
+            /// </summary>
             public NodeManagerOperation(AsyncCustomNodeManager owner)
             {
                 m_owner = owner;
             }
 
+            /// <summary>
+            /// Completes the admitted operation and allows a pending disposal drain to progress.
+            /// </summary>
             public void Dispose()
             {
                 m_owner.CompleteNodeManagerOperation();
             }
 
+            /// <summary>
+            /// Owns the admission count retained by this operation scope.
+            /// </summary>
             private readonly AsyncCustomNodeManager m_owner;
         }
 
+        /// <summary>
+        /// Releases an acquired semaphore without ending the surrounding operation's lifetime.
+        /// </summary>
         private readonly struct SemaphoreLease : IDisposable
         {
+            /// <summary>
+            /// Captures an already-acquired semaphore for release when the scope exits.
+            /// </summary>
             public SemaphoreLease(SemaphoreSlim semaphore)
             {
                 m_semaphore = semaphore;
             }
 
+            /// <summary>
+            /// Releases the semaphore retained by this scope.
+            /// </summary>
             public void Dispose()
             {
                 m_semaphore.Release();
             }
 
+            /// <summary>
+            /// Holds the semaphore acquisition released by this scope.
+            /// </summary>
             private readonly SemaphoreSlim m_semaphore;
         }
 
@@ -770,6 +827,9 @@ namespace Opc.Ua.Server
             return default;
         }
 
+        /// <summary>
+        /// Validates whether a sampled item can be rebound to this node manager's current address space.
+        /// </summary>
         private async ValueTask<ServiceResult> ValidateMonitoredItemForLifecycleAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)
@@ -929,6 +989,9 @@ namespace Opc.Ua.Server
             return result;
         }
 
+        /// <summary>
+        /// Resolves the current node and attaches an existing sampled item to its monitoring manager.
+        /// </summary>
         private async ValueTask<ServiceResult> AttachMonitoredItemForLifecycleAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)
@@ -1857,6 +1920,9 @@ namespace Opc.Ua.Server
             return AddNodeCoreAsync(context, item, cancellationToken);
         }
 
+        /// <summary>
+        /// Validates an AddNodes request and creates its node using the reserved identifier.
+        /// </summary>
         private async ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeCoreAsync(
             OperationContext context,
             AddNodesItem item,
@@ -2128,6 +2194,9 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Detaches items monitoring a deleted subtree and restores prior detachments if any item fails.
+        /// </summary>
         private async ValueTask<IReadOnlyList<IMonitoredItem>>
             DetachMonitoredItemsForNodeDeletionAsync(
                 ISystemContext context,
@@ -9440,14 +9509,27 @@ namespace Opc.Ua.Server
         /// </summary>
         private class BrowserContext : IDisposable
         {
+            /// <summary>
+            /// Gets the browser retained by the continuation point.
+            /// </summary>
             public INodeBrowser Browser { get; }
+
+            /// <summary>
+            /// Gets the semaphore that serializes access to this browser's continuation state.
+            /// </summary>
             public SemaphoreSlim Semaphore { get; } = new(1, 1);
 
+            /// <summary>
+            /// Takes ownership of a browser and its continuation-state synchronization lifetime.
+            /// </summary>
             public BrowserContext(INodeBrowser browser)
             {
                 Browser = browser;
             }
 
+            /// <summary>
+            /// Releases the retained browser and its continuation-state semaphore.
+            /// </summary>
             public void Dispose()
             {
                 Browser.Dispose();
@@ -9468,13 +9550,37 @@ namespace Opc.Ua.Server
 #endif
         private List<LocalReference> m_removedExternalReferences = [];
         private bool m_disposed;
+
+        /// <summary>
+        /// Protects operation admission, the active-operation count, and teardown-context activation.
+        /// </summary>
         private readonly Lock m_operationLifetimeLock = new();
+
+        /// <summary>
+        /// Completes once admission is closed and every admitted operation has exited.
+        /// </summary>
         private readonly TaskCompletionSource<bool> m_operationsDrained =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>
+        /// Publishes the shared cleanup result awaited by every asynchronous disposal caller.
+        /// </summary>
         private readonly TaskCompletionSource<bool> m_disposalCompleted =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>
+        /// Identifies execution flowing through the subclass's asynchronous teardown callback.
+        /// </summary>
         private readonly AsyncLocal<bool> m_disposeAsyncCoreContext = new();
+
+        /// <summary>
+        /// Limits teardown access to the callback's lifetime, rejecting captured contexts afterward.
+        /// </summary>
         private bool m_disposeAsyncCoreActive;
+
+        /// <summary>
+        /// Counts admitted operations until their semaphore work and deferred callbacks finish.
+        /// </summary>
         private int m_operationCount;
         /// <summary>
         /// the sync NodeManager adapter
@@ -9492,9 +9598,8 @@ namespace Opc.Ua.Server
         protected SemaphoreSlim m_monitoredItemSemaphore = new(1, 1);
 
         /// <summary>
-        /// Set of <see cref="NodeId"/>s that opt into multiple event consumer
-        /// task handling. Nodes in this set will use dynamic scaling of
-        /// consumer tasks based on the number of event monitored items.
+        /// Set of <see cref="NodeId"/>s that opt into concurrent delivery to independent event
+        /// monitored items. A single channel reader still preserves notification order.
         /// </summary>
         internal NodeIdDictionary<bool> MultiConsumerNodeIds { get; } = [];
         /// <summary>
@@ -9503,14 +9608,24 @@ namespace Opc.Ua.Server
         private IRebasableNodeIdFactory m_nodeIdFactory;
         private PredefinedNodesAddressSpace? m_localAddressSpace;
         private readonly AsyncLocal<int> m_registrationDepth = new();
+
+        /// <summary>
+        /// Carries the NodeId reserved for the current asynchronous AddNodes operation.
+        /// </summary>
         private readonly AsyncLocal<NodeId> m_addNodesNodeId = new();
 
         private const byte kHistoryAccessMask = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
         private const int kMaxInitialHistoryPages = 100_000;
     }
 
+    /// <summary>
+    /// Source-generated diagnostics for deferred node-manager resource cleanup.
+    /// </summary>
     internal static partial class AsyncCustomNodeManagerLog
     {
+        /// <summary>
+        /// Reports a cleanup failure that is retained in the shared asynchronous disposal result.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.NodeManagerDisposal, Level = LogLevel.Error,
             Message = "Deferred node-manager resource cleanup failed.")]
         public static partial void NodeManagerDeferredCleanupFailed(this ILogger logger, Exception exception);

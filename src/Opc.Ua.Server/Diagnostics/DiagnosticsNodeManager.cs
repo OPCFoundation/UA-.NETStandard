@@ -144,6 +144,9 @@ namespace Opc.Ua.Server
             base.Dispose(disposing);
         }
 
+        /// <summary>
+        /// Tracks a diagnostics operation and acquires address-space access unless the node manager is stopping.
+        /// </summary>
         private async ValueTask<NodeManagerOperation> EnterDiagnosticsOperationAsync(CancellationToken ct)
         {
             NodeManagerOperation operation = BeginNodeManagerOperation();
@@ -2240,6 +2243,9 @@ namespace Opc.Ua.Server
             return default;
         }
 
+        /// <summary>
+        /// Updates the active diagnostics-monitor count and reports whether periodic scanning remains enabled.
+        /// </summary>
         private bool UpdateDiagnosticsMonitoring(MonitoringMode previousMode, MonitoringMode monitoringMode)
         {
             lock (m_diagnosticsLock)
@@ -2261,6 +2267,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Runs the scan timer only while diagnostics are enabled, monitored and not disposed.
+        /// </summary>
         private void UpdateDiagnosticsScanTimer()
         {
             if (!m_diagnosticsDisposed && DiagnosticsEnabled && m_diagnosticsMonitoringCount > 0)
@@ -2406,15 +2415,27 @@ namespace Opc.Ua.Server
 
         private readonly SemaphoreSlim m_modifyAddressSpaceSemaphoreSlim = new(1, 1);
         private readonly Lock m_diagnosticsLock = new();
+
+        /// <summary>
+        /// Protects membership snapshots of session and subscription diagnostics.
+        /// </summary>
         private readonly Lock m_diagnosticsCollectionLock = new();
         private readonly TimeProvider m_timeProvider;
         private readonly ushort m_namespaceIndex;
         private ITimer? m_diagnosticsScanTimer;
         private int m_diagnosticsMonitoringCount;
+
+        /// <summary>
+        /// Prevents diagnostics monitoring from restarting after disposal.
+        /// </summary>
         private bool m_diagnosticsDisposed;
         private bool m_doScanBusy;
         private readonly bool m_durableSubscriptionsEnabled;
         private long m_lastDiagnosticsScanTimestamp;
+
+        /// <summary>
+        /// Requests a fresh diagnostics scan after collection membership changes.
+        /// </summary>
         private volatile bool m_forceDiagnosticsScan = true;
         private ServerDiagnosticsSummaryValue? m_serverDiagnostics;
         private NodeValueSimpleEventHandler? m_serverDiagnosticsCallback;

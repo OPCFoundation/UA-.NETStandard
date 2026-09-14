@@ -85,6 +85,11 @@ namespace Opc.Ua.Server
         /// source so the genuine incorporation of the nonce into the private
         /// key can be verified reproducibly.
         /// </summary>
+        /// <param name="certificateFactory">Assembles certificates around the generated keys.</param>
+        /// <param name="serverEntropySource">Supplies the server contribution to key-generation entropy.</param>
+        /// <param name="importEcdsaKey">
+        /// Imports the derived EC scalar, or uses the platform importer when omitted.
+        /// </param>
         internal AdditionalEntropyCertificateKeyGenerator(
             ICertificateFactory certificateFactory,
             Func<int, byte[]> serverEntropySource,
@@ -299,6 +304,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Imports an entropy-derived EC private scalar on supported platforms and clears the scalar afterward.
+        /// </summary>
         private ECDsa CreateEcdsaKey(
             ECCurve curve,
             HmacDrbg drbg,
@@ -641,6 +649,10 @@ namespace Opc.Ua.Server
 
         private readonly ICertificateFactory m_certificateFactory;
         private readonly Func<int, byte[]> m_serverEntropySource;
+
+        /// <summary>
+        /// Imports the derived EC parameters into a platform key handle.
+        /// </summary>
         private readonly Func<ECParameters, ECDsa> m_importEcdsaKey;
 
         /// <summary>

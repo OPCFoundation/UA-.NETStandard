@@ -92,6 +92,9 @@ namespace Opc.Ua.Server.AliasNames
             return string.IsNullOrEmpty(pattern) || TryCreateRegex(pattern!, out _);
         }
 
+        /// <summary>
+        /// Converts a valid OPC UA Like pattern into an anchored expression with a finite match timeout.
+        /// </summary>
         internal static Regex CreateRegex(string pattern)
         {
             StringBuilder sb = new StringBuilder(pattern.Length + 8)
@@ -190,6 +193,9 @@ namespace Opc.Ua.Server.AliasNames
             }
         }
 
+        /// <summary>
+        /// Tests an alias name and reports expression timeouts as BadTimeout service errors.
+        /// </summary>
         internal static bool Matches(string target, Regex pattern)
         {
             try
@@ -203,6 +209,9 @@ namespace Opc.Ua.Server.AliasNames
             }
         }
 
+        /// <summary>
+        /// Attempts to compile a wildcard pattern, returning false for invalid search syntax.
+        /// </summary>
         private static bool TryCreateRegex(string pattern, [NotNullWhen(true)] out Regex? regex)
         {
             try
@@ -217,6 +226,9 @@ namespace Opc.Ua.Server.AliasNames
             }
         }
 
+        /// <summary>
+        /// Limits the time spent evaluating one alias-name match.
+        /// </summary>
         private static readonly TimeSpan s_matchTimeout = TimeSpan.FromMilliseconds(100);
     }
 }

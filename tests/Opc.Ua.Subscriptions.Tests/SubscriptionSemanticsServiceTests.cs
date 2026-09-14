@@ -37,12 +37,18 @@ using Opc.Ua.Server;
 
 namespace Opc.Ua.Subscriptions.Tests
 {
+    /// <summary>
+    /// Verifies live Publish and Republish behavior respects monitoring mode, session ownership, and diagnostics.
+    /// </summary>
     [TestFixture]
     [Category("Subscription")]
     [Category("Integration")]
     [NonParallelizable]
     public sealed class SubscriptionSemanticsServiceTests : TestFixture
     {
+        /// <summary>
+        /// Verifies completed aggregates are published only by monitored items in Reporting mode.
+        /// </summary>
         [TestCase(MonitoringMode.Disabled)]
         [TestCase(MonitoringMode.Sampling)]
         [TestCase(MonitoringMode.Reporting)]
@@ -136,6 +142,9 @@ namespace Opc.Ua.Subscriptions.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies Publish reports no subscription when the caller owns none, regardless of other sessions.
+        /// </summary>
         [TestCase(false, false)]
         [TestCase(true, false)]
         [TestCase(false, true)]
@@ -175,6 +184,10 @@ namespace Opc.Ua.Subscriptions.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies Republish diagnostics count authorized requests once without counting another session's denied
+        /// request.
+        /// </summary>
         [Test]
         public async Task RepublishCountersCountEachAuthorizedRequestOnceAsync()
         {
@@ -247,6 +260,9 @@ namespace Opc.Ua.Subscriptions.Tests
             }
         }
 
+        /// <summary>
+        /// Requires a Good aggregate value containing the exact expected Double.
+        /// </summary>
         private static void AssertValue(in DataValue value, double expected)
         {
             Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));

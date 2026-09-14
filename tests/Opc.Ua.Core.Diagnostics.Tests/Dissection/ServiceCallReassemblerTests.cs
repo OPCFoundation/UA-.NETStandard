@@ -333,6 +333,9 @@ namespace Opc.Ua.Pcap.Tests.Dissection
             Assert.That(reassembler.DrainCompleted(), Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies request summaries include service-specific counts and use the fallback body size for unknown kinds.
+        /// </summary>
         [Test]
         [SetCulture("en-US")]
         public void PrivateRequestSummaryFormatsKnownRequestKinds()
@@ -399,6 +402,9 @@ namespace Opc.Ua.Pcap.Tests.Dissection
                 Is.EqualTo("handle=0 audit= RegisterNodesRequest body=108B"));
         }
 
+        /// <summary>
+        /// Verifies request summary display values use the current culture's decimal separator.
+        /// </summary>
         [Test]
         [SetCulture("de-DE")]
         public void RequestSummaryFormatsNumericDisplayValuesUsingCurrentCulture()

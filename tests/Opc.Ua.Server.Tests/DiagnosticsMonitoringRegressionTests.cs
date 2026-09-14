@@ -38,10 +38,16 @@ using Opc.Ua.Server.Tests.NodeManager;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies diagnostic monitoring timer ownership and stable array snapshots during concurrent removals.
+    /// </summary>
     [TestFixture]
     [Category("DiagnosticsNodeManager")]
     public sealed class DiagnosticsMonitoringRegressionTests
     {
+        /// <summary>
+        /// Verifies that each standard diagnostic structure enables unconditional reporting and one sampling timer.
+        /// </summary>
         [TestCase(VariableTypes.ServerDiagnosticsSummaryType)]
         [TestCase(VariableTypes.SessionDiagnosticsVariableType)]
         [TestCase(VariableTypes.SessionDiagnosticsArrayType)]
@@ -69,6 +75,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that null, string, and nonstandard-namespace type identifiers never start diagnostic sampling.
+        /// </summary>
         [TestCase(0)]
         [TestCase(1)]
         [TestCase(2)]
@@ -95,6 +104,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that enabled diagnostic items share one timer and release it when monitoring no longer requires it.
+        /// </summary>
         [Test]
         public async Task DiagnosticMonitoringOwnsOneTimerAcrossAllLifecycleTransitionsAsync()
         {
@@ -140,6 +152,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a session removed during a diagnostics read remains in that snapshot but not the next scan.
+        /// </summary>
         [Test]
         public async Task DiagnosticsArrayReadKeepsAConsistentSnapshotDuringSessionRemovalAsync()
         {
@@ -202,6 +217,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that session removal can finish while a diagnostics callback is blocked on an earlier snapshot.
+        /// </summary>
         [Test]
         public async Task SessionRemovalCanCompleteWhileDiagnosticsCallbackIsRunningAsync()
         {
@@ -264,6 +282,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that removing subscription diagnostics during a read changes only subsequent snapshots.
+        /// </summary>
         [Test]
         public async Task SubscriptionDiagnosticsReadKeepsTheSnapshotDuringRemovalAsync()
         {
@@ -314,6 +335,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Creates a variable handle with the type identifier used to classify diagnostic monitoring.
+        /// </summary>
         private static NodeHandle CreateHandle(uint id, NodeId typeId)
         {
             var node = new BaseDataVariableState(null)
@@ -324,6 +348,9 @@ namespace Opc.Ua.Server.Tests
             return new NodeHandle { NodeId = node.NodeId, Node = node };
         }
 
+        /// <summary>
+        /// Creates a reporting monitored item for the supplied variable handle.
+        /// </summary>
         private static MonitoredItem CreateItem(
             IServerInternal server,
             IAsyncNodeManager manager,
@@ -337,8 +364,14 @@ namespace Opc.Ua.Server.Tests
                 id, null, null, null, 1000, 1, true, 0);
         }
 
+        /// <summary>
+        /// Exposes diagnostic lifecycle callbacks and array reads for deterministic monitoring tests.
+        /// </summary>
         private sealed class DiagnosticHooks : DiagnosticsNodeManager
         {
+            /// <summary>
+            /// Creates a diagnostics manager using the supplied timer provider and server context.
+            /// </summary>
             public DiagnosticHooks(IServerInternal server, TimeProvider timeProvider)
                 : base(
                     server,
@@ -349,22 +382,34 @@ namespace Opc.Ua.Server.Tests
                 m_context = server.DefaultSystemContext;
             }
 
+            /// <summary>
+            /// Notifies the diagnostics manager that a monitored item has been created.
+            /// </summary>
             public void Created(NodeHandle handle, MonitoredItem item)
             {
                 OnMonitoredItemCreated(m_context, handle, item);
             }
 
+            /// <summary>
+            /// Changes the item's mode and invokes the corresponding diagnostic-monitoring transition.
+            /// </summary>
             public ValueTask ChangeAsync(NodeHandle handle, MonitoredItem item, MonitoringMode mode)
             {
                 MonitoringMode previous = item.SetMonitoringMode(mode);
                 return OnMonitoringModeChangedAsync(m_context, handle, item, previous, mode);
             }
 
+            /// <summary>
+            /// Notifies the diagnostics manager that a monitored item no longer needs sampling.
+            /// </summary>
             public ValueTask DeletedAsync(NodeHandle handle, MonitoredItem item)
             {
                 return OnMonitoredItemDeletedAsync(m_context, handle, item);
             }
 
+            /// <summary>
+            /// Reads the current session diagnostics array through the manager's diagnostic callback.
+            /// </summary>
             public ArrayOf<SessionDiagnosticsDataType> ReadSessionArray()
             {
                 return ReadArray(
@@ -372,12 +417,18 @@ namespace Opc.Ua.Server.Tests
                     .GetStructureArray<SessionDiagnosticsDataType>();
             }
 
+            /// <summary>
+            /// Reads the current subscription diagnostics array through the manager's diagnostic callback.
+            /// </summary>
             public ArrayOf<SubscriptionDiagnosticsDataType> ReadSubscriptionArray()
             {
                 return ReadArray(VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray)
                     .GetStructureArray<SubscriptionDiagnosticsDataType>();
             }
 
+            /// <summary>
+            /// Reads a diagnostics array through its callback and requires a successful status.
+            /// </summary>
             private Variant ReadArray(NodeId nodeId)
             {
                 Variant value = default;
@@ -387,11 +438,20 @@ namespace Opc.Ua.Server.Tests
                 return value;
             }
 
+            /// <summary>
+            /// Supplies the server context for monitored-item lifecycle callbacks.
+            /// </summary>
             private readonly ServerSystemContext m_context;
         }
 
+        /// <summary>
+        /// Supplies a timer provider that counts creations and tracks timers not yet disposed.
+        /// </summary>
         private sealed class TimerTracker
         {
+            /// <summary>
+            /// Configures mock timers whose disposal decrements the active count at most once.
+            /// </summary>
             public TimerTracker()
             {
                 var provider = new Mock<TimeProvider>();
@@ -415,8 +475,19 @@ namespace Opc.Ua.Server.Tests
                 Provider = provider.Object;
             }
 
+            /// <summary>
+            /// Gets the provider injected into the diagnostics manager to observe timer ownership.
+            /// </summary>
             public TimeProvider Provider { get; }
+
+            /// <summary>
+            /// Gets the total number of timers created by the diagnostics manager.
+            /// </summary>
             public int Created { get; private set; }
+
+            /// <summary>
+            /// Gets the number of created timers that have not been disposed.
+            /// </summary>
             public int Active { get; private set; }
         }
     }

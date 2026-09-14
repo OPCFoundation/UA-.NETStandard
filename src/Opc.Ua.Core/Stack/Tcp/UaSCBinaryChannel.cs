@@ -813,6 +813,9 @@ namespace Opc.Ua.Bindings
             HandleSocketError(result);
         }
 
+        /// <summary>
+        /// Reports a receive failure only if its transport and cancellation lifetime still belong to this channel.
+        /// </summary>
         private protected virtual void OnTransportError(
             IUaSCByteTransport transport,
             ServiceResult result,
@@ -939,11 +942,17 @@ namespace Opc.Ua.Bindings
             return transport;
         }
 
+        /// <summary>
+        /// Detaches the transport and cancels its receive loop without waiting for that loop to finish.
+        /// </summary>
         internal IUaSCByteTransport? DetachTransportForHandoff()
         {
             return DetachTransport(out _);
         }
 
+        /// <summary>
+        /// Removes the transport and its receive-loop registration together, then requests loop cancellation.
+        /// </summary>
         private IUaSCByteTransport? DetachTransport(out ReceiveLoop? loop)
         {
             IUaSCByteTransport? transport;
@@ -957,6 +966,9 @@ namespace Opc.Ua.Bindings
             return transport;
         }
 
+        /// <summary>
+        /// Receives and dispatches chunks while the transport remains current, reporting receive and dispatch failures.
+        /// </summary>
         private async Task RunReceiveLoopAsync(IUaSCByteTransport transport, CancellationToken ct)
         {
             while (!ct.IsCancellationRequested && ReferenceEquals(Transport, transport))
@@ -1656,19 +1668,44 @@ namespace Opc.Ua.Bindings
 
         private IUaSCByteTransport? m_transport;
         private readonly BackgroundTaskScope m_backgroundWork;
+
+        /// <summary>
+        /// Coordinates cancellation and completion of one receive loop without disposing an active cancellation source.
+        /// </summary>
         private sealed class ReceiveLoop : IDisposable
         {
+            /// <summary>
+            /// Associates a transport with a stable cancellation token and completion signal.
+            /// </summary>
             public ReceiveLoop(IUaSCByteTransport transport)
             {
                 Transport = transport;
                 Token = m_cancellation.Token;
             }
 
+            /// <summary>
+            /// Gets the transport exclusively read by this receive-loop instance.
+            /// </summary>
             public IUaSCByteTransport Transport { get; }
+
+            /// <summary>
+            /// Gets the token captured before the loop's cancellation source can be disposed.
+            /// </summary>
             public CancellationToken Token { get; }
+
+            /// <summary>
+            /// Gets the signal that the receive-loop body has finished.
+            /// </summary>
             public Task Completion => m_completion.Task;
+
+            /// <summary>
+            /// Gets whether the receive-loop body has reported completion.
+            /// </summary>
             public bool IsCompleted => m_completion.Task.IsCompleted;
 
+            /// <summary>
+            /// Requests cancellation while keeping the source alive through any reentrant completion callback.
+            /// </summary>
             public void Cancel()
             {
                 lock (m_lock)
@@ -1693,11 +1730,17 @@ namespace Opc.Ua.Bindings
                 }
             }
 
+            /// <summary>
+            /// Requests loop cancellation; source disposal is deferred until completion is safe.
+            /// </summary>
             public void Dispose()
             {
                 Cancel();
             }
 
+            /// <summary>
+            /// Marks the loop finished and releases the cancellation source when no cancellation call is active.
+            /// </summary>
             public void Complete()
             {
                 lock (m_lock)
@@ -1711,15 +1754,41 @@ namespace Opc.Ua.Bindings
                 m_completion.TrySetResult(true);
             }
 
+            /// <summary>
+            /// Serializes cancellation-source disposal with cancellation and loop completion.
+            /// </summary>
             private readonly Lock m_lock = new();
+
+            /// <summary>
+            /// Cancels pending receives for this loop without affecting a replacement loop.
+            /// </summary>
             private readonly CancellationTokenSource m_cancellation = new();
+
+            /// <summary>
+            /// Signals that the receive-loop body no longer owns any pending receive work.
+            /// </summary>
             private readonly TaskCompletionSource<bool> m_completion =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Records that completion has begun, preventing further cancellation requests.
+            /// </summary>
             private bool m_finished;
+
+            /// <summary>
+            /// Counts active cancellation calls whose callbacks may reenter completion.
+            /// </summary>
             private int m_cancelling;
         }
 
+        /// <summary>
+        /// Serializes transport replacement with receive-loop registration and detachment.
+        /// </summary>
         private readonly Lock m_receiveLoopLock = new();
+
+        /// <summary>
+        /// Holds the receive-loop lifetime associated with the currently attached transport.
+        /// </summary>
         private ReceiveLoop? m_receiveLoop;
 
         private volatile TcpChannelStateEventHandler? m_stateChanged;

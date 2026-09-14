@@ -154,6 +154,9 @@ namespace Opc.Ua.Server
             await folder.ClearChangeMasksAsync(context, includeChildren: true, ct).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Supplies the application's certificate registry unless one was explicitly provided at construction.
+        /// </summary>
         internal void ConfigureEncryption(ICertificateRegistry? certificates)
         {
             m_certificates ??= certificates;
@@ -207,6 +210,9 @@ namespace Opc.Ua.Server
             };
         }
 
+        /// <summary>
+        /// Authorizes a credential update, decodes its secret and clears the temporary plaintext after persistence.
+        /// </summary>
         private async ValueTask<KeyCredentialUpdateMethodStateResult> OnUpdateCredentialAsync(
             ISystemContext context,
             MethodState method,
@@ -280,6 +286,9 @@ namespace Opc.Ua.Server
             return new KeyCredentialUpdateMethodStateResult { ServiceResult = ServiceResult.Good };
         }
 
+        /// <summary>
+        /// Accepts a plaintext secret or validates and decrypts its RSA encrypted-secret envelope.
+        /// </summary>
         private async ValueTask<byte[]> DecodeSecretAsync(
             ISystemContext context,
             ByteString encrypted,
@@ -363,6 +372,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Resolves an allowed RSA encryption policy and rejects unsupported or ephemeral-key policies.
+        /// </summary>
         private SecurityPolicyInfo ResolveEncryptionPolicy(string policyUri)
         {
             SecurityPolicyInfo? policy = m_securityPolicies.GetInfo(policyUri);
@@ -378,6 +390,9 @@ namespace Opc.Ua.Server
             return policy;
         }
 
+        /// <summary>
+        /// Adapts encrypting-key selection to the asynchronous configuration-method callback.
+        /// </summary>
         private ValueTask<GetEncryptingKeyMethodStateResult> OnGetEncryptingKeyAsync(
             ISystemContext context,
             MethodState method,
@@ -390,6 +405,9 @@ namespace Opc.Ua.Server
                 GetEncryptingKey(context, credentialId, requestedSecurityPolicyUri, ct));
         }
 
+        /// <summary>
+        /// Returns an authorized caller's application certificate and the accepted credential-encryption policy.
+        /// </summary>
         private GetEncryptingKeyMethodStateResult GetEncryptingKey(
             ISystemContext context,
             string credentialId,
@@ -497,6 +515,9 @@ namespace Opc.Ua.Server
             return state;
         }
 
+        /// <summary>
+        /// Connects encrypting-key, credential-update and credential-deletion methods to this subject.
+        /// </summary>
         private void WireCredentialState(KeyCredentialConfigurationState state, ISystemContext context)
         {
             state
@@ -575,14 +596,28 @@ namespace Opc.Ua.Server
 
         private readonly IKeyCredentialStore m_store;
         private readonly KeyCredentialPushOptions m_options;
+
+        /// <summary>
+        /// Resolves metadata for requested encryption policies.
+        /// </summary>
         private readonly ISecurityPolicyRegistry m_securityPolicies;
+
+        /// <summary>
+        /// Provides the application certificates used to receive encrypted credentials.
+        /// </summary>
         private ICertificateRegistry? m_certificates;
         private Func<BaseInstanceState, CancellationToken, ValueTask>? m_addNodeAsync;
         private Func<BaseInstanceState, CancellationToken, ValueTask>? m_removeNodeAsync;
     }
 
+    /// <summary>
+    /// Records rejected KeyCredential encryption inputs without exposing secret material.
+    /// </summary>
     internal static partial class KeyCredentialPushSubjectLog
     {
+        /// <summary>
+        /// Reports the status code explaining why cryptographic input was rejected.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.KeyCredentialPushSubject, Level = LogLevel.Warning,
             Message = "KeyCredential cryptographic input was rejected: {Status}.")]
         public static partial void CredentialSecretRejected(this ILogger logger, StatusCode status);

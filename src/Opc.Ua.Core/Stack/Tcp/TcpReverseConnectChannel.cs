@@ -94,6 +94,9 @@ namespace Opc.Ua.Bindings
             StartReceiveLoopWithBody(ReadReverseHelloOnceAsync);
         }
 
+        /// <summary>
+        /// Reads one ReverseHello chunk and leaves the transport ready for handoff without another pending receive.
+        /// </summary>
         private async Task ReadReverseHelloOnceAsync(
             IUaSCByteTransport transport,
             CancellationToken ct)

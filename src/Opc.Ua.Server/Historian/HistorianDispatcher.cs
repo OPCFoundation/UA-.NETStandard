@@ -641,6 +641,9 @@ namespace Opc.Ua.Server.Historian
             }
         }
 
+        /// <summary>
+        /// Validates aggregate inputs and pages processed history through the provider or a local aggregate calculator.
+        /// </summary>
         private static async ValueTask<ServiceResult>
             DispatchProcessedReadCoreAsync(
             ServerSystemContext systemContext,

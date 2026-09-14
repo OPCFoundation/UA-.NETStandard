@@ -46,11 +46,17 @@ using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Features.Tests
 {
+    /// <summary>
+    /// Verifies live user removal and disabling close affected sessions and subscriptions before returning.
+    /// </summary>
     [TestFixture]
     [Category("Roles")]
     [Category("Integration")]
     public sealed class UserRevocationIntegrationTests
     {
+        /// <summary>
+        /// Starts isolated client and server fixtures and creates the users required by each revocation scenario.
+        /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
@@ -77,6 +83,9 @@ namespace Opc.Ua.Features.Tests
             await m_users.AddUserAsync("unrelated-user", m_password).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Closes remaining sessions and fixtures before deleting their temporary certificate stores.
+        /// </summary>
         [TearDown]
         public async Task TearDownAsync()
         {
@@ -113,18 +122,27 @@ namespace Opc.Ua.Features.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies disabling a user closes all of that user's sessions and subscriptions.
+        /// </summary>
         [Test]
         public Task DisableUserClosesSessionsAndSubscriptionsAsync()
         {
             return AssertUserRevokedAsync(remove: false);
         }
 
+        /// <summary>
+        /// Verifies removing a user closes all of that user's sessions and subscriptions.
+        /// </summary>
         [Test]
         public Task RemoveUserClosesSessionsAndSubscriptionsAsync()
         {
             return AssertUserRevokedAsync(remove: true);
         }
 
+        /// <summary>
+        /// Checks complete victim teardown and continued access for the administrator and unrelated user.
+        /// </summary>
         private async Task AssertUserRevokedAsync(bool remove)
         {
             ISession first = await ConnectAsync(
@@ -175,6 +193,9 @@ namespace Opc.Ua.Features.Tests
             Assert.That(server.UserManagement.IsUserActive("unrelated-user"), Is.True);
         }
 
+        /// <summary>
+        /// Opens and retains an encrypted username session for the supplied identity.
+        /// </summary>
         private async Task<ISession> ConnectAsync(IUserIdentity identity)
         {
             ISession session = await m_clientFixture.ConnectAsync(
@@ -188,6 +209,9 @@ namespace Opc.Ua.Features.Tests
             return session;
         }
 
+        /// <summary>
+        /// Creates a server-side subscription owned by the supplied session.
+        /// </summary>
         private static async Task<uint> CreateSubscriptionAsync(ISession session)
         {
             CreateSubscriptionResponse response = await session.CreateSubscriptionAsync(
@@ -197,12 +221,39 @@ namespace Opc.Ua.Features.Tests
             return response.SubscriptionId;
         }
 
+        /// <summary>
+        /// Hosts the user database, active sessions, and subscriptions under test.
+        /// </summary>
         private ServerFixture<ReferenceServer> m_serverFixture = null!;
+
+        /// <summary>
+        /// Supplies the client configuration used by all scenario sessions.
+        /// </summary>
         private ClientFixture m_clientFixture = null!;
+
+        /// <summary>
+        /// Retains the administrator session performing user changes.
+        /// </summary>
         private ISession m_admin = null!;
+
+        /// <summary>
+        /// Invokes the server's user-management methods through the administrator session.
+        /// </summary>
         private UserManagementClient m_users = null!;
+
+        /// <summary>
+        /// Locates the isolated certificate stores removed after each test.
+        /// </summary>
         private string m_pkiRoot = null!;
+
+        /// <summary>
+        /// Holds the per-test generated credential for the non-administrator accounts.
+        /// </summary>
         private string m_password = null!;
+
+        /// <summary>
+        /// Retains every client session for cleanup, including sessions already revoked by the server.
+        /// </summary>
         private readonly List<ISession> m_sessions = [];
     }
 }

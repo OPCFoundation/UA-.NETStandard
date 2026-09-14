@@ -42,6 +42,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
     /// </summary>
     internal sealed class TrackingTcpChannelBindings : ITransportChannelBindings
     {
+        /// <summary>
+        /// Gets a snapshot of every physical transport created by these bindings.
+        /// </summary>
         internal ArrayOf<TrackingTcpTransportChannel> Channels => [.. m_channels];
 
         /// <inheritdoc/>
@@ -60,6 +63,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
             return channel;
         }
 
+        /// <summary>
+        /// Formats transport counters and ordered lifecycle events for failure diagnostics.
+        /// </summary>
         internal string Describe()
         {
             return string.Join(
@@ -81,6 +87,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
             ITransportChannel,
             ISecureChannel
         {
+            /// <summary>
+            /// Creates a real TCP transport with a unique observation identity and shared event journal.
+            /// </summary>
             internal TrackingTcpTransportChannel(
                 int id,
                 ITelemetryContext telemetry,
@@ -92,22 +101,47 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
                 Record("created");
             }
 
+            /// <summary>
+            /// Gets the unique identity of this physical transport instance.
+            /// </summary>
             internal int Id { get; }
 
+            /// <summary>
+            /// Gets the client-certificate thumbprint used by the most recent open attempt.
+            /// </summary>
             internal string CertificateThumbprint => m_certificateThumbprint;
 
+            /// <summary>
+            /// Gets the number of open attempts.
+            /// </summary>
             internal int OpenCount => Volatile.Read(ref m_openCount);
 
+            /// <summary>
+            /// Gets the number of open attempts that completed successfully.
+            /// </summary>
             internal int OpenSucceededCount => Volatile.Read(ref m_openSucceededCount);
 
+            /// <summary>
+            /// Gets the number of reconnect invocations.
+            /// </summary>
             internal int ReconnectCount => Volatile.Read(ref m_reconnectCount);
 
+            /// <summary>
+            /// Gets the number of close invocations.
+            /// </summary>
             internal int CloseCount => Volatile.Read(ref m_closeCount);
 
+            /// <summary>
+            /// Gets the number of disposal invocations that started managed cleanup.
+            /// </summary>
             internal int DisposeCount => Volatile.Read(ref m_disposeCount);
 
+            /// <summary>
+            /// Gets the number of disposal invocations whose base cleanup completed.
+            /// </summary>
             internal int DisposeCompletedCount => Volatile.Read(ref m_disposeCompletedCount);
 
+            /// <inheritdoc/>
             async ValueTask ITransportChannel.ReconnectAsync(
                 ITransportWaitingConnection? connection,
                 CancellationToken ct)
@@ -118,6 +152,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
                 Record("reconnect-completed");
             }
 
+            /// <inheritdoc/>
             async ValueTask ITransportChannel.CloseAsync(CancellationToken ct)
             {
                 Interlocked.Increment(ref m_closeCount);
@@ -126,6 +161,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
                 Record("close-completed");
             }
 
+            /// <inheritdoc/>
             ValueTask ISecureChannel.OpenAsync(
                 Uri url,
                 TransportChannelSettings settings,
@@ -134,6 +170,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
                 return RecordOpenAsync(() => OpenAsync(url, settings, ct), settings);
             }
 
+            /// <inheritdoc/>
             ValueTask ISecureChannel.OpenAsync(
                 ITransportWaitingConnection connection,
                 TransportChannelSettings settings,
@@ -142,6 +179,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
                 return RecordOpenAsync(() => OpenAsync(connection, settings, ct), settings);
             }
 
+            /// <summary>
+            /// Records disposal entry and successful completion around the real TCP transport cleanup.
+            /// </summary>
             protected override void Dispose(bool disposing)
             {
                 if (disposing)
@@ -159,6 +199,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
                 }
             }
 
+            /// <summary>
+            /// Records certificate selection, attempts, and completion without changing the underlying open behavior.
+            /// </summary>
             private async ValueTask RecordOpenAsync(
                 Func<ValueTask> open,
                 TransportChannelSettings settings)
@@ -179,24 +222,69 @@ namespace Opc.Ua.Stress.Tests.Channels.Helpers
                 }
             }
 
+            /// <summary>
+            /// Appends a timestamped lifecycle event with this transport's identity.
+            /// </summary>
             private void Record(string operation)
             {
                 m_events.Enqueue(FormattableString.Invariant(
                     $"{DateTimeOffset.UtcNow:O} transport={Id} {operation}"));
             }
 
+            /// <summary>
+            /// Shares lifecycle events across all observed transport instances.
+            /// </summary>
             private readonly ConcurrentQueue<string> m_events;
+
+            /// <summary>
+            /// Retains the certificate identity supplied to the most recent open.
+            /// </summary>
             private string m_certificateThumbprint = string.Empty;
+
+            /// <summary>
+            /// Counts open attempts before invoking the underlying transport.
+            /// </summary>
             private int m_openCount;
+
+            /// <summary>
+            /// Counts open attempts whose underlying operation succeeded.
+            /// </summary>
             private int m_openSucceededCount;
+
+            /// <summary>
+            /// Counts reconnect attempts before forwarding them.
+            /// </summary>
             private int m_reconnectCount;
+
+            /// <summary>
+            /// Counts forwarded close operations.
+            /// </summary>
             private int m_closeCount;
+
+            /// <summary>
+            /// Counts entries into managed disposal.
+            /// </summary>
             private int m_disposeCount;
+
+            /// <summary>
+            /// Counts completed base disposal calls.
+            /// </summary>
             private int m_disposeCompletedCount;
         }
 
+        /// <summary>
+        /// Retains observed physical transports for post-run ownership assertions.
+        /// </summary>
         private readonly ConcurrentQueue<TrackingTcpTransportChannel> m_channels = new();
+
+        /// <summary>
+        /// Retains ordered lifecycle diagnostics across transports.
+        /// </summary>
         private readonly ConcurrentQueue<string> m_events = new();
+
+        /// <summary>
+        /// Allocates distinct identities for newly created physical transports.
+        /// </summary>
         private int m_nextId;
     }
 }

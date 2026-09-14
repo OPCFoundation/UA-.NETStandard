@@ -438,6 +438,7 @@ namespace Opc.Ua.Server.FileSystem
             return FileSystemNodeId.BuildFile(providerPath, NamespaceIndex);
         }
 
+        /// <inheritdoc/>
         ValueTask IFileSystemHost.ApplyMutationAsync(
             FileSystemMutationKind kind,
             string path,
@@ -449,6 +450,7 @@ namespace Opc.Ua.Server.FileSystem
                 this, kind, path, targetPath, sourceNodeId, cancellationToken);
         }
 
+        /// <inheritdoc/>
         bool IFileSystemHost.TryGetProviderPath(
             NodeId nodeId,
             out string providerPath,
@@ -472,6 +474,9 @@ namespace Opc.Ua.Server.FileSystem
             return true;
         }
 
+        /// <summary>
+        /// Normalizes root spellings and rejects provider paths with ambiguous or traversal segments.
+        /// </summary>
         private static bool TryNormalizeProviderPath(string path, out string providerPath)
         {
             providerPath = string.Empty;
@@ -511,6 +516,10 @@ namespace Opc.Ua.Server.FileSystem
 
         private readonly Dictionary<NodeId, FileHandle> m_handles = [];
         private readonly Lock m_lock = new();
+
+        /// <summary>
+        /// Identifies separator-only spellings of the mounted root.
+        /// </summary>
         private static readonly char[] s_pathSeparators = ['/', '\\'];
 
         /// <summary>

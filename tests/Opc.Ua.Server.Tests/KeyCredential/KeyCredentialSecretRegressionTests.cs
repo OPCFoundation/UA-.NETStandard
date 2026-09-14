@@ -40,9 +40,15 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.KeyCredential
 {
+    /// <summary>
+    /// Verifies credential secret decryption, policy admission, cancellation, and certificate-registry consistency.
+    /// </summary>
     [TestFixture]
     public sealed class KeyCredentialSecretRegressionTests
     {
+        /// <summary>
+        /// Verifies that supported encrypted updates store usable plaintext without modifying the caller's envelope.
+        /// </summary>
         [TestCase(SecurityPolicies.Basic256Sha256)]
         [TestCase(SecurityPolicies.Aes128_Sha256_RsaOaep)]
         [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss)]
@@ -63,6 +69,9 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             Assert.That(harness.Node.CredentialId.Value, Is.EqualTo("credential-1"));
         }
 
+        /// <summary>
+        /// Verifies that invalid certificates, policies, or encrypted envelopes cannot write a credential.
+        /// </summary>
         [TestCase("wrong-certificate")]
         [TestCase("wrong-key")]
         [TestCase("wrong-policy")]
@@ -133,6 +142,9 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             Assert.That(harness.Node.CredentialId.Value, Is.Null.Or.Empty);
         }
 
+        /// <summary>
+        /// Verifies that a plaintext update without encryption metadata stores an independent copy of the secret.
+        /// </summary>
         [Test]
         public async Task ClearSecretRequiresNoPolicyAndRetainsTheSameBytesAsync()
         {
@@ -146,6 +158,9 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             Assert.That(harness.Stored.Secret, Is.Not.SameAs(secret));
         }
 
+        /// <summary>
+        /// Verifies that a cancelled credential update propagates cancellation without writing secret data.
+        /// </summary>
         [Test]
         public async Task CancelledCredentialUpdateCannotPersistASecretAsync()
         {
@@ -158,6 +173,10 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             Assert.That(harness.StoreWrites, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that direct and dependency-injected subjects advertise the same registry certificate used to
+        /// decrypt.
+        /// </summary>
         [Test]
         public async Task EncryptingKeyUsesTheSameConfiguredRegistryAsDecryptionAsync(
             [Values(false, true)] bool dependencyInjection)
@@ -178,6 +197,9 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             Assert.That(harness.Stored.Secret, Is.EqualTo(new byte[] { 41, 42 }));
         }
 
+        /// <summary>
+        /// Verifies that policy restrictions apply both to encrypting-key discovery and credential updates.
+        /// </summary>
         [Test]
         public async Task DisallowedPolicyIsNeitherAdvertisedNorAcceptedAsync()
         {
@@ -197,6 +219,9 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             Assert.That(harness.StoreWrites, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that unsupported encryption policies are rejected without exposing an encrypting key.
+        /// </summary>
         [TestCase(SecurityPolicies.None)]
         [TestCase(SecurityPolicies.ECC_nistP256)]
         [TestCase("urn:unknown")]
@@ -209,8 +234,14 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             Assert.That(key.PublicKey.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Supplies an authorized credential node, observable store, and certificate registry for secret-update tests.
+        /// </summary>
         private sealed class Harness : IDisposable
         {
+            /// <summary>
+            /// Creates a credential subject directly or through dependency injection with a shared RSA certificate.
+            /// </summary>
             public Harness(bool dependencyInjection = false, KeyCredentialPushOptions options = null)
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -261,13 +292,39 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                 };
             }
 
+            /// <summary>
+            /// Gets the registry certificate whose private key decrypts accepted credential envelopes.
+            /// </summary>
             public Certificate Certificate { get; }
+
+            /// <summary>
+            /// Gets the encoding context used to create encrypted secret envelopes.
+            /// </summary>
             public IServiceMessageContext MessageContext { get; }
+
+            /// <summary>
+            /// Gets the encrypted session context with the security-administrator role.
+            /// </summary>
             public SessionSystemContext Context { get; }
+
+            /// <summary>
+            /// Gets the credential node created after the subject is bound.
+            /// </summary>
             public KeyCredentialConfigurationState Node { get; private set; }
+
+            /// <summary>
+            /// Gets the last credential passed to the backing store.
+            /// </summary>
             public Server.KeyCredential Stored { get; private set; }
+
+            /// <summary>
+            /// Gets the number of credential updates accepted by the backing store.
+            /// </summary>
             public int StoreWrites { get; private set; }
 
+            /// <summary>
+            /// Binds the subject to its standard folder and creates the credential node used by the tests.
+            /// </summary>
             public async Task BindAsync()
             {
                 var folder = new KeyCredentialConfigurationFolderState(null)
@@ -283,6 +340,9 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                 Node = children.OfType<KeyCredentialConfigurationState>().Single(value => value.NodeId == created.CredentialNodeId);
             }
 
+            /// <summary>
+            /// Invokes the credential update method with the supplied secret and encryption metadata.
+            /// </summary>
             public async Task<KeyCredentialUpdateMethodStateResult> UpdateAsync(
                 byte[] secret, string thumbprint, string policy, CancellationToken ct = default)
             {
@@ -291,12 +351,18 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                     new ByteString(secret), thumbprint, policy, ct).ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Releases dependency-injected services and the registry certificate.
+            /// </summary>
             public void Dispose()
             {
                 m_services?.Dispose();
                 Certificate.Dispose();
             }
 
+            /// <summary>
+            /// Requests the credential's public encrypting certificate for the selected security policy.
+            /// </summary>
             public async Task<GetEncryptingKeyMethodStateResult> GetKeyAsync(string policy)
             {
                 return await Node.GetEncryptingKey.OnCallAsync(
@@ -304,13 +370,23 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                     .ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Acquires an application-certificate entry for the harness certificate and an empty issuer chain.
+            /// </summary>
             private CertificateEntry CreateEntry()
             {
                 using var chain = new CertificateCollection();
                 return new CertificateEntry(Certificate, chain, ObjectTypeIds.RsaSha256ApplicationCertificateType);
             }
 
+            /// <summary>
+            /// Coordinates the credential push and its owned secret material.
+            /// </summary>
             private readonly KeyCredentialPushSubject m_subject;
+
+            /// <summary>
+            /// Retains the injectable credential services until the harness is disposed.
+            /// </summary>
             private readonly ServiceProvider m_services;
         }
     }

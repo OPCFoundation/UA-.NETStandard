@@ -140,12 +140,34 @@ namespace Opc.Ua.Server.FileSystem
         bool TryGetProviderPath(NodeId nodeId, out string providerPath, out bool isDirectory, out bool isRoot);
     }
 
+    /// <summary>
+    /// Identifies the provider mutation admitted by a file-system host.
+    /// </summary>
     internal enum FileSystemMutationKind
     {
+        /// <summary>
+        /// Creates a file at the supplied provider path.
+        /// </summary>
         CreateFile,
+
+        /// <summary>
+        /// Creates a directory at the supplied provider path.
+        /// </summary>
         CreateDirectory,
+
+        /// <summary>
+        /// Deletes the selected file-system entry and retires its handles.
+        /// </summary>
         Delete,
+
+        /// <summary>
+        /// Moves an entry to a destination path and retires its source handles.
+        /// </summary>
         Move,
+
+        /// <summary>
+        /// Copies an entry to a destination path without retiring its source handles.
+        /// </summary>
         Copy
     }
 }

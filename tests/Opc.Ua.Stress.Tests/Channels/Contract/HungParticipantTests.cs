@@ -55,6 +55,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
     [SetUICulture("en-us")]
     public sealed class HungParticipantTests : ContractTestBase
     {
+        /// <summary>
+        /// Verifies exact participant timeout permits reconnect recovery without blocking the other shared participant.
+        /// </summary>
         [Test]
         [CancelAfter(30_000)]
         [Description("L1-HUNG1: participant timeout prevents a hung callback from blocking reconnect forever.")]
@@ -135,6 +138,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             }
         }
 
+        /// <summary>
+        /// Verifies the final allowed participant attempt becomes faulted exactly at the injected-clock deadline.
+        /// </summary>
         [Test]
         [CancelAfter(30_000)]
         [Description("A single hung participant transitions out of reactivation after the bounded timeout.")]
@@ -202,6 +208,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             }
         }
 
+        /// <summary>
+        /// Verifies callbacks completing before the deadline are not incorrectly timed out.
+        /// </summary>
         [Test]
         [CancelAfter(30_000)]
         [Description("Participant timeout does not produce false positives for callbacks that complete in time.")]
@@ -262,6 +271,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             }
         }
 
+        /// <summary>
+        /// Verifies a blocked participant on one channel cannot prevent another channel from reconnecting.
+        /// </summary>
         [Test]
         [CancelAfter(30_000)]
         [Description("L1-HUNG2: hung participant on one channel does not block reconnect of another channel.")]
@@ -311,6 +323,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             return new FakeParticipant(endpoint);
         }
 
+        /// <summary>
+        /// Wraps a fake clock and signals when the participant deadline timer has actually been created.
+        /// </summary>
         private static TimeProvider ObserveParticipantTimeout(
             FakeTimeProvider fakeTime,
             TimeSpan participantTimeout,

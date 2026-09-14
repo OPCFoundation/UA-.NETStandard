@@ -34,6 +34,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
+    /// <summary>
+    /// Implements mapped states, transitions, and cause callbacks for a finite state machine.
+    /// </summary>
     public partial class FiniteStateMachineState
     {
         /// <summary>
@@ -449,8 +452,14 @@ namespace Opc.Ua
         /// </summary>
         public bool SuppressTransitionEvents { get; set; }
 
+        /// <summary>
+        /// Creates transition-local callbacks that retain the captured source and destination states.
+        /// </summary>
         internal StateMachineTransitionCallbackFactory? TransitionCallbackFactory { get; set; }
 
+        /// <summary>
+        /// Gets the revision used to reject work armed before the current state was entered.
+        /// </summary>
         internal long StateRevision => Interlocked.Read(ref m_stateRevision);
 
         /// <summary>
@@ -551,6 +560,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Checks a cause's permissions, performs its transition, and reports applicable audit events.
+        /// </summary>
         private ServiceResult DoCauseCore(
             ISystemContext context,
             MethodState? causeMethod,
@@ -723,6 +735,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Publishes the completed cause's state and transition, advancing the state revision.
+        /// </summary>
         private void CompleteCauseCore(ISystemContext context, uint causeId)
         {
             // get the transition.
@@ -766,6 +781,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Executes an armed transition only while its source state, revision, and timer are still current.
+        /// </summary>
         internal ServiceResult TryTimedTransition(
             ISystemContext context,
             uint fromState,
@@ -786,6 +804,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Runs transition-local callbacks and commits the new state only if the captured revision remains current.
+        /// </summary>
         private ServiceResult DoTransitionCore(
             ISystemContext context,
             uint transitionId,
@@ -908,7 +929,15 @@ namespace Opc.Ua
         }
 
         private uint m_causeId;
+
+        /// <summary>
+        /// Serializes state changes and the checks that reject superseded transitions.
+        /// </summary>
         private readonly Lock m_transitionLock = new();
+
+        /// <summary>
+        /// Advances on every state update so delayed work cannot act on a later entry into the same state.
+        /// </summary>
         private long m_stateRevision;
         private ILogger m_logger = LoggerUtils.Null.Logger;
     }
@@ -924,6 +953,9 @@ namespace Opc.Ua
         ArrayOf<Variant> inputArguments,
         List<Variant>? outputArguments);
 
+    /// <summary>
+    /// Creates before and after callbacks bound to one transition's source and destination states.
+    /// </summary>
     internal delegate (StateMachineTransitionHandler? Before, StateMachineTransitionHandler? After)
         StateMachineTransitionCallbackFactory(
             uint fromState,

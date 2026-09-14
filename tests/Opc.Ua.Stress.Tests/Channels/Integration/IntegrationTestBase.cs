@@ -69,6 +69,10 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
             return base.OneTimeTearDownAsync();
         }
 
+        /// <summary>
+        /// Creates a manager using the live client configuration and optional reconnect, telemetry, and transport
+        /// providers.
+        /// </summary>
         protected ClientChannelManager CreateChannelManager(
             IChannelReconnectPolicy? reconnectPolicy = null,
             ITelemetryContext? telemetry = null,

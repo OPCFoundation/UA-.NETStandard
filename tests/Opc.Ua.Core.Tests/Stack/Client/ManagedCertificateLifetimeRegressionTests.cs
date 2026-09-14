@@ -42,10 +42,17 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Client
 {
+    /// <summary>
+    /// Verifies independent certificate ownership across managed channel open, reuse, rotation, reconnect, and
+    /// shutdown.
+    /// </summary>
     [TestFixture]
     [NonParallelizable]
     public sealed class ManagedCertificateLifetimeRegressionTests
     {
+        /// <summary>
+        /// Verifies channel closure leaves manager-owned certificates and issuer chains usable for later connections.
+        /// </summary>
         [Test]
         public async Task ClosingManagedChannelDoesNotDisposeManagerCertificatesAsync(
             [Values(false, true)] bool chain,
@@ -74,6 +81,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             AssertBalanced(created, disposed);
         }
 
+        /// <summary>
+        /// Verifies failed opens release only their own certificate references and allow a subsequent retry.
+        /// </summary>
         [Test]
         public async Task FailedOpenReleasesOnlyItsOwnCertificateReferencesAsync(
             [Values(false, true)] bool transportOwnsSettings)
@@ -96,6 +106,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             AssertBalanced(created, disposed);
         }
 
+        /// <summary>
+        /// Verifies rotation cannot invalidate a key borrowed by an opening channel, including canceled opens.
+        /// </summary>
         [Test]
         public async Task RotationCannotRetireAnOpeningChannelsKeyAsync([Values(false, true)] bool cancel)
         {
@@ -154,6 +167,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             AssertBalanced(created, disposed);
         }
 
+        /// <summary>
+        /// Verifies channel sharing and both reconnect modes release unused snapshots without invalidating manager
+        /// keys.
+        /// </summary>
         [Test]
         public async Task ReuseAndReconnectReleaseUnusedCertificateSnapshotsAsync(
             [Values(false, true)] bool inPlace)
@@ -177,6 +194,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             AssertBalanced(created, disposed);
         }
 
+        /// <summary>
+        /// Verifies capacity rejection releases its certificate snapshot without opening another transport.
+        /// </summary>
         [Test]
         public async Task MaxChannelRejectionReturnsItsCertificateSnapshotAsync()
         {
@@ -195,6 +215,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             AssertBalanced(created, disposed);
         }
 
+        /// <summary>
+        /// Verifies recovery of a faulted lease retains the replacement transport's usable private key.
+        /// </summary>
         [Test]
         public async Task FaultedLeaseSwapKeepsItsReplacementKeyAliveAsync()
         {
@@ -217,6 +240,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             AssertBalanced(created, disposed);
         }
 
+        /// <summary>
+        /// Verifies manager disposal cannot release the certificate still borrowed by an incomplete open operation.
+        /// </summary>
         [Test]
         public async Task ManagerDisposalRetainsAnInFlightOpenBorrowUntilItUnwindsAsync()
         {
@@ -248,6 +274,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             AssertBalanced(created, disposed);
         }
 
+        /// <summary>
+        /// Verifies a stopped manager rejects certificate publication without consuming the caller's certificate.
+        /// </summary>
         [Test]
         public async Task StoppedManagerRejectsCertificatePublicationWithoutTakingOwnershipAsync()
         {
@@ -263,6 +292,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             AssertBalanced(created, disposed);
         }
 
+        /// <summary>
+        /// Verifies an acquired transport snapshot retains its installed key after publication changes and shutdown.
+        /// </summary>
         [Test]
         public async Task InstalledTransportSnapshotKeepsItsKeyAfterNewPublicationAndShutdownAsync()
         {
@@ -301,6 +333,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             AssertBalanced(created, disposed);
         }
 
+        /// <summary>
+        /// Verifies reconnect adopts a certificate published during transport open or in-place reconnect.
+        /// </summary>
         [Test]
         public async Task ReconnectObservesCertificatePublishedDuringTransportOperationAsync(
             [Values(false, true)] bool inPlace,
@@ -353,6 +388,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             AssertBalanced(created, disposed);
         }
 
+        /// <summary>
+        /// Verifies republishing identical certificate material does not unnecessarily replace the installed transport.
+        /// </summary>
         [Test]
         public async Task RepeatedCertificatePublicationKeepsTheInstalledTransportAsync(
             [Values(false, true)] bool includeLeafOnlyChain)
@@ -380,6 +418,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             AssertBalanced(created, disposed);
         }
 
+        /// <summary>
+        /// Verifies a certificate change during participant reactivation is observed before reconnect reports
+        /// readiness.
+        /// </summary>
         [Test]
         public async Task ReconnectObservesCertificatePublishedDuringParticipantReactivationAsync(
             [Values(1, 2)] int maxAttempts)
@@ -421,6 +463,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             AssertBalanced(created, disposed);
         }
 
+        /// <summary>
+        /// Verifies a changed issuer chain replaces the transport even when the leaf certificate is unchanged.
+        /// </summary>
         [Test]
         public async Task ChangedIssuerChainStillReplacesTheInstalledTransportAsync()
         {
@@ -450,11 +495,17 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             AssertBalanced(created, disposed);
         }
 
+        /// <summary>
+        /// Requires every certificate handle created since the test baseline to have been disposed.
+        /// </summary>
         private static void AssertBalanced(long created, long disposed)
         {
             Assert.That(Certificate.InstancesDisposed - disposed, Is.EqualTo(Certificate.InstancesCreated - created));
         }
 
+        /// <summary>
+        /// Signs and verifies a SHA-256 digest to prove the retained RSA private key remains usable.
+        /// </summary>
         private static void AssertPrivateKeyWorks(Certificate certificate)
         {
             using RSA key = certificate.GetRSAPrivateKey() ?? throw new InvalidOperationException("No private key.");
@@ -464,11 +515,17 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(verifier.VerifyHash(hash, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1), Is.True);
         }
 
+        /// <summary>
+        /// Creates an independently owned RSA certificate with a scenario-specific subject.
+        /// </summary>
         private static Certificate NewCertificate(string name)
         {
             return DefaultCertificateFactory.Instance.CreateCertificate($"CN=managed-{name}").CreateForRSA();
         }
 
+        /// <summary>
+        /// Creates a participant that reports successful reactivation against the selected endpoint.
+        /// </summary>
         private static IReconnectParticipant Participant(string id, string url = "opc.tcp://localhost:4840")
         {
             var participant = new Mock<IReconnectParticipant>();
@@ -487,8 +544,15 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             return participant.Object;
         }
 
+        /// <summary>
+        /// Owns a managed channel manager and fake transports with controlled certificate adoption and reconnect
+        /// timing.
+        /// </summary>
         private sealed class ChannelHarness : IAsyncDisposable
         {
+            /// <summary>
+            /// Creates the initial certificate material and a bounded, zero-delay reconnect policy.
+            /// </summary>
             public ChannelHarness(bool chain, ChannelManagerOptions? options = null, int maxAttempts = 2)
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -513,16 +577,54 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Manager.UpdateClientCertificate(ClientCertificate, ClientChain);
             }
 
+            /// <summary>
+            /// Gets the manager coordinating certificate publication and channel leases.
+            /// </summary>
             public ClientChannelManager Manager { get; }
+
+            /// <summary>
+            /// Gets the original application certificate retained by the harness.
+            /// </summary>
             public Certificate ClientCertificate { get; }
+
+            /// <summary>
+            /// Gets the optional original leaf-and-issuer chain.
+            /// </summary>
             public CertificateCollection? ClientChain { get; }
+
+            /// <summary>
+            /// Gets settings observed by every physical transport open attempt.
+            /// </summary>
             public List<TransportChannelSettings> OpenSettings { get; } = [];
+
+            /// <summary>
+            /// Gets or sets a callback that delays or fails transport opening after settings are received.
+            /// </summary>
             public Func<TransportChannelSettings, CancellationToken, Task>? BeforeOpen { get; set; }
+
+            /// <summary>
+            /// Gets or sets work performed during an in-place reconnect.
+            /// </summary>
             public Func<ValueTask>? BeforeReconnect { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether a transport adopts and disposes the certificate handles in its settings.
+            /// </summary>
             public bool TransportOwnsSettings { get; set; } = true;
+
+            /// <summary>
+            /// Gets or sets whether the fake transport advertises in-place reconnect.
+            /// </summary>
             public bool SupportsReconnect { get; set; }
+
+            /// <summary>
+            /// Gets the number of in-place reconnect calls.
+            /// </summary>
             public int Reconnects { get; private set; }
 
+            /// <summary>
+            /// Acquires a managed channel through forward or reverse connection establishment.
+            /// </summary>
             public ValueTask<IManagedTransportChannel> GetAsync(string id, bool reverse)
             {
                 IReconnectParticipant participant = Participant(id);
@@ -532,6 +634,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     : Manager.GetAsync(participant);
             }
 
+            /// <summary>
+            /// Disposes the manager before releasing the harness's own certificate and chain references.
+            /// </summary>
             public async ValueTask DisposeAsync()
             {
                 await Manager.DisposeAsync().ConfigureAwait(false);
@@ -539,6 +644,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 ClientChain?.Dispose();
             }
 
+            /// <summary>
+            /// Creates a fake transport that records opens and independently disposes any settings it adopts.
+            /// </summary>
             private ITransportChannel CreateChannel()
             {
                 TransportChannelSettings? adopted = null;

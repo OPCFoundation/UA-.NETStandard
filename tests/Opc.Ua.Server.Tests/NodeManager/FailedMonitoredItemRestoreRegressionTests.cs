@@ -34,10 +34,17 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
+    /// <summary>
+    /// Verifies duplicate monitored-item restoration does not replace existing registrations or raise creation
+    /// callbacks.
+    /// </summary>
     [TestFixture]
     [Category("NodeManager")]
     public sealed class FailedMonitoredItemRestoreRegressionTests
     {
+        /// <summary>
+        /// Verifies duplicate restore rejection across node-manager and sampling-group implementations.
+        /// </summary>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -71,6 +78,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Creates a disabled persisted data-change item with a good last value and the requested identifier.
+        /// </summary>
         private static StoredMonitoredItem CreateStored(uint id)
         {
             return new StoredMonitoredItem
@@ -92,6 +102,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             };
         }
 
+        /// <summary>
+        /// Creates a variable handle matching the persisted item's node identity.
+        /// </summary>
         private static NodeHandle CreateHandle(IStoredMonitoredItem stored)
         {
             var node = new BaseDataVariableState(null)
@@ -103,16 +116,40 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return new NodeHandle(node.NodeId, node);
         }
 
+        /// <summary>
+        /// Unifies observable restoration behavior across synchronous and asynchronous node managers.
+        /// </summary>
         private interface IRestoreHooks : IDisposable
         {
+            /// <summary>
+            /// Gets the number of creation callbacks raised for successfully restored items.
+            /// </summary>
             int CreatedCount { get; }
+
+            /// <summary>
+            /// Gets the number of items retained in the manager's registry.
+            /// </summary>
             int Count { get; }
+
+            /// <summary>
+            /// Attempts to restore a persisted item and returns the accepted instance when successful.
+            /// </summary>
             bool Restore(IStoredMonitoredItem stored, out IMonitoredItem item);
+
+            /// <summary>
+            /// Gets the item registered under the specified identifier.
+            /// </summary>
             IMonitoredItem GetItem(uint id);
         }
 
+        /// <summary>
+        /// Exposes synchronous node-manager restoration and accepted-item callback counts.
+        /// </summary>
         private sealed class SyncHooks : CustomNodeManager2, IRestoreHooks
         {
+            /// <summary>
+            /// Creates a synchronous manager using the requested sampling-group implementation.
+            /// </summary>
             public SyncHooks(IServerInternal server, bool samplingGroups)
                 : base(
                     server,
@@ -123,20 +160,28 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
             }
 
+            /// <inheritdoc/>
             public int CreatedCount { get; private set; }
+
+            /// <inheritdoc/>
             public int Count => MonitoredItems.Count;
 
+            /// <inheritdoc/>
             public bool Restore(IStoredMonitoredItem stored, out IMonitoredItem item)
             {
                 return RestoreMonitoredItem(
                     SystemContext, CreateHandle(stored), stored, new UserIdentity(), out item);
             }
 
+            /// <inheritdoc/>
             public IMonitoredItem GetItem(uint id)
             {
                 return MonitoredItems[id];
             }
 
+            /// <summary>
+            /// Counts creation notifications after the synchronous manager accepts a restored item.
+            /// </summary>
             protected override void OnMonitoredItemCreated(
                 ServerSystemContext context,
                 NodeHandle handle,
@@ -146,8 +191,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Exposes asynchronous node-manager restoration and accepted-item callback counts.
+        /// </summary>
         private sealed class AsyncHooks : AsyncCustomNodeManager, IRestoreHooks
         {
+            /// <summary>
+            /// Creates an asynchronous manager using the requested sampling-group implementation.
+            /// </summary>
             public AsyncHooks(IServerInternal server, bool samplingGroups)
                 : base(
                     server,
@@ -158,20 +209,28 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
             }
 
+            /// <inheritdoc/>
             public int CreatedCount { get; private set; }
+
+            /// <inheritdoc/>
             public int Count => MonitoredItems.Count;
 
+            /// <inheritdoc/>
             public bool Restore(IStoredMonitoredItem stored, out IMonitoredItem item)
             {
                 return RestoreMonitoredItem(
                     SystemContext, CreateHandle(stored), stored, new UserIdentity(), out item);
             }
 
+            /// <inheritdoc/>
             public IMonitoredItem GetItem(uint id)
             {
                 return MonitoredItems[id];
             }
 
+            /// <summary>
+            /// Counts creation notifications after the asynchronous manager accepts a restored item.
+            /// </summary>
             protected override void OnMonitoredItemCreated(
                 ServerSystemContext context,
                 NodeHandle handle,

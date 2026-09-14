@@ -37,10 +37,16 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies that push-configuration compensation uses cancellation independent of the failed request.
+    /// </summary>
     [TestFixture]
     [Category("ConfigurationNodeManager")]
     public sealed class PushRollbackCancellationRegressionTests
     {
+        /// <summary>
+        /// Verifies that request cancellation still rolls back committed operations in reverse order.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task RequestCancellationDoesNotCancelCompensationForCommittedOperationsAsync(bool tokenException)
@@ -97,6 +103,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(disposed, Is.EqualTo(3));
         }
 
+        /// <summary>
+        /// Verifies that an expired rollback deadline records the failure but still compensates earlier operations.
+        /// </summary>
         [Test]
         public async Task RollbackDeadlineIsIndependentAndDoesNotPreventEarlierCompensationAsync()
         {
@@ -160,8 +169,19 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Identifies the session that owns the staged configuration transaction.
+        /// </summary>
         private static readonly NodeId s_sessionId = new(100, 1);
+
+        /// <summary>
+        /// Defines the compensation order for the two successfully committed operations.
+        /// </summary>
         private static readonly int[] s_expectedReverseOrder = [2, 1];
+
+        /// <summary>
+        /// Identifies the earlier operation that must still be compensated after a later rollback times out.
+        /// </summary>
         private static readonly int[] s_expectedEarlierRollback = [1];
     }
 }

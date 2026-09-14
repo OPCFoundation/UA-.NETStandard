@@ -31,8 +31,14 @@ using System;
 
 namespace Opc.Ua
 {
+    /// <summary>
+    /// Resolves transport profile identities consistently from explicit profiles or endpoint URL schemes.
+    /// </summary>
     internal static class TransportProfileIdentity
     {
+        /// <summary>
+        /// Normalizes an explicit profile or infers one from the URL scheme and requested message encoding.
+        /// </summary>
         public static string GetEffective(string? profile, string endpointUrl, bool binaryEncoding = true)
         {
             if (!string.IsNullOrEmpty(profile))
@@ -56,6 +62,9 @@ namespace Opc.Ua
             };
         }
 
+        /// <summary>
+        /// Determines whether a profile selects one of the supported HTTPS transports.
+        /// </summary>
         public static bool IsHttps(string? profile)
         {
             return profile is Profiles.HttpsBinaryTransport or Profiles.HttpsJsonTransport or Profiles.HttpsOpenApiTransport;

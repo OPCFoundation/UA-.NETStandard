@@ -43,10 +43,16 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies trust-list handle errors, successful-update timestamps, and rollback after partial commits.
+    /// </summary>
     [TestFixture]
     [Category("TrustList")]
     public sealed class TrustListOutcomeRegressionTests
     {
+        /// <summary>
+        /// Verifies that closed handles report invalid arguments while another session's live handles remain protected.
+        /// </summary>
         [TestCase("read", true)]
         [TestCase("write", true)]
         [TestCase("close", true)]
@@ -89,6 +95,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(harness.Node.OpenCount!.Value, Is.EqualTo(closed ? 0 : 1));
         }
 
+        /// <summary>
+        /// Verifies that only a successful close-and-update advances the timestamp and every outcome closes the handle.
+        /// </summary>
         [TestCase("decode")]
         [TestCase("store")]
         [TestCase("cancel")]
@@ -138,6 +147,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.ApplyChangesRequired, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that rolling back a staged replacement, addition, or removal restores contents and update time.
+        /// </summary>
         [TestCase("replace")]
         [TestCase("add")]
         [TestCase("remove")]
@@ -204,6 +216,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(replacementAbsent, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that cancellation partway through a multi-store commit restores both stores and their update time.
+        /// </summary>
         [Test]
         public async Task CancellationDuringPartialTrustListCommitStillRestoresAllStoresAsync()
         {
@@ -271,8 +286,14 @@ namespace Opc.Ua.Server.Tests
             Assert.That(harness.Node.LastUpdateTime.Value, Is.EqualTo(lastUpdate));
         }
 
+        /// <summary>
+        /// Owns an isolated trust-list node, backing certificate stores, and optional transaction coordinator.
+        /// </summary>
         private sealed class TrustHarness : IDisposable
         {
+            /// <summary>
+            /// Creates callable trust-list methods backed by temporary stores and an optional transaction.
+            /// </summary>
             public TrustHarness(bool transactional = false)
             {
                 m_path = Path.Combine(Path.GetTempPath(), "TrustListOutcome-" + Guid.NewGuid().ToString("N"));
@@ -308,18 +329,43 @@ namespace Opc.Ua.Server.Tests
                     maxTrustListSize: 8192);
             }
 
+            /// <summary>
+            /// Gets the trust-list node exposing file methods, certificate mutations, and update state.
+            /// </summary>
             public TrustListState Node { get; }
+
+            /// <summary>
+            /// Gets the session context that owns the test's trust-list handles and staged changes.
+            /// </summary>
             public SessionSystemContext Context { get; }
+
+            /// <summary>
+            /// Gets the coordinator used to stage and compensate transactional trust-list changes, when enabled.
+            /// </summary>
             public PushConfigurationTransactionCoordinator? Coordinator { get; }
+
+            /// <summary>
+            /// Gets the temporary directory used for trusted peer certificates.
+            /// </summary>
             public string TrustedPath => Path.Combine(m_path, "trusted");
+
+            /// <summary>
+            /// Gets the temporary directory used for issuer certificates.
+            /// </summary>
             public string IssuerPath => Path.Combine(m_path, "issuers");
 
+            /// <summary>
+            /// Replaces the trusted-store instance to inject a controlled failure during a commit.
+            /// </summary>
             public void UseTrustedStore(ICertificateStore store)
             {
                 typeof(TrustList).GetField("m_trustedStoreInstance", BindingFlags.NonPublic | BindingFlags.Instance)!
                     .SetValue(m_trustList, store);
             }
 
+            /// <summary>
+            /// Creates a context with the specified session identity for trust-list ownership checks.
+            /// </summary>
             public SessionSystemContext CreateContext(NodeId sessionId)
             {
                 var namespaceUris = new NamespaceTable();
@@ -333,6 +379,9 @@ namespace Opc.Ua.Server.Tests
                 };
             }
 
+            /// <summary>
+            /// Opens the trust list for reading or replacement and verifies that a valid handle is returned.
+            /// </summary>
             public async ValueTask<uint> OpenAsync(bool write)
             {
                 OpenMethodStateResult result = await Node.Open!.OnCallAsync!(
@@ -342,6 +391,9 @@ namespace Opc.Ua.Server.Tests
                 return result.FileHandle;
             }
 
+            /// <summary>
+            /// Encodes a replacement trust list using the node's namespace and type context.
+            /// </summary>
             public ByteString Encode(TrustListDataType payload)
             {
                 var messageContext = new ServiceMessageContext(Context.Telemetry, Context.EncodeableFactory)
@@ -354,6 +406,9 @@ namespace Opc.Ua.Server.Tests
                 return encoder.CloseAndReturnBuffer().ToByteString();
             }
 
+            /// <summary>
+            /// Cancels staged changes, closes the trust list, and removes the temporary certificate stores.
+            /// </summary>
             public void Dispose()
             {
                 Coordinator?.CancelChanges(s_sessionId);
@@ -361,17 +416,34 @@ namespace Opc.Ua.Server.Tests
                 Directory.Delete(m_path, recursive: true);
             }
 
+            /// <summary>
+            /// Materializes a trust-list method with its standard declaration identity.
+            /// </summary>
             private void InitializeMethod(MethodState method, NodeId declarationId, string name)
             {
                 method.Create(Context, declarationId, new QualifiedName(name), new LocalizedText(name), false);
                 method.MethodDeclarationId = declarationId;
             }
 
+            /// <summary>
+            /// Locates the isolated certificate stores removed during teardown.
+            /// </summary>
             private readonly string m_path;
+
+            /// <summary>
+            /// Supplies telemetry for trust-list operations and their encoded responses.
+            /// </summary>
             private readonly ITelemetryContext m_telemetry;
+
+            /// <summary>
+            /// Owns the method handlers and open handles exercised by the harness.
+            /// </summary>
             private readonly TrustList m_trustList;
         }
 
+        /// <summary>
+        /// Identifies the session owning the trust-list handles and configuration transaction.
+        /// </summary>
         private static readonly NodeId s_sessionId = new(100, 1);
     }
 }

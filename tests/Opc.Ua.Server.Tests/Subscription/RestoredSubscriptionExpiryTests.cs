@@ -37,10 +37,17 @@ using Opc.Ua.Server.Tests.NodeManager;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies expiration scheduling for durable subscriptions restored without an attached client session.
+    /// </summary>
     [TestFixture]
     [Category("Subscription")]
     public sealed class RestoredSubscriptionExpiryTests
     {
+        /// <summary>
+        /// Verifies that an abandoned restored subscription consumes its remaining lifetime and is deleted without
+        /// reconnect.
+        /// </summary>
         [Test]
         public async Task RestoredDurableSubscriptionExpiresWithoutAReconnectingClientAsync()
         {

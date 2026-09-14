@@ -63,6 +63,9 @@ namespace Opc.Ua.Server
         /// </summary>
         internal IHistorianStructuredDataKeySelector? HistorianKeySelector { get; set; }
 
+        /// <summary>
+        /// Advances the start time to the earliest processing interval retained by the queue.
+        /// </summary>
         internal void ReviseStartTime(DateTimeUtc currentTime, uint queueSize)
         {
             double retainedWindow = Math.Max((long)queueSize - 1, 0) * ProcessingInterval;

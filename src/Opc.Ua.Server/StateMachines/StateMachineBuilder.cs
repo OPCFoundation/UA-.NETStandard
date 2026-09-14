@@ -1456,9 +1456,24 @@ namespace Opc.Ua.Server.StateMachines
             List<Func<ISystemContext, TState, uint, uint, CancellationToken, System.Threading.Tasks.ValueTask>>
                 m_transitionObserversAsync = [];
 
+        /// <summary>
+        /// Preserves the machine's callback factory for composition with builder callbacks.
+        /// </summary>
         private readonly StateMachineTransitionCallbackFactory? m_originalCallbacks;
+
+        /// <summary>
+        /// Protects timed-transition registrations and their shutdown state.
+        /// </summary>
         private readonly Lock m_timerLock = new();
+
+        /// <summary>
+        /// Reports timed-transition failures and rejected transitions.
+        /// </summary>
         private readonly ILogger m_logger;
+
+        /// <summary>
+        /// Prevents timed transitions from being registered or armed after timer shutdown.
+        /// </summary>
         private bool m_disposed;
         private bool m_installed;
 
@@ -1467,6 +1482,9 @@ namespace Opc.Ua.Server.StateMachines
         {
         }
 
+        /// <summary>
+        /// Creates a transition dispatcher using the supplied clock and the machine's existing callback factory.
+        /// </summary>
         public StateMachineDispatcher(
             TState stateMachine,
             ISystemContext context,
@@ -1479,6 +1497,9 @@ namespace Opc.Ua.Server.StateMachines
             m_logger = context.Telemetry.CreateLogger<StateMachineDispatcher<TState>>();
         }
 
+        /// <summary>
+        /// Stops admitting timed transitions and cancels all active timer registrations.
+        /// </summary>
         public void StopTimers()
         {
             List<TimedTransitionRegistration> timers = [];
@@ -1662,6 +1683,9 @@ namespace Opc.Ua.Server.StateMachines
                 };
         }
 
+        /// <summary>
+        /// Replaces a state's timed transition and arms it immediately when that state is already current.
+        /// </summary>
         public void AddTimedTransition(
             uint fromStateId,
             TimeSpan timeout,
@@ -1696,6 +1720,9 @@ namespace Opc.Ua.Server.StateMachines
             }
         }
 
+        /// <summary>
+        /// Installs this dispatcher's composed transition-callback factory once.
+        /// </summary>
         private void EnsureInstalled()
         {
             if (m_installed)
@@ -1706,6 +1733,9 @@ namespace Opc.Ua.Server.StateMachines
             m_stateMachine.TransitionCallbackFactory = CreateCallbacks;
         }
 
+        /// <summary>
+        /// Composes original and builder callbacks with source and destination snapshots for one transition.
+        /// </summary>
         private (StateMachineTransitionHandler? Before, StateMachineTransitionHandler? After) CreateCallbacks(
             uint from,
             uint to,
@@ -1723,6 +1753,9 @@ namespace Opc.Ua.Server.StateMachines
                     DispatchAfter(context, machine, transition, cause, inputs, outputs, from, to, after));
         }
 
+        /// <summary>
+        /// Evaluates builder guards before invoking the original pre-transition callback.
+        /// </summary>
         private ServiceResult DispatchBefore(
             ISystemContext context,
             StateMachineState machine,
@@ -1750,6 +1783,9 @@ namespace Opc.Ua.Server.StateMachines
             return ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Dispatches ordered lifecycle observers with captured states and arms timers only for the current revision.
+        /// </summary>
         private ServiceResult DispatchAfter(
             ISystemContext context,
             StateMachineState machine,
@@ -1836,6 +1872,9 @@ namespace Opc.Ua.Server.StateMachines
             return originalResult ?? ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Arms a one-shot transition whose callback must still own its registration and state revision when fired.
+        /// </summary>
         private void ArmTimer(uint stateId, TimedTransitionEntry entry)
         {
             TimedTransitionRegistration? previous;
@@ -1887,6 +1926,9 @@ namespace Opc.Ua.Server.StateMachines
             }
         }
 
+        /// <summary>
+        /// Detaches and disposes the active timer registration for a state.
+        /// </summary>
         private void CancelTimer(uint stateId)
         {
             TimedTransitionRegistration? active = null;
@@ -1964,8 +2006,14 @@ namespace Opc.Ua.Server.StateMachines
             });
         }
 
+        /// <summary>
+        /// Describes a timed transition and retains its current one-shot registration.
+        /// </summary>
         private sealed class TimedTransitionEntry
         {
+            /// <summary>
+            /// Captures the delay, transition identifier, and associated cause for a timed transition.
+            /// </summary>
             public TimedTransitionEntry(TimeSpan timeout, uint transitionId, uint causeId)
             {
                 Timeout = timeout;
@@ -1973,16 +2021,40 @@ namespace Opc.Ua.Server.StateMachines
                 CauseId = causeId;
             }
 
+            /// <summary>
+            /// Gets the delay from state entry until the transition may fire.
+            /// </summary>
             public TimeSpan Timeout { get; }
+
+            /// <summary>
+            /// Gets the transition executed when the registration remains current at expiry.
+            /// </summary>
             public uint TransitionId { get; }
+
+            /// <summary>
+            /// Gets the cause reported with the timed transition.
+            /// </summary>
             public uint CauseId { get; }
+
+            /// <summary>
+            /// Holds the currently armed registration, or null after cancellation or callback ownership transfer.
+            /// </summary>
             public TimedTransitionRegistration? Active;
         }
 
+        /// <summary>
+        /// Coordinates timer attachment and disposal so retired timed transitions cannot retain a live timer.
+        /// </summary>
         private sealed class TimedTransitionRegistration : IDisposable
         {
+            /// <summary>
+            /// Gets whether this registration has been retired and must no longer fire its transition.
+            /// </summary>
             public bool IsDisposed => Volatile.Read(ref m_disposed) != 0;
 
+            /// <summary>
+            /// Attaches the timer, disposing it immediately if the registration was already retired.
+            /// </summary>
             public void SetTimer(ITimer timer)
             {
                 Interlocked.Exchange(ref m_timer, timer)?.Dispose();
@@ -1992,23 +2064,40 @@ namespace Opc.Ua.Server.StateMachines
                 }
             }
 
+            /// <inheritdoc/>
             public void Dispose()
             {
                 Interlocked.Exchange(ref m_disposed, 1);
                 Interlocked.Exchange(ref m_timer, null)?.Dispose();
             }
 
+            /// <summary>
+            /// Atomically records that the registration is no longer eligible to fire.
+            /// </summary>
             private int m_disposed;
+
+            /// <summary>
+            /// Holds the timer owned by this registration until replacement or disposal.
+            /// </summary>
             private ITimer? m_timer;
         }
     }
 
+    /// <summary>
+    /// Records failures and rejections from state-machine timer callbacks.
+    /// </summary>
     internal static partial class StateMachineBuilderLog
     {
+        /// <summary>
+        /// Reports an exception raised while executing a timed transition.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StateMachineBuilder, Level = LogLevel.Error,
             Message = "Timed transition from state {StateId} failed.")]
         public static partial void TimedTransitionFailed(this ILogger logger, Exception exception, uint stateId);
 
+        /// <summary>
+        /// Reports a timed transition rejected while its source state remains current.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StateMachineBuilder + 1, Level = LogLevel.Warning,
             Message = "Timed transition from state {StateId} was rejected: {Result}.")]
         public static partial void TimedTransitionRejected(this ILogger logger, uint stateId, ServiceResult result);

@@ -38,11 +38,17 @@ using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Core.Tests.Redundancy
 {
+    /// <summary>
+    /// Covers lease authority at expiry boundaries and rejection of delayed or superseded store replies.
+    /// </summary>
     [TestFixture]
     [Category("Redundancy")]
     [Parallelizable(ParallelScope.All)]
     public sealed class SharedStoreLeaseExpiryRegressionTests
     {
+        /// <summary>
+        /// Verifies a failed renewal preserves only the last confirmed lease and permits standby takeover at expiry.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task LeaderLosesAuthorityWhenRenewalFailsPastExpiryAsync(bool failCompareAndSwap)
@@ -101,6 +107,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(transitions, Is.EqualTo(s_reacquired));
         }
 
+        /// <summary>
+        /// Verifies blocked renewal reads or writes cannot postpone expiry or restore authority with a late reply.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task UnconfirmedRenewalCannotExtendOrResurrectAuthorityAsync(bool blockCompareAndSwap)
@@ -176,6 +185,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             }
         }
 
+        /// <summary>
+        /// Verifies initial acquisition confirmed at or after its stored expiry never grants local leadership.
+        /// </summary>
         [TestCase(0)]
         [TestCase(1)]
         public async Task LateInitialConfirmationCannotAcquireExpiredAuthorityAsync(int ticksAfterExpiry)
@@ -216,6 +228,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             }
         }
 
+        /// <summary>
+        /// Verifies a delayed read from an expired attempt cannot revoke a subsequently acquired lease.
+        /// </summary>
         [Test]
         public async Task StaleReadCannotRevokeNewlyConfirmedAuthorityAsync()
         {
@@ -262,6 +277,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             }
         }
 
+        /// <summary>
+        /// Verifies store reply latency does not extend the deadline encoded when renewal was attempted.
+        /// </summary>
         [Test]
         public async Task ConfirmedRenewalExpiresFromTheWriteAttemptNotTheReplyAsync()
         {
@@ -293,6 +311,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(election.IsLeader, Is.False);
         }
 
+        /// <summary>
+        /// Creates an election with shared test lease timing and the supplied replica identity and clock.
+        /// </summary>
         private static SharedStoreLeaseElection CreateElection(
             ISharedKeyValueStore store,
             string nodeId,
@@ -302,6 +323,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
                 store, kLeaseKey, nodeId, s_leaseDuration, s_renewInterval, time);
         }
 
+        /// <summary>
+        /// Wraps the in-memory backend in a strict mock whose read and write replies can be delayed or faulted.
+        /// </summary>
         private static Mock<ISharedKeyValueStore> CreateStore(InMemorySharedKeyValueStore backend)
         {
             var store = new Mock<ISharedKeyValueStore>(MockBehavior.Strict);
@@ -309,6 +333,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             return store;
         }
 
+        /// <summary>
+        /// Restores normal read, compare-and-swap, and delete forwarding after an injected store failure or delay.
+        /// </summary>
         private static void ConfigureStore(
             Mock<ISharedKeyValueStore> store,
             InMemorySharedKeyValueStore backend)
@@ -326,13 +353,44 @@ namespace Opc.Ua.Core.Tests.Redundancy
                 .Returns((string key, CancellationToken ct) => backend.DeleteAsync(key, ct));
         }
 
+        /// <summary>
+        /// Identifies the shared lease record used by competing test replicas.
+        /// </summary>
         private const string kLeaseKey = "lease/expiry-regression";
+
+        /// <summary>
+        /// Defines the validity window of each successfully written lease.
+        /// </summary>
         private static readonly TimeSpan s_leaseDuration = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// Advances the clock to the next renewal attempt within a valid lease.
+        /// </summary>
         private static readonly TimeSpan s_renewInterval = TimeSpan.FromSeconds(10);
+
+        /// <summary>
+        /// Separates assertions immediately before, at, and after the expiry boundary.
+        /// </summary>
         private static readonly TimeSpan s_tick = TimeSpan.FromTicks(1);
+
+        /// <summary>
+        /// Bounds waits for controlled store operations to complete.
+        /// </summary>
         private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(10);
+
+        /// <summary>
+        /// Describes the expected notification sequence after initial acquisition.
+        /// </summary>
         private static readonly bool[] s_acquired = [true];
+
+        /// <summary>
+        /// Describes acquisition followed by expiry of local authority.
+        /// </summary>
         private static readonly bool[] s_acquiredThenLost = [true, false];
+
+        /// <summary>
+        /// Describes acquisition, expiry, and a later successful acquisition.
+        /// </summary>
         private static readonly bool[] s_reacquired = [true, false, true];
     }
 }

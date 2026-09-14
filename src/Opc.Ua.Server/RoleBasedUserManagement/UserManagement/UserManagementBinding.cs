@@ -58,6 +58,9 @@ namespace Opc.Ua.Server.UserManagement
     /// </remarks>
     public sealed class UserManagementBinding : IDisposable, IAsyncDisposable
     {
+        /// <summary>
+        /// Initializes the user provider, session teardown target and telemetry for the binding.
+        /// </summary>
         private UserManagementBinding(
             IUserManagement userManagement,
             ISessionManager? sessionManager,
@@ -232,6 +235,9 @@ namespace Opc.Ua.Server.UserManagement
             return result;
         }
 
+        /// <summary>
+        /// Applies authorized user changes and waits for any resulting session deactivation work.
+        /// </summary>
         private async ValueTask<ModifyUserMethodStateResult> OnModifyUserAsync(
             ISystemContext context,
             MethodState method,
@@ -268,6 +274,9 @@ namespace Opc.Ua.Server.UserManagement
             return result;
         }
 
+        /// <summary>
+        /// Removes an authorized user's record and waits for any resulting session deactivation work.
+        /// </summary>
         private async ValueTask<RemoveUserMethodStateResult> OnRemoveUserAsync(
             ISystemContext context,
             MethodState method,
@@ -321,6 +330,9 @@ namespace Opc.Ua.Server.UserManagement
             return result;
         }
 
+        /// <summary>
+        /// Tracks an admitted user change through property synchronization and the session closures it triggers.
+        /// </summary>
         private async ValueTask<ServiceResult> ExecuteUserChangeAsync(Func<ServiceResult> change)
         {
             lock (m_deactivationLock)
@@ -383,6 +395,9 @@ namespace Opc.Ua.Server.UserManagement
             }
         }
 
+        /// <summary>
+        /// Queues a deactivated user's session closures and associates them with the current user change.
+        /// </summary>
         private void OnUserDeactivated(object? sender, UserDeactivatedEventArgs e)
         {
             ISessionManager? sessionManager = m_sessionManager ?? m_server.SessionManager;
@@ -404,6 +419,9 @@ namespace Opc.Ua.Server.UserManagement
             }
         }
 
+        /// <summary>
+        /// Closes the user's sessions and subscriptions after preceding deactivation work has finished.
+        /// </summary>
         private async Task<ServiceResult> CloseUserSessionsAsync(
             Task previous,
             ISessionManager sessionManager,
@@ -443,13 +461,37 @@ namespace Opc.Ua.Server.UserManagement
 
         private readonly IUserManagement m_userManagement;
         private readonly ISessionManager? m_sessionManager;
+
+        /// <summary>
+        /// Performs complete session and subscription teardown for deactivated users.
+        /// </summary>
         private readonly IServerInternal m_server;
         private readonly ILogger m_logger;
+
+        /// <summary>
+        /// Protects admission, deactivation queue updates and shutdown-drain state.
+        /// </summary>
         private readonly Lock m_deactivationLock = new();
+
+        /// <summary>
+        /// Associates synchronous deactivation notifications with the user change that raised them.
+        /// </summary>
         private readonly AsyncLocal<List<Task<ServiceResult>>?> m_currentUserChange = new();
         private UserManagementState? m_state;
+
+        /// <summary>
+        /// Represents the tail of the serialized session-deactivation queue.
+        /// </summary>
         private Task m_pendingDeactivations = Task.CompletedTask;
+
+        /// <summary>
+        /// Completes when all admitted user changes and their deactivation work have finished.
+        /// </summary>
         private TaskCompletionSource<bool>? m_userChangesDrained;
+
+        /// <summary>
+        /// Counts user changes that must drain before event unsubscription and asynchronous disposal finish.
+        /// </summary>
         private int m_activeUserChanges;
         private bool m_disposed;
     }

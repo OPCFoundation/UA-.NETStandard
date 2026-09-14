@@ -252,6 +252,9 @@ namespace Opc.Ua.Core.Tests.Security
             Assert.That(SecurityPolicies.Default.VerifySignatureData(noneSignature, SecurityPolicyInfo.None, certificate, plainText), Is.True);
         }
 
+        /// <summary>
+        /// Verifies absent or empty signatures are accepted only by the policy that does not require signing.
+        /// </summary>
         [Test]
         public void MissingSignatureIsAcceptedOnlyWithoutSigning(
             [Values(SecurityPolicies.None, SecurityPolicies.Basic256Sha256,

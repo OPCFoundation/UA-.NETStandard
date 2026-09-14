@@ -39,11 +39,18 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies that returned and mirrored notifications retain their payloads independently of queue recycling.
+    /// </summary>
     [TestFixture]
     [Category("Subscription")]
     [NonParallelizable]
     public sealed class NotificationEncodingLifetimeRegressionTests
     {
+        /// <summary>
+        /// Verifies that delayed encoding preserves notifications after acknowledgement, eviction, clearing, and pool
+        /// reuse.
+        /// </summary>
         [Test]
         public async Task ReturnedNotificationSurvivesPoolReuseUntilEncodingCompletesAsync(
             [Values("publish", "queued", "republish", "fullMirror", "deltaMirror")] string surface,
@@ -149,6 +156,9 @@ namespace Opc.Ua.Server.Tests
             queue.Clear();
         }
 
+        /// <summary>
+        /// Waits for queue mutation before round-tripping the retained publish response through binary encoding.
+        /// </summary>
         private static async Task<PublishResponse> EncodeAfterReleaseAsync(PublishResponse response, Task release)
         {
             await release.ConfigureAwait(false);

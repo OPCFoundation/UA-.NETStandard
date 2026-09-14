@@ -187,6 +187,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                 Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that fluent alarms register distinct descendants and enabling one does not affect another.
+        /// </summary>
         [Test]
         public async Task DistinctFluentAlarmsHaveUniqueIndexedDescendantsAndIndependentMethodsAsync()
         {
@@ -218,6 +221,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(first.EnabledState.Id.Value, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that configured limits are browsable scalar doubles whose node identities survive value updates.
+        /// </summary>
         [Test]
         public async Task ConfiguredLimitsAreTypedBrowsableAndRemainStableWhenUpdatedAsync()
         {
@@ -258,6 +264,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(other.LowLimit, Is.Null);
         }
 
+        /// <summary>
+        /// Collects every alarm descendant to check registration and node identifier uniqueness.
+        /// </summary>
         private static void CollectAlarmChildren(
             ISystemContext context, NodeState parent, List<BaseInstanceState> result)
         {

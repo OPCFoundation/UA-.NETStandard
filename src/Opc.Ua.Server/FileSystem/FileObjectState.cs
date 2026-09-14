@@ -56,6 +56,9 @@ namespace Opc.Ua.Server.FileSystem
         {
         }
 
+        /// <summary>
+        /// Creates a provider-backed file node with metadata, read limits and FileType method handlers.
+        /// </summary>
         public FileObjectState(
             ISystemContext context,
             NodeId nodeId,
@@ -309,6 +312,9 @@ namespace Opc.Ua.Server.FileSystem
                     "File handle is invalid, belongs to another Session, or is already closed.");
         }
 
+        /// <summary>
+        /// Opens the file asynchronously for the calling session and returns its assigned handle.
+        /// </summary>
         private async ValueTask<OpenMethodStateResult> OnOpenAsync(
             ISystemContext context,
             MethodState method,
@@ -326,6 +332,9 @@ namespace Opc.Ua.Server.FileSystem
             return new OpenMethodStateResult { ServiceResult = error, FileHandle = fileHandle };
         }
 
+        /// <summary>
+        /// Sets the position of a session-owned stream without seeking past the current end of the file.
+        /// </summary>
         private ServiceResult OnSetPosition(ISystemContext context, MethodState method,
             NodeId objectId, uint fileHandle, ulong position)
         {
@@ -374,6 +383,9 @@ namespace Opc.Ua.Server.FileSystem
             return ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Reads a bounded chunk from a session-owned readable stream for the synchronous FileType callback.
+        /// </summary>
         private ServiceResult OnRead(ISystemContext context, MethodState method,
             NodeId objectId, uint fileHandle, int length, ref ByteString data)
         {
@@ -388,6 +400,9 @@ namespace Opc.Ua.Server.FileSystem
             return ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Reads a bounded chunk asynchronously from a session-owned readable stream.
+        /// </summary>
         private async ValueTask<ReadMethodStateResult> OnReadAsync(
             ISystemContext context,
             MethodState method,
@@ -414,6 +429,9 @@ namespace Opc.Ua.Server.FileSystem
             };
         }
 
+        /// <summary>
+        /// Validates read access and clamps the requested count to file and server encoding limits.
+        /// </summary>
         private ServiceResult PrepareRead(
             ISystemContext context,
             uint fileHandle,
@@ -461,6 +479,9 @@ namespace Opc.Ua.Server.FileSystem
             return ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Calculates the read payload limit after accounting for ByteString limits and response overhead.
+        /// </summary>
         private static int GetServerReadLimit(ISystemContext context)
         {
             IServiceMessageContext? messageContext = (context as ServerSystemContext)?.Server.MessageContext;
@@ -479,6 +500,9 @@ namespace Opc.Ua.Server.FileSystem
             return limit;
         }
 
+        /// <summary>
+        /// Writes the supplied bytes only through a handle opened for writing by the calling session.
+        /// </summary>
         private ServiceResult OnWrite(ISystemContext context, MethodState method,
             NodeId objectId, uint fileHandle, ByteString data)
         {
@@ -553,6 +577,9 @@ namespace Opc.Ua.Server.FileSystem
             return true;
         }
 
+        /// <summary>
+        /// Disconnects metadata and method callbacks when the materialized file node is retired.
+        /// </summary>
         internal void DetachCallbacks()
         {
             if (OpenCount != null)

@@ -40,10 +40,16 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
+    /// <summary>
+    /// Covers unlimited, disabled, and bounded rejected-certificate retention in managers and store implementations.
+    /// </summary>
     [TestFixture]
     [Category("CertificateStore")]
     public sealed class RejectedCertificateLimitRegressionTests
     {
+        /// <summary>
+        /// Verifies the manager retains unlimited history at zero and clears or prevents history for a negative limit.
+        /// </summary>
         [Test]
         public async Task ManagerPreservesUnlimitedAndDisabledLimitsWhenTrimmingAsync()
         {
@@ -77,6 +83,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(final, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies directory and shared stores interpret zero, negative, and positive rejection-history limits
+        /// consistently.
+        /// </summary>
         [Test]
         public async Task RejectedHistoryUsesZeroAsUnlimitedAndNegativeAsDisabledAsync(
             [Values(false, true)] bool shared,

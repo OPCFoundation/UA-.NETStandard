@@ -669,6 +669,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
             CompleteOpen(url, settings);
         }
 
+        /// <summary>
+        /// Commits successful open state and adopts the server certificate, releasing any different previous handle.
+        /// </summary>
         private void CompleteOpen(Uri? url, TransportChannelSettings settings)
         {
             EndpointDescription description = settings.Description ??
@@ -843,6 +846,10 @@ namespace Opc.Ua.Stress.Tests.Channels.Fakes
         private EndpointConfiguration? m_endpointConfiguration;
         private IServiceMessageContext m_messageContext;
         private ChannelToken? m_currentToken;
+
+        /// <summary>
+        /// Owns the server certificate adopted by the last successful open until replacement, close, or disposal.
+        /// </summary>
         private Certificate? m_serverCertificate;
         private IUaSCByteTransport? m_socket;
         private ChannelTokenActivatedEventHandler? m_onTokenActivated;

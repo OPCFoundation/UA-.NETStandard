@@ -38,9 +38,15 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Redundancy.Server.Tests.Security
 {
+    /// <summary>
+    /// Verifies shared pending-key claims preserve mismatched, canceled, and concurrently replaced records.
+    /// </summary>
     [TestFixture]
     public sealed class PendingKeyCompareExchangeRegressionTests
     {
+        /// <summary>
+        /// Verifies an unrelated upload cannot consume the shared key before its matching upload claims it once.
+        /// </summary>
         [Test]
         public async Task MismatchedUploadNeverClaimsTheSharedPendingKeyAsync()
         {
@@ -60,6 +66,10 @@ namespace Opc.Ua.Redundancy.Server.Tests.Security
             Assert.That(again, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies a newer signing request survives replacement immediately before or after the claim
+        /// compare-exchange.
+        /// </summary>
         [Test]
         public async Task AConcurrentSigningRequestSurvivesBothSidesOfTheClaimCompareExchangeAsync(
             [Values(false, true)] bool replaceAfterClaim)
@@ -101,6 +111,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Security
             }
         }
 
+        /// <summary>
+        /// Verifies restoration succeeds only while no newer replica has published a replacement key.
+        /// </summary>
         [Test]
         public async Task ConditionalRestorationNeverReplacesANewerReplicaKeyAsync([Values(false, true)] bool replace)
         {
@@ -121,6 +134,9 @@ namespace Opc.Ua.Redundancy.Server.Tests.Security
             Assert.That(retained.HasPrivateKey, Is.True);
         }
 
+        /// <summary>
+        /// Verifies pre-canceled matching claims leave the original shared key intact.
+        /// </summary>
         [Test]
         public async Task CancelledMatchingClaimDoesNotChangeTheSharedRecordAsync()
         {
@@ -137,11 +153,17 @@ namespace Opc.Ua.Redundancy.Server.Tests.Security
             Assert.That(retained.Thumbprint, Is.EqualTo(original.Thumbprint));
         }
 
+        /// <summary>
+        /// Creates a distinguishable RSA certificate for pending-key ownership assertions.
+        /// </summary>
         private static Certificate NewKey(string name)
         {
             return DefaultCertificateFactory.Instance.CreateCertificate("CN=" + name).CreateForRSA();
         }
 
+        /// <summary>
+        /// Creates an isolated certificate-group scope for one shared pending-key scenario.
+        /// </summary>
         private static PendingCertificateKeyContext NewContext()
         {
             return new PendingCertificateKeyContext(

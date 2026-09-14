@@ -540,11 +540,15 @@ namespace Opc.Ua.Server
             await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
         ValueTask INodeManagerShutdown.PrepareForShutdownAsync()
         {
             return PrepareForShutdownAsync();
         }
 
+        /// <summary>
+        /// Stops alarm and user-management work and drains deferred configuration effects before teardown.
+        /// </summary>
         private async ValueTask PrepareForShutdownAsync()
         {
             StopAlarmMonitoring();

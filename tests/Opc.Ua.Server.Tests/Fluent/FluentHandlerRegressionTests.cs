@@ -39,10 +39,17 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Fluent
 {
+    /// <summary>
+    /// Verifies fluent handler registration boundaries and dispatch for dynamically authored nodes.
+    /// </summary>
     [TestFixture]
     [Category("Fluent")]
     public sealed class FluentHandlerRegressionTests
     {
+        /// <summary>
+        /// Verifies that a retained builder rejects every handler registration after sealing without mutating
+        /// callbacks.
+        /// </summary>
         [Test]
         public void RetainedNodeBuilderCannotRegisterHandlersAfterSealing(
             [Values("historyRead", "historyUpdate", "created", "creating", "modified", "deleted", "mode",
@@ -66,6 +73,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(harness.Method.OnCallMethod2Async, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that ad hoc objects dispatch history, removal, and condition-refresh handlers for their own node.
+        /// </summary>
         [TestCase("reference")]
         [TestCase("instance")]
         [TestCase("rootInstance")]
@@ -122,6 +132,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(events[0], Is.SameAs(expectedEvent));
         }
 
+        /// <summary>
+        /// Verifies that an ad hoc builder without dispatcher support reports a configuration error instead of ignoring
+        /// handlers.
+        /// </summary>
         [TestCase("historyRead")]
         [TestCase("historyUpdate")]
         [TestCase("removed")]
@@ -133,6 +147,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Registers the selected handler kind to exercise authoring and dispatcher capability checks.
+        /// </summary>
         private static void Wire(INodeBuilder node, string handler)
         {
             switch (handler)
@@ -182,13 +199,22 @@ namespace Opc.Ua.Server.Tests.Fluent
             }
         }
 
+        /// <summary>
+        /// Supplies a successful value callback for read and write handler-registration checks.
+        /// </summary>
         private static ServiceResult ReadOrWrite(ISystemContext context, NodeState node, ref Variant value)
         {
             return ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Builds a small indexed object graph with variable and method nodes for handler-registration tests.
+        /// </summary>
         private sealed class HandlerHarness
         {
+            /// <summary>
+            /// Creates the namespace, node identifier factory, and root graph used by the fluent builder.
+            /// </summary>
             public HandlerHarness()
             {
                 var namespaces = new NamespaceTable();
@@ -229,15 +255,41 @@ namespace Opc.Ua.Server.Tests.Fluent
                     _ => Root, id => nodes.TryGetValue(id, out NodeState node) ? node : null, _ => []);
             }
 
+            /// <summary>
+            /// Gets the namespace and type context supplied to dispatched handlers.
+            /// </summary>
             public SystemContext Context { get; }
+
+            /// <summary>
+            /// Gets the parent object used to author ad hoc children.
+            /// </summary>
             public BaseObjectState Root { get; }
+
+            /// <summary>
+            /// Gets the variable used to observe read, write, event, and monitored-item callbacks.
+            /// </summary>
             public BaseDataVariableState Variable { get; }
+
+            /// <summary>
+            /// Gets the method used to observe registration of call callbacks.
+            /// </summary>
             public MethodState Method { get; }
+
+            /// <summary>
+            /// Gets the graph builder whose sealing and dispatcher behavior are under test.
+            /// </summary>
             public NodeManagerBuilder Builder { get; }
 
         }
 
+        /// <summary>
+        /// Defines the continuation payload expected from the dispatched history-read handler.
+        /// </summary>
         private static readonly byte[] s_continuation = [3, 7];
+
+        /// <summary>
+        /// Identifies handler registries that must remain empty after rejected post-seal registrations.
+        /// </summary>
         private static readonly string[] s_handlerMaps =
         [
             "m_historyRead", "m_historyUpdate", "m_monitoredItemCreated", "m_monitoredItemCreating",

@@ -34,10 +34,17 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
+    /// <summary>
+    /// Verifies dynamic node resolution across request, shared-component, and already-validated cache entries.
+    /// </summary>
     [TestFixture]
     [Category("NodeManager")]
     public sealed class DynamicNodeCacheRegressionTests
     {
+        /// <summary>
+        /// Verifies that all supported cache-hit paths return the original node while a genuine miss remains
+        /// unresolved.
+        /// </summary>
         [TestCase("direct")]
         [TestCase("root")]
         [TestCase("shared")]
@@ -97,18 +104,30 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Exposes dynamic-node cache lookup and shared-component registration for focused cache tests.
+        /// </summary>
         private sealed class CacheHooks : CustomNodeManager2
         {
+            /// <summary>
+            /// Creates a node manager whose dynamic caches can be populated and queried directly.
+            /// </summary>
             public CacheHooks(IServerInternal server)
                 : base(server, NullLogger.Instance, "urn:tests:dynamic-node-cache")
             {
             }
 
+            /// <summary>
+            /// Resolves a handle through the request cache and manager-owned component cache.
+            /// </summary>
             public NodeState Find(NodeHandle handle, IDictionary<NodeId, NodeState> cache)
             {
                 return FindNodeInCache(SystemContext, handle, cache);
             }
 
+            /// <summary>
+            /// Adds a resolved node to the manager's shared component cache.
+            /// </summary>
             public void AddShared(NodeHandle handle, NodeState node)
             {
                 AddNodeToComponentCache(SystemContext, handle, node);

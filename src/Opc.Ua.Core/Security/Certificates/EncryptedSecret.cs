@@ -59,6 +59,9 @@ namespace Opc.Ua
         {
         }
 
+        /// <summary>
+        /// Configures secret processing with the negotiated policy and an optional symmetric-decryption implementation.
+        /// </summary>
         internal EncryptedSecret(
             IServiceMessageContext context,
             string securityPolicyUri,
@@ -1254,6 +1257,9 @@ namespace Opc.Ua
             return DecryptVerifiedEcc(dataToDecrypt, expectedNonce);
         }
 
+        /// <summary>
+        /// Decrypts a verified ECC payload, validates its nonce and padding, and clears temporary secret material.
+        /// </summary>
         private byte[] DecryptVerifiedEcc(ArraySegment<byte> dataToDecrypt, byte[] expectedNonce)
         {
             if (ReceiverNonce == null || SenderNonce == null)
@@ -1342,8 +1348,14 @@ namespace Opc.Ua
 #pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
         }
 
+        /// <summary>
+        /// Performs authenticated symmetric decryption using the derived key and initialization vector.
+        /// </summary>
         private readonly Func<ArraySegment<byte>, SecurityPolicyInfo, byte[], byte[], ArraySegment<byte>> m_decrypt;
 
+        /// <summary>
+        /// Erases the exclusively owned backing array of a byte string allocated while decoding a secret.
+        /// </summary>
         private static void ClearDecodedBytes(ByteString value)
         {
             if (value.IsEmpty)

@@ -5503,6 +5503,9 @@ namespace Opc.Ua.Client
             return LoadInstanceCertificateEntryAsync(configuration, securityProfile, telemetry, false, ct);
         }
 
+        /// <summary>
+        /// Acquires a session-owned certificate and optional issuer chain from the active registry or configured store.
+        /// </summary>
         internal static async Task<CertificateEntry> LoadInstanceCertificateEntryAsync(
             ApplicationConfiguration configuration,
             string securityProfile,

@@ -44,11 +44,17 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
+    /// <summary>
+    /// Covers validation-core borrow lifetimes and stable trust-list snapshots during manager updates.
+    /// </summary>
     [TestFixture]
     [Category("CertificateManager")]
     [NonParallelizable]
     public sealed class CertificateCoreLifetimeRegressionTests
     {
+        /// <summary>
+        /// Verifies eviction or manager disposal cannot close stores still borrowed by pending certificate validation.
+        /// </summary>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -167,6 +173,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Verifies an enumerated trust-list snapshot remains unchanged while another list is registered.
+        /// </summary>
         [Test]
         public async Task TrustListNamesRemainAStableSnapshotDuringConcurrentRegistrationAsync()
         {
@@ -183,6 +192,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(manager.TrustLists, Is.EquivalentTo(s_registered));
         }
 
+        /// <summary>
+        /// Lists the registrations expected after the concurrent update finishes.
+        /// </summary>
         private static readonly TrustListIdentifier[] s_registered =
             [TrustListIdentifier.Peers, TrustListIdentifier.Users];
     }

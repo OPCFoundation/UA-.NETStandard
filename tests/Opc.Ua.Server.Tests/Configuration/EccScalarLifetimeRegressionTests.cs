@@ -36,10 +36,16 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies that certificate key generation clears temporary elliptic-curve private key material.
+    /// </summary>
     [TestFixture]
     [Category("CertificateManager")]
     public sealed class EccScalarLifetimeRegressionTests
     {
+        /// <summary>
+        /// Verifies that the imported private scalar is cleared after success, import failure, or cancellation.
+        /// </summary>
         [TestCase("success")]
         [TestCase("failure")]
         [TestCase("cancellation")]

@@ -37,11 +37,17 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
+    /// <summary>
+    /// Verifies that shutdown drains accepted user revocations without blocking their session-closing callbacks.
+    /// </summary>
     [TestFixture]
     [Category("NodeManager")]
     [Parallelizable(ParallelScope.All)]
     public sealed class UserDeactivationShutdownReviewTests
     {
+        /// <summary>
+        /// Verifies reentrant session closure, concurrent drain joining, and local cleanup during shutdown or disposal.
+        /// </summary>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -165,6 +171,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Invokes user removal as a security administrator over an encrypted channel.
+        /// </summary>
         private static async Task<ServiceResult> RemoveUserAsync(UserManagementState state, ITelemetryContext telemetry)
         {
             var identity = new Mock<IUserIdentity>();
@@ -185,17 +194,37 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return result.ServiceResult;
         }
 
+        /// <summary>
+        /// Observes whether session-closing callbacks run before the configuration address space is removed.
+        /// </summary>
         private sealed class ClosingConfigurationNodeManager : ConfigurationNodeManager
         {
+            /// <summary>
+            /// Creates a configuration manager for the shutdown reentry scenario.
+            /// </summary>
             public ClosingConfigurationNodeManager(IServerInternal server, ApplicationConfiguration configuration)
                 : base(server, configuration)
             {
             }
 
+            /// <summary>
+            /// Gets the number of session-closing notifications reaching this manager.
+            /// </summary>
             public int SessionClosingCount { get; private set; }
+
+            /// <summary>
+            /// Gets whether the user-management node remained available during session closure.
+            /// </summary>
             public bool HadAddressSpaceDuringSessionClosing { get; private set; }
+
+            /// <summary>
+            /// Gets the number of nodes still retained after shutdown cleanup.
+            /// </summary>
             public int RetainedNodes => PredefinedNodes.Count;
 
+            /// <summary>
+            /// Records address-space availability before forwarding the session-closing notification.
+            /// </summary>
             public override async ValueTask SessionClosingAsync(
                 OperationContext context,
                 NodeId sessionId,
@@ -209,8 +238,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Tracks real master-gate reentry and provides a test-only cancellation escape for a failing deadlock probe.
+        /// </summary>
         private sealed class ClosingMasterNodeManager : MasterNodeManager
         {
+            /// <summary>
+            /// Captures the configuration observer and the rescue token used only to unwind a failed test.
+            /// </summary>
             public ClosingMasterNodeManager(
                 IServerInternal server,
                 ApplicationConfiguration configuration,
@@ -222,10 +257,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 m_abortDeadlock = abortDeadlock;
             }
 
+            /// <summary>
+            /// Reports whether session closure reached the configuration manager before its first suspension.
+            /// </summary>
             public TaskCompletionSource<bool> ReentryReachedConfiguration { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Gets the original production cancellation token passed to the deactivation callback.
+            /// </summary>
             public CancellationToken DeactivationToken { get; private set; }
 
+            /// <summary>
+            /// Observes synchronous progress through the real session-closing gate before awaiting completion.
+            /// </summary>
             public override async ValueTask SessionClosingAsync(
                 OperationContext context,
                 NodeId sessionId,
@@ -238,7 +283,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await closing.ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Supplies the callback count used to detect successful gate reentry.
+            /// </summary>
             private readonly ClosingConfigurationNodeManager m_configManager;
+
+            /// <summary>
+            /// Allows teardown of a failing deadlock reproduction without changing the production caller's token.
+            /// </summary>
             private readonly CancellationToken m_abortDeadlock;
         }
     }

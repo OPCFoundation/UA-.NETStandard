@@ -32,11 +32,17 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Types.BuiltIn
 {
+    /// <summary>
+    /// Verifies sessionless binary messages retain locale tables without dropping entries.
+    /// </summary>
     [TestFixture]
     [Category("BuiltIn")]
     [Parallelizable(ParallelScope.All)]
     public sealed class SessionlessLocaleRegressionTests
     {
+        /// <summary>
+        /// Verifies empty, single-entry, and multi-entry locale tables survive binary encoding and decoding.
+        /// </summary>
         [TestCase(0)]
         [TestCase(1)]
         [TestCase(2)]

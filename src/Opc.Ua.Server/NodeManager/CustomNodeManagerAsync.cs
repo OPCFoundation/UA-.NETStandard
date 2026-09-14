@@ -59,6 +59,9 @@ namespace Opc.Ua.Server
                 cancellationToken);
         }
 
+        /// <summary>
+        /// Dispatches validated requests through synchronous method callbacks and records their results.
+        /// </summary>
         private void CallSynchronousBatch(
             OperationContext context,
             ArrayOf<CallMethodRequest> methodsToCall,
@@ -74,6 +77,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Invokes a synchronous method callback and translates its argument and output results.
+        /// </summary>
         private ServiceResult CallSynchronousMethod(
             ISystemContext context,
             CallMethodRequest request,
@@ -87,6 +93,9 @@ namespace Opc.Ua.Server
             return CompleteMethodCall(context, result, callResult, argumentErrors, outputArguments);
         }
 
+        /// <summary>
+        /// Claims this manager's method requests and yields those passing node, method and permission checks.
+        /// </summary>
         private IEnumerable<(int Index, CallMethodRequest Request, MethodState Method)> GetMethodCalls(
             OperationContext context,
             ServerSystemContext systemContext,
@@ -133,6 +142,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Populates failed input-argument diagnostics or successful outputs while preserving the callback result.
+        /// </summary>
         private ServiceResult CompleteMethodCall(
             ISystemContext context,
             CallMethodResult result,

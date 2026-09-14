@@ -50,11 +50,18 @@ namespace Opc.Ua.Core.Security.Tests
     internal sealed class CertSessionContext : IAsyncDisposable
     {
         private readonly string m_pkiRoot;
+
+        /// <summary>
+        /// Owns the client application services that must stop before the temporary PKI directory is removed.
+        /// </summary>
         private readonly ApplicationInstance m_application;
         private bool m_disposed;
         public ApplicationConfiguration ClientConfig { get; }
         public Certificate ClientCertificate { get; }
 
+        /// <summary>
+        /// Retains the configured client, its certificate, and the application responsible for its lifetime.
+        /// </summary>
         private CertSessionContext(
             ApplicationConfiguration clientConfig,
             Certificate clientCertificate,
@@ -176,6 +183,9 @@ namespace Opc.Ua.Core.Security.Tests
                 ct: cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Disposes the client application before releasing its certificate and temporary PKI storage.
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
             if (m_disposed)

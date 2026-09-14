@@ -168,6 +168,9 @@ namespace Opc.Ua
                 // no op.
             }
 
+            /// <summary>
+            /// Enables non-None levels when an event listener or configured trace output can receive messages.
+            /// </summary>
             public bool IsEnabled(LogLevel logLevel)
             {
                 // The event ID owns category filtering; the level alone cannot decide it.
@@ -193,6 +196,9 @@ namespace Opc.Ua
             private readonly TraceLoggerProvider m_provider;
         }
 
+        /// <summary>
+        /// Checks whether the trace mask and output settings permit file output or the debug-build fallback.
+        /// </summary>
         private bool HasEnabledTraceOutput()
         {
             if (TraceMask == Utils.TraceMasks.None)

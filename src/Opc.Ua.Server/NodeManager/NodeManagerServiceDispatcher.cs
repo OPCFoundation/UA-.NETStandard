@@ -3601,21 +3601,34 @@ namespace Opc.Ua.Server
                 : result;
         }
 
+        /// <summary>
+        /// Disposes a browse continuation point unless responsibility has been transferred to another owner.
+        /// </summary>
         private sealed class ContinuationPointOwner : IDisposable
         {
+            /// <summary>
+            /// Takes responsibility for disposing the supplied browse continuation point.
+            /// </summary>
             public ContinuationPointOwner(ContinuationPoint point)
             {
                 Point = point;
             }
 
+            /// <summary>
+            /// Gets the browse continuation point whose disposal responsibility can be transferred.
+            /// </summary>
             public ContinuationPoint Point { get; }
 
+            /// <summary>
+            /// Transfers the continuation point to the caller without disposing it.
+            /// </summary>
             public ContinuationPoint Detach()
             {
                 m_owned = false;
                 return Point;
             }
 
+            /// <inheritdoc/>
             public void Dispose()
             {
                 if (m_owned)
@@ -3625,9 +3638,15 @@ namespace Opc.Ua.Server
                 }
             }
 
+            /// <summary>
+            /// Indicates that this wrapper still owns disposal of the continuation point.
+            /// </summary>
             private bool m_owned = true;
         }
 
+        /// <summary>
+        /// Unsubscribes through the owning manager, reporting failures while preserving request cancellation.
+        /// </summary>
         private async ValueTask<ServiceResult> UnsubscribeEventsAsync(
             IAsyncNodeManager owner,
             Func<ValueTask<ServiceResult>> unsubscribe,
@@ -3653,6 +3672,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Logs an owner-dispatch exception and converts it to a monitored-item service error.
+        /// </summary>
         private ServiceResult GetMonitoredItemDispatchFailure(IAsyncNodeManager owner, Exception exception)
         {
             m_logger.MonitoredItemOwnerDispatchFailed(exception, owner.GetType().Name);

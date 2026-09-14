@@ -19,7 +19,9 @@
     <ProjectReference Include="..\Opc.Ua.Types\Opc.Ua.Types.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Server builders coordinate transitions through internal revision guards and per-transition callbacks. -->
     <InternalsVisibleTo Include="Opc.Ua.Server" />
+    <!-- Deterministic server regressions verify the internal state revision without exposing it as public API. -->
     <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
   </ItemGroup>
   <ItemGroup>

@@ -37,10 +37,16 @@ using Opc.Ua.Server.AliasNames;
 
 namespace Opc.Ua.Server.Tests.AliasNames
 {
+    /// <summary>
+    /// Verifies OPC UA alias wildcard syntax, invalid-pattern handling, and bounded evaluation.
+    /// </summary>
     [TestFixture]
     [Category("AliasNames")]
     public sealed class AliasPatternRegressionTests
     {
+        /// <summary>
+        /// Verifies that character sets honor OPC UA escapes and patterns match the complete target string.
+        /// </summary>
         [TestCase("d", @"[\d]", true)]
         [TestCase("5", @"[\d]", false)]
         [TestCase("]", @"[\]]", true)]
@@ -59,6 +65,9 @@ namespace Opc.Ua.Server.Tests.AliasNames
             Assert.That(AliasNameWildcardMatcher.IsMatch(target, pattern), Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that both alias lookup methods reject malformed patterns before searching an empty store.
+        /// </summary>
         [TestCase("[]")]
         [TestCase("[^]")]
         [TestCase("[!]")]
@@ -82,6 +91,9 @@ namespace Opc.Ua.Server.Tests.AliasNames
             Assert.That(verbose.AliasNodeList.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that adversarial wildcard matching has a finite timeout and cannot run unbounded.
+        /// </summary>
         [Test]
         public void AdversarialPatternEvaluationHasAnExplicitFiniteBudget()
         {

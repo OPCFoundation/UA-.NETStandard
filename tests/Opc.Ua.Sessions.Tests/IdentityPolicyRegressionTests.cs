@@ -36,6 +36,9 @@ using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Sessions.Tests
 {
+    /// <summary>
+    /// Verifies session activation binds a policy identifier to its advertised user-token type.
+    /// </summary>
     [TestFixture]
     [Category("Session")]
     [Category("Security")]
@@ -43,6 +46,10 @@ namespace Opc.Ua.Sessions.Tests
     [NonParallelizable]
     public sealed class IdentityPolicyRegressionTests : TestFixture
     {
+        /// <summary>
+        /// Verifies mismatched username or certificate tokens cannot use an anonymous policy or replace the session
+        /// identity.
+        /// </summary>
         [TestCase(UserTokenType.UserName)]
         [TestCase(UserTokenType.Certificate)]
         public async Task AnonymousPolicyCannotAuthorizeADifferentTokenTypeAsync(UserTokenType tokenType)

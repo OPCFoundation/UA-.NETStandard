@@ -498,6 +498,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             item2.Verify(m => m.QueueEvent(filterTarget.Object), Times.Once);
         }
 
+        /// <summary>
+        /// Defines the ordered event payloads expected after publishing a three-event burst.
+        /// </summary>
         private static readonly string[] s_eventBurst = ["event0", "event1", "event2"];
     }
 }

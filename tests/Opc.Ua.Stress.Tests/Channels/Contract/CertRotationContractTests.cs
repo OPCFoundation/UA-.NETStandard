@@ -128,6 +128,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
                 ct).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies rotation joins an active reconnect and installs one replacement transport for all shared leases.
+        /// </summary>
         [Test]
         [CancelAfter(30_000)]
         [Description("L1-CERT2: certificate rotation during an active reconnect coalesces with the in-flight cycle.")]

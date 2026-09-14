@@ -39,10 +39,16 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.FileSystem
 {
+    /// <summary>
+    /// Verifies mount-root protection and canonical path validation before file-system provider mutations.
+    /// </summary>
     [TestFixture]
     [Category("FileSystem")]
     public sealed class FileSystemMountRegressionTests
     {
+        /// <summary>
+        /// Verifies that alternative root identifiers cannot delete, move, or copy the mounted root.
+        /// </summary>
         [Test]
         public async Task AlternateRootIdsCannotDeleteMoveOrCopyMountAsync(
             [Values("delete", "move", "copy")] string operation,
@@ -65,6 +71,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             });
         }
 
+        /// <summary>
+        /// Verifies that noncanonical source paths are rejected before reaching any provider mutation.
+        /// </summary>
         [Test]
         public async Task NonCanonicalObjectPathsCannotDeleteMoveOrCopyAsync(
             [Values("delete", "move", "copy")] string operation,
@@ -93,6 +102,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             });
         }
 
+        /// <summary>
+        /// Verifies that noncanonical destination paths reject moves and copies without returning a new node.
+        /// </summary>
         [Test]
         public async Task NonCanonicalMoveOrCopyTargetsDoNotInvokeProviderAsync(
             [Values(false, true)] bool createCopy,
@@ -116,6 +128,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             });
         }
 
+        /// <summary>
+        /// Verifies that valid nested paths, including unusual legal names, reach the provider unchanged.
+        /// </summary>
         [Test]
         public async Task OrdinaryNestedProviderPathsRemainUnchangedAsync(
             [Values("delete", "move", "copy")] string operation,
@@ -152,6 +167,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             VerifySingleMutation(provider, operation, providerPath, TargetPath);
         }
 
+        /// <summary>
+        /// Verifies that empty or separator-only destinations resolve to the mount root without a path prefix.
+        /// </summary>
         [Test]
         public async Task SeparatorOnlyTargetsResolveToCanonicalMountRootAsync(
             [Values(false, true)] bool createCopy,
@@ -174,6 +192,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
             VerifySingleMutation(provider, createCopy ? "copy" : "move", "sub/keep.txt", "renamed.txt");
         }
 
+        /// <summary>
+        /// Verifies that invalid type prefixes, method identifiers, and foreign namespaces cannot mutate provider
+        /// entries.
+        /// </summary>
         [Test]
         public async Task InvalidObjectIdsCannotDeleteMoveOrCopyAsync(
             [Values("delete", "move", "copy")] string operation,
@@ -199,6 +221,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             });
         }
 
+        /// <summary>
+        /// Verifies that a valid-looking path in another namespace cannot alias a mounted file.
+        /// </summary>
         [Test]
         public async Task ForeignNamespaceCannotAliasAValidFileAsync(
             [Values("delete", "move", "copy")] string operation)
@@ -218,6 +243,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             });
         }
 
+        /// <summary>
+        /// Verifies that invalid destination node kinds or namespaces reject moves and copies before provider access.
+        /// </summary>
         [Test]
         public async Task InvalidMoveOrCopyTargetDoesNotInvokeProviderAsync(
             [Values(false, true)] bool createCopy,
@@ -242,6 +270,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             });
         }
 
+        /// <summary>
+        /// Verifies that parsing rejects unsupported node kinds and numeric prefixes that overflow the type range.
+        /// </summary>
         [TestCase("3:")]
         [TestCase("2147483648:")]
         [TestCase("4294967296:")]
@@ -253,6 +284,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(FileSystemNodeId.TryParse(new NodeId(identifier, 2), out _), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that physical-provider root aliases are rejected while existing files and directories remain
+        /// intact.
+        /// </summary>
         [Test]
         public async Task PhysicalProviderRejectsRootMutationsBeforeTouchingContentsAsync(
             [Values("delete", "move", "copy")] string operation,
@@ -293,6 +328,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             }
         }
 
+        /// <summary>
+        /// Verifies that protecting the mount root still permits deleting, moving, and copying ordinary child files.
+        /// </summary>
         [Test]
         public async Task OrdinaryChildMutationsRemainSupportedAsync(
             [Values("delete", "move", "copy")] string operation)
@@ -323,18 +361,27 @@ namespace Opc.Ua.Server.Tests.FileSystem
             }
         }
 
+        /// <summary>
+        /// Writes a sentinel payload used to detect unintended provider mutations.
+        /// </summary>
         private static async Task WriteTextAsync(string path, string value)
         {
             using var writer = new StreamWriter(path);
             await writer.WriteAsync(value).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Reads a sentinel or copied payload to verify preserved file contents.
+        /// </summary>
         private static async Task<string> ReadTextAsync(string path)
         {
             using var reader = new StreamReader(path);
             return await reader.ReadToEndAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Creates a writable provider mock whose mutation calls can be checked for admission and exact paths.
+        /// </summary>
         private static Mock<IFileSystemProvider> CreateProvider()
         {
             var provider = new Mock<IFileSystemProvider>();
@@ -349,6 +396,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             return provider;
         }
 
+        /// <summary>
+        /// Creates a file-system manager over the supplied provider and deterministic server mock.
+        /// </summary>
         private static FileSystemNodeManager CreateManager(IFileSystemProvider provider)
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(out _);
@@ -356,12 +406,18 @@ namespace Opc.Ua.Server.Tests.FileSystem
             return new FileSystemNodeManager(server.Object, new ApplicationConfiguration(), provider);
         }
 
+        /// <summary>
+        /// Creates the mounted root node exposing file-system mutation methods.
+        /// </summary>
         private static DirectoryObjectState CreateRoot(FileSystemNodeManager manager)
         {
             return new DirectoryObjectState(manager.SystemContext,
                 FileSystemNodeId.BuildRoot(manager.NamespaceIndex), string.Empty, "Root", isRoot: true);
         }
 
+        /// <summary>
+        /// Invokes deletion or a move or copy into the root through the mounted directory methods.
+        /// </summary>
         private static async ValueTask<ServiceResult> MutateAsync(
             DirectoryObjectState root,
             ISystemContext context,
@@ -382,6 +438,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             return moved.ServiceResult;
         }
 
+        /// <summary>
+        /// Verifies that no delete, move, or copy request reached the provider.
+        /// </summary>
         private static void VerifyNoMutation(Mock<IFileSystemProvider> provider)
         {
             provider.Verify(p => p.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -391,6 +450,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that only the selected mutation occurred once with the expected source and destination paths.
+        /// </summary>
         private static void VerifySingleMutation(
             Mock<IFileSystemProvider> provider,
             string operation,
@@ -411,6 +473,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 Times.Exactly(operation == "copy" ? 1 : 0));
         }
 
+        /// <summary>
+        /// Supplies nonroot paths containing traversal, noncanonical separators, or invalid path components.
+        /// </summary>
         private static readonly string[] s_invalidNonRootPaths =
         [
             ".", "..", "sub/..", "sub\\..", "sub/../", "sub\\..\\", "../sub", "sub/../leaf", "sub\\..\\leaf",
@@ -418,6 +483,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             "C:/sub", "C:\\sub", "sub/stream:name", " ", "sub/ /leaf"
         ];
 
+        /// <summary>
+        /// Combines root aliases and invalid nonroot paths for source-path admission tests.
+        /// </summary>
         private static readonly string[] s_nonCanonicalProviderPaths =
         [
             "/", "\\", "//", "\\\\", "/\\/", .. s_invalidNonRootPaths

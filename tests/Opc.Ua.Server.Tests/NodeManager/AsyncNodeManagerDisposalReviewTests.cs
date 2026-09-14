@@ -36,11 +36,17 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
+    /// <summary>
+    /// Verifies asynchronous node-manager cleanup admission, deferred-operation draining, and failure aggregation.
+    /// </summary>
     [TestFixture]
     [Category("NodeManager")]
     [Parallelizable(ParallelScope.All)]
     public sealed class AsyncNodeManagerDisposalReviewTests
     {
+        /// <summary>
+        /// Verifies that subclass cleanup may use guarded members without allowing callers to enter during disposal.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task DisposeCoreCanUseGuardedMembersWithoutReopeningCallerAdmissionAsync(bool pause)
@@ -101,6 +107,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that synchronous owned cleanup can join a worker that must observe closed admission to finish.
+        /// </summary>
         [Test]
         public async Task SynchronousOwnedCleanupLetsSamplingWorkerReachClosedAdmissionAsync()
         {
@@ -154,6 +163,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that disposal waits for a deferred write callback even after its serialization semaphore is
+        /// released.
+        /// </summary>
         [Test]
         public async Task DisposalWaitsForWriteAfterItsSemaphoreIsReleasedAsync()
         {
@@ -204,6 +217,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that capturing a cleanup execution context cannot extend its admission privilege beyond the
+        /// callback.
+        /// </summary>
         [Test]
         public async Task CapturedCleanupContextCannotAdmitWorkAfterTheCallbackReturnsAsync()
         {
@@ -235,6 +252,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that cleanup failures are aggregated after releasing owned resources and replayed on repeated
+        /// disposal.
+        /// </summary>
         [Test]
         public void CleanupFailuresAreReportedAfterOwnedResourcesAreReleased()
         {
@@ -263,8 +284,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Exposes cached state with configurable subclass cleanup, owned-resource cleanup, and deferred writes.
+        /// </summary>
         private sealed class CleanupNodeManager : AsyncCustomNodeManager
         {
+            /// <summary>
+            /// Registers a cached variable and wraps monitored-item cleanup to observe ownership release.
+            /// </summary>
             public CleanupNodeManager(IServerInternal server)
                 : base(server, "urn:disposal-review")
             {
@@ -289,19 +316,52 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 m_monitoredItemManager = monitoredItems.Object;
             }
 
+            /// <summary>
+            /// Gets or sets the asynchronous callback executed during subclass cleanup.
+            /// </summary>
             public Func<ValueTask> Cleanup { get; set; }
+
+            /// <summary>
+            /// Gets or sets the deferred write callback whose admission must outlive semaphore ownership.
+            /// </summary>
             public Func<ValueTask> DeferredWrite { get; set; }
+
+            /// <summary>
+            /// Gets or sets the callback executed after the owned monitored-item manager is disposed.
+            /// </summary>
             public Action OwnedCleanup { get; set; }
+
+            /// <summary>
+            /// Gets the variable retained in the predefined-node and component caches until cleanup completes.
+            /// </summary>
             public NodeState CachedNode { get; }
+
+            /// <summary>
+            /// Gets the number of subclass cleanup invocations.
+            /// </summary>
             public int CleanupCalls { get; private set; }
+
+            /// <summary>
+            /// Gets the number of owned monitored-item manager disposal invocations.
+            /// </summary>
             public int OwnedDisposeCalls { get; private set; }
+
+            /// <summary>
+            /// Gets the number of predefined nodes still retained during disposal.
+            /// </summary>
             public int RetainedNodes => PredefinedNodes.Count;
 
+            /// <summary>
+            /// Looks up the cached variable through a member guarded by operation admission.
+            /// </summary>
             public NodeState FindCachedNode()
             {
                 return LookupNodeInComponentCache(SystemContext, m_handle);
             }
 
+            /// <summary>
+            /// Runs and counts the configured subclass cleanup before delegating to base cleanup.
+            /// </summary>
             protected override async ValueTask DisposeAsyncCore()
             {
                 CleanupCalls++;
@@ -312,6 +372,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await base.DisposeAsyncCore().ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Returns an unresolved handle so writes reach the deferred validation callback.
+            /// </summary>
             protected override ValueTask<NodeHandle> GetManagerHandleAsync(
                 ServerSystemContext context,
                 NodeId nodeId,
@@ -321,6 +384,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return new ValueTask<NodeHandle>(new NodeHandle { NodeId = nodeId });
             }
 
+            /// <summary>
+            /// Waits for the controlled deferred write and marks every deferred item successful.
+            /// </summary>
             protected override async ValueTask WriteAsync(
                 ServerSystemContext context,
                 ArrayOf<WriteValue> nodesToWrite,
@@ -336,6 +402,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
             }
 
+            /// <summary>
+            /// Identifies the cached node used to probe guarded access during cleanup.
+            /// </summary>
             private readonly NodeHandle m_handle;
         }
     }

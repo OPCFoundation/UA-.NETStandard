@@ -39,10 +39,16 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies that rejecting expired sessions does not deadlock coordinated session cleanup.
+    /// </summary>
     [TestFixture]
     [Category("Session")]
     public sealed class SessionExpiryRegressionTests
     {
+        /// <summary>
+        /// Verifies that expired activation closes the session outside the global gate and permits later sessions.
+        /// </summary>
         [Test]
         public async Task ExpiredActivationClosesOutsideTheGlobalSessionGateAsync()
         {
@@ -132,6 +138,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(manager.GetSessions(), Is.Empty);
         }
 
+        /// <summary>
+        /// Creates a short-lived session whose expiry can be triggered with the injected clock.
+        /// </summary>
         private static ValueTask<CreateSessionResult> CreateSessionAsync(
             SessionManager manager,
             OperationContext context,

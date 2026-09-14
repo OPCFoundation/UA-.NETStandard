@@ -38,11 +38,18 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
+    /// <summary>
+    /// Covers injected certificate-store provider resolution, explicit type precedence, and fallback behavior.
+    /// </summary>
     [TestFixture]
     [Category("CertificateManager")]
     [Parallelizable(ParallelScope.All)]
     public sealed class CertificateManagerProviderResolutionRegressionTests
     {
+        /// <summary>
+        /// Verifies configured and registered trust paths select the injected provider even alongside built-in
+        /// providers.
+        /// </summary>
         [TestCase(false, false)]
         [TestCase(true, false)]
         [TestCase(false, true)]
@@ -99,6 +106,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             provider.Verify(store => store.CreateStore(telemetry), Times.Exactly(2));
         }
 
+        /// <summary>
+        /// Verifies cached validation cores use the injected trust store to distinguish trusted and untrusted peers.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task InjectedProviderRemainsAvailableDuringCertificateValidationAsync(bool fromConfiguration)
@@ -150,6 +160,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Times.AtLeastOnce);
         }
 
+        /// <summary>
+        /// Verifies a provider-created store is disposed when opening it fails and the original error is propagated.
+        /// </summary>
         [Test]
         public void InjectedProviderOpenFailureDisposesStoreAndPropagatesError()
         {
@@ -172,6 +185,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             store.Verify(value => value.Dispose(), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies an explicit custom store type wins over path inference regardless of property assignment order.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void ConfiguredCustomStoreTypeTakesPrecedenceOverPathRecognition(bool setTypeFirst)
@@ -209,6 +225,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             pathProvider.Verify(provider => provider.CreateStore(It.IsAny<ITelemetryContext>()), Times.Never);
         }
 
+        /// <summary>
+        /// Verifies paths unrecognized by custom providers retain the directory or platform-store fallback.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void UnclaimedPathsKeepDirectoryAndX509Stores(bool x509)
@@ -229,7 +248,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             provider.Verify(value => value.CreateStore(It.IsAny<ITelemetryContext>()), Times.Never);
         }
 
+        /// <summary>
+        /// Supplies a trusted-store path recognized by the injected token provider.
+        /// </summary>
         private const string kTrustedPath = "pkcs11:token=feedback-trusted";
+
+        /// <summary>
+        /// Supplies a distinct issuer-store path recognized by the same token provider.
+        /// </summary>
         private const string kIssuerPath = "pkcs11:token=feedback-issuers";
     }
 }

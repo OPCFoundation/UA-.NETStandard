@@ -7848,6 +7848,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             private int m_disposeFailuresRemaining;
             private uint[] m_lastConditionRefreshMonitoredItemIds = [];
 
+            /// <summary>
+            /// Creates a live generation with observable lifecycle callbacks and configurable cleanup failures.
+            /// </summary>
             public TrackingLifecycleNodeManager(
                 IServerInternal server,
                 ApplicationConfiguration configuration,
@@ -7866,61 +7869,112 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
             }
 
+            /// <summary>
+            /// Gets the number of session-activation callbacks received by this generation.
+            /// </summary>
             public int SessionActivatedCount =>
                 Volatile.Read(ref m_sessionActivatedCount);
 
+            /// <summary>
+            /// Gets the number of all-events subscriptions dispatched to this generation.
+            /// </summary>
             public int AllEventsSubscribeCount =>
                 Volatile.Read(ref m_allEventsSubscribeCount);
 
+            /// <summary>
+            /// Gets all-events unsubscribe calls, including any erroneous finalization replay.
+            /// </summary>
             public int AllEventsUnsubscribeCount =>
                 Volatile.Read(ref m_allEventsUnsubscribeCount);
 
+            /// <summary>
+            /// Gets the number of condition-refresh callbacks received.
+            /// </summary>
             public int ConditionRefreshCount =>
                 Volatile.Read(ref m_conditionRefreshCount);
 
+            /// <summary>
+            /// Gets the number of read batches dispatched to this generation.
+            /// </summary>
             public int ReadCount =>
                 Volatile.Read(ref m_readCount);
 
+            /// <summary>
+            /// Gets address-space deletion attempts, including injected failures.
+            /// </summary>
             public int DeleteAddressSpaceCount =>
                 Volatile.Read(ref m_deleteAddressSpaceCount);
 
+            /// <summary>
+            /// Gets managed-disposal attempts, including injected failures.
+            /// </summary>
             public int DisposeCount =>
                 Volatile.Read(ref m_disposeCount);
 
+            /// <summary>
+            /// Gets the completion signal raised after asynchronous disposal of the retired manager finishes.
+            /// </summary>
             public Task DisposalCompleted => m_disposalCompleted.Task;
 
+            /// <summary>
+            /// Gets or sets the result returned after a successful all-events unsubscribe to simulate cleanup failure.
+            /// </summary>
             public ServiceResult AllEventsUnsubscribeResult { get; set; } = ServiceResult.Good;
 
+            /// <summary>
+            /// Gets or sets how many address-space deletion attempts must fail before cleanup succeeds.
+            /// </summary>
             public int DeleteAddressSpaceFailuresRemaining
             {
                 get => Volatile.Read(ref m_deleteAddressSpaceFailuresRemaining);
                 set => Volatile.Write(ref m_deleteAddressSpaceFailuresRemaining, value);
             }
 
+            /// <summary>
+            /// Gets or sets how many managed-disposal attempts must fail before cleanup succeeds.
+            /// </summary>
             public int DisposeFailuresRemaining
             {
                 get => Volatile.Read(ref m_disposeFailuresRemaining);
                 set => Volatile.Write(ref m_disposeFailuresRemaining, value);
             }
 
+            /// <summary>
+            /// Gets a snapshot of the item identifiers supplied to the last condition refresh.
+            /// </summary>
             public uint[] LastConditionRefreshMonitoredItemIds =>
                 Volatile.Read(ref m_lastConditionRefreshMonitoredItemIds);
 
+            /// <summary>
+            /// Gets or sets a barrier or observation callback for all-events subscription changes.
+            /// </summary>
             public Func<
                 IEventMonitoredItem,
                 bool,
                 CancellationToken,
                 ValueTask> AllEventsCallback { get; set; }
 
+            /// <summary>
+            /// Gets or sets a callback executed before forwarding session activation.
+            /// </summary>
             public Func<CancellationToken, ValueTask> SessionActivatedCallback { get; set; }
 
+            /// <summary>
+            /// Gets or sets a callback observing or delaying the condition-refresh item batch.
+            /// </summary>
             public Func<
                 IList<IEventMonitoredItem>,
                 CancellationToken,
                 ValueTask> ConditionRefreshCallback { get; set; }
 
+            /// <summary>
+            /// Gets or sets a callback executed before the underlying read batch.
+            /// </summary>
             public Func<CancellationToken, ValueTask> ReadCallback { get; set; }
 
+            /// <summary>
+            /// Counts reads and runs the configured observation callback before normal node-manager dispatch.
+            /// </summary>
             public override async ValueTask ReadAsync(
                 OperationContext context,
                 double maxAge,
@@ -7944,6 +7998,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Counts session activation and runs its configured callback before forwarding to the base manager.
+            /// </summary>
             public override async ValueTask SessionActivatedAsync(
                 OperationContext context,
                 NodeId sessionId,
@@ -7961,6 +8018,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Tracks all-events subscription callbacks and can report a failure after completing an unsubscribe.
+            /// </summary>
             public override async ValueTask<ServiceResult> SubscribeToAllEventsAsync(
                 OperationContext context,
                 uint subscriptionId,
@@ -7996,6 +8056,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return unsubscribe && ServiceResult.IsGood(result) ? AllEventsUnsubscribeResult : result;
             }
 
+            /// <summary>
+            /// Records refreshed item identities and invokes the optional barrier before base refresh handling.
+            /// </summary>
             public override async ValueTask<ServiceResult> ConditionRefreshAsync(
                 OperationContext context,
                 IList<IEventMonitoredItem> monitoredItems,
@@ -8017,6 +8080,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Counts deletion attempts and injects configured failures before normal address-space teardown.
+            /// </summary>
             public override async ValueTask DeleteAddressSpaceAsync(
                 CancellationToken cancellationToken = default)
             {
@@ -8028,6 +8094,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Completes base disposal before signaling that the retired generation has released its resources.
+            /// </summary>
             public override async ValueTask DisposeAsync()
             {
                 await base.DisposeAsync().ConfigureAwait(false);
@@ -8065,6 +8134,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return false;
             }
 
+            /// <summary>
+            /// Signals when asynchronous disposal has completed for deterministic retirement assertions.
+            /// </summary>
             private readonly TaskCompletionSource<bool> m_disposalCompleted =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
         }

@@ -450,6 +450,9 @@ namespace Opc.Ua.Server.Tests
             Assert.DoesNotThrow(binding.Dispose);
         }
 
+        /// <summary>
+        /// Verifies that removing a user closes only matching sessions through coordinated server teardown.
+        /// </summary>
         [Test]
         public async Task UserDeactivatedClosesMatchingSession()
         {
@@ -503,6 +506,10 @@ namespace Opc.Ua.Server.Tests
             session.Verify(s => s.Dispose(), Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that a session-close failure is logged without undoing a committed user change or skipping other
+        /// sessions.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task CommittedUserChangeKeepsResultAndPublishedUsersWhenCloseFailsAsync(bool remove)
@@ -560,6 +567,10 @@ namespace Opc.Ua.Server.Tests
                 "A logged session-close failure must not report the committed user change as failed.");
         }
 
+        /// <summary>
+        /// Verifies that a failed user mutation leaves published users unchanged and does not initiate session
+        /// teardown.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task FailedUserChangeKeepsPublishedUsersAndDoesNotCloseSessionsAsync(bool remove)
@@ -632,6 +643,9 @@ namespace Opc.Ua.Server.Tests
                 m_userManagement.Raise(u => u.UserDeactivated += null, new UserDeactivatedEventArgs("bob")));
         }
 
+        /// <summary>
+        /// Verifies that deactivation resolves a session manager installed after the binding was created.
+        /// </summary>
         [Test]
         public async Task LateBoundServerSessionManagerIsResolvedAtDeactivationAsync()
         {
@@ -669,6 +683,9 @@ namespace Opc.Ua.Server.Tests
             sessionManager.Verify(m => m.GetSessions(), Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that a committed user change awaits coordinated session teardown despite request cancellation.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task UserChangeWaitsForCoordinatedTeardownAsync(bool remove)
@@ -708,6 +725,9 @@ namespace Opc.Ua.Server.Tests
             session.Verify(s => s.Dispose(), Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that asynchronous disposal drains external deactivation once, including after synchronous disposal.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task DisposeAsyncDrainsExternalDeactivationAsync(bool disposeFirst)
@@ -752,6 +772,10 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that insufficient channel security or role privileges reject user changes before mutation or
+        /// teardown.
+        /// </summary>
         [TestCase(false, MessageSecurityMode.None, true)]
         [TestCase(true, MessageSecurityMode.None, true)]
         [TestCase(false, MessageSecurityMode.SignAndEncrypt, false)]
@@ -784,6 +808,9 @@ namespace Opc.Ua.Server.Tests
             sessionManager.Verify(m => m.GetSessions(), Times.Never);
         }
 
+        /// <summary>
+        /// Configures successful removal and disabling of the target user to raise a deactivation event.
+        /// </summary>
         private void SetupUserDeactivation()
         {
             m_userManagement.Setup(m => m.RemoveUser("bob", "admin"))
@@ -797,6 +824,9 @@ namespace Opc.Ua.Server.Tests
                 .Returns(ServiceResult.Good);
         }
 
+        /// <summary>
+        /// Invokes either removal or disabling of the target user through the bound method callback.
+        /// </summary>
         private static async Task<ServiceResult> InvokeUserChangeAsync(
             UserManagementState state,
             SessionSystemContext context,

@@ -113,6 +113,9 @@ namespace Opc.Ua.Redundancy.Server
             return SaveCoreAsync(context, certificateWithPrivateKey, true, cancellationToken);
         }
 
+        /// <summary>
+        /// Protects and stores an exportable pending private key, optionally restoring it only into an empty slot.
+        /// </summary>
         private async ValueTask<bool> SaveCoreAsync(
             PendingCertificateKeyContext context,
             Certificate certificateWithPrivateKey,
@@ -218,6 +221,9 @@ namespace Opc.Ua.Redundancy.Server
             return TryTakeCoreAsync(context, certificate, cancellationToken);
         }
 
+        /// <summary>
+        /// Validates and optionally matches a pending key before atomically claiming the exact stored record.
+        /// </summary>
         private async ValueTask<Certificate?> TryTakeCoreAsync(
             PendingCertificateKeyContext context,
             Certificate? matchingCertificate,

@@ -515,6 +515,9 @@ namespace Opc.Ua
             return false;
         }
 
+        /// <summary>
+        /// Recognizes certificate type identifiers that permit RSA, including an unspecified application type.
+        /// </summary>
         internal static bool IsRsaCertificateType(NodeId certificateType)
         {
             return certificateType.IsNull ||

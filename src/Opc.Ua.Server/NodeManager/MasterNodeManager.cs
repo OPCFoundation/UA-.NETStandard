@@ -242,6 +242,9 @@ namespace Opc.Ua.Server
             GC.SuppressFinalize(this);
         }
 
+        /// <summary>
+        /// Drains and disposes owned node managers, collecting failures before releasing lifecycle resources.
+        /// </summary>
         private async Task DisposeNodeManagersAsync()
         {
             await PrepareNodeManagersForShutdownAsync().ConfigureAwait(false);
@@ -544,6 +547,9 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Lets participating node managers drain accepted work before serialized address-space teardown.
+        /// </summary>
         private async ValueTask PrepareNodeManagersForShutdownAsync()
         {
             foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
@@ -913,6 +919,7 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <inheritdoc/>
         async ValueTask IDynamicNodeManagerHost.DestroyAddressSpaceAsync(
             IAsyncNodeManager nodeManager,
             CancellationToken ct)
@@ -2614,7 +2621,15 @@ namespace Opc.Ua.Server
 
         private bool m_startupApplicationNodeManagersTransferred;
         private bool m_disposed;
+
+        /// <summary>
+        /// Protects publication of the single node-manager disposal task.
+        /// </summary>
         private readonly Lock m_disposalLock = new();
+
+        /// <summary>
+        /// Allows repeated asynchronous disposal calls to await the same cleanup work.
+        /// </summary>
         private Task m_disposalTask = Task.CompletedTask;
     }
 
@@ -2812,6 +2827,9 @@ namespace Opc.Ua.Server
             Exception ex,
             string nodeManager);
 
+        /// <summary>
+        /// Reports a monitored-item operation failure in its owning node manager.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 24, Level = LogLevel.Error,
             Message = "NodeManager failed a monitored-item operation. NodeManager={NodeManager}")]
         public static partial void MonitoredItemOwnerDispatchFailed(

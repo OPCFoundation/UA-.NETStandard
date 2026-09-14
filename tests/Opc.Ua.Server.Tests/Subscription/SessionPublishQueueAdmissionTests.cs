@@ -39,11 +39,17 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies publish-request capacity and cancellation ownership across admission, parking, and disposal.
+    /// </summary>
     [TestFixture]
     [Category("Subscription")]
     [Parallelizable]
     public sealed class SessionPublishQueueAdmissionTests
     {
+        /// <summary>
+        /// Verifies that timed-out or cancelled requests free capacity for a replacement while live requests retain it.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task TimedOutAndCancelledPublishRequestsReleaseCapacityAsync(bool cancel)
@@ -84,6 +90,10 @@ namespace Opc.Ua.Server.Tests
             Assert.That(await replacement.ConfigureAwait(false), Is.SameAs(subscription));
         }
 
+        /// <summary>
+        /// Verifies that cancellation before or during admission retires only that request without affecting later
+        /// waiters.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task CancellationDuringAdmissionRetiresOnlyItsOwnRequestAsync(bool cancelBeforeAdmission)
@@ -129,6 +139,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(await first.ConfigureAwait(false), Is.SameAs(subscription));
         }
 
+        /// <summary>
+        /// Verifies that cancellation concurrent with disposal at the parking boundary completes without deadlock.
+        /// </summary>
         [Test]
         public async Task CancellingWhileParkedAndDisposingDoesNotDeadlockAsync()
         {
@@ -182,6 +195,9 @@ namespace Opc.Ua.Server.Tests
             queue.Dispose();
         }
 
+        /// <summary>
+        /// Creates server and session mocks for a publish queue with one valid secure-channel identifier.
+        /// </summary>
         private static (IServerInternal Server, ISession Session) CreateHost()
         {
             var server = new Mock<IServerInternal>();
@@ -202,8 +218,14 @@ namespace Opc.Ua.Server.Tests
             return (server.Object, session.Object);
         }
 
+        /// <summary>
+        /// Invokes a supplied action when publish processing reaches the request-parking boundary.
+        /// </summary>
         private sealed class ActionParkSink(Action action) : IRequestParkSink
         {
+            /// <summary>
+            /// Runs the action used to trigger cancellation or disposal while a request is being parked.
+            /// </summary>
             public void NotifyParked()
             {
                 action();

@@ -104,6 +104,9 @@ namespace Opc.Ua.Server
                 context, ct => SaveCoreAsync(context, certificateWithPrivateKey, ct), cancellationToken);
         }
 
+        /// <summary>
+        /// Replaces the staged public certificate that identifies a durable, device-held private key.
+        /// </summary>
         private async ValueTask<bool> SaveCoreAsync(
             PendingCertificateKeyContext context,
             Certificate certificateWithPrivateKey,
@@ -198,6 +201,9 @@ namespace Opc.Ua.Server
                 context, ct => RestoreCoreAsync(context, certificateWithPrivateKey, ct), cancellationToken);
         }
 
+        /// <summary>
+        /// Restores a consumed device-key association without replacing a newer staged certificate.
+        /// </summary>
         private async ValueTask<bool> RestoreCoreAsync(
             PendingCertificateKeyContext context,
             Certificate certificate,
@@ -226,6 +232,9 @@ namespace Opc.Ua.Server
             return true;
         }
 
+        /// <summary>
+        /// Loads the device key and consumes its staged association only after any requested key match succeeds.
+        /// </summary>
         private async ValueTask<Certificate?> TryTakeCoreAsync(
             PendingCertificateKeyContext context,
             Certificate? matchingCertificate,
@@ -322,6 +331,9 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Removes the staged certificate association while leaving the private key on its device.
+        /// </summary>
         private async ValueTask RemoveCoreAsync(
             PendingCertificateKeyContext context,
             CancellationToken cancellationToken)

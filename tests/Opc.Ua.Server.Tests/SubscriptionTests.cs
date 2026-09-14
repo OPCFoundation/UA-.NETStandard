@@ -175,6 +175,10 @@ namespace Opc.Ua.Server.Tests
                     .ConfigureAwait(false));
         }
 
+        /// <summary>
+        /// Verifies that creation cleans up unattached items when deletion, transfer, closure, or cancellation takes
+        /// ownership.
+        /// </summary>
         [TestCase("delete")]
         [TestCase("transfer")]
         [TestCase("close")]
@@ -265,6 +269,9 @@ namespace Opc.Ua.Server.Tests
             item.VerifySet(value => value.SubscriptionCallback = subscription, Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that a durable snapshot owns notification data independently of recycled retransmission messages.
+        /// </summary>
         [Test]
         public void DurableSubscriptionSnapshotSurvivesRetransmissionQueueRecycling()
         {

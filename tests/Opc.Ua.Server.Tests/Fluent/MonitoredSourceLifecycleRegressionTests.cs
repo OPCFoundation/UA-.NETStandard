@@ -40,10 +40,16 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Fluent
 {
+    /// <summary>
+    /// Verifies ownership of a monitored source when queued lifecycle updates supersede a stop.
+    /// </summary>
     [TestFixture]
     [Category("Fluent")]
     public sealed class MonitoredSourceLifecycleRegressionTests
     {
+        /// <summary>
+        /// Verifies that a queued restart supersedes a stop without releasing or reacquiring the still-live source.
+        /// </summary>
         [Test]
         public async Task SupersededStopDoesNotReleaseOrReacquireTheLiveSourceAsync()
         {

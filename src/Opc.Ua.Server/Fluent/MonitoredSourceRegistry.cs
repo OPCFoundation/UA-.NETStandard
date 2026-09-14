@@ -616,6 +616,9 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <summary>
+        /// Reconciles monitored-item membership with source activation and the effective polling period.
+        /// </summary>
         private async ValueTask<bool> UpdateAsync(
             ISystemContext context,
             NodeState source,
@@ -727,6 +730,9 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <summary>
+        /// Invokes a lifecycle transition only if the current subscriber state still requires it.
+        /// </summary>
         private async ValueTask InvokeCurrentLifecycleAsync(bool activate, ISystemContext context, NodeState source)
         {
             ValueTask callback;
@@ -1045,6 +1051,10 @@ namespace Opc.Ua.Server.Fluent
         /// that was already dispatched cannot re-acquire behind it.
         /// </summary>
         private bool m_releasing;
+
+        /// <summary>
+        /// Tracks whether the first-subscriber transition still requires a matching last-subscriber transition.
+        /// </summary>
         private bool m_lifecycleActive;
 
         private enum ReconcileAction

@@ -55,6 +55,10 @@ namespace Opc.Ua
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
+
+        /// <summary>
+        /// Opens trust stores through the owning manager's provider resolution or the default resolver.
+        /// </summary>
         private readonly Func<CertificateStoreIdentifier, ICertificateStore?> m_openStore;
         private readonly ConcurrentDictionary<string, byte[]> m_validatedCertificates;
 
@@ -113,6 +117,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Gets the completion of resource disposal after both the owner and all borrowers release the core.
+        /// </summary>
         internal Task Disposal => m_disposal.Task;
 
         /// <summary>
@@ -133,6 +140,9 @@ namespace Opc.Ua
             throw new ObjectDisposedException(nameof(CertificateValidationCore));
         }
 
+        /// <summary>
+        /// Releases one lifetime reference and completes disposal when the final reference is gone.
+        /// </summary>
         private void ReleaseReference()
         {
             if (Interlocked.Decrement(ref m_references) != 0)
@@ -151,6 +161,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Releases cached certificates, open trust stores, and synchronization resources after all borrows end.
+        /// </summary>
         private void DisposeResources()
         {
             InternalResetValidatedCertificates();
@@ -172,27 +185,53 @@ namespace Opc.Ua
             m_semaphore.Dispose();
         }
 
+        /// <summary>
+        /// Keeps a validation core available to one operation even if its owner evicts it from the cache.
+        /// </summary>
         internal sealed class Borrow : IDisposable
         {
+            /// <summary>
+            /// Takes responsibility for a reference already acquired from the validation core.
+            /// </summary>
             public Borrow(CertificateValidationCore core)
             {
                 m_core = core;
             }
 
+            /// <summary>
+            /// Gets the retained core, rejecting access after this borrow is released.
+            /// </summary>
             public CertificateValidationCore Core =>
                 m_core ?? throw new ObjectDisposedException(nameof(Borrow));
 
+            /// <summary>
+            /// Releases this borrow's reference exactly once.
+            /// </summary>
             public void Dispose()
             {
                 Interlocked.Exchange(ref m_core, null)?.ReleaseReference();
             }
 
+            /// <summary>
+            /// Holds the borrowed core until disposal atomically removes the reference.
+            /// </summary>
             private CertificateValidationCore? m_core;
         }
 
+        /// <summary>
+        /// Reports successful resource disposal or the error raised while releasing the final reference.
+        /// </summary>
         private readonly TaskCompletionSource<bool> m_disposal =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>
+        /// Counts the owner's reference and all outstanding operation borrows.
+        /// </summary>
         private int m_references = 1;
+
+        /// <summary>
+        /// Ensures repeated disposal releases the owner's lifetime reference only once.
+        /// </summary>
         private int m_ownerReleased;
 
         /// <summary>
@@ -1649,6 +1688,10 @@ namespace Opc.Ua
             return (null, null);
         }
 
+        /// <summary>
+        /// Applies revocation policy to a store result and distinguishes issuer failures from leaf-certificate
+        /// failures.
+        /// </summary>
         private async Task<ServiceResultException?> CheckIssuerRevocationAsync(
             ICertificateStore store,
             Certificate issuer,

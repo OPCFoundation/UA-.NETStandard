@@ -41,10 +41,16 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.FileSystem
 {
+    /// <summary>
+    /// Verifies file-read length validation and limits imposed by files, servers, and encoded response budgets.
+    /// </summary>
     [TestFixture]
     [Category("FileSystem")]
     public sealed class FileReadRegressionTests
     {
+        /// <summary>
+        /// Verifies that nonpositive read lengths are rejected without reading or advancing the provider stream.
+        /// </summary>
         [TestCase(-1)]
         [TestCase(0)]
         public async Task FileReadRequiresPositiveLengthWithoutIoAsync(int length)
@@ -66,6 +72,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             });
         }
 
+        /// <summary>
+        /// Verifies that reads at and around the effective limit request and return only the allowed byte count.
+        /// </summary>
         [TestCase(1, 1)]
         [TestCase(7, 7)]
         [TestCase(8, 8)]
@@ -87,6 +96,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             });
         }
 
+        /// <summary>
+        /// Verifies that even the largest requested length is bounded before allocating or reading the response buffer.
+        /// </summary>
         [Test]
         public async Task FileReadLargeRequestedLengthUsesBoundedBufferAsync()
         {
@@ -106,6 +118,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(stream.Position, Is.EqualTo(8));
         }
 
+        /// <summary>
+        /// Verifies that a partial final read advances by actual bytes and a later end-of-file read returns no data.
+        /// </summary>
         [Test]
         public async Task FileReadAtEndReturnsEmptyAndAdvancesOnlyByReturnedBytesAsync()
         {
@@ -126,6 +141,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             });
         }
 
+        /// <summary>
+        /// Verifies that files created by directory binding advertise and enforce the server's byte-string limit.
+        /// </summary>
         [Test]
         public async Task BoundFileAdvertisesAndEnforcesServerReadLimitAsync()
         {
@@ -152,6 +170,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(stream.RequestedCount, Is.EqualTo(8));
         }
 
+        /// <summary>
+        /// Verifies that a file-specific limit can reduce but never exceed the server's maximum read size.
+        /// </summary>
         [Test]
         public async Task FileSpecificReadLimitCanOnlyNarrowServerLimitAsync(
             [Values(4u, 8u, 16u)] uint fileLimit)
@@ -170,6 +191,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(stream.RequestedCount, Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that read limits reserve protocol overhead so the encoded method response fits the message budget.
+        /// </summary>
         [Test]
         public async Task FileReadAccountsForEncodedResponseMessageBudgetAsync()
         {
@@ -192,6 +216,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(stream.RequestedCount, Is.LessThanOrEqualTo((int)file.MaxByteStringLength.Value));
         }
 
+        /// <summary>
+        /// Calls a file method, checks input-argument validation, and returns its service result and output arguments.
+        /// </summary>
         internal static async ValueTask<(ServiceResult Result, List<Variant> Output)> CallAsync(
             MethodState method,
             ISystemContext context,
@@ -207,6 +234,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             return (result, output);
         }
 
+        /// <summary>
+        /// Opens a file in the requested mode and verifies the returned handle argument.
+        /// </summary>
         internal static async ValueTask<uint> OpenAsync(FileState file, ISystemContext context, byte mode = 1)
         {
             (ServiceResult result, List<Variant> output) = await CallAsync(
@@ -217,6 +247,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             return handle;
         }
 
+        /// <summary>
+        /// Reads through the file method and verifies that successful output contains one byte string.
+        /// </summary>
         private static async ValueTask<ByteString> ReadAsync(
             FileState file, ISystemContext context, uint handle, int length)
         {
@@ -228,6 +261,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             return data;
         }
 
+        /// <summary>
+        /// Creates a file-system manager with the supplied stream and configurable byte-string and message limits.
+        /// </summary>
         private static FileSystemNodeManager CreateManager(
             Stream stream, int byteLimit = 8, int messageLimit = 4096)
         {
@@ -249,12 +285,18 @@ namespace Opc.Ua.Server.Tests.FileSystem
             return manager;
         }
 
+        /// <summary>
+        /// Creates the file node whose provider path resolves to the observed data stream.
+        /// </summary>
         private static FileObjectState CreateFile(FileSystemNodeManager manager)
         {
             return new FileObjectState(manager.SystemContext,
                 FileSystemNodeId.BuildFile("data.bin", manager.NamespaceIndex), "data.bin", "data.bin");
         }
 
+        /// <summary>
+        /// Enumerates the single test file for directory-binding scenarios while honoring cancellation.
+        /// </summary>
         private static async IAsyncEnumerable<FileSystemEntry> EnumerateAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
@@ -264,19 +306,37 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 DateTime.MinValue, "application/octet-stream");
         }
 
+        /// <summary>
+        /// Supplies distinct byte values for checking read boundaries, ordering, and end-of-file behavior.
+        /// </summary>
         private static readonly byte[] kContents = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 
+        /// <summary>
+        /// Records provider read requests while serving the fixed test payload.
+        /// </summary>
         private sealed class ObservedReadStream : MemoryStream
         {
+            /// <summary>
+            /// Creates a read-only stream over the fixed sequence of test bytes.
+            /// </summary>
             public ObservedReadStream()
                 : base(kContents, writable: false)
             {
             }
 
+            /// <summary>
+            /// Gets the byte count requested by the most recent provider read.
+            /// </summary>
             public int RequestedCount { get; private set; }
 
+            /// <summary>
+            /// Gets the number of provider reads performed by the file method.
+            /// </summary>
             public int ReadCalls { get; private set; }
 
+            /// <summary>
+            /// Records the requested count and call before reading from the fixed payload.
+            /// </summary>
             public override int Read(byte[] buffer, int offset, int count)
             {
                 RequestedCount = count;

@@ -39,10 +39,17 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
+    /// <summary>
+    /// Covers cleanup of ECC decryption buffers on success and nonce, padding, or cipher failures.
+    /// </summary>
     [TestFixture]
     [Category("EncryptedSecret")]
     public sealed class EccSecretBufferLifetimeRegressionTests
     {
+        /// <summary>
+        /// Verifies decryption erases derived keys and owned payload bytes without changing headers or the returned
+        /// secret.
+        /// </summary>
         [Test]
         public async Task DecryptClearsOwnedPayloadAndKeysWithoutErasingHeadersOrReturnedSecretAsync(
             [Values(false, true)] bool p384,
@@ -140,6 +147,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Checks that every byte in an inspected secret buffer has been overwritten with zero.
+        /// </summary>
         private static bool IsCleared(ReadOnlySpan<byte> value)
         {
             foreach (byte item in value)
@@ -152,8 +162,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return true;
         }
 
+        /// <summary>
+        /// Supplies recognizable plaintext for verifying that successful decryption returns an independent secret.
+        /// </summary>
         private static readonly byte[] s_secret = [1, 5, 9, 13, 17, 21];
+
+        /// <summary>
+        /// Supplies the expected nonce encoded with the test secret.
+        /// </summary>
         private static readonly byte[] s_nonce = [2, 4, 6, 8];
+
+        /// <summary>
+        /// Differs in one byte to exercise cleanup after nonce validation fails.
+        /// </summary>
         private static readonly byte[] s_wrongNonce = [2, 4, 6, 9];
     }
 }

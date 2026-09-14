@@ -55,6 +55,9 @@ namespace Opc.Ua.Server.Nodes
     /// </remarks>
     internal sealed class NodeBehaviorRegistry
     {
+        /// <summary>
+        /// Creates an empty behavior registry without requiring a type hierarchy.
+        /// </summary>
         public NodeBehaviorRegistry()
         {
             m_registrations = [];
@@ -215,6 +218,9 @@ namespace Opc.Ua.Server.Nodes
             return resolved;
         }
 
+        /// <summary>
+        /// Resolves inherited behavior registrations when the registry contains type mappings.
+        /// </summary>
         private readonly ITypeTable? m_typeTree;
         private readonly Dictionary<NodeId, List<NodeBehaviorRegistration>> m_registrations;
         private readonly Dictionary<NodeId, ArrayOf<INodeBehaviorFactory>> m_resolvedChains;

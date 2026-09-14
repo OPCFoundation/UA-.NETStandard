@@ -43,11 +43,17 @@ using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Server.Tests
 {
+    /// <summary>
+    /// Verifies certificate requests, pending-key recovery, and active-certificate use by configuration methods.
+    /// </summary>
     [TestFixture]
     [Category("ConfigurationNodeManager")]
     [NonParallelizable]
     public sealed class PushCertificateRequestRegressionTests
     {
+        /// <summary>
+        /// Starts a reference server with RSA, HTTPS, and elliptic-curve certificate slots for push requests.
+        /// </summary>
         [OneTimeSetUp]
         public async Task StartAsync()
         {
@@ -78,6 +84,9 @@ namespace Opc.Ua.Server.Tests
             m_context = CreateAdminContext();
         }
 
+        /// <summary>
+        /// Stops the server and removes the temporary configuration and certificate stores.
+        /// </summary>
         [OneTimeTearDown]
         public async Task StopAsync()
         {
@@ -88,6 +97,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Cancels staged configuration changes so each case starts without a pending transaction.
+        /// </summary>
         [TearDown]
         public async Task CancelPendingAsync()
         {
@@ -95,6 +107,10 @@ namespace Opc.Ua.Server.Tests
                 m_context, m_node.CancelChanges, m_node.NodeId, [], [], CancellationToken.None).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that a self-signed HTTPS request creates the requested RSA certificate and installs its private
+        /// key.
+        /// </summary>
         [Test]
         public async Task SelfSignedHttpsSlotUsesRsaAndAppliesSuccessfullyAsync()
         {
@@ -124,6 +140,10 @@ namespace Opc.Ua.Server.Tests
             Assert.That(entry.Certificate.HasPrivateKey, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that existing-key signing requests honor subject overrides while preserving key and active
+        /// certificate.
+        /// </summary>
         [TestCase(null, false)]
         [TestCase("", false)]
         [TestCase("CN=Requested Subject, O=Regression", false)]
@@ -156,6 +176,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(after.Certificate.RawData, Is.EqualTo(before.Certificate.RawData));
         }
 
+        /// <summary>
+        /// Verifies that a nonmatching upload leaves a regenerated key available for a later matching certificate.
+        /// </summary>
         [Test]
         public async Task NonmatchingUploadCannotConsumeTheRegeneratedSigningKeyAsync(
             [Values(false, true)] bool reuseActiveCertificate)
@@ -222,6 +245,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(publicKey.VerifyHash(hash, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a cancelled upload restores its claimed key without overwriting a newer pending key.
+        /// </summary>
         [Test]
         public async Task CancelledMatchingUploadRestoresOnlyAnUnreplacedPendingKeyAsync(
             [Values(false, true)] bool replaceDuringUpload)
@@ -278,6 +304,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a bound credential subject advertises the active server certificate and decrypts with its key.
+        /// </summary>
         [Test]
         public async Task BoundKeyCredentialSubjectUsesTheServersActiveCertificateRegistryAsync()
         {
@@ -311,6 +340,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(credential.Secret, Is.EqualTo(new byte[] { 63, 64, 65 }));
         }
 
+        /// <summary>
+        /// Verifies a signing-request signature with the implementation available on the target framework.
+        /// </summary>
         private static bool VerifySigningRequest(Pkcs10CertificationRequest request, ByteString encoded)
         {
 #if NETFRAMEWORK
@@ -320,6 +352,9 @@ namespace Opc.Ua.Server.Tests
 #endif
         }
 
+        /// <summary>
+        /// Creates an encrypted call context authorized to administer certificates and credentials.
+        /// </summary>
         private static SessionSystemContext CreateAdminContext()
         {
             var identity = new Mock<IUserIdentity>();
@@ -338,17 +373,40 @@ namespace Opc.Ua.Server.Tests
             };
         }
 
+        /// <summary>
+        /// Cancels an upload after a matching key claim and records the subsequent restoration attempt.
+        /// </summary>
         private sealed class CancelAfterMatchingClaimStore(
             IMatchingPendingCertificateKeyStore inner,
             CancellationTokenSource cancellation,
             Certificate replacement) : IMatchingPendingCertificateKeyStore
         {
+            /// <summary>
+            /// Gets the storage context of the key claimed before cancellation.
+            /// </summary>
             public PendingCertificateKeyContext ClaimContext { get; private set; }
+
+            /// <summary>
+            /// Gets the thumbprint identifying the key that restoration must preserve.
+            /// </summary>
             public string ClaimedThumbprint { get; private set; }
+
+            /// <summary>
+            /// Gets whether the cancelled upload attempted to restore its claimed key.
+            /// </summary>
             public bool RestoreCalled { get; private set; }
+
+            /// <summary>
+            /// Gets whether restoration incorrectly reused an already-cancelled token.
+            /// </summary>
             public bool RestoreUsedCancelledToken { get; private set; }
+
+            /// <summary>
+            /// Gets whether the underlying store accepted restoration of the claimed key.
+            /// </summary>
             public bool RestoreSucceeded { get; private set; }
 
+            /// <inheritdoc/>
             public ValueTask<bool> SaveAsync(
                 PendingCertificateKeyContext context,
                 Certificate certificateWithPrivateKey,
@@ -357,6 +415,7 @@ namespace Opc.Ua.Server.Tests
                 return inner.SaveAsync(context, certificateWithPrivateKey, cancellationToken);
             }
 
+            /// <inheritdoc/>
             public ValueTask<Certificate> TryTakeAsync(
                 PendingCertificateKeyContext context,
                 CancellationToken cancellationToken = default)
@@ -364,6 +423,9 @@ namespace Opc.Ua.Server.Tests
                 return inner.TryTakeAsync(context, cancellationToken);
             }
 
+            /// <summary>
+            /// Claims a matching key, optionally installs a newer pending key, and cancels the upload request.
+            /// </summary>
             public async ValueTask<Certificate> TryTakeMatchingAsync(
                 PendingCertificateKeyContext context,
                 Certificate certificate,
@@ -384,6 +446,9 @@ namespace Opc.Ua.Server.Tests
                 return pending;
             }
 
+            /// <summary>
+            /// Records the cancellation state and outcome of restoring a previously claimed key.
+            /// </summary>
             public async ValueTask<bool> TryRestoreAsync(
                 PendingCertificateKeyContext context,
                 Certificate certificateWithPrivateKey,
@@ -396,6 +461,7 @@ namespace Opc.Ua.Server.Tests
                 return RestoreSucceeded;
             }
 
+            /// <inheritdoc/>
             public ValueTask RemoveAsync(
                 PendingCertificateKeyContext context,
                 CancellationToken cancellationToken = default)
@@ -404,11 +470,34 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Hosts the reference server with certificate slots exercised by the requests.
+        /// </summary>
         private ServerFixture<ReferenceServer> m_fixture;
+
+        /// <summary>
+        /// Coordinates certificate installation and exposes the pending-key store used by the server.
+        /// </summary>
         private ConfigurationNodeManager m_manager;
+
+        /// <summary>
+        /// Provides the push-configuration methods invoked by the tests.
+        /// </summary>
         private ServerConfigurationState m_node;
+
+        /// <summary>
+        /// Supplies the authorized session context for configuration and credential calls.
+        /// </summary>
         private SessionSystemContext m_context;
+
+        /// <summary>
+        /// Stores the temporary root removed after the server is stopped.
+        /// </summary>
         private string m_path;
+
+        /// <summary>
+        /// Defines the DNS name and IP address expected in the generated HTTPS certificate.
+        /// </summary>
         private static readonly string[] s_domains = ["localhost", "127.0.0.1"];
     }
 }

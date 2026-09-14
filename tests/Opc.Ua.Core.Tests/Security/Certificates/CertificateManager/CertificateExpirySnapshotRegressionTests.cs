@@ -40,10 +40,17 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
+    /// <summary>
+    /// Covers certificate ownership during expiry callbacks and rejects registry mutation after disposal.
+    /// </summary>
     [TestFixture]
     [Category("CertificateManager")]
     public sealed class CertificateExpirySnapshotRegressionTests
     {
+        /// <summary>
+        /// Verifies a blocked expiry observer retains usable certificate material across replacement or manager
+        /// disposal.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ExpiryNotificationRetainsItsCertificateDuringReplacementOrDisposalAsync(bool dispose)
@@ -114,6 +121,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(notifications, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies disposed registries reject load and replacement without publishing entries or taking caller
+        /// ownership.
+        /// </summary>
         [TestCase("replace")]
         [TestCase("load")]
         [TestCase("reload")]
@@ -145,12 +156,25 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(callerKey.KeySize, Is.EqualTo(2048));
         }
 
+        /// <summary>
+        /// Forwards certificate events to a test callback and turns observable errors into assertion failures.
+        /// </summary>
+        /// <param name="onNext">The callback used to inspect or pause a certificate notification.</param>
         private sealed class ExpiryObserver(Action<CertificateChangeEvent> onNext) : IObserver<CertificateChangeEvent>
         {
+            /// <summary>
+            /// Passes the notification to the callback that controls the test's observation barrier.
+            /// </summary>
             public void OnNext(CertificateChangeEvent value) => onNext(value);
 
+            /// <summary>
+            /// Fails the test if the certificate change stream reports an error.
+            /// </summary>
             public void OnError(Exception error) => Assert.Fail(error.Message);
 
+            /// <summary>
+            /// Accepts normal completion without changing the recorded observations.
+            /// </summary>
             public void OnCompleted()
             {
             }

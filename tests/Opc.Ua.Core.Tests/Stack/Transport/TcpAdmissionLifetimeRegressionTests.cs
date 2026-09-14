@@ -46,10 +46,17 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Transport
 {
+    /// <summary>
+    /// Verifies accepted-socket cleanup, admission reservations, and reconnect lookup progress under contention.
+    /// </summary>
     [TestFixture]
     [NonParallelizable]
     public sealed class TcpAdmissionLifetimeRegressionTests
     {
+        /// <summary>
+        /// Verifies blocked peers are closed without consuming capacity and an allowed peer can complete Hello
+        /// afterward.
+        /// </summary>
         [Test]
         public async Task BlockedAcceptedSocketsCloseAndTheNextAllowedClientCompletesHelloAsync()
         {
@@ -104,6 +111,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(harness.Channels, Has.Count.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies idle-channel cleanup does not retain the listener lookup lock needed by reconnect requests.
+        /// </summary>
         [Test]
         public async Task IdleAdmissionCleanupDoesNotHoldTheReconnectLookupLockAsync()
         {
@@ -158,6 +168,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        /// <summary>
+        /// Verifies an admitted-but-unpublished channel reserves capacity and releases it on failure or shutdown.
+        /// </summary>
         [Test]
         public async Task InFlightAdmissionReservesCapacityAndUnwindsAfterFailureOrShutdownAsync(
             [Values("success", "failure", "shutdown")] string outcome)
@@ -217,6 +230,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        /// <summary>
+        /// Sets an existing private listener seam needed to control admission deterministically.
+        /// </summary>
+        /// <typeparam name="T">The value type of the listener field.</typeparam>
         private static void SetField<T>(TcpTransportListener listener, string name, T value)
         {
             FieldInfo field = typeof(TcpTransportListener).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)
@@ -224,8 +241,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             field.SetValue(listener, value);
         }
 
+        /// <summary>
+        /// Provides an open idle channel whose cleanup gate can be held while admission proceeds.
+        /// </summary>
         private sealed class IdleChannel : TcpListenerChannel
         {
+            /// <summary>
+            /// Creates the idle channel occupying the listener's only capacity slot.
+            /// </summary>
             public IdleChannel(
                 ITcpChannelListener listener, BufferManager buffers, ChannelQuotas quotas, ITelemetryContext telemetry)
                 : base("idle", listener, buffers, quotas, null!, [], telemetry, new FakeTimeProvider())
@@ -235,18 +258,24 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        /// <summary>
+        /// Uses emitted listener event identifiers as barriers without introducing timing-based polling.
+        /// </summary>
         private sealed class CallbackLogger(Action<EventId> onLog) : ILogger
         {
+            /// <inheritdoc/>
             public IDisposable? BeginScope<TState>(TState state) where TState : notnull
             {
                 return null;
             }
 
+            /// <inheritdoc/>
             public bool IsEnabled(LogLevel logLevel)
             {
                 return true;
             }
 
+            /// <inheritdoc/>
             public void Log<TState>(
                 LogLevel logLevel, EventId eventId, TState state, Exception? exception,
                 Func<TState, Exception?, string> formatter)
@@ -255,8 +284,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        /// <summary>
+        /// Hosts a loopback listener with controlled socket acceptance and an observable channel registry.
+        /// </summary>
         private sealed class AcceptHarness : IAsyncDisposable
         {
+            /// <summary>
+            /// Creates isolated listener state with an optional channel-capacity limit.
+            /// </summary>
             public AcceptHarness(ITelemetryContext telemetry, int maxChannels = 0)
             {
                 Listener = new TcpTransportListener(telemetry, new FakeTimeProvider());
@@ -296,13 +331,39 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 #endif
             }
 
+            /// <summary>
+            /// Gets the listener whose private accept callback is exercised.
+            /// </summary>
             public TcpTransportListener Listener { get; }
+
+            /// <summary>
+            /// Gets the channel registry populated only after successful admission.
+            /// </summary>
             public ConcurrentDictionary<uint, TcpListenerChannel> Channels { get; } = new();
+
+            /// <summary>
+            /// Gets the encoding context used by the listener and generated Hello message.
+            /// </summary>
             public ServiceMessageContext Context { get; }
+
+            /// <summary>
+            /// Gets the transport quotas supplied to accepted channels.
+            /// </summary>
             public ChannelQuotas Quotas { get; }
+
+            /// <summary>
+            /// Gets the shared buffers used by accepted channels.
+            /// </summary>
             public BufferManager Buffers { get; }
+
+            /// <summary>
+            /// Gets the dynamically allocated loopback endpoint.
+            /// </summary>
             public IPEndPoint Endpoint { get; }
 
+            /// <summary>
+            /// Connects a client and returns both socket ends before invoking listener admission.
+            /// </summary>
             public async Task<(Socket Client, Socket Accepted)> CreateFirstConnectionAsync()
             {
                 Socket client = await ConnectAsync().ConfigureAwait(false);
@@ -319,6 +380,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
             }
 
+            /// <summary>
+            /// Connects a new client socket with bounded test setup and failure cleanup.
+            /// </summary>
             public async Task<Socket> ConnectAsync()
             {
                 var client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
@@ -334,12 +398,18 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
             }
 
+            /// <summary>
+            /// Passes an accepted socket through the listener's real admission callback.
+            /// </summary>
             public void Admit(Socket accepted)
             {
                 using var args = new SocketAsyncEventArgs { AcceptSocket = accepted, UserToken = m_socket };
                 m_onAccept(null, args);
             }
 
+            /// <summary>
+            /// Encodes a valid Hello for this listener's endpoint and channel quotas.
+            /// </summary>
             public byte[] CreateHello()
             {
                 byte[] buffer = new byte[256];
@@ -357,13 +427,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return buffer.AsSpan(0, count).ToArray();
             }
 
+            /// <summary>
+            /// Drains listener disposal before releasing the listening socket.
+            /// </summary>
             public async ValueTask DisposeAsync()
             {
                 await Listener.DisposeAsync().ConfigureAwait(false);
                 m_socket.Dispose();
             }
 
+            /// <summary>
+            /// Owns the loopback listening socket used to create accepted clients.
+            /// </summary>
             private readonly Socket m_socket;
+
+            /// <summary>
+            /// Invokes the existing listener accept callback without a separate adapter implementation.
+            /// </summary>
             private readonly Action<object?, SocketAsyncEventArgs> m_onAccept;
         }
     }

@@ -1157,11 +1157,17 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Schedules accept processing on the thread pool rather than the current completion stack.
+        /// </summary>
         private void QueueAccept(SocketAsyncEventArgs args)
         {
             ThreadPool.QueueUserWorkItem(_ => OnAccept(null, args));
         }
 
+        /// <summary>
+        /// Applies connection admission limits and transfers an accepted socket into a registered listener channel.
+        /// </summary>
         private void AdmitAcceptedSocket(Socket socket)
         {
             Socket? ownedSocket = socket;
@@ -1247,6 +1253,9 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Reserves capacity in the active channel table, reclaiming an unused channel when the limit is reached.
+        /// </summary>
         private ConcurrentDictionary<uint, TcpListenerChannel>? ReserveAcceptedChannel()
         {
             var attempted = new HashSet<TcpListenerChannel>();
@@ -1525,7 +1534,15 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly Lock m_lock = new();
+
+        /// <summary>
+        /// Tracks channels already selected for reclamation by concurrent admission attempts.
+        /// </summary>
         private readonly HashSet<TcpListenerChannel> m_idleCleanupClaims = [];
+
+        /// <summary>
+        /// Counts reserved admission slots not yet represented by registered channels.
+        /// </summary>
         private int m_pendingAccepts;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;

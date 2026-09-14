@@ -202,6 +202,9 @@ namespace Opc.Ua.Redundancy
             m_cts.Dispose();
         }
 
+        /// <summary>
+        /// Renews the shared lease periodically and checks local expiry when renewal fails.
+        /// </summary>
         private async Task RenewLoopAsync(CancellationToken ct)
         {
             try
@@ -252,6 +255,9 @@ namespace Opc.Ua.Redundancy
             }
         }
 
+        /// <summary>
+        /// Checks that an acquisition reply still belongs to the current, undisposed election attempt.
+        /// </summary>
         private bool IsCurrentAttempt(long attempt)
         {
             bool current;
@@ -264,6 +270,9 @@ namespace Opc.Ua.Redundancy
             return current;
         }
 
+        /// <summary>
+        /// Confirms a current acquisition result only while its lease remains valid and schedules its expiry.
+        /// </summary>
         private bool CompleteAttempt(long attempt, bool acquired, long timestamp, long expiryTicks)
         {
             bool confirmed = false;
@@ -298,6 +307,9 @@ namespace Opc.Ua.Redundancy
             return confirmed;
         }
 
+        /// <summary>
+        /// Rechecks lease authority when the timer fires and publishes any resulting leadership transition.
+        /// </summary>
         private void OnLeaseExpiry()
         {
             try
@@ -320,6 +332,9 @@ namespace Opc.Ua.Redundancy
             }
         }
 
+        /// <summary>
+        /// Revokes expired local leadership and invalidates replies from the expired acquisition attempt.
+        /// </summary>
         private void ExpireLeaseIfNeeded()
         {
             if (!m_isLeader ||
@@ -335,6 +350,9 @@ namespace Opc.Ua.Redundancy
             m_expiryTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         }
 
+        /// <summary>
+        /// Returns the shorter validity interval allowed by the UTC expiry and monotonic elapsed time.
+        /// </summary>
         private TimeSpan GetRemainingLeaseTime(long timestamp, long expiryTicks)
         {
             TimeSpan utcRemaining = TimeSpan.FromTicks(expiryTicks - m_timeProvider.GetUtcNow().UtcTicks);
@@ -385,6 +403,9 @@ namespace Opc.Ua.Redundancy
             }
         }
 
+        /// <summary>
+        /// Delivers a leadership transition to each subscriber without letting one failure skip the others.
+        /// </summary>
         private void NotifyLeadershipChanged(bool value)
         {
             Action<bool>? handlers = LeadershipChanged;
@@ -441,12 +462,28 @@ namespace Opc.Ua.Redundancy
         private readonly TimeSpan m_renewInterval;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger? m_logger;
+
+        /// <summary>
+        /// Schedules revocation of local leadership even when a store operation is still pending.
+        /// </summary>
         private readonly ITimer m_expiryTimer;
         private readonly Lock m_lock = new();
         private readonly CancellationTokenSource m_cts = new();
         private Task? m_loop;
+
+        /// <summary>
+        /// Identifies the acquisition attempt whose replies may still change local leadership.
+        /// </summary>
         private long m_attempt;
+
+        /// <summary>
+        /// Stores the monotonic timestamp captured before the confirmed lease was written.
+        /// </summary>
         private long m_confirmedTimestamp;
+
+        /// <summary>
+        /// Stores the UTC expiry ticks encoded in the last confirmed lease.
+        /// </summary>
         private long m_confirmedExpiryTicks;
         private bool m_isLeader;
         private bool m_started;
@@ -485,6 +522,9 @@ namespace Opc.Ua.Redundancy
             global::System.Exception? exception,
             string nodeId);
 
+        /// <summary>
+        /// Reports a failure while processing lease expiry or notifying leadership subscribers.
+        /// </summary>
         [LoggerMessage(EventId = CoreEventIds.SharedStoreLeaseElection + 2, Level = LogLevel.Error,
             Message = "Lease election notification failed for {NodeId}.")]
         public static partial void SharedStoreLeaseElectionLogMessage2(

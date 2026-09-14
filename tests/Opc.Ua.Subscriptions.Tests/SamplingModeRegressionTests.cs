@@ -37,12 +37,18 @@ using Opc.Ua.Server;
 
 namespace Opc.Ua.Subscriptions.Tests
 {
+    /// <summary>
+    /// Verifies enabling disabled monitored items starts initial and periodic sampling through live services.
+    /// </summary>
     [TestFixture]
     [Category("Subscription")]
     [Category("Integration")]
     [NonParallelizable]
     public sealed class SamplingModeRegressionTests : TestFixture
     {
+        /// <summary>
+        /// Registers a sampling-enabled variable and resolves its namespace in the client session.
+        /// </summary>
         [OneTimeSetUp]
         public async Task AddSamplingManagerAsync()
         {
@@ -54,6 +60,9 @@ namespace Opc.Ua.Subscriptions.Tests
             m_nodeId = new NodeId("Value", (ushort)index);
         }
 
+        /// <summary>
+        /// Verifies transition to Reporting produces the initial value and later updates, optionally via Sampling mode.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public async Task DisabledItemStartsInitialAndPeriodicSamplingWhenEnabledAsync(bool passThroughSampling)
@@ -115,6 +124,9 @@ namespace Opc.Ua.Subscriptions.Tests
             }
         }
 
+        /// <summary>
+        /// Writes the variable through the client service and requires a successful result.
+        /// </summary>
         private async ValueTask WriteValueAsync(double value, CancellationToken ct)
         {
             WriteResponse response = await Session.WriteAsync(
@@ -131,6 +143,9 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(response.Results[0], Is.EqualTo(StatusCodes.Good));
         }
 
+        /// <summary>
+        /// Reads the next data-change value within a bounded number of publishing cycles.
+        /// </summary>
         private async Task<DataValue> NextValueAsync(CancellationToken ct)
         {
             for (int attempt = 0; attempt < 8; attempt++)
@@ -150,6 +165,9 @@ namespace Opc.Ua.Subscriptions.Tests
             throw new AssertionException("No sampled value arrived within eight publishing cycles.");
         }
 
+        /// <summary>
+        /// Requires a Good value containing the exact expected Double.
+        /// </summary>
         private static void AssertValue(in DataValue value, double expected)
         {
             Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -157,13 +175,25 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(actual, Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Identifies the address space containing the sampling regression variable.
+        /// </summary>
         private const string kNamespaceUri = "urn:opcfoundation:subscription-tests:sampling-regression";
+
+        /// <summary>
+        /// Identifies the variable whose writes are observed by the monitored item.
+        /// </summary>
         private NodeId m_nodeId;
 
+        /// <summary>
+        /// Creates the sampling-enabled address space for live subscription tests.
+        /// </summary>
         private sealed class SamplingManagerFactory : IAsyncNodeManagerFactory
         {
+            /// <inheritdoc/>
             public ArrayOf<string> NamespacesUris => [kNamespaceUri];
 
+            /// <inheritdoc/>
             public ValueTask<IAsyncNodeManager> CreateAsync(
                 IServerInternal server,
                 ApplicationConfiguration configuration,
@@ -173,13 +203,22 @@ namespace Opc.Ua.Subscriptions.Tests
             }
         }
 
+        /// <summary>
+        /// Hosts a writable variable using sampling-group monitoring.
+        /// </summary>
         private sealed class SamplingManager : AsyncCustomNodeManager
         {
+            /// <summary>
+            /// Enables sampling-group management for the test namespace.
+            /// </summary>
             public SamplingManager(IServerInternal server, ApplicationConfiguration configuration)
                 : base(server, configuration, true, kNamespaceUri)
             {
             }
 
+            /// <summary>
+            /// Registers the readable and writable Double with a 50 millisecond minimum sampling interval.
+            /// </summary>
             public override async ValueTask CreateAddressSpaceAsync(
                 IDictionary<NodeId, IList<IReference>> externalReferences,
                 CancellationToken cancellationToken = default)

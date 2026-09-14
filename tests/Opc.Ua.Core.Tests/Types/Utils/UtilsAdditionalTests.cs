@@ -712,6 +712,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.That(extensions, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies null extension updates remove only the matching qualified name without serializing a replacement.
+        /// </summary>
         [Test]
         public void UpdateExtensionNullRemovesOnlyMatchingQualifiedName()
         {

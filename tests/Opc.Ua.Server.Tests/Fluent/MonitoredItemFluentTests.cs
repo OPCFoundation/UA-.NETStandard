@@ -348,6 +348,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                 "a resource held by a live subscription must be released at shutdown");
         }
 
+        /// <summary>
+        /// Verifies that a new subscriber retains the shared source while an older poller finishes its final sample.
+        /// </summary>
         [Test]
         public async Task ReactivationDuringOldPollerDrainKeepsItsSourceResourceAliveAsync()
         {
