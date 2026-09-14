@@ -60,10 +60,30 @@ namespace Opc.Ua.History.Tests
         [SetUp]
         public async Task SetupSubscription()
         {
+            (m_subscriptionId, m_monitoredItemId) = await CreateEventSubscriptionAsync()
+                .ConfigureAwait(false);
+        }
+
+        [TearDown]
+        public async Task TeardownSubscription()
+        {
+            if (m_subscriptionId > 0)
+            {
+                await DeleteSubscriptionAsync(m_subscriptionId).ConfigureAwait(false);
+                m_subscriptionId = 0;
+            }
+        }
+
+        /// <summary>
+        /// Creates a subscription with one event monitored item on the Server object.
+        /// Returns the monitored item id 0 if the item could not be created.
+        /// </summary>
+        private async Task<(uint SubscriptionId, uint MonitoredItemId)> CreateEventSubscriptionAsync()
+        {
             CreateSubscriptionResponse response = await Session.CreateSubscriptionAsync(
                 null, 1000, 100, 10, 0, true, 0,
                 CancellationToken.None).ConfigureAwait(false);
-            m_subscriptionId = response.SubscriptionId;
+            uint subscriptionId = response.SubscriptionId;
 
             var eventFilter = new EventFilter
             {
@@ -99,33 +119,51 @@ namespace Opc.Ua.History.Tests
 
             CreateMonitoredItemsResponse miResp =
                 await Session.CreateMonitoredItemsAsync(
-                    null, m_subscriptionId, TimestampsToReturn.Neither,
+                    null, subscriptionId, TimestampsToReturn.Neither,
                     new MonitoredItemCreateRequest[] { item }.ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false);
-            m_monitoredItemId = miResp.Results.Count > 0 &&
+            uint monitoredItemId = miResp.Results.Count > 0 &&
                 StatusCode.IsGood(miResp.Results[0].StatusCode)
                 ? miResp.Results[0].MonitoredItemId
                 : 0;
+            return (subscriptionId, monitoredItemId);
         }
 
-        [TearDown]
-        public async Task TeardownSubscription()
+        private async Task DeleteSubscriptionAsync(uint subscriptionId)
         {
-            if (m_subscriptionId > 0)
+            try
             {
-                try
-                {
-                    await Session.DeleteSubscriptionsAsync(
-                        null,
-                        new uint[] { m_subscriptionId }.ToArrayOf(),
-                        CancellationToken.None).ConfigureAwait(false);
-                }
-                catch (ServiceResultException)
-                {
-                    // already deleted
-                }
-                m_subscriptionId = 0;
+                await Session.DeleteSubscriptionsAsync(
+                    null,
+                    new uint[] { subscriptionId }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
             }
+            catch (ServiceResultException)
+            {
+                // already deleted
+            }
+        }
+
+        private static CallMethodRequest CreateRefreshRequest(uint subscriptionId)
+        {
+            return new CallMethodRequest
+            {
+                ObjectId = ObjectTypeIds.ConditionType,
+                MethodId = MethodIds.ConditionType_ConditionRefresh,
+                InputArguments = new Variant[] { new(subscriptionId) }.ToArrayOf()
+            };
+        }
+
+        private static CallMethodRequest CreateRefresh2Request(
+            uint subscriptionId,
+            uint monitoredItemId)
+        {
+            return new CallMethodRequest
+            {
+                ObjectId = ObjectTypeIds.ConditionType,
+                MethodId = MethodIds.ConditionType_ConditionRefresh2,
+                InputArguments = new Variant[] { new(subscriptionId), new(monitoredItemId) }.ToArrayOf()
+            };
         }
 
         [Test]
@@ -210,6 +248,67 @@ namespace Opc.Ua.History.Tests
             Assert.That(oneSucceeded && oneFailed, Is.True,
                 "When two refreshes are issued concurrently, exactly one " +
                 "should succeed and the other should report an error.");
+        }
+
+        [Test]
+        public async Task ConditionRefreshOfDifferentSubscriptionsInOneCallSucceedsAsync()
+        {
+            // CTT A and C Refresh Err_004 refreshes ten subscriptions in one Call. Only a
+            // second refresh of the same subscription may report Bad_RefreshInProgress.
+            (uint secondSubscriptionId, _) = await CreateEventSubscriptionAsync()
+                .ConfigureAwait(false);
+            try
+            {
+                CallResponse response = await Session.CallAsync(
+                    null,
+                    new CallMethodRequest[]
+                    {
+                        CreateRefreshRequest(m_subscriptionId),
+                        CreateRefreshRequest(secondSubscriptionId)
+                    }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(response.Results.Count, Is.EqualTo(2));
+                Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(response.Results[1].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    "Refreshing a different subscription is not a refresh in progress.");
+            }
+            finally
+            {
+                await DeleteSubscriptionAsync(secondSubscriptionId).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task ConditionRefresh2OfDifferentSubscriptionsInOneCallSucceedsAsync()
+        {
+            if (m_monitoredItemId == 0)
+            {
+                Assert.Ignore("No monitored item available.");
+            }
+
+            (uint secondSubscriptionId, uint secondMonitoredItemId) =
+                await CreateEventSubscriptionAsync().ConfigureAwait(false);
+            try
+            {
+                CallResponse response = await Session.CallAsync(
+                    null,
+                    new CallMethodRequest[]
+                    {
+                        CreateRefresh2Request(m_subscriptionId, m_monitoredItemId),
+                        CreateRefresh2Request(secondSubscriptionId, secondMonitoredItemId)
+                    }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(response.Results.Count, Is.EqualTo(2));
+                Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(response.Results[1].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    "Refreshing a different subscription is not a refresh in progress.");
+            }
+            finally
+            {
+                await DeleteSubscriptionAsync(secondSubscriptionId).ConfigureAwait(false);
+            }
         }
 
         [Test]
