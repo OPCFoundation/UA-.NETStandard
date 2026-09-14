@@ -1026,23 +1026,33 @@ namespace Opc.Ua.Bindings
             // the certificate validation failure is thrown directly or as the inner exception.
             if ((e as ServiceResultException ?? e.InnerException as ServiceResultException)
                 is not ServiceResultException error ||
-                error.InnerResult?.StatusCode == StatusCodes.BadCertificateUntrusted)
+                !IsReportableCertificateError(error.StatusCode))
             {
                 return false;
             }
 
-            if (error.StatusCode == StatusCodes.BadCertificateTimeInvalid ||
-                error.StatusCode == StatusCodes.BadCertificateIssuerTimeInvalid ||
-                error.StatusCode == StatusCodes.BadCertificateHostNameInvalid ||
-                error.StatusCode == StatusCodes.BadCertificateUriInvalid ||
-                error.StatusCode == StatusCodes.BadCertificateUseNotAllowed ||
-                error.StatusCode == StatusCodes.BadCertificateIssuerUseNotAllowed)
+            // the validator nests every failed check below the last one; a single check
+            // that must stay hidden hides the whole result.
+            for (ServiceResult? inner = error.Result.InnerResult; inner != null; inner = inner.InnerResult)
             {
-                reportable = error;
-                return true;
+                if (!IsReportableCertificateError(inner.StatusCode))
+                {
+                    return false;
+                }
             }
 
-            return false;
+            reportable = error;
+            return true;
+        }
+
+        private static bool IsReportableCertificateError(StatusCode statusCode)
+        {
+            return statusCode == StatusCodes.BadCertificateTimeInvalid ||
+                statusCode == StatusCodes.BadCertificateIssuerTimeInvalid ||
+                statusCode == StatusCodes.BadCertificateHostNameInvalid ||
+                statusCode == StatusCodes.BadCertificateUriInvalid ||
+                statusCode == StatusCodes.BadCertificateUseNotAllowed ||
+                statusCode == StatusCodes.BadCertificateIssuerUseNotAllowed;
         }
 
         /// <inheritdoc/>

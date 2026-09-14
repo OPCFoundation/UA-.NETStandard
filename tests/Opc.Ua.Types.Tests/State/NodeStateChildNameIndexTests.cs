@@ -256,6 +256,50 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(500));
         }
 
+        [Test]
+        public void FindChildWithQualifiedNameComparesTheNamespaceOfGeneratedChildSlots()
+        {
+            // MethodState resolves InputArguments by Name only; the AddNodes duplicate check
+            // must not treat a child in another namespace as a duplicate of that slot.
+            var method = new MethodState(null)
+            {
+                NodeId = new NodeId("Method", 1),
+                BrowseName = QualifiedName.From("Method")
+            };
+            method.CreateOrReplaceInputArguments(m_context, null);
+            var otherNamespace = new QualifiedName(BrowseNames.InputArguments, 2);
+
+            Assert.That(method.FindChild(m_context, otherNamespace), Is.SameAs(method.InputArguments));
+            Assert.That(method.FindChildWithQualifiedName(m_context, otherNamespace), Is.Null);
+            Assert.That(
+                method.FindChildWithQualifiedName(m_context, QualifiedName.From(BrowseNames.InputArguments)),
+                Is.SameAs(method.InputArguments));
+
+            // a child list entry with the full browse name is found although the slot matched first.
+            BaseDataVariableState listed = CreateChild(method, BrowseNames.InputArguments);
+            listed.BrowseName = otherNamespace;
+            method.AddChild(listed);
+
+            Assert.That(method.FindChildWithQualifiedName(m_context, otherNamespace), Is.SameAs(listed));
+        }
+
+        [Test]
+        public void FindChildWithQualifiedNameSearchesTheChildListWhenTheSlotIsEmpty()
+        {
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("Variable", 1),
+                BrowseName = QualifiedName.From("Variable")
+            };
+            BaseDataVariableState listed = CreateChild(variable, BrowseNames.EnumStrings);
+            variable.AddChild(listed);
+
+            Assert.That(variable.FindChild(m_context, QualifiedName.From(BrowseNames.EnumStrings)), Is.Null);
+            Assert.That(
+                variable.FindChildWithQualifiedName(m_context, QualifiedName.From(BrowseNames.EnumStrings)),
+                Is.SameAs(listed));
+        }
+
         private static QualifiedName Name(int index)
         {
             return QualifiedName.From("Child" + index);

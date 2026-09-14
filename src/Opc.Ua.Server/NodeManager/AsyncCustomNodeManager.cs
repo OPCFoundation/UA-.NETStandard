@@ -1778,7 +1778,7 @@ namespace Opc.Ua.Server
             // NodeManager.
             if (PredefinedNodes.TryGetValue(parentNodeId, out NodeState? parentNode))
             {
-                if (parentNode.FindChild(systemContext, item.BrowseName) != null)
+                if (parentNode.FindChildWithQualifiedName(systemContext, item.BrowseName) != null)
                 {
                     return (new ServiceResult(StatusCodes.BadBrowseNameDuplicated), NodeId.Null);
                 }

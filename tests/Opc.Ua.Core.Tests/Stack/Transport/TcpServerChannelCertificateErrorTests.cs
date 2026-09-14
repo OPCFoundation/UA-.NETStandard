@@ -112,6 +112,35 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public void ReportableErrorsNestedBelowAReportableErrorAreReported()
+        {
+            var error = new ServiceResultException(
+                new ServiceResult(
+                    StatusCodes.BadCertificateTimeInvalid,
+                    new ServiceResult(
+                        StatusCodes.BadCertificateHostNameInvalid,
+                        new ServiceResult(StatusCodes.BadCertificateUseNotAllowed))));
+
+            Assert.That(
+                TcpServerChannel.TryGetReportableCertificateError(error, out ServiceResultException reportable),
+                Is.True);
+            Assert.That(reportable.StatusCode, Is.EqualTo(StatusCodes.BadCertificateTimeInvalid));
+        }
+
+        [TestCaseSource(nameof(s_maskedCodes))]
+        public void MaskedErrorNestedDeepBelowAReportableErrorIsReportedAsSecurityChecksFailed(StatusCode statusCode)
+        {
+            var error = new ServiceResultException(
+                new ServiceResult(
+                    StatusCodes.BadCertificateTimeInvalid,
+                    new ServiceResult(
+                        StatusCodes.BadCertificateHostNameInvalid,
+                        new ServiceResult(statusCode))));
+
+            Assert.That(TcpServerChannel.TryGetReportableCertificateError(error, out _), Is.False);
+        }
+
+        [Test]
         public void OtherExceptionsAreReportedAsSecurityChecksFailed()
         {
             Assert.That(

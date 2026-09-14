@@ -5209,6 +5209,46 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Finds the child whose browse name equals <paramref name="browseName"/>, namespace
+        /// index included.
+        /// </summary>
+        /// <remarks>
+        /// Types with generated child slots override <see cref="FindChild(ISystemContext, QualifiedName)"/>
+        /// and resolve those slots by <see cref="QualifiedName.Name"/> only, and do not search the
+        /// child list for such a name. This method accepts a slot only when its full browse name
+        /// matches and otherwise searches the child list, so it finds the same children as
+        /// comparing the browse names of <see cref="GetChildren"/>.
+        /// </remarks>
+        /// <param name="context">The context to use.</param>
+        /// <param name="browseName">The browse name.</param>
+        /// <returns>The child if found. Null otherwise.</returns>
+        public BaseInstanceState? FindChildWithQualifiedName(ISystemContext context, QualifiedName browseName)
+        {
+            if (browseName.IsNull)
+            {
+                return null;
+            }
+
+            BaseInstanceState? child = FindChild(context, browseName, false, null);
+            if (child != null && child.BrowseName == browseName)
+            {
+                return child;
+            }
+
+            lock (m_childrenLock)
+            {
+                if (m_children == null)
+                {
+                    return null;
+                }
+
+                return m_children.Count >= kChildNameIndexThreshold
+                    ? FindIndexedChild(m_children, browseName)
+                    : FindFirstChild(m_children, browseName);
+            }
+        }
+
+        /// <summary>
         /// Finds the child with the specified browse path.
         /// </summary>
         /// <param name="context">The context to use.</param>
@@ -6279,14 +6319,33 @@ namespace Opc.Ua
         /// Sets the browse name and drops the browse name index of the parent, which
         /// may hold the child under its previous browse name.
         /// </summary>
+        /// <remarks>
+        /// Both happen under the parent's children lock, so a concurrent
+        /// <see cref="FindChild(ISystemContext, QualifiedName)"/> never sees the new
+        /// name together with an index that still maps the old one, and misses the child.
+        /// </remarks>
         private void SetBrowseNameAndInvalidateParentIndex(QualifiedName browseName)
         {
-            bool changed = m_browseName != browseName;
-            m_browseName = browseName;
-
-            if (changed && this is BaseInstanceState { Parent: NodeState parent })
+            if (m_browseName == browseName)
             {
-                parent.InvalidateChildNameIndex();
+                m_browseName = browseName;
+                return;
+            }
+
+            if (this is not BaseInstanceState { Parent: NodeState parent })
+            {
+                m_browseName = browseName;
+                return;
+            }
+
+            lock (parent.m_childrenLock)
+            {
+                m_browseName = browseName;
+
+                if (parent.m_children != null)
+                {
+                    s_childNameIndexes.Remove(parent.m_children);
+                }
             }
         }
 
