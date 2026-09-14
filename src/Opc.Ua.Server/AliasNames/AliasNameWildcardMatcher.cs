@@ -52,7 +52,9 @@ namespace Opc.Ua.Server.AliasNames
     /// reference server (which itself ported the private <c>Match</c> from
     /// <c>src/Opc.Ua.Core/Stack/Types/FilterEvaluator.cs</c>). Matching is
     /// case-sensitive and anchored: the entire target must match the entire
-    /// pattern.
+    /// pattern. A malformed pattern (trailing escape character, unterminated
+    /// or empty <c>[..]</c> list) is not a valid search string and matches
+    /// nothing; see <see cref="IsValidPattern"/>.
     /// </remarks>
     public static class AliasNameWildcardMatcher
     {
@@ -63,18 +65,37 @@ namespace Opc.Ua.Server.AliasNames
         /// <param name="target">String to test; must not be <c>null</c>.</param>
         /// <param name="pattern">OPC UA Like pattern; must not be <c>null</c>.</param>
         /// <returns><c>true</c> if the target matches; otherwise <c>false</c>.
-        /// Both <c>null</c> inputs and an empty <paramref name="pattern"/>
-        /// return <c>false</c>.</returns>
+        /// Both <c>null</c> inputs, an empty <paramref name="pattern"/> and an
+        /// invalid pattern return <c>false</c>.</returns>
         public static bool IsMatch(string? target, string? pattern)
         {
-            if (target == null || pattern == null)
+            if (target == null ||
+                string.IsNullOrEmpty(pattern) ||
+                !TryTranslate(pattern!, out string regex))
             {
                 return false;
             }
-            if (pattern.Length == 0)
-            {
-                return false;
-            }
+            return Regex.IsMatch(target, regex);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when <paramref name="pattern"/> is a valid OPC UA
+        /// Like search string (Part 4 §7.7.3). A <c>null</c> or empty pattern is
+        /// valid and simply matches nothing. Part 17 §6.3.2 requires
+        /// <c>Bad_InvalidArgument</c> from <c>FindAlias</c> for an invalid one.
+        /// </summary>
+        /// <param name="pattern">The search string to validate.</param>
+        /// <returns><c>false</c> for a trailing escape character, an
+        /// unterminated or empty <c>[..]</c> list, or a list that cannot be
+        /// evaluated; otherwise <c>true</c>.</returns>
+        public static bool IsValidPattern(string? pattern)
+        {
+            return string.IsNullOrEmpty(pattern) || TryTranslate(pattern!, out _);
+        }
+
+        private static bool TryTranslate(string pattern, out string regex)
+        {
+            regex = string.Empty;
 
             // Translate the OPC UA Like pattern to an anchored .NET regex
             // by walking the input char-by-char. We need to:
@@ -101,10 +122,9 @@ namespace Opc.Ua.Server.AliasNames
                         }
                         else
                         {
-                            // Trailing backslash with nothing to escape —
-                            // match a literal backslash.
-                            sb.Append("\\\\");
-                            i++;
+                            // Trailing escape character with nothing to
+                            // escape: not a valid search string.
+                            return false;
                         }
                         break;
                     case '%':
@@ -119,10 +139,9 @@ namespace Opc.Ua.Server.AliasNames
                         int end = pattern.IndexOf(']', i + 1);
                         if (end < 0)
                         {
-                            // No matching close-bracket — treat as a
-                            // literal '['.
-                            sb.Append("\\[");
-                            i++;
+                            // No matching close-bracket: not a valid
+                            // search string.
+                            return false;
                         }
                         else
                         {
@@ -133,7 +152,12 @@ namespace Opc.Ua.Server.AliasNames
                             // of OPC UA — for simple character lists this
                             // works correctly).
                             string body = pattern.Substring(i + 1, end - i - 1);
-                            if (body.Length > 0 && body[0] == '!')
+                            if (body.Length == 0 || body is "!" or "^")
+                            {
+                                // An empty list matches no character.
+                                return false;
+                            }
+                            if (body[0] == '!')
                             {
                                 sb.Append("[^").Append(body, 1, body.Length - 1)
                                     .Append(']');
@@ -152,7 +176,19 @@ namespace Opc.Ua.Server.AliasNames
                 }
             }
             sb.Append('$');
-            return Regex.IsMatch(target, sb.ToString());
+            string candidate = sb.ToString();
+            try
+            {
+                // Validates the list contents (e.g. "[a\]" or "[z-a]"); the
+                // static Regex cache keeps the compiled pattern for matching.
+                _ = Regex.IsMatch(string.Empty, candidate);
+            }
+            catch (System.ArgumentException)
+            {
+                return false;
+            }
+            regex = candidate;
+            return true;
         }
     }
 }
