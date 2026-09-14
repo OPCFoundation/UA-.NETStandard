@@ -251,18 +251,6 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            // track the chronological start and end of data. Values arrive newest-first
-            // when time flows backward, so the queue order cannot be used for either.
-            if (m_startOfData == DateTimeUtc.MinValue || value.SourceTimestamp < m_startOfData)
-            {
-                m_startOfData = value.SourceTimestamp;
-            }
-
-            if (value.SourceTimestamp > m_endOfData)
-            {
-                m_endOfData = value.SourceTimestamp;
-            }
-
             // ensure values are being queued in the right order.
             if (TimeFlowsBackward)
             {
@@ -274,6 +262,19 @@ namespace Opc.Ua.Server
             else if (m_values.Last != null && CompareTimestamps(value, m_values.Last) < 0)
             {
                 return false;
+            }
+
+            // track the chronological start and end of the queued data. Values arrive
+            // newest-first when time flows backward, so the queue order cannot be used for
+            // either; rejected out-of-order values must not move the data edges.
+            if (m_startOfData == DateTimeUtc.MinValue || value.SourceTimestamp < m_startOfData)
+            {
+                m_startOfData = value.SourceTimestamp;
+            }
+
+            if (value.SourceTimestamp > m_endOfData)
+            {
+                m_endOfData = value.SourceTimestamp;
             }
 
             // ensure value list is always ordered from past to future.

@@ -1411,7 +1411,7 @@ namespace Opc.Ua
                         }
                         break;
                     case DataTypes.Enumeration:
-                        if (typeInfo.BuiltInType == BuiltInType.Int32)
+                        if (typeInfo.BuiltInType is BuiltInType.Int32 or BuiltInType.Enumeration)
                         {
                             return typeInfo;
                         }
@@ -1446,7 +1446,7 @@ namespace Opc.Ua
                 }
 
                 // check for enumerations.
-                if (typeInfo.BuiltInType == BuiltInType.Int32 &&
+                if (typeInfo.BuiltInType is BuiltInType.Int32 or BuiltInType.Enumeration &&
                     typeTree.IsTypeOf(expectedDataTypeId, DataTypeIds.Enumeration))
                 {
                     return typeInfo;

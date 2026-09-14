@@ -1015,7 +1015,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 IComplexTypeSystemFactory complexTypeSystemFactory =
                     sp.GetService<IComplexTypeSystemFactory>() ??
                     new DefaultComplexTypeSystemFactory(telemetry);
-                ComplexTypeSystem complexTypeSystem = complexTypeSystemFactory.Create(session);
+                using ComplexTypeSystem complexTypeSystem = complexTypeSystemFactory.Create(session);
                 await complexTypeSystem.LoadAsync(ct: ct).ConfigureAwait(false);
             }
 

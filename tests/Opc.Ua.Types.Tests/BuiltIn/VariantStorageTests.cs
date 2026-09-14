@@ -257,7 +257,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Assert.That(actual.GetQualifiedName().Name, Is.Null);
                 Assert.That(actual.GetHashCode(), Is.Zero);
                 Assert.That(actual.ToString(), Is.EqualTo("<null>"));
-                Assert.That(new Variant(1UL).CompareTo(actual), Is.EqualTo(1UL.CompareTo(bits)));
+                // A UInt64 is not comparable to a QualifiedName/NodeId/ByteString/
+                // LocalizedText variant - the raw union payload must never be used.
+                Assert.That(new Variant(1UL).CompareTo(actual), Is.EqualTo(int.MinValue));
                 Assert.That(actual.GetNodeId(), Is.EqualTo(expected.GetNodeId()));
                 Assert.That(actual.GetQualifiedName(), Is.EqualTo(expected.GetQualifiedName()));
                 Assert.That(actual.GetByteString(), Is.EqualTo(expected.GetByteString()));
@@ -266,8 +268,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Assert.That(actual.ToString(), Is.EqualTo(expected.ToString()));
                 Assert.That(actual.ValueEquals(default), Is.EqualTo(expected.ValueEquals(default)));
                 Assert.That(new Variant(1UL).CompareTo(actual), Is.EqualTo(new Variant(1UL).CompareTo(expected)));
-                Assert.That((new Variant(ulong.MaxValue) & actual).GetUInt64(), Is.EqualTo(bits));
-                Assert.That((new Variant(0UL) | actual).GetUInt64(), Is.EqualTo(bits));
+                // The bitwise operators read the right hand operand through its
+                // own type, so a non integer operand yields a null variant.
+                Assert.That((new Variant(ulong.MaxValue) & actual).IsNull, Is.True);
+                Assert.That((new Variant(0UL) | actual).IsNull, Is.True);
             }
         }
 

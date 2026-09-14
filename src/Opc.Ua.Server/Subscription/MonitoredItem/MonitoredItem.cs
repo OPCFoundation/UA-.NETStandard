@@ -2336,6 +2336,14 @@ namespace Opc.Ua.Server
                                 restoredQueue,
                                 m_discardOldest,
                                 m_server.Telemetry);
+
+                            // the queue may have been persisted with a size that was
+                            // revised since, e.g. a literal size of 1 before queueSize 1
+                            // was mapped to the server minimum (Part 4 §7.21).
+                            if (restoredQueue.QueueSize != QueueSize)
+                            {
+                                m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
+                            }
                         }
                         else
                         {

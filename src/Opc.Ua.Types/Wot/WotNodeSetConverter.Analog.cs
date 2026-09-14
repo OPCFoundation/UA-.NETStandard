@@ -480,8 +480,12 @@ namespace Opc.Ua.Wot
                     field.InnerText.Trim(),
                     NumberStyles.Float,
                     CultureInfo.InvariantCulture,
-                    out double parsed))
+                    out double parsed) ||
+                    double.IsNaN(parsed) ||
+                    double.IsInfinity(parsed))
                 {
+                    // NaN / Infinity parse but cannot be written as JSON, and
+                    // NaN is what XmlConvert writes for an uninitialised range.
                     return false;
                 }
                 switch (field.LocalName)

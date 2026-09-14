@@ -340,7 +340,24 @@ namespace Opc.Ua.Bindings
                     {
                         transportLimits.SetReceiveBufferSize(ReceiveBufferSize);
                     }
+
+                    // Retire the old loop BEFORE closing the socket it reads
+                    // from. Closing first makes that loop fail out of
+                    // ReceiveChunkAsync with a socket error rather than a
+                    // cancellation, and its error path faults the channel - on
+                    // the new transport, after this method has already reported
+                    // the reconnect as successful.
+                    IUaSCByteTransport? dropped = DetachTransport();
+
                     Transport = transport;
+
+                    // The socket this channel used before the client dropped it
+                    // is nobody's any more.
+                    if (dropped != null && !ReferenceEquals(dropped, transport))
+                    {
+                        dropped.Close();
+                    }
+
                     StartReceiveLoop();
 
                     // need to assign a new token id.
@@ -700,6 +717,12 @@ namespace Opc.Ua.Bindings
                 // check for replay attacks.
                 if (!VerifySequenceNumber(sequenceNumber, "ProcessOpenSecureChannelRequest"))
                 {
+                    // The decrypted body sits in a buffer of its own that only
+                    // the chunk collection below ever returns, and that does not
+                    // exist yet - so it has to go back here.
+                    ReturnDecryptedBuffer(messageBody);
+                    messageBody = default;
+
                     throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
                 }
             }
@@ -860,22 +883,56 @@ namespace Opc.Ua.Bindings
                     // may be reconnecting to a dropped channel.
                     if (State == TcpChannelState.Opening)
                     {
-                        // tell the listener to find the channel that can process the request.
-                        Listener.ReconnectToExistingChannel(
-                            Transport!,
-                            requestId,
-                            sequenceNumber,
-                            channelId,
-                            ClientCertificate!,
-                            token,
-                            request);
+                        // The transport moves to the existing channel, which
+                        // reads from it and answers on it from here on. Detach it
+                        // first, which also stops this channel's receive loop:
+                        // ChannelClosed() below closes whatever Transport still
+                        // points at, and closing the socket the other channel
+                        // just adopted fails its OpenSecureChannel response with
+                        // BadConnectionClosed - reconnecting to a dropped channel
+                        // could never succeed.
+                        // Dispose and the listener's idle reclaim can take the
+                        // transport away without holding the gate, so it may
+                        // already be gone.
+                        IUaSCByteTransport? handedOver = DetachTransport()
+                            ?? throw ServiceResultException.Create(
+                                StatusCodes.BadConnectionClosed,
+                                "The transport was closed while reconnecting to an existing channel.");
+
+                        System.Net.EndPoint? remoteEndpoint = handedOver.RemoteEndpoint;
+
+                        try
+                        {
+                            // tell the listener to find the channel that can process the request.
+                            Listener.ReconnectToExistingChannel(
+                                handedOver,
+                                requestId,
+                                sequenceNumber,
+                                channelId,
+                                ClientCertificate!,
+                                token,
+                                request);
+                        }
+                        catch
+                        {
+                            // The hand-over did not happen - an unknown channel
+                            // id, or a listener that does not support it - so this
+                            // channel still owns the socket. Put it back and read
+                            // from it again: the enclosing catch only sends a
+                            // fault and returns, so without the loop the channel
+                            // would sit on an open socket nobody reads, until the
+                            // idle reclaim finally takes it.
+                            Transport = handedOver;
+                            StartReceiveLoop();
+                            throw;
+                        }
 
                         token = null;
 
                         m_logger
                             .TcpServerLog5(
                                 ChannelName,
-                                Transport?.RemoteEndpoint,
+                                remoteEndpoint,
                                 CurrentToken != null ? CurrentToken.ChannelId : 0,
                                 CurrentToken != null ? CurrentToken.TokenId : 0);
 
@@ -1248,8 +1305,13 @@ namespace Opc.Ua.Bindings
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
+                    // The symmetric message was decrypted in place, so messageBody
+                    // and messageChunk share one array. SaveIntermediateChunk has
+                    // taken it, so reporting "not owned" here would hand the same
+                    // buffer back to the pool as well - the double free the return
+                    // at the end of this method already warns about.
                     SaveIntermediateChunk(requestId, messageBody, true, gateHeld: true);
-                    return false;
+                    return true;
                 }
 
                 // get the chunks to process.
@@ -1414,34 +1476,43 @@ namespace Opc.Ua.Bindings
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    bool firstChunk = SaveIntermediateChunk(requestId, messageBody, true, gateHeld: true);
-
-                    // validate the type is allowed with a discovery channel
-                    if (DiscoveryOnly)
+                    // Validate the type is allowed with a discovery channel, and
+                    // do it before the chunk is handed over. SaveIntermediateChunk
+                    // takes ownership and can return the buffer to the pool at
+                    // once - a request id of zero is never queued - so reading the
+                    // body afterwards could read an array another caller has
+                    // already rented.
+                    //
+                    // Not gated on the saved size: a first chunk with an empty body
+                    // would then skip the check entirely and let a non discovery
+                    // request buffer until the size limit.
+                    if (DiscoveryOnly &&
+                        !HasPartialMessage &&
+                        !ValidateDiscoveryServiceCall(
+                            token,
+                            requestId,
+                            messageBody,
+                            out chunksToProcess))
                     {
-                        if (firstChunk)
-                        {
-                            if (!ValidateDiscoveryServiceCall(
-                                token,
-                                requestId,
-                                messageBody,
-                                out chunksToProcess))
-                            {
-                                ChannelClosed();
-                            }
-                        }
-                        else if (GetSavedChunksTotalSize() > TcpMessageLimits
-                            .DefaultDiscoveryMaxMessageSize)
-                        {
-                            chunksToProcess = GetSavedChunks(0, messageBody, true, gateHeld: true);
-                            SendServiceFault(
-                                token,
-                                requestId,
-                                ServiceResult.Create(
-                                    StatusCodes.BadSecurityPolicyRejected,
-                                    "Discovery Channel message size exceeded."));
-                            ChannelClosed();
-                        }
+                        ChannelClosed();
+                        return true;
+                    }
+
+                    SaveIntermediateChunk(requestId, messageBody, true, gateHeld: true);
+
+                    if (DiscoveryOnly &&
+                        GetSavedChunksTotalSize() > TcpMessageLimits.DefaultDiscoveryMaxMessageSize)
+                    {
+                        // messageBody was saved by the call above; take the
+                        // collection rather than offering the chunk again.
+                        chunksToProcess = TakeSavedChunks();
+                        SendServiceFault(
+                            token,
+                            requestId,
+                            ServiceResult.Create(
+                                StatusCodes.BadSecurityPolicyRejected,
+                                "Discovery Channel message size exceeded."));
+                        ChannelClosed();
                     }
 
                     return true;
@@ -1644,6 +1715,16 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Validate the type of message before it is decoded.
         /// </summary>
+        /// <param name="token">The token the fault is sent under.</param>
+        /// <param name="requestId">The request the body belongs to.</param>
+        /// <param name="messageBody">
+        /// The decrypted body of the chunk. It must not have been handed to the
+        /// partial message yet: it is read here, and on rejection this takes it
+        /// over so its buffer goes back to the pool with the rest.
+        /// </param>
+        /// <param name="chunksToProcess">
+        /// The chunks the caller must release when the call is rejected.
+        /// </param>
         private bool ValidateDiscoveryServiceCall(
             ChannelToken token,
             uint requestId,
@@ -1651,15 +1732,20 @@ namespace Opc.Ua.Bindings
             out BufferCollection chunksToProcess)
         {
             chunksToProcess = null!;
-            using var decoder = new BinaryDecoder(messageBody, Quotas.MessageContext);
-            // read the type of the message before more chunks are processed.
-            NodeId typeId = decoder.ReadNodeId(null);
+
+            // read the type of the message before more chunks are processed, and
+            // finish reading before the body can change hands below.
+            NodeId typeId;
+            using (var decoder = new BinaryDecoder(messageBody, Quotas.MessageContext))
+            {
+                typeId = decoder.ReadNodeId(null);
+            }
 
             if (typeId != ObjectIds.GetEndpointsRequest_Encoding_DefaultBinary &&
                 typeId != ObjectIds.FindServersRequest_Encoding_DefaultBinary &&
                 typeId != ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultBinary)
             {
-                chunksToProcess = GetSavedChunks(0, messageBody, true, gateHeld: true);
+                chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
                 SendServiceFault(
                     token,
                     requestId,
