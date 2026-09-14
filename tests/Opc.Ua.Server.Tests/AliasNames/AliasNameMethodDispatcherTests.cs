@@ -257,6 +257,90 @@ namespace Opc.Ua.Server.Tests.AliasNames
             }
         }
 
+        /// <summary>
+        /// Part 17 §6.3.2/§6.3.3: an invalid search string is rejected with
+        /// Bad_InvalidArgument (CTT AliasName Base Err-001..Err-003).
+        /// </summary>
+        [TestCase("A[")]
+        [TestCase(@"A\")]
+        [TestCase(@"A\\\")]
+        public async Task FindAliasRejectsInvalidSearchPatternAsync(string pattern)
+        {
+            (AliasNameStoreRegistry registry, InMemoryAliasNameStore store) =
+                CreateRegistryWithCapableStore();
+            using (registry)
+            using (store)
+            {
+                var typeTree = new TypeTable(new NamespaceTable());
+                FindAliasMethodStateResult result = await AliasNameMethodDispatcher
+                    .FindAliasAsync(registry, typeTree, s_categoryId, pattern,
+                        ReferenceTypeIds.AliasFor, CancellationToken.None)
+                    .ConfigureAwait(false);
+                FindAliasVerboseMethodStateResult verbose = await AliasNameMethodDispatcher
+                    .FindAliasVerboseAsync(registry, typeTree, s_categoryId, pattern,
+                        ReferenceTypeIds.AliasFor, CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(result.ServiceResult.StatusCode.Code,
+                    Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(result.AliasNodeList.Count, Is.Zero);
+                Assert.That(verbose.ServiceResult.StatusCode.Code,
+                    Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(verbose.AliasNodeList.Count, Is.Zero);
+            }
+        }
+
+        /// <summary>
+        /// Part 17 §6.3.2: the ReferenceTypeFilter shall be AliasFor or one of
+        /// its subtypes (CTT AliasName Base Err-004 uses HasComponent).
+        /// </summary>
+        [Test]
+        public async Task FindAliasRejectsNonAliasForReferenceTypeFilterAsync()
+        {
+            (AliasNameStoreRegistry registry, InMemoryAliasNameStore store) =
+                CreateRegistryWithCapableStore();
+            using (registry)
+            using (store)
+            {
+                var typeTree = new TypeTable(new NamespaceTable());
+                FindAliasMethodStateResult result = await AliasNameMethodDispatcher
+                    .FindAliasAsync(registry, typeTree, s_categoryId, "%",
+                        ReferenceTypeIds.HasComponent, CancellationToken.None)
+                    .ConfigureAwait(false);
+                FindAliasVerboseMethodStateResult verbose = await AliasNameMethodDispatcher
+                    .FindAliasVerboseAsync(registry, typeTree, s_categoryId, "%",
+                        ReferenceTypeIds.HasComponent, CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(result.ServiceResult.StatusCode.Code,
+                    Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(verbose.ServiceResult.StatusCode.Code,
+                    Is.EqualTo(StatusCodes.BadInvalidArgument));
+            }
+        }
+
+        [Test]
+        public async Task FindAliasAcceptsAliasForReferencesAndNullFiltersAsync()
+        {
+            (AliasNameStoreRegistry registry, InMemoryAliasNameStore store) =
+                CreateRegistryWithCapableStore();
+            using (registry)
+            using (store)
+            {
+                var typeTree = new TypeTable(new NamespaceTable());
+                foreach (NodeId filter in new[] { ReferenceTypeIds.AliasFor, ReferenceTypeIds.References, NodeId.Null })
+                {
+                    FindAliasMethodStateResult result = await AliasNameMethodDispatcher
+                        .FindAliasAsync(registry, typeTree, s_categoryId, "%", filter,
+                            CancellationToken.None)
+                        .ConfigureAwait(false);
+
+                    Assert.That(result.ServiceResult, Is.EqualTo(ServiceResult.Good),
+                        $"filter {filter}");
+                }
+            }
+        }
+
         [Test]
         public async Task FindAliasVerboseReturnsEmptyArrayOfWhenNoMatchesAsync()
         {

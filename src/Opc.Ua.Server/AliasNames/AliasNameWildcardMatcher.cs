@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -52,6 +53,9 @@ namespace Opc.Ua.Server.AliasNames
     /// </list>
     /// Matching is case-sensitive and anchored: the entire target must match
     /// the entire pattern. Evaluation has a finite timeout on all target frameworks.
+    /// A malformed pattern (trailing escape character, unterminated
+    /// or empty <c>[..]</c> list) is not a valid search string and matches
+    /// nothing; see <see cref="IsValidPattern"/>.
     /// </remarks>
     public static class AliasNameWildcardMatcher
     {
@@ -62,19 +66,30 @@ namespace Opc.Ua.Server.AliasNames
         /// <param name="target">String to test; must not be <c>null</c>.</param>
         /// <param name="pattern">OPC UA Like pattern; must not be <c>null</c>.</param>
         /// <returns><c>true</c> if the target matches; otherwise <c>false</c>.
-        /// Both <c>null</c> inputs and an empty <paramref name="pattern"/>
-        /// return <c>false</c>.</returns>
+        /// Both <c>null</c> inputs, an empty <paramref name="pattern"/> and an
+        /// invalid pattern return <c>false</c>.</returns>
         public static bool IsMatch(string? target, string? pattern)
         {
-            if (target == null || pattern == null)
+            if (target == null || string.IsNullOrEmpty(pattern))
             {
                 return false;
             }
-            if (pattern.Length == 0)
-            {
-                return false;
-            }
-            return Matches(target, CreateRegex(pattern));
+            return TryCreateRegex(pattern!, out Regex? regex) && Matches(target, regex);
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when <paramref name="pattern"/> is a valid OPC UA
+        /// Like search string (Part 4 §7.7.3). A <c>null</c> or empty pattern is
+        /// valid and simply matches nothing. Part 17 §6.3.2 requires
+        /// <c>Bad_InvalidArgument</c> from <c>FindAlias</c> for an invalid one.
+        /// </summary>
+        /// <param name="pattern">The search string to validate.</param>
+        /// <returns><c>false</c> for a trailing escape character, an
+        /// unterminated or empty <c>[..]</c> list, or a list that cannot be
+        /// evaluated; otherwise <c>true</c>.</returns>
+        public static bool IsValidPattern(string? pattern)
+        {
+            return string.IsNullOrEmpty(pattern) || TryCreateRegex(pattern!, out _);
         }
 
         internal static Regex CreateRegex(string pattern)
@@ -95,8 +110,9 @@ namespace Opc.Ua.Server.AliasNames
                         }
                         else
                         {
-                            sb.Append("\\\\");
-                            i++;
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadInvalidArgument,
+                                "Alias-name search pattern ends with an escape character.");
                         }
                         break;
                     case '%':
@@ -119,8 +135,9 @@ namespace Opc.Ua.Server.AliasNames
                         }
                         if (end == pattern.Length)
                         {
-                            sb.Append("\\[");
-                            i++;
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadInvalidArgument,
+                                "Alias-name search pattern contains an unterminated character set.");
                         }
                         else
                         {
@@ -130,6 +147,12 @@ namespace Opc.Ua.Server.AliasNames
                             {
                                 sb.Append('^');
                                 i++;
+                            }
+                            if (i == end)
+                            {
+                                throw ServiceResultException.Create(
+                                    StatusCodes.BadInvalidArgument,
+                                    "Alias-name search pattern contains an empty character set.");
                             }
                             while (i < end)
                             {
@@ -177,6 +200,20 @@ namespace Opc.Ua.Server.AliasNames
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadTimeout, ex, "Alias-name pattern evaluation exceeded its time limit.");
+            }
+        }
+
+        private static bool TryCreateRegex(string pattern, [NotNullWhen(true)] out Regex? regex)
+        {
+            try
+            {
+                regex = CreateRegex(pattern);
+                return true;
+            }
+            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadInvalidArgument)
+            {
+                regex = null;
+                return false;
             }
         }
 

@@ -1,0 +1,235 @@
+# Running the CTT against the reference server
+
+How to run the OPC UA Compliance Test Tool (CTT) headless against
+`ConsoleReferenceServer`, and how to triage the results. Findings that are CTT
+script or configuration defects are recorded in [ctt-issues.md](ctt-issues.md).
+Check that file before reporting a failure, and add new CTT defects there.
+
+## Setup
+
+Placeholders used below:
+
+| Placeholder | Meaning |
+| --- | --- |
+| `<CttDir>` | CTT installation folder, containing `uacompliancetest.exe`. Usually `...\OPC Foundation\UA 1.05\Compliance Test Tool`. |
+| `<ProjectDir>` | folder of a CTT **server** project (created in the CTT GUI) |
+| `<Project>` | project name. The project files are `<Project>.ctt.xml`, `<Project>.selection.xml` and `<Project>.results.xml`. |
+| `<LogDir>` | any scratch folder for logs, selections and results |
+
+Inside `<ProjectDir>`:
+
+| Item | Location |
+| --- | --- |
+| Script catalog | `testscripts.xml`, `maintree\` (test scripts), `library\` (helpers) |
+| CU id → name map | `Profiles\UACore\ProfileSet_UACore_1.05_*.xml` |
+
+Configure the project once in the GUI:
+- **Server URL:** `opc.tcp://localhost:62541/Quickstarts/ReferenceServer`.
+- **Node settings:** the HAProfile, aggregate, alarm and user settings for the reference
+  server in CTT mode.
+- **Certificate trust:** the CTT client certificate lives under `<ProjectDir>\PKI`.
+
+## 1. Build and start the server
+
+```powershell
+dotnet build samples\Reference\ConsoleReferenceServer\ConsoleReferenceServer.csproj -c Release -f net10.0 -p:CustomTestTarget=net10.0
+cd samples\Reference\ConsoleReferenceServer\bin\Release\net10.0
+.\ConsoleReferenceServer.exe --ctt -a -c *> <LogDir>\refserver.log
+```
+
+- `--ctt` loads the `Ctt.ReferenceServer` configuration section
+  (`Ctt.ReferenceServer.Config.xml`), and `ApplyCTTModeAsync` starts the CTT alarms and
+  other presets. Always use it; without it many CUs fail for configuration reasons.
+- `-a` auto-accepts the CTT client certificate. Without it, the first session is
+  rejected unless the CTT cert is in the server's trusted store.
+- `-c` logs to the console. Redirect to a file so you can correlate server errors with
+  CTT timestamps. `-l`/`-f` also write an app log file.
+- The server is ready when it prints `Server started (... ms)`; allow about 10 s. Run it
+  as a background task and wait until port 62541 is listening:
+  `Get-NetTCPConnection -LocalPort 62541 -State Listen`.
+- Restart the server before every run. History, alarm and node-management tests change
+  server state, and a reused server produces misleading follow-on failures.
+- Before a comparison run, confirm the build commit: the server banner prints
+  `OPC UA library: ... +<sha>`.
+
+## 2. Run the CTT from the command line
+
+```powershell
+$p = Start-Process -FilePath "<CttDir>\uacompliancetest.exe" `
+  -ArgumentList @('--close','--hidden',
+                  '--settings','"<ProjectDir>\<Project>.ctt.xml"',
+                  '--selection','"<LogDir>\My.selection.xml"',
+                  '--result','"<LogDir>\My.results.xml"') `
+  -WorkingDirectory "<CttDir>" `
+  -PassThru -Wait
+$p.ExitCode   # -1 = errors, 0 = OK, 1 = warnings only
+```
+
+| Flag | Meaning |
+| --- | --- |
+| `-s`, `--settings <file>` | CTT project to open (required) |
+| `-l`, `--selection <file>` | checked profiles/CUs/test cases. Omit it to run the project's saved selection. |
+| `-r`, `--result <file>` | results file. Omit it and the project's `<Project>.results.xml` is overwritten. |
+| `-c`, `--close` | exit when finished (required for automation) |
+| `-h`, `--hidden` | no GUI window |
+| `-f`, `--file <script>` | run one specific script (mainly client testing) |
+
+Things to know:
+
+- `uacompliancetest.exe` is a GUI binary. Use `Start-Process -Wait -PassThru` to wait
+  for it and read its exit code. Stdout and stderr stay empty; everything goes to the
+  results XML.
+- The CTT **rewrites the selection file** you pass on exit. Pass a copy you don't mind
+  losing.
+- The CTT also re-saves the project (`*.ctt.xml`, `testscripts.xml`, `libmodel.xml`) on
+  exit. That is normal.
+- Run it as a background task. A 4-test smoke run takes about 30 s. The full history
+  selection (1,265 cases) takes about 1.5–2 minutes.
+- **Results accumulate.** A results file that already exists gets a new top-level
+  `ResultNode name="Debug RunN"` appended. Always analyze the last run node, not the
+  whole file.
+- Only one CTT instance should talk to the server at a time. Check with
+  `Get-Process uacompliancetest` before starting another.
+- Full CTT documentation: `<CttDir>\help\command_line_interface.htm`.
+
+## 3. Build a selection file
+
+A selection file lists **conformance group → conformance unit → test case names**.
+The names must match the CTT's names exactly, including en dashes (`Aggregate – Average`)
+and trailing spaces (`Attribute Historical Read `). `initialize.js` and `cleanup.js`
+run automatically; don't list them.
+
+```xml
+<UaTestCaseSelection xsi:noNamespaceSchemaLocation="testcaseselection.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+ <ProjectInfo ProjectType="ServerProject" specificationversion="1.05.006" binaryversion="2.00.000+002" scriptversion="1.05.513"/>
+ <ConformanceGroups>
+  <ConformanceGroup name="Address Space Model">
+   <ConformanceUnit name="Address Space Base">
+    <TestCases>
+     <TestCase name="001.js"/>
+    </TestCases>
+   </ConformanceUnit>
+  </ConformanceGroup>
+ </ConformanceGroups>
+</UaTestCaseSelection>
+```
+
+Copy the `ProjectInfo` versions from `<ProjectDir>\testscripts.xml`.
+
+Don't derive CU names from script paths. Many CUs reuse another CU's scripts; all 37
+`Aggregate – *` CUs point at `Aggregates/Aggregate - Base/...`. Resolve names by id
+instead. `testscripts.xml` lists `ConformanceUnit id=...` with its test cases, and the
+UACore profile set maps that id to `Name` and `ConformanceGroup`. This generator builds
+a selection for every CU whose group or name matches a filter:
+
+```powershell
+$r = "<ProjectDir>"
+$p = [xml](Get-Content (Get-ChildItem "$r\Profiles\UACore\ProfileSet_UACore_1.05_*.xml")[0].FullName -Raw)
+$cuName=@{}; $cuGroup=@{}; $grpName=@{}
+foreach ($n in $p.SelectNodes("//*[local-name()='ConformanceGroup'][@Id]")) { $grpName[$n.Id] = $n.Name }
+foreach ($n in $p.SelectNodes("//*[local-name()='ConformanceUnit'][@Id and @Name]")) {
+  $cuName[$n.Id] = $n.Name
+  $g = $n.SelectSingleNode("*[local-name()='ConformanceGroup']"); if ($g) { $cuGroup[$n.Id] = $g.InnerText } }
+$x = [xml](Get-Content "$r\testscripts.xml" -Raw)
+$filter = { param($g, $u) $g -in 'Historical Access','Aggregates' -or $u -match 'Hist' }   # <- adjust
+$map = [ordered]@{}
+foreach ($cu in $x.UaTestScripts.ConformanceUnits.ConformanceUnit) {
+  $tcs = @($cu.TestCases.TestCase) | Where-Object { $_ }
+  if (-not $tcs -or -not $cuName.ContainsKey($cu.id)) { continue }
+  $u = $cuName[$cu.id]; $g = $grpName[$cuGroup[$cu.id]]
+  if (& $filter $g $u) { $map["$g`t$u"] = @($tcs | ForEach-Object name) } }
+# Write $map as <ConformanceGroup>/<ConformanceUnit>/<TestCase> elements (UTF-8, no BOM).
+```
+
+The **full history** selection is the filter above: every CU in *Historical Access* and
+*Aggregates*, plus every CU with `Hist` in its name (Attribute Historical Read/Update,
+Auditing History Services, Base Info History * Capabilities). With scripts 1.05.513
+that's 70 CUs and 1,265 test cases. Most Historical Access CUs other than Read Raw have
+one placeholder case.
+
+## 4. Read the results
+
+The results XML (`UaCttResults`) is a tree of `ResultNode` elements. Test-case nodes
+carry `groupkey` and `unitkey`, and their children are the individual messages. The
+`testresult` attribute:
+
+| Code | Meaning |
+| --- | --- |
+| 0 | Error (`name="Error"` message, or a test case that failed) |
+| 1 | Warning |
+| 2 | Recommendation / inconclusive |
+| 3 | Not implemented (manual test) |
+| 4 | Skipped (usually missing configuration) |
+| 5 | Not supported (the server reports it doesn't support the feature) |
+| 6 | Pass |
+| 7 | Backtrace entry (`filename`, `linenumber`) that follows an Error/Warning |
+
+Each Error message is followed by Backtrace nodes. The first backtrace entry inside
+`maintree/` is the failing line of the test. Entries in `library/` show which helper
+raised the error. Summary query:
+
+```powershell
+$x = [xml](Get-Content "<LogDir>\My.results.xml" -Raw)
+$run = @($x.DocumentElement.ChildNodes)[-1]          # latest "Debug RunN"
+$run.SelectNodes(".//ResultNode[@testresult='0' and @name='Error']") |
+  ForEach-Object { $tc = $_.ParentNode
+    [pscustomobject]@{ CU = $tc.GetAttribute('unitkey'); Test = $tc.GetAttribute('name')
+                       Msg = ($_.GetAttribute('description') -split "`n")[0] } } |
+  Group-Object CU, Test, Msg | Sort-Object Count -Descending |
+  Select-Object Count, Name -First 80 | Format-Table -AutoSize -Wrap
+```
+
+### Getting the values behind a failure
+
+By default a project only records warnings and errors
+(`Advanced > Test Tool > SuppressLogEntries` is checked). Aggregate failures then show
+only *"Query did not result in identical readings"* with no values. To get evidence:
+
+1. Copy the project to a scratch folder, e.g.
+   `robocopy <ProjectDir> <LogDir>\cttcopy\<Project> /E /XF <Project>.results.xml`.
+   Never patch the original project.
+2. In the copy's `<Project>.ctt.xml`, find `SuppressLogEntries` and change the value in
+   the next `Column column="1"` from `data="2"` to `data="0"`. `addLog()` output then
+   lands in the results as `ResultNode name="Log"`.
+3. `print()` output is **never** written to the results file; it only appears in the GUI
+   output pane. The aggregate oracle comparison (`HAAggregateHelper.js`,
+   `CompareValues`/`CompareHistoryData`) uses `print()`. In the copy, switch those calls
+   to `addLog()` with a unique prefix (for example `AGGDIAG SERVER` / `AGGDIAG CTT`). Set
+   `printResults = false` in `PerformAggregateCheck` so values are only logged for failing
+   comparisons, and log the request (node, aggregate, start, end, interval,
+   TreatUncertainAsBad, PercentDataGood/Bad, sloped, stepped) at the failure branch.
+4. Restart the server and rerun the same selection against the copy. Error counts should
+   match the official run within a handful of entries. Then parse the prefixed Log
+   entries into a CSV; whitespace inside a description wraps, so normalize it first.
+
+The CTT's own setup and teardown run as `beforeTest.js` / `afterTest.js`. A warning such
+as *ActivateSession ... delay in excess of 200ms* on the first session is warm-up noise.
+
+## 5. Triage: CTT defect or server defect?
+
+For every distinct error signature:
+
+1. **Check [ctt-issues.md](ctt-issues.md).** Skip anything already documented there,
+   including the known aggregate oracle differences and project configuration notes.
+2. **Open the script** at the backtrace line in `<ProjectDir>\maintree\...` (or
+   `library\...`). JavaScript `TypeError`s (`... [undefined] is not an object`), wrong
+   array indices, misspelled properties and inverted predicates are CTT defects.
+3. **Check the spec.** Look up Part 4 (services), Part 11 (history) and Part 13
+   (aggregates) at <https://reference.opcfoundation.org>. Pay attention to service result
+   vs operation result vs per-DataValue status.
+4. **Check the server.** Correlate the timestamp with the server log. Reproduce with a
+   focused test in `tests/Opc.Ua.Server.Tests` (for aggregates:
+   `AggregateCttRegressionTests`, which runs the calculator directly and through the
+   live history dispatcher) before changing server code.
+5. **Classify** as a server issue (with a spec reference and the location in
+   `src/Opc.Ua.Server` or `samples/Quickstarts.Servers`), a CTT issue (add to
+   `ctt-issues.md` with the test, line, the reason it is wrong and the recommended fix),
+   or configuration (a project setting such as a blank `ProcessingInterval` or a
+   non-historizing node).
+
+## Pitfalls
+
+- Omitting `--result` silently overwrites `<Project>.results.xml`. Back it up first if
+  the previous run matters.
+- A server left running from an earlier session holds port 62541, and the CTT then
+  tests an old build. Check `Get-Process ConsoleReferenceServer` and the banner sha.
