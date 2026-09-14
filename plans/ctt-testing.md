@@ -366,10 +366,10 @@ findings).
 With the server fixes of 2026-09-14:
 
 - **Subscription Services:** errors only in Subscription Minimum 02 `020.js` (issue 19) and Subscription
-  Durable `012.js` (C33). Warnings: Durable `002.js` (RevisedLifetimeInHours 10 for a requested UInt32 max,
+  Durable `012.js` (C38). Warnings: Durable `002.js` (RevisedLifetimeInHours 10 for a requested UInt32 max,
   expected), Publish Min 05 `003.js` (project configuration), and CloseSession latency in Subscription Basic
   `Err-011.js` (always) and Publish Basic `cleanup.js` (sometimes).
-- **Session Services:** errors only in Session Base `Err-002.js`, `Err-005.js` and `Err-022.js` (C32).
+- **Session Services:** errors only in Session Base `Err-002.js`, `Err-005.js` and `Err-022.js` (C37).
   Skips: `Err-009.js` (no Kerberos in the CTT) and `Err-023.js` (the server offers SecurityPolicy None).
 
 ## Pitfalls

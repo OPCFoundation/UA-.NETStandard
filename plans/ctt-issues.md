@@ -47,8 +47,8 @@ running the CTT is in [ctt-testing.md](ctt-testing.md).
 | C5 | Aggregates: durations truncated to whole milliseconds | — | Not filed |
 | C6 | Aggregates: DurationGood/PercentGood first region | — | Not filed |
 | C7–C24 | Other unfiled script defects | — | Not filed |
-| C32 | Session Base: secure test cases send CreateSession with the `opc.wss` EndpointUrl | — | Not filed |
-| C33 | Subscription Durable `012.js`: denied diagnostics Browse and missing braces | — | Not filed |
+| C37 | Session Base: secure test cases send CreateSession with the `opc.wss` EndpointUrl | — | Not filed |
+| C38 | Subscription Durable `012.js`: denied diagnostics Browse and missing braces | — | Not filed |
 
 Mantis states were last checked on 2026-09-13.
 
@@ -672,7 +672,7 @@ the operator to change the server clock. In a `--close --hidden` run the dialog 
 The CU needs an operator (and a server whose clock can be moved past a certificate's expiration
 limit). **Fix:** skip dialogs in hidden/automated runs, or add a project setting that answers them.
 
-### C32. Session Base secure test cases send CreateSession with the `opc.wss` EndpointUrl
+### C37. Session Base secure test cases send CreateSession with the `opc.wss` EndpointUrl
 
 - **Tests:** `maintree/Session Services/Session Base/Test Cases/Err-002.js`, `Err-005.js` and
   `Err-022.js`, line 14 (`Test.Session.Execute( { EndpointUrl: epSecureEncrypt.EndpointUrl } )`)
@@ -691,11 +691,12 @@ with the `opc.wss://` EndpointUrl. The server accepts the request and returns it
 (`^(?:opc.tcp|http)(?:s)?\://([^/]+):`). The host name is therefore empty and the certificate
 check fails. The server certificate contains the machine's host name, and Session Base `004.js`
 validates the same certificate successfully over `opc.tcp`. Related to C16 (WebSocket transport
-profiles). **Fix:** select `epSecureEncrypt` by `TransportProfileUri`
+profiles) and to C35 (Security User Anonymous `initialize.js` also selects the `opc.wss` endpoint).
+**Fix:** select `epSecureEncrypt` by `TransportProfileUri`
 (`http://opcfoundation.org/UA-Profile/Transport/uatcp-uasc-uabinary`) or by the scheme of the channel
 the test opens, and let `HostnameFromUrl` accept any `scheme://host:port` URL (`opc.wss`, `opc.https`).
 
-### C33. Subscription Durable `012.js` does not handle a denied diagnostics Browse
+### C38. Subscription Durable `012.js` does not handle a denied diagnostics Browse
 
 - **Test:** `maintree/Subscription Services/Subscription Durable/Test Cases/012.js`, lines 23–37
 - **Errors:** *"Browse.Results[0].StatusCode is: BadUserAccessDenied"* (line 23), then
