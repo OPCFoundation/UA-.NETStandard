@@ -741,6 +741,25 @@ atomic requested-file-open path currently requires the stock transactional
 service; other providers receive `Bad_NotSupported` before mutation rather than
 a post-commit or authority-dropping fallback.
 
+#### Following a federated logical document
+
+`WotRegistryClient` inherits the optional native `IXRegistryFederationProvider` and
+`FollowExternalReferenceAsync` surfaces from `XRegistryClient`. Use an independently authorized,
+authenticated remote Session and an immutable `XRegistryFederationTarget`; neither a document's
+`ResourceUrl` nor its claimed `OriginRegistry` establishes trust. See
+[xRegistry federation](XRegistry.md#federation) for direct/DI configuration and client examples.
+
+A non-materialized proxy refers to the remote logical Resource, not a digest lookup or an exact
+Version, and has no local Versions folder. Follow the verified remote target to browse its typed
+Versions and read through the generated FileType client. Default changes preserve the logical
+identity; existing handles keep their pinned bytes while new handles use the new default.
+Authorized endpoint relocation and namespace/server-table rebasing preserve the same origin and
+remote entity, independently of the optional content fast path.
+
+This client/provider support does not add automatic federated dependency fetching or alter the
+projection, persistence or restore/startup lifecycle. It is not by itself a WOTC-Federation or Full
+profile claim.
+
 #### Keeping the document bytes in a shared store
 
 `WotRegistryServerOptions.ResourceStore` moves the document bytes behind the shared, injectable [`IXRegistryResourceStore`](XRegistry.md#resource-storage) — which is what lets a registry run in a high-availability or distributed deployment, because the documents then live somewhere every node can reach rather than in one server's registry folder. A store registered in DI wins over one set on the options, matching the xRegistry server's precedence:
