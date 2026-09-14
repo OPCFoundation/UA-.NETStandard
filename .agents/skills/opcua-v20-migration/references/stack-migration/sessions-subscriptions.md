@@ -101,6 +101,9 @@ ISession managedSession = await managedFactory.CreateAsync(...);
 
 Both factories implement `ISessionFactory`. `ManagedSessionFactory` internally uses a `DefaultSessionFactory` to create the raw `Session` and then wraps it in a `ManagedSession`; the public surface is unchanged.
 
+**If you implement `ISessionFactory` yourself:**
+The interface gained two members. `SubscriptionEngineFactory` returns the engine your sessions use (`null` for the classic engine), and `WithSubscriptionEngine(engineFactory, timeProvider)` returns a factory that is identical except for that engine and, when given, the time provider. `ManagedSession` calls it when your factory has no engine configured, so return a copy rather than modifying the instance. `DefaultSessionFactory.SubscriptionEngineFactory` is `init`-only again; use `WithSubscriptionEngine` to change it after construction. A Moq mock of `ISessionFactory` passed to `ManagedSession` must set up either member, since a loose mock returns `null` from both.
+
 **If you use `SessionReconnectHandler`:**
 
 `SessionReconnectHandler` continues to work in 2.0 against `Session` instances. The pattern below is unchanged, but the legacy parameterless ctor remains `[Obsolete]` - prefer the `(ITelemetryContext, bool, int)` overload:
