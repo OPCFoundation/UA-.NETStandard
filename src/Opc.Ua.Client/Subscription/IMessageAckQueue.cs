@@ -87,6 +87,18 @@ namespace Opc.Ua.Client.Subscriptions
         int DropPendingForSubscription(uint subscriptionId);
 
         /// <summary>
+        /// Whether <paramref name="subscriptionId"/> still resolves to
+        /// <paramref name="subscription"/> in the dispatch registry. A server
+        /// that recycles identifiers after a session recreate can hand the id
+        /// of a retired subscription to a sibling that recreated first;
+        /// deleting that id would then tear down the sibling's live
+        /// subscription.
+        /// </summary>
+        /// <param name="subscription">The subscription asking.</param>
+        /// <param name="subscriptionId">The server-assigned id to check.</param>
+        bool OwnsSubscriptionId(IMessageProcessor subscription, uint subscriptionId);
+
+        /// <summary>
         /// Notify the queue/manager that the subscription's state has
         /// changed (created, modified, etc.) and the publish controller
         /// should re-evaluate worker counts and resume publishing.

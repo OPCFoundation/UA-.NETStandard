@@ -185,7 +185,14 @@ namespace Opc.Ua.Client
             m_instanceCertificateEntry = template.m_instanceCertificateEntry?.AddRef();
             m_effectiveEndpoint = template.m_effectiveEndpoint;
             SessionFactory = template.SessionFactory;
-            m_defaultSubscription = template.m_defaultSubscription;
+            if (template.m_defaultSubscription != null)
+            {
+                // Clone rather than share: both sessions dispose their default
+                // subscription. Assigning through the property also disposes
+                // the instance the chained constructor created.
+                DefaultSubscription = template.m_defaultSubscription
+                    .CloneSubscription(false);
+            }
             DeleteSubscriptionsOnClose = template.DeleteSubscriptionsOnClose;
             TransferSubscriptionsOnReconnect = template.TransferSubscriptionsOnReconnect;
             EnableTokenReuseFailover = template.EnableTokenReuseFailover;
@@ -200,13 +207,9 @@ namespace Opc.Ua.Client
             m_identity = template.Identity;
             m_keepAliveInterval = template.KeepAliveInterval;
 
-            // Create timer for keep alive event triggering but in off state
-            m_keepAliveTimer = m_timeProvider.CreateTimer(
-                _ => m_keepAliveEvent.Set(),
-                this,
-                Timeout.InfiniteTimeSpan,
-                Timeout.InfiniteTimeSpan);
-
+            // The keep alive timer is already created (in off state) by the
+            // constructor this one chains to; creating a second one here would
+            // orphan the first.
             m_checkDomain = template.m_checkDomain;
             ContinuationPointPolicy = template.ContinuationPointPolicy;
             ReturnDiagnostics = template.ReturnDiagnostics;
@@ -1028,7 +1031,10 @@ namespace Opc.Ua.Client
                 subscription.Snapshot(out SubscriptionState subscriptionState);
                 subscriptionStates.Add(subscriptionState);
             }
-            state = new SessionState(configuration)
+            // Clone the configuration rather than constructing a SessionState
+            // from it: the record copy constructor of the SessionOptions base
+            // would drop every member declared on SessionState itself.
+            state = configuration with
             {
                 Subscriptions = subscriptionStates
             };
@@ -1039,7 +1045,7 @@ namespace Opc.Ua.Client
         {
             using Activity? activity = m_telemetry.StartActivity();
             ThrowIfDisposed();
-            Restore((SessionConfiguration)state);
+            RestoreSessionState(state);
             if (state.Subscriptions.IsEmpty)
             {
                 return;
@@ -1080,6 +1086,16 @@ namespace Opc.Ua.Client
         public void Restore(SessionConfiguration sessionConfiguration)
         {
             ThrowIfDisposed();
+            RestoreSessionState(sessionConfiguration);
+        }
+
+        /// <summary>
+        /// Restores the session identity, nonces and token policy from a
+        /// snapshot. Accepts any <see cref="SessionState"/> so the state and
+        /// configuration snapshots round-trip through the same code path.
+        /// </summary>
+        private void RestoreSessionState(SessionState sessionConfiguration)
+        {
             ByteString serverCertificate = m_endpoint.Description?.ServerCertificate ?? default;
             m_sessionName = sessionConfiguration.SessionName ?? "SessionName";
             m_serverCertificate?.Dispose();
@@ -1094,6 +1110,7 @@ namespace Opc.Ua.Client
                 ? sessionConfiguration.ClientNonce.ToArray()
                 : null;
             m_userTokenSecurityPolicyUri = sessionConfiguration.UserIdentityTokenPolicy;
+            m_eccServerEphemeralKey?.Dispose();
             if (sessionConfiguration.ServerEccEphemeralKey.Length > 0)
             {
                 string? ephemeralKeyPolicyUri = !string.IsNullOrEmpty(m_userTokenSecurityPolicyUri)
@@ -1241,7 +1258,10 @@ namespace Opc.Ua.Client
 
             if (obj is ISession session)
             {
-                if (!m_endpoint.Equals(session.Endpoint))
+                // Compare the configured endpoints: ISession.Endpoint is the
+                // channel's EndpointDescription, which is never equal to a
+                // ConfiguredEndpoint and throws once the channel is released.
+                if (!m_endpoint.Equals(session.ConfiguredEndpoint))
                 {
                     return false;
                 }
@@ -1374,11 +1394,18 @@ namespace Opc.Ua.Client
             {
                 if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
                 {
-                    // first try to connect with client certificate NULL
+                    // first try to connect with client certificate NULL.
+                    // The request header still has to be sent: the ECDH key is
+                    // requested through its additionalHeader (Part 4 §7.1 /
+                    // §7.15) and without it the server returns no ephemeral key
+                    // for ECC user token encryption. Sending it is safe against
+                    // a server that does not do ECC - Part 4 §7.32 says an
+                    // application that does not understand an additional header
+                    // should ignore it.
                     try
                     {
                         response = await base.CreateSessionAsync(
-                            null,
+                            requestHeader,
                             clientDescription,
                             m_endpoint.Description.Server.ApplicationUri,
                             m_endpoint.EndpointUrl!.ToString(),
@@ -1774,21 +1801,28 @@ namespace Opc.Ua.Client
                 IUserIdentity identity = await provider.AcquireIdentityAsync(context, ct)
                     .ConfigureAwait(false);
 
+                string? previousPolicyUri = null;
+                Nonce? previousEphemeralKey = null;
+                bool overrideCommitted = false;
                 if (!string.IsNullOrEmpty(overrideUserTokenPolicyUri))
                 {
-                    string? previousPolicyUri;
                     // Commit override state ONLY after the new identity
                     // has been materialised — if AcquireIdentityAsync
                     // threw (cert load failure, policy mismatch, etc.)
                     // the previous ephemeral key + URI must remain
                     // intact so the existing identity stays usable.
+                    // The key is parked rather than disposed: it is only
+                    // ever renewed by a successful activation response, so
+                    // a failed override would otherwise leave the previous
+                    // identity without the key its next encryption needs.
                     lock (m_lock)
                     {
                         previousPolicyUri = m_userTokenSecurityPolicyUri;
-                        m_eccServerEphemeralKey?.Dispose();
+                        previousEphemeralKey = m_eccServerEphemeralKey;
                         m_eccServerEphemeralKey = null;
                         m_userTokenSecurityPolicyUri = overrideUserTokenPolicyUri;
                     }
+                    overrideCommitted = true;
 
                     // Auditable security event (CR/SR 1.10, SR 2.8):
                     // the user-token policy in effect for the active
@@ -1799,7 +1833,25 @@ namespace Opc.Ua.Client
                         overrideUserTokenPolicyUri);
                 }
 
-                await UpdateSessionAsync(identity, default, ct).ConfigureAwait(false);
+                try
+                {
+                    await UpdateSessionAsync(identity, default, ct).ConfigureAwait(false);
+                    previousEphemeralKey?.Dispose();
+                }
+                catch when (overrideCommitted)
+                {
+                    // The server did not accept the new identity, so the old
+                    // one stays active. Put the token policy and the ephemeral
+                    // key back so reconnects keep encrypting it with the policy
+                    // and key it was issued for.
+                    lock (m_lock)
+                    {
+                        m_userTokenSecurityPolicyUri = previousPolicyUri;
+                        m_eccServerEphemeralKey?.Dispose();
+                        m_eccServerEphemeralKey = previousEphemeralKey;
+                    }
+                    throw;
+                }
             }
             catch (ServiceResultException ex)
                 when (ex.StatusCode == StatusCodes.BadIdentityChangeNotSupported)
@@ -2010,28 +2062,42 @@ namespace Opc.Ua.Client
                     ct).ConfigureAwait(false);
             }
 
+            // The policy has to be in effect while the response is processed
+            // (the ECDH key in the response header is verified against it), but
+            // it must not outlive a failed activation: the previously active
+            // identity is still the one the server accepts in that case.
+            string? previousUserTokenSecurityPolicyUri = m_userTokenSecurityPolicyUri;
             m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
 
-            RequestHeader? requestHeader = CreateRequestHeaderForActivateSession(
-                tokenSecurityPolicyUri!);
-
+            ActivateSessionResponse response;
             ByteString activationRequestNonce = serverNonce;
-            ActivateSessionResponse response = await ActivateSessionAsync(
-                requestHeader,
-                clientSignature,
-                [],
-                preferredLocales,
-                new ExtensionObject(identityToken.Token),
-                userTokenSignature,
-                ct).ConfigureAwait(false);
+            try
+            {
+                RequestHeader? requestHeader = CreateRequestHeaderForActivateSession(
+                    tokenSecurityPolicyUri!);
 
-            serverNonce = response.ServerNonce;
-            ValidateServerNonce(
-                serverNonce,
-                activationRequestNonce,
-                m_endpoint.Description.SecurityMode);
+                response = await ActivateSessionAsync(
+                    requestHeader,
+                    clientSignature,
+                    [],
+                    preferredLocales,
+                    new ExtensionObject(identityToken.Token),
+                    userTokenSignature,
+                    ct).ConfigureAwait(false);
 
-            ProcessResponseAdditionalHeader(response.ResponseHeader, m_serverCertificate);
+                serverNonce = response.ServerNonce;
+                ValidateServerNonce(
+                    serverNonce,
+                    activationRequestNonce,
+                    m_endpoint.Description.SecurityMode);
+
+                ProcessResponseAdditionalHeader(response.ResponseHeader, m_serverCertificate);
+            }
+            catch
+            {
+                m_userTokenSecurityPolicyUri = previousUserTokenSecurityPolicyUri;
+                throw;
+            }
 
             // save nonce and new values.
             lock (m_lock)
@@ -2194,14 +2260,50 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task<bool> TransferSubscriptionsAsync(
+        public Task<bool> TransferSubscriptionsAsync(
             SubscriptionCollection subscriptions,
             bool sendInitialValues,
             CancellationToken ct)
         {
+            return TransferSubscriptionsCoreAsync(
+                subscriptions,
+                sendInitialValues,
+                false,
+                null,
+                ct);
+        }
+
+        /// <summary>
+        /// Transfers the subscriptions to this session.
+        /// </summary>
+        /// <param name="subscriptions">The subscriptions to transfer.</param>
+        /// <param name="sendInitialValues">Whether the server resends the
+        /// initial values of the monitored items.</param>
+        /// <param name="sessionRecreatedInPlace">Set when the session object
+        /// itself was re-created in place and the subscriptions therefore
+        /// still reference this instance while belonging to the previous
+        /// server session.</param>
+        /// <param name="notTransferred">Receives every subscription the
+        /// server did not take over, so the caller can recreate exactly
+        /// those. A subscription the server reports as already belonging to
+        /// this session is live and is not added.</param>
+        /// <param name="ct">Cancellation token to cancel the operation with.</param>
+        private async Task<bool> TransferSubscriptionsCoreAsync(
+            SubscriptionCollection subscriptions,
+            bool sendInitialValues,
+            bool sessionRecreatedInPlace,
+            ICollection<Subscription>? notTransferred,
+            CancellationToken ct)
+        {
             using Activity? activity = m_telemetry.StartActivity();
-            ArrayOf<uint> subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
+            ArrayOf<uint> subscriptionIds = CreateSubscriptionIdsForTransfer(
+                subscriptions,
+                sessionRecreatedInPlace);
             int failedSubscriptions = 0;
+            // Subscriptions the server has taken over so far. Needed when the
+            // loop below is abandoned by an exception: those must not be
+            // reported as failed and recreated on top of the live ones.
+            var transferred = new HashSet<Subscription>();
 
             if (subscriptionIds.Count > 0)
             {
@@ -2227,6 +2329,7 @@ namespace Opc.Ua.Client
                         m_logger.TransferSubscriptionFailedServiceResult(
                             responseHeader.ServiceResult,
                             SessionId);
+                        AddAll(notTransferred, subscriptions);
                         return false;
                     }
 
@@ -2244,6 +2347,8 @@ namespace Opc.Ua.Client
                                     ct)
                                 .ConfigureAwait(false))
                             {
+                                transferred.Add(subscriptions[ii]);
+
                                 // create ack for available sequence numbers
                                 foreach (uint sequenceNumber in results[ii]
                                     .AvailableSequenceNumbers)
@@ -2262,10 +2367,16 @@ namespace Opc.Ua.Client
                                     subscriptionIds[ii],
                                     SessionId);
                                 failedSubscriptions++;
+                                notTransferred?.Add(subscriptions[ii]);
                             }
                         }
                         else if (results[ii].StatusCode == StatusCodes.BadNothingToDo)
                         {
+                            // The subscription already belongs to this session,
+                            // so it is live and must not be recreated. It also
+                            // counts as taken over, so a throw further down the
+                            // loop cannot sweep it into notTransferred.
+                            transferred.Add(subscriptions[ii]);
                             m_logger.SubscriptionIdSubscriptionIdAlreadyMemberSession(
                                 subscriptionIds[ii],
                                 SessionId);
@@ -2278,6 +2389,7 @@ namespace Opc.Ua.Client
                                 results[ii].StatusCode,
                                 SessionId);
                             failedSubscriptions++;
+                            notTransferred?.Add(subscriptions[ii]);
                         }
                     }
                 }
@@ -2288,6 +2400,16 @@ namespace Opc.Ua.Client
                         subscriptions.Count,
                         SessionId);
                     failedSubscriptions++;
+                    if (notTransferred != null)
+                    {
+                        foreach (Subscription subscription in subscriptions)
+                        {
+                            if (!transferred.Contains(subscription))
+                            {
+                                notTransferred.Add(subscription);
+                            }
+                        }
+                    }
                 }
                 finally
                 {
@@ -2303,6 +2425,20 @@ namespace Opc.Ua.Client
             }
 
             return failedSubscriptions == 0;
+
+            static void AddAll(
+                ICollection<Subscription>? target,
+                SubscriptionCollection subscriptions)
+            {
+                if (target == null)
+                {
+                    return;
+                }
+                foreach (Subscription subscription in subscriptions)
+                {
+                    target.Add(subscription);
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -3089,13 +3225,19 @@ namespace Opc.Ua.Client
                     UserIdentity? tempIdentity = m_identity == null
                         ? new UserIdentity()
                         : null;
+
+                    // Only tear the channel down on activation failure when this
+                    // method created it. A caller supplied channel or a channel
+                    // manager lease is owned elsewhere and the error handling
+                    // below restores the previous lease.
+                    bool ownsChannel = channel == null && manager == null;
                     await OpenAsync(
                             m_sessionName,
                             (uint)m_sessionTimeout,
                             m_identity ?? tempIdentity!,
                             m_preferredLocales,
                             m_checkDomain,
-                            true,
+                            ownsChannel,
                             ct)
                         .ConfigureAwait(false);
                 }
@@ -3104,11 +3246,15 @@ namespace Opc.Ua.Client
                 {
 #if OPCUA_V1_CLIENT
                     // V1: drive the classic template-based recreate using
-                    // the subscriptions still attached to this Session.
+                    // the subscriptions still attached to this Session. A
+                    // reused server session still owns its subscriptions, so
+                    // there is nothing to transfer or reset there; only the
+                    // ones never created are missing.
                     await RecreateSubscriptionsAsync(
-                            TransferSubscriptionsOnReconnect,
+                            TransferSubscriptionsOnReconnect && !reused,
                             Subscriptions,
-                            ct)
+                            ct,
+                            sessionRecreatedInPlace: !reused)
                         .ConfigureAwait(false);
 #endif
 
@@ -3655,7 +3801,9 @@ namespace Opc.Ua.Client
                         m_serverNonce = serverNonce;
                     }
 
-                    await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+                    // Never pass the caller token here: if it fired the session would
+                    // stay Reconnecting forever and every later reconnect would fail.
+                    await m_reconnectLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                     Reconnecting = false;
                     resetReconnect = false;
                     m_reconnectLock.Release();
@@ -3686,7 +3834,7 @@ namespace Opc.Ua.Client
             {
                 if (resetReconnect)
                 {
-                    await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+                    await m_reconnectLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                     Reconnecting = false;
                     m_reconnectLock.Release();
                 }
@@ -3767,22 +3915,37 @@ namespace Opc.Ua.Client
         /// if set to <c>true</c>.</param>
         /// <param name="subscriptionsTemplate">The template for the subscriptions.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
+        /// <param name="sessionRecreatedInPlace">Set when this session object
+        /// was re-activated in place, i.e. the subscriptions passed in are the
+        /// live ones owned by this instance rather than fresh templates.</param>
         private async Task RecreateSubscriptionsAsync(
             bool transferSubscriptionTemplates,
             IEnumerable<Subscription> subscriptionsTemplate,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool sessionRecreatedInPlace = false)
         {
             using Activity? activity = m_telemetry.StartActivity();
             bool transferred = false;
+            // Per-subscription outcome of the transfer. Only an in-place
+            // recreate needs it: a subscription the server did take over is
+            // live on this session and must not be reset, even when the
+            // transfer of a sibling failed. Null means the outcome is unknown
+            // (no transfer attempted, or the transfer call itself failed), in
+            // which case every subscription is treated as lost.
+            HashSet<Subscription>? notTransferred = null;
             if (transferSubscriptionTemplates)
             {
                 try
                 {
-                    transferred = await TransferSubscriptionsAsync(
+                    HashSet<Subscription>? outcome = sessionRecreatedInPlace ? [] : null;
+                    transferred = await TransferSubscriptionsCoreAsync(
                         [.. subscriptionsTemplate],
                         false,
+                        sessionRecreatedInPlace,
+                        outcome,
                         ct)
                         .ConfigureAwait(false);
+                    notTransferred = outcome;
                 }
                 catch (ServiceResultException sre)
                 {
@@ -3807,10 +3970,31 @@ namespace Opc.Ua.Client
                 // Create the subscriptions which were not transferred.
                 foreach (Subscription subscription in Subscriptions)
                 {
-                    if (!subscription.Created)
+                    if (subscription.Created)
                     {
-                        await subscription.CreateAsync(ct).ConfigureAwait(false);
+                        if (!sessionRecreatedInPlace)
+                        {
+                            continue;
+                        }
+
+                        if (notTransferred != null && !notTransferred.Contains(subscription))
+                        {
+                            // The server took this one over (or reported it as
+                            // already belonging to this session), so it is live
+                            // here and must be left alone.
+                            continue;
+                        }
+
+                        // Transfer was not requested or did not succeed, so the
+                        // server side subscription is unreachable from the new
+                        // session (Part 4 §5.14.1.3) and is left to expire on
+                        // its own lifetime. Drop the stale ids and the
+                        // monitored item state and create it again.
+                        await subscription.ResetForSessionRecreateAsync()
+                            .ConfigureAwait(false);
                     }
+
+                    await subscription.CreateAsync(ct).ConfigureAwait(false);
                 }
             }
         }
@@ -4520,12 +4704,17 @@ namespace Opc.Ua.Client
                         ServerState.Unknown,
                         m_timeProvider.GetUtcNow().UtcDateTime);
                     callback(this, args);
-                    m_inKeepAliveCallback = false;
                     return !args.CancelKeepAlive;
                 }
                 catch (Exception e)
                 {
                     m_logger.SessionUnexpectedErrorInvokingKeepAliveCallback(e);
+                }
+                finally
+                {
+                    // Must be cleared even when the handler throws, otherwise
+                    // teardown never awaits the keep alive worker.
+                    m_inKeepAliveCallback = false;
                 }
             }
 
@@ -5350,17 +5539,27 @@ namespace Opc.Ua.Client
         /// Creates and validates the subscription ids for a transfer.
         /// </summary>
         /// <param name="subscriptions">The subscriptions to transfer.</param>
+        /// <param name="sessionRecreatedInPlace">Set when this session object
+        /// was re-created in place, so the subscriptions still reference it
+        /// while belonging to the previous server session.</param>
         /// <returns>The subscription ids for the transfer.</returns>
         /// <exception cref="ServiceResultException">Thrown if a subscription is in invalid state.</exception>
         private ArrayOf<uint> CreateSubscriptionIdsForTransfer(
-            SubscriptionCollection subscriptions)
+            SubscriptionCollection subscriptions,
+            bool sessionRecreatedInPlace = false)
         {
             var subscriptionIds = new List<uint>();
             lock (m_lock)
             {
                 foreach (Subscription subscription in subscriptions)
                 {
-                    if (subscription.Created && SessionId.Equals(subscription.Session?.SessionId))
+                    // After an in-place recreate the subscriptions are still
+                    // attached to this instance but belong to the previous
+                    // (now invalid) server session, so the "already created on
+                    // this session" guard below does not apply.
+                    if (!sessionRecreatedInPlace &&
+                        subscription.Created &&
+                        SessionId.Equals(subscription.Session?.SessionId))
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadInvalidState,
@@ -5553,6 +5752,10 @@ namespace Opc.Ua.Client
                                 "Could not verify signature on ECDHKey. User authentication not possible.");
                         }
 
+                        // Each activation hands out a new ephemeral key; the
+                        // previous one owns an ECDiffieHellman instance and
+                        // leaks unless it is disposed here.
+                        m_eccServerEphemeralKey?.Dispose();
                         m_eccServerEphemeralKey = Nonce.CreateNonce(
                             m_securityPolicies.GetInfo(m_userTokenSecurityPolicyUri!)!,
                             key.PublicKey.ToArray());

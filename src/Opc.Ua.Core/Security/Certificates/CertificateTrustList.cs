@@ -107,23 +107,37 @@ namespace Opc.Ua
 
             collection ??= [];
 
-            for (int i = 0; i < TrustedCertificates.Count; i++)
+            try
             {
-                CertificateIdentifier trustedCertificate = TrustedCertificates[i];
-                Certificate? certificate = await CertificateIdentifierResolver
-                    .ResolveAsync(
-                        trustedCertificate,
-                        registry: null,
-                        needPrivateKey: false,
-                        applicationUri: null,
-                        telemetry,
-                        ct)
-                    .ConfigureAwait(false);
-
-                if (certificate != null)
+                for (int i = 0; i < TrustedCertificates.Count; i++)
                 {
-                    collection.Add(certificate);
+                    CertificateIdentifier trustedCertificate = TrustedCertificates[i];
+
+                    // ResolveAsync hands back an owning handle and Add takes one
+                    // of its own, so the resolved handle has to be released here.
+                    using Certificate? certificate = await CertificateIdentifierResolver
+                        .ResolveAsync(
+                            trustedCertificate,
+                            registry: null,
+                            needPrivateKey: false,
+                            applicationUri: null,
+                            telemetry,
+                            ct)
+                        .ConfigureAwait(false);
+
+                    if (certificate != null)
+                    {
+                        collection.Add(certificate);
+                    }
                 }
+            }
+            catch
+            {
+                // The collection already owns a handle per certificate read from
+                // the store; nothing else would release them if an unreadable
+                // entry or a cancellation stops the loop before it is returned.
+                collection.Dispose();
+                throw;
             }
 
             return collection;

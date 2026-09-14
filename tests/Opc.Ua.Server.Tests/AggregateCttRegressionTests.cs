@@ -527,6 +527,10 @@ namespace Opc.Ua.Server.Tests
         [TestCase("DurationGood", true, 15_000.0)]
         [TestCase("DurationBad", false, 10_000.0)]
         [TestCase("DurationGood", false, 20_000.0)]
+        [TestCase("PercentBad", true, 50.0)]
+        [TestCase("PercentGood", true, 50.0)]
+        [TestCase("PercentBad", false, 100.0 / 3.0)]
+        [TestCase("PercentGood", false, 200.0 / 3.0)]
         public async Task DirectAndLiveDurationFirstRegionUsesRawStatusBeforeIntervalAsync(
             string aggregateName,
             bool treatUncertainAsBad,
@@ -619,6 +623,83 @@ namespace Opc.Ua.Server.Tests
             AssertWorstQualities(forwardDirect, expectedChronological, reverse: false);
             AssertWorstQualities(backwardDirect, expectedChronological, reverse: true);
             AssertWorstQualities(backwardLive, expectedChronological, reverse: true);
+        }
+
+        /// <summary>
+        /// Verifies that a raw value rejected because it arrives out of order does not move the
+        /// tracked start of data, so the interval overlapping the real start keeps its Partial bit.
+        /// </summary>
+        [Test]
+        public void RejectedOutOfOrderValueDoesNotMoveStartOfData()
+        {
+            IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
+                ObjectIds.AggregateFunction_Count,
+                s_baseTime,
+                AtSeconds(20),
+                10_000,
+                false,
+                CreateConfiguration(),
+                NUnitTelemetryContext.Create())!;
+
+            Assert.That(calculator.QueueRawValue(CreateValue(1, StatusCodes.Good, 5)), Is.True);
+            Assert.That(calculator.QueueRawValue(CreateValue(2, StatusCodes.Good, 10)), Is.True);
+            Assert.That(calculator.QueueRawValue(CreateValue(0, StatusCodes.Good, 0)), Is.False,
+                "an earlier value after later ones must be rejected");
+            Assert.That(calculator.QueueRawValue(CreateValue(3, StatusCodes.Good, 15)), Is.True);
+            Assert.That(calculator.QueueRawValue(CreateValue(4, StatusCodes.Good, 20)), Is.True);
+
+            var results = new List<DataValue>();
+            while (calculator.TryGetProcessedValue(true, out DataValue value))
+            {
+                results.Add(value);
+            }
+
+            AssertPartialBits(results, [true, false], reverse: false);
+        }
+
+        /// <summary>
+        /// Verifies that a backward WorstQuality read reports the chronologically first of two
+        /// equally severe statuses, as the forward calculation over the same interval does
+        /// (Part 13 §5.4.2.2).
+        /// </summary>
+        [Test]
+        public async Task DirectAndLiveWorstQualityBackwardSelectsChronologicallyFirstStatusAsync()
+        {
+            List<DataValue> rawValues =
+            [
+                CreateValue(0, StatusCodes.Good, 0),
+                CreateValue(1, StatusCodes.BadOutOfRange, 2),
+                CreateValue(2, StatusCodes.BadSensorFailure, 8),
+                CreateValue(3, StatusCodes.Good, 12)
+            ];
+            AggregateConfiguration configuration = CreateConfiguration();
+
+            List<DataValue> direct = RunDirect(
+                ObjectIds.AggregateFunction_WorstQuality,
+                rawValues,
+                AtSeconds(10),
+                s_baseTime,
+                10_000,
+                configuration);
+
+            using var harness = new AggregateHarness();
+            List<DataValue> live = await harness.ReadProcessedAsync(
+                ObjectIds.AggregateFunction_WorstQuality,
+                rawValues,
+                AtSeconds(10),
+                s_baseTime,
+                10_000,
+                configuration).ConfigureAwait(false);
+
+            foreach (List<DataValue> results in new[] { direct, live })
+            {
+                Assert.That(results, Has.Count.EqualTo(1));
+                Assert.That(results[0].WrappedValue.TryGetValue(out StatusCode worst), Is.True);
+                Assert.That(worst, Is.EqualTo(StatusCodes.BadOutOfRange));
+                Assert.That(
+                    results[0].StatusCode.AggregateBits,
+                    Is.EqualTo(AggregateBits.Calculated | AggregateBits.MultipleValues));
+            }
         }
 
         private static void AssertPartialBits(

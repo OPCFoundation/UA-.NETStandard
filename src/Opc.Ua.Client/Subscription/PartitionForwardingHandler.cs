@@ -31,6 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Opc.Ua.Client.Subscriptions
 {
@@ -80,9 +82,12 @@ namespace Opc.Ua.Client.Subscriptions
         /// <see cref="LogicalSubscription"/> and the partition that
         /// references this handler at construction time.
         /// </summary>
-        public PartitionForwardingHandler(ISubscriptionNotificationHandler userHandler)
+        public PartitionForwardingHandler(
+            ISubscriptionNotificationHandler userHandler,
+            ILogger? logger = null)
         {
             m_userHandler = userHandler ?? throw new ArgumentNullException(nameof(userHandler));
+            m_logger = logger ?? NullLogger.Instance;
         }
 
         /// <summary>
@@ -101,10 +106,81 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 throw new ArgumentNullException(nameof(logical));
             }
-            if (Interlocked.CompareExchange(ref m_logical, logical, null) != null)
+            List<(ISubscription Source, SubscriptionState State, PublishState Mask)> replay;
+            bool serialised;
+            lock (m_bindLock)
             {
-                throw new InvalidOperationException(
-                    "PartitionForwardingHandler is already bound to a logical subscription.");
+                if (m_logical != null)
+                {
+                    throw new InvalidOperationException(
+                        "PartitionForwardingHandler is already bound to a logical subscription.");
+                }
+                replay = [.. m_pendingStateChanges];
+                m_pendingStateChanges.Clear();
+
+                // Take the gate BEFORE publishing the wrapper, and do both
+                // under the bind lock. A live state change either arrives
+                // before the publish - in which case it blocks on the bind
+                // lock and is buffered or, after the publish, queues on the
+                // gate the replay already holds - or after it, and queues on
+                // that same gate. Either way it cannot reach the user handler
+                // ahead of the replayed states. Wait(0) never blocks, so
+                // holding the bind lock across it cannot deadlock.
+                serialised = replay.Count != 0 && m_serialise.Wait(0);
+                Interlocked.Exchange(ref m_logical, logical);
+            }
+
+            // Replay the state changes the partition raised before the wrapper
+            // existed (notably the initial Opened, which the partition's state
+            // manager fires from inside its own constructor). Fire-and-forget,
+            // matching how the partition raises them. If the gate was already
+            // held by an in-flight dispatch the replay simply queues like any
+            // other one, and the ordering above is the best that can be had
+            // without stalling the binder.
+            if (replay.Count != 0)
+            {
+                _ = ReplayStateChangesAsync(logical, replay, serialised);
+            }
+        }
+
+        private async Task ReplayStateChangesAsync(
+            ISubscription logical,
+            List<(ISubscription Source, SubscriptionState State, PublishState Mask)> replay,
+            bool serialised)
+        {
+            try
+            {
+                foreach ((ISubscription source, SubscriptionState state, PublishState mask)
+                    in replay)
+                {
+                    try
+                    {
+                        if (serialised)
+                        {
+                            await DispatchStateChangeAsync(logical, source, state, mask, default)
+                                .ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await OnSubscriptionStateChangedAsync(source, state, mask)
+                                .ConfigureAwait(false);
+                        }
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        // Nobody awaits the replay: a throwing user handler
+                        // would otherwise surface as an unobserved task
+                        // exception.
+                        m_logger.PartitionForwardingReplayHandlerThrew(ex, state);
+                    }
+                }
+            }
+            finally
+            {
+                if (serialised)
+                {
+                    ReleaseSerialise();
+                }
             }
         }
 
@@ -125,7 +201,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             finally
             {
-                m_serialise.Release();
+                ReleaseSerialise();
             }
         }
 
@@ -146,7 +222,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             finally
             {
-                m_serialise.Release();
+                ReleaseSerialise();
             }
         }
 
@@ -165,7 +241,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             finally
             {
-                m_serialise.Release();
+                ReleaseSerialise();
             }
         }
 
@@ -174,19 +250,56 @@ namespace Opc.Ua.Client.Subscriptions
             SubscriptionState state, PublishState publishStateMask,
             CancellationToken ct = default)
         {
-            ISubscription logical = m_logical ?? subscription;
+            ISubscription? bound = m_logical;
+            if (bound == null)
+            {
+                lock (m_bindLock)
+                {
+                    if (m_logical == null)
+                    {
+                        // The partition raises its initial Opened from inside
+                        // its own constructor, before the manager can bind the
+                        // wrapper. Buffer it so the user handler is never
+                        // handed the raw partition; BindLogical replays it.
+                        m_pendingStateChanges.Add((subscription, state, publishStateMask));
+                        return;
+                    }
+                }
+                // Non-null: the only path out of the lock without returning
+                // above is the one where m_logical was already published.
+                bound = m_logical!;
+            }
+
+            ISubscription logical = bound;
             await m_serialise.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                publishStateMask = AggregatePublishState(
-                    subscription, state, publishStateMask);
-                await m_userHandler.OnSubscriptionStateChangedAsync(logical,
-                    state, publishStateMask, ct).ConfigureAwait(false);
+                await DispatchStateChangeAsync(logical, subscription, state, publishStateMask, ct)
+                    .ConfigureAwait(false);
             }
             finally
             {
-                m_serialise.Release();
+                ReleaseSerialise();
             }
+        }
+
+        /// <summary>
+        /// Hands a state change to the user handler. The caller holds the
+        /// serialisation gate.
+        /// </summary>
+        private ValueTask DispatchStateChangeAsync(
+            ISubscription logical,
+            ISubscription subscription,
+            SubscriptionState state,
+            PublishState publishStateMask,
+            CancellationToken ct)
+        {
+            publishStateMask = AggregatePublishState(subscription, state, publishStateMask);
+            return m_userHandler.OnSubscriptionStateChangedAsync(
+                logical,
+                state,
+                publishStateMask,
+                ct);
         }
 
         private PublishState AggregatePublishState(ISubscription subscription,
@@ -220,12 +333,58 @@ namespace Opc.Ua.Client.Subscriptions
         /// <inheritdoc/>
         public void Dispose()
         {
+            m_disposed = true;
             m_serialise.Dispose();
         }
 
+        /// <summary>
+        /// Releases the serialisation gate. A user handler that outlives the
+        /// wrapper's disposal would otherwise throw ObjectDisposedException out
+        /// of the finally block that releases it.
+        /// </summary>
+        private void ReleaseSerialise()
+        {
+            if (m_disposed)
+            {
+                return;
+            }
+            try
+            {
+                m_serialise.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Raced with Dispose; nothing left to release.
+            }
+        }
+
         private readonly ISubscriptionNotificationHandler m_userHandler;
+        private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_serialise = new(1, 1);
         private readonly HashSet<ISubscription> m_stoppedSubscriptions = [];
+        private readonly Lock m_bindLock = new();
+
+        /// <summary>
+        /// State changes raised before <see cref="BindLogical"/> ran, replayed
+        /// once the logical wrapper is known.
+        /// </summary>
+        private readonly List<(ISubscription Source, SubscriptionState State,
+            PublishState Mask)> m_pendingStateChanges = [];
         private ISubscription? m_logical;
+        private volatile bool m_disposed;
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="PartitionForwardingHandler"/>.
+    /// </summary>
+    internal static partial class PartitionForwardingHandlerLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 36, Level = LogLevel.Error,
+            Message = "The subscription state handler threw while the buffered " +
+                "{State} state change was replayed after binding the logical subscription.")]
+        public static partial void PartitionForwardingReplayHandlerThrew(
+            this ILogger logger,
+            Exception exception,
+            SubscriptionState state);
     }
 }
