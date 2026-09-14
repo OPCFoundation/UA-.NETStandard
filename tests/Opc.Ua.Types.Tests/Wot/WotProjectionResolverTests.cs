@@ -58,12 +58,25 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             WotConversionResult<WotDocument> result = await ResolvePredictiveAsync().ConfigureAwait(false);
 
-            Assert.That(result.Success, Is.True);
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             using WotDocument view = result.Value!;
             Assert.That(view, Is.Not.Null);
-            AssertResolvedExample(PredictiveResolvedJson, PredictiveProjectionJson, view,
+            AssertResolvedExample(PredictiveResolvedJson, PreparePredictiveProjection(), view,
                 ("q:s:cHVtcA:", "./01-opcua-td-pump.jsonld", PumpSourceJson),
                 ("q:s:aWRlbnRpdHk:", "./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
+        }
+
+        [Test]
+        public async Task UnacquiredWorkedExampleContextCannotEstablishHostAnnotations()
+        {
+            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync(
+                declareAnnotationContext: false).ConfigureAwait(false);
+            using WotDocument view = result.Value;
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Value, Is.Null);
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.ProjectionContextConflict), Is.True);
         }
 
         [Test]
@@ -753,14 +766,48 @@ namespace Opc.Ua.Types.Tests.Wot
                 Throws.ArgumentNullException);
         }
 
-        private static async Task<WotConversionResult<WotDocument>> ResolvePredictiveAsync()
+        private static async Task<WotConversionResult<WotDocument>> ResolvePredictiveAsync(
+            bool declareAnnotationContext = true)
         {
             WotProjectionResolver resolver = Resolver(
                 ("./01-opcua-td-pump.jsonld", PumpSourceJson),
                 ("./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
-            using var doc =
-                WotDocument.Parse(Encoding.UTF8.GetBytes(PredictiveProjectionJson));
+            using var doc = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                PreparePredictiveProjection(declareAnnotationContext)));
             return await resolver.ResolveAsync(doc).ConfigureAwait(false);
+        }
+
+        private static string PreparePredictiveProjection(bool declareAnnotationContext = true)
+        {
+            var projection = (JsonObject)JsonNode.Parse(PredictiveProjectionJson)!;
+            if (declareAnnotationContext)
+            {
+                // The in-memory fixture does not acquire the example's relative binding context.
+                projection["@context"]!.AsArray().Add(new JsonObject
+                {
+                    ["properties"] = new JsonObject
+                    {
+                        ["@id"] = "https://www.w3.org/2019/wot/td#hasPropertyAffordance",
+                        ["@type"] = "@id",
+                        ["@container"] = "@index",
+                        ["@index"] = "name",
+                        ["@context"] = new JsonObject
+                        {
+                            ["title"] = new JsonObject
+                            {
+                                ["@id"] = "https://www.w3.org/2019/wot/td#title",
+                                ["@language"] = "en"
+                            },
+                            ["description"] = new JsonObject
+                            {
+                                ["@id"] = "https://www.w3.org/2019/wot/td#description",
+                                ["@language"] = "en"
+                            }
+                        }
+                    }
+                });
+            }
+            return projection.ToJsonString();
         }
 
         private static WotProjectionResolver Resolver(

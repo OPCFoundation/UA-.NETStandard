@@ -206,6 +206,19 @@ namespace Opc.Ua.Wot
             return contexts.ToArrayOf();
         }
 
+        internal bool TryGetKnownContextTerm(
+            string term, out JsonElement definition, out bool uncertain, JsonElement carryingNode)
+        {
+            m_contextScopes ??= CreateContextScopes();
+            if (m_contextScopes.TryGetValue(carryingNode, out ContextScope? scope))
+            {
+                return TryFindKnownContextTerm(scope, term, out definition, out uncertain);
+            }
+            definition = default;
+            uncertain = false;
+            return false;
+        }
+
         internal bool IsContextIndexMap(string term, JsonElement carryingNode)
         {
             return IsStandardIndexMap(term) ||
@@ -234,6 +247,62 @@ namespace Opc.Ua.Wot
             }
             definition = default;
             return false;
+        }
+
+        private static bool TryFindKnownContextTerm(
+            ContextScope? scope, string term, out JsonElement definition, out bool uncertain)
+        {
+            for (; scope is not null; scope = scope.Parent)
+            {
+                if (!scope.IsKnown)
+                {
+                    definition = default;
+                    uncertain = true;
+                    return false;
+                }
+                ContextTermState state = ReadKnownContextTerm(scope.Context, term, out definition);
+                if (state != ContextTermState.Absent)
+                {
+                    uncertain = state == ContextTermState.Unknown;
+                    return state == ContextTermState.Defined;
+                }
+            }
+            definition = default;
+            uncertain = false;
+            return false;
+        }
+
+        private static ContextTermState ReadKnownContextTerm(
+            JsonElement context, string term, out JsonElement definition)
+        {
+            definition = default;
+            if (context.ValueKind == JsonValueKind.Array)
+            {
+                for (int index = context.GetArrayLength() - 1; index >= 0; index--)
+                {
+                    ContextTermState state = ReadKnownContextTerm(context[index], term, out definition);
+                    if (state != ContextTermState.Absent)
+                    {
+                        return state;
+                    }
+                }
+                return ContextTermState.Absent;
+            }
+            if (context.ValueKind == JsonValueKind.Null)
+            {
+                return ContextTermState.Reset;
+            }
+            if (TryReadContextTerm(context, term, out definition))
+            {
+                return ContextTermState.Defined;
+            }
+            if ((context.ValueKind == JsonValueKind.String &&
+                    context.GetString() is not (WotVocabulary.WotContext or WotVocabulary.BindingContext)) ||
+                (context.ValueKind == JsonValueKind.Object && context.TryGetProperty("@import", out _)))
+            {
+                return ContextTermState.Unknown;
+            }
+            return ContextTermState.Absent;
         }
 
         internal static bool TryGetContextPrefix(
@@ -347,7 +416,8 @@ namespace Opc.Ua.Wot
                         {
                             if (definition.TryGetProperty("@context", out JsonElement propertyContext))
                             {
-                                childScope = new ContextScope(propertyContext, scope);
+                                bool known = TryFindKnownContextTerm(scope, member.Name, out _, out _);
+                                childScope = new ContextScope(propertyContext, scope, known);
                             }
                             if (definition.TryGetProperty("@container", out JsonElement container))
                             {
@@ -1160,11 +1230,21 @@ namespace Opc.Ua.Wot
             public Dictionary<JsonElement, WotBrowsePathElement> Elements { get; } = elements;
         }
 
-        private sealed class ContextScope(JsonElement context, ContextScope? parent)
+        private sealed class ContextScope(JsonElement context, ContextScope? parent, bool isKnown = true)
         {
             public JsonElement Context { get; } = context;
 
             public ContextScope? Parent { get; } = parent;
+
+            public bool IsKnown { get; } = isKnown;
+        }
+
+        private enum ContextTermState
+        {
+            Absent,
+            Defined,
+            Reset,
+            Unknown
         }
     }
 }

@@ -105,7 +105,8 @@ namespace Opc.Ua.Wot
                         {
                             return Invalid("A semantic context contains a duplicate member.", location);
                         }
-                        if (member.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array &&
+                        if ((member.Name == "@context" ||
+                                member.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array) &&
                             !ValidateContext(member.Value, location))
                         {
                             return false;
@@ -391,6 +392,7 @@ namespace Opc.Ua.Wot
         {
             identity = string.Empty;
             var visited = new HashSet<string>(StringComparer.Ordinal);
+            var prefixes = new HashSet<string>(StringComparer.Ordinal);
             string suffix = string.Empty;
             while (!string.IsNullOrEmpty(value) && visited.Add(value))
             {
@@ -419,15 +421,18 @@ namespace Opc.Ua.Wot
                     }
                     string prefixName = value[..colon];
                     _ = TryReadKnownContextTerm(document, owner, prefixName, out _, out bool uncertain);
-                    if (!uncertain &&
-                        document.TryGetContextPrefix(prefixName, out string prefix, owner))
-                    {
-                        identity = prefix + value[(colon + 1)..] + suffix;
-                        return HasScheme(identity);
-                    }
                     if (uncertain)
                     {
                         return false;
+                    }
+                    if (document.TryGetContextPrefix(prefixName, out string prefix, owner))
+                    {
+                        if (!prefixes.Add(prefixName))
+                        {
+                            return false;
+                        }
+                        value = prefix + value[(colon + 1)..];
+                        continue;
                     }
                     identity = value + suffix;
                     return HasScheme(identity);
@@ -455,42 +460,7 @@ namespace Opc.Ua.Wot
         private static bool TryReadKnownContextTerm(
             WotDocument document, JsonElement owner, string term, out JsonElement definition, out bool uncertain)
         {
-            JsonElement selected = default;
-            bool unknown = false;
-            foreach (JsonElement context in document.GetContextSequence(owner))
-            {
-                Read(context);
-            }
-            definition = selected;
-            uncertain = unknown;
-            return selected.ValueKind != JsonValueKind.Undefined;
-
-            void Read(JsonElement context)
-            {
-                if (context.ValueKind == JsonValueKind.Array)
-                {
-                    foreach (JsonElement entry in context.EnumerateArray())
-                    {
-                        Read(entry);
-                    }
-                }
-                else if (context.ValueKind == JsonValueKind.Null)
-                {
-                    selected = default;
-                    unknown = false;
-                }
-                else if (WotDocument.TryGetLocalContextTerm(context, term, out JsonElement found))
-                {
-                    selected = found;
-                    unknown = false;
-                }
-                else if (context.ValueKind == JsonValueKind.String &&
-                    context.GetString() is not (WotVocabulary.WotContext or WotVocabulary.BindingContext))
-                {
-                    selected = default;
-                    unknown = true;
-                }
-            }
+            return document.TryGetKnownContextTerm(term, out definition, out uncertain, owner);
         }
 
         private static void AnnotationIdentityError(List<WotDiagnostic> diagnostics, string value)
@@ -504,9 +474,25 @@ namespace Opc.Ua.Wot
             JsonObject target, Selection selection, JsonElement annotations, string term,
             ResolvedSource source, JsonElement sourceDefinition, List<WotDiagnostic> diagnostics)
         {
+            bool declaredTerm = TryReadKnownContextTerm(
+                selection.Document, annotations, term, out JsonElement original, out bool uncertain);
+            if (uncertain || (declaredTerm && original.ValueKind == JsonValueKind.Null))
+            {
+                AnnotationIdentityError(diagnostics, term);
+                return false;
+            }
+            if (!(original.ValueKind == JsonValueKind.Object && original.TryGetProperty("@language", out _)))
+            {
+                _ = TryReadKnownContextTerm(
+                    selection.Document, annotations, "@language", out _, out bool unknownLanguage);
+                if (unknownLanguage)
+                {
+                    AnnotationIdentityError(diagnostics, term);
+                    return false;
+                }
+            }
             JsonObject definition;
-            if (selection.Document.TryGetContextTerm(term, out JsonElement original, annotations) &&
-                original.ValueKind == JsonValueKind.Object)
+            if (original.ValueKind == JsonValueKind.Object)
             {
                 definition = CloneObject(original);
             }
