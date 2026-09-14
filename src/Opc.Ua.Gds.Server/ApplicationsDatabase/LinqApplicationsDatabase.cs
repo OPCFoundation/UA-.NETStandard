@@ -461,23 +461,17 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             out DateTimeUtc lastCounterResetTime,
             out uint nextRecordId)
         {
-            base.QueryApplications(
-                startingRecordId,
-                maxRecordsToReturn,
-                applicationName,
-                applicationUri,
-                applicationType,
-                productUri,
-                serverCapabilities,
-                out lastCounterResetTime,
-                out nextRecordId);
+            (LikePattern? applicationNamePattern, LikePattern? applicationUriPattern, LikePattern? productUriPattern) =
+                ValidateQueryApplicationsArguments(
+                    applicationName,
+                    applicationUri,
+                    applicationType,
+                    productUri,
+                    serverCapabilities);
 
             lastCounterResetTime = DateTimeUtc.MinValue;
             nextRecordId = 0;
             var records = new List<ApplicationDescription>();
-            LikePattern? applicationNamePattern = ParseMatchPattern(applicationName);
-            LikePattern? applicationUriPattern = ParseMatchPattern(applicationUri);
-            LikePattern? productUriPattern = ParseMatchPattern(productUri);
 
             lock (Lock)
             {
@@ -617,23 +611,22 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             ArrayOf<string> serverCapabilities,
             out DateTimeUtc lastCounterResetTime)
         {
-            base.QueryServers(
-                startingRecordId,
-                maxRecordsToReturn,
-                applicationName,
-                applicationUri,
-                productUri,
-                serverCapabilities,
-                out lastCounterResetTime);
-
-            LikePattern? applicationNamePattern = ParseMatchPattern(applicationName);
-            LikePattern? applicationUriPattern = ParseMatchPattern(applicationUri);
-            LikePattern? productUriPattern = ParseMatchPattern(productUri);
+            (LikePattern? applicationNamePattern, LikePattern? applicationUriPattern, LikePattern? productUriPattern) =
+                ValidateQueryServersArguments(
+                    applicationName,
+                    applicationUri,
+                    productUri,
+                    serverCapabilities);
 
             lock (Lock)
             {
                 lastCounterResetTime = QueryCounterResetTime;
-                AssignServerEndpointIds();
+                if (AssignServerEndpointIds())
+                {
+                    // Endpoints of a database saved before endpoints had an
+                    // identifier: persist the migrated identifiers.
+                    Save();
+                }
 
                 // One ServerOnNetwork record per DiscoveryUrl, identified by
                 // the endpoint record id (OPC 10000-12 §6.5.11 Table 15).
@@ -1098,7 +1091,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         application.ID = appMax;
                     }
                 }
-                AssignServerEndpointIds();
+                _ = AssignServerEndpointIds();
                 Save();
             }
         }
@@ -1109,7 +1102,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         /// and endpoints loaded from a database saved before endpoints had an
         /// identifier. Identifiers are not reused after an endpoint is removed.
         /// </summary>
-        private void AssignServerEndpointIds()
+        /// <returns><c>true</c> if an identifier was assigned.</returns>
+        internal bool AssignServerEndpointIds()
         {
             uint endpointMax = LastServerEndpointId;
             bool unassigned = false;
@@ -1131,6 +1125,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             }
 
             LastServerEndpointId = endpointMax;
+            return unassigned;
         }
 
         private static bool IsMatch(LikePattern? pattern, string? value)

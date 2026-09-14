@@ -261,9 +261,20 @@ namespace Opc.Ua.Gds.Server.Database
 
         public virtual ApplicationRecordDataType[]? FindApplications(string applicationUri)
         {
-            // Per OPC UA Part 12 the applicationUri filter is optional;
-            // an empty or null filter returns all registered Applications.
+            // OPC 10000-12 §6.5.4: at most the one application with this
+            // ApplicationUri; the node manager rejects an invalid ApplicationUri.
             return null;
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if <paramref name="applicationUri"/> is an absolute
+        /// URI, the check RegisterApplication applies to ApplicationUri
+        /// (FindApplications returns Bad_InvalidArgument otherwise, OPC 10000-12 §6.5.4).
+        /// </summary>
+        public static bool IsValidApplicationUri(string? applicationUri)
+        {
+            return !string.IsNullOrWhiteSpace(applicationUri) &&
+                Uri.IsWellFormedUriString(applicationUri, UriKind.Absolute);
         }
 
         public virtual ServerOnNetwork[]? QueryServers(
@@ -276,16 +287,7 @@ namespace Opc.Ua.Gds.Server.Database
             out DateTimeUtc lastCounterResetTime)
         {
             lastCounterResetTime = DateTimeUtc.MinValue;
-
-            if (serverCapabilities.Contains("NA", StringComparer.OrdinalIgnoreCase) &&
-                serverCapabilities.Count > 1)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadInvalidArgument);
-            }
-
-            ValidateMatchPatterns(applicationName, applicationUri, productUri);
-
+            ValidateQueryServersArguments(applicationName, applicationUri, productUri, serverCapabilities);
             return null;
         }
 
@@ -302,16 +304,32 @@ namespace Opc.Ua.Gds.Server.Database
         {
             lastCounterResetTime = DateTimeUtc.MinValue;
             nextRecordId = 0;
+            ValidateQueryApplicationsArguments(
+                applicationName,
+                applicationUri,
+                applicationType,
+                productUri,
+                serverCapabilities);
+            return null;
+        }
 
-            // applicationType filter values per OPC UA Part 12 §6.3.10 / Part 4:
-            //   0 = ALL, 1 = SERVER, 2 = CLIENT, 3 = DISCOVERY_SERVER.
-            // Anything outside this range is invalid.
-            if (applicationType > 3)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadInvalidArgument);
-            }
-
+        /// <summary>
+        /// Validates the QueryServers arguments and parses the Like filters.
+        /// </summary>
+        /// <returns>The parsed ApplicationName, ApplicationUri and ProductUri
+        /// filters; <c>null</c> for an empty filter.</returns>
+        /// <exception cref="ServiceResultException">
+        /// <see cref="StatusCodes.BadInvalidArgument"/> for an invalid argument.
+        /// </exception>
+        protected static (LikePattern? ApplicationName, LikePattern? ApplicationUri, LikePattern? ProductUri)
+            ValidateQueryServersArguments(
+                string? applicationName,
+                string? applicationUri,
+                string? productUri,
+                ArrayOf<string> serverCapabilities)
+        {
+            // NA cannot be used in combination with any other capability
+            // (OPC 10000-12 Annex D).
             if (serverCapabilities.Contains("NA", StringComparer.OrdinalIgnoreCase) &&
                 serverCapabilities.Count > 1)
             {
@@ -319,9 +337,41 @@ namespace Opc.Ua.Gds.Server.Database
                     StatusCodes.BadInvalidArgument);
             }
 
-            ValidateMatchPatterns(applicationName, applicationUri, productUri);
+            return (
+                ParseMatchPattern(applicationName),
+                ParseMatchPattern(applicationUri),
+                ParseMatchPattern(productUri));
+        }
 
-            return null;
+        /// <summary>
+        /// Validates the QueryApplications arguments and parses the Like filters.
+        /// </summary>
+        /// <returns>The parsed ApplicationName, ApplicationUri and ProductUri
+        /// filters; <c>null</c> for an empty filter.</returns>
+        /// <exception cref="ServiceResultException">
+        /// <see cref="StatusCodes.BadInvalidArgument"/> for an invalid argument.
+        /// </exception>
+        protected static (LikePattern? ApplicationName, LikePattern? ApplicationUri, LikePattern? ProductUri)
+            ValidateQueryApplicationsArguments(
+                string? applicationName,
+                string? applicationUri,
+                uint applicationType,
+                string? productUri,
+                ArrayOf<string> serverCapabilities)
+        {
+            // applicationType is a mask (OPC 10000-12 §6.5.10): 0 = all,
+            // 0x1 = Servers, 0x2 = Clients. Other bits are invalid.
+            if (applicationType > 3)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument);
+            }
+
+            return ValidateQueryServersArguments(
+                applicationName,
+                applicationUri,
+                productUri,
+                serverCapabilities);
         }
 
         /// <summary>
@@ -352,15 +402,6 @@ namespace Opc.Ua.Gds.Server.Database
             return likePattern;
         }
 
-        private static void ValidateMatchPatterns(
-            string? applicationName,
-            string? applicationUri,
-            string? productUri)
-        {
-            ParseMatchPattern(applicationName);
-            ParseMatchPattern(applicationUri);
-            ParseMatchPattern(productUri);
-        }
 
         public virtual bool SetApplicationCertificate(
             NodeId applicationId,

@@ -121,6 +121,16 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(results, Is.Null.Or.Empty);
         }
 
+        [TestCase("urn:opcfoundation.org:tests:app", true)]
+        [TestCase("http://localhost:4840/app", true)]
+        [TestCase("", false)]
+        [TestCase(" ", false)]
+        [TestCase("not a URI", false)]
+        [TestCase("urn:OPCFoundation:ServerApplicationWith%WildcardCharacter", false)]
+        public void IsValidApplicationUriMatchesRegistrationCheck(string applicationUri, bool expected)
+        {
+            Assert.That(ApplicationsDatabaseBase.IsValidApplicationUri(applicationUri), Is.EqualTo(expected));
+        }
         [Test]
         public void QueryApplicationsInvalidTypeThrows()
         {

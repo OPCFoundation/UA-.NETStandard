@@ -185,7 +185,14 @@ namespace Opc.Ua.Gds.Tests
                 }
                 File.WriteAllText(fileName, json.ToJsonString());
 
+                // Loading migrates and persists the identifiers, without a query or a write.
                 database = JsonApplicationsDatabase.Load(fileName);
+                var migrated = JsonNode.Parse(File.ReadAllText(fileName))!.AsObject();
+                Assert.That((uint)migrated["LastServerEndpointId"]!, Is.EqualTo(4u));
+                Assert.That(
+                    migrated["ServerEndpoints"]!.AsArray().Select(endpoint => (uint)endpoint!["ID"]!),
+                    Is.Unique.And.All.Not.Zero);
+
                 ServerOnNetwork[] legacy = database.QueryServers(0, 1, null, null, null, [], out _);
                 Assert.That(legacy, Has.Length.EqualTo(1));
                 Assert.That(legacy[0].RecordId, Is.Not.Zero);

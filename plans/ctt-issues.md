@@ -691,10 +691,11 @@ ApplicationId is not known to the GDS"* (§6.5.7 UpdateApplication, §6.5.9 GetA
 the GDS. **Fix:** expect `Bad_NotFound` (accept `Bad_InvalidArgument` as well for `029.js`, whose record
 fields are also invalid).
 
-### C29. GDS Application Directory `005.js` expects `BadInvalidArgument` for a string above MaxStringLength
+### C29. GDS Application Directory `005.js` uses random characters as ApplicationUri and expects Good
 
 - **Test:** `maintree/GDS/GDS Application Directory/Test Cases/005.js`, lines 20, 31, 37
-- **Error:** *"Call.Results[0].StatusCode incorrect. Received: Good. Expected: BadInvalidArgument"*
+- **Error (2026-09-14 run):** *"Call.Results[0].StatusCode incorrect. Received: Good. Expected: BadInvalidArgument"*
+  (second call)
 
 The script builds the ApplicationUri from `String.fromCharCode( Math.floor( Math.random() * 256 ) )`,
 first with MaxStringLength (1,048,576) characters and then 10 % more. Both calls returned Good with an
@@ -702,8 +703,13 @@ empty result. A string above the server's `MaxStringLength` cannot be decoded: t
 rejects it with `Bad_EncodingLimitsExceeded` (`BinaryDecoder.ReadString`, limit set from the transport
 quotas in `TcpTransportListener`), so the request cannot reach FindApplications. The Good results show
 that the over-limit string did not reach the server as generated; a likely cause is the `\0` and
-non-ASCII code points in the random string, which the CTT does not pass through unchanged. **Fix:** use printable ASCII characters, and accept `Bad_EncodingLimitsExceeded` as the
-service result for the oversized call.
+non-ASCII code points in the random string, which the CTT does not pass through unchanged.
+
+The first call also expects Good, but random characters are not a valid URI, and FindApplications now
+returns `Bad_InvalidArgument` for it as OPC 10000-12 §6.5.4 requires (*"The ApplicationUri is too long
+or not a valid URI"*). **Fix:** use a valid URI made of printable ASCII characters (for example
+`urn:` followed by letters) of MaxStringLength, and accept `Bad_EncodingLimitsExceeded` as the service
+result for the oversized call.
 
 ### C30. GDS Query Applications `036.js` expects `rcp+` URLs the test never registered
 
@@ -804,8 +810,9 @@ it is classified as a server or CTT issue.
     the RecordId of every DiscoveryUrl record, so `StartingRecordId` paging skipped the remaining
     DiscoveryUrls of an application (§6.5.11 Table 15 returns one record per DiscoveryUrl). Fixes
     Application Directory `045.js`, `075.js`.
-  - FindApplications with an empty ApplicationUri returned every application (§6.5.4: array size 0 or
-    1, `Bad_InvalidArgument` for an invalid URI). Fixes Application Directory `004.js`.
+  - FindApplications with an empty ApplicationUri returned every application, and a malformed
+    ApplicationUri returned Good (§6.5.4: array size 0 or 1, `Bad_InvalidArgument` for an invalid URI).
+    Fixes Application Directory `004.js`.
 
   CTT GDS rerun with the fixes: 47 errors (baseline 60). `074.js` and Query Applications `025.js`
   newly fail as described in C21. CTT defects: C19–C31. Not applicable to this server: GDS AliasName

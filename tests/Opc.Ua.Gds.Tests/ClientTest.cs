@@ -382,8 +382,20 @@ namespace Opc.Ua.Gds.Tests
             await ConnectGDSAsync(true).ConfigureAwait(false);
             foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
+                string applicationUri = application.ApplicationRecord.ApplicationUri;
+                if (!Server.Database.ApplicationsDatabaseBase.IsValidApplicationUri(applicationUri))
+                {
+                    // OPC 10000-12 §6.5.4: Bad_InvalidArgument for an invalid URI.
+                    await Assert.ThatAsync(
+                        () => m_gdsClient.GDSClient.FindApplicationAsync(applicationUri).AsTask(),
+                        Throws.TypeOf<ServiceResultException>()
+                            .With.Property(nameof(ServiceResultException.StatusCode))
+                            .EqualTo(StatusCodes.BadInvalidArgument)).ConfigureAwait(false);
+                    continue;
+                }
+
                 ArrayOf<ApplicationRecordDataType> result = await m_gdsClient.GDSClient.FindApplicationAsync(
-                    application.ApplicationRecord.ApplicationUri).ConfigureAwait(false);
+                    applicationUri).ConfigureAwait(false);
                 Assert.That(result.Count, Is.Zero, "Found invalid application on server");
             }
         }

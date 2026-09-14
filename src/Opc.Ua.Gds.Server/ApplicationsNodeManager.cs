@@ -1378,11 +1378,11 @@ namespace Opc.Ua.Gds.Server
             // OPC 10000-12 §6.5.4: Bad_InvalidArgument if the ApplicationUri is
             // not a valid URI. An empty ApplicationUri identifies no application;
             // it is not a wildcard (the result holds at most one record).
-            if (string.IsNullOrWhiteSpace(applicationUri))
+            if (!ApplicationsDatabaseBase.IsValidApplicationUri(applicationUri))
             {
                 return new ServiceResult(
                     StatusCodes.BadInvalidArgument,
-                    LocalizedText.From("The ApplicationUri is empty."));
+                    LocalizedText.From("The ApplicationUri is not a valid URI."));
             }
 
             applications = m_database.FindApplications(applicationUri) ?? [];
