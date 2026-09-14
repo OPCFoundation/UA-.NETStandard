@@ -46,7 +46,7 @@ running the CTT is in [ctt-testing.md](ctt-testing.md).
 | C4 | Aggregates: DurationInState status thresholds | — | Not filed |
 | C5 | Aggregates: durations truncated to whole milliseconds | — | Not filed |
 | C6 | Aggregates: DurationGood/PercentGood first region | — | Not filed |
-| C7–C18 | Other unfiled script defects | — | Not filed |
+| C7–C24 | Other unfiled script defects | — | Not filed |
 
 Mantis states were last checked on 2026-09-13.
 
@@ -488,7 +488,8 @@ The global `ReadHelper` runs synchronously inside the alarm callback and fails c
 
 `collector.AddMessage(testCase, category, conditionId, reason)` drops `reason`. The result is empty
 `Error: ns=...` entries that hide which check failed. **Fix:** combine `conditionId` and `reason`
-into the third argument.
+into the third argument. With the reason logged, the failing check is the event `Time` comparison
+against `GetCallTime()`, which is broken (C19).
 
 ### C13. Base Info Currency `004.js` drops the CurrencyUnit Exponent
 
@@ -554,6 +555,111 @@ from a server value, and appears for every condition type. Not yet pinpointed. *
 fall back from a specific locale (`en-US`) to its base language (`en`) when looking up the
 recommended texts.
 
+### C19. A & C `AlarmCollector.GetCallTime()` returns an unset time, so Comment skips every alarm type
+
+- **Helper:** `library/AlarmsAndConditions/AlarmCollector.js`, lines 1839–1842
+  (`return new UaDateTime( callHelper.ServerTimeOfCall )`)
+- **Tests:** A & C Comment `Test_001.js`–`Test_004.js` (skip); A & C Enable `Test_002.js` (fails, C12)
+- **Result:** *"0 tests passed 1 tests skipped (retry count 3)"* for every alarm type
+
+`CallHelper.ServerTimeOfCall` is never assigned, so the call time is `0001-01-01T00:00:00Z`.
+Comment `Test_001.js` line 86 accepts the comment event only if
+`CommentTime.msecsTo( eventTime ) >= 0`; the 32-bit millisecond difference from year 1 is negative
+(about −838,500,000 on 2026-09-14), so every comment event is treated as unrelated and
+`RestartSkipped` (lines 2313–2335) gives up after three retries. Logged values from one run: call
+at `00:25:54.805Z`, response timestamp `00:25:54.816Z`, comment event `Time` `00:25:54.811Z` carrying
+the expected comment text, `CommentTime` `0001-01-01T00:00:00Z`. Enable `Test_002.js` lines 291 and
+301 fail the same way ("Unexpected event time, differs by ..."). Acknowledge and Confirm call the
+same helper but short-circuit the comparison (`IgnoreEventByCallTime` returns false, lines
+2356–2358), so they are unaffected. **Fix:** set `ServerTimeOfCall` from the Call response (and
+compare it with a tolerance, because the condition event is created before the response is sent),
+or use the request time corrected by the device time differential.
+
+### C20. A & C Limit/Level CUs create their filter subscriptions on a session that has timed out
+
+- **Tests:** A & C Exclusive Limit, Exclusive Level, Non-Exclusive Limit and Non-Exclusive Level
+  (all use `maintree/Alarms and Conditions/A and C Base/Limit/Test Cases/`), `Test_003.js`–`Test_006.js`
+- **Helper:** `library/AlarmsAndConditions/ConformanceHelpers/limithelper.js`, lines 72–79
+- **Error:** 5× *"CreateSubscription.Response.ResponseHeader.ServiceResult is Bad: BadSessionIdInvalid"*
+  in `initialize.js`, then each test case runs to the maximum test time (3 × Alarm Cycle Time)
+
+`initialize.js` connects the CU session (line 23) and creates the collector (line 37). When the
+collector starts the alarm thread, `InitialEventCapture` waits one full Alarm Cycle Time on the alarm
+thread's own session (`AlarmCollector.js` lines 305–319) while the CU session sends nothing.
+`LimitHelper` (line 47) then creates its five filter subscriptions on that CU session. With the
+default Alarm Cycle Time (60 s) and `/Server Test/Session/RequestedSessionTimeout` (60000 ms) the
+server has already closed the session as required by Part 4 §5.7.2. The four filter test cases
+find empty buffers and each waits 180 s, so every CU takes about 14 minutes when it is the first
+A&C CU in the CTT process (in a whole-group run only the first A&C CU pays the capture, and the
+Limit CUs take about 100 s). `Test_005.js` line 22 also sets `TestName = "Test_003"`. **Fix:** create
+the `LimitHelper` before the initial capture, keep the CU session alive during the capture, or use
+the alarm thread session for the filter subscriptions.
+
+### C21. A & C Alarm `Test_002.js` always runs to the maximum test time
+
+- **Test:** `maintree/Alarms and Conditions/A and C Alarm/Test Cases/Test_002.js`, line 38;
+  `initialize.js`, lines 15–36
+
+`CanRunTest` returns false for AcknowledgeableConditionType events (`CanRunAlarmCondition`, line 22–23)
+and `Test_002.js` returns without touching a counter or calling `AddIgnoreSkips`. The collector picks
+one condition per alarm type that sent an event (`AlarmCollector.GetConditionIdsToTest`), so a server
+that exposes an AcknowledgeableCondition instance keeps a condition in `TestConditionIds` that never
+gets a result, and `IsTestComplete` only ends the test at 3 × Alarm Cycle Time (180 s by default).
+Line 22 also compares with `Identifier.ConditionId` where `Identifier.ConditionType` is meant.
+**Fix:** increment `TestsSkipped` (or set IgnoreSkip) for types that `CanRunTest` rejects.
+
+### C22. A & C Enable `Test_003.js` depends on all alarm types going active within cycle/10
+
+- **Test:** `maintree/Alarms and Conditions/A and C Enable/Test Cases/Test_003.js`, lines 64–68, 89,
+  129–132, 201–215, 233–237
+
+A condition gets a test case only for an active event seen while `RefreshState` is still `Unknown`
+(line 89). The first disable sets the ConditionRefresh time to Alarm Cycle Time / 10 later (6 s by
+default, lines 64 and 129–132); after the refresh (line 207) no new test cases are created. A
+server whose alarm types go active at different times therefore leaves some types without a result
+and the test runs to 3 × Alarm Cycle Time. Against the reference server before its boolean and
+analog alarm sources were aligned this happened in 6 of 7 runs; the conditions it disabled are only
+re-enabled when the RefreshEnd event arrives (line 237). **Fix:** keep accepting first active events
+until the refresh is started for all non-ignored types, or mark types without an active event as
+skipped when the refresh is issued.
+
+### C23. A & C Enable `Err_004.js` reacts to its own events and can stop the alarm thread's event delivery
+
+- **Test:** `maintree/Alarms and Conditions/A and C Enable/Test Cases/Err_004.js`, lines 25–40
+
+For *every* event of a condition the test calls Disable, Disable and Enable on the alarm thread
+session without keeping per-condition state. Each Disable/Enable raises a new condition event, which
+triggers the same three calls again: runs recorded up to 364 passes per alarm type and 868 events in
+15 s. In 7 of 17 Enable runs against the reference server the CTT alarm thread returned **no events
+at all** for the rest of the CU, six times right after such a burst and once already from
+`Test_003.js` on; every test case after that ran to 3 × Alarm Cycle Time.
+Evidence collected with `addLog` counters in a project copy and the server log:
+
+- the alarm thread subscription stayed alive, and its data monitored items on the same subscription
+  kept delivering values (AnalogSource about one per second) while both event items on it stayed empty;
+- `GetBuffer` never failed (status true, zero events);
+- the server kept reporting condition events at the normal rate and deleted the subscription only at
+  the end, with no unacknowledged messages;
+- an in-process client that replays the pattern (same subscription parameters, a Server event item
+  plus a ConditionId `InList` item, Disable/Disable/Enable for every received event) pushed about
+  100,000 events through in 20 s three times and kept receiving events afterwards.
+
+The server side could not be shown to drop the notifications; a network capture of the CTT session
+is needed to settle it. **Fix:** handle each condition once (`TestCaseMap`), like the other Enable
+test cases, which removes the burst.
+
+### C24. A & C CertificateExpiration blocks a `--hidden` run on a modal dialog
+
+- **Test:** `maintree/Alarms and Conditions/A and C CertificateExpiration/Test Cases/initialize.js`,
+  lines 135–149
+
+`initialize.js` opens a synchronous Yes/No message box (*"Is is possible to adjust the clock on the
+server without a restart"*) before any test runs, and the test cases open further OK dialogs asking
+the operator to change the server clock. In a `--close --hidden` run the dialog window
+*"Certificate Expiration Operation"* is still created and waits for input, so the CTT never exits.
+The CU needs an operator (and a server whose clock can be moved past a certificate's expiration
+limit). **Fix:** skip dialogs in hidden/automated runs, or add a project setting that answers them.
+
 ## Needs clarification
 
 ### U1. NumberOfTransitions with TreatUncertainAsBad=true
@@ -604,18 +710,32 @@ it is classified as a server or CTT issue.
 - **Auditing Connections cannot find audit events.** `011.js`/`012.js` (ClientAuditEntryId) and
   `001.js`/`007.js`/`020.js` (AuditOpenSecureChannel/CreateSession/ActivateSession event types). See
   C14; a separate root-cause investigation is running.
-- **A & C Refresh `Err_004.js` invalidates the alarm subscription.** The test adds 10 event
-  subscriptions and calls ConditionRefresh five times near-simultaneously, expecting Good or
-  `BadRefreshInProgress`. The call returns `BadSubscriptionIdInvalid`. Afterwards the CTT alarm
-  subscription stays invalid, so A & C Refresh `cleanup.js` and A & C Refresh2 `initialize.js`,
-  `Test_002.js`–`Test_004.js` fail with `BadSubscriptionIdInvalid`. Check per-session subscription
-  limits and subscription handling under concurrent ConditionRefresh.
-- **A & C Comment skips 5 of 11 test cases.** For every alarm type the CTT reports *"0 tests passed
-  1 tests skipped (retry count 3)"*: the alarms did not reach the state the test needs within three
-  retries. Check the CTT-mode alarm simulation timing.
-- **Slow A & C units.** A & C Exclusive/Non-Exclusive Limit/Level (28 cases) and
-  A & C CertificateExpiration did not finish within 15 minutes each and have no results yet; Shelving
-  alone takes about 2.5 minutes, Comment about 4. Run them individually with a long timeout.
+- **A & C Refresh `Err_004.js` / `BadSubscriptionIdInvalid` cascade (investigated 2026-09-14, not
+  reproduced).** In the failing run the ten subscriptions that `Err_004.js` creates on the alarm
+  thread session, and the alarm thread subscription itself, were gone when the first
+  ConditionRefresh was sent after the script's 30 s wait (CTT subscriptions: 250 ms publishing
+  interval, lifetime count 62 = 15.5 s). That is what a subscription expiry looks like when the
+  session's publish requests stop; there is no server log from that run. Nine further runs (Refresh
+  alone, Refresh2 alone, Refresh + Refresh2 three times, one of them under build load, and four
+  whole-group runs) passed all 28 cases,
+  and an in-process client replaying the pattern (11 subscriptions, 5 Calls × 10 ConditionRefresh,
+  30 s idle, sequential publishing) kept every subscription. If it recurs, start the server with
+  `-c -l` and look for `Subscription ... EXPIRED`. The replay exposed a real server defect:
+  `AlarmNodeManager.CallAsync` (sample) answered every ConditionRefresh/ConditionRefresh2 after the
+  first in a Call with `BadRefreshInProgress`, even for other subscriptions, so only one of the ten
+  subscriptions was ever refreshed. Fixed: the check is now keyed by subscription and monitored item
+  (`AlarmsAndConditionsRefreshTests.ConditionRefresh*OfDifferentSubscriptionsInOneCallSucceedsAsync`).
+- **A & C Comment skips 5 of 11 test cases.** CTT defect: `Test_001.js`–`Test_004.js` compare the
+  comment event time with an unset call time (C19); the server delivers the comment event with the
+  expected text. The fifth skip is `Err_006.js` (*"Unable to find event that does not support
+  comments"*), a coverage gap rather than a failure.
+- **Slow A & C units (resolved).** See [ctt-testing.md](ctt-testing.md#6-alarms-and-conditions) for the
+  timing breakdown and the recommended run. Limit/Level CUs are slow only when they run first in a CTT
+  process (C20); CertificateExpiration hangs on a modal dialog (C24); Alarm `Test_002.js` always and
+  Enable `Test_003.js` often ran to 3 × Alarm Cycle Time (C21, C22), and Enable intermittently stops receiving events
+  after `Err_004.js` bursts (C23). The reference server's boolean
+  and analog alarm sources now change state on the same simulation tick, which makes Enable
+  `Test_003.js` pass deterministically.
 - **GDS QueryServers / QueryApplications Like filters.** Against the GDS node manager in CTT mode
   (`src/Opc.Ua.Gds.Server`, `ApplicationsDatabaseBase.IsMatchPattern`):
   - Application Directory `066.js`, `068.js`, `071.js`, `073.js`, `075.js` and Query Applications
@@ -676,6 +796,16 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
   Suppression by Operator, Silencing, OutOfService, On-Off Delay, Re-Alarming, First in Group Alarm,
   Audible Sound, Discrepancy, Trip, A&E Wrapper Mapping, Dialog) contain only manual
   (*Not Implemented*) test cases.
+- **A & C Shelving coverage.** `/Server Test/Alarms and Conditions/Chattering Alarms` is empty, so
+  `UseChatteringAlarms` sets IgnoreSkip on every type and `Test_003.js`–`Test_005.js`,
+  `Test_007.js`–`Test_010.js` and `Err_001.js`–`Err_003.js` finish immediately without testing
+  anything. The reference server has no alarm that stays active across transitions, so there is no
+  condition to configure there yet.
+- **A & C Alarm Cycle Time and session timeout.** `/Server Test/Alarms and Conditions/Alarm Cycle Time`
+  sets the initial event capture (1 ×), the maximum time of every collector test case (3 ×) and the
+  Enable `Test_003.js` refresh delay (1/10). Keep it below
+  `/Server Test/Session/RequestedSessionTimeout` (ms) when a Limit/Level CU can be the first A&C CU of a
+  run (C20).
 - **Historical Access coverage.** Every Historical Access CU except *Read Raw* contains only
   `NoTestCaseDefined.js` in scripts 1.05.513. Insert/Replace/Update/Delete (values and events),
   Annotations, ServerTimestamp, Modified, Time Instance and Structured Data are not tested.
