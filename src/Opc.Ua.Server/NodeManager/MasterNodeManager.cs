@@ -817,16 +817,10 @@ namespace Opc.Ua.Server
 
             await FinalizeRetiredGenerationNotificationsAsync(nodeManager, ct)
                 .ConfigureAwait(false);
-            await m_startupShutdownSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                await nodeManager.DeleteAddressSpaceAsync(ct).ConfigureAwait(false);
-                RemoveRetiredGenerationNotifications(nodeManager);
-            }
-            finally
-            {
-                m_startupShutdownSemaphoreSlim.Release();
-            }
+            // The lifecycle owns this detached generation. Its deletion may remove
+            // dependent NodeManagers, so it must not serialize against their preparation.
+            await nodeManager.DeleteAddressSpaceAsync(ct).ConfigureAwait(false);
+            RemoveRetiredGenerationNotifications(nodeManager);
         }
 
         async ValueTask IDynamicNodeManagerHost.RemoveDestroyedExternalReferencesAsync(

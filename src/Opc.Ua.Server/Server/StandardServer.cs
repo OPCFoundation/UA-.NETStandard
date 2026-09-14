@@ -3661,6 +3661,7 @@ namespace Opc.Ua.Server
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                ((NodeManagerLifecycle)NodeManagerLifecycle).BeginStartup();
                 m_logger.ServerStartApplicationApplicationName(configuration.ApplicationName);
 
                 // Setup the minimum nonce length
@@ -3896,6 +3897,39 @@ namespace Opc.Ua.Server
             // set the server status as running.
             SetServerState(ServerState.Running);
 
+            try
+            {
+                await ((NodeManagerLifecycle)NodeManagerLifecycle)
+                    .CompleteStartupAsync(m_serverInternal, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                m_logger.Message(ex, "A NodeManager failed during startup readiness.");
+                Exception? cleanupFailure = null;
+                try
+                {
+                    await StopAsync(CancellationToken.None).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(ServerError))
+                    {
+                        cleanupFailure = new ServiceResultException(ServerError);
+                    }
+                }
+                catch (Exception cleanupException) when (cleanupException is not OutOfMemoryException)
+                {
+                    cleanupFailure = cleanupException;
+                }
+                if (cleanupFailure is not null)
+                {
+                    var failure = new AggregateException(
+                        "NodeManager startup readiness and server cleanup failed.", ex, cleanupFailure);
+                    ServerError = new ServiceResult(failure);
+                    throw failure;
+                }
+                ServerError = new ServiceResult(ex);
+                throw;
+            }
+
             // all initialization is complete.
             m_logger.ServerStarted();
 
@@ -4040,7 +4074,6 @@ namespace Opc.Ua.Server
                         failures,
                         () => lifecycle.CompleteShutdownAsync(serverInternal, CancellationToken.None))
                     .ConfigureAwait(false);
-                lifecycle.Dispose();
             }
 
             serverInternal.Dispose();

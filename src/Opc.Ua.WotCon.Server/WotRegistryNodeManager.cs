@@ -49,7 +49,7 @@ namespace Opc.Ua.WotCon.Server
     /// The generated <c>Refresh</c> Method is wired to the coordinator; the
     /// coordinator's events are re-emitted as the generated registry event types.
     /// </summary>
-    public sealed class WotRegistryNodeManager : AsyncCustomNodeManager
+    public sealed class WotRegistryNodeManager : AsyncCustomNodeManager, INodeManagerReadinessParticipant
     {
         /// <summary>
         /// Initializes a new registry NodeManager.
@@ -194,15 +194,35 @@ namespace Opc.Ua.WotCon.Server
             Registry.Changed += OnRegistryChanged;
             Coordinator.Event += OnCoordinatorEvent;
 
-            // Materialize the browseable group/resource projection, then project
-            // whatever is already persisted into the AddressSpace.
+            // Build the stable registry projection during preparation. Dependent runtime
+            // registrations require the later, awaited readiness phase.
             if (m_registryNode is not null)
             {
                 await m_projection.AttachAsync(m_registryNode, cancellationToken)
                     .ConfigureAwait(false);
             }
-            await SafeRefreshAsync("startup").ConfigureAwait(false);
-            await m_projection.ReconcileProjectionAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+        {
+            await m_refreshGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                WotRefreshResult result = await Coordinator.RefreshAsync(
+                    new WotRefreshRequest { RequestId = "startup" }, cancellationToken).ConfigureAwait(false);
+                await m_projection.ReconcileProjectionAsync(cancellationToken).ConfigureAwait(false);
+                if (result.Summary.Failed != 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError,
+                        "One or more persisted WoT registry resources failed to materialize during startup.");
+                }
+            }
+            finally
+            {
+                m_refreshGate.Release();
+            }
         }
 
         /// <inheritdoc/>

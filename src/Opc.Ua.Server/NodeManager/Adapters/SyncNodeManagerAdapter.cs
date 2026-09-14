@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -59,7 +61,7 @@ namespace Opc.Ua.Server
     /// This allows asynchronous nodeManagers to be treated as synchronous, which can help
     /// compatibility with existing code.
     /// </remarks>
-    public class SyncNodeManagerAdapter : INodeManager3
+    public class SyncNodeManagerAdapter : INodeManager3, INodeManagerReadinessParticipant
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="SyncNodeManagerAdapter"/> class.
@@ -73,6 +75,14 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public IEnumerable<string> NamespaceUris => m_nodeManager.NamespaceUris;
+
+        /// <inheritdoc/>
+        public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+        {
+            return m_nodeManager is INodeManagerReadinessParticipant participant
+                ? participant.OnServerReadyAsync(cancellationToken)
+                : default;
+        }
 
         /// <inheritdoc/>
         public void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)

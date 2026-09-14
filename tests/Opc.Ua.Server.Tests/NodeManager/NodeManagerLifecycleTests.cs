@@ -69,7 +69,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [NonParallelizable]
-    public sealed class NodeManagerLifecycleTests
+    public sealed partial class NodeManagerLifecycleTests
     {
         private const double kMaxAge = 10000;
 

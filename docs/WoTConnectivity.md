@@ -610,6 +610,24 @@ builder
 
 ### 11.2 Registry service and persistence
 
+The registry's startup refresh is an [awaited readiness
+phase](NodeManagerReadiness.md), not part of address-space preparation. Both
+ordinary `AddWotRegistryServer` startup and runtime
+`WotRegistryNodeManagerFactory` registration await persisted-document
+materialization before returning. This also applies when `AutoRefresh` is
+`false`; no explicit `Refresh` is needed to read successfully restored nodes.
+
+Startup cancellation reaches the real projection host. Failed materialization
+results fail readiness with `BadConfigurationError` and remain observable in the
+registry, rather than being swallowed. A runtime parent is already committed at
+this point: its failed Add reports the retained live registration for recovery or
+removal. Removing that parent awaits cleanup of its actual dependent projections.
+Initial server startup instead runs ordered server cleanup before propagating
+failure. A custom host that only calls `CreateAddressSpaceAsync` must explicitly
+invoke readiness after initializing the server; see the linked migration note.
+Concurrent native `Refresh` calls receive `BadServerTooBusy` while startup owns
+the existing refresh admission gate, and can be retried after startup completes.
+
 #### Materialization extension points
 
 Two optional seams let a protocol driver supply what a Thing Description alone cannot express. Both are resolved from DI; registering neither leaves materialization exactly as it was.

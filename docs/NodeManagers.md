@@ -23,6 +23,7 @@
   - [Threading contract for nodes and browsers](#threading-contract-for-nodes-and-browsers)
 - [Registering node managers](#registering-node-managers)
   - [Startup registration](#startup-registration)
+  - [Awaited readiness](#awaited-readiness)
   - [Runtime registration](#runtime-registration)
   - [Node manager lifecycle impact on clients](#node-manager-lifecycle-impact-on-clients)
     - [MonitoredItems](#monitoreditems)
@@ -406,6 +407,21 @@ services.AddOpcUa()
     });
 ```
 
+### Awaited readiness
+
+A manager that needs initialized server subsystems or must register dependent
+runtime managers implements `INodeManagerReadinessParticipant`. `StandardServer`
+awaits it for static initial managers; runtime Add and all reload modes await it
+for their committed generation. Do not register dependencies while preparing
+`CreateAddressSpaceAsync`: preparation is serialized and is not server readiness.
+
+Readiness runs after publication, outside registration serialization, while the
+owning operation reserves its generation. Competing same-generation removal or
+reload fails explicitly until readiness completes. Caller cancellation and
+readiness failures are reported as post-commit failures, not rollback.
+See [Awaited NodeManager readiness](NodeManagerReadiness.md) for ordering,
+dependency cleanup, synchronous factory adapters, and custom host migration.
+
 ### Runtime registration
 
 A running server exposes `INodeManagerLifecycle`. Resolve it from dependency injection in a hosted
@@ -479,9 +495,13 @@ A server that rejects requests of its own by overriding `StandardServer.OnReques
 does not interfere with this: a rejected request is completed before the exception leaves the
 server, so it never holds a lifecycle operation up.
 
-A lifecycle operation is transactional. The replacement address space is built and validated before
-anything becomes visible to Clients, and any failure is rolled back, so Clients never observe a
-partially applied model.
+A lifecycle operation stages and validates the replacement address space before
+its client-visible commit. Preparation failures follow the existing rollback
+path. Failures after publication, including readiness, can retain a live
+registration and must not be treated as pre-commit rollback. Add reports that
+the registration remains available from `Registrations`; reload reports the
+committed handle through `NodeManagerReloadCommittedException.Registration`.
+Readiness does not make several dependent registrations a single transaction.
 
 ### Node manager lifecycle impact on clients
 

@@ -70,7 +70,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [NonParallelizable]
-    public sealed class WotRegistryLifecycleTests
+    public sealed partial class WotRegistryLifecycleTests
     {
         private const double kMaxAge = 10000;
         private const string kModelNamespaceUri = "urn:wot:e2e:sensor";
@@ -129,7 +129,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, host, documentConverter: new SensorConverter());
             var factory = new WotRegistryNodeManagerFactory(m_options, m_registry, m_coordinator);
-            await m_server.NodeManagerLifecycle.AddAsync(factory, callerContext: null).ConfigureAwait(false);
+            m_registryRegistration = await m_server.NodeManagerLifecycle
+                .AddAsync(factory, callerContext: null).ConfigureAwait(false);
         }
 
         [TearDown]
@@ -145,6 +146,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             m_coordinator?.Dispose();
             m_registry?.Dispose();
             m_server?.Dispose();
+            m_startupStore?.Dispose();
+            m_startupStore = null;
 
             if (!string.IsNullOrEmpty(m_pkiRoot) && Directory.Exists(m_pkiRoot))
             {

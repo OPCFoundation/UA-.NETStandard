@@ -118,6 +118,54 @@ namespace Opc.Ua.Server
             }
         }
 
+        internal void BeginStartup()
+        {
+            lock (m_operationLifetimeLock)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(NodeManagerLifecycle));
+                }
+                if (!m_shuttingDown)
+                {
+                    return;
+                }
+                if (m_activeLifecycleOperations != 0 ||
+                    m_activeShutdownMethods != 0 ||
+                    m_shutdownPrepared)
+                {
+                    throw new InvalidOperationException(
+                        "The previous NodeManager lifecycle has not completed shutdown.");
+                }
+                lock (m_registrationLock)
+                {
+                    if (m_registrations.Count != 0 || m_retiredNodeManagers.Count != 0)
+                    {
+                        throw new InvalidOperationException(
+                            "The previous NodeManager generations have not completed cleanup.");
+                    }
+                    m_shuttingDown = false;
+                }
+            }
+        }
+
+        internal async ValueTask CompleteStartupAsync(
+            IServerInternal server,
+            CancellationToken ct = default)
+        {
+            using OperationLifetime operation = EnterLifecycleOperation();
+            IAsyncNodeManager[] initialManagers = [.. server.NodeManager.AsyncNodeManagers];
+            foreach (IAsyncNodeManager nodeManager in initialManagers)
+            {
+                if (nodeManager is INodeManagerReadinessParticipant participant)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    await participant.OnServerReadyAsync(ct).ConfigureAwait(false);
+                    ct.ThrowIfCancellationRequested();
+                }
+            }
+        }
+
         internal async ValueTask BeginShutdownAsync(
             IServerInternal server,
             CancellationToken ct = default)
@@ -703,11 +751,15 @@ namespace Opc.Ua.Server
                     }
                     if (!cleanup.Destroyed)
                     {
-                        await host
-                            .DestroyAddressSpaceAsync(
+                        await DestroyAddressSpaceOutsideLifecycleSemaphoreAsync(
+                                host,
                                 state.Prepared.NodeManager,
-                                ct: CancellationToken.None)
+                                CancellationToken.None)
                             .ConfigureAwait(false);
+                        ValidateRemovalClaim(
+                            registration,
+                            state,
+                            "The registration changed while its address space was destroyed.");
                         cleanup.NotificationsFinalized = true;
                         cleanup.Destroyed = true;
                     }
@@ -776,6 +828,7 @@ namespace Opc.Ua.Server
             IDynamicNodeManagerHost? host = null;
             int namespaceCountBefore = 0;
             bool committed = false;
+            RegistrationState? readinessState = null;
             try
             {
                 (IServerInternal cleanupServer, IDynamicNodeManagerHost cleanupHost) =
@@ -820,14 +873,16 @@ namespace Opc.Ua.Server
                     Guid.NewGuid(),
                     1,
                     nodeManager);
+                readinessState = new RegistrationState(
+                    registration,
+                    prepared,
+                    allowRequestCallback)
+                {
+                    ReadinessPending = nodeManager is INodeManagerReadinessParticipant
+                };
                 lock (m_registrationLock)
                 {
-                    m_registrations.Add(
-                        registration.Id,
-                        new RegistrationState(
-                            registration,
-                            prepared,
-                            allowRequestCallback));
+                    m_registrations.Add(registration.Id, readinessState);
                 }
                 committed = true;
 
@@ -847,6 +902,8 @@ namespace Opc.Ua.Server
                         bindings,
                         CancellationToken.None).ConfigureAwait(false);
                 }
+                await CompleteReadinessOutsideLifecycleSemaphoreAsync(
+                    server, host, readinessState, ct).ConfigureAwait(false);
                 if (!m_shuttingDown && !m_disposed)
                 {
                     await NotifyCommittedChangeAsync(
@@ -862,7 +919,7 @@ namespace Opc.Ua.Server
                 if (committed)
                 {
                     throw new InvalidOperationException(
-                        "The NodeManager was added, but post-commit binding or notification failed. " +
+                        "The NodeManager was added, but post-commit binding, readiness or notification failed. " +
                         "The live registration remains available from Registrations.",
                         ex);
                 }
@@ -992,6 +1049,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                ReleaseReadinessClaim(readinessState);
                 m_lifecycleSemaphore.Release();
             }
         }
@@ -1023,6 +1081,7 @@ namespace Opc.Ua.Server
             IAsyncNodeManager? replacementManager = null;
             PreparedNodeManager? replacement = null;
             RegistrationState? current = null;
+            RegistrationState? readinessState = null;
             List<LocalReference> droppedInboundReferences = [];
             IServerInternal? server = null;
             IDynamicNodeManagerHost? host = null;
@@ -1166,12 +1225,16 @@ namespace Opc.Ua.Server
                     current.Registration.Id,
                     current.Registration.Generation + 1,
                     replacement.NodeManager);
+                readinessState = new RegistrationState(
+                    nextRegistration,
+                    replacement,
+                    allowRequestCallback)
+                {
+                    ReadinessPending = replacementManager is INodeManagerReadinessParticipant
+                };
                 lock (m_registrationLock)
                 {
-                    m_registrations[current.Registration.Id] = new RegistrationState(
-                        nextRegistration,
-                        replacement,
-                        allowRequestCallback);
+                    m_registrations[current.Registration.Id] = readinessState;
                 }
 
                 var retired = new RetiredNodeManager(
@@ -1298,6 +1361,18 @@ namespace Opc.Ua.Server
                             retired.DrainPending = false;
                         }
                     }
+                }
+
+                try
+                {
+                    await CompleteReadinessOutsideLifecycleSemaphoreAsync(
+                        server, host, readinessState, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    postCommitFailure = postCommitFailure is null
+                        ? ex
+                        : new AggregateException(postCommitFailure, ex);
                 }
 
                 if (!m_shuttingDown && !m_disposed)
@@ -1504,7 +1579,68 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                ReleaseReadinessClaim(readinessState);
                 m_lifecycleSemaphore.Release();
+            }
+        }
+
+        private async ValueTask CompleteReadinessOutsideLifecycleSemaphoreAsync(
+            IServerInternal server,
+            IDynamicNodeManagerHost host,
+            RegistrationState state,
+            CancellationToken ct)
+        {
+            if (state.Prepared.NodeManager is not INodeManagerReadinessParticipant participant)
+            {
+                return;
+            }
+
+            m_lifecycleSemaphore.Release();
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                await participant.OnServerReadyAsync(ct).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+            }
+            finally
+            {
+                await m_lifecycleSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+
+            EnsureSameRunningServer(server, host, state.AllowLifecycleFromRequestCallback);
+            if (!IsCurrentRegistration(state.Registration))
+            {
+                throw new InvalidOperationException(
+                    "The registration changed while its readiness operation was completing.");
+            }
+        }
+
+        private void ReleaseReadinessClaim(RegistrationState? state)
+        {
+            if (state is not null)
+            {
+                lock (m_registrationLock)
+                {
+                    state.ReadinessPending = false;
+                }
+            }
+        }
+
+        private async ValueTask DestroyAddressSpaceOutsideLifecycleSemaphoreAsync(
+            IDynamicNodeManagerHost host,
+            IAsyncNodeManager nodeManager,
+            CancellationToken ct)
+        {
+            // The removal or retired-drain claim retains this detached generation while
+            // its deletion callback releases dependencies through the same lifecycle.
+            m_lifecycleSemaphore.Release();
+            try
+            {
+                await host.DestroyAddressSpaceAsync(nodeManager, ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                await m_lifecycleSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             }
         }
 
@@ -1874,6 +2010,11 @@ namespace Opc.Ua.Server
                 {
                     throw new InvalidOperationException(
                         "The registration is stale or is not owned by this lifecycle provider.");
+                }
+                if (state.ReadinessPending)
+                {
+                    throw new InvalidOperationException(
+                        "The NodeManager is completing readiness. Retry after its startup operation completes.");
                 }
                 return state;
             }
@@ -3530,10 +3671,10 @@ namespace Opc.Ua.Server
 
             if (!cleanup.Destroyed)
             {
-                await host
-                    .DestroyAddressSpaceAsync(
+                await DestroyAddressSpaceOutsideLifecycleSemaphoreAsync(
+                        host,
                         retired.NodeManager,
-                        ct: CancellationToken.None)
+                        CancellationToken.None)
                     .ConfigureAwait(false);
                 if (!cleanup.NotificationsFinalized)
                 {
@@ -3900,6 +4041,8 @@ namespace Opc.Ua.Server
             public bool AllowLifecycleFromRequestCallback { get; }
 
             public bool RemovalPending { get; set; }
+
+            public bool ReadinessPending { get; set; }
 
             public ShutdownCleanupState ShutdownCleanup { get; } = new();
         }
