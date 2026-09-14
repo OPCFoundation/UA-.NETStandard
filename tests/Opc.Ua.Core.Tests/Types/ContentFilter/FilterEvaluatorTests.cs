@@ -580,6 +580,128 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             Assert.That(result, Is.True);
         }
 
+        /// <summary>
+        /// The examples of the OPC 10000-4 §7.7.3 "Wildcard characters" table.
+        /// </summary>
+        [TestCase("mainstation", "main%", true)]
+        [TestCase("amain", "main%", false)]
+        [TestCase("green", "%en%", true)]
+        [TestCase("alpha", "%en%", false)]
+        [TestCase("5%", "5[%]", true)]
+        [TestCase("5a", "5[%]", false)]
+        [TestCase("would", "_ould", true)]
+        [TestCase("could", "_ould", true)]
+        [TestCase("shoulder", "_ould", false)]
+        [TestCase("5_", "5[_]", true)]
+        [TestCase("\\", "\\\\", true)]
+        [TestCase("%", "\\%", true)]
+        [TestCase("_", "\\_", true)]
+        [TestCase("abc4", "abc[13-68]", true)]
+        [TestCase("abc2", "abc[13-68]", false)]
+        [TestCase("xyze", "xyz[c-f]", true)]
+        [TestCase("xyzg", "xyz[c-f]", false)]
+        [TestCase("ABC2", "ABC[^13-5]", true)]
+        [TestCase("ABC6", "ABC[^13-5]", true)]
+        [TestCase("ABC1", "ABC[^13-5]", false)]
+        [TestCase("ABC4", "ABC[^13-5]", false)]
+        [TestCase("xyza", "xyz[^dgh]", true)]
+        [TestCase("xyzh", "xyz[^dgh]", false)]
+        [TestCase("This is fine", "Th[ia][ts]%", true)]
+        [TestCase("Then is fine", "Th[ia][ts]%", false)]
+        public void LikeImplementsWildcardCharactersTable(string target, string pattern, bool expected)
+        {
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Like, Variant.From(target), Variant.From(pattern));
+            bool result = filter.Evaluate(m_filterContext, m_target);
+            Assert.That(result, Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Like matches the whole string: the old regex translation matched any
+        /// substring and escaped the '^' of a negated list.
+        /// </summary>
+        [TestCase("xxabcxx", "abc", false)]
+        [TestCase("mainstation", "station", false)]
+        [TestCase("a.b", "a.b", true)]
+        [TestCase("aXb", "a.b", false)]
+        [TestCase("Abc", "abc", false)]
+        [TestCase("a$b", "a$b", true)]
+        public void LikeMatchesWholeStringCaseSensitive(string target, string pattern, bool expected)
+        {
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Like, Variant.From(target), Variant.From(pattern));
+            bool result = filter.Evaluate(m_filterContext, m_target);
+            Assert.That(result, Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// An invalid search string matches nothing; Like resolves to FALSE, as
+        /// for an operand that cannot be resolved to a string.
+        /// </summary>
+        [TestCase("abc[")]
+        [TestCase("abc\\")]
+        [TestCase("abc[]")]
+        [TestCase("abc[z-a]")]
+        [TestCase("%[a^j-l]%")]
+        public void LikeWithInvalidPatternEvaluatesToFalse(string pattern)
+        {
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Like, Variant.From("abc["), Variant.From(pattern));
+            Assert.That(filter.Evaluate(m_filterContext, m_target), Is.False);
+
+            Ua.ContentFilter negated = BuildBinaryFilter(FilterOperator.Like, Variant.From("abc["), Variant.From(pattern));
+            var not = new ContentFilterElement { FilterOperator = FilterOperator.Not };
+            not.SetOperands([new ElementOperand(1)]);
+            negated.Elements = [not, negated.Elements[0]];
+            Assert.That(negated.Evaluate(m_filterContext, m_target), Is.True);
+        }
+
+        /// <summary>
+        /// A literal Like pattern that is not a valid search string is rejected
+        /// when the filter is validated (OPC 10000-4 §7.7.4 operand result
+        /// Bad_FilterOperandInvalid).
+        /// </summary>
+        [TestCase("abc[")]
+        [TestCase("abc\\")]
+        [TestCase("abc[^]")]
+        [TestCase("%[a^j-l]%")]
+        public void ValidateRejectsInvalidLiteralLikePattern(string pattern)
+        {
+            foreach (Variant literal in new[] { Variant.From(pattern), Variant.From(new LocalizedText(pattern)) })
+            {
+                Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Like, Variant.From("abc"), literal);
+
+                Ua.ContentFilter.Result result = filter.Validate(m_filterContext);
+
+                Assert.That(result.Status.StatusCode, Is.EqualTo(StatusCodes.BadContentFilterInvalid));
+                Ua.ContentFilter.ElementResult elementResult = result.ElementResults[0];
+                Assert.That(elementResult.Status.StatusCode, Is.EqualTo(StatusCodes.BadContentFilterInvalid));
+                Assert.That(elementResult.OperandResults, Has.Count.EqualTo(2));
+                Assert.That(elementResult.OperandResults[0], Is.Null);
+                Assert.That(elementResult.OperandResults[1].StatusCode, Is.EqualTo(StatusCodes.BadFilterOperandInvalid));
+            }
+        }
+
+        [TestCase("main%")]
+        [TestCase("ABC[^13-5]")]
+        [TestCase("")]
+        public void ValidateAcceptsValidLiteralLikePattern(string pattern)
+        {
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Like, Variant.From("abc"), Variant.From(pattern));
+
+            Ua.ContentFilter.Result result = filter.Validate(m_filterContext);
+
+            Assert.That(ServiceResult.IsGood(result.Status), Is.True);
+            Assert.That(result.ElementResults, Is.Empty);
+        }
+
+        [Test]
+        public void ValidateDoesNotCheckLikePatternInFirstOperandOrOtherOperators()
+        {
+            Ua.ContentFilter like = BuildBinaryFilter(FilterOperator.Like, Variant.From("abc["), Variant.From("abc%"));
+            Assert.That(ServiceResult.IsGood(like.Validate(m_filterContext).Status), Is.True);
+
+            Ua.ContentFilter equals = BuildBinaryFilter(FilterOperator.Equals, Variant.From("abc"), Variant.From("abc["));
+            Assert.That(ServiceResult.IsGood(equals.Validate(m_filterContext).Status), Is.True);
+        }
+
         [Test]
         public void EqualsWithByteValues()
         {
