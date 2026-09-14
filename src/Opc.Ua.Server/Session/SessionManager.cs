@@ -460,6 +460,8 @@ namespace Opc.Ua.Server
             Nonce? serverNonceObject = null;
             try
             {
+                bool expired = false;
+
                 // The global lock guards the session-manager dictionary and
                 // session lifecycle (lookup, lockout, expiry). It is deliberately
                 // released before the client-signature verification below:
@@ -509,19 +511,31 @@ namespace Opc.Ua.Server
                     }
 
                     // check if session timeout has expired.
-                    if (session.HasExpired)
-                    {
-                        // raise audit event for session closed because of timeout
-                        m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Timeout");
-
-                        await m_server.CloseSessionAsync(null!, session.Id, false, default).ConfigureAwait(false);
-
-                        throw new ServiceResultException(StatusCodes.BadSessionClosed);
-                    }
+                    expired = session.HasExpired;
                 }
                 finally
                 {
                     m_semaphoreSlim.Release();
+                }
+
+                if (expired)
+                {
+                    // Close outside the session-manager lock: CloseSessionAsync acquires
+                    // that lock itself and SemaphoreSlim is not reentrant, so closing
+                    // while holding it deadlocks this and every later
+                    // CreateSession/ActivateSession (OPC 10000-4 §5.7.2).
+                    m_server.UpdateServerDiagnostics(diagnostics =>
+                    {
+                        diagnostics.SessionTimeoutCount++;
+                    });
+
+                    // raise audit event for session closed because of timeout
+                    m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Timeout");
+
+                    await m_server.CloseSessionAsync(null!, session.Id, false, CancellationToken.None)
+                        .ConfigureAwait(false);
+
+                    throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
 
                 if (!m_sessionActivationStates.TryGetValue(
