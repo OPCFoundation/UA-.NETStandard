@@ -1145,10 +1145,27 @@ another source or the projection does not change its meaning. Local and
 term-scoped overrides and explicit null resets remain effective; source-only
 prefixes do not become projection-wide declarations.
 
+The known [TD 1.1 context](https://www.w3.org/2022/wot/td/v1.1) includes its
+standard vocabulary and prefix scopes: TD terms at the root, JSON Schema terms
+inside DataSchemas, hypermedia terms in forms, and security terms in security
+definitions. A root-only `@vocab` override does not replace the standard
+property-scoped vocabulary. A vocabulary-relative type such as `dataPoint`
+therefore remains resolvable without a hierarchical document identifier; a
+relative `uav:semanticId` still requires its own applicable document base.
+
 Projection-routed forms retain projection ownership even inside source-owned
 data. Host type and semantic annotations retain host meaning, while a host
 title or description override carries its own term language without retagging
-unchanged source text. Context document references resolve at the original
+unchanged source text. Local alias chains and compact vocabulary declarations
+are resolved before an annotation crosses owners. If the host identity cannot
+be established, depends on an unacquired context, or would be reinterpreted by
+the destination scope, resolution reports `ProjectionContextConflict` rather
+than borrowing a source prefix or base. The same rule applies to text-predicate
+identities. Repeated semantic context members and invalid context declaration
+kinds produce diagnostics before mutable cloning; an invalid projection context
+is rejected before source acquisition.
+
+Context document references resolve at the original
 document location, not the device endpoint base. Ordered relative `@base`
 entries use the preceding effective base. An opaque logical identifier alone
 does not provide a hierarchical location for resolving a relative context URL.
@@ -1156,7 +1173,8 @@ Nested semantic contexts follow the same rules; context-looking keys inside
 literal values or opaque metadata are not rewritten. Keys of declared JSON-LD
 index maps are names rather than context declarations, including a key named
 `@context`; a semantic object stored under such a key can still carry its own
-local context.
+local context. The fixed WoT maps, including `securityDefinitions`, retain
+their map-entry interpretation even when no explicit root context is supplied.
 
 Referenced reusable schemas are carried into `schemaDefinitions` without
 overwriting the projection owner's definitions. Local references to selected

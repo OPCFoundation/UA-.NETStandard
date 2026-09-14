@@ -881,6 +881,19 @@ namespace Opc.Ua.Types.Tests.Wot
                 var original = (JsonObject)JsonNode.Parse(json)!;
                 JsonArray context = ExpectedOwnerContext(original, href, schema: true);
                 var formContext = (JsonArray)context.DeepClone();
+                formContext.Add(JsonNode.Parse(
+                    """
+                    {
+                      "@vocab": "https://www.w3.org/2019/wot/hypermedia#",
+                      "td": "https://www.w3.org/2019/wot/td#",
+                      "jsonschema": "https://www.w3.org/2019/wot/json-schema#",
+                      "wotsec": "https://www.w3.org/2019/wot/security#",
+                      "hctl": "https://www.w3.org/2019/wot/hypermedia#",
+                      "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+                      "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+                      "xsd": "http://www.w3.org/2001/XMLSchema#"
+                    }
+                    """));
                 JsonNode annotations = host["properties"]?[entry.Key];
                 foreach (string term in new[] { "title", "description" })
                 {
@@ -940,11 +953,34 @@ namespace Opc.Ua.Types.Tests.Wot
                     context.Add(JsonNode.Parse(
                         """
                         {
+                          "@vocab": "https://www.w3.org/2019/wot/json-schema#",
+                          "td": "https://www.w3.org/2019/wot/td#",
+                          "jsonschema": "https://www.w3.org/2019/wot/json-schema#",
+                          "wotsec": "https://www.w3.org/2019/wot/security#",
+                          "hctl": "https://www.w3.org/2019/wot/hypermedia#",
+                          "dct": "http://purl.org/dc/terms/",
+                          "schema": "http://schema.org/",
+                          "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
                           "title": {"@id":"https://www.w3.org/2019/wot/td#title","@language":"en"},
                           "description": {"@id":"https://www.w3.org/2019/wot/td#description","@language":"en"},
                           "titles": {"@container":"@language"},
                           "descriptions": {"@container":"@language"},
                           "properties": {"@container":"@index"}
+                        }
+                        """));
+                }
+                else
+                {
+                    context.Add(JsonNode.Parse(
+                        """
+                        {
+                          "@vocab": "https://www.w3.org/2019/wot/security#",
+                          "td": "https://www.w3.org/2019/wot/td#",
+                          "jsonschema": "https://www.w3.org/2019/wot/json-schema#",
+                          "wotsec": "https://www.w3.org/2019/wot/security#",
+                          "hctl": "https://www.w3.org/2019/wot/hypermedia#",
+                          "dct": "http://purl.org/dc/terms/",
+                          "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
                         }
                         """));
                 }

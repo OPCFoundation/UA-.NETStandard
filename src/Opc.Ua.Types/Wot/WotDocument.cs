@@ -208,8 +208,16 @@ namespace Opc.Ua.Wot
 
         internal bool IsContextIndexMap(string term, JsonElement carryingNode)
         {
-            return TryGetContextTerm(term, out JsonElement definition, carryingNode) &&
-                definition.ValueKind == JsonValueKind.Object &&
+            return IsStandardIndexMap(term) ||
+                (TryGetContextTerm(term, out JsonElement definition, carryingNode) &&
+                    definition.ValueKind == JsonValueKind.Object &&
+                    definition.TryGetProperty("@container", out JsonElement container) &&
+                    IsIndexContainer(container));
+        }
+
+        private static bool IsStandardIndexMap(string term)
+        {
+            return s_tdScopedTerms.TryGetProperty(term, out JsonElement definition) &&
                 definition.TryGetProperty("@container", out JsonElement container) &&
                 IsIndexContainer(container);
         }
@@ -333,7 +341,7 @@ namespace Opc.Ua.Wot
                     if (!IsSemanticBoundary(member.Name))
                     {
                         ContextScope? childScope = scope;
-                        bool childIndexMap = false;
+                        bool childIndexMap = IsStandardIndexMap(member.Name);
                         if (TryFindContextTerm(scope, member.Name, out JsonElement definition) &&
                             definition.ValueKind == JsonValueKind.Object)
                         {
@@ -343,7 +351,7 @@ namespace Opc.Ua.Wot
                             }
                             if (definition.TryGetProperty("@container", out JsonElement container))
                             {
-                                childIndexMap = IsIndexContainer(container);
+                                childIndexMap |= IsIndexContainer(container);
                             }
                         }
                         AddContextScopes(member.Value, childScope, scopes, childIndexMap);
@@ -384,6 +392,14 @@ namespace Opc.Ua.Wot
             JsonNode schema = JsonNode.Parse(
                 """
                 {
+                  "@vocab": "https://www.w3.org/2019/wot/json-schema#",
+                  "td": "https://www.w3.org/2019/wot/td#",
+                  "jsonschema": "https://www.w3.org/2019/wot/json-schema#",
+                  "wotsec": "https://www.w3.org/2019/wot/security#",
+                  "hctl": "https://www.w3.org/2019/wot/hypermedia#",
+                  "dct": "http://purl.org/dc/terms/",
+                  "schema": "http://schema.org/",
+                  "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
                   "title": {"@id": "https://www.w3.org/2019/wot/td#title", "@language": "en"},
                   "description": {"@id": "https://www.w3.org/2019/wot/td#description", "@language": "en"},
                   "titles": {"@container": "@language"},
@@ -391,8 +407,23 @@ namespace Opc.Ua.Wot
                   "properties": {"@container": "@index"}
                 }
                 """)!;
-            var terms = new JsonObject();
-            foreach (string name in new[] { "properties", "input", "output", "data", "dataResponse", "subscription", "cancellation" })
+            var terms = new JsonObject
+            {
+                ["@vocab"] = "https://www.w3.org/2019/wot/td#",
+                ["td"] = "https://www.w3.org/2019/wot/td#",
+                ["jsonschema"] = "https://www.w3.org/2019/wot/json-schema#",
+                ["wotsec"] = "https://www.w3.org/2019/wot/security#",
+                ["hctl"] = "https://www.w3.org/2019/wot/hypermedia#",
+                ["rdfs"] = "http://www.w3.org/2000/01/rdf-schema#",
+                ["xsd"] = "http://www.w3.org/2001/XMLSchema#",
+                ["dct"] = "http://purl.org/dc/terms/",
+                ["htv"] = "http://www.w3.org/2011/http#",
+                ["tm"] = "https://www.w3.org/2019/wot/tm#"
+            };
+            foreach (string name in new[]
+            {
+                "properties", "input", "output", "data", "dataResponse", "subscription", "cancellation"
+            })
             {
                 var definition = new JsonObject { ["@context"] = schema.DeepClone() };
                 if (name == "properties")
@@ -401,10 +432,40 @@ namespace Opc.Ua.Wot
                 }
                 terms[name] = definition;
             }
-            foreach (string name in new[] { "actions", "events", "schemaDefinitions", "uriVariables" })
+            foreach (string name in new[]
+            {
+                "actions", "events", "schemaDefinitions", "uriVariables", "securityDefinitions"
+            })
             {
                 terms[name] = new JsonObject { ["@container"] = "@index" };
             }
+            terms["forms"] = JsonNode.Parse(
+                """
+                {
+                  "@context": {
+                    "@vocab": "https://www.w3.org/2019/wot/hypermedia#",
+                    "td": "https://www.w3.org/2019/wot/td#",
+                    "jsonschema": "https://www.w3.org/2019/wot/json-schema#",
+                    "wotsec": "https://www.w3.org/2019/wot/security#",
+                    "hctl": "https://www.w3.org/2019/wot/hypermedia#",
+                    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+                    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+                    "xsd": "http://www.w3.org/2001/XMLSchema#"
+                  }
+                }
+                """);
+            terms["securityDefinitions"]!["@context"] = JsonNode.Parse(
+                """
+                {
+                  "@vocab": "https://www.w3.org/2019/wot/security#",
+                  "td": "https://www.w3.org/2019/wot/td#",
+                  "jsonschema": "https://www.w3.org/2019/wot/json-schema#",
+                  "wotsec": "https://www.w3.org/2019/wot/security#",
+                  "hctl": "https://www.w3.org/2019/wot/hypermedia#",
+                  "dct": "http://purl.org/dc/terms/",
+                  "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                }
+                """);
             using var document = JsonDocument.Parse(terms.ToJsonString());
             return document.RootElement.Clone();
         }

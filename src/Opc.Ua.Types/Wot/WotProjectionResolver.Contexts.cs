@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -36,6 +37,107 @@ namespace Opc.Ua.Wot
 {
     public sealed partial class WotProjectionResolver
     {
+        private static bool ValidateContexts(WotDocument document, List<WotDiagnostic> diagnostics)
+        {
+            return Visit(document.RootElement, string.Empty);
+
+            bool Visit(JsonElement value, string pointer, bool indexMap = false)
+            {
+                if (value.ValueKind == JsonValueKind.Object)
+                {
+                    bool hasContext = false;
+                    foreach (JsonProperty member in value.EnumerateObject())
+                    {
+                        string location = pointer + "/" + EscapePointer(member.Name);
+                        if (indexMap)
+                        {
+                            if (!Visit(member.Value, location))
+                            {
+                                return false;
+                            }
+                        }
+                        else if (member.Name == "@context")
+                        {
+                            if (hasContext)
+                            {
+                                return Invalid("A semantic object repeats its context declaration.", location);
+                            }
+                            hasContext = true;
+                            if (!ValidateContext(member.Value, location))
+                            {
+                                return false;
+                            }
+                        }
+                        else if (!WotDocument.IsSemanticBoundary(member.Name) &&
+                            !WotNodeSetConverter.IsLiteralSchemaMember(member.Name) &&
+                            !Visit(member.Value, location,
+                                WotNodeSetConverter.IsSchemaDeclarationMap(member.Name) ||
+                                document.IsContextIndexMap(member.Name, value)))
+                        {
+                            return false;
+                        }
+                    }
+                }
+                else if (value.ValueKind == JsonValueKind.Array)
+                {
+                    int index = 0;
+                    foreach (JsonElement entry in value.EnumerateArray())
+                    {
+                        if (!Visit(entry, pointer + "/" + index.ToString(CultureInfo.InvariantCulture)))
+                        {
+                            return false;
+                        }
+                        index++;
+                    }
+                }
+                return true;
+            }
+
+            bool ValidateContext(JsonElement value, string pointer)
+            {
+                if (value.ValueKind == JsonValueKind.Object)
+                {
+                    var names = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (JsonProperty member in value.EnumerateObject())
+                    {
+                        string location = pointer + "/" + EscapePointer(member.Name);
+                        if (!names.Add(member.Name))
+                        {
+                            return Invalid("A semantic context contains a duplicate member.", location);
+                        }
+                        if (member.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array &&
+                            !ValidateContext(member.Value, location))
+                        {
+                            return false;
+                        }
+                    }
+                }
+                else if (value.ValueKind == JsonValueKind.Array)
+                {
+                    int index = 0;
+                    foreach (JsonElement entry in value.EnumerateArray())
+                    {
+                        if (!ValidateContext(entry, pointer + "/" + index.ToString(CultureInfo.InvariantCulture)))
+                        {
+                            return false;
+                        }
+                        index++;
+                    }
+                }
+                else if (value.ValueKind is not (JsonValueKind.String or JsonValueKind.Null))
+                {
+                    return Invalid("A context must be an object, array, string or null.", pointer);
+                }
+                return true;
+            }
+
+            bool Invalid(string message, string pointer)
+            {
+                AddError(diagnostics, WotDiagnosticCode.ProjectionContextConflict, message, pointer);
+                return false;
+            }
+        }
+
         private static JsonObject CloneOwnedObject(WotDocument document, JsonElement original, string origin)
         {
             JsonObject result = CloneObject(original);
@@ -231,66 +333,176 @@ namespace Opc.Ua.Wot
             }
         }
 
-        private static JsonNode MergeAnnotationTypes(
+        private static JsonNode? MergeAnnotationTypes(
             JsonNode? existing, JsonElement additional, JsonElement sourceDefinition,
-            ResolvedSource source, Selection selection, JsonElement annotations)
+            ResolvedSource source, Selection selection, JsonElement annotations, List<WotDiagnostic> diagnostics)
         {
             var result = new JsonArray();
             var identities = new HashSet<string>(StringComparer.Ordinal);
             foreach (string value in NodeTokens(existing))
             {
-                if (identities.Add(ExpandSemanticIdentity(
-                    value, source.Document, sourceDefinition, source.DocumentHref, vocabulary: true)))
+                string sourceIdentity = TryExpandSemanticIdentity(
+                    value, source.Document, sourceDefinition, source.DocumentHref, true, out string expanded)
+                    ? expanded : "\0" + value;
+                if (identities.Add(sourceIdentity))
                 {
                     result.Add(JsonValue.Create(value));
                 }
             }
             foreach (string value in ElementTokens(additional))
             {
-                string identity = ExpandSemanticIdentity(
-                    value, selection.Document, annotations, selection.DocumentHref, vocabulary: true);
+                if (!TryPrepareAnnotationIdentity(
+                    value, true, source, sourceDefinition, selection, annotations, diagnostics, out string identity))
+                {
+                    return null;
+                }
                 if (identities.Add(identity))
                 {
-                    string sourceMeaning = ExpandSemanticIdentity(
-                        value, source.Document, sourceDefinition, source.DocumentHref, vocabulary: true);
-                    result.Add(JsonValue.Create(sourceMeaning == identity ? value : identity));
+                    bool sameMeaning = TryExpandSemanticIdentity(
+                        value, source.Document, sourceDefinition, source.DocumentHref, true,
+                        out string sourceMeaning) &&
+                        sourceMeaning == identity;
+                    result.Add(JsonValue.Create(sameMeaning ? value : identity));
                 }
             }
             return result.Count == 1 ? CloneNode(result[0]!)! : result;
         }
 
-        private static string ExpandSemanticIdentity(
-            string value, WotDocument document, JsonElement owner, string origin, bool vocabulary)
+        private static bool TryPrepareAnnotationIdentity(
+            string value, bool vocabulary, ResolvedSource source, JsonElement sourceDefinition,
+            Selection selection, JsonElement annotations, List<WotDiagnostic> diagnostics, out string identity)
         {
-            if (vocabulary && document.TryGetContextTerm(value, out JsonElement term, owner))
+            if (TryExpandSemanticIdentity(
+                value, selection.Document, annotations, selection.DocumentHref, vocabulary, out identity) &&
+                TryExpandSemanticIdentity(
+                    identity, source.Document, sourceDefinition, source.DocumentHref, vocabulary,
+                    out string destination) &&
+                identity == destination)
             {
-                string? mapped = term.ValueKind == JsonValueKind.String ? term.GetString() :
-                    term.ValueKind == JsonValueKind.Object &&
-                    term.TryGetProperty("@id", out JsonElement id) &&
-                    id.ValueKind == JsonValueKind.String
-                    ? id.GetString() : null;
-                if (mapped is not null)
-                {
-                    value = mapped;
-                }
+                return true;
             }
-            int colon = value.IndexOf(':', StringComparison.Ordinal);
-            if (colon > 0 && document.TryGetContextPrefix(value[..colon], out string prefix, owner))
-            {
-                return prefix + value[(colon + 1)..];
-            }
-            if (colon < 0 &&
-                vocabulary &&
-                document.TryGetContextTerm("@vocab", out JsonElement vocab, owner) &&
-                vocab.ValueKind == JsonValueKind.String)
-            {
-                return ResolveContextLocation(ReadContextBase(document, owner, origin), vocab.GetString()!) + value;
-            }
-            return ResolveContextLocation(ReadContextBase(document, owner, origin), value);
+            AnnotationIdentityError(diagnostics, value);
+            return false;
         }
 
-        private static void CarryAnnotationLocale(
-            JsonObject target, Selection selection, JsonElement annotations, string term)
+        private static bool TryExpandSemanticIdentity(
+            string value, WotDocument document, JsonElement owner, string origin,
+            bool vocabulary, out string identity)
+        {
+            identity = string.Empty;
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            string suffix = string.Empty;
+            while (!string.IsNullOrEmpty(value) && visited.Add(value))
+            {
+                if (vocabulary &&
+                    TryReadKnownContextTerm(document, owner, value, out JsonElement term, out _))
+                {
+                    string? mapped = term.ValueKind == JsonValueKind.String ? term.GetString() :
+                        term.ValueKind == JsonValueKind.Object &&
+                        term.TryGetProperty("@id", out JsonElement id) &&
+                        id.ValueKind == JsonValueKind.String
+                        ? id.GetString() : null;
+                    if (mapped is null)
+                    {
+                        return false;
+                    }
+                    value = mapped;
+                    continue;
+                }
+                int colon = value.IndexOf(':', StringComparison.Ordinal);
+                if (colon > 0)
+                {
+                    if (value.AsSpan(colon + 1).StartsWith("//".AsSpan(), StringComparison.Ordinal))
+                    {
+                        identity = value + suffix;
+                        return true;
+                    }
+                    string prefixName = value[..colon];
+                    _ = TryReadKnownContextTerm(document, owner, prefixName, out _, out bool uncertain);
+                    if (!uncertain &&
+                        document.TryGetContextPrefix(prefixName, out string prefix, owner))
+                    {
+                        identity = prefix + value[(colon + 1)..] + suffix;
+                        return HasScheme(identity);
+                    }
+                    if (uncertain)
+                    {
+                        return false;
+                    }
+                    identity = value + suffix;
+                    return HasScheme(identity);
+                }
+                if (vocabulary &&
+                    TryReadKnownContextTerm(document, owner, "@vocab", out JsonElement vocab, out _) &&
+                    vocab.ValueKind == JsonValueKind.String)
+                {
+                    suffix = value + suffix;
+                    value = vocab.GetString()!;
+                    vocabulary = false;
+                    continue;
+                }
+                _ = TryReadKnownContextTerm(document, owner, "@base", out _, out bool unknownBase);
+                if (unknownBase)
+                {
+                    return false;
+                }
+                identity = ResolveContextLocation(ReadContextBase(document, owner, origin), value) + suffix;
+                return HasScheme(identity);
+            }
+            return false;
+        }
+
+        private static bool TryReadKnownContextTerm(
+            WotDocument document, JsonElement owner, string term, out JsonElement definition, out bool uncertain)
+        {
+            JsonElement selected = default;
+            bool unknown = false;
+            foreach (JsonElement context in document.GetContextSequence(owner))
+            {
+                Read(context);
+            }
+            definition = selected;
+            uncertain = unknown;
+            return selected.ValueKind != JsonValueKind.Undefined;
+
+            void Read(JsonElement context)
+            {
+                if (context.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (JsonElement entry in context.EnumerateArray())
+                    {
+                        Read(entry);
+                    }
+                }
+                else if (context.ValueKind == JsonValueKind.Null)
+                {
+                    selected = default;
+                    unknown = false;
+                }
+                else if (WotDocument.TryGetLocalContextTerm(context, term, out JsonElement found))
+                {
+                    selected = found;
+                    unknown = false;
+                }
+                else if (context.ValueKind == JsonValueKind.String &&
+                    context.GetString() is not (WotVocabulary.WotContext or WotVocabulary.BindingContext))
+                {
+                    selected = default;
+                    unknown = true;
+                }
+            }
+        }
+
+        private static void AnnotationIdentityError(List<WotDiagnostic> diagnostics, string value)
+        {
+            AddError(diagnostics, WotDiagnosticCode.ProjectionContextConflict,
+                "A projection-owned annotation cannot be resolved in its original context " +
+                "without acquiring source meaning.", value);
+        }
+
+        private static bool CarryAnnotationLocale(
+            JsonObject target, Selection selection, JsonElement annotations, string term,
+            ResolvedSource source, JsonElement sourceDefinition, List<WotDiagnostic> diagnostics)
         {
             JsonObject definition;
             if (selection.Document.TryGetContextTerm(term, out JsonElement original, annotations) &&
@@ -309,10 +521,15 @@ namespace Opc.Ua.Wot
             string identity = definition["@id"] is JsonValue id && id.TryGetValue(out string? declared)
                 ? declared
                 : "https://www.w3.org/2019/wot/td#" + term;
-            definition["@id"] = ExpandSemanticIdentity(
-                identity, selection.Document, annotations, selection.DocumentHref, vocabulary: true);
+            if (!TryPrepareAnnotationIdentity(
+                identity, true, source, sourceDefinition, selection, annotations, diagnostics, out string expanded))
+            {
+                return false;
+            }
+            definition["@id"] = expanded;
             definition["@language"] = WotNodeSetConverter.GetDeclaredLocale(selection.Document, annotations, term);
             ((JsonArray)target["@context"]!).Add(new JsonObject { [term] = definition });
+            return true;
         }
     }
 }

@@ -188,7 +188,8 @@ namespace Opc.Ua.Wot
             var openDocuments = new List<WotDocument>();
             try
             {
-                if (!ValidateSecurityDefinitions(projectionDocument, context.Options.MaxDepth, diagnostics))
+                if (!ValidateContexts(projectionDocument, diagnostics) ||
+                    !ValidateSecurityDefinitions(projectionDocument, context.Options.MaxDepth, diagnostics))
                 {
                     return null;
                 }
@@ -430,7 +431,8 @@ namespace Opc.Ua.Wot
                     href);
                 return null;
             }
-            if (!ValidateSecurityDefinitions(document, context.Options.MaxDepth, diagnostics))
+            if (!ValidateContexts(document, diagnostics) ||
+                !ValidateSecurityDefinitions(document, context.Options.MaxDepth, diagnostics))
             {
                 return null;
             }
@@ -789,7 +791,7 @@ namespace Opc.Ua.Wot
                 target.Remove("forms");
                 target.Remove("security");
             }
-            MergeAnnotation(target, reference.Annotations, sourceRouting, source, definition, selection);
+            MergeAnnotation(target, reference.Annotations, sourceRouting, source, definition, selection, diagnostics);
             if (sourceRouting)
             {
                 TransformForms(target, source, selection);
@@ -1049,7 +1051,8 @@ namespace Opc.Ua.Wot
             bool sourceRouting,
             ResolvedSource source,
             JsonElement sourceDefinition,
-            Selection selection)
+            Selection selection,
+            List<WotDiagnostic> diagnostics)
         {
             if (annotations.ValueKind != JsonValueKind.Object)
             {
@@ -1064,15 +1067,24 @@ namespace Opc.Ua.Wot
                 }
                 if (string.Equals(member.Name, "@type", StringComparison.Ordinal))
                 {
-                    target["@type"] = MergeAnnotationTypes(
-                        target["@type"], member.Value, sourceDefinition, source, selection, annotations);
+                    JsonNode? types = MergeAnnotationTypes(
+                        target["@type"], member.Value, sourceDefinition, source, selection, annotations, diagnostics);
+                    if (types is null)
+                    {
+                        return;
+                    }
+                    target["@type"] = types;
                     continue;
                 }
                 if (member.Name == "uav:semanticId" && member.Value.ValueKind == JsonValueKind.String)
                 {
-                    target[member.Name] = ExpandSemanticIdentity(
-                        member.Value.GetString()!, selection.Document, annotations,
-                        selection.DocumentHref, vocabulary: false);
+                    if (!TryPrepareAnnotationIdentity(
+                        member.Value.GetString()!, false, source, sourceDefinition,
+                        selection, annotations, diagnostics, out string identity))
+                    {
+                        return;
+                    }
+                    target[member.Name] = identity;
                     continue;
                 }
                 if (sourceRouting &&
@@ -1085,9 +1097,11 @@ namespace Opc.Ua.Wot
                     continue;
                 }
                 target[member.Name] = CloneNode(member.Value);
-                if (member.Name is "title" or "description")
+                if (member.Name is "title" or "description" &&
+                    !CarryAnnotationLocale(
+                        target, selection, annotations, member.Name, source, sourceDefinition, diagnostics))
                 {
-                    CarryAnnotationLocale(target, selection, annotations, member.Name);
+                    return;
                 }
             }
         }
