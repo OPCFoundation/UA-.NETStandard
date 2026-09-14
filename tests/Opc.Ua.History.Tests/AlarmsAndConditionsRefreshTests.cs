@@ -312,6 +312,42 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
+        public async Task ErrConditionRefreshOfSameInvalidSubscriptionInOneCallReportsInvalidIdAsync()
+        {
+            // An in-progress refresh can only exist for a valid subscription, so repeating an
+            // unknown subscription id must not turn the second result into Bad_RefreshInProgress.
+            CallResponse response = await Session.CallAsync(
+                null,
+                new CallMethodRequest[]
+                {
+                    CreateRefreshRequest(uint.MaxValue),
+                    CreateRefreshRequest(uint.MaxValue)
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(2));
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+            Assert.That(response.Results[1].StatusCode, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+        }
+
+        [Test]
+        public async Task ErrConditionRefresh2OfSameInvalidMonitoredItemInOneCallReportsInvalidIdAsync()
+        {
+            CallResponse response = await Session.CallAsync(
+                null,
+                new CallMethodRequest[]
+                {
+                    CreateRefresh2Request(m_subscriptionId, uint.MaxValue),
+                    CreateRefresh2Request(m_subscriptionId, uint.MaxValue)
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(2));
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
+            Assert.That(response.Results[1].StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
+        }
+
+        [Test]
         public async Task ConditionRefresh2MethodExistsAsync()
         {
             bool found = await TypeHasChildAsync(

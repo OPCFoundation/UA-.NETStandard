@@ -1016,8 +1016,10 @@ namespace Alarms
                 // Call is still in progress when it is processed. Refreshes of other
                 // subscriptions are independent and must reach the server's refresh
                 // queue: OPC 10000-9 §5.5.7 scopes Bad_RefreshInProgress to the
-                // subscription being refreshed.
+                // subscription being refreshed. Only valid targets are recorded, so an
+                // unknown subscription or monitored item keeps its own error every time.
                 if (TryGetRefreshTarget(methodToCall, out (uint, uint) refreshTarget) &&
+                    IsValidRefreshTarget(context, refreshTarget) &&
                     !(refreshesInCall ??= []).Add(refreshTarget))
                 {
                     errors[ii] = StatusCodes.BadRefreshInProgress;
@@ -1253,6 +1255,40 @@ namespace Alarms
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Returns true when the subscription manager would accept a refresh of the target
+        /// for the calling session, apart from a refresh already being in progress.
+        /// </summary>
+        private bool IsValidRefreshTarget(
+            OperationContext context,
+            (uint SubscriptionId, uint MonitoredItemId) target)
+        {
+            if (!Server.SubscriptionManager.TryGetSubscription(
+                target.SubscriptionId,
+                out ISubscription? subscription))
+            {
+                return false;
+            }
+
+            try
+            {
+                if (target.MonitoredItemId == 0)
+                {
+                    subscription.ValidateConditionRefresh(context);
+                }
+                else
+                {
+                    subscription.ValidateConditionRefresh2(context, target.MonitoredItemId);
+                }
+
+                return true;
+            }
+            catch (ServiceResultException e)
+            {
+                return e.StatusCode == StatusCodes.BadRefreshInProgress;
+            }
         }
 
         private static bool IsAckConfirm(NodeId methodId)
