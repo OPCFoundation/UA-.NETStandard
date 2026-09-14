@@ -504,6 +504,43 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
+        /// A store that cannot answer the revocation question reports the status
+        /// as unknown rather than throwing.
+        /// </summary>
+        /// <remarks>
+        /// A thrown ServiceResultException surfaces as an unsuppressible
+        /// Bad_CertificateInvalid, which failed every CA-issued certificate
+        /// validated against an X509Store trust list on Linux and macOS, where
+        /// CRLs are not supported. Unknown - not unsupported - is what the
+        /// Windows branch and a directory store without a CRL return, and it is
+        /// the status RejectUnknownRevocationStatus decides on; unsupported is
+        /// discarded by the validator and would make revocation fail open even
+        /// in strict mode. Windows supports CRLs here, so the branch is only
+        /// reachable on the platforms the outage hit.
+        /// </remarks>
+        [Theory]
+        [Order(45)]
+        public async Task IsRevokedAsyncReportsUnknownWithoutCrlSupportAsync(string storePath)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var x509Store = new X509CertificateStore(telemetry);
+            x509Store.Open(storePath);
+
+            if (x509Store.SupportsCRLs)
+            {
+                Assert.Ignore("The platform's X509Store supports CRLs.");
+            }
+
+            StatusCode status = await x509Store
+                .IsRevokedAsync(GetTestCert(), GetTestCert2())
+                .ConfigureAwait(false);
+
+            Assert.That(
+                status,
+                Is.EqualTo((StatusCode)StatusCodes.BadCertificateRevocationUnknown));
+        }
+
+        /// <summary>
         /// Add an new crl to the X509 store
         /// </summary>
         [Theory]

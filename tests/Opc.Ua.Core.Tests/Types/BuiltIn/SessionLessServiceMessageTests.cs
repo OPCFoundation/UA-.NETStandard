@@ -58,5 +58,50 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.That(serverUrisEncoded, Has.Length.EqualTo(1));
             Assert.Contains(expectedServerUri, serverUrisEncoded);
         }
+
+        /// <summary>
+        /// Every configured locale id is encoded. The list used to be written
+        /// only when it held more than one entry - the reserved-first-entry rule
+        /// the namespace and server tables follow, which a locale table does not
+        /// - so a client that asked for a single locale had it silently dropped.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(2)]
+        public void EncodeWritesEveryConfiguredLocaleId(int localeCount)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            string[] locales = localeCount == 1
+                ? ["en-US"]
+                : ["en-US", "de-DE"];
+
+            var context = new ServiceMessageContext(telemetry, EncodeableFactory.Create());
+            string result;
+
+            using (var jsonEncoder = new JsonEncoder(context, JsonEncoderOptions.Verbose))
+            {
+                var envelope = new SessionLessServiceMessage
+                {
+                    UriVersion = 1,
+                    NamespaceUris = context.NamespaceUris,
+                    ServerUris = context.ServerUris,
+                    LocaleIds = new StringTable(locales),
+                    Message = null
+                };
+
+                envelope.Encode(jsonEncoder);
+                result = jsonEncoder.CloseAndReturnText();
+            }
+
+            JsonNode jObject = JsonNode.Parse(result);
+            Assert.That(jObject, Is.Not.Null);
+
+            JsonNode localeIdsToken = jObject["LocaleIds"];
+            Assert.That(localeIdsToken, Is.Not.Null);
+
+            string[] localeIdsEncoded = JsonSerializer.Deserialize<string[]>(
+                localeIdsToken.ToJsonString());
+            Assert.That(localeIdsEncoded, Is.EqualTo(locales));
+        }
     }
 }

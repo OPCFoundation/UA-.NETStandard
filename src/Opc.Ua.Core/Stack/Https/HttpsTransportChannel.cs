@@ -28,11 +28,14 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers;
 using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Security;
+using System.Net.Sockets;
+using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -117,6 +120,11 @@ namespace Opc.Ua.Bindings
         /// limit the number of concurrent service requests on the server
         /// </summary>
         private const int kMaxConnectionsPerServer = 64;
+
+        /// <summary>
+        /// Size of the scratch buffer the response body is copied through.
+        /// </summary>
+        private const int kResponseCopyBufferSize = 8192;
 
         /// <summary>
         /// Create a transport channel based on the uri scheme.
@@ -279,9 +287,17 @@ namespace Opc.Ua.Bindings
                         EndpointDescription.SecurityPolicyUri);
                 }
 
-                HttpResponseMessage response = await client.PostAsync(
-                    m_url,
-                    content,
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Post, m_url)
+                {
+                    Content = content
+                };
+
+                // ResponseHeadersRead: the default buffers the whole body into
+                // memory before this returns, so MaxMessageSize would only be
+                // applied to an allocation that has already happened.
+                using HttpResponseMessage response = await client.SendAsync(
+                    httpRequest,
+                    HttpCompletionOption.ResponseHeadersRead,
                     linkedCts.Token).ConfigureAwait(false);
 
                 // Translate an HTTP 429/503 (e.g. from an AddHttpsRateLimiter
@@ -296,6 +312,18 @@ namespace Opc.Ua.Bindings
 
                 response.EnsureSuccessStatusCode();
 
+                int maxMessageSize = m_quotas.MaxMessageSize;
+
+                if (maxMessageSize > 0 &&
+                    response.Content.Headers.ContentLength > maxMessageSize)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadResponseTooLarge,
+                        "Response of {0} bytes exceeds the maximum message size of {1} bytes.",
+                        response.Content.Headers.ContentLength,
+                        maxMessageSize);
+                }
+
 #if NET6_0_OR_GREATER
                 Stream responseContent = await response.Content.ReadAsStreamAsync(ct)
                     .ConfigureAwait(false);
@@ -303,7 +331,15 @@ namespace Opc.Ua.Bindings
                 Stream responseContent = await response.Content.ReadAsStreamAsync()
                     .ConfigureAwait(false);
 #endif
-                IServiceResponse serviceResponse = DecodeResponse(responseContent, context);
+                // The decoder needs a seekable stream, so the body is buffered -
+                // but only up to MaxMessageSize. A chunked response carries no
+                // ContentLength, so the limit is applied as the body arrives.
+                using MemoryStream body = await ReadBoundedBodyAsync(
+                    responseContent,
+                    maxMessageSize,
+                    linkedCts.Token).ConfigureAwait(false);
+
+                IServiceResponse serviceResponse = DecodeResponse(body, context);
                 if (serviceResponse != null)
                 {
                     return serviceResponse;
@@ -333,8 +369,25 @@ namespace Opc.Ua.Bindings
                     m_logger.HttpsChannelLog1(webex);
                     throw ServiceResultException.Create((uint)statusCode, webex.Message);
                 }
+
                 m_logger.HttpsChannelLog2(hre);
-                throw;
+
+                // On .NET the inner exception is a SocketException, not a
+                // WebException, so the branch above never runs there and the
+                // HttpRequestException would escape as-is - callers that expect a
+                // ServiceResultException see a transport exception instead.
+                //
+                // Only a genuine connect/socket failure maps to BadNotConnected.
+                // EnsureSuccessStatusCode throws with no inner exception at all,
+                // and a TLS or certificate rejection carries an
+                // AuthenticationException - reporting either as "not connected"
+                // tells the reconnect policy to retry a request that will fail
+                // the same way every time.
+                throw ServiceResultException.Create(
+                    MapRequestFailure(hre),
+                    hre,
+                    "Error sending request: {0}",
+                    hre.Message);
             }
             catch (OperationCanceledException e)
             {
@@ -736,6 +789,12 @@ namespace Opc.Ua.Bindings
                 var client = new HttpClient(handler);
 #pragma warning restore CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
                 handler = null; // ownership transferred to HttpClient
+
+                // No MaxResponseContentBufferSize here: it only bounds buffering
+                // HttpClient does itself, and every response is read with
+                // HttpCompletionOption.ResponseHeadersRead and bounded by
+                // ReadBoundedBodyAsync. Setting it would read as a limit that is
+                // in force on the factory-supplied client too, and it is not.
                 return client;
             }
             finally
@@ -805,6 +864,113 @@ namespace Opc.Ua.Bindings
                 return JsonDecoder.DecodeMessage<IServiceResponse>(memory.ToArray(), context);
             }
             return BinaryDecoder.DecodeMessage<IServiceResponse>(stream, context);
+        }
+
+        /// <summary>
+        /// Maps a failed HTTP request onto the status code the stack reports for
+        /// it, distinguishing a transport failure worth retrying from a delivered
+        /// HTTP error or a rejected TLS handshake.
+        /// </summary>
+        private static uint MapRequestFailure(HttpRequestException exception)
+        {
+            if (exception.InnerException is SocketException socketException)
+            {
+                return MapSocketError(socketException.SocketErrorCode);
+            }
+
+            // A TLS failure - including a server certificate the UA validator
+            // rejected in the handler callback - is permanent for this endpoint.
+            if (exception.InnerException is AuthenticationException)
+            {
+                return (uint)StatusCodes.BadSecurityChecksFailed;
+            }
+
+            // Anything else reached the server or failed for a reason the
+            // transport cannot fix by trying again: EnsureSuccessStatusCode
+            // throws with no inner exception at all.
+            return (uint)StatusCodes.BadUnknownResponse;
+        }
+
+        /// <summary>
+        /// Maps the socket error behind a failed HTTP request onto the status
+        /// code the stack reports for it.
+        /// </summary>
+        private static uint MapSocketError(SocketError error)
+        {
+            switch (error)
+            {
+                case SocketError.TimedOut:
+                    return (uint)StatusCodes.BadRequestTimeout;
+                case SocketError.ConnectionAborted:
+                case SocketError.ConnectionRefused:
+                case SocketError.ConnectionReset:
+                case SocketError.HostDown:
+                case SocketError.HostNotFound:
+                case SocketError.HostUnreachable:
+                case SocketError.NetworkDown:
+                case SocketError.NetworkUnreachable:
+                    return (uint)StatusCodes.BadNotConnected;
+                default:
+                    return (uint)StatusCodes.BadUnknownResponse;
+            }
+        }
+
+        /// <summary>
+        /// Buffers the HTTP response body into a seekable stream, refusing it as
+        /// soon as it passes <paramref name="maxBytes"/> rather than after the
+        /// whole body has been allocated.
+        /// </summary>
+        /// <param name="source">The response body.</param>
+        /// <param name="maxBytes">
+        /// The most that may be read, or a value of zero or less for no limit.
+        /// </param>
+        /// <param name="ct">Cancels the read.</param>
+        /// <exception cref="ServiceResultException">The body is too large.</exception>
+        private static async Task<MemoryStream> ReadBoundedBodyAsync(
+            Stream source,
+            int maxBytes,
+            CancellationToken ct)
+        {
+            var buffered = new MemoryStream();
+            byte[] rented = ArrayPool<byte>.Shared.Rent(kResponseCopyBufferSize);
+
+            try
+            {
+                int read;
+
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                while ((read = await source
+                    .ReadAsync(rented.AsMemory(0, rented.Length), ct)
+                    .ConfigureAwait(false)) > 0)
+#else
+                while ((read = await source
+                    .ReadAsync(rented, 0, rented.Length, ct)
+                    .ConfigureAwait(false)) > 0)
+#endif
+                {
+                    if (maxBytes > 0 && buffered.Length + read > maxBytes)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadResponseTooLarge,
+                            "Response exceeds the maximum message size of {0} bytes.",
+                            maxBytes);
+                    }
+
+                    buffered.Write(rented, 0, read);
+                }
+
+                buffered.Position = 0;
+                return buffered;
+            }
+            catch
+            {
+                buffered.Dispose();
+                throw;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(rented);
+            }
         }
 
         /// <summary>
