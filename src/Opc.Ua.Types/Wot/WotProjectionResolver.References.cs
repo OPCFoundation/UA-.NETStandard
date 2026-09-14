@@ -268,9 +268,7 @@ namespace Opc.Ua.Wot
                     }
                 }
                 string destination = prefix + EscapePointer(name);
-                JsonObject value = replacedVariable
-                    ? CloneUriVariableSchema(owner.Document, original)
-                    : CloneObject(original);
+                JsonObject value = CloneOwnedObject(owner.Document, original, owner.Href);
                 m_definitions[name] = value;
                 if (!m_root.ContainsKey("schemaDefinitions"))
                 {
@@ -361,6 +359,13 @@ namespace Opc.Ua.Wot
                         continue;
                     }
                     string suffix = "/forms/" + index.ToString(CultureInfo.InvariantCulture);
+                    if (!WotDocument.TryEvaluatePointer(owner.Document.RootElement, sourcePointer + suffix,
+                        out JsonElement original))
+                    {
+                        Fail("A carried form lost its original context owner.", sourcePointer + suffix);
+                        continue;
+                    }
+                    CarryContext(form, owner.Document, original, owner.Href);
                     if (form.TryGetPropertyValue("additionalResponses", out JsonNode? responsesValue) &&
                         responsesValue is JsonArray responses)
                     {

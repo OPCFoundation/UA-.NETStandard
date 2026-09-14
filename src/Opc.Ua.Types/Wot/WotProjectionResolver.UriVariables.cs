@@ -39,11 +39,11 @@ namespace Opc.Ua.Wot
     public sealed partial class WotProjectionResolver
     {
         private static JsonObject? CloneAffordance(
-            JsonElement definition, string pointer, List<WotDiagnostic> diagnostics)
+            ResolvedSource source, JsonElement definition, string pointer, List<WotDiagnostic> diagnostics)
         {
             if (!definition.TryGetProperty("uriVariables", out _))
             {
-                return CloneObject(definition);
+                return CloneOwnedObject(source.Document, definition, source.DocumentHref);
             }
             int errors = CountErrors(diagnostics);
             Dictionary<string, JsonElement> variables = ReadUriVariables(definition, pointer, diagnostics);
@@ -71,6 +71,7 @@ namespace Opc.Ua.Wot
                 }
                 target.Add("uriVariables", local);
             }
+            CarryContext(target, source.Document, definition, source.DocumentHref);
             return target;
         }
 
@@ -155,7 +156,7 @@ namespace Opc.Ua.Wot
                         BudgetError();
                         return;
                     }
-                    JsonObject schema = CloneObject(definition.Value);
+                    JsonObject schema = CloneOwnedObject(m_host.Document, definition.Value, m_host.Href);
                     variables[definition.Key] = schema;
                     string pointer = "/uriVariables/" + EscapePointer(definition.Key);
                     RegisterVariable(schema, m_host, pointer, pointer);
@@ -245,7 +246,7 @@ namespace Opc.Ua.Wot
                         BudgetError();
                         return;
                     }
-                    JsonObject schema = CloneUriVariableSchema(owner.Document, definition);
+                    JsonObject schema = CloneOwnedObject(owner.Document, definition, owner.Href);
                     variables[name] = schema;
                     RegisterVariable(schema, owner, pointer, destination + "/uriVariables/" + EscapePointer(name));
                 }
@@ -274,22 +275,6 @@ namespace Opc.Ua.Wot
                     }
                 }
                 return null;
-            }
-
-            private static JsonObject CloneUriVariableSchema(WotDocument document, JsonElement definition)
-            {
-                JsonObject schema = CloneObject(definition);
-                ArrayOf<JsonElement> contexts = document.GetContextSequence(definition);
-                if (contexts.Count != 0)
-                {
-                    var context = new JsonArray();
-                    foreach (JsonElement entry in contexts)
-                    {
-                        AppendContext(context, entry);
-                    }
-                    schema["@context"] = context;
-                }
-                return schema;
             }
 
             private bool TryReadTemplateVariables(string href, out List<string> names, out string error)
@@ -418,21 +403,6 @@ namespace Opc.Ua.Wot
                     }
                 }
                 return true;
-            }
-
-            private static void AppendContext(JsonArray target, JsonElement context)
-            {
-                if (context.ValueKind == JsonValueKind.Array)
-                {
-                    foreach (JsonElement entry in context.EnumerateArray())
-                    {
-                        AppendContext(target, entry);
-                    }
-                }
-                else
-                {
-                    target.Add(CloneNode(context));
-                }
             }
 
             private readonly Dictionary<JsonObject, ReferenceCarriage> m_uriVariableCarriages = [];

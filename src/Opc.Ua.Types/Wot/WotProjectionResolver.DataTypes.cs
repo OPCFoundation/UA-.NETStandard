@@ -493,7 +493,7 @@ namespace Opc.Ua.Wot
                         (definition.Owner.SourceName is null, definition.Owner.Href, definition.Pointer),
                         existingDestination);
                     m_pending.Enqueue(new ReferenceCarriage(
-                        CloneUriVariableSchema(definition.Owner.Document, definition.Definition),
+                        CloneOwnedObject(definition.Owner.Document, definition.Definition, definition.Owner.Href),
                         definition.Owner, definition.Pointer, existingDestination));
                     return;
                 }
@@ -513,7 +513,8 @@ namespace Opc.Ua.Wot
                     BudgetError();
                     return;
                 }
-                JsonObject value = CloneUriVariableSchema(definition.Owner.Document, definition.Definition);
+                JsonObject value = CloneOwnedObject(
+                    definition.Owner.Document, definition.Definition, definition.Owner.Href);
                 value["@id"] = definition.GraphId;
                 string destination = "/" + DataTypesTerm + "/" + m_dataTypeCount.ToString(CultureInfo.InvariantCulture);
                 m_dataTypeDefinitions.Add(value);

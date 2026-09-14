@@ -35,6 +35,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -60,7 +61,9 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Success, Is.True);
             using WotDocument view = result.Value!;
             Assert.That(view, Is.Not.Null);
-            AssertJsonEqual(PredictiveResolvedJson, view!.RootElement);
+            AssertResolvedExample(PredictiveResolvedJson, PredictiveProjectionJson, view,
+                ("q:s:cHVtcA:", "./01-opcua-td-pump.jsonld", PumpSourceJson),
+                ("q:s:aWRlbnRpdHk:", "./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
         }
 
         [Test]
@@ -76,7 +79,8 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Success, Is.True);
             using WotDocument view = result.Value!;
             Assert.That(view, Is.Not.Null);
-            AssertJsonEqual(AssetResolvedJson, view!.RootElement);
+            AssertResolvedExample(AssetResolvedJson, AssetProjectionJson, view,
+                ("q:s:aWRlbnRpdHk:", "./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
         }
 
         [Test]
@@ -369,29 +373,31 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public async Task ConflictingContextPrefixReportsError()
+        public async Task ConflictingContextPrefixesRemainInTheirSourceScopes()
         {
             WotProjectionResolver resolver = Resolver(
-                ("urn:a", ContextSource("ex", "http://example.com/a")),
-                ("urn:b", ContextSource("ex", "http://example.com/b")));
+                ("urn:a", ContextSource("ex", "http://example.com/a", "first")),
+                ("urn:b", ContextSource("ex", "http://example.com/b", "second")));
             using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(TwoSourceProjectionJson));
 
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
-            Assert.That(result.Value, Is.Null);
-            Assert.That(
-                result.Diagnostics.Any(d =>
-                    d.Code == WotDiagnosticCode.ProjectionContextConflict),
-                Is.True);
+            using WotDocument view = result.Value!;
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            Assert.That(view.TryGetContextPrefix("ex", out _), Is.False);
+            Assert.That(view.TryGetContextPrefix("ex", out string first, view.Properties["first"]), Is.True);
+            Assert.That(first, Is.EqualTo("http://example.com/a"));
+            Assert.That(view.TryGetContextPrefix("ex", out string second, view.Properties["second"]), Is.True);
+            Assert.That(second, Is.EqualTo("http://example.com/b"));
         }
 
         [Test]
-        public async Task CompatibleContextPrefixMerges()
+        public async Task CompatibleContextPrefixDoesNotLeakIntoHostScope()
         {
             WotProjectionResolver resolver = Resolver(
-                ("urn:a", ContextSource("ex", "http://example.com/shared")),
-                ("urn:b", ContextSource("ex", "http://example.com/shared")));
+                ("urn:a", ContextSource("ex", "http://example.com/shared", "first")),
+                ("urn:b", ContextSource("ex", "http://example.com/shared", "second")));
             using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(TwoSourceProjectionJson));
 
@@ -402,6 +408,13 @@ namespace Opc.Ua.Types.Tests.Wot
                 result.Diagnostics.Any(d =>
                     d.Code == WotDiagnosticCode.ProjectionContextConflict),
                 Is.False);
+            using WotDocument view = result.Value!;
+            Assert.That(view.TryGetContextPrefix("ex", out _), Is.False);
+            foreach (string name in new[] { "first", "second" })
+            {
+                Assert.That(view.TryGetContextPrefix("ex", out string prefix, view.Properties[name]), Is.True);
+                Assert.That(prefix, Is.EqualTo("http://example.com/shared"));
+            }
         }
 
         [Test]
@@ -824,7 +837,7 @@ namespace Opc.Ua.Types.Tests.Wot
             """.Replace("$DIGEST$", digest, StringComparison.Ordinal);
         }
 
-        private static string ContextSource(string prefix, string uri)
+        private static string ContextSource(string prefix, string uri, string name = "value")
         {
             return /*lang=json,strict*/ """
             {
@@ -838,7 +851,7 @@ namespace Opc.Ua.Types.Tests.Wot
               "security": "nosec_sc",
               "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
               "properties": {
-                "value": {
+                "$NAME$": {
                   "@type": "uav:variable",
                   "title": "Value",
                   "type": "number",
@@ -848,7 +861,95 @@ namespace Opc.Ua.Types.Tests.Wot
             }
             """
                 .Replace("$PREFIX$", prefix, StringComparison.Ordinal)
+                .Replace("$NAME$", name, StringComparison.Ordinal)
                 .Replace("$URI$", uri, StringComparison.Ordinal);
+        }
+
+        private static void AssertResolvedExample(
+            string expected, string projection, WotDocument actual,
+            params (string SecurityScope, string Href, string Json)[] sources)
+        {
+            var wanted = (JsonObject)JsonNode.Parse(expected)!;
+            var host = (JsonObject)JsonNode.Parse(projection)!;
+            wanted["@context"] = host["@context"]!.DeepClone();
+            foreach (KeyValuePair<string, JsonNode> entry in wanted["properties"]!.AsObject())
+            {
+                JsonNode property = entry.Value!;
+                string provenance = property["uav:resolvedFrom"]!.GetValue<string>();
+                (string _, string href, string json) = sources.Single(source =>
+                    provenance.StartsWith(source.Href + "#", StringComparison.Ordinal));
+                var original = (JsonObject)JsonNode.Parse(json)!;
+                JsonArray context = ExpectedOwnerContext(original, href, schema: true);
+                var formContext = (JsonArray)context.DeepClone();
+                JsonNode annotations = host["properties"]?[entry.Key];
+                foreach (string term in new[] { "title", "description" })
+                {
+                    if (annotations?[term] is not null)
+                    {
+                        context.Add(new JsonObject
+                        {
+                            [term] = new JsonObject
+                            {
+                                ["@id"] = "https://www.w3.org/2019/wot/td#" + term,
+                                ["@language"] = "en"
+                            }
+                        });
+                    }
+                }
+                property["@context"] = context;
+                foreach (JsonNode form in property["forms"]!.AsArray())
+                {
+                    form!["@context"] = formContext.DeepClone();
+                }
+            }
+            foreach (KeyValuePair<string, JsonNode> entry in wanted["securityDefinitions"]!.AsObject())
+            {
+                if (entry.Key.StartsWith("q:p:", StringComparison.Ordinal))
+                {
+                    entry.Value!["@context"] = ExpectedOwnerContext(
+                        host, host["id"]!.GetValue<string>(), schema: false);
+                }
+                else
+                {
+                    (string _, string href, string json) = sources.Single(source =>
+                        entry.Key.StartsWith(source.SecurityScope, StringComparison.Ordinal));
+                    entry.Value!["@context"] = ExpectedOwnerContext(
+                        (JsonObject)JsonNode.Parse(json)!, href, schema: false);
+                }
+            }
+            AssertJsonEqual(wanted.ToJsonString(), actual.RootElement);
+
+            static JsonArray ExpectedOwnerContext(JsonObject owner, string origin, bool schema)
+            {
+                var context = new JsonArray
+                {
+                    null,
+                    new JsonObject
+                    {
+                        ["ua"] = "http://opcfoundation.org/UA/",
+                        ["uav"] = "http://opcfoundation.org/UA/WoT-Binding/",
+                        ["@base"] = origin
+                    }
+                };
+                foreach (JsonNode entry in owner["@context"]!.AsArray())
+                {
+                    context.Add(entry?.DeepClone());
+                }
+                if (schema)
+                {
+                    context.Add(JsonNode.Parse(
+                        """
+                        {
+                          "title": {"@id":"https://www.w3.org/2019/wot/td#title","@language":"en"},
+                          "description": {"@id":"https://www.w3.org/2019/wot/td#description","@language":"en"},
+                          "titles": {"@container":"@language"},
+                          "descriptions": {"@container":"@language"},
+                          "properties": {"@container":"@index"}
+                        }
+                        """));
+                }
+                return context;
+            }
         }
 
         private static void AssertJsonEqual(string expected, JsonElement actual)
@@ -1007,9 +1108,7 @@ namespace Opc.Ua.Types.Tests.Wot
             "https://www.w3.org/2022/wot/td/v1.1",
             {
               "uav": "http://opcfoundation.org/UA/WoT-Binding/",
-              "tm": "https://www.w3.org/2019/wot/tm#",
-              "pump": "http://example.com/demo/pump",
-              "di": "http://opcfoundation.org/UA/DI/"
+              "tm": "https://www.w3.org/2019/wot/tm#"
             },
             "../opc-ua-wot-binding.context.jsonld"
           ],
@@ -1440,9 +1539,7 @@ namespace Opc.Ua.Types.Tests.Wot
             {
               "uav": "http://opcfoundation.org/UA/WoT-Binding/",
               "ua": "http://opcfoundation.org/UA/",
-              "tm": "https://www.w3.org/2019/wot/tm#",
-              "di": "http://opcfoundation.org/UA/DI/",
-              "pump": "http://example.com/demo/pump"
+              "tm": "https://www.w3.org/2019/wot/tm#"
             },
             "../opc-ua-wot-binding.context.jsonld"
           ],

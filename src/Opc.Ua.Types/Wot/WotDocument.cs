@@ -206,6 +206,14 @@ namespace Opc.Ua.Wot
             return contexts.ToArrayOf();
         }
 
+        internal bool IsContextIndexMap(string term, JsonElement carryingNode)
+        {
+            return TryGetContextTerm(term, out JsonElement definition, carryingNode) &&
+                definition.ValueKind == JsonValueKind.Object &&
+                definition.TryGetProperty("@container", out JsonElement container) &&
+                IsIndexContainer(container);
+        }
+
         private static bool TryFindContextTerm(
             ContextScope? scope, string term, out JsonElement definition)
         {

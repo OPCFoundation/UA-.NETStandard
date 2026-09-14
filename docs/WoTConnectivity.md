@@ -1138,6 +1138,26 @@ relative provenance is resolved at the original containing document location,
 not its runtime endpoint base. Conflicting document contents fetched under the
 same source location in a plan cannot be used interchangeably.
 
+The projection keeps its own ordered root context. Each carried affordance,
+DataSchema, DataType, URI variable, security definition and form retains its
+original effective context in an isolated scope, so a same-spelled prefix in
+another source or the projection does not change its meaning. Local and
+term-scoped overrides and explicit null resets remain effective; source-only
+prefixes do not become projection-wide declarations.
+
+Projection-routed forms retain projection ownership even inside source-owned
+data. Host type and semantic annotations retain host meaning, while a host
+title or description override carries its own term language without retagging
+unchanged source text. Context document references resolve at the original
+document location, not the device endpoint base. Ordered relative `@base`
+entries use the preceding effective base. An opaque logical identifier alone
+does not provide a hierarchical location for resolving a relative context URL.
+Nested semantic contexts follow the same rules; context-looking keys inside
+literal values or opaque metadata are not rewritten. Keys of declared JSON-LD
+index maps are names rather than context declarations, including a key named
+`@context`; a semantic object stored under such a key can still carry its own
+local context.
+
 Referenced reusable schemas are carried into `schemaDefinitions` without
 overwriting the projection owner's definitions. Local references to selected
 DataSchemas follow their selected output names, and recursive schemas reuse

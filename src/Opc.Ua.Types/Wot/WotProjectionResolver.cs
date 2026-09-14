@@ -213,11 +213,10 @@ namespace Opc.Ua.Wot
                     return null;
                 }
 
-                JsonArray? mergedContext = MergeContext(
-                    projectionDocument, sources, diagnostics);
+                string projectionOrigin = documentLocation ?? projectionDocument.Id ?? string.Empty;
                 JsonObject securityDefinitions =
-                    SeedSecurityDefinitions(projectionDocument);
-                var selection = new Selection(securityDefinitions);
+                    SeedSecurityDefinitions(projectionDocument, projectionOrigin);
+                var selection = new Selection(projectionDocument, projectionOrigin, securityDefinitions);
 
                 ArrayOf<WotProjectionReference> references = projection.References;
                 int[] referenceOwner = new int[references.Count];
@@ -283,7 +282,7 @@ namespace Opc.Ua.Wot
                 }
 
                 JsonObject root = AssembleRoot(
-                    projectionDocument, projection.ResultKind, mergedContext, securityDefinitions, selection);
+                    projectionDocument, projection.ResultKind, securityDefinitions, selection);
                 var referencesClosure = new SchemaReferenceClosure(
                     root, projectionDocument, documentLocation, selection, m_options, diagnostics);
                 referencesClosure.Close(cancellationToken);
@@ -780,7 +779,7 @@ namespace Opc.Ua.Wot
                     reference.Reference);
                 return;
             }
-            JsonObject? target = CloneAffordance(definition, pointer, diagnostics);
+            JsonObject? target = CloneAffordance(source, definition, pointer, diagnostics);
             if (target is null)
             {
                 return;
@@ -790,7 +789,7 @@ namespace Opc.Ua.Wot
                 target.Remove("forms");
                 target.Remove("security");
             }
-            MergeAnnotation(target, reference.Annotations, sourceRouting);
+            MergeAnnotation(target, reference.Annotations, sourceRouting, source, definition, selection);
             if (sourceRouting)
             {
                 TransformForms(target, source, selection);
@@ -859,7 +858,7 @@ namespace Opc.Ua.Wot
                 bool sourceRouting =
                     source.Source.Routing == WotProjectionRouting.Source;
                 string pointer = "/" + MapName(kind) + "/" + EscapePointer(name);
-                JsonObject? target = CloneAffordance(definition, pointer, diagnostics);
+                JsonObject? target = CloneAffordance(source, definition, pointer, diagnostics);
                 if (target is null)
                 {
                     continue;
@@ -962,7 +961,7 @@ namespace Opc.Ua.Wot
             }
 
             string outputName = selection.AllocateSupportName(kind, source, name, pointer);
-            JsonObject? value = CloneAffordance(definition, pointer, diagnostics);
+            JsonObject? value = CloneAffordance(source, definition, pointer, diagnostics);
             if (value is null)
             {
                 return null;
@@ -1047,7 +1046,10 @@ namespace Opc.Ua.Wot
         private static void MergeAnnotation(
             JsonObject target,
             JsonElement annotations,
-            bool sourceRouting)
+            bool sourceRouting,
+            ResolvedSource source,
+            JsonElement sourceDefinition,
+            Selection selection)
         {
             if (annotations.ValueKind != JsonValueKind.Object)
             {
@@ -1062,7 +1064,15 @@ namespace Opc.Ua.Wot
                 }
                 if (string.Equals(member.Name, "@type", StringComparison.Ordinal))
                 {
-                    target["@type"] = UnionTypes(target["@type"], member.Value);
+                    target["@type"] = MergeAnnotationTypes(
+                        target["@type"], member.Value, sourceDefinition, source, selection, annotations);
+                    continue;
+                }
+                if (member.Name == "uav:semanticId" && member.Value.ValueKind == JsonValueKind.String)
+                {
+                    target[member.Name] = ExpandSemanticIdentity(
+                        member.Value.GetString()!, selection.Document, annotations,
+                        selection.DocumentHref, vocabulary: false);
                     continue;
                 }
                 if (sourceRouting &&
@@ -1075,6 +1085,10 @@ namespace Opc.Ua.Wot
                     continue;
                 }
                 target[member.Name] = CloneNode(member.Value);
+                if (member.Name is "title" or "description")
+                {
+                    CarryAnnotationLocale(target, selection, annotations, member.Name);
+                }
             }
         }
 
@@ -1087,7 +1101,7 @@ namespace Opc.Ua.Wot
             {
                 CopySecurityClosure(
                     source.Source.SourceName,
-                    source.Document.SecurityDefinitions,
+                    source.Document, source.DocumentHref,
                     NamesFromNode(requirement),
                     selection.SecurityDefinitions,
                     selection.SecurityAdded);
@@ -1116,7 +1130,7 @@ namespace Opc.Ua.Wot
                 {
                     CopySecurityClosure(
                         source.Source.SourceName,
-                        source.Document.SecurityDefinitions,
+                        source.Document, source.DocumentHref,
                         effective,
                         selection.SecurityDefinitions,
                         selection.SecurityAdded);
@@ -1137,7 +1151,8 @@ namespace Opc.Ua.Wot
 
         private static void CopySecurityClosure(
             string? sourceName,
-            IReadOnlyDictionary<string, JsonElement> sourceDefinitions,
+            WotDocument document,
+            string origin,
             List<string> schemeNames,
             JsonObject securityDefinitions,
             HashSet<string> securityAdded)
@@ -1147,7 +1162,7 @@ namespace Opc.Ua.Wot
                 CopyScheme(
                     sourceName,
                     schemeNames[ii],
-                    sourceDefinitions,
+                    document, origin,
                     securityDefinitions,
                     securityAdded);
             }
@@ -1156,11 +1171,12 @@ namespace Opc.Ua.Wot
         private static void CopyScheme(
             string? sourceName,
             string schemeName,
-            IReadOnlyDictionary<string, JsonElement> sourceDefinitions,
+            WotDocument document,
+            string origin,
             JsonObject securityDefinitions,
             HashSet<string> securityAdded)
         {
-            if (!sourceDefinitions.TryGetValue(schemeName, out JsonElement definition) ||
+            if (!document.SecurityDefinitions.TryGetValue(schemeName, out JsonElement definition) ||
                 definition.ValueKind != JsonValueKind.Object)
             {
                 return;
@@ -1170,7 +1186,7 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
-            JsonObject copy = CloneObject(definition);
+            JsonObject copy = CloneOwnedObject(document, definition, origin);
             var children = new List<string>();
             bool combo = definition.TryGetProperty("scheme", out JsonElement scheme) &&
                 scheme.ValueKind == JsonValueKind.String &&
@@ -1204,7 +1220,7 @@ namespace Opc.Ua.Wot
                 CopyScheme(
                     sourceName,
                     children[ii],
-                    sourceDefinitions,
+                    document, origin,
                     securityDefinitions,
                     securityAdded);
             }
@@ -1274,134 +1290,9 @@ namespace Opc.Ua.Wot
             }
         }
 
-        private static JsonArray? MergeContext(
-            WotDocument projectionDocument,
-            ResolvedSource?[] sources,
-            List<WotDiagnostic> diagnostics)
-        {
-            var items = new List<string?>();
-            var inline = new JsonObject();
-            bool inlineAdded = false;
-            var bindings = new Dictionary<string, string>(StringComparer.Ordinal);
-            var strings = new HashSet<string>(StringComparer.Ordinal);
-            var appended = new List<string>();
-
-            if (projectionDocument.TryGetContext(out JsonElement projectionContext))
-            {
-                foreach (JsonElement entry in ContextEntries(projectionContext))
-                {
-                    if (entry.ValueKind == JsonValueKind.String)
-                    {
-                        string value = entry.GetString()!;
-                        items.Add(value);
-                        strings.Add(value);
-                    }
-                    else if (entry.ValueKind == JsonValueKind.Object)
-                    {
-                        if (!inlineAdded)
-                        {
-                            items.Add(null);
-                            inlineAdded = true;
-                        }
-                        foreach (JsonProperty binding in entry.EnumerateObject())
-                        {
-                            inline[binding.Name] = CloneNode(binding.Value);
-                            bindings[binding.Name] = ValueKey(binding.Value);
-                        }
-                    }
-                }
-            }
-
-            for (int ii = 0; ii < sources.Length; ii++)
-            {
-                ResolvedSource? source = sources[ii];
-                if (source is null ||
-                    !source.Document.TryGetContext(out JsonElement sourceContext))
-                {
-                    continue;
-                }
-                foreach (JsonElement entry in ContextEntries(sourceContext))
-                {
-                    if (entry.ValueKind == JsonValueKind.String)
-                    {
-                        string value = entry.GetString()!;
-                        if (strings.Add(value))
-                        {
-                            appended.Add(value);
-                        }
-                    }
-                    else if (entry.ValueKind == JsonValueKind.Object)
-                    {
-                        if (!inlineAdded)
-                        {
-                            items.Add(null);
-                            inlineAdded = true;
-                        }
-                        MergeContextBindings(entry, inline, bindings, diagnostics);
-                    }
-                }
-            }
-
-            if (items.Count == 0 && appended.Count == 0)
-            {
-                return null;
-            }
-            // JsonArray.Add<T> converts a CLR value through the default
-            // JsonSerializerOptions, which carries no type resolver in a Native
-            // AOT application and throws for a plain string. JsonValue.Create
-            // builds the node directly, as the rest of this file already does.
-            var result = new JsonArray();
-            for (int ii = 0; ii < items.Count; ii++)
-            {
-                if (items[ii] is null)
-                {
-                    result.Add(inline);
-                }
-                else
-                {
-                    result.Add(JsonValue.Create(items[ii]));
-                }
-            }
-            for (int ii = 0; ii < appended.Count; ii++)
-            {
-                result.Add(JsonValue.Create(appended[ii]));
-            }
-            return result;
-        }
-
-        private static void MergeContextBindings(
-            JsonElement entry,
-            JsonObject inline,
-            Dictionary<string, string> bindings,
-            List<WotDiagnostic> diagnostics)
-        {
-            foreach (JsonProperty binding in entry.EnumerateObject())
-            {
-                string key = ValueKey(binding.Value);
-                if (bindings.TryGetValue(binding.Name, out string? existing))
-                {
-                    if (!string.Equals(existing, key, StringComparison.Ordinal))
-                    {
-                        AddError(
-                            diagnostics,
-                            WotDiagnosticCode.ProjectionContextConflict,
-                            $"The context prefix '{binding.Name}' is bound to two " +
-                            "different URIs across the projection's sources.",
-                            binding.Name);
-                    }
-                }
-                else
-                {
-                    inline[binding.Name] = CloneNode(binding.Value);
-                    bindings[binding.Name] = key;
-                }
-            }
-        }
-
         private static JsonObject AssembleRoot(
             WotDocument projectionDocument,
             WotDocumentKind resultKind,
-            JsonArray? mergedContext,
             JsonObject securityDefinitions,
             Selection selection)
         {
@@ -1412,10 +1303,7 @@ namespace Opc.Ua.Wot
                 switch (member.Name)
                 {
                     case "@context":
-                        if (mergedContext is not null)
-                        {
-                            root["@context"] = mergedContext;
-                        }
+                        root["@context"] = CloneContext(member.Value, selection.DocumentHref);
                         break;
                     case "@type":
                         root["@type"] = BuildTypeArray(member.Value, resultKind);
@@ -1439,10 +1327,6 @@ namespace Opc.Ua.Wot
                         root[member.Name] = CloneNode(member.Value);
                         break;
                 }
-            }
-            if (!root.ContainsKey("@context") && mergedContext is not null)
-            {
-                root["@context"] = mergedContext;
             }
             if (securityDefinitions.Count > 0)
             {
@@ -1793,13 +1677,13 @@ namespace Opc.Ua.Wot
             }
         }
 
-        private static JsonObject SeedSecurityDefinitions(WotDocument document)
+        private static JsonObject SeedSecurityDefinitions(WotDocument document, string origin)
         {
             var definitions = new JsonObject();
             var added = new HashSet<string>(StringComparer.Ordinal);
             foreach (string name in document.SecurityDefinitions.Keys)
             {
-                CopyScheme(null, name, document.SecurityDefinitions, definitions, added);
+                CopyScheme(null, name, document, origin, definitions, added);
             }
             return definitions;
         }
@@ -1835,36 +1719,6 @@ namespace Opc.Ua.Wot
                     }
                 }
             }
-        }
-
-        private static JsonNode UnionTypes(JsonNode? existing, JsonElement additional)
-        {
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            var tokens = new List<string>();
-            foreach (string token in NodeTokens(existing))
-            {
-                if (seen.Add(token))
-                {
-                    tokens.Add(token);
-                }
-            }
-            foreach (string token in ElementTokens(additional))
-            {
-                if (seen.Add(token))
-                {
-                    tokens.Add(token);
-                }
-            }
-            if (tokens.Count == 1)
-            {
-                return JsonValue.Create(tokens[0]);
-            }
-            var array = new JsonArray();
-            for (int ii = 0; ii < tokens.Count; ii++)
-            {
-                array.Add(JsonValue.Create(tokens[ii]));
-            }
-            return array;
         }
 
         private static JsonArray BuildTypeArray(JsonElement types, WotDocumentKind resultKind)
@@ -1981,28 +1835,6 @@ namespace Opc.Ua.Wot
                     }
                 }
             }
-        }
-
-        private static IEnumerable<JsonElement> ContextEntries(JsonElement context)
-        {
-            if (context.ValueKind == JsonValueKind.Array)
-            {
-                foreach (JsonElement entry in context.EnumerateArray())
-                {
-                    yield return entry;
-                }
-            }
-            else
-            {
-                yield return context;
-            }
-        }
-
-        private static string ValueKey(JsonElement value)
-        {
-            return value.ValueKind == JsonValueKind.String
-                ? "s:" + value.GetString()
-                : "r:" + value.GetRawText();
         }
 
         private static bool VerifyDigest(ReadOnlyMemory<byte> content, string digest)
@@ -2526,10 +2358,16 @@ namespace Opc.Ua.Wot
 
         private sealed class Selection
         {
-            public Selection(JsonObject securityDefinitions)
+            public Selection(WotDocument document, string documentHref, JsonObject securityDefinitions)
             {
+                Document = document;
+                DocumentHref = documentHref;
                 SecurityDefinitions = securityDefinitions;
             }
+
+            public WotDocument Document { get; }
+
+            public string DocumentHref { get; }
 
             public List<ResolvedAffordance> Properties { get; } = [];
 
