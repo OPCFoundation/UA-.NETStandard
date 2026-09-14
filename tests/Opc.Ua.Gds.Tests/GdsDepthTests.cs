@@ -346,14 +346,44 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(results, Has.Count.Zero);
         }
 
-        [Test]
-        public async Task AppDirFindApplicationsEmptyUriAsync()
+        [TestCase("")]
+        [TestCase(" ")]
+        public async Task AppDirFindApplicationsEmptyUriAsync(string applicationUri)
         {
-            List<ApplicationRecordDataType> results = await FindAppsAsync(string.Empty)
-                .ConfigureAwait(false);
-            Assert.That(results, Is.Not.Null);
+            // OPC 10000-12 §6.5.4: an empty ApplicationUri is not a valid URI
+            // and must not return every registered application
+            // (CTT GDS Application Directory 004.js).
+            CallResponse response = await Session.CallAsync(
+                null,
+                new CallMethodRequest[] {
+                    new() {
+                        ObjectId = m_directoryNodeId,
+                        MethodId = ToNodeId(MethodIds.Directory_FindApplications),
+                        InputArguments = new Variant[] { new(applicationUri) }.ToArrayOf()
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// A string that is not a registered ApplicationUri, even one that is not
+        /// a URI, returns an empty result (CTT GDS Application Directory 003.js
+        /// calls FindApplications with 100 to MaxStringLength 'X' characters).
+        /// </summary>
+        [TestCase("not a URI")]
+        [TestCase(100)]
+        [TestCase(50000)]
+        public async Task AppDirFindApplicationsUnknownNonUriReturnsEmptyAsync(object value)
+        {
+            string applicationUri = value is int length ? new string('X', length) : (string)value;
+            List<ApplicationRecordDataType> results = await FindAppsAsync(applicationUri)
+                .ConfigureAwait(false);
+            Assert.That(results, Is.Empty);
+        }
         [Test]
         public async Task AppDirFindApplicationsAfterMultipleRegistrationsAsync()
         {
