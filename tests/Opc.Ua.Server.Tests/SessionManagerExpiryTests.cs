@@ -107,6 +107,59 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        [Test]
+        public async Task ConcurrentActivationsOfAnExpiredSessionCountTheTimeoutOnceAsync()
+        {
+            var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var fixture = new ServerFixture<ExpiringSessionServer>(t => new ExpiringSessionServer(t, clock));
+            ExpiringSessionServer server = await fixture.StartAsync().ConfigureAwait(false);
+            try
+            {
+                var serverInternal = (ServerInternalData)server.CurrentInstance;
+                for (int round = 0; round < 5; round++)
+                {
+                    (RequestHeader requestHeader, SecureChannelContext secureChannelContext) =
+                        await server.CreateAndActivateSessionAsync("ConcurrentExpired" + round)
+                            .ConfigureAwait(false);
+                    uint timeoutsBefore = serverInternal.ServerDiagnostics.SessionTimeoutCount;
+                    clock.Advance(TimeSpan.FromDays(2));
+
+                    var activations = new Task<ActivateSessionResponse>[8];
+                    for (int ii = 0; ii < activations.Length; ii++)
+                    {
+                        activations[ii] = Task.Run(() => server.ActivateSessionAsync(
+                            secureChannelContext,
+                            requestHeader,
+                            null,
+                            [],
+                            [],
+                            default,
+                            null,
+                            RequestLifetime.None).AsTask());
+                    }
+                    Task all = Task.WhenAll(activations);
+                    Task completed = await Task.WhenAny(all, Task.Delay(s_callTimeout)).ConfigureAwait(false);
+                    Assert.That(completed, Is.SameAs(all), "Concurrent activations must not block.");
+
+                    foreach (Task<ActivateSessionResponse> activation in activations)
+                    {
+                        ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(() => activation)!;
+                        Assert.That(
+                            ex.StatusCode,
+                            Is.EqualTo(StatusCodes.BadSessionClosed).Or.EqualTo(StatusCodes.BadSessionIdInvalid));
+                    }
+                    Assert.That(
+                        serverInternal.ServerDiagnostics.SessionTimeoutCount,
+                        Is.EqualTo(timeoutsBefore + 1),
+                        "One expired session must be counted as one timeout.");
+                }
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
         /// <summary>
         /// Server whose session manager uses a fake clock and no session monitor loop.
         /// </summary>

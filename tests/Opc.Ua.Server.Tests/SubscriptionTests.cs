@@ -1695,7 +1695,39 @@ namespace Opc.Ua.Server.Tests
                 queueSize: 10,
                 discardOldest: true,
                 sourceSamplingInterval: 1000);
-            await RegisterMonitoredItemsAsync(subscription, monitoredItem).ConfigureAwait(false);
+            using var linkedItem = new MonitoredItem(
+                m_serverMock.Object,
+                itemOwner.Object,
+                new object(),
+                subscription.Id,
+                id: 14,
+                new ReadValueId
+                {
+                    NodeId = new NodeId("AbandonedTransferLinkedValue", 2),
+                    AttributeId = Attributes.Value
+                },
+                DiagnosticsMasks.None,
+                TimestampsToReturn.Both,
+                MonitoringMode.Sampling,
+                clientHandle: 15,
+                originalFilter: null,
+                filterToUse: null,
+                range: null,
+                samplingInterval: 1000,
+                queueSize: 10,
+                discardOldest: true,
+                sourceSamplingInterval: 1000);
+            await RegisterMonitoredItemsAsync(subscription, monitoredItem, linkedItem).ConfigureAwait(false);
+            subscription.SetTriggering(
+                fixture.SourceContext,
+                monitoredItem.Id,
+                [linkedItem.Id],
+                [],
+                out ArrayOf<StatusCode> addResults,
+                out _,
+                out _,
+                out _);
+            Assert.That(addResults[0], Is.EqualTo((StatusCode)StatusCodes.Good));
             m_nodeManagerMock
                 .Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
                     It.IsAny<OperationContext>(),
@@ -1723,8 +1755,11 @@ namespace Opc.Ua.Server.Tests
                     CancellationToken.None)
                 .ConfigureAwait(false);
 
-            // A value is sampled while no Session owns the subscription, and the publish
+            // Values are sampled while no Session owns the subscription, and the publish
             // timer keeps running until the keep-alive is due.
+            // The triggering item only becomes ready to trigger with its second value.
+            linkedItem.QueueValue(new DataValue(new Variant(7)), null);
+            monitoredItem.QueueValue(new DataValue(new Variant(41)), null);
             monitoredItem.QueueValue(new DataValue(new Variant(42)), null);
             uint maxKeepAliveCount = GetPrivateField<uint>(subscription, "m_maxKeepAliveCount");
             for (uint ii = 0; ii < maxKeepAliveCount; ii++)
@@ -1744,7 +1779,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(transferred.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
 
             // OPC 10000-4 §5.14.1.1: a keep-alive is only sent when no notifications are
-            // available; the value buffered while the client was away must be returned.
+            // available; the values buffered while the client was away, including the value
+            // of the linked Sampling item (§5.13.5), must be returned.
             NotificationMessage message = subscription.Publish(
                 fixture.DestinationContext,
                 out _,
@@ -1755,8 +1791,13 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 message.NotificationData[0].TryGetValue(out DataChangeNotification dataChange),
                 Is.True);
-            Assert.That(dataChange.MonitoredItems, Has.Count.EqualTo(1));
-            Assert.That(dataChange.MonitoredItems[0].Value.WrappedValue, Is.EqualTo(new Variant(42)));
+            var clientHandles = new List<uint>();
+            foreach (MonitoredItemNotification notification in dataChange.MonitoredItems)
+            {
+                clientHandles.Add(notification.ClientHandle);
+            }
+            Assert.That(clientHandles, Does.Contain(13u), "Triggering item values");
+            Assert.That(clientHandles, Does.Contain(15u), "Linked Sampling item value");
         }
 
         [Test]
