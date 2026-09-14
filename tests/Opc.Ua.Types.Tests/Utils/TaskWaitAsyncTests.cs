@@ -34,7 +34,17 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Types.Tests.Utils
 {
+    /// <summary>
+    /// Pins timeout and cancellation semantics of Task.WaitAsync across the
+    /// BCL and older-framework polyfills. Completed tasks retain their results,
+    /// source cancellation stays cancellation, and abandoning a wait does not
+    /// cancel the underlying task.
+    /// </summary>
     [TestFixture]
+    [Category("Utils")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
+    [Parallelizable]
     public sealed class TaskWaitAsyncTests
     {
         [TestCase(false, false)]
@@ -110,6 +120,49 @@ namespace Opc.Ua.Types.Tests.Utils
                 Assert.That(exception.CancellationToken, Is.EqualTo(canceled.Token));
             });
             source.SetResult(42);
+        }
+
+        [Test]
+        public async Task CompletedTaskWinsOverAnAlreadyCancelledTokenAsync()
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            Task<int> completed = Task.FromResult(42);
+
+            Assert.That(
+                await completed.WaitAsync(cts.Token).ConfigureAwait(false),
+                Is.EqualTo(42),
+                "a completed task must be handed back rather than reported as cancelled");
+        }
+
+        [Test]
+        public void CompletedNonGenericTaskWinsOverAnAlreadyCancelledToken()
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            Assert.That(
+                async () => await Task.CompletedTask.WaitAsync(cts.Token).ConfigureAwait(false),
+                Throws.Nothing);
+        }
+
+        [Test]
+        public void PendingTaskObservesTheCancellation()
+        {
+            using var cts = new CancellationTokenSource();
+            var pending = new TaskCompletionSource<int>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            Task<int> wait = pending.Task.WaitAsync(cts.Token);
+            cts.Cancel();
+
+            Assert.That(
+                () => wait,
+                Throws.InstanceOf<OperationCanceledException>());
+
+            // The abandoned wait must not fault the underlying task.
+            pending.TrySetResult(1);
         }
     }
 }

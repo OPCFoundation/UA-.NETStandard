@@ -249,14 +249,15 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
-        public void CloneRetainsExistingAccessRestrictionOmission()
+        public void CloneCopiesAccessRestrictions()
         {
             var source = new BaseObjectState(null) { AccessRestrictions = AccessRestrictionType.SigningRequired };
             var copy = (BaseObjectState)source.Clone();
-            // CopyTo does not copy AccessRestrictions; changing that is not a storage optimization.
-            Assert.That(copy.AccessRestrictions, Is.Null);
-            Assert.That(s_securityField.GetValue(copy), Is.Null);
-            Assert.That(copy.DeepEquals(source), Is.False);
+            // CopyTo used to drop AccessRestrictions (and UserWriteMask) entirely.
+            Assert.That(copy.AccessRestrictions, Is.EqualTo(AccessRestrictionType.SigningRequired));
+            Assert.That(s_securityField.GetValue(copy), Is.Not.Null);
+            Assert.That(copy.DeepEquals(source), Is.True);
+            // The copy has its own storage.
             copy.AccessRestrictions = AccessRestrictionType.EncryptionRequired;
             Assert.That(source.AccessRestrictions, Is.EqualTo(AccessRestrictionType.SigningRequired));
         }
@@ -413,7 +414,9 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(calls, Is.EqualTo(1));
             Assert.That(node.AccessRestrictions, Is.EqualTo(reset
                 ? (AccessRestrictionType?)null : AccessRestrictionType.EncryptionRequired));
-            Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            // A successful write raises the change mask so that monitored
+            // items on the attribute are notified.
+            Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.NonValue));
             Assert.That(s_securityField.GetValue(node), reset ? Is.Null : Is.Not.Null);
         }
 

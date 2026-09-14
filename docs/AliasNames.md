@@ -74,7 +74,9 @@ services.AddOpcUa()
 ```
 
 `AddAliasNameStore(...)` and `AddAliasNameStoreRegistry(...)` register
-their stores before address-space startup. The opt-in
+their stores before address-space startup, after application
+`IServerPreStartupTask` registrations have finished initializing source
+registries. The opt-in
 `ConfigureAliasNames(Action<AliasNameServerOptions>)` extension is on
 `IOpcUaServerBuilder` in `Microsoft.Extensions.DependencyInjection`.
 `AliasNameServerOptions` is in `Opc.Ua.Server.AliasNames`, and its

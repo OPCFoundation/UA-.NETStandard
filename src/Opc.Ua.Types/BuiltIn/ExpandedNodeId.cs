@@ -452,7 +452,7 @@ namespace Opc.Ua
             // check for null.
             if (obj is null)
             {
-                return IsNull ? 0 : -1;
+                return IsNull ? 0 : 1;
             }
 
             // just compare node ids.
@@ -494,7 +494,8 @@ namespace Opc.Ua
             }
             else
             {
-                nodeId = NodeId.Null;
+                // Not comparable to a foreign type - never report equality.
+                return -1;
             }
 
             // check for null.
@@ -538,6 +539,7 @@ namespace Opc.Ua
             {
                 null => IsNull,
                 ExpandedNodeId e => Equals(e),
+                NodeId n => Equals(n),
                 _ => false
             };
         }
@@ -900,10 +902,12 @@ namespace Opc.Ua
             }
             else
             {
+                // The identifier itself must still be written, otherwise the
+                // result ("nsu=<uri>;i=") cannot be parsed back.
                 Format(
                     formatProvider,
                     buffer,
-                    null!,
+                    "0",
                     IdType.Numeric,
                     0,
                     NamespaceUri,
@@ -1411,14 +1415,25 @@ namespace Opc.Ua
                     return false;
                 }
 
-                if (ushort.TryParse(text[4..index], out ushort ns))
+                if (!uint.TryParse(
+                    text[4..index],
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out uint svr))
                 {
-                    serverIndex = ns;
+                    // An unparsable or out of range index must not be silently
+                    // dropped - that would turn a remote node id into a local
+                    // one, and TryParse would report success while doing it.
+                    error = NodeIdParseError.InvalidServerIndex;
+                    return false;
+                }
 
-                    if (options?.ServerMappings != null && options.NamespaceMappings != null && options.NamespaceMappings.Length < ns)
-                    {
-                        serverIndex = options.NamespaceMappings[ns];
-                    }
+                serverIndex = (int)svr;
+
+                if (options?.ServerMappings != null &&
+                    svr < (uint)options.ServerMappings.Length)
+                {
+                    serverIndex = options.ServerMappings[svr];
                 }
 
                 text = text[(index + 1)..];
@@ -1461,8 +1476,11 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (namespaceIndex > 0)
+            if (namespaceUri != null && namespaceIndex >= 0)
             {
+                // A resolved nsu= becomes a relative node id, also when it
+                // resolves to namespace zero, so that the result matches what
+                // NodeId.Parse produces for the equivalent ns= form.
                 value = new ExpandedNodeId(
                     WithResolvedNamespace(nodeId, (ushort)namespaceIndex),
                     null,

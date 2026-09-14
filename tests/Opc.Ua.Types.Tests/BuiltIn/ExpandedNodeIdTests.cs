@@ -570,7 +570,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CompareToNullWhenNotNull()
         {
             var id = new ExpandedNodeId(42u);
-            Assert.That(id.CompareTo(null), Is.LessThan(0));
+
+            // A null operand sorts before any value, matching NodeId.CompareTo.
+            Assert.That(id.CompareTo(null), Is.GreaterThan(0));
         }
 
         [Test]

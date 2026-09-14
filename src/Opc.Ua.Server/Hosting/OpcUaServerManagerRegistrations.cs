@@ -170,14 +170,15 @@ namespace Opc.Ua.Server.Hosting
                     registration.Resolve(services),
                     registration.OwnsProvider);
             }
-            server.AddPreStartupTask(
-                services.GetService<OpcUaServerAliasNameStartupTask>() ??
-                    new OpcUaServerAliasNameStartupTask(services));
             foreach (IServerPreStartupTask task in
                 services.GetServices<IServerPreStartupTask>())
             {
                 server.AddPreStartupTask(task);
             }
+            // Application tasks may populate source registries used by address-space materialization.
+            server.AddPreStartupTask(
+                services.GetService<OpcUaServerAliasNameStartupTask>() ??
+                    new OpcUaServerAliasNameStartupTask(services));
         }
     }
 

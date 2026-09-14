@@ -139,8 +139,12 @@ namespace Opc.Ua.Aot.Tests
             var copy = (NodeState)node.Clone();
             await Assert.That(copy.RolePermissions == permissions).IsTrue();
             await Assert.That(copy.UserRolePermissions == userPermissions).IsTrue();
-            // CopyTo intentionally does not copy AccessRestrictions.
-            await Assert.That(copy.AccessRestrictions).IsNull();
+            // Clone is a full copy, so it carries the node's access control too.
+            // Dropping AccessRestrictions silently handed out a copy that was
+            // less restricted than the node it was made from.
+            await Assert.That(copy.AccessRestrictions.HasValue).IsTrue();
+            await Assert.That(copy.AccessRestrictions.GetValueOrDefault())
+                .IsEqualTo(AccessRestrictionType.SigningRequired);
 
             await node.ClearChangeMasksAsync(context, false).ConfigureAwait(false);
             node.AccessRestrictions = null;
