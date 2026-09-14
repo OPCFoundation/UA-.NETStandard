@@ -316,9 +316,70 @@ With the server fixes of 2026-09-14, the recommended run reports errors only in 
 skips `Test_001.js`–`Test_004.js` (C19) and `Err_006.js`; ten Shelving test cases pass without testing
 anything unless chattering alarms are configured (see ctt-issues.md, CTT project configuration notes).
 
+## 7. Session and Subscription Services
+
+The *Session Services* group (4 CUs, 32 test cases) and the *Subscription Services* group (14 CUs,
+215 test cases) are fast once the server is healthy. Run each group as **one** CTT process on a fresh
+server; splitting them per CU buys nothing.
+
+### Recommended run
+
+1. **Selection:** every CU of the group, built with the generator in section 3 (filter
+   `$g -eq 'Session Services'` or `$g -eq 'Subscription Services'`). Give each group its own fresh
+   server; Session Base times sessions out and opens the maximum number of sessions (`Err-019.js`).
+2. **Server:** `ConsoleReferenceServer.exe --ctt -a -c`. Session Change User and Subscription Durable `004.js` log in with
+   `/Server Test/Session/LoginNameGranted1` (sysadmin/demo); `LoginNameAccessDenied` (username/password) is
+   not a user of the reference server, so Session Base `Err-010.js` is rejected as it expects.
+   `Ctt.ReferenceServer.Config.xml` provides MaxSessionCount 75, MinSessionTimeout 10 s and disables the
+   certificate-keyed authentication lockout. The only test case with a not-trusted client certificate,
+   Session Base `012.js`, uses SecurityPolicy None, where the certificate is not validated, and it
+   passes with `-a`.
+3. **Timeouts:** 20 minutes per group. The CTT writes results only at the end.
+4. **Project path:** keep the project copy on a short path (for example `%TEMP%\ctt\<Project>`). The
+   certificate settings are relative (`PKI/CA/certs/ctt_appT.der`); from a copy about 230 characters deep
+   the CTT fails with *"LoadCertificate failed to load certificate"* and every test case errors.
+
+### Timings
+
+Measured on 2026-09-14 (CTT 1.05.06, scripts 1.05.513, fresh server per part):
+
+| CU | Cases | Duration |
+| --- | --- | --- |
+| Subscription Basic | 99 | 5:17 |
+| Subscription Durable | 20 | 1:45 |
+| Subscription Minimum 02 | 29 | 2:05 |
+| Subscription Minimum 05 | 12 | 0:40 |
+| Subscription Publish Basic / Min 05 / Min 10 | 8 / 5 / 4 | 0:27 / 0:49 / 0:21 |
+| Subscription Transfer | 29 | 0:47 |
+| Subscription Multiple, PublishRequest Queue Overflow, Retransmission Queue, Durable StorageLevel High/Medium/Small | 1–3 each | 0:08–0:18 (manual or no test cases) |
+| **Subscription Services, one process** | 215 | **10:56** |
+| **Session Services, one process** | 32 | **0:45** (9:03 before the ActivateSession fix) |
+
+The durations include the CTT's own start-up and project loading of about 10–15 s.
+
+Before the server fix of 2026-09-14 the Session group took 9 minutes: after Session Base `002.js` every
+CreateSession waited for the CTT's 20 s request timeout (see [ctt-issues.md](ctt-issues.md), open server
+findings).
+
+### Expected result
+
+With the server fixes of 2026-09-14:
+
+- **Subscription Services:** errors only in Subscription Minimum 02 `020.js` (issue 19) and Subscription
+  Durable `012.js` (C33). Warnings: Durable `002.js` (RevisedLifetimeInHours 10 for a requested UInt32 max,
+  expected), Publish Min 05 `003.js` (project configuration), and CloseSession latency in Subscription Basic
+  `Err-011.js` (always) and Publish Basic `cleanup.js` (sometimes).
+- **Session Services:** errors only in Session Base `Err-002.js`, `Err-005.js` and `Err-022.js` (C32).
+  Skips: `Err-009.js` (no Kerberos in the CTT) and `Err-023.js` (the server offers SecurityPolicy None).
+
 ## Pitfalls
 
 - Omitting `--result` silently overwrites `<Project>.results.xml`. Back it up first if
   the previous run matters.
 - A server left running from an earlier session holds port 62541, and the CTT then
   tests an old build. Check `Get-Process ConsoleReferenceServer` and the banner sha.
+- Several automated runs sharing one machine must take turns. Wait until no
+  `ConsoleReferenceServer`, no `uacompliancetest.exe` with `--settings` and no listener on port 62541
+  has been seen for about a minute, check again immediately before starting the server, and treat
+  *"Failed to establish tcp listener sockets on port 62541"* in the server output as "busy, retry later".
+  Never stop a server or CTT you did not start; a `uacompliancetest.exe` without arguments is the GUI.
