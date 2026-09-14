@@ -381,7 +381,8 @@ namespace Opc.Ua.Bindings
                         ServiceResult.Create(
                             e,
                             StatusCodes.BadTcpInternalError,
-                            "Unexpected error processing request."));
+                            "Unexpected error processing request."),
+                        request.RequestHeader?.RequestHandle ?? 0);
                 }
             }
         }
@@ -1531,7 +1532,8 @@ namespace Opc.Ua.Bindings
                             requestId,
                             ServiceResult.Create(
                                 StatusCodes.BadSecurityPolicyRejected,
-                                "Discovery Channel message size exceeded."));
+                                "Discovery Channel message size exceeded."),
+                            ReadRequestHandle(chunksToProcess));
                         ChannelClosed();
                     }
 
@@ -1640,7 +1642,7 @@ namespace Opc.Ua.Bindings
             }
 
             using var stream = new ArraySegmentStream(chunks);
-            return RequestHandleReader.FromBinary(stream, Quotas.MessageContext);
+            return RequestHandleReader.FromBinary(stream);
         }
 
         /// <summary>
@@ -1695,7 +1697,8 @@ namespace Opc.Ua.Bindings
                         ServiceResult.Create(
                             e,
                             StatusCodes.BadEncodingError,
-                            "Could not encode outgoing message."));
+                            "Could not encode outgoing message."),
+                        response.ResponseHeader?.RequestHandle ?? 0);
 
                     return;
                 }
@@ -1788,13 +1791,17 @@ namespace Opc.Ua.Bindings
                 typeId != ObjectIds.FindServersRequest_Encoding_DefaultBinary &&
                 typeId != ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultBinary)
             {
+                // The body is only the first chunk, but a RequestHeader starts
+                // every request; read it before the body changes hands.
+                uint requestHandle = RequestHandleReader.FromBinary(messageBody);
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
                 SendServiceFault(
                     token,
                     requestId,
                     ServiceResult.Create(
                         StatusCodes.BadSecurityPolicyRejected,
-                        "Channel can only be used for discovery."));
+                        "Channel can only be used for discovery."),
+                    requestHandle);
                 return false;
             }
             return true;

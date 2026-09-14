@@ -74,9 +74,56 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 () => BinaryDecoder.DecodeMessage<IServiceRequest>(message, decodeContext))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
 
-            Assert.That(RequestHandleReader.FromBinary(message, decodeContext), Is.EqualTo(kRequestHandle));
+            Assert.That(RequestHandleReader.FromBinary(message), Is.EqualTo(kRequestHandle));
             using var stream = new MemoryStream(message);
-            Assert.That(RequestHandleReader.FromBinary(stream, decodeContext), Is.EqualTo(kRequestHandle));
+            Assert.That(RequestHandleReader.FromBinary(stream), Is.EqualTo(kRequestHandle));
+        }
+
+        /// <summary>
+        /// The AuthenticationToken itself can be the field the decoder rejects;
+        /// the reader skips it by its encoded length.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void FromBinaryReadsHandleWhenAuthenticationTokenIsAboveLimits(bool byteStringToken)
+        {
+            ReadRequest request = CreateOversizedRequest(false);
+            request.RequestHeader.AuthenticationToken = byteStringToken
+                ? new NodeId(ByteString.From(new byte[10 * kDecodeMaxStringLength]), 2)
+                : new NodeId(new string('t', 10 * kDecodeMaxStringLength), 2);
+            byte[] message = BinaryEncoder.EncodeMessage(request, CreateContext(0));
+            ServiceMessageContext decodeContext = CreateContext(kDecodeMaxStringLength);
+            decodeContext.MaxByteStringLength = kDecodeMaxStringLength;
+
+            Assert.That(
+                () => BinaryDecoder.DecodeMessage<IServiceRequest>(message, decodeContext),
+                Throws.TypeOf<ServiceResultException>());
+            Assert.That(RequestHandleReader.FromBinary(message), Is.EqualTo(kRequestHandle));
+        }
+
+        [Test]
+        public void FromBinaryReadsHandleFromArraySegmentAndNonSeekableStream()
+        {
+            byte[] message = BinaryEncoder.EncodeMessage(CreateOversizedRequest(true), CreateContext(0));
+            byte[] framed = new byte[message.Length + 16];
+            message.CopyTo(framed, 8);
+
+            Assert.That(
+                RequestHandleReader.FromBinary(new ArraySegment<byte>(framed, 8, message.Length)),
+                Is.EqualTo(kRequestHandle));
+            Assert.That(RequestHandleReader.FromBinary(default(ArraySegment<byte>)), Is.Zero);
+            using var nonSeekable = new NonSeekableStream(message);
+            Assert.That(RequestHandleReader.FromBinary(nonSeekable), Is.EqualTo(kRequestHandle));
+        }
+
+        [TestCase(new byte[] { 0x40, 0x00 })]
+        [TestCase(new byte[] { 0x80, 0x00 })]
+        [TestCase(new byte[] { 0x06, 0x00 })]
+        [TestCase(new byte[] { 0x03, 0x00, 0x00, 0xFE, 0xFF, 0xFF, 0xFF })]
+        [TestCase(new byte[] { 0x03, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x41 })]
+        public void FromBinaryReturnsZeroForInvalidNodeIdEncoding(byte[] message)
+        {
+            Assert.That(RequestHandleReader.FromBinary(message), Is.Zero);
         }
 
         [TestCase(0)]
@@ -87,15 +134,15 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             byte[] message = BinaryEncoder.EncodeMessage(CreateOversizedRequest(false), CreateContext(0));
 
             Assert.That(
-                RequestHandleReader.FromBinary(message.AsSpan(0, length).ToArray(), CreateContext(0)),
+                RequestHandleReader.FromBinary(message.AsSpan(0, length).ToArray()),
                 Is.Zero);
         }
 
         [Test]
         public void FromBinaryReturnsZeroForNull()
         {
-            Assert.That(RequestHandleReader.FromBinary((byte[]?)null, CreateContext(0)), Is.Zero);
-            Assert.That(RequestHandleReader.FromBinary((Stream?)null, CreateContext(0)), Is.Zero);
+            Assert.That(RequestHandleReader.FromBinary((byte[]?)null), Is.Zero);
+            Assert.That(RequestHandleReader.FromBinary((Stream?)null), Is.Zero);
         }
 
         [Test]
@@ -156,6 +203,16 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 new ServiceResultException(StatusCodes.BadSecurityPolicyRejected),
                 kRequestHandle);
             Assert.That(fault.ResponseHeader.RequestHandle, Is.EqualTo(7u));
+        }
+
+        private sealed class NonSeekableStream : MemoryStream
+        {
+            public NonSeekableStream(byte[] buffer)
+                : base(buffer, writable: false)
+            {
+            }
+
+            public override bool CanSeek => false;
         }
 
         private ServiceMessageContext CreateContext(int maxStringLength)

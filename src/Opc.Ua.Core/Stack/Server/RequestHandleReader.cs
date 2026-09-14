@@ -44,8 +44,8 @@ namespace Opc.Ua
     /// Every service request starts with its RequestHeader, whose first fields
     /// are authenticationToken (NodeId), timestamp (UtcTime) and requestHandle
     /// (IntegerId) (OPC 10000-4 §7.32). Only those leading fields are read, so a
-    /// request that fails later, for example on a string argument above
-    /// MaxStringLength, still yields its handle. The methods are best effort
+    /// request that fails anywhere, for example on a string above MaxStringLength,
+    /// still yields its handle. The methods are best effort
     /// and return 0 when the handle cannot be read.
     /// </remarks>
     internal static class RequestHandleReader
@@ -54,10 +54,15 @@ namespace Opc.Ua
         /// Reads the RequestHandle from a binary encoded request message: the
         /// encoding NodeId followed by the request body (OPC 10000-6 §5.2.9).
         /// </summary>
+        /// <remarks>
+        /// The NodeIds before the handle are skipped by their encoded length
+        /// (OPC 10000-6 §5.2.2.9) rather than decoded, so a request that was
+        /// rejected because its AuthenticationToken exceeds MaxStringLength or
+        /// MaxByteStringLength still yields the handle.
+        /// </remarks>
         /// <param name="message">The message body.</param>
-        /// <param name="context">The decoding context.</param>
         /// <returns>The RequestHandle, or 0 if it cannot be read.</returns>
-        public static uint FromBinary(Stream? message, IServiceMessageContext context)
+        public static uint FromBinary(Stream? message)
         {
             if (message == null)
             {
@@ -66,8 +71,12 @@ namespace Opc.Ua
 
             try
             {
-                using var decoder = new BinaryDecoder(message, context);
-                return ReadBinaryRequestHandle(decoder);
+                return SkipNodeId(message) && // encoding id of the request
+                    SkipNodeId(message) && // RequestHeader.AuthenticationToken
+                    Skip(message, 8) && // RequestHeader.Timestamp
+                    TryReadUInt32(message, out uint requestHandle)
+                    ? requestHandle
+                    : 0;
             }
             catch (Exception)
             {
@@ -75,23 +84,22 @@ namespace Opc.Ua
             }
         }
 
-        /// <inheritdoc cref="FromBinary(Stream, IServiceMessageContext)"/>
-        public static uint FromBinary(byte[]? message, IServiceMessageContext context)
+        /// <inheritdoc cref="FromBinary(Stream)"/>
+        public static uint FromBinary(byte[]? message)
         {
-            if (message == null)
+            return message == null ? 0 : FromBinary(new ArraySegment<byte>(message));
+        }
+
+        /// <inheritdoc cref="FromBinary(Stream)"/>
+        public static uint FromBinary(ArraySegment<byte> message)
+        {
+            if (message.Array == null)
             {
                 return 0;
             }
 
-            try
-            {
-                using var decoder = new BinaryDecoder(message, context);
-                return ReadBinaryRequestHandle(decoder);
-            }
-            catch (Exception)
-            {
-                return 0;
-            }
+            using var stream = new MemoryStream(message.Array, message.Offset, message.Count, writable: false);
+            return FromBinary(stream);
         }
 
         /// <summary>
@@ -175,12 +183,75 @@ namespace Opc.Ua
             return 0;
         }
 
-        private static uint ReadBinaryRequestHandle(BinaryDecoder decoder)
+        /// <summary>
+        /// Skips a NodeId (OPC 10000-6 §5.2.2.9). The ExpandedNodeId flags are
+        /// not valid for a NodeId and end the read.
+        /// </summary>
+        private static bool SkipNodeId(Stream stream)
         {
-            _ = decoder.ReadNodeId(null); // encoding id of the request
-            _ = decoder.ReadNodeId(null); // RequestHeader.AuthenticationToken
-            _ = decoder.ReadDateTime(null); // RequestHeader.Timestamp
-            return decoder.ReadUInt32(null); // RequestHeader.RequestHandle
+            int encoding = stream.ReadByte();
+            switch (encoding)
+            {
+                case 0x00: // two byte: identifier
+                    return Skip(stream, 1);
+                case 0x01: // four byte: namespace (byte), identifier (UInt16)
+                    return Skip(stream, 3);
+                case 0x02: // numeric: namespace (UInt16), identifier (UInt32)
+                    return Skip(stream, 6);
+                case 0x04: // guid: namespace (UInt16), identifier (Guid)
+                    return Skip(stream, 18);
+                case 0x03: // string: namespace (UInt16), identifier (String)
+                case 0x05: // opaque: namespace (UInt16), identifier (ByteString)
+                    if (!Skip(stream, 2) || !TryReadUInt32(stream, out uint length))
+                    {
+                        return false;
+                    }
+                    // -1 encodes a null string
+                    return length == uint.MaxValue ||
+                        (length <= int.MaxValue && Skip(stream, (int)length));
+                default:
+                    return false;
+            }
+        }
+
+        private static bool Skip(Stream stream, int count)
+        {
+            if (stream.CanSeek)
+            {
+                if (stream.Length - stream.Position < count)
+                {
+                    return false;
+                }
+                stream.Seek(count, SeekOrigin.Current);
+                return true;
+            }
+
+            byte[] scratch = new byte[Math.Min(count, 4096)];
+            while (count > 0)
+            {
+                int read = stream.Read(scratch, 0, Math.Min(count, scratch.Length));
+                if (read <= 0)
+                {
+                    return false;
+                }
+                count -= read;
+            }
+            return true;
+        }
+
+        private static bool TryReadUInt32(Stream stream, out uint value)
+        {
+            value = 0;
+            for (int shift = 0; shift < 32; shift += 8)
+            {
+                int next = stream.ReadByte();
+                if (next < 0)
+                {
+                    return false;
+                }
+                value |= (uint)next << shift;
+            }
+            return true;
         }
 
         private const int kOther = 0;

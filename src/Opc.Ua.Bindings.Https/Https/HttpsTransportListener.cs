@@ -1226,7 +1226,7 @@ namespace Opc.Ua.Bindings
                         m_logger,
                         null,
                         sre,
-                        RequestHandleReader.FromBinary(buffer, m_quotas.MessageContext));
+                        RequestHandleReader.FromBinary(buffer));
                     await WriteServiceResponseAsync(context, decodeFault, ct).ConfigureAwait(false);
                     return;
                 }
