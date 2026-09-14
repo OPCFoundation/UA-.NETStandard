@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using Alarms;
 using NUnit.Framework;
@@ -81,6 +82,26 @@ namespace Opc.Ua.Server.Tests
                 "One simulation period must visit every limit state.");
         }
 
+        [Test]
+        public void ControllersScheduleTheirStepsOnSharedIntervalBoundaries()
+        {
+            // Two controllers that stepped a few milliseconds apart must still be due in the
+            // same simulation pass; relative scheduling let them drift a timer tick apart.
+            var analogStep = new DateTime(2026, 9, 14, 9, 17, 4, 980, DateTimeKind.Local);
+            DateTime booleanStep = analogStep.AddMilliseconds(15);
+
+            DateTime analogNext = SteppableAlarmController.NextBoundary(analogStep, 1000);
+            DateTime booleanNext = SteppableAlarmController.NextBoundary(booleanStep, 1000);
+
+            Assert.That(analogNext, Is.EqualTo(new DateTime(2026, 9, 14, 9, 17, 5, DateTimeKind.Local)));
+            Assert.That(booleanNext, Is.EqualTo(analogNext));
+            Assert.That(analogNext.Kind, Is.EqualTo(DateTimeKind.Local));
+            Assert.That(
+                SteppableAlarmController.NextBoundary(analogNext.AddMilliseconds(2), 1000),
+                Is.EqualTo(analogNext.AddSeconds(1)),
+                "A step taken just after a boundary is due at the next one.");
+        }
+
         private sealed class SteppableAlarmController : AlarmController
         {
             public SteppableAlarmController(
@@ -97,6 +118,11 @@ namespace Opc.Ua.Server.Tests
                 bool active = false;
                 GetValue(ref value, ref active);
                 return (value, active);
+            }
+
+            public static DateTime NextBoundary(DateTime now, int interval)
+            {
+                return GetNextIntervalBoundary(now, interval);
             }
         }
     }
