@@ -289,6 +289,9 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId($"at-fallback-{Guid.NewGuid():N}", 1);
             var provider = new Mock<IHistorianProvider>();
             provider
+                .Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+            provider
                 .Setup(value => value.GetCapabilitiesAsync(
                     nodeId,
                     It.IsAny<CancellationToken>()))

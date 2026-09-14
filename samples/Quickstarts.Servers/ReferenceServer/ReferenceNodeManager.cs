@@ -1028,57 +1028,6 @@ namespace Quickstarts.ReferenceServer
             };
         }
 
-        /// <summary>
-        /// Rejects a HistoryRead of a variable that is not historized.
-        /// </summary>
-        /// <remarks>
-        /// The server-wide historian answers every node with an empty result. A variable
-        /// that advertises the HistoryRead access level but has Historizing = false and no
-        /// archive (Scalar_Static_NonHistorizing_Boolean) returns
-        /// Bad_HistoryOperationUnsupported instead (Part 4 §5.11.3, CTT Historical Access
-        /// Read Raw Err-025.js).
-        /// </remarks>
-        protected override bool TryHandleHistoryRead(
-            ISystemContext context,
-            NodeState source,
-            HistoryReadDetails details,
-            TimestampsToReturn timestampsToReturn,
-            bool releaseContinuationPoints,
-            HistoryReadValueId nodeToRead,
-            HistoryReadResult result,
-            out ServiceResult status)
-        {
-            if (source is BaseVariableState { Historizing: false } variable &&
-                !HistorianDispatcher.IsAnnotationsProperty(variable) &&
-                !IsArchived(variable.NodeId))
-            {
-                status = StatusCodes.BadHistoryOperationUnsupported;
-                return true;
-            }
-
-            return base.TryHandleHistoryRead(
-                context,
-                source,
-                details,
-                timestampsToReturn,
-                releaseContinuationPoints,
-                nodeToRead,
-                result,
-                out status);
-        }
-
-        private bool IsArchived(NodeId nodeId)
-        {
-            if (m_historian == null)
-            {
-                return false;
-            }
-
-            // the in-memory historian completes synchronously.
-            ValueTask<bool> historizing = m_historian.IsHistorizingAsync(nodeId, CancellationToken.None);
-            return !historizing.IsCompletedSuccessfully || historizing.Result;
-        }
-
         private async Task SeedHistoricalNodeAsync(BaseVariableState variable, CancellationToken cancellationToken)
         {
             NodeId nodeId = variable.NodeId;
