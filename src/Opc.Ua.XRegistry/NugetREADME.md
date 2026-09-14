@@ -20,7 +20,11 @@ This package contains:
   generated `ObjectTypeIds`, `MethodIds` and `VariableIds` classes;
 - `IResourceContentIdProvider` — the seam that maps a resource document + format to its
   opaque content key. The key makes document bytes addressable by an Opaque NodeId but never
-  replaces the entity's structural `Xid`, `ResourceId`, or `VersionId`.
+  replaces the entity's structural `Xid`, `ResourceId`, or `VersionId`;
+- `XRegistryFederationTarget` and `IXRegistryFederationProvider` — an immutable trusted logical
+  Resource binding and optional verification seam, independent of content lookup. The binding
+  pins origin, application, portable NodeId and remote logical Xid; endpoint locators do not
+  establish identity or trust.
 
 It has no dependency on the OPC UA server or client SDKs; the generic client and server
 pieces live in `Opc.Ua.XRegistry.Client` and `Opc.Ua.XRegistry.Server`.

@@ -11,6 +11,11 @@ ObjectType proxies**. It talks to a registry hosted in an OPC UA server address 
   `GetOrCreateGroup`, `CreateResource` / `GetOrCreateResource`, and the `FileType` methods
   `ResourceType` inherits — plus `Delete(ExpectedEpoch)` for optimistic concurrency. Resource
   and Version `Xid` values remain stable structural paths when their document bytes change.
+- **Federation** — verify a configured `XRegistryFederationTarget` over an already authenticated
+  Session and follow a proxy with `FollowExternalReferenceAsync`. The client validates scalar
+  metadata declarations, origin, logical ownership and FileType/Versions capability, using the
+  source and remote Sessions' own namespace/server tables. It returns the generated logical
+  Resource client without opening content or creating a connection/cache engine.
 
 `XRegistryClient` is an abstract base carrying the xRegistry-level API;
 `GenericXRegistryClient` is the sealed implementation for any registry namespace. A concrete
