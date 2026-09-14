@@ -281,8 +281,10 @@ Measured on 2026-09-14 (CTT 1.05.06, scripts 1.05.513, `ConsoleReferenceServer -
 | **Total** | **about 87 min + hang** | **18:45** | |
 
 The same group run with the default cycle of 60 s took 24:21 and 29:23. The spread comes from A & C
-Enable: when its alarm thread stops returning events, `Test_003.js`, `Err_004.js` and `Err_005.js` each
-run to 3 × cycle (C23, 9 minutes at cycle 60, 4.5 at cycle 30).
+Enable: `Test_003.js` missed alarm types while the server's boolean and analog alarm sources stepped a
+tick apart (C22, fixed on the server side), and after the `Err_004.js` burst the CTT alarm thread can stop
+returning events (C23), so `Err_004.js` and `Err_005.js` run to 3 × cycle (6 minutes at cycle 60, 3 at
+cycle 30).
 
 How the A&C scripts spend time:
 

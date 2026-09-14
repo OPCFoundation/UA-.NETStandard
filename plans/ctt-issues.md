@@ -617,37 +617,43 @@ A condition gets a test case only for an active event seen while `RefreshState` 
 (line 89). The first disable sets the ConditionRefresh time to Alarm Cycle Time / 10 later (6 s by
 default, lines 64 and 129–132); after the refresh (line 207) no new test cases are created. A
 server whose alarm types go active at different times therefore leaves some types without a result
-and the test runs to 3 × Alarm Cycle Time. Against the reference server before its boolean and
-analog alarm sources were aligned this happened in 6 of 7 runs; the conditions it disabled are only
-re-enabled when the RefreshEnd event arrives (line 237). **Fix:** keep accepting first active events
+and the test runs to 3 × Alarm Cycle Time. Against the reference server this happened in 6 of 7 runs while its boolean and analog alarm
+sources used different periods, and still in 3 of 5 once they shared the limits but stepped on
+timers that drifted up to one simulation tick apart, because the booleans then reported in a later
+publish. With both sources stepping on the same interval boundaries it passed in 3 of 3 runs. The
+conditions it disabled are only re-enabled when the RefreshEnd event arrives (line 237). **Fix:** keep accepting first active events
 until the refresh is started for all non-ignored types, or mark types without an active event as
 skipped when the refresh is issued.
 
-### C23. A & C Enable `Err_004.js` reacts to its own events and can stop the alarm thread's event delivery
+### C23. A & C Enable `Err_004.js` feedback burst; the CTT alarm thread then drops received events
 
 - **Test:** `maintree/Alarms and Conditions/A and C Enable/Test Cases/Err_004.js`, lines 25–40
 
 For *every* event of a condition the test calls Disable, Disable and Enable on the alarm thread
 session without keeping per-condition state. Each Disable/Enable raises a new condition event, which
-triggers the same three calls again: runs recorded up to 364 passes per alarm type and 868 events in
-15 s. In 7 of 17 Enable runs against the reference server the CTT alarm thread returned **no events
-at all** for the rest of the CU, six times right after such a burst and once already from
-`Test_003.js` on; every test case after that ran to 3 × Alarm Cycle Time.
-Evidence collected with `addLog` counters in a project copy and the server log:
+triggers the same three calls again: runs recorded up to 364 passes per alarm type and 706–868
+events within 15 s. In 8 of 25 Enable runs against the reference server the CTT alarm thread then
+returned **no events at all** for the rest of the CU, so every following test case (`Err_004.js`,
+`Err_005.js`) ran to 3 × Alarm Cycle Time.
 
-- the alarm thread subscription stayed alive, and its data monitored items on the same subscription
-  kept delivering values (AnalogSource about one per second) while both event items on it stayed empty;
-- `GetBuffer` never failed (status true, zero events);
-- the server kept reporting condition events at the normal rate and deleted the subscription only at
-  the end, with no unacknowledged messages;
-- an in-process client that replays the pattern (same subscription parameters, a Server event item
-  plus a ConditionId `InList` item, Disable/Disable/Enable for every received event) pushed about
-  100,000 events through in 20 s three times and kept receiving events afterwards.
+The events are lost inside the CTT, after the server sent them and the CTT acknowledged them. One
+stalled run was repeated against a server build that logs every notification message it returns
+(per client handle) and every event offered to each event monitored item, with `addLog` counters in
+`AlarmTester.WaitForEvents` of a project copy:
 
-The server side could not be shown to drop the notifications; a network capture of the CTT session
-is needed to settle it. **Fix:** handle each condition once (`TestCaseMap`), like the other Enable
-test cases, which removes the burst.
+- From 09:19:05 to 09:21:49 the CTT buffers of both event items (client handles 1293 and 1294)
+  returned zero events, while the data item AnalogSource on the same subscription kept growing by
+  one value per second.
+- In the same window the server sent 173 notification messages on that subscription carrying 435
+  events for handle 1293 and 420 for handle 1294 (12–15 every 5 s, as before the burst). Each item
+  received and queued every condition event (no duplicate, overflow or filter drops), and the
+  Server-object event channel had no backlog.
+- The subscription was deleted at the end with sequence number 365 and no unacknowledged messages,
+  so the CTT received and acknowledged every message.
 
+**Fix:** handle each condition once (`TestCaseMap`), like the other Enable test cases, which removes
+the burst; and find why the alarm thread's event buffer stops filling after about 700 events arrive
+within a few seconds.
 ### C24. A & C CertificateExpiration blocks a `--hidden` run on a modal dialog
 
 - **Test:** `maintree/Alarms and Conditions/A and C CertificateExpiration/Test Cases/initialize.js`,
@@ -734,8 +740,8 @@ it is classified as a server or CTT issue.
   process (C20); CertificateExpiration hangs on a modal dialog (C24); Alarm `Test_002.js` always and
   Enable `Test_003.js` often ran to 3 × Alarm Cycle Time (C21, C22), and Enable intermittently stops receiving events
   after `Err_004.js` bursts (C23). The reference server's boolean
-  and analog alarm sources now change state on the same simulation tick, which makes Enable
-  `Test_003.js` pass deterministically.
+  and analog alarm sources now change state in the same simulation pass; with that Enable
+  `Test_003.js` passed in 3 of 3 runs.
 - **GDS QueryServers / QueryApplications Like filters.** Against the GDS node manager in CTT mode
   (`src/Opc.Ua.Gds.Server`, `ApplicationsDatabaseBase.IsMatchPattern`):
   - Application Directory `066.js`, `068.js`, `071.js`, `073.js`, `075.js` and Query Applications
