@@ -1158,9 +1158,16 @@ data. Host type and semantic annotations retain host meaning, while a host
 title or description override carries its own term language without retagging
 unchanged source text. Local alias and prefix chains and compact vocabulary
 declarations are resolved before an annotation crosses owners; self-dependent
-and indirect prefix cycles are rejected. If the host identity cannot be
-established, depends on an unacquired context or import, or would be
-reinterpreted by the destination scope, resolution reports
+and indirect prefix cycles are rejected. Completed term, prefix and vocabulary
+mappings retain the context in which they were defined. A later redefinition
+or disabling of a dependency does not reinterpret an earlier completed mapping.
+Property-scoped contexts are instead processed when applied to their carrying
+objects, using the then-current enclosing context. Ordered redefinitions that
+refer to completed mappings are not mistaken for simultaneous definition cycles.
+The destination interpretation is checked separately before carriage.
+
+If the host identity cannot be established, depends on an unacquired context
+or import, or would be reinterpreted by the destination scope, resolution reports
 `ProjectionContextConflict` rather than borrowing a source prefix or base.
 Restoring a prefix also requires establishing its namespace dependencies;
 the spelling of a URN alone does not make an unresolved prefix authoritative.
@@ -1169,8 +1176,11 @@ An explicit null text predicate cannot acquire a default predicate.
 
 A property-scoped context inherited from an earlier declaration is not assumed
 to survive a later unacquired context. A subsequent explicit scoped declaration
-can establish the facts needed by the annotations. This also applies when an
-example's relative context reference is supplied without its original location
+can establish the facts needed by the annotations. Vocabulary fallback for a
+bare type also requires known absence of an explicit term mapping: restoring
+`@vocab` does not erase an alias an unacquired context may have introduced.
+A later explicit term declaration can establish that token's identity.
+This also applies when an example's relative context reference is supplied without its original location
 or acquired context: the filename is not treated as proof of the context's
 contents. Repeated semantic context members and invalid root or nested context
 declaration kinds produce diagnostics before mutable cloning; an invalid

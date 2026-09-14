@@ -162,12 +162,7 @@ namespace Opc.Ua.Wot
                 namespaceUri = ReadContextPrefix(definition);
                 return namespaceUri.Length != 0;
             }
-            namespaceUri = prefix switch
-            {
-                "ua" => WotVocabulary.OpcUaNamespace,
-                "uav" => WotVocabulary.VocabularyNamespace,
-                _ => string.Empty
-            };
+            namespaceUri = ReadImplicitContextPrefix(prefix);
             return namespaceUri.Length != 0;
         }
 
@@ -206,6 +201,28 @@ namespace Opc.Ua.Wot
             return contexts.ToArrayOf();
         }
 
+        internal ContextBindingScope? GetContextBindings(JsonElement carryingNode)
+        {
+            m_contextScopes ??= CreateContextScopes();
+            if (m_contextScopes.TryGetValue(carryingNode, out ContextScope? scope))
+            {
+                return scope?.Bindings;
+            }
+            throw new ArgumentException(
+                "The context owner must be an original semantic object.", nameof(carryingNode));
+        }
+
+        internal static ArrayOf<JsonElement> GetContextSequence(ContextBindingScope? scope)
+        {
+            var contexts = new List<JsonElement>();
+            for (; scope is not null; scope = scope.Parent)
+            {
+                contexts.Add(scope.Context);
+            }
+            contexts.Reverse();
+            return contexts.ToArrayOf();
+        }
+
         internal bool TryGetKnownContextTerm(
             string term, out JsonElement definition, out bool uncertain, JsonElement carryingNode)
         {
@@ -217,6 +234,44 @@ namespace Opc.Ua.Wot
             definition = default;
             uncertain = false;
             return false;
+        }
+
+        internal static bool TryGetKnownContextTerm(
+            ContextBindingScope? scope, string term, out JsonElement definition, out bool uncertain,
+            out ContextBindingScope? definedAt)
+        {
+            for (; scope is not null; scope = scope.Parent)
+            {
+                if (!scope.IsKnown)
+                {
+                    definition = default;
+                    uncertain = true;
+                    definedAt = null;
+                    return false;
+                }
+                ContextTermState state = ReadKnownContextTerm(scope.Context, term, out definition);
+                if (state != ContextTermState.Absent)
+                {
+                    uncertain = state == ContextTermState.Unknown;
+                    definedAt = state == ContextTermState.Defined ? scope : null;
+                    return state == ContextTermState.Defined;
+                }
+            }
+            definition = default;
+            uncertain = false;
+            definedAt = null;
+            return false;
+        }
+
+        internal static bool TryGetKnownContextPrefix(
+            ContextBindingScope? scope, string prefix, out string namespaceUri, out bool uncertain,
+            out ContextBindingScope? definedAt)
+        {
+            namespaceUri = TryGetKnownContextTerm(
+                scope, prefix, out JsonElement definition, out uncertain, out definedAt)
+                ? ReadContextPrefix(definition)
+                : uncertain ? string.Empty : ReadImplicitContextPrefix(prefix);
+            return namespaceUri.Length != 0;
         }
 
         internal bool IsContextIndexMap(string term, JsonElement carryingNode)
@@ -252,24 +307,21 @@ namespace Opc.Ua.Wot
         private static bool TryFindKnownContextTerm(
             ContextScope? scope, string term, out JsonElement definition, out bool uncertain)
         {
-            for (; scope is not null; scope = scope.Parent)
+            return TryGetKnownContextTerm(scope?.Bindings, term, out definition, out uncertain, out _);
+        }
+
+        private static ContextBindingScope? CreateContextBindings(
+            JsonElement context, ContextBindingScope? parent, bool isKnown)
+        {
+            if (isKnown && context.ValueKind == JsonValueKind.Array)
             {
-                if (!scope.IsKnown)
+                foreach (JsonElement entry in context.EnumerateArray())
                 {
-                    definition = default;
-                    uncertain = true;
-                    return false;
+                    parent = CreateContextBindings(entry, parent, isKnown);
                 }
-                ContextTermState state = ReadKnownContextTerm(scope.Context, term, out definition);
-                if (state != ContextTermState.Absent)
-                {
-                    uncertain = state == ContextTermState.Unknown;
-                    return state == ContextTermState.Defined;
-                }
+                return parent;
             }
-            definition = default;
-            uncertain = false;
-            return false;
+            return new ContextBindingScope(context, parent, isKnown);
         }
 
         private static ContextTermState ReadKnownContextTerm(
@@ -336,6 +388,16 @@ namespace Opc.Ua.Wot
                 return identity.GetString()!;
             }
             return string.Empty;
+        }
+
+        private static string ReadImplicitContextPrefix(string prefix)
+        {
+            return prefix switch
+            {
+                "ua" => WotVocabulary.OpcUaNamespace,
+                "uav" => WotVocabulary.VocabularyNamespace,
+                _ => string.Empty
+            };
         }
 
         private static bool TryReadContextTerm(
@@ -1235,6 +1297,16 @@ namespace Opc.Ua.Wot
             public JsonElement Context { get; } = context;
 
             public ContextScope? Parent { get; } = parent;
+
+            public ContextBindingScope? Bindings { get; } = CreateContextBindings(context, parent?.Bindings, isKnown);
+        }
+
+        internal sealed class ContextBindingScope(
+            JsonElement context, ContextBindingScope? parent, bool isKnown)
+        {
+            public JsonElement Context { get; } = context;
+
+            public ContextBindingScope? Parent { get; } = parent;
 
             public bool IsKnown { get; } = isKnown;
         }

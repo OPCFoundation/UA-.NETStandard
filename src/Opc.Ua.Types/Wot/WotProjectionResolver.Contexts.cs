@@ -295,6 +295,16 @@ namespace Opc.Ua.Wot
             return activeBase;
         }
 
+        private static string ReadContextBase(WotDocument.ContextBindingScope? scope, string origin)
+        {
+            string activeBase = origin;
+            foreach (JsonElement context in WotDocument.GetContextSequence(scope))
+            {
+                ApplyContextBase(context, origin, ref activeBase);
+            }
+            return activeBase;
+        }
+
         private static void RelocateNestedContexts(
             JsonNode? target, WotDocument document, JsonElement original, string origin,
             bool root = false, bool indexMap = false)
@@ -391,25 +401,43 @@ namespace Opc.Ua.Wot
             bool vocabulary, out string identity)
         {
             identity = string.Empty;
-            var visited = new HashSet<string>(StringComparer.Ordinal);
-            var prefixes = new HashSet<string>(StringComparer.Ordinal);
+            WotDocument.ContextBindingScope? scope = document.GetContextBindings(owner);
+            var visited = new HashSet<(string, WotDocument.ContextBindingScope?)>();
+            var prefixes = new HashSet<(string, WotDocument.ContextBindingScope?)>();
             string suffix = string.Empty;
-            while (!string.IsNullOrEmpty(value) && visited.Add(value))
+            while (!string.IsNullOrEmpty(value) && visited.Add((value, scope)))
             {
+                bool unknownTerm = false;
                 if (vocabulary &&
-                    TryReadKnownContextTerm(document, owner, value, out JsonElement term, out _))
+                    WotDocument.TryGetKnownContextTerm(
+                        scope, value, out JsonElement term, out unknownTerm,
+                        out WotDocument.ContextBindingScope? termScope))
                 {
-                    string? mapped = term.ValueKind == JsonValueKind.String ? term.GetString() :
-                        term.ValueKind == JsonValueKind.Object &&
-                        term.TryGetProperty("@id", out JsonElement id) &&
-                        id.ValueKind == JsonValueKind.String
-                        ? id.GetString() : null;
+                    string? mapped;
+                    if (term.ValueKind == JsonValueKind.String)
+                    {
+                        mapped = term.GetString();
+                    }
+                    else if (term.ValueKind == JsonValueKind.Object)
+                    {
+                        mapped = term.TryGetProperty("@id", out JsonElement id)
+                            ? id.ValueKind == JsonValueKind.String ? id.GetString() : null
+                            : value;
+                    }
+                    else
+                    {
+                        return false;
+                    }
                     if (mapped is null)
                     {
                         return false;
                     }
-                    value = mapped;
-                    continue;
+                    scope = termScope;
+                    if (mapped != value)
+                    {
+                        value = mapped;
+                        continue;
+                    }
                 }
                 int colon = value.IndexOf(':', StringComparison.Ordinal);
                 if (colon > 0)
@@ -420,38 +448,50 @@ namespace Opc.Ua.Wot
                         return true;
                     }
                     string prefixName = value[..colon];
-                    _ = TryReadKnownContextTerm(document, owner, prefixName, out _, out bool uncertain);
+                    bool hasPrefix = WotDocument.TryGetKnownContextPrefix(
+                        scope, prefixName, out string prefix, out bool uncertain,
+                        out WotDocument.ContextBindingScope? prefixScope);
                     if (uncertain)
                     {
                         return false;
                     }
-                    if (document.TryGetContextPrefix(prefixName, out string prefix, owner))
+                    if (hasPrefix)
                     {
-                        if (!prefixes.Add(prefixName))
+                        if (!prefixes.Add((prefixName, prefixScope)))
                         {
                             return false;
                         }
-                        value = prefix + value[(colon + 1)..];
+                        suffix = value[(colon + 1)..] + suffix;
+                        value = prefix;
+                        scope = prefixScope;
+                        vocabulary = true;
                         continue;
                     }
                     identity = value + suffix;
                     return HasScheme(identity);
                 }
+                if (unknownTerm)
+                {
+                    return false;
+                }
                 if (vocabulary &&
-                    TryReadKnownContextTerm(document, owner, "@vocab", out JsonElement vocab, out _) &&
+                    WotDocument.TryGetKnownContextTerm(
+                        scope, "@vocab", out JsonElement vocab, out _,
+                        out WotDocument.ContextBindingScope? vocabScope) &&
                     vocab.ValueKind == JsonValueKind.String)
                 {
                     suffix = value + suffix;
                     value = vocab.GetString()!;
+                    scope = vocabScope;
                     vocabulary = false;
                     continue;
                 }
-                _ = TryReadKnownContextTerm(document, owner, "@base", out _, out bool unknownBase);
+                _ = WotDocument.TryGetKnownContextTerm(scope, "@base", out _, out bool unknownBase, out _);
                 if (unknownBase)
                 {
                     return false;
                 }
-                identity = ResolveContextLocation(ReadContextBase(document, owner, origin), value) + suffix;
+                identity = ResolveContextLocation(ReadContextBase(scope, origin), value) + suffix;
                 return HasScheme(identity);
             }
             return false;
@@ -504,8 +544,8 @@ namespace Opc.Ua.Wot
                     definition["@id"] = original.GetString();
                 }
             }
-            string identity = definition["@id"] is JsonValue id && id.TryGetValue(out string? declared)
-                ? declared
+            string identity = declaredTerm
+                ? term
                 : "https://www.w3.org/2019/wot/td#" + term;
             if (!TryPrepareAnnotationIdentity(
                 identity, true, source, sourceDefinition, selection, annotations, diagnostics, out string expanded))

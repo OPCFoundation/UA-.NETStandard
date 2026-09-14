@@ -263,7 +263,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "https://www.w3.org/2022/wot/td/v1.1", "https://unacquired.test/context.jsonld");
             if (restored)
             {
-                contexts.Add(PropertiesScope(new JsonObject
+                var scope = new JsonObject
                 {
                     ["@vocab"] = "https://www.w3.org/2019/wot/json-schema#",
                     ["title"] = new JsonObject
@@ -271,7 +271,12 @@ namespace Opc.Ua.Types.Tests.Wot
                         ["@id"] = "https://www.w3.org/2019/wot/td#title",
                         ["@language"] = "en"
                     }
-                }));
+                };
+                if (annotation == "@type")
+                {
+                    scope["Signal"] = "https://www.w3.org/2019/wot/json-schema#Signal";
+                }
+                contexts.Add(PropertiesScope(scope));
             }
             plan["@context"] = contexts;
             plan["properties"]!["reading"]![annotation] = annotation == "@type" ? "Signal" : "Host label";
