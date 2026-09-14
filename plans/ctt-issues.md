@@ -603,12 +603,14 @@ drop these cases, or expect all records.
 
 ### C22. `callQueryServers()` dereferences the output arguments of a failed call
 
-- **Test:** GDS Application Directory `079.js` step 2 (`ServerCapabilities = [ "NA", "DA", "AC" ]`)
+- **Tests:** GDS Application Directory `079.js` step 2 (`ServerCapabilities = [ "NA", "DA", "AC" ]`) and
+  `078.js` (`%[a^j-l]%`, since the server rejects the invalid pattern)
 - **Helper:** `library/GDS/MethodCalls.js`, lines 279–286
 - **Error:** *"Result of expression 'servers' [null] is not an object"* (TypeError, line 286), which aborts the test
 
 The server returns the expected `BadInvalidArgument` (NA *"cannot be used in combination with any
-other capability"*, Part 12 Annex D) with an empty `OutputArguments` array. The helper's
+other capability"*, Part 12 Annex D; an invalid Like pattern for `078.js`) with an empty
+`OutputArguments` array. The helper's
 `isDefined( OutputArguments[0] ) && isDefined( OutputArguments[1] )` guard does not detect the
 empty array, and `toExtensionObjectArray()` of the empty variant returns null. `callQueryApplications()`
 in the same file checks `applications.isEmpty()` first. **Fix:** only read the output arguments when
@@ -796,7 +798,8 @@ it is classified as a server or CTT issue.
     `Opc.Ua.LikePattern`, OPC 10000-4 §7.7.3). The old tokenizer returned no records or all records
     for `%_erver%`, `%e_`, `%\_%`, `%\%%`, `%[q-s]`, `%[^q-s]` and `%_ompliance%`, and accepted the
     malformed `%[a^j-l]%`. Fixes Application Directory `062.js`, `066.js`, `068.js`, `071.js`,
-    `073.js`, `078.js` and Query Applications `013.js`, `017.js`–`019.js`, `022.js`, `024.js`.
+    `073.js` and Query Applications `013.js`, `017.js`–`019.js`, `022.js`, `024.js`. `078.js` now
+    gets the expected `BadInvalidArgument` but then aborts in the CTT helper (C22).
   - QueryServers RecordIds (`LinqApplicationsDatabase.QueryServers`). The application id was used as
     the RecordId of every DiscoveryUrl record, so `StartingRecordId` paging skipped the remaining
     DiscoveryUrls of an application (§6.5.11 Table 15 returns one record per DiscoveryUrl). Fixes
@@ -804,7 +807,9 @@ it is classified as a server or CTT issue.
   - FindApplications with an empty ApplicationUri returned every application (§6.5.4: array size 0 or
     1, `Bad_InvalidArgument` for an invalid URI). Fixes Application Directory `004.js`.
 
-  CTT defects: C19–C31. Not applicable to this server: GDS AliasName Discovery `001.js`, `002.js`,
+  CTT GDS rerun with the fixes: 47 errors (baseline 60). `074.js` and Query Applications `025.js`
+  newly fail as described in C21. CTT defects: C19–C31. Not applicable to this server: GDS AliasName
+  Discovery `001.js`, `002.js`,
   `004.js` (see *CTT project configuration notes*). Application Directory `018.js` also needs the
   event queue size fix of [#4480](https://github.com/OPCFoundation/UA-.NETStandard/pull/4480) (C23).
   Spec conflict, server unchanged: §6.5.10/§6.5.11 say QueryApplications/QueryServers *"shall not
