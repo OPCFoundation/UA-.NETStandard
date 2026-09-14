@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua.XRegistry.Protocol;
@@ -51,7 +52,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             services.AddSingleton(options);
             services.TryAddSingleton<IXRegistryTransactionStore, InMemoryXRegistryTransactionStore>();
             services.TryAddSingleton(provider => new XRegistryTransactionalEndpoint(
-                provider.GetRequiredService<XRegistryTransactionalOptions>(),
+                WithProviders(provider),
                 provider.GetRequiredService<IXRegistryTransactionStore>(),
                 provider.GetService<TimeProvider>()));
             services.TryAddSingleton<IXRegistryEndpoint>(provider =>
@@ -60,7 +61,25 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 provider.GetRequiredService<XRegistryTransactionalEndpoint>());
             services.TryAddSingleton<IXRegistryPreparedEndpoint>(provider =>
                 provider.GetRequiredService<XRegistryTransactionalEndpoint>());
+            services.TryAddSingleton<IXRegistryJournalMaintenance>(provider =>
+                provider.GetRequiredService<XRegistryTransactionalEndpoint>());
+            services.TryAddSingleton<IXRegistryAddressResolver>(provider =>
+                provider.GetRequiredService<XRegistryTransactionalEndpoint>());
+            services.TryAddSingleton<IXRegistryShortLinkMaintenance>(provider =>
+                provider.GetRequiredService<XRegistryTransactionalEndpoint>());
             return services;
+        }
+
+        private static XRegistryTransactionalOptions WithProviders(IServiceProvider provider)
+        {
+            XRegistryTransactionalOptions options = provider.GetRequiredService<XRegistryTransactionalOptions>();
+            return options with
+            {
+                ModelResolver = provider.GetService<IXRegistryModelDocumentResolver>() ?? options.ModelResolver,
+                DocumentStore = provider.GetService<IXRegistryDocumentStore>() ?? options.DocumentStore,
+                DocumentValidators = [.. options.DocumentValidators.ToList()
+                    .Concat(provider.GetServices<IXRegistryDocumentValidator>())]
+            };
         }
     }
 }

@@ -16,7 +16,7 @@
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
  * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
@@ -41,6 +41,46 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
     public sealed class XRegistrySyncInventoryTests
     {
         [Test]
+        public async Task LateVersionEditCannotBecomeATornSuccessfulBaselineAsync()
+        {
+            await using var fixture = new XRegistrySyncFixture();
+            await fixture.SeedBothAsync(Resource,
+                /*lang=json,strict*/ """{"versionid":"v1","name":"same","schemabase64":"AQ=="}""")
+                .ConfigureAwait(false);
+            await fixture.BaselineAsync().ConfigureAwait(false);
+            bool changed = false;
+            int metadataReads = 0;
+            fixture.Native.AfterExecuteAsync = async (request, _, _) =>
+            {
+                if (request.Path == VersionPath && request.View == XRegistryView.Metadata && ++metadataReads == 2)
+                {
+                    changed = true;
+                    fixture.Native.AfterExecuteAsync = null;
+                    await fixture.Native.ChangeAsync(VersionPath,
+                        /*lang=json,strict*/ """{"name":"late-edit"}""").ConfigureAwait(false);
+                }
+            };
+            XRegistrySyncReport report = await fixture.Engine().RunOnceAsync().ConfigureAwait(false);
+            XRegistryResponse destination = await fixture.Http.ReadAsync(VersionPath).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(changed, Is.True);
+                Assert.That(report.InventoryComplete, Is.False, Details(report));
+                Assert.That(report.ExitCode, Is.Not.Zero);
+                Assert.That(fixture.Http.Mutations, Is.Empty);
+                Assert.That(destination.Metadata.GetProperty("name").GetString(), Is.EqualTo("same"));
+            });
+            XRegistrySyncReport repaired = await fixture.Engine().RunOnceAsync().ConfigureAwait(false);
+            XRegistryResponse converged = await fixture.Http.ReadAsync(VersionPath).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(repaired.InventoryComplete, Is.True, Details(repaired));
+                Assert.That(converged.Metadata.GetProperty("name").GetString(), Is.EqualTo("late-edit"));
+                Assert.That(fixture.Http.Mutations, Has.Count.EqualTo(1));
+            });
+        }
+
+        [Test]
         public async Task FullPaginationVisitsEveryIdentityAndConfirmsMembershipAsync()
         {
             await using var fixture = new XRegistrySyncFixture();
@@ -48,6 +88,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
             await fixture.SeedBothAsync("/schemagroups/second",
                 /*lang=json,strict*/ """{"name":"second"}""").ConfigureAwait(false);
             int lastPages = 0;
+            fixture.Native.TransformRequest = request => request.Path == "/schemagroups"
+                ? request with { Parameters = [] } : request;
             fixture.Native.TransformResponse = (request, response) =>
             {
                 if (request.Path != "/schemagroups")

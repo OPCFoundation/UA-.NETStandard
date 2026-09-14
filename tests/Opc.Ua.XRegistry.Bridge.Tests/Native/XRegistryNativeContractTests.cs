@@ -44,6 +44,40 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
     [Category("XRegistryNative")]
     public sealed class XRegistryNativeContractTests
     {
+        [TestCase(true, -1)]
+        [TestCase(true, 0)]
+        [TestCase(true, 4294967295)]
+        [TestCase(false, -1)]
+        [TestCase(false, 0)]
+        [TestCase(false, 4294967295)]
+        public void NativeDeadlinesRejectInvalidTimerBounds(bool prepared, long milliseconds)
+        {
+            var value = TimeSpan.FromMilliseconds(milliseconds);
+            var defaults = new XRegistryBridgeNativeOptions();
+            XRegistryBridgeNativeOptions options = prepared
+                ? defaults with { PreparedOperationTimeout = value }
+                : defaults with { CleanupTimeout = value };
+            ArgumentOutOfRangeException exception = Assert.Throws<ArgumentOutOfRangeException>(() =>
+                new XRegistryBridgeNodeManagerFactory(Mock.Of<IXRegistryEndpoint>(), options));
+            Assert.That(exception.ParamName, Is.EqualTo(prepared
+                ? nameof(XRegistryBridgeNativeOptions.PreparedOperationTimeout)
+                : nameof(XRegistryBridgeNativeOptions.CleanupTimeout)));
+        }
+
+        [TestCase(1)]
+        [TestCase(4294967294)]
+        public void NativeDeadlinesAcceptExactTimerBounds(long milliseconds)
+        {
+            var value = TimeSpan.FromMilliseconds(milliseconds);
+            var options = new XRegistryBridgeNativeOptions
+            {
+                PreparedOperationTimeout = value,
+                CleanupTimeout = value
+            };
+            Assert.That(() => new XRegistryBridgeNodeManagerFactory(Mock.Of<IXRegistryEndpoint>(), options),
+                Throws.Nothing);
+        }
+
         [Test]
         public void ConstructionRequiresExplicitEndpointAndValidOptions()
         {

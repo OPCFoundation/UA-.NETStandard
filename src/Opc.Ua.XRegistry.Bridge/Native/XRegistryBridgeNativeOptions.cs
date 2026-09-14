@@ -72,6 +72,22 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         public int MaxBufferedBytes { get; init; } = 134_217_728;
 
         /// <summary>
+        /// Optional private directory for spillable native file buffers. Null keeps the bounded in-memory mode.
+        /// Temporary files are individually owned and deleted on handle close.
+        /// </summary>
+        public string? SpoolDirectory { get; init; }
+
+        /// <summary>
+        /// Largest in-memory file buffer before spilling to the configured directory.
+        /// </summary>
+        public int MemoryBufferThreshold { get; init; } = 262_144;
+
+        /// <summary>
+        /// Aggregate logical bytes reserved by disk-backed file handles.
+        /// </summary>
+        public long MaxSpoolBytes { get; init; } = 1_073_741_824;
+
+        /// <summary>
         /// Gets the maximum number of entities accepted in a complete projection inventory.
         /// </summary>
         public int MaxEntities { get; init; } = 4096;
@@ -90,6 +106,18 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         /// Gets the lifetime of a native file handle or temporary transfer.
         /// </summary>
         public TimeSpan FileLifetime { get; init; } = TimeSpan.FromMinutes(5);
+
+        /// <summary>
+        /// Bounds each authoritative provider Prepare or Commit call. A timed-out
+        /// commit remains indeterminate until a journal or readback proves its outcome.
+        /// </summary>
+        public TimeSpan PreparedOperationTimeout { get; init; } = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// Bounds waiting for detached transfer and prepared-lease cleanup. Late work
+        /// retains ownership until completion and logs failures rather than being disposed twice.
+        /// </summary>
+        public TimeSpan CleanupTimeout { get; init; } = TimeSpan.FromSeconds(5);
 
         /// <summary>
         /// Mutations always require SignAndEncrypt. A false configuration is rejected.
@@ -112,6 +140,18 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         /// Gets whether this opt-in manager publishes the experimental protocol extension.
         /// </summary>
         public bool EnableExperimentalExtension { get; init; } = true;
+
+        /// <summary>
+        /// Emits coalesced native change hints only after a known commit or a
+        /// verified external refresh. Polling remains the repair mechanism.
+        /// </summary>
+        public bool EnableChangeEvents { get; init; } = true;
+
+        /// <summary>
+        /// Optional stable event source URI; defaults to the upstream public root
+        /// or this projection's instance namespace when no public root is available.
+        /// </summary>
+        public Uri? EventSource { get; init; }
 
         /// <summary>
         /// Gets the upstream identity and visibility scope used to build the shared address space.
@@ -143,6 +183,32 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         }
 
         /// <summary>
+        /// Explicit logical/native property mappings, keyed by model scope and namespace-URI browse paths.
+        /// Empty retains the existing conservative base-native profile.
+        /// </summary>
+        public ArrayOf<XRegistryNativeAttributeMapping> AttributeMappings
+        {
+            get => m_attributeMappings;
+            init => m_attributeMappings = value.Span.ToArray();
+        }
+
+        /// <summary>
+        /// Maximum mapped native Property nodes in one complete projection.
+        /// Intermediate browse paths remain bounded by each mapping's maximum depth.
+        /// </summary>
+        public int MaxMappedProperties { get; init; } = 16_384;
+
+        /// <summary>
+        /// Explicit alternative namespaces used by a known domain's inherited base Properties and containers.
+        /// The standard xRegistry namespace always remains valid; duplicate matching children are rejected.
+        /// </summary>
+        public ArrayOf<string> BasePropertyNamespaceUris
+        {
+            get => m_basePropertyNamespaceUris;
+            init => m_basePropertyNamespaceUris = value.Span.ToArray();
+        }
+
+        /// <summary>
         /// Gets the clock used to expire native file handles and transfers.
         /// </summary>
         public TimeProvider TimeProvider { get; init; } = TimeProvider.System;
@@ -152,8 +218,26 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         /// </summary>
         public ExpandedNodeId RootAddress => new(RootIdentifier, NamespaceUri);
 
-        internal void Validate()
+        /// <summary>
+        /// Validates bounds, profile structure and scope configuration without contacting a server.
+        /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public void Validate()
         {
+            XRegistryNativeAttributePlan.Validate(AttributeMappings);
+            var namespaces = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+            foreach (string uri in BasePropertyNamespaceUris)
+            {
+                if (!Uri.TryCreate(uri, UriKind.Absolute, out _) || !namespaces.Add(uri))
+                {
+                    throw new ArgumentException("Base-property namespaces must be distinct absolute namespace URIs.");
+                }
+            }
+            if (MaxMappedProperties < 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(MaxMappedProperties));
+            }
             if (!Uri.TryCreate(NamespaceUri, UriKind.Absolute, out _) ||
                 NamespaceUri == Ua.Namespaces.OpcUa ||
                 NamespaceUri == XRegistryWellKnown.XRegistryNamespaceUri ||
@@ -178,7 +262,28 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             {
                 throw new ArgumentOutOfRangeException(nameof(MaxMessageBytes), "Invalid native transport limits.");
             }
+            if (PreparedOperationTimeout <= TimeSpan.Zero ||
+                PreparedOperationTimeout.TotalMilliseconds > uint.MaxValue - 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(PreparedOperationTimeout));
+            }
+            if (MemoryBufferThreshold < 0 ||
+                MaxSpoolBytes <= 0 ||
+                (SpoolDirectory is not null && string.IsNullOrWhiteSpace(SpoolDirectory)))
+            {
+                throw new ArgumentException("Spooling requires a private directory and valid memory/disk bounds.");
+            }
+            if (CleanupTimeout <= TimeSpan.Zero || CleanupTimeout.TotalMilliseconds > uint.MaxValue - 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(CleanupTimeout));
+            }
             ProjectionContext.ThrowIfNull(nameof(ProjectionContext));
+            if (EventSource is not null &&
+                (!EventSource.IsAbsoluteUri || !string.IsNullOrEmpty(EventSource.UserInfo)))
+            {
+                throw new ArgumentException(
+                    "An event source must be absolute and contain no credentials.", nameof(EventSource));
+            }
             ContextFactory.ThrowIfNull(nameof(ContextFactory));
             TimeProvider.ThrowIfNull(nameof(TimeProvider));
         }
@@ -198,10 +303,14 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             };
         }
 
-        /// <summary>The repository-local experimental model namespace, not a published companion namespace.</summary>
+        /// <summary>
+        /// The repository-local experimental model namespace, not a published companion namespace.
+        /// </summary>
         public const string ExperimentalNamespaceUri =
             "http://opcfoundation.org/UA/xRegistry/Bridge/Experimental/";
 
         private readonly JsonElement m_baseModel;
+        private readonly ArrayOf<XRegistryNativeAttributeMapping> m_attributeMappings;
+        private readonly ArrayOf<string> m_basePropertyNamespaceUris;
     }
 }

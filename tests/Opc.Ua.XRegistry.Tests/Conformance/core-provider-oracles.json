@@ -1,0 +1,393 @@
+{
+  "formatVersion": 1,
+  "sourceIds": ["core", "http", "model"],
+  "expectationOrigin": "Independently authored from the pinned processing rules, not captured from a server or codec.",
+  "counterPolicy": "This provider starts at zero and increments once per request; core only requires an increase.",
+  "initialTime": "2026-01-02T00:00:00Z",
+  "registryId": "conformance-registry",
+  "publicRoot": "https://registry.example/conformance",
+  "model": {
+    "groups": {
+      "groups": {
+        "plural": "groups",
+        "singular": "group",
+        "resources": {
+          "schemas": {"plural": "schemas", "singular": "schema", "hasdocument": true},
+          "records": {"plural": "records", "singular": "record", "hasdocument": false}
+        }
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "epoch-presence",
+      "testName": "ZeroEpochDiffersFromAbsentAndNullEpochAsync",
+      "requirements": ["XREG-CORE-001"],
+      "steps": [
+        {
+          "action": "GET", "path": "/",
+          "expect": {
+            "status": 200, "error": null,
+            "metadata": {"registryid": "conformance-registry", "epoch": 0, "groupscount": 0}
+          }
+        },
+        {
+          "action": "PATCH", "path": "/", "metadata": {"epoch": 0, "name": "first"},
+          "expect": {"status": 200, "error": null, "metadata": {"epoch": 1, "name": "first"}}
+        },
+        {
+          "action": "PATCH", "path": "/", "metadata": {"epoch": 0, "name": "rejected"},
+          "expect": {"status": 400, "error": "mismatched_epoch", "documentBase64": null},
+          "probes": [
+            {
+              "path": "/",
+              "expect": {"status": 200, "error": null, "metadata": {"epoch": 1, "name": "first", "groupscount": 0}}
+            }
+          ]
+        },
+        {
+          "action": "PATCH", "path": "/", "metadata": {"name": "second"},
+          "expect": {"status": 200, "error": null, "metadata": {"epoch": 2, "name": "second", "groupscount": 0}}
+        },
+        {
+          "action": "PATCH", "path": "/", "metadata": {"epoch": null, "name": "third"},
+          "expect": {"status": 200, "error": null, "metadata": {"epoch": 3, "name": "third"}},
+          "probes": [
+            {
+              "path": "/",
+              "expect": {"status": 200, "error": null, "metadata": {"epoch": 3, "name": "third", "groupscount": 0}}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "create-epoch",
+      "testName": "CreateIgnoresASuppliedEpochAsync",
+      "requirements": ["XREG-CORE-002"],
+      "steps": [
+        {
+          "action": "PUT", "path": "/groups/g", "metadata": {"epoch": 99, "name": "born"},
+          "expect": {
+            "status": 201, "error": null,
+            "location": "https://registry.example/conformance/groups/g",
+            "metadata": {"groupid": "g", "epoch": 0, "name": "born"}
+          },
+          "probes": [
+            {"path": "/", "expect": {"status": 200, "error": null, "metadata": {"epoch": 1, "groupscount": 1}}}
+          ]
+        },
+        {
+          "action": "PATCH", "path": "/groups/g", "metadata": {"epoch": 0, "name": "updated"},
+          "expect": {"status": 200, "error": null, "metadata": {"epoch": 1, "name": "updated"}, "location": null},
+          "probes": [
+            {"path": "/", "expect": {"status": 200, "error": null, "metadata": {"epoch": 1, "groupscount": 1}}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "identical-touch",
+      "testName": "IdenticalPutAndEmptyPatchAdvanceEpochAndModifiedAtAsync",
+      "requirements": ["XREG-CORE-003"],
+      "steps": [
+        {
+          "action": "PUT", "path": "/groups/g", "metadata": {"name": "same"},
+          "expect": {
+            "status": 201, "error": null,
+            "metadata": {
+              "epoch": 0, "name": "same",
+              "createdat": "2026-01-02T00:00:00.0000000Z", "modifiedat": "2026-01-02T00:00:00.0000000Z"
+            }
+          }
+        },
+        {
+          "at": "2026-01-02T00:00:01Z", "action": "PUT", "path": "/groups/g", "metadata": {"name": "same"},
+          "expect": {
+            "status": 200, "error": null,
+            "metadata": {
+              "epoch": 1, "name": "same",
+              "createdat": "2026-01-02T00:00:00.0000000Z", "modifiedat": "2026-01-02T00:00:01.0000000Z"
+            }
+          },
+          "probes": [
+            {"path": "/", "expect": {"status": 200, "error": null, "metadata": {"epoch": 1, "groupscount": 1}}}
+          ]
+        },
+        {
+          "at": "2026-01-02T00:00:02Z", "action": "PATCH", "path": "/groups/g", "metadata": {},
+          "expect": {
+            "status": 200, "error": null,
+            "metadata": {
+              "epoch": 2, "name": "same",
+              "createdat": "2026-01-02T00:00:00.0000000Z", "modifiedat": "2026-01-02T00:00:02.0000000Z"
+            }
+          },
+          "probes": [
+            {"path": "/", "expect": {"status": 200, "error": null, "metadata": {"epoch": 1, "groupscount": 1}}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "parent-membership",
+      "testName": "ParentEpochsTrackMembershipNotDescendantUpdatesAsync",
+      "requirements": ["XREG-CORE-004", "XREG-CORE-005"],
+      "steps": [
+        {
+          "action": "PUT", "path": "/groups/g", "metadata": {},
+          "expect": {"status": 201, "error": null, "metadata": {"epoch": 0, "schemascount": 0}},
+          "probes": [
+            {"path": "/", "expect": {"status": 200, "error": null, "metadata": {"epoch": 1, "groupscount": 1}}}
+          ]
+        },
+        {
+          "action": "PUT", "path": "/groups/g/schemas/r", "metadata": {"versionid": "v1"},
+          "expect": {"status": 201, "error": null, "metadata": {"epoch": 0, "versionid": "v1", "versionscount": 1}},
+          "probes": [
+            {"path": "/", "expect": {"status": 200, "error": null, "metadata": {"epoch": 1}}},
+            {
+              "path": "/groups/g",
+              "expect": {"status": 200, "error": null, "metadata": {"epoch": 1, "schemascount": 1}}
+            },
+            {"path": "/groups/g/schemas/r/meta", "expect": {"status": 200, "error": null, "metadata": {"epoch": 0}}}
+          ]
+        },
+        {
+          "action": "PATCH", "path": "/groups/g/schemas/r/versions/v1", "metadata": {"name": "edited"},
+          "expect": {"status": 200, "error": null, "metadata": {"epoch": 1, "name": "edited"}},
+          "probes": [
+            {"path": "/", "expect": {"status": 200, "error": null, "metadata": {"epoch": 1}}},
+            {
+              "path": "/groups/g",
+              "expect": {"status": 200, "error": null, "metadata": {"epoch": 1, "schemascount": 1}}
+            },
+            {"path": "/groups/g/schemas/r/meta", "expect": {"status": 200, "error": null, "metadata": {"epoch": 0}}}
+          ]
+        },
+        {
+          "action": "PUT", "path": "/groups/g/schemas/r/versions/v2", "metadata": {},
+          "expect": {"status": 201, "error": null, "metadata": {"epoch": 0, "versionid": "v2"}},
+          "probes": [
+            {"path": "/", "expect": {"status": 200, "error": null, "metadata": {"epoch": 1}}},
+            {"path": "/groups/g", "expect": {"status": 200, "error": null, "metadata": {"epoch": 1}}},
+            {
+              "path": "/groups/g/schemas/r/meta",
+              "expect": {"status": 200, "error": null, "metadata": {"epoch": 1, "defaultversionid": "v2"}}
+            },
+            {"path": "/groups/g/schemas/r", "expect": {"status": 200, "error": null, "metadata": {"versionscount": 2}}}
+          ]
+        },
+        {
+          "action": "DELETE", "path": "/groups/g/schemas/r/versions/v1", "metadata": {"epoch": 1},
+          "expect": {"status": 204, "error": null, "documentBase64": null},
+          "probes": [
+            {"path": "/", "expect": {"status": 200, "error": null, "metadata": {"epoch": 1}}},
+            {"path": "/groups/g", "expect": {"status": 200, "error": null, "metadata": {"epoch": 1}}},
+            {
+              "path": "/groups/g/schemas/r/meta",
+              "expect": {"status": 200, "error": null, "metadata": {"epoch": 2, "defaultversionid": "v2"}}
+            },
+            {"path": "/groups/g/schemas/r", "expect": {"status": 200, "error": null, "metadata": {"versionscount": 1}}}
+          ]
+        },
+        {
+          "action": "DELETE", "path": "/groups/g/schemas/r", "metadata": {"meta": {"epoch": 2}},
+          "expect": {"status": 204, "error": null},
+          "probes": [
+            {"path": "/", "expect": {"status": 200, "error": null, "metadata": {"epoch": 1}}},
+            {"path": "/groups/g", "expect": {"status": 200, "error": null, "metadata": {"epoch": 2, "schemascount": 0}}}
+          ]
+        },
+        {
+          "action": "DELETE", "path": "/groups/g", "metadata": {"epoch": 2},
+          "expect": {"status": 204, "error": null},
+          "probes": [
+            {"path": "/", "expect": {"status": 200, "error": null, "metadata": {"epoch": 2, "groupscount": 0}}},
+            {"path": "/groups", "expect": {"status": 200, "error": null, "metadata": {}}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "compound-rollback",
+      "testName": "FailedCompoundWritePreservesMetadataDocumentsAndMembershipAsync",
+      "requirements": ["XREG-CORE-006"],
+      "steps": [
+        {
+          "action": "PUT", "path": "/groups/g",
+          "metadata": {
+            "name": "original-group",
+            "schemas": {
+              "r": {"versionid": "v1", "name": "original-version", "schemabase64": "AP8BAg=="},
+              "s": {"versionid": "v1", "name": "guarded-version"}
+            }
+          },
+          "expect": {"status": 201, "error": null, "metadata": {"epoch": 0, "schemascount": 2}}
+        },
+        {
+          "action": "PATCH", "path": "/",
+          "metadata": {
+            "name": "uncommitted-root",
+            "groups": {
+              "g": {
+                "name": "uncommitted-group",
+                "schemas": {
+                  "new": {"versionid": "v1", "schemabase64": "AgM="},
+                  "r": {"name": "uncommitted-version", "schemabase64": "AQI="},
+                  "s": {"epoch": 7, "name": "rejected"}
+                }
+              }
+            }
+          },
+          "expect": {"status": 400, "error": "mismatched_epoch"},
+          "probes": [
+            {
+              "path": "/",
+              "expect": {
+                "status": 200, "error": null, "metadata": {"epoch": 1, "groupscount": 1}, "absentMetadata": ["name"]
+              }
+            },
+            {
+              "path": "/groups/g",
+              "expect": {
+                "status": 200, "error": null,
+                "metadata": {"epoch": 0, "name": "original-group", "schemascount": 2}
+              }
+            },
+            {
+              "path": "/groups/g/schemas/r/versions/v1", "view": "document",
+              "expect": {
+                "status": 200, "error": null, "documentBase64": "AP8BAg==",
+                "metadata": {"epoch": 0, "name": "original-version"}
+              }
+            },
+            {
+              "path": "/groups/g/schemas/s",
+              "expect": {
+                "status": 200, "error": null,
+                "metadata": {"epoch": 0, "name": "guarded-version", "versionscount": 1}
+              }
+            },
+            {"path": "/groups/g/schemas/r/meta", "expect": {"status": 200, "error": null, "metadata": {"epoch": 0}}},
+            {"path": "/groups/g/schemas/new", "expect": {"status": 404, "error": "not_found"}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "omitted-empty-document",
+      "testName": "OmittedDocumentPreservesBytesButExplicitEmptyReplacesThemAsync",
+      "requirements": ["XREG-CORE-008", "XREG-HTTP-019"],
+      "steps": [
+        {
+          "action": "PUT", "path": "/groups/g/schemas/r",
+          "metadata": {
+            "versionid": "v1", "name": "keep", "schemabase64": "AP8BAg==",
+            "contenttype": "application/octet-stream"
+          },
+          "expect": {
+            "status": 201, "error": null,
+            "metadata": {"epoch": 0, "name": "keep", "contenttype": "application/octet-stream"}
+          }
+        },
+        {
+          "action": "PATCH", "path": "/groups/g/schemas/r/versions/v1",
+          "metadata": {"description": "metadata only"},
+          "expect": {"status": 200, "error": null, "metadata": {"epoch": 1, "name": "keep"}},
+          "probes": [
+            {
+              "path": "/groups/g/schemas/r/versions/v1", "view": "document",
+              "expect": {
+                "status": 200, "error": null, "documentBase64": "AP8BAg==",
+                "contentType": "application/octet-stream",
+                "metadata": {"epoch": 1, "name": "keep", "description": "metadata only"}
+              }
+            }
+          ]
+        },
+        {
+          "action": "PUT", "path": "/groups/g/schemas/r/versions/v1", "view": "document",
+          "metadata": {"epoch": 1}, "documentBase64": "",
+          "expect": {
+            "status": 200, "error": null, "documentBase64": "", "contentType": null,
+            "contentLocation": "https://registry.example/conformance/groups/g/schemas/r/versions/v1",
+            "metadata": {"epoch": 2, "name": "keep", "description": "metadata only"},
+            "absentMetadata": ["contenttype"]
+          },
+          "probes": [
+            {
+              "path": "/groups/g/schemas/r/versions/v1", "view": "document",
+              "expect": {
+                "status": 200, "error": null, "documentBase64": "", "contentType": null,
+                "metadata": {"epoch": 2, "name": "keep"}, "absentMetadata": ["contenttype"]
+              }
+            },
+            {"path": "/groups/g/schemas/r/meta", "expect": {"status": 200, "error": null, "metadata": {"epoch": 0}}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "documentless-empty",
+      "testName": "DocumentlessAndEmptyDocumentResourcesHaveDifferentBodiesAsync",
+      "requirements": ["XREG-CORE-009"],
+      "steps": [
+        {
+          "action": "PUT", "path": "/groups/g/records/r", "view": "document",
+          "metadata": {"versionid": "v1", "name": "metadata resource"},
+          "expect": {
+            "status": 201, "error": null, "documentBase64": null,
+            "metadata": {"recordid": "r", "versionid": "v1", "epoch": 0, "name": "metadata resource"}
+          }
+        },
+        {
+          "action": "PUT", "path": "/groups/g/schemas/r", "view": "document", "metadata": {"versionid": "v1"},
+          "expect": {
+            "status": 201, "error": null, "documentBase64": "",
+            "contentLocation": "https://registry.example/conformance/groups/g/schemas/r/versions/v1",
+            "metadata": {"schemaid": "r", "versionid": "v1", "epoch": 0}
+          },
+          "probes": [
+            {
+              "path": "/groups/g/records/r", "view": "document",
+              "expect": {
+                "status": 200, "error": null, "documentBase64": null,
+                "metadata": {"recordid": "r", "versionid": "v1", "name": "metadata resource"}
+              }
+            },
+            {
+              "path": "/groups/g",
+              "expect": {"status": 200, "error": null, "metadata": {"schemascount": 1, "recordscount": 1}}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "missing-not-empty",
+      "testName": "MissingResourceIsNotASuccessfulEmptyDocumentAsync",
+      "requirements": ["XREG-CORE-010"],
+      "steps": [
+        {
+          "action": "PUT", "path": "/groups/g/schemas/empty", "metadata": {"versionid": "v1"},
+          "expect": {"status": 201, "error": null, "metadata": {"epoch": 0, "schemaid": "empty"}}
+        },
+        {
+          "action": "GET", "path": "/groups/g/schemas/missing", "view": "document",
+          "expect": {"status": 404, "error": "not_found", "documentBase64": null},
+          "probes": [
+            {
+              "path": "/groups/g/schemas/empty", "view": "document",
+              "expect": {
+                "status": 200, "error": null, "documentBase64": "",
+                "metadata": {"schemaid": "empty", "versionid": "v1", "epoch": 0}
+              }
+            },
+            {"path": "/groups/g", "expect": {"status": 200, "error": null, "metadata": {"schemascount": 1}}}
+          ]
+        }
+      ]
+    }
+  ]
+}

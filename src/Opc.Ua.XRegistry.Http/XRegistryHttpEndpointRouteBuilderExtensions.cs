@@ -31,10 +31,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Security.Claims;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -42,6 +44,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.XRegistry.Protocol;
 
 namespace Opc.Ua.XRegistry.Http
@@ -86,9 +89,24 @@ namespace Opc.Ua.XRegistry.Http
             IXRegistryEndpoint endpoint,
             XRegistryHttpRouteOptions options)
         {
+            endpoint.ThrowIfNull(nameof(endpoint));
+            return MapXRegistry(routes, pattern, XRegistryEndpointResolver.Borrow(endpoint), options);
+        }
+
+        /// <summary>
+        /// Maps a caller-specific upstream resolver. One lease spans inspection, response preflight,
+        /// preparation and publication; a different caller can never reuse that lease.
+        /// </summary>
+        /// <exception cref="ArgumentException">The mount is not a valid literal registry path.</exception>
+        public static IEndpointConventionBuilder MapXRegistry(
+            this IEndpointRouteBuilder routes,
+            string pattern,
+            IXRegistryEndpointResolver resolver,
+            XRegistryHttpRouteOptions options)
+        {
             routes.ThrowIfNull(nameof(routes));
             pattern.ThrowIfNull(nameof(pattern));
-            endpoint.ThrowIfNull(nameof(endpoint));
+            resolver.ThrowIfNull(nameof(resolver));
             options.ThrowIfNull(nameof(options));
             options.Transport.ThrowIfNull(nameof(options.Transport));
             string mount = XRegistryPath.Normalize(pattern.Length == 0 ? "/" : pattern);
@@ -98,7 +116,7 @@ namespace Opc.Ua.XRegistry.Http
                 throw new ArgumentException("A registry mount must be a literal path, not a route template.",
                     nameof(pattern));
             }
-            var dispatcher = new XRegistryHttpDispatcher(mount, endpoint, options);
+            var dispatcher = new XRegistryHttpDispatcher(mount, resolver, options);
             RouteGroupBuilder group = routes.MapGroup(mount == "/" ? string.Empty : routePrefix);
             group.Map("/{**xregistryPath}", new RequestDelegate(dispatcher.HandleAsync));
             return group;
@@ -107,10 +125,11 @@ namespace Opc.Ua.XRegistry.Http
 
     internal sealed class XRegistryHttpDispatcher
     {
-        public XRegistryHttpDispatcher(string mount, IXRegistryEndpoint endpoint, XRegistryHttpRouteOptions options)
+        public XRegistryHttpDispatcher(
+            string mount, IXRegistryEndpointResolver resolver, XRegistryHttpRouteOptions options)
         {
             m_mount = mount == "/" ? string.Empty : mount;
-            m_endpoint = endpoint;
+            m_resolver = resolver;
             m_options = options;
             m_wire = new XRegistryHttpWire(new XRegistryHttpAddress(options.PublicRoot, options.Transport),
                 options.Transport);
@@ -119,8 +138,48 @@ namespace Opc.Ua.XRegistry.Http
 
         public async Task HandleAsync(HttpContext context)
         {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
+            var timeout = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
             timeout.CancelAfter(m_options.Transport.RequestTimeout);
+            var outcome = new DispatchOutcome();
+            Task<XRegistryHttpPreparedResponse> pending = PrepareResponseAsync(context, timeout, outcome);
+            XRegistryHttpPreparedResponse prepared;
+            try
+            {
+                prepared = await pending.WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+            {
+                CancellationTokenSource retained = timeout;
+                timeout = null;
+                // The pending operation retains its deadline and caller lease until it stops using them.
+                // TODO: Remove when CA2025 models asynchronous ownership transfer to late observers.
+#pragma warning disable CA2025
+                _ = ObserveLateRequestAsync(pending, retained);
+#pragma warning restore CA2025
+                context.RequestAborted.ThrowIfCancellationRequested();
+                prepared = outcome.Committed ??
+                    PrepareError(new XRegistryResponse(504)
+                    {
+                        Error = new XRegistryError("about:blank",
+                                "The registry deadline elapsed. A dispatched mutation " +
+                                "outcome may be unknown; do not retry blindly.")
+                    }, new XRegistryRequest(XRegistryAction.Read, "/"));
+                if (outcome.Committed is null)
+                {
+                    m_logger.BackendTimedOut();
+                }
+            }
+            finally
+            {
+                timeout?.Dispose();
+            }
+            await SendResponseAsync(context, prepared).ConfigureAwait(false);
+        }
+
+        private async Task<XRegistryHttpPreparedResponse> PrepareResponseAsync(
+            HttpContext context, CancellationTokenSource timeout, DispatchOutcome outcome)
+        {
+            CancellationToken aborted = context.RequestAborted;
             XRegistryRequest request = new(XRegistryAction.Read, "/");
             XRegistryEndpointDescription? description = null;
             var shape = new XRegistryHttpShape();
@@ -132,6 +191,7 @@ namespace Opc.Ua.XRegistry.Http
                 XRegistryCallContext caller = m_options.CreateContextAsync is null
                     ? CreateContext(context.User)
                     : await m_options.CreateContextAsync(context, timeout.Token).ConfigureAwait(false);
+                timeout.Token.ThrowIfCancellationRequested();
                 caller.ThrowIfNull(nameof(caller));
                 request = request with { Context = caller };
                 if (m_options.RequireAuthenticatedUser && !caller.IsAuthenticated)
@@ -142,22 +202,63 @@ namespace Opc.Ua.XRegistry.Http
                 {
                     throw new XRegistryHttpWireException(403, "about:blank", "The caller is not authorized.");
                 }
+                timeout.Token.ThrowIfCancellationRequested();
                 ArrayOf<KeyValuePair<string, string>> headers = ReadHeaders(context.Request.Headers);
                 XRegistryHttpHeaders.ValidateBudget(headers, m_options.Transport);
                 inputPhase = false;
-                description = await m_endpoint.InspectAsync(caller, timeout.Token).ConfigureAwait(false);
+                IXRegistryEndpointLease lease =
+                    await m_resolver.AcquireAsync(caller, timeout.Token).ConfigureAwait(false);
+                var leaseOwner = new XRegistryHttpLeaseLifetime(lease, m_options.Transport.CleanupTimeout, m_logger);
+                await using ConfiguredAsyncDisposable leaseLifetime = leaseOwner.ConfigureAwait(false);
+                timeout.Token.ThrowIfCancellationRequested();
+                if (!XRegistryEndpointLease.SameScope(caller, lease.Context))
+                {
+                    throw new UnauthorizedAccessException(
+                        "The resolved endpoint lease belongs to another caller scope.");
+                }
+                await lease.EnsureCurrentAsync(timeout.Token).ConfigureAwait(false);
+                timeout.Token.ThrowIfCancellationRequested();
+                using CancellationTokenRegistration revocation = lease.Revoked.Register(
+                    static state => ((CancellationTokenSource)state!).Cancel(), timeout);
+                IXRegistryEndpoint endpoint = lease.Endpoint;
+                description = await endpoint.InspectAsync(caller, timeout.Token).ConfigureAwait(false);
+                timeout.Token.ThrowIfCancellationRequested();
                 if (description.Model.ValueKind != JsonValueKind.Object)
                 {
                     throw new InvalidDataException("The endpoint did not provide an effective registry model.");
                 }
-                shape = XRegistryHttpShape.Resolve(description.Model, request.Path);
+                if (endpoint is IXRegistryAddressResolver addresses)
+                {
+                    XRegistryAddressResolution resolution = await addresses.ResolveAddressAsync(request, timeout.Token)
+                        .ConfigureAwait(false);
+                    timeout.Token.ThrowIfCancellationRequested();
+                    if (resolution.Rejection is { } rejection)
+                    {
+                        inputPhase = true;
+                        throw new XRegistryHttpWireException(rejection.StatusCode,
+                            rejection.Error?.Code ?? "not_found",
+                            rejection.Error?.Detail ?? "The address is unavailable.");
+                    }
+                    if (resolution.Request.Path != request.Path)
+                    {
+                        request = request.AtResolvedPath(resolution.Request.Path);
+                        await lease.EnsureCurrentAsync(timeout.Token).ConfigureAwait(false);
+                        if (!await AuthorizeAsync(context, request, timeout.Token).ConfigureAwait(false))
+                        {
+                            inputPhase = true;
+                            throw new XRegistryHttpWireException(403, "about:blank",
+                                "The caller is not authorized for the canonical entity.");
+                        }
+                    }
+                }
                 inputPhase = true;
+                shape = XRegistryHttpShape.Resolve(description.Model, request.Path);
                 if (request.View == XRegistryView.Metadata && !shape.IsResource)
                 {
                     throw new XRegistryHttpWireException(400, "bad_details",
                         "$details is only defined for Resource and Version entities.");
                 }
-                if (request.IsMutation && !AllowsPreparedMutation(description, request.Action))
+                if (request.IsMutation && !AllowsPreparedMutation(endpoint, description, request.Action))
                 {
                     prepared = m_wire.PrepareResponse(XRegistryHttpWire.MutationNotSupported(request.Path),
                         request, shape, description.Model);
@@ -166,19 +267,26 @@ namespace Opc.Ua.XRegistry.Http
                 {
                     ByteString bytes = await m_wire.Body.ReadAsync(context.Request.Body, context.Request.ContentLength,
                         XRegistryHttpWire.GetEncodings(headers), timeout.Token).ConfigureAwait(false);
+                    timeout.Token.ThrowIfCancellationRequested();
                     request = m_wire.DecodeRequest(request, shape, headers,
                         XRegistryHttpWire.GetSingle(headers, "Content-Type"), bytes);
                     inputPhase = false;
                     if (request.IsMutation)
                     {
-                        prepared = await PrepareAndCommitAsync(context, request, shape, description, timeout.Token)
+                        prepared =
+                            await PrepareAndCommitAsync(
+                                context, lease, leaseOwner, request, shape, description, outcome, timeout.Token)
                             .ConfigureAwait(false);
                     }
                     else
                     {
-                        XRegistryResponse response = await m_endpoint.ExecuteAsync(request,
+                        await lease.EnsureCurrentAsync(timeout.Token).ConfigureAwait(false);
+                        timeout.Token.ThrowIfCancellationRequested();
+                        XRegistryResponse response = await endpoint.ExecuteAsync(request,
                             timeout.Token).ConfigureAwait(false);
-                        prepared = await PrepareEndpointResponseAsync(context, request, response, shape, description,
+                        timeout.Token.ThrowIfCancellationRequested();
+                        prepared =
+                            await PrepareEndpointResponseAsync(context, endpoint, request, response, shape, description,
                             timeout.Token).ConfigureAwait(false);
                     }
                 }
@@ -188,6 +296,14 @@ namespace Opc.Ua.XRegistry.Http
             {
                 m_logger.BackendRejected(exception.Response.StatusCode);
                 prepared = PrepareError(exception.Response, request);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                m_logger.RequestRejected(403, "unauthorized");
+                prepared = PrepareError(new XRegistryResponse(403)
+                {
+                    Error = new XRegistryError("unauthorized", "The caller's upstream lease is not authorized.")
+                }, request);
             }
             catch (XRegistryHttpWireException exception) when (inputPhase)
             {
@@ -203,7 +319,7 @@ namespace Opc.Ua.XRegistry.Http
                     Error = new XRegistryError("about:blank", "The HTTP registry request is malformed.")
                 }, request);
             }
-            catch (OperationCanceledException) when (!context.RequestAborted.IsCancellationRequested)
+            catch (OperationCanceledException) when (!aborted.IsCancellationRequested)
             {
                 m_logger.BackendTimedOut();
                 prepared = PrepareError(new XRegistryResponse(504)
@@ -213,8 +329,8 @@ namespace Opc.Ua.XRegistry.Http
                 }, request);
             }
             catch (Exception exception) when (!inputPhase &&
-                exception is IOException or InvalidDataException or HttpRequestException or JsonException or
-                    ArgumentException)
+                exception is IOException or InvalidDataException or HttpRequestException or JsonException
+                    or ArgumentException)
             {
                 m_logger.BackendFailed(exception);
                 prepared = PrepareError(new XRegistryResponse(502)
@@ -224,6 +340,36 @@ namespace Opc.Ua.XRegistry.Http
                 }, request);
             }
 
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.RegistryRequestCompleted(request.Action, Redact.Create(request.Context.Subject),
+                    Redact.Create(request.Context.Authority), Redact.Create(request.Path),
+                    Redact.Create(description?.RegistryId ?? string.Empty), prepared.StatusCode);
+            }
+            return prepared;
+        }
+
+        private async Task ObserveLateRequestAsync(
+            Task<XRegistryHttpPreparedResponse> pending, CancellationTokenSource timeout)
+        {
+            try
+            {
+                await pending.ConfigureAwait(false);
+            }
+            catch (Exception exception) when (exception is IOException or InvalidOperationException
+                or OperationCanceledException or UnauthorizedAccessException or ServiceResultException
+                    or HttpRequestException)
+            {
+                m_logger.BackendFailed(exception);
+            }
+            finally
+            {
+                timeout.Dispose();
+            }
+        }
+
+        private async Task SendResponseAsync(HttpContext context, XRegistryHttpPreparedResponse prepared)
+        {
             using var sendTimeout = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
             sendTimeout.CancelAfter(m_options.Transport.RequestTimeout);
             context.Response.StatusCode = prepared.StatusCode;
@@ -298,6 +444,7 @@ namespace Opc.Ua.XRegistry.Http
 
         private async ValueTask<XRegistryResponse> FilterActionsAsync(
             HttpContext context,
+            IXRegistryEndpoint endpoint,
             XRegistryRequest request,
             XRegistryResponse response,
             XRegistryEndpointDescription description,
@@ -311,6 +458,7 @@ namespace Opc.Ua.XRegistry.Http
             var shape = XRegistryHttpShape.Resolve(description.Model, request.Path);
             for (int index = 0; index < response.AllowedActions.Count; index++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 XRegistryAction action = response.AllowedActions[index];
                 var candidate = new XRegistryRequest(action, request.Path)
                 {
@@ -321,7 +469,7 @@ namespace Opc.Ua.XRegistry.Http
                 bool representable = !(action == XRegistryAction.Replace && shape.IsCollection) &&
                     !(action == XRegistryAction.Merge && shape.IsDocumentView(candidate));
                 if (representable &&
-                    (!candidate.IsMutation || AllowsPreparedMutation(description, action)) &&
+                    (!candidate.IsMutation || AllowsPreparedMutation(endpoint, description, action)) &&
                     await AuthorizeAsync(context, candidate, cancellationToken).ConfigureAwait(false))
                 {
                     allowed.Add(action);
@@ -330,27 +478,78 @@ namespace Opc.Ua.XRegistry.Http
             return response with { AllowedActions = [.. allowed] };
         }
 
-        private bool AllowsPreparedMutation(XRegistryEndpointDescription description, XRegistryAction action)
+        private static bool AllowsPreparedMutation(
+            IXRegistryEndpoint endpoint, XRegistryEndpointDescription description, XRegistryAction action)
         {
             return XRegistryHttpWire.AllowsMutation(description, action) &&
                 description.SupportsPreparedMutations &&
-                m_endpoint is IXRegistryPreparedEndpoint;
+                endpoint is IXRegistryPreparedEndpoint;
         }
 
         private async ValueTask<XRegistryHttpPreparedResponse> PrepareAndCommitAsync(
-            HttpContext context, XRegistryRequest request, XRegistryHttpShape shape,
-            XRegistryEndpointDescription description, CancellationToken cancellationToken)
+            HttpContext context, IXRegistryEndpointLease lease, XRegistryHttpLeaseLifetime leaseOwner,
+            XRegistryRequest request, XRegistryHttpShape shape,
+            XRegistryEndpointDescription description, DispatchOutcome outcome, CancellationToken cancellationToken)
         {
-            var endpoint = (IXRegistryPreparedEndpoint)m_endpoint;
-            IXRegistryPreparedOperation operation = await endpoint.PrepareAsync(request, cancellationToken)
+            var endpoint = (IXRegistryPreparedEndpoint)lease.Endpoint;
+            await lease.EnsureCurrentAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            bool needsModel = request.Path == "/" &&
+                request.Metadata.ValueKind == JsonValueKind.Object &&
+                request.Metadata.TryGetProperty("modelsource", out _);
+            bool modelRequested = request.Parameters.ToList().Any(parameter =>
+                parameter.Name == "inline" &&
+                (parameter.Value ?? string.Empty).Split(',').Contains("model", StringComparer.Ordinal));
+            bool injectModel = needsModel && !description.SupportsPreparedSnapshots && !modelRequested;
+            XRegistryRequest staged = injectModel ? request with
+            {
+                Parameters = [.. request.Parameters.ToList(), new XRegistryParameter("inline", "model")]
+            } : request;
+            IXRegistryPreparedOperation operation = await endpoint.PrepareAsync(staged, cancellationToken)
                 .ConfigureAwait(false);
-            await using ConfiguredAsyncDisposable lifetime = operation.ConfigureAwait(false);
+            leaseOwner.Retain(operation);
+            cancellationToken.ThrowIfCancellationRequested();
+            XRegistryResponse response = operation.Response;
+            if (response.IsSuccess && needsModel)
+            {
+                if (operation is IXRegistryPreparedSnapshot { HasCandidate: true } snapshot)
+                {
+                    description = await snapshot.InspectCandidateAsync(cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+                else if (response.Metadata.ValueKind == JsonValueKind.Object &&
+                    response.Metadata.TryGetProperty("model", out JsonElement model) &&
+                    model.ValueKind == JsonValueKind.Object)
+                {
+                    description = description with { Model = model };
+                }
+                else
+                {
+                    throw new InvalidDataException(
+                        "The prepared model change did not provide its effective response model.");
+                }
+                if (injectModel)
+                {
+                    var metadata = (JsonObject)JsonNode.Parse(response.Metadata.GetRawText())!;
+                    metadata.Remove("model");
+                    response = response with { Metadata = m_wire.Body.Parse(m_wire.Body.Encode(metadata)) };
+                }
+            }
             XRegistryHttpPreparedResponse preview = await PrepareEndpointResponseAsync(
-                context, request, operation.Response, shape, description, cancellationToken).ConfigureAwait(false);
+                context, endpoint, request, response, shape, description, cancellationToken).ConfigureAwait(false);
+            await lease.EnsureCurrentAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!await AuthorizeAsync(context, request with { Metadata = default, Document = default },
+                cancellationToken).ConfigureAwait(false))
+            {
+                throw new UnauthorizedAccessException("Authorization changed before publication.");
+            }
+            cancellationToken.ThrowIfCancellationRequested();
             XRegistryResponse committed = await operation.CommitAsync(cancellationToken).ConfigureAwait(false);
             if (!committed.IsSuccess)
             {
-                return await PrepareEndpointResponseAsync(context, request, committed, shape, description,
+                cancellationToken.ThrowIfCancellationRequested();
+                return await PrepareEndpointResponseAsync(context, endpoint, request, committed, shape, description,
                     cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -358,19 +557,23 @@ namespace Opc.Ua.XRegistry.Http
             {
                 throw new InvalidDataException("The prepared endpoint changed its response status after committing.");
             }
+            outcome.Committed = preview;
             return preview;
         }
 
         private async ValueTask<XRegistryHttpPreparedResponse> PrepareEndpointResponseAsync(
-            HttpContext context, XRegistryRequest request, XRegistryResponse response, XRegistryHttpShape shape,
+            HttpContext context, IXRegistryEndpoint endpoint,
+            XRegistryRequest request, XRegistryResponse response, XRegistryHttpShape shape,
             XRegistryEndpointDescription description, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (response.StatusCode < 200)
             {
                 throw new InvalidDataException("An endpoint must return a final HTTP status.");
             }
             if (description.PublicRoot is { } root)
             {
+                bool documentRedirect = XRegistryHttpDocumentReference.IsRedirect(response, request, shape);
                 var source = new XRegistryHttpAddress(root, m_options.Transport);
                 var links = new List<XRegistryLink>();
                 foreach (XRegistryLink link in response.Links)
@@ -381,12 +584,12 @@ namespace Opc.Ua.XRegistry.Http
                 {
                     Metadata = XRegistryHttpLinks.Translate(response.Metadata, request, description.Model,
                         source, m_wire.Body, source.Root, protocolLinks: true),
-                    Location = RebaseLink(source, response.Location),
+                    Location = documentRedirect ? response.Location : RebaseLink(source, response.Location),
                     ContentLocation = RebaseLink(source, response.ContentLocation),
                     Links = [.. links]
                 };
             }
-            response = await FilterActionsAsync(context, request, response, description, cancellationToken)
+            response = await FilterActionsAsync(context, endpoint, request, response, description, cancellationToken)
                 .ConfigureAwait(false);
             return m_wire.PrepareResponse(response, request, shape, description.Model);
         }
@@ -417,8 +620,8 @@ namespace Opc.Ua.XRegistry.Http
             {
                 return XRegistryCallContext.Anonymous;
             }
-            string? subject = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
-                principal.FindFirst("sub")?.Value ?? identity.Name;
+            string? subject = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? principal.FindFirst("sub")?.Value ?? identity.Name;
             if (string.IsNullOrWhiteSpace(subject))
             {
                 throw new XRegistryHttpWireException(401, "about:blank", "The authenticated principal has no subject.");
@@ -450,8 +653,19 @@ namespace Opc.Ua.XRegistry.Http
             return [.. result];
         }
 
+        private sealed class DispatchOutcome
+        {
+            public XRegistryHttpPreparedResponse? Committed
+            {
+                get => Volatile.Read(ref m_committed);
+                set => Volatile.Write(ref m_committed, value);
+            }
+
+            private XRegistryHttpPreparedResponse? m_committed;
+        }
+
         private readonly string m_mount;
-        private readonly IXRegistryEndpoint m_endpoint;
+        private readonly IXRegistryEndpointResolver m_resolver;
         private readonly XRegistryHttpRouteOptions m_options;
         private readonly XRegistryHttpWire m_wire;
         private readonly ILogger m_logger;
@@ -474,6 +688,14 @@ namespace Opc.Ua.XRegistry.Http
         [LoggerMessage(EventId = XRegistryHttpEventIds.Dispatcher + 3, Level = LogLevel.Warning,
             Message = "xRegistry endpoint operation timed out; mutation outcome may be unknown.")]
         public static partial void BackendTimedOut(this ILogger logger);
+
+        [LoggerMessage(EventId = XRegistryHttpEventIds.Dispatcher + 4, Level = LogLevel.Information,
+            Message = "xRegistry HTTP audit: {Action} caller={Caller} authority={Authority} target={Target} "
+                + "upstream={Upstream} status={Status}. No request payload or credential is recorded.")]
+        public static partial void RegistryRequestCompleted(
+            this ILogger logger, XRegistryAction action, RedactionWrapper<string> caller,
+            RedactionWrapper<string> authority, RedactionWrapper<string> target,
+            RedactionWrapper<string> upstream, int status);
     }
 }
 #endif

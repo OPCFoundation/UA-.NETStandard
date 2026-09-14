@@ -29,7 +29,7 @@
 
 using System;
 using System.Linq;
-#if NET8_0_OR_GREATER
+#if XREGISTRY_HTTP_MODERN
 using System.Net;
 #endif
 using System.Net.Http;
@@ -301,7 +301,7 @@ namespace Opc.Ua.XRegistry.Http.Tests
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("response"));
         }
 
-#if NET8_0_OR_GREATER
+#if XREGISTRY_HTTP_MODERN
         [TestCase(false)]
         [TestCase(true)]
         public void InspectionExceptionModernConstructorsPreserveTransportDetails(bool classified)
@@ -335,6 +335,8 @@ namespace Opc.Ua.XRegistry.Http.Tests
                 Has.None.StartsWith("Microsoft.AspNetCore"));
             Assert.That(assembly.GetExportedTypes().Select(type => type.Name),
                 Does.Not.Contain("XRegistryHttpEndpointRouteBuilderExtensions"));
+            Assert.That(assembly.GetExportedTypes().Select(type => type.Name),
+                Does.Not.Contain("XRegistryHttpRouteOptions"));
             Assert.That(assembly.GetExportedTypes().Select(type => type.Name),
                 Does.Contain("XRegistryHttpEndpoint").And.Contain("XRegistryHttpServiceCollectionExtensions"));
         }

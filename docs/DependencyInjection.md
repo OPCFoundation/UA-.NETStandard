@@ -18,6 +18,9 @@ The dependency injection surface is consistent across:
 - The LDS server (`src/Opc.Ua.Lds.Server`)
 - The WoT Connectivity server (`src/Opc.Ua.WotCon.Server`)
 - The WoT Connectivity client (`src/Opc.Ua.WotCon.Client`)
+- The xRegistry bridge, HTTP binding and transactional provider
+  (`src/Opc.Ua.XRegistry.Bridge`, `src/Opc.Ua.XRegistry.Http`,
+  `src/Opc.Ua.XRegistry.Server`) - see [XRegistryBridge.md](XRegistryBridge.md).
 - The PubSub stack (`src/Opc.Ua.PubSub`,
   `src/Opc.Ua.PubSub.Udp`, `src/Opc.Ua.PubSub.Mqtt`,
   `src/Opc.Ua.PubSub.Server`) — see [`PubSub.md`](PubSub.md)
@@ -93,6 +96,46 @@ full [Identity Providers](IdentityProviders.md) guide.
 Server features marked **Hosted? = yes** register an `IHostedService` so
 the .NET Generic Host (`Host.CreateApplicationBuilder(args)`) owns their
 lifetime, certificate setup, and Ctrl+C / SIGTERM handling.
+
+### xRegistry bridge composition
+
+The xRegistry binding services compose with `services.AddOpcUa()` rather than
+creating a second stack lifetime. `AddXRegistryTransactions` registers the
+optional atomic provider over an injected `IXRegistryTransactionStore`.
+`AddXRegistryCallerEndpoints` registers a caller-specific resolver and scoped
+endpoint adapter; its leases retain authorization and resource ownership through
+preparation and commit. Register `IXRegistryDocumentStore` for immutable blob
+storage rather than embedding all document bytes in each persisted generation.
+
+The same transactional registration exposes `IXRegistryAddressResolver` and
+`IXRegistryShortLinkMaintenance`. Short links are disabled by default. With
+`ShortLinksEnabled`, explicitly await `InitializeShortLinksAsync` using an
+authorized writer before opening listeners. This initializes the persistent
+alias catalog; resolving services or reading a registry never migrates storage.
+The catalog belongs to the provider's transactional format 2, not the independent
+synchronization-state format.
+
+Configure `XRegistryBridgeNativeOptions.AttributeMappings` for both native
+discovery and projection. URI-qualified paths map declared logical attributes
+to typed Properties or explicitly canonical String Properties. Pass the same
+options to the endpoint and node-manager factory; registered structures use an
+explicit `IEncodeableType` activator, not reflection-based assembly discovery.
+Mappings do not grant write permissions or upstream transaction guarantees.
+
+`AddXRegistryBridgeRunner` exposes the same health, repair cadence and
+synchronization orchestration used by the connector executable. The embedding
+host still owns its listeners, `ManagedSession` instances and stores. There is
+no implicit network connection or background registry writer during service
+registration. Direct constructors remain available, and an endpoint resolver
+can be passed directly to `MapXRegistry`.
+After stopping scheduled execution, await the runner's
+`WaitForPendingOperationsAsync` before disposing those resources. An operation
+that outlives its deadline remains owned and blocks an overlapping pass.
+
+See [the bridge composition examples](XRegistryBridge.md#optional-transactional-provider)
+and [caller lease configuration](XRegistryBridge.md#credentials-and-deployment).
+Do not bind a single cached operator projection to callers with different data
+visibility; use separately authorized native manager instances for those scopes.
 
 ## Root: `services.AddOpcUa()`
 

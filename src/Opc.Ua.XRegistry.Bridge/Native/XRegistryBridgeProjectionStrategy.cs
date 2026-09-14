@@ -39,11 +39,20 @@ namespace Opc.Ua.XRegistry.Bridge.Native
     /// </summary>
     internal sealed class XRegistryBridgeProjectionStrategy(
         XRegistryBridgeNodeManager manager,
-        XRegistryNativeSnapshot snapshot) : IXRegistryVersionedProjectionStrategy
+        XRegistryNativeSnapshot snapshot) : IXRegistryVersionedProjectionStrategy,
+            IXRegistryProjectionGenerationProvider
     {
         public XRegistryNativeSnapshot Snapshot { get; set; } = snapshot;
 
         public IXRegistryProjectionSnapshot Current => Snapshot;
+
+        public XRegistryProjectionGeneration CaptureProjectionGeneration()
+        {
+            return new XRegistryProjectionGeneration(Snapshot, Snapshot.Events())
+            {
+                RegistryEpochOrdersProjection = false
+            };
+        }
 
         public GroupState CreateGroupNode(BaseObjectState registryNode, IXRegistryProjectionGroup group)
         {

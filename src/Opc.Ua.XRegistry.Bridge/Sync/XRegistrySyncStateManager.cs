@@ -273,10 +273,119 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             return updated;
         }
 
+        /// <summary>
+        /// Retires explicitly acknowledged terminal intent payloads from an unchanged state generation.
+        /// Pending work, active conflict evidence, baselines, tombstones and the monotonic operation sequence
+        /// are never discarded. This is not time-based expiry and does not authorize any upstream retry.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">The generation is negative.</exception>
+        /// <exception cref="ArgumentException">An acknowledgment is invalid, repeated or unknown.</exception>
+        /// <exception cref="InvalidOperationException">
+        /// The generation changed or retained work is unresolved.
+        /// </exception>
+        public async ValueTask<int> CompactAsync(
+            long expectedGeneration, ArrayOf<string> acknowledgedOperationIds,
+            CancellationToken cancellationToken = default)
+        {
+            if (expectedGeneration < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(expectedGeneration));
+            }
+            IXRegistrySyncStateSession session = await m_store.OpenAsync(readOnly: false, cancellationToken)
+                .ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable lifetime = session.ConfigureAwait(false);
+            XRegistrySyncState? state = await LoadAsync(session, cancellationToken).ConfigureAwait(false);
+            if (state is null || state.Generation != expectedGeneration)
+            {
+                throw new InvalidOperationException(
+                    "The acknowledged synchronization generation is no longer current.");
+            }
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string id in acknowledgedOperationIds)
+            {
+                if (string.IsNullOrWhiteSpace(id) ||
+                    !ids.Add(id) ||
+                    !state.Intents.TryGetValue(id, out XRegistrySyncIntent? intent))
+                {
+                    throw new ArgumentException("Each acknowledgment must identify a distinct retained operation.",
+                        nameof(acknowledgedOperationIds));
+                }
+                if (intent.State is not (XRegistrySyncIntentState.Verified or XRegistrySyncIntentState.Rejected) ||
+                    state.Conflicts.Values.Any(conflict => conflict.OperationId == id && IsActive(conflict)))
+                {
+                    throw new InvalidOperationException(
+                        "Unresolved operations or active conflict evidence cannot be compacted.");
+                }
+            }
+            if (ids.Count == 0)
+            {
+                return 0;
+            }
+            foreach (string id in ids)
+            {
+                state.Intents.Remove(id);
+            }
+            state.Generation = checked(state.Generation + 1);
+            await session.CommitAsync(m_codec.Encode(state), cancellationToken).ConfigureAwait(false);
+            return ids.Count;
+        }
+
+        /// <summary>
+        /// Exports a verified snapshot without contacting endpoints or modifying the source store.
+        /// The snapshot retains pending intents, losing observations, mappings and replay/tombstone evidence.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The store is pristine.</exception>
+        public async ValueTask<ByteString> ExportSnapshotAsync(CancellationToken cancellationToken = default)
+        {
+            IXRegistrySyncStateSession session =
+                await m_store.OpenAsync(readOnly: true, cancellationToken).ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable lifetime = session.ConfigureAwait(false);
+            XRegistrySyncState state = await LoadAsync(session, cancellationToken).ConfigureAwait(false)
+                ?? throw new InvalidOperationException("Pristine storage has no synchronization snapshot to export.");
+            return m_codec.Encode(state);
+        }
+
+        /// <summary>
+        /// Validates and restores a supported snapshot into a proven pristine destination.
+        /// Existing, corrupt or indeterminate state is never overwritten or reset. Restore to a new private directory
+        /// and retain the old recovery artifacts until the operator has verified the restored job.
+        /// </summary>
+        /// <exception cref="InvalidDataException">The backup is invalid or belongs to another job.</exception>
+        /// <exception cref="InvalidOperationException">The destination is not pristine.</exception>
+        public async ValueTask<long> RestoreIntoPristineAsync(
+            ByteString snapshot, CancellationToken cancellationToken = default)
+        {
+            XRegistrySyncState state = m_codec.Decode(snapshot);
+            if (state.JobId != m_jobId)
+            {
+                throw new InvalidDataException("The backup belongs to another synchronization job.");
+            }
+            IXRegistrySyncStateSession preview =
+                await m_store.OpenAsync(readOnly: true, cancellationToken).ConfigureAwait(false);
+            await using (preview.ConfigureAwait(false))
+            {
+                if (!(await preview.ReadAsync(cancellationToken).ConfigureAwait(false)).IsNull)
+                {
+                    throw new InvalidOperationException(
+                        "Restoration requires pristine storage; retained evidence cannot be overwritten.");
+                }
+            }
+            IXRegistrySyncStateSession session =
+                await m_store.OpenAsync(readOnly: false, cancellationToken).ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable lifetime = session.ConfigureAwait(false);
+            if (!(await session.ReadAsync(cancellationToken).ConfigureAwait(false)).IsNull)
+            {
+                throw new InvalidOperationException("Destination state appeared after restoration preflight.");
+            }
+            state.Generation = checked(state.Generation + 1);
+            await session.CommitAsync(m_codec.Encode(state), cancellationToken).ConfigureAwait(false);
+            return state.Generation;
+        }
+
         internal static bool IsActive(XRegistrySyncConflict conflict)
         {
-            return conflict.Status is XRegistrySyncConflictStatus.Active or
-                XRegistrySyncConflictStatus.ResolutionRequested;
+            return conflict.Status is XRegistrySyncConflictStatus.Active
+                or XRegistrySyncConflictStatus.ResolutionRequested;
         }
 
         private async ValueTask<XRegistrySyncState?> LoadAsync(

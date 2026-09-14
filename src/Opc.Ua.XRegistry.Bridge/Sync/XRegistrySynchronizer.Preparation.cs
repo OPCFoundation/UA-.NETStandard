@@ -66,7 +66,8 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                     continue;
                 }
                 if (!pass.State.Baselines.TryGetValue(entry.Path, out XRegistrySyncBaseline? baseline) ||
-                    entry.Fingerprint != (side == XRegistrySyncSide.OpcUa ? baseline.OpcUa : baseline.Http).Fingerprint)
+                    entry.Fingerprint != (side == XRegistrySyncSide.OpcUa ? baseline.OpcUa : baseline.Http)
+                        .Fingerprint)
                 {
                     Unsupported(pass, destination.Path,
                         "A new or edited descendant lacks an unchanged synchronization baseline.");
@@ -101,14 +102,14 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             var request = new XRegistryRequest(XRegistryAction.Delete, deletePath)
             {
                 View = XRegistryView.Metadata,
-                Parameters = [new XRegistryParameter("epoch", destination.Epoch)]
+                Parameters = destination.Epoch.Length == 0 ? [] : [new XRegistryParameter("epoch", destination.Epoch)]
             };
             await PerformAsync(pass, destination.Path, side, XRegistrySyncIntentKind.Delete, request,
                 [], before, cancellationToken, preparedDeletion: true).ConfigureAwait(false);
         }
 
         private async ValueTask<PreparedDeletionResult> CommitPreparedDeletionAsync(
-            Pass pass, XRegistrySyncIntent intent, CancellationToken cancellationToken)
+            Pass pass, XRegistrySyncIntent intent, CancellationToken cancellationToken, bool deletion = true)
         {
             IXRegistryEndpoint target = intent.Destination == XRegistrySyncSide.OpcUa ? m_opcUa : m_http;
             if (target is not IXRegistryPreparedEndpoint preparedEndpoint)
@@ -120,14 +121,15 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             // Ownership transfers to late cleanup on timeout; otherwise the finally releases it.
             // TODO: Remove when CA2000 models asynchronous ownership transfer across these helpers.
 #pragma warning disable CA2000
-            var deadline = new XRegistrySyncDeadline(m_timeProvider, m_options.RequestTimeout, cancellationToken);
+            var deadline = new XRegistryOperationDeadline(m_timeProvider, m_options.RequestTimeout, cancellationToken);
 #pragma warning restore CA2000
             bool deferredCleanup = false;
             IXRegistryPreparedOperation? operation = null;
             try
             {
                 Task<IXRegistryPreparedOperation> pendingPreparation = preparedEndpoint.PrepareAsync(
-                    intent.Request with { Context = context }, deadline.Token).AsTask();
+                    pass.Reader(intent.Destination).MapRequest(intent.Request) with { Context = context },
+                        deadline.Token).AsTask();
                 try
                 {
                     operation = await pendingPreparation.WaitAsync(deadline.Token).ConfigureAwait(false);
@@ -142,12 +144,29 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                 {
                     return new(operation.Response, null);
                 }
+                if (intent.AssignsVersion)
+                {
+                    if (!CaptureAssignedCorrespondence(pass, intent, operation.Response))
+                    {
+                        return new(
+                            null, "The assigned Version response cannot be matched to the requested logical identity.");
+                    }
+                    await SaveAsync(pass, deadline.Token).ConfigureAwait(false);
+                }
+                else if (!deletion &&
+                    !PreparedResourceMatches(pass, intent,
+                    pass.Reader(intent.Destination).MapResponse(intent.Request, operation.Response)))
+                {
+                    return new(null,
+                        "The candidate would change retention, defaults or dependencies beyond the verified source.");
+                }
 
                 string scope = intent.Path == intent.Request.Path &&
                     XRegistryPath.GetSegments(intent.Path).Count == 6
                         ? XRegistrySyncModel.ResourcePath(intent.Path) : intent.Request.Path;
                 var reader = new XRegistrySyncInventoryReader(
-                    target, context, m_options, m_timeProvider, intent.Destination);
+                    target, context, m_options, m_timeProvider, intent.Destination,
+                    new XRegistrySyncCorrespondence(pass.State.VersionCorrespondences, intent.Destination));
                 XRegistrySyncInventory current = await reader.ReadAsync(deadline.Token).ConfigureAwait(false);
                 XRegistrySyncInventory prior = pass.Inventory(intent.Destination);
                 if (!current.Complete ||
@@ -159,10 +178,11 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                     return new(null,
                         "The destination inventory is incomplete or changed after preparation; deletion aborted.");
                 }
-                XRegistrySyncObservation[] scoped = [.. current.Entries.Values.Where(entry => Within(entry.Path,
-                    scope))];
                 Dictionary<string, XRegistrySyncObservation> expected = intent.DestinationBefore.Span.ToArray()
                     .ToDictionary(entry => entry.Path, StringComparer.Ordinal);
+                XRegistrySyncObservation[] scoped = [.. current.Entries.Values.Where(entry => Within(entry.Path,
+                    scope) ||
+                    expected.ContainsKey(entry.Path))];
                 if (scoped.Length != intent.DestinationBefore.Count ||
                     !scoped.All(entry => expected.TryGetValue(entry.Path, out XRegistrySyncObservation? old) &&
                         SameObservation(old, entry)))
@@ -178,13 +198,30 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                 {
                     return new(null, "Registry scope changed after preparation; deletion aborted.");
                 }
-                XRegistrySyncObservation? reappeared = await pass.Reader(Other(intent.Destination)).ReadEntityAsync(
-                    intent.Path, pass.Inventory(Other(intent.Destination)).Model!,
-                        deadline.Token).ConfigureAwait(false);
-                if (reappeared is not null)
+                if (deletion)
                 {
-                    SetObservation(pass.Inventory(Other(intent.Destination)), intent.Path, reappeared);
-                    return new(null, "The source identity reappeared after preparation; deletion aborted.");
+                    XRegistrySyncObservation? reappeared = await pass.Reader(Other(intent.Destination)).ReadEntityAsync(
+                        intent.Path, pass.Inventory(Other(intent.Destination)).Model!, deadline.Token).ConfigureAwait(
+                            false);
+                    if (reappeared is not null)
+                    {
+                        SetObservation(pass.Inventory(Other(intent.Destination)), intent.Path, reappeared);
+                        return new(null, "The source identity reappeared after preparation; deletion aborted.");
+                    }
+                }
+                else
+                {
+                    foreach (XRegistrySyncObservation source in intent.Source.Span.ToArray())
+                    {
+                        XRegistrySyncObservation? latest = await pass.Reader(Other(intent.Destination)).ReadEntityAsync(
+                            source.Path, pass.Inventory(Other(intent.Destination)).Model!, deadline.Token)
+                                .ConfigureAwait(false);
+                        if (!SameObservation(source, latest))
+                        {
+                            return new(
+                                null, "A source dependency changed after preparation; the candidate was aborted.");
+                        }
+                    }
                 }
                 // Global-generation invalidation closes the race between the checked
                 // descendant observations and publication; a target-only epoch cannot.
@@ -211,7 +248,7 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
         }
 
         private async Task ReleaseLatePreparationAsync(
-            Task<IXRegistryPreparedOperation> pending, XRegistrySyncDeadline deadline)
+            Task<IXRegistryPreparedOperation> pending, XRegistryOperationDeadline deadline)
         {
             try
             {
@@ -225,7 +262,7 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                     await ReleasePreparationAsync(operation, deadline).ConfigureAwait(false);
                 }
             }
-            catch (Exception exception) when (XRegistrySyncDeadline.IsEndpointFailure(exception) ||
+            catch (Exception exception) when (XRegistryOperationDeadline.IsEndpointFailure(exception) ||
                 exception is InvalidOperationException or ArgumentException)
             {
                 m_logger.PreparationCleanupFailed(exception);
@@ -233,7 +270,7 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
         }
 
         private async Task ReleaseLateCommitAsync(
-            Task<XRegistryResponse> pending, IXRegistryPreparedOperation operation, XRegistrySyncDeadline deadline)
+            Task<XRegistryResponse> pending, IXRegistryPreparedOperation operation, XRegistryOperationDeadline deadline)
         {
             try
             {
@@ -246,7 +283,7 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                     await ReleasePreparationAsync(operation, deadline).ConfigureAwait(false);
                 }
             }
-            catch (Exception exception) when (XRegistrySyncDeadline.IsEndpointFailure(exception) ||
+            catch (Exception exception) when (XRegistryOperationDeadline.IsEndpointFailure(exception) ||
                 exception is InvalidOperationException or ArgumentException)
             {
                 m_logger.PreparationCleanupFailed(exception);
@@ -254,7 +291,7 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
         }
 
         private static async ValueTask ReleasePreparationAsync(
-            IXRegistryPreparedOperation? operation, XRegistrySyncDeadline deadline)
+            IXRegistryPreparedOperation? operation, XRegistryOperationDeadline deadline)
         {
             try
             {

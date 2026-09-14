@@ -33,18 +33,26 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.XRegistry.Bridge;
 using Opc.Ua.XRegistry.Bridge.Sync;
 using Opc.Ua.XRegistry.Connector;
 using Opc.Ua.XRegistry.Protocol;
+using Opc.Ua.XRegistry.Server.Protocol;
 
 namespace Opc.Ua.Tools.Tests.XRegistryConnector
 {
@@ -443,6 +451,330 @@ namespace Opc.Ua.Tools.Tests.XRegistryConnector
             http.VerifyNoOtherCalls();
         }
 
+        [Test]
+        public async Task StateStatusDoesNotCreatePristineStorageAsync()
+        {
+            using var state = new TemporaryStateDirectory();
+            using var console = new ConsoleCapture();
+            int result = await XRegistryConnectorHost.RunAsync(new XRegistryConnectorSettings
+            {
+                Command = XRegistryConnectorCommand.StateStatus,
+                StateDirectory = state.RootPath,
+                JobId = k_job
+            }).ConfigureAwait(false);
+            using JsonDocument output = ParseSingleOutputLine(console);
+            Assert.Multiple(() =>
+            {
+                Assert.That(result, Is.Zero, console.Error);
+                Assert.That(output.RootElement.GetProperty("generation").GetInt64(), Is.Zero);
+                Assert.That(output.RootElement.GetProperty("pending").GetInt32(), Is.Zero);
+                Assert.That(Directory.Exists(state.RootPath), Is.False);
+            });
+        }
+
+        [Test]
+        public async Task BackupAndRestorePreserveEvidenceWithoutChangingTheSourceAsync()
+        {
+            using var source = new TemporaryStateDirectory();
+            using var backup = new TemporaryStateDirectory();
+            using var restored = new TemporaryStateDirectory();
+            await CommitStateAsync(source.JobPath, OfflineStateFixture()).ConfigureAwait(false);
+            Dictionary<string, ByteString> before = await ReadFilesAsync(source.RootPath).ConfigureAwait(false);
+            using var console = new ConsoleCapture();
+            var settings = new XRegistryConnectorSettings
+            {
+                Command = XRegistryConnectorCommand.StateBackup,
+                StateDirectory = source.RootPath,
+                SnapshotDirectory = backup.RootPath,
+                JobId = k_job
+            };
+            int backupResult = await XRegistryConnectorHost.RunAsync(settings).ConfigureAwait(false);
+            int restoreResult = await XRegistryConnectorHost.RunAsync(settings with
+            {
+                Command = XRegistryConnectorCommand.StateRestore,
+                StateDirectory = restored.RootPath
+            }).ConfigureAwait(false);
+            ByteString bytes = await ReadStateAsync(restored.JobPath).ConfigureAwait(false);
+            using var document = JsonDocument.Parse(bytes.Memory);
+            JsonElement payload = document.RootElement.GetProperty("payload");
+            Assert.Multiple(() =>
+            {
+                Assert.That(backupResult, Is.Zero, console.Error);
+                Assert.That(restoreResult, Is.Zero, console.Error);
+                Assert.That(document.RootElement.GetProperty("format").GetInt32(), Is.EqualTo(2));
+                Assert.That(payload.GetProperty("generation").GetInt64(), Is.EqualTo(9));
+                Assert.That(payload.GetProperty("sequence").GetInt64(), Is.EqualTo(3));
+                Assert.That(payload.GetProperty("conflicts").GetArrayLength(), Is.EqualTo(3));
+                Assert.That(payload.GetProperty("conflicts")[0].GetProperty("id").GetString(),
+                    Is.EqualTo("conflict-a"));
+                Assert.That(console.Output, Does.Not.Contain("simultaneous_change"));
+            });
+            Assert.That(await ReadFilesAsync(source.RootPath).ConfigureAwait(false), Is.EqualTo(before));
+        }
+
+        [TestCase(XRegistryConnectorCommand.StateBackup)]
+        [TestCase(XRegistryConnectorCommand.StateRestore)]
+        public async Task RecoveryCannotOverwriteAnExistingDestinationAsync(XRegistryConnectorCommand command)
+        {
+            using var state = new TemporaryStateDirectory();
+            using var backup = new TemporaryStateDirectory();
+            await CommitStateAsync(state.JobPath, OfflineStateFixture()).ConfigureAwait(false);
+            await CommitStateAsync(backup.JobPath, OfflineStateFixture()).ConfigureAwait(false);
+            Dictionary<string, ByteString> before = await ReadFilesAsync(state.RootPath).ConfigureAwait(false);
+            Dictionary<string, ByteString> backupBefore = await ReadFilesAsync(backup.RootPath).ConfigureAwait(false);
+            using var console = new ConsoleCapture();
+            int result = await XRegistryConnectorHost.RunAsync(new XRegistryConnectorSettings
+            {
+                Command = command,
+                StateDirectory = state.RootPath,
+                SnapshotDirectory = backup.RootPath,
+                JobId = k_job
+            }).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(result, Is.EqualTo(1));
+                Assert.That(console.Error, Does.Contain("pristine"));
+                Assert.That(console.Output, Is.Empty);
+            });
+            Assert.That(await ReadFilesAsync(state.RootPath).ConfigureAwait(false), Is.EqualTo(before));
+            Assert.That(await ReadFilesAsync(backup.RootPath).ConfigureAwait(false), Is.EqualTo(backupBefore));
+        }
+
+        [Test]
+        public async Task CorruptBackupCannotCreateDestinationStateAsync()
+        {
+            using var state = new TemporaryStateDirectory();
+            using var backup = new TemporaryStateDirectory();
+            await CommitStateAsync(backup.JobPath, ByteString.From(Encoding.UTF8.GetBytes("invalid-state")))
+                .ConfigureAwait(false);
+            using var console = new ConsoleCapture();
+            int result = await XRegistryConnectorHost.RunAsync(new XRegistryConnectorSettings
+            {
+                Command = XRegistryConnectorCommand.StateRestore,
+                StateDirectory = state.RootPath,
+                SnapshotDirectory = backup.RootPath,
+                JobId = k_job
+            }).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(result, Is.EqualTo(1));
+                Assert.That(console.Error, Is.Not.Empty);
+                Assert.That(Directory.Exists(state.RootPath), Is.False);
+            });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CompactionRequiresTheObservedGenerationAndPreservesBaselinesAsync(bool stale)
+        {
+            using var state = new TemporaryStateDirectory();
+            (long generation, string operationId) = await SeedVerifiedIntentAsync(state.JobPath).ConfigureAwait(false);
+            ByteString before = await ReadStateAsync(state.JobPath).ConfigureAwait(false);
+            using var console = new ConsoleCapture();
+            int result = await XRegistryConnectorHost.RunAsync(new XRegistryConnectorSettings
+            {
+                Command = XRegistryConnectorCommand.StateCompact,
+                StateDirectory = state.RootPath,
+                JobId = k_job,
+                ExpectedGeneration = generation - (stale ? 1 : 0),
+                AcknowledgedOperationIds = [operationId]
+            }).ConfigureAwait(false);
+            ByteString after = await ReadStateAsync(state.JobPath).ConfigureAwait(false);
+            Assert.That(result, Is.EqualTo(stale ? 1 : 0), console.Error);
+            if (stale)
+            {
+                Assert.That(after, Is.EqualTo(before));
+                return;
+            }
+            using var previous = JsonDocument.Parse(before.Memory);
+            using var current = JsonDocument.Parse(after.Memory);
+            JsonElement payload = current.RootElement.GetProperty("payload");
+            Assert.Multiple(() =>
+            {
+                Assert.That(payload.GetProperty("generation").GetInt64(), Is.EqualTo(generation + 1));
+                Assert.That(payload.GetProperty("intents").GetArrayLength(), Is.Zero);
+                Assert.That(payload.GetProperty("baselines").GetRawText(),
+                    Is.EqualTo(previous.RootElement.GetProperty("payload").GetProperty("baselines").GetRawText()));
+                Assert.That(payload.GetProperty("sequence").GetRawText(),
+                    Is.EqualTo(previous.RootElement.GetProperty("payload").GetProperty("sequence").GetRawText()));
+            });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InspectRunsTheConfiguredHttpHostAndDisposesItWithoutNativeConnectionsAsync(bool unavailable)
+        {
+            using var directory = new TemporaryStateDirectory();
+            Directory.CreateDirectory(directory.RootPath);
+            string configuration = Path.Combine(directory.RootPath, "profile.json");
+            string profile = "test-" + Guid.NewGuid().ToString("N");
+            var settingsFile = new JsonObject
+            {
+                ["PkiRoot"] = Path.Combine(directory.RootPath, "pki"),
+                ["NativeGateway"] = new JsonObject { ["SpoolDirectory"] = Path.Combine(directory.RootPath, "spool") },
+                ["Profiles"] = new JsonObject
+                {
+                    [profile] = new JsonObject { ["Http"] = new JsonObject { ["IsQualifiedBinding"] = false } }
+                }
+            };
+            await File.WriteAllTextAsync(configuration, settingsFile.ToJsonString()).ConfigureAwait(false);
+            WebApplicationBuilder builder = WebApplication.CreateSlimBuilder();
+            builder.Logging.ClearProviders();
+            builder.WebHost.UseKestrel(options => options.Listen(IPAddress.Loopback, 0));
+            WebApplication app = builder.Build();
+            await using ConfiguredAsyncDisposable appLifetime = app.ConfigureAwait(false);
+            int calls = 0;
+            app.MapGet("/registry/", async context =>
+            {
+                Interlocked.Increment(ref calls);
+                context.Response.ContentType = "application/json";
+                context.Response.StatusCode = unavailable ? 503 : 200;
+                await context.Response.WriteAsync(unavailable
+                    ? """{"type":"about:blank","detail":"fixture unavailable"}"""
+                    : """{"registryid":"host-inspection","specversion":"1.0-rc4","epoch":0}""").ConfigureAwait(false);
+            });
+            app.MapGet("/registry/model", async context =>
+            {
+                Interlocked.Increment(ref calls);
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsync("""{"groups":{}}""").ConfigureAwait(false);
+            });
+            app.MapGet("/registry/capabilities", async context =>
+            {
+                Interlocked.Increment(ref calls);
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsync(
+                    """{"specversions":["1.0-rc4"],"available":{},"mutable":[]}""").ConfigureAwait(false);
+            });
+            await app.StartAsync().ConfigureAwait(false);
+            try
+            {
+                using var console = new ConsoleCapture();
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+                int result = await XRegistryConnectorHost.RunAsync(new XRegistryConnectorSettings
+                {
+                    Command = XRegistryConnectorCommand.Inspect,
+                    ConfigurationFile = configuration,
+                    CredentialProfile = profile,
+                    HttpRoot = new Uri(app.Urls.Single() + "/registry/"),
+                    AllowLoopbackHttp = true
+                }, timeout.Token).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(timeout.IsCancellationRequested, Is.False);
+                    Assert.That(result, Is.EqualTo(unavailable ? 1 : 0), console.Error);
+                    Assert.That(calls, Is.EqualTo(unavailable ? 1 : 3));
+                });
+                if (unavailable)
+                {
+                    Assert.That(console.Error, Does.Contain("503"));
+                    Assert.That(console.Output, Is.Empty);
+                }
+                else
+                {
+                    using JsonDocument output = ParseSingleOutputLine(console);
+                    Assert.That(output.RootElement.GetProperty("side").GetString(), Is.EqualTo("http"));
+                    Assert.That(output.RootElement.GetProperty("description").GetProperty("registryId").GetString(),
+                        Is.EqualTo("host-inspection"));
+                }
+            }
+            finally
+            {
+                await app.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task HostReleaseIsDeferredUntilTimedOutProjectionActuallyCompletesAsync()
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var blocked = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var released = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var endpoint = new Mock<IXRegistryEndpoint>();
+            endpoint.Setup(value => value.InspectAsync(It.IsAny<XRegistryCallContext>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<XRegistryEndpointDescription>(new XRegistryEndpointDescription("host-test")));
+            var projection = new Mock<IXRegistryBridgeProjection>();
+            projection.Setup(value => value.RefreshAsync(It.IsAny<CancellationToken>())).Returns(() =>
+            {
+                entered.TrySetResult(true);
+                return new ValueTask(blocked.Task);
+            });
+            var telemetry = new Mock<ITelemetryContext>();
+            telemetry.SetupGet(value => value.LoggerFactory).Returns(NullLoggerFactory.Instance);
+            var runner = new XRegistryBridgeRunner(new XRegistryBridgeRunOptions
+            {
+                Mode = XRegistryBridgeMode.OpcUaGateway,
+                RequestTimeout = TimeSpan.FromMilliseconds(50)
+            }, [new XRegistryBridgeUpstream("upstream", endpoint.Object, XRegistryCallContext.Anonymous)],
+                telemetry.Object, projection: projection.Object);
+            using var console = new ConsoleCapture();
+            Task<XRegistryBridgeStatus> pass = runner.RunOnceAsync().AsTask();
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That((await pass.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false)).Ready, Is.False);
+                await XRegistryConnectorHost.ReleaseWhenIdleAsync(runner, () =>
+                {
+                    released.TrySetResult(true);
+                    return Task.CompletedTask;
+                }, TimeSpan.FromMilliseconds(50)).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(released.Task.IsCompleted, Is.False);
+                    Assert.That(console.Error, Does.Contain("resources remain owned"));
+                });
+            }
+            finally
+            {
+                blocked.TrySetResult(true);
+                await pass.ConfigureAwait(false);
+                await runner.WaitForPendingOperationsAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10))
+                    .ConfigureAwait(false);
+                await released.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public void CompletedHostCleanupFailureIsNotMisreportedAsDeferredWork()
+        {
+            var failure = new IOException("completed cleanup failure");
+            Assert.That(Assert.ThrowsAsync<IOException>(async () =>
+                await XRegistryConnectorHost.ReleaseWhenIdleAsync(null, () => Task.FromException(failure))
+                    .ConfigureAwait(false)), Is.SameAs(failure));
+        }
+
+        private static async Task<(long Generation, string OperationId)> SeedVerifiedIntentAsync(string directory)
+        {
+            using JsonDocument model = JsonDocument.Parse(/*lang=json,strict*/ """{"groups":{}}""");
+            using var source = new XRegistryTransactionalEndpoint(
+                new XRegistryTransactionalOptions { RegistryId = "source", Model = model.RootElement },
+                new InMemoryXRegistryTransactionStore());
+            using var target = new XRegistryTransactionalEndpoint(
+                new XRegistryTransactionalOptions { RegistryId = "target", Model = model.RootElement },
+                new InMemoryXRegistryTransactionStore());
+            var store = new FileXRegistrySyncStateStore(LocalFileSystem.Instance, directory);
+            await using ConfiguredAsyncDisposable lifetime = store.ConfigureAwait(false);
+            var caller = new XRegistryCallContext("writer") { IsAuthenticated = true, Roles = ["xregistry.write"] };
+            var telemetry = new Mock<ITelemetryContext>();
+            telemetry.SetupGet(value => value.LoggerFactory).Returns(NullLoggerFactory.Instance);
+            var engine = new XRegistrySynchronizer(source, target, store,
+                new XRegistrySyncOptions(k_job, "opc.tcp://source/", "https://target/")
+                { OpcUaContext = caller, HttpContext = caller }, telemetry.Object);
+            Assert.That(
+                (await engine.RunOnceAsync().ConfigureAwait(false)).Status, Is.EqualTo(XRegistrySyncStatus.Succeeded));
+            using JsonDocument change = JsonDocument.Parse(/*lang=json,strict*/ """{"name":"compact-me"}""");
+            XRegistryResponse changed = await source.ExecuteAsync(new XRegistryRequest(XRegistryAction.Merge, "/")
+            { Context = caller, Metadata = change.RootElement }).ConfigureAwait(false);
+            Assert.That(changed.StatusCode, Is.EqualTo(200));
+            XRegistrySyncReport report = await engine.RunOnceAsync().ConfigureAwait(false);
+            Assert.That(report.Applied, Is.EqualTo(1));
+            var manager = new XRegistrySyncStateManager(store, k_job);
+            XRegistrySyncStateStatus status = await manager.ReadStatusAsync().ConfigureAwait(false);
+            Assert.That(status.Verified, Is.EqualTo(1));
+            return (status.Generation,
+                report.Records.ToList().First(record => record.OperationId is not null).OperationId!);
+        }
+
         private static async Task CommitStateAsync(string directory, ByteString state)
         {
             var store = new FileXRegistrySyncStateStore(LocalFileSystem.Instance, directory);
@@ -539,6 +871,7 @@ namespace Opc.Ua.Tools.Tests.XRegistryConnector
         }
 
         private const string k_job = "offline-job";
+
         private const string k_statePayload = """
             {
               "baselines": [],

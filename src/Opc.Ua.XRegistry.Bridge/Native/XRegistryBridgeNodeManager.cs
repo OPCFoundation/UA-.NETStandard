@@ -44,7 +44,8 @@ namespace Opc.Ua.XRegistry.Bridge.Native
     /// Native projection and experimental transport over one injected endpoint.
     /// This manager owns no registry database and never invents operation replay.
     /// </summary>
-    public sealed partial class XRegistryBridgeNodeManager : AsyncCustomNodeManager
+    public sealed partial class XRegistryBridgeNodeManager :
+        AsyncCustomNodeManager, IBrowseAsyncNodeManager, ITranslateBrowsePathAsyncNodeManager
     {
         /// <summary>
         /// Creates a native endpoint projection for the server's lifecycle to own.
@@ -72,6 +73,11 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         /// </summary>
         public NodeId RegistryNodeId => new(m_options.RootIdentifier, InstanceNamespaceIndex);
 
+        /// <summary>
+        /// Gets diagnostic reservations for currently retained native transfers and handles.
+        /// </summary>
+        public XRegistryBridgeResourceUsage ResourceUsage => m_budget.Usage;
+
         internal ushort InstanceNamespaceIndex { get; }
 
         /// <inheritdoc/>
@@ -83,10 +89,10 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                 parent.NodeId.NamespaceIndex == InstanceNamespaceIndex &&
                 parent.NodeId.TryGetValue(out string parentPath))
             {
-                string name = node.BrowseName.Name ??
-                    throw new ServiceResultException(StatusCodes.BadBrowseNameInvalid);
-                string uri = Server.NamespaceUris.GetString(node.BrowseName.NamespaceIndex) ??
-                    throw new ServiceResultException(StatusCodes.BadBrowseNameInvalid);
+                string name = node.BrowseName.Name
+                    ?? throw new ServiceResultException(StatusCodes.BadBrowseNameInvalid);
+                string uri = Server.NamespaceUris.GetString(node.BrowseName.NamespaceIndex)
+                    ?? throw new ServiceResultException(StatusCodes.BadBrowseNameInvalid);
                 string component = name == "Bridge" && uri == XRegistryBridgeNativeOptions.ExperimentalNamespaceUri
                     ? "Bridge"
                     : Uri.EscapeDataString(uri) + ":" + Uri.EscapeDataString(name);
@@ -127,7 +133,15 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                 SystemContext, Server.NamespaceUris, InstanceNamespaceIndex,
                 (node, ct) => AddPredefinedNodeAsync(SystemContext, node, ct),
                 DeleteProjectionNodeAsync,
-                (context, operation) => CheckScope(context)), m_strategy, m_options.RootIdentifier);
+                (context, operation) => CheckScope(context),
+                new XRegistryServerOptions
+                {
+                    EventsEnabled = m_options.EnableChangeEvents,
+                    EventSourceUrl = (m_options.EventSource
+                        ?? snapshot.Description.PublicRoot
+                            ?? new Uri(m_options.NamespaceUri)).AbsoluteUri,
+                    TimeProvider = m_options.TimeProvider
+                }), m_strategy, m_options.RootIdentifier);
             ConfigureRegistry(snapshot);
             SystemContext.AssignInstanceChildNodeIds(m_registry);
             XRegistryProjectionEngine.LinkMethodArguments(m_registry, SystemContext);
@@ -140,7 +154,12 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             await AddPredefinedNodeAsync(SystemContext, m_registry, cancellationToken).ConfigureAwait(false);
             await m_projection.AttachAsync(m_registry, cancellationToken).ConfigureAwait(false);
             ConfigureRegistry(snapshot);
+            await ReconcileMappedPropertiesAsync(snapshot, cancellationToken).ConfigureAwait(false);
             RebindFiles();
+            if (m_options.EnableChangeEvents)
+            {
+                AddRootNotifier(m_registry);
+            }
         }
 
         /// <summary>
@@ -150,6 +169,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         /// <exception cref="ServiceResultException"></exception>
         public async ValueTask RefreshAsync(CancellationToken cancellationToken = default)
         {
+            XRegistryPreparedEventBatch? events = null;
             await m_projectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -159,14 +179,45 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidState);
                 }
-                m_strategy.Snapshot = snapshot;
-                ConfigureRegistry(snapshot);
-                await m_projection.ReconcileProjectionAsync(cancellationToken).ConfigureAwait(false);
-                RebindFiles();
+                if (!m_projectionDegraded && snapshot.EquivalentTo(m_strategy.Snapshot))
+                {
+                    return;
+                }
+                m_projectionPending = true;
+                Interlocked.Increment(ref m_projectionRevision);
+                using LocalAddressSpaceNotificationBatch notifications =
+                    ((ILocalAddressSpaceNotifications)((ILocalAddressSpaceSource)this).CreateLocalAddressSpace())
+                        .BeginNotificationBatch();
+                try
+                {
+                    XRegistryNativeSnapshot previous = m_strategy.Snapshot;
+                    await ApplySnapshotAsync(snapshot, cancellationToken).ConfigureAwait(false);
+                    events = PrepareNativeEvents(previous, snapshot);
+                    PublishAddressSpaceNotifications(notifications);
+                    m_projectionDegraded = false;
+                }
+                catch
+                {
+                    m_projectionDegraded = true;
+                    throw;
+                }
+                finally
+                {
+                    if (!m_projectionDegraded)
+                    {
+                        RetireUnpublishedFiles();
+                    }
+                    Interlocked.Increment(ref m_projectionRevision);
+                    m_projectionPending = false;
+                }
             }
             finally
             {
                 m_projectionGate.Release();
+            }
+            if (events is not null)
+            {
+                await PublishCommittedEventsAsync(events).ConfigureAwait(false);
             }
         }
 
@@ -176,12 +227,24 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             IList<DataValue> values, IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
+            bool projected = (nodesToRead.ToArray() ?? []).Any(read => IsProjectionNode(read.NodeId));
+            if (projected)
+            {
+                EnsureProjectionAvailable();
+                await RefreshAsync(cancellationToken).ConfigureAwait(false);
+            }
             if ((nodesToRead.ToArray() ?? []).Any(read => read.NodeId.NamespaceIndex == InstanceNamespaceIndex))
             {
                 _ = await AuthorizeAsync(SystemContext.Copy(context), false, cancellationToken).ConfigureAwait(false);
             }
+            long revision = Volatile.Read(ref m_projectionRevision);
             await base.ReadAsync(context, maxAge, nodesToRead, values, errors, cancellationToken)
                 .ConfigureAwait(false);
+            if (projected && (m_projectionPending || revision != Volatile.Read(ref m_projectionRevision)))
+            {
+                throw new ServiceResultException(StatusCodes.BadWaitingForInitialData,
+                    "The native projection changed during the read.");
+            }
         }
 
         /// <inheritdoc/>
@@ -216,43 +279,43 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             OperationContext context, NodeId sessionId, bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
-            await m_transportGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            Transfer[] transfers = DetachTransfers(transfer => transfer.SessionId == sessionId);
+            XRegistryNativeFile[] files = [.. m_files.Values];
+            await AwaitTransferCleanupAsync(async () =>
             {
-                foreach (NodeId id in m_transfers.Where(pair => pair.Value.SessionId == sessionId)
-                    .Select(pair => pair.Key).ToArray())
+                try
                 {
-                    await RemoveTransferAsync(id, cancellationToken).ConfigureAwait(false);
+                    await Task.WhenAll(new[] { CompleteTransfersRemovalAsync(transfers) }.Concat(
+                        files.Select(file => file.CloseSessionAsync(sessionId, CancellationToken.None).AsTask())))
+                        .ConfigureAwait(false);
                 }
-            }
-            finally
-            {
-                m_transportGate.Release();
-            }
-            foreach (XRegistryNativeFile file in m_files.Values)
-            {
-                await file.CloseSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
-            }
-            await base.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
-                .ConfigureAwait(false);
+                finally
+                {
+                    await base.SessionClosingAsync(context, sessionId, deleteSubscriptions, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+            }, cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
-            await m_transportGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            lock (m_transportGate)
             {
-                foreach (NodeId id in m_transfers.Keys.ToArray())
+                m_transportClosed = true;
+            }
+            Transfer[] transfers = DetachTransfers(static _ => true);
+            await AwaitTransferCleanupAsync(async () =>
+            {
+                try
                 {
-                    await RemoveTransferAsync(id, cancellationToken).ConfigureAwait(false);
+                    await CompleteTransfersRemovalAsync(transfers).ConfigureAwait(false);
                 }
-            }
-            finally
-            {
-                m_transportGate.Release();
-            }
-            await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
+                finally
+                {
+                    await base.DeleteAddressSpaceAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+            }, cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -283,14 +346,17 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             if (handle.NodeId.NamespaceIndex == InstanceNamespaceIndex)
             {
                 _ = await AuthorizeAsync(context, false, cancellationToken).ConfigureAwait(false);
-                if (context is ISessionSystemContext { SessionId.IsNull: false } &&
-                    m_entities.ContainsKey(handle.NodeId))
+                if (IsProjectionNode(handle.NodeId))
                 {
-                    await RefreshAsync(cancellationToken).ConfigureAwait(false);
-                    if (!m_entities.ContainsKey(handle.NodeId))
+                    EnsureProjectionAvailable();
+                    if (m_projectionDegraded ||
+                        !PredefinedNodes.TryGetValue(handle.NodeId, out NodeState? current))
                     {
-                        throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+                        throw new ServiceResultException(m_projectionDegraded
+                            ? StatusCodes.BadWaitingForInitialData : StatusCodes.BadNodeIdUnknown);
                     }
+                    handle.Node = current;
+                    handle.Validated = true;
                 }
             }
             return await base.ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
@@ -301,12 +367,24 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         {
             if (disposing)
             {
+                Transfer[] transfers;
+                lock (m_transportGate)
+                {
+                    if (m_transportDisposed)
+                    {
+                        return;
+                    }
+                    m_transportDisposed = true;
+                    m_transportClosed = true;
+                    transfers = [.. m_transfers.Values];
+                    m_transfers.Clear();
+                }
                 m_projection?.Dispose();
                 foreach (XRegistryNativeFile file in m_files.Values)
                 {
                     file.Dispose();
                 }
-                foreach (Transfer transfer in m_transfers.Values)
+                foreach (Transfer transfer in transfers)
                 {
                     if (transfer.Prepared is { } prepared)
                     {
@@ -317,10 +395,8 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                     m_budget.ReleaseBytes(transfer.ReservedBytes);
                 }
                 m_files.Clear();
-                m_transfers.Clear();
                 m_resourceMetadata.Clear();
                 m_projectionGate.Dispose();
-                m_transportGate.Dispose();
             }
             base.Dispose(disposing);
         }
@@ -369,17 +445,8 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                     return StatusCodes.BadInvalidArgument;
                 }
                 _ = await AuthorizeAsync(c, false, ct).ConfigureAwait(false);
-                await m_transportGate.WaitAsync(ct).ConfigureAwait(false);
-                try
-                {
-                    _ = OwnedTransfer(c, id);
-                    await RemoveTransferAsync(id, ct).ConfigureAwait(false);
-                    return ServiceResult.Good;
-                }
-                finally
-                {
-                    m_transportGate.Release();
-                }
+                await RemoveTransferAsync(id, ct, c).ConfigureAwait(false);
+                return ServiceResult.Good;
             };
             bridge.GetOperationOutcome!.OnCallMethod2Async = async (c, m, o, i, output, ct) =>
             {
@@ -430,18 +497,42 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                 SupportsPreparedMutations = writable &&
                     description.SupportsPreparedMutations &&
                     m_endpoint is IXRegistryPreparedEndpoint,
+                SupportsPreparedSnapshots = writable &&
+                    description.SupportsPreparedSnapshots &&
+                    m_endpoint is IXRegistryPreparedEndpoint,
                 SupportsOperationReplay = description.SupportsOperationReplay &&
                     m_endpoint is IXRegistryOperationJournalEndpoint
             };
         }
 
-        private async ValueTask<XRegistryResponse> ExecuteAsync(
+        private async ValueTask<XRegistryResponse> ExecuteCoreAsync(
             ISystemContext context, XRegistryRequest request, CancellationToken ct)
         {
             XRegistryCallContext caller = await AuthorizeAsync(context, request.IsMutation, ct).ConfigureAwait(false);
             request = request with { Context = caller };
+            if (request.ExpectedGeneration is not null &&
+                !(await InspectAsync(context, ct).ConfigureAwait(false)).SupportsGenerationGuards)
+            {
+                return new XRegistryResponse(405)
+                {
+                    Error = new XRegistryError("action_not_supported",
+                        "The endpoint does not provide registry generation guards."),
+                    AllowedActions = [XRegistryAction.Read, XRegistryAction.Describe]
+                };
+            }
+            if (request.ExpectedVersionIncarnation is not null &&
+                !(await InspectAsync(context, ct).ConfigureAwait(false)).SupportsVersionIncarnationGuards)
+            {
+                return new XRegistryResponse(405)
+                {
+                    Error = new XRegistryError("action_not_supported",
+                        "The endpoint does not provide Version incarnation guards."),
+                    AllowedActions = [XRegistryAction.Read, XRegistryAction.Describe]
+                };
+            }
             if (request.IsMutation)
             {
+                EnsureProjectionAvailable();
                 if (!request.Context.IsAuthenticated)
                 {
                     return new XRegistryResponse(403)
@@ -461,6 +552,20 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                         AllowedActions = [XRegistryAction.Read, XRegistryAction.Describe]
                     };
                 }
+                if (m_endpoint is IXRegistryPreparedEndpoint prepared && description.SupportsPreparedMutations)
+                {
+                    IXRegistryPreparedOperation operation = await PrepareEndpointAsync(prepared, request, ct)
+                        .ConfigureAwait(false);
+                    operation = await PrepareProjectionAsync(operation, ct).ConfigureAwait(false);
+                    try
+                    {
+                        return await CommitAndRefreshAsync(operation, true, ct).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        await ReleasePreparedAfterOperationAsync(operation).ConfigureAwait(false);
+                    }
+                }
             }
             XRegistryResponse response = await m_endpoint.ExecuteAsync(request, ct).ConfigureAwait(false);
             if (request.IsMutation && response.IsSuccess)
@@ -473,10 +578,15 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         private async ValueTask<(NodeId File, uint Handle)> AddTransferAsync(
             ISystemContext context, ByteString bytes, bool upload, CancellationToken ct)
         {
-            await m_transportGate.WaitAsync(ct).ConfigureAwait(false);
-            try
+            await ExpireTransfersAsync(ct).ConfigureAwait(false);
+            Transfer transfer;
+            lock (m_transportGate)
             {
-                await ExpireTransfersAsync(ct).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                if (m_transportClosed)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState, "The native transport is closing.");
+                }
                 if (m_transfers.Count >= m_options.MaxOpenFiles)
                 {
                     throw new ServiceResultException(StatusCodes.BadTooManyOperations);
@@ -488,11 +598,16 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                     "/transfer/" +
                     Guid.NewGuid().ToString("N"), InstanceNamespaceIndex);
                 node.Size!.Value = (ulong)bytes.Length;
-                var transfer = new Transfer(node, session, m_options.ContextFactory(context),
+                transfer = new Transfer(node, session, m_options.ContextFactory(context),
                     upload, bytes, m_options.TimeProvider.GetUtcNow());
+                SystemContext.AssignInstanceChildNodeIds(node);
+                XRegistryProjectionEngine.LinkMethodArguments(node, SystemContext);
                 m_budget.ReserveBytes(bytes.Length);
                 transfer.ReservedBytes = bytes.Length;
-                transfer.File = new XRegistryNativeFile(
+                bool registered = false;
+                try
+                {
+                    transfer.File = new XRegistryNativeFile(
                     node, m_options, m_budget, m_options.MaxMessageBytes,
                     (c, mode, token) =>
                     {
@@ -505,11 +620,11 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                         transfer.Opened = true;
                         return new ValueTask<XRegistryFileSnapshot>(new XRegistryFileSnapshot(transfer.Bytes));
                     },
-                    upload ? async (c, baseline, content, token) =>
+                    upload ? (c, baseline, content, token) =>
                     {
-                        await m_transportGate.WaitAsync(token).ConfigureAwait(false);
-                        try
+                        lock (m_transportGate)
                         {
+                            token.ThrowIfCancellationRequested();
                             _ = OwnedTransfer(c, node.NodeId);
                             m_budget.ReserveBytes(content.Length);
                             m_budget.ReleaseBytes(transfer.ReservedBytes);
@@ -517,26 +632,44 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                             transfer.Bytes = content;
                             transfer.Sealed = true;
                             node.Size.Value = (ulong)content.Length;
-                            return ServiceResult.Good;
-                        }
-                        finally
-                        {
-                            m_transportGate.Release();
+                            return new ValueTask<ServiceResult>(ServiceResult.Good);
                         }
                     }
-                : null,
-                    commitClean: true);
-                m_transfers.Add(node.NodeId, transfer);
-                SystemContext.AssignInstanceChildNodeIds(node);
-                XRegistryProjectionEngine.LinkMethodArguments(node, SystemContext);
-                await AddPredefinedNodeAsync(SystemContext, node, ct).ConfigureAwait(false);
-                uint handle = await transfer.File.OpenAsync(context, upload ? (byte)6 : (byte)1, ct)
+                    : null,
+                        commitClean: true, telemetry: Server.Telemetry);
+                    m_transfers.Add(node.NodeId, transfer);
+                    registered = true;
+                }
+                finally
+                {
+                    if (!registered)
+                    {
+                        transfer.File?.Dispose();
+                        m_budget.ReleaseBytes(transfer.ReservedBytes);
+                    }
+                }
+            }
+            bool completed = false;
+            try
+            {
+                await AddPredefinedNodeAsync(SystemContext, transfer.Node, ct).ConfigureAwait(false);
+                uint handle = await transfer.File!.OpenAsync(context, upload ? (byte)6 : (byte)1, ct)
                     .ConfigureAwait(false);
-                return (node.NodeId, handle);
+                lock (m_transportGate)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    _ = OwnedTransfer(context, transfer.Node.NodeId);
+                    completed = true;
+                }
+                return (transfer.Node.NodeId, handle);
             }
             finally
             {
-                m_transportGate.Release();
+                transfer.Initialized.TrySetResult(true);
+                if (!completed)
+                {
+                    await RemoveTransferAsync(transfer.Node.NodeId, CancellationToken.None).ConfigureAwait(false);
+                }
             }
         }
 
@@ -544,7 +677,8 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         {
             if (!m_transfers.TryGetValue(id, out Transfer? transfer) ||
                 transfer.SessionId != XRegistryNativeFile.SessionId(context) ||
-                !XRegistryNativeFile.SameCaller(transfer.Caller, m_options.ContextFactory(context)))
+                !XRegistryNativeFile.SameCaller(transfer.Caller, m_options.ContextFactory(context)) ||
+                m_options.TimeProvider.GetUtcNow() - transfer.Created >= m_options.FileLifetime)
             {
                 throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "The transfer is not owned.");
             }
@@ -554,25 +688,107 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         private async ValueTask ExpireTransfersAsync(CancellationToken ct)
         {
             DateTimeOffset now = m_options.TimeProvider.GetUtcNow();
-            foreach (NodeId id in m_transfers.Where(pair => now - pair.Value.Created >= m_options.FileLifetime)
-                .Select(pair => pair.Key).ToArray())
+            await RemoveTransfersAsync(transfer => now - transfer.Created >= m_options.FileLifetime, ct)
+                .ConfigureAwait(false);
+        }
+
+        private async ValueTask RemoveTransferAsync(
+            NodeId id, CancellationToken ct, ISystemContext? owner = null)
+        {
+            var transfers = new List<Transfer>();
+            lock (m_transportGate)
             {
-                await RemoveTransferAsync(id, ct).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                if (owner is not null)
+                {
+                    _ = OwnedTransfer(owner, id);
+                }
+                DetachTransfer(id, transfers);
+            }
+            if (transfers.Count != 0)
+            {
+                await AwaitTransferCleanupAsync(
+                    () => CompleteTransfersRemovalAsync([.. transfers]), ct).ConfigureAwait(false);
             }
         }
 
-        private async ValueTask RemoveTransferAsync(NodeId id, CancellationToken ct)
+        private async ValueTask RemoveTransfersAsync(Func<Transfer, bool> predicate, CancellationToken ct)
         {
-            Transfer transfer = m_transfers[id];
-            if (transfer.Prepared is { } prepared)
+            Transfer[] transfers = DetachTransfers(predicate);
+            if (transfers.Length != 0)
             {
-                transfer.Prepared = null;
-                await prepared.DisposeAsync().ConfigureAwait(false);
+                await AwaitTransferCleanupAsync(
+                    () => CompleteTransfersRemovalAsync(transfers), ct).ConfigureAwait(false);
             }
-            _ = await DeleteNodeAsync(SystemContext, id, ct).ConfigureAwait(false);
-            m_transfers.Remove(id);
-            transfer.File?.Dispose();
-            m_budget.ReleaseBytes(transfer.ReservedBytes);
+        }
+
+        private Transfer[] DetachTransfers(Func<Transfer, bool> predicate)
+        {
+            lock (m_transportGate)
+            {
+                NodeId[] ids = [.. m_transfers.Values.Where(predicate).Select(transfer => transfer.Node.NodeId)];
+                var transfers = new List<Transfer>();
+                foreach (NodeId id in ids)
+                {
+                    DetachTransfer(id, transfers);
+                }
+                return [.. transfers];
+            }
+        }
+
+        private void DetachTransfer(NodeId id, List<Transfer> transfers)
+        {
+            if (m_transfers.TryGetValue(id, out Transfer? transfer))
+            {
+                m_transfers.Remove(id);
+                transfers.Add(transfer);
+                if (!transfer.PreviewId.IsNull &&
+                    m_transfers.TryGetValue(transfer.PreviewId, out Transfer? preview))
+                {
+                    m_transfers.Remove(transfer.PreviewId);
+                    transfers.Add(preview);
+                }
+            }
+        }
+
+        private async Task CompleteTransfersRemovalAsync(Transfer[] transfers)
+        {
+            var preparations = new List<IXRegistryPreparedOperation>();
+            foreach (Transfer transfer in transfers)
+            {
+                if (transfer.Prepared is { } prepared)
+                {
+                    transfer.Prepared = null;
+                    preparations.Add(prepared);
+                }
+            }
+            try
+            {
+                await Task.WhenAll(transfers.Select(RetireTransferLocallyAsync)).ConfigureAwait(false);
+            }
+            finally
+            {
+                await Task.WhenAll(preparations.Select(operation => operation.DisposeAsync().AsTask()))
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private async Task RetireTransferLocallyAsync(Transfer transfer)
+        {
+            try
+            {
+                await transfer.Initialized.Task.ConfigureAwait(false);
+                if (!m_transportDisposed)
+                {
+                    _ = await DeleteNodeAsync(SystemContext, transfer.Node.NodeId, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                transfer.File?.Dispose();
+                m_budget.ReleaseBytes(transfer.ReservedBytes);
+            }
         }
 
         private async ValueTask DeleteProjectionNodeAsync(NodeId id, CancellationToken ct)
@@ -591,13 +807,15 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             foreach (KeyValuePair<NodeId, XRegistryNativeFile> entry in m_files
                 .Where(pair => retired.Contains(pair.Value.NodeId)).ToArray())
             {
-                if (m_files.TryRemove(entry.Key, out XRegistryNativeFile? file))
+                if (!DeferProjectionFileDisposal() &&
+                    m_files.TryRemove(entry.Key, out XRegistryNativeFile? file))
                 {
                     file.Dispose();
                 }
             }
             foreach (NodeId id in retired)
             {
+                m_mappedNodes.Remove(id);
                 m_entities.TryRemove(id, out _);
                 m_entityNodes.TryRemove(id, out _);
                 m_resourceMetadata.TryRemove(id, out _);
@@ -619,7 +837,10 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         {
             foreach (XRegistryNativeFile file in m_files.Values)
             {
-                file.Bind();
+                if (PredefinedNodes.TryGetValue(file.NodeId, out NodeState? node) && node is FileState published)
+                {
+                    file.Attach(published);
+                }
             }
             foreach (KeyValuePair<NodeId, BaseObjectState> pair in m_entityNodes)
             {
@@ -627,7 +848,8 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                 {
                     continue;
                 }
-                pair.Value.EventNotifier = EventNotifiers.None;
+                pair.Value.EventNotifier = m_options.EnableChangeEvents
+                    ? EventNotifiers.SubscribeToEvents : EventNotifiers.None;
                 switch (pair.Value)
                 {
                     case RegistryState registry:
@@ -692,6 +914,12 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             public int ReservedBytes { get; set; }
             public IXRegistryPreparedOperation? Prepared { get; set; }
             public bool PreparedMutation { get; set; }
+            public XRegistryAction PreparedAction { get; set; }
+            public string PreparedPath { get; set; } = "/";
+            public NodeId PreviewId { get; set; }
+
+            public TaskCompletionSource<bool> Initialized { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         private readonly IXRegistryEndpoint m_endpoint;
@@ -699,7 +927,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         private readonly XRegistryProtocolCodec m_codec;
         private readonly XRegistryFileBudget m_budget;
         private readonly SemaphoreSlim m_projectionGate = new(1, 1);
-        private readonly SemaphoreSlim m_transportGate = new(1, 1);
+        private readonly Lock m_transportGate = new();
         private readonly Dictionary<NodeId, Transfer> m_transfers = [];
         private readonly ConcurrentDictionary<NodeId, XRegistryNativeFile> m_files = new();
         private readonly ConcurrentDictionary<NodeId, string> m_entities = new();
@@ -707,5 +935,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         private RegistryBridgeState? m_bridge;
         private XRegistryBridgeProjectionStrategy? m_strategy;
         private XRegistryProjectionEngine? m_projection;
+        private volatile bool m_transportClosed;
+        private volatile bool m_transportDisposed;
     }
 }

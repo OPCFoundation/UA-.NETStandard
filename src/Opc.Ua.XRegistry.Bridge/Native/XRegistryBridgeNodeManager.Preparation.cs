@@ -84,10 +84,10 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             ISystemContext context, NodeId id, string operationId, string digest, CancellationToken ct)
         {
             _ = await AuthorizeAsync(context, false, ct).ConfigureAwait(false);
-            await m_transportGate.WaitAsync(ct).ConfigureAwait(false);
-            try
+            await ExpireTransfersAsync(ct).ConfigureAwait(false);
+            lock (m_transportGate)
             {
-                await ExpireTransfersAsync(ct).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
                 Transfer upload = OwnedTransfer(context, id);
                 if (!upload.Upload || !upload.Sealed || upload.Claimed)
                 {
@@ -113,10 +113,6 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                 upload.Claimed = true;
                 return request;
             }
-            finally
-            {
-                m_transportGate.Release();
-            }
         }
 
         private async ValueTask<(NodeId File, uint Handle)> PrepareClaimedRequestAsync(
@@ -126,29 +122,34 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             XRegistryEndpointDescription description = await InspectAsync(context, ct).ConfigureAwait(false);
             if (m_endpoint is not IXRegistryPreparedEndpoint endpoint ||
                 !description.SupportsPreparedMutations ||
+                (request.ExpectedVersionIncarnation is not null && !description.SupportsVersionIncarnationGuards) ||
+                (request.ExpectedGeneration is not null && !description.SupportsGenerationGuards) ||
                 (!string.IsNullOrEmpty(request.OperationId) && !description.SupportsOperationReplay))
             {
                 throw new ServiceResultException(StatusCodes.BadNotSupported,
                     "The endpoint does not provide the requested preparation or replay guarantee.");
             }
-            IXRegistryPreparedOperation operation = await endpoint.PrepareAsync(request with { Context = caller }, ct)
+            IXRegistryPreparedOperation operation = await PrepareEndpointAsync(
+                endpoint, request with { Context = caller }, ct)
                 .ConfigureAwait(false);
+            operation = await PrepareProjectionAsync(operation, ct).ConfigureAwait(false);
             bool attached = false;
+            NodeId preview = NodeId.Null;
             try
             {
                 ByteString encoded = m_codec.EncodeResponse(operation.Response);
                 (NodeId file, uint handle) = await AddTransferAsync(context, encoded, false, ct).ConfigureAwait(false);
-                await m_transportGate.WaitAsync(ct).ConfigureAwait(false);
-                try
+                preview = file;
+                lock (m_transportGate)
                 {
+                    ct.ThrowIfCancellationRequested();
                     Transfer upload = OwnedTransfer(context, id);
                     upload.Prepared = operation;
                     upload.PreparedMutation = request.IsMutation;
+                    upload.PreparedAction = request.Action;
+                    upload.PreparedPath = request.Path;
+                    upload.PreviewId = file;
                     attached = true;
-                }
-                finally
-                {
-                    m_transportGate.Release();
                 }
                 return (file, handle);
             }
@@ -156,7 +157,17 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             {
                 if (!attached)
                 {
-                    await operation.DisposeAsync().ConfigureAwait(false);
+                    try
+                    {
+                        if (!preview.IsNull)
+                        {
+                            await RemoveTransferAsync(preview, CancellationToken.None).ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        await ReleasePreparedAfterOperationAsync(operation).ConfigureAwait(false);
+                    }
                 }
             }
         }
@@ -165,36 +176,90 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             ISystemContext context, NodeId id, CancellationToken ct)
         {
             _ = await AuthorizeAsync(context, false, ct).ConfigureAwait(false);
-            await m_transportGate.WaitAsync(ct).ConfigureAwait(false);
+            await ExpireTransfersAsync(ct).ConfigureAwait(false);
+            bool mutation;
+            lock (m_transportGate)
+            {
+                ct.ThrowIfCancellationRequested();
+                mutation = OwnedTransfer(context, id).PreparedMutation;
+            }
+            _ = await AuthorizeAsync(context, mutation, ct).ConfigureAwait(false);
+            var deadline =
+                new XRegistryOperationDeadline(m_options.TimeProvider, m_options.PreparedOperationTimeout, ct);
+            CancellationToken token = deadline.Token;
+            Task<XRegistryResponse> pending = CompletePreparedCommitAsync(context, id, mutation, deadline);
             try
             {
-                await ExpireTransfersAsync(ct).ConfigureAwait(false);
+                return await pending.WaitAsync(token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                _ = ObserveLateCommitAsync(pending);
+                ct.ThrowIfCancellationRequested();
+                throw new ServiceResultException(StatusCodes.BadTimeout,
+                    "The prepared commit exceeded its deadline; its outcome must be reconciled, not retried.");
+            }
+        }
+
+        private async Task<XRegistryResponse> CompletePreparedCommitAsync(
+            ISystemContext context, NodeId id, bool mutation, XRegistryOperationDeadline deadline)
+        {
+            await using ConfiguredAsyncDisposable lifetime = deadline.ConfigureAwait(false);
+            IXRegistryPreparedOperation operation;
+            XRegistryAction action;
+            string path;
+            lock (m_transportGate)
+            {
+                deadline.Token.ThrowIfCancellationRequested();
                 Transfer ticket = OwnedTransfer(context, id);
-                IXRegistryPreparedOperation operation = ticket.Prepared ??
-                    throw new ServiceResultException(StatusCodes.BadInvalidState, "The prepared lease was consumed.");
-                _ = await AuthorizeAsync(context, ticket.PreparedMutation, ct).ConfigureAwait(false);
+                operation = ticket.Prepared
+                    ?? throw new ServiceResultException(
+                        StatusCodes.BadInvalidState, "The prepared lease was consumed.");
                 ticket.Prepared = null;
-                await using ConfiguredAsyncDisposable lifetime = operation.ConfigureAwait(false);
-                XRegistryResponse response = await operation.CommitAsync(ct).ConfigureAwait(false);
-                if (ticket.PreparedMutation && response.IsSuccess)
-                {
-                    try
-                    {
-                        await RefreshAsync(ct).ConfigureAwait(false);
-                    }
-                    catch (Exception exception) when (exception is ServiceResultException or IOException or
-                        InvalidDataException or JsonException or OperationCanceledException)
-                    {
-                        Server.Telemetry.CreateLogger<XRegistryBridgeNodeManager>().CommittedProjectionRefreshFailed(
-                            exception);
-                    }
-                }
+                action = ticket.PreparedAction;
+                path = ticket.PreparedPath;
+            }
+            try
+            {
+                XRegistryResponse response = await CommitAndRefreshAsync(operation, mutation, deadline.Token)
+                    .ConfigureAwait(false);
+                AuditResult(context, action, path, response.StatusCode,
+                    m_bridge?.CommitPreparedRequest?.NodeId ?? NodeId.Null);
                 return response;
+            }
+            catch (Exception exception) when (XRegistryOperationDeadline.IsEndpointFailure(exception))
+            {
+                AuditResult(context, action, path, 0, m_bridge?.CommitPreparedRequest?.NodeId ?? NodeId.Null);
+                throw;
             }
             finally
             {
-                m_transportGate.Release();
+                await ReleasePreparedAfterOperationAsync(operation).ConfigureAwait(false);
             }
+        }
+
+        private async ValueTask<XRegistryResponse> CommitAndRefreshAsync(
+            IXRegistryPreparedOperation operation, bool mutation, CancellationToken ct)
+        {
+            if (operation is ProjectedPreparation projected)
+            {
+                return await CommitProjectedAsync(projected, ct).ConfigureAwait(false);
+            }
+            XRegistryResponse response = await operation.CommitAsync(ct).ConfigureAwait(false);
+            if (mutation && response.IsSuccess && !m_transportClosed)
+            {
+                try
+                {
+                    await RefreshAsync(ct).ConfigureAwait(false);
+                }
+                catch (Exception exception) when (exception is ServiceResultException or IOException
+                    or InvalidDataException or JsonException or OperationCanceledException or InvalidOperationException)
+                {
+                    Server.Telemetry.CreateLogger<XRegistryBridgeNodeManager>().CommittedProjectionRefreshFailed(
+                        exception);
+                }
+            }
+            return response;
         }
 
         private async ValueTask<(NodeId File, uint Handle)> ExecuteTransferAsync(
@@ -212,15 +277,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                 {
                     return (file, handle);
                 }
-                await m_transportGate.WaitAsync(ct).ConfigureAwait(false);
-                try
-                {
-                    await RemoveTransferAsync(file, ct).ConfigureAwait(false);
-                }
-                finally
-                {
-                    m_transportGate.Release();
-                }
+                await RemoveTransferAsync(file, ct).ConfigureAwait(false);
                 return await AddTransferAsync(context, m_codec.EncodeResponse(result), false, ct).ConfigureAwait(false);
             }
             XRegistryResponse response = await ExecuteAsync(context, request, ct).ConfigureAwait(false);
@@ -233,8 +290,8 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             {
                 await operation.DisposeAsync().ConfigureAwait(false);
             }
-            catch (Exception exception) when (exception is IOException or ServiceResultException or
-                InvalidOperationException or OperationCanceledException)
+            catch (Exception exception) when (exception is IOException or ServiceResultException
+                or InvalidOperationException or OperationCanceledException)
             {
                 Server.Telemetry.CreateLogger<XRegistryBridgeNodeManager>().PreparedCleanupFailed(exception);
             }
@@ -244,7 +301,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
     internal static partial class XRegistryBridgeNodeManagerLog
     {
         [LoggerMessage(EventId = XRegistryBridgeNativeEventIds.TransferCleanupFailed + 1, Level = LogLevel.Warning,
-            Message = "A prepared registry lease could not be released during node-manager disposal.")]
+            Message = "A prepared registry lease could not be released during bounded cleanup.")]
         public static partial void PreparedCleanupFailed(this ILogger logger, Exception exception);
 
         [LoggerMessage(EventId = XRegistryBridgeNativeEventIds.TransferCleanupFailed + 2, Level = LogLevel.Error,

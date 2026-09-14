@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
@@ -45,13 +46,14 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         {
             m_entities[node.NodeId] = group.Path;
             m_entityNodes[node.NodeId] = node;
-            node.EventNotifier = EventNotifiers.None;
+            node.EventNotifier = m_options.EnableChangeEvents ? EventNotifiers.SubscribeToEvents : EventNotifiers.None;
             node.GroupId!.Value = group.Id;
             node.Xid!.Value = group.Path;
             node.BrowseName = new QualifiedName(group.Path, InstanceNamespaceIndex);
             BindProperty(node.GroupId, group.Path,
                 XRegistryNativeJson.RequiredText(group.Definition, "singular") + "id");
             BindEntityProperties(node.Name, node.Description, node.Epoch, node.CreatedAt, node.ModifiedAt, group.Path);
+            SetEpochStatus(node.Epoch, group.Metadata);
             BindLabels(node.Labels, group.Path);
             node.CreateResource!.OnCallAsync = null;
             node.CreateResource.OnCall = null;
@@ -72,7 +74,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             string path = logical ? resource.Path : resource.VersionPath;
             m_entities[node.NodeId] = path;
             m_entityNodes[node.NodeId] = node;
-            node.EventNotifier = EventNotifiers.None;
+            node.EventNotifier = m_options.EnableChangeEvents ? EventNotifiers.SubscribeToEvents : EventNotifiers.None;
             node.ResourceId!.Value = resource.Id;
             node.VersionId!.Value = resource.Version;
             node.Xid!.Value = path;
@@ -83,6 +85,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                     BrowseNames.Versions,
                     Server.NamespaceUris.GetIndexOrAppend(XRegistryWellKnown.XRegistryNamespaceUri));
                 BindProperty(node.MetaEpoch, resource.Path + "/meta", "epoch");
+                SetEpochStatus(node.MetaEpoch, resource.Meta);
                 BindProperty(node.MetaCreatedAt, resource.Path + "/meta", "createdat");
                 BindProperty(node.MetaModifiedAt, resource.Path + "/meta", "modifiedat");
                 BindLabels(node.MetaLabels, resource.Path + "/meta");
@@ -94,9 +97,26 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             BindProperty(node.Format, path, "format", true);
             BindProperty(node.ContentType, path, "contenttype", true);
             BindEntityProperties(node.Name, node.Description, node.Epoch, node.CreatedAt, node.ModifiedAt, path);
+            SetEpochStatus(node.Epoch, resource.Metadata);
             BindLabels(node.Labels, path);
             BindDelete(node.Delete, path);
             BindMetadataFile(node, path);
+            if (!resource.HasVersion)
+            {
+                foreach (BaseVariableState? property in new BaseVariableState?[]
+                {
+                    node.VersionId, node.Name, node.Description, node.Format, node.ContentType, node.Epoch,
+                    node.CreatedAt, node.ModifiedAt, node.MetaEpoch, node.MetaCreatedAt, node.MetaModifiedAt
+                })
+                {
+                    if (property is not null)
+                    {
+                        property.StatusCode = StatusCodes.BadNoData;
+                        property.AccessLevel = AccessLevels.CurrentRead;
+                        property.UserAccessLevel = AccessLevels.CurrentRead;
+                    }
+                }
+            }
         }
 
         internal XRegistryNativeFile BindResourceFile(
@@ -104,22 +124,25 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         {
             m_resourceMetadata[node.NodeId] = resource;
             string path = logical ? resource.Path : resource.VersionPath;
-            if (m_files.TryGetValue(node.NodeId, out XRegistryNativeFile? existing))
-            {
-                return existing;
-            }
             node.AddMimeType(SystemContext).AddMaxByteStringLength(SystemContext);
             node.MaxByteStringLength!.Value = (uint)m_options.ChunkSize;
-            var file = new XRegistryNativeFile(node, m_options, m_budget, m_options.MaxDocumentBytes,
-                (context, mode, ct) => OpenResourceAsync(
-                    context, path, logical, HasDocument(node.NodeId), mode, ct),
-                CloseResourceAsync,
-                mutatesEndpoint: true);
+            if (!m_files.TryGetValue(node.NodeId, out XRegistryNativeFile? file))
+            {
+                file = new XRegistryNativeFile(node, m_options, m_budget, m_options.MaxDocumentBytes,
+                    (context, mode, ct) => OpenResourceAsync(
+                        context, path, logical, HasDocument(node.NodeId), mode, ct),
+                    CloseResourceAsync,
+                    mutatesEndpoint: true,
+                    deferDisposal: DeferProjectionFileDisposal, telemetry: Server.Telemetry);
+            }
+            file.Attach(node);
             node.Writable!.OnSimpleReadValueAsync = async (context, n, ct) =>
             {
                 _ = await AuthorizeAsync(context, false, ct).ConfigureAwait(false);
                 bool writable = HasDocument(node.NodeId) &&
-                    Qualified(await InspectAsync(context, ct).ConfigureAwait(false));
+                    m_resourceMetadata.TryGetValue(node.NodeId, out XRegistryNativeResource? current) &&
+                    current.DocumentWritable &&
+                    CanWriteDocument(await InspectAsync(context, ct).ConfigureAwait(false));
                 return new AttributeSimpleReadResult(ServiceResult.Good, Variant.From(writable));
             };
             node.UserWritable!.OnSimpleReadValueAsync = node.Writable.OnSimpleReadValueAsync;
@@ -138,16 +161,17 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             RegistryState node = m_registry!;
             m_entities[node.NodeId] = "/";
             m_entityNodes[node.NodeId] = node;
-            node.EventNotifier = EventNotifiers.None;
+            node.EventNotifier = m_options.EnableChangeEvents ? EventNotifiers.SubscribeToEvents : EventNotifiers.None;
             node.RegistryId!.Value = snapshot.Description.RegistryId;
             node.SpecVersion!.Value = XRegistryNativeJson.Text(snapshot.Root, "specversion");
             node.Xid!.Value = "/";
-            node.Epoch!.Value = XRegistryNativeJson.Epoch(snapshot.Root);
+            node.Epoch!.Value = XRegistryNativeJson.ProjectionEpoch(snapshot.Root);
             node.CreatedAt!.Value = (DateTimeUtc)XRegistryNativeJson.Timestamp(snapshot.Root, "createdat");
             node.ModifiedAt!.Value = (DateTimeUtc)XRegistryNativeJson.Timestamp(snapshot.Root, "modifiedat");
             BindProperty(node.RegistryId, "/", "registryid");
             BindProperty(node.SpecVersion, "/", "specversion");
             BindProperty(node.Epoch, "/", "epoch");
+            SetEpochStatus(node.Epoch, snapshot.Root);
             BindProperty(node.CreatedAt, "/", "createdat");
             BindProperty(node.ModifiedAt, "/", "modifiedat");
             BindLabels(node.Labels, "/");
@@ -223,7 +247,11 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                 Variant result;
                 if (property.DataType == Ua.DataTypeIds.UInt32)
                 {
-                    result = Variant.From(XRegistryNativeJson.Epoch(metadata));
+                    if (!metadata.GetProperty("epoch").TryGetUInt32(out uint epoch))
+                    {
+                        return new AttributeSimpleReadResult(StatusCodes.BadOutOfRange, Variant.Null);
+                    }
+                    result = Variant.From(epoch);
                 }
                 else if (property.DataType == Ua.DataTypeIds.DateTime)
                 {
@@ -293,13 +321,32 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             labels.GetChildren(SystemContext, children);
             foreach (BaseVariableState property in children.OfType<BaseVariableState>())
             {
-                BindProperty(property, path, "labels", true, property.BrowseName.Name);
+                if (!m_mappedNodes.Contains(property.NodeId))
+                {
+                    BindProperty(property, path, "labels", true, property.BrowseName.Name);
+                }
             }
         }
 
         private async ValueTask<ServiceResult> UpdateLabelAsync(
             ISystemContext context, string path, string key, string? value, uint epoch, CancellationToken ct)
         {
+            XRegistryNativeAttributeMapping[] mapped = [.. m_options.AttributeMappings.ToList().Where(mapping =>
+                mapping.Matches(path) &&
+                mapping.Encoding == XRegistryNativeAttributeEncoding.CanonicalString &&
+                mapping.BrowsePath.Count == 2 &&
+                mapping.BrowsePath[0].NamespaceUri == XRegistryWellKnown.XRegistryNamespaceUri &&
+                mapping.BrowsePath[0].Name is "Labels" or "MetaLabels" &&
+                mapping.BrowsePath[1].Name == key)];
+            if (mapped.Length > 1)
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadInvalidArgument, "The attribute key has multiple domain mappings.");
+            }
+            if (mapped.Length == 1)
+            {
+                return await UpdateMappedLabelAsync(context, path, mapped[0], value, epoch, ct).ConfigureAwait(false);
+            }
             var metadata = new JsonObject { ["labels"] = new JsonObject { [key] = value } };
             if (epoch != 0)
             {
@@ -371,7 +418,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             {
                 var body = new JsonObject
                 {
-                    ["epoch"] = XRegistryNativeJson.Epoch(root),
+                    ["epoch"] = XRegistryNativeJson.EpochGuard(root),
                     [collection] = new JsonObject { [id] = new JsonObject() }
                 };
                 XRegistryResponse response = await ExecuteAsync(context,
@@ -415,6 +462,11 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             {
                 return StatusCodes.BadNotSupported;
             }
+            if (open && !CanWriteDocument(await InspectAsync(context, ct).ConfigureAwait(false)))
+            {
+                return ServiceResult.Create(StatusCodes.BadNotSupported,
+                    "Opening a writable document requires Version incarnation guards.");
+            }
             string path = group.Path + XRegistryPath.FromSegments([definitions[0].Name, id]);
             JsonElement parent = await ReadMetadataAsync(context, group.Path, ct).ConfigureAwait(false);
             XRegistryResponse meta = await ReadResponseAsync(context, path + "/meta", ct).ConfigureAwait(false);
@@ -454,7 +506,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                         View = XRegistryView.Metadata,
                         Metadata = XRegistryNativeJson.Element(new JsonObject
                         {
-                            ["epoch"] = XRegistryNativeJson.Epoch(parent),
+                            ["epoch"] = XRegistryNativeJson.EpochGuard(parent),
                             [definitions[0].Name] = new JsonObject { [id] = versionBody }
                         })
                     };
@@ -507,41 +559,64 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             {
                 throw new ServiceResultException(StatusCodes.BadNotSupported, "This resource type has no document.");
             }
-            if ((mode & 2) != 0 && !Qualified(await InspectAsync(context, ct).ConfigureAwait(false)))
+            if ((mode & 2) != 0 && !CanWriteDocument(await InspectAsync(context, ct).ConfigureAwait(false)))
             {
                 throw new ServiceResultException(StatusCodes.BadNotWritable);
+            }
+            if ((mode & 2) != 0)
+            {
+                string resourcePath = logical ? path : path[..path.LastIndexOf("/versions/", StringComparison.Ordinal)];
+                JsonElement meta = await ReadMetadataAsync(context, resourcePath + "/meta", ct).ConfigureAwait(false);
+                if (meta.TryGetProperty("xref", out _) ||
+                    (meta.TryGetProperty("readonly", out JsonElement readOnly) &&
+                        readOnly.ValueKind == JsonValueKind.True))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotWritable, "Referenced resource content is read-only here.");
+                }
             }
             string pinned = path;
             if (logical)
             {
                 JsonElement meta = await ReadMetadataAsync(context, path + "/meta", ct).ConfigureAwait(false);
+                if (!meta.TryGetProperty("defaultversionid", out JsonElement selected))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNoData, "The referenced Resource has no accessible default Version.");
+                }
                 pinned += "/versions" +
                     XRegistryPath.FromSegments(
-                        [XRegistryNativeJson.RequiredText(meta, "defaultversionid")]);
+                        [selected.GetString()!]);
             }
             XRegistryResponse response = await m_endpoint.ExecuteAsync(
                 new XRegistryRequest(XRegistryAction.Read, pinned)
                 {
                     Context = caller
                 }, ct).ConfigureAwait(false);
+            if (response.StatusCode == 303)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    "The document is externally referenced; its URI is available in Metadata and is never fetched.");
+            }
             XRegistryNativeJson.EnsureSuccess(response);
             if (response.Document.IsNull || response.Document.Length > m_options.MaxDocumentBytes)
             {
                 throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded,
                     "The endpoint did not return a bounded document.");
             }
-            uint epoch = XRegistryNativeJson.Epoch(response.Metadata);
-            var guard = new JsonObject { ["epoch"] = epoch };
-            if (response.Metadata.TryGetProperty("createdat", out JsonElement created))
+            var guard = new JsonObject { ["epoch"] = XRegistryNativeJson.EpochGuard(response.Metadata) };
+            if ((mode & 2) != 0 && string.IsNullOrEmpty(response.VersionIncarnation))
             {
-                guard["createdat"] = JsonNode.Parse(created.GetRawText());
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    "The endpoint did not return the promised Version incarnation.");
             }
             return new XRegistryFileSnapshot(response.Document,
                 new XRegistryRequest(XRegistryAction.Replace, pinned)
                 {
                     View = XRegistryView.Default,
                     Metadata = XRegistryNativeJson.Element(guard),
-                    ContentType = response.ContentType
+                    ContentType = response.ContentType,
+                    ExpectedVersionIncarnation = response.VersionIncarnation
                 });
         }
 
@@ -549,17 +624,26 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             ISystemContext context, XRegistryFileSnapshot snapshot, ByteString bytes, CancellationToken ct)
         {
             _ = await AuthorizeAsync(context, true, ct).ConfigureAwait(false);
-            XRegistryRequest baseline = snapshot.Baseline ??
-                throw new ServiceResultException(StatusCodes.BadInvalidState);
-            JsonElement current = await ReadMetadataAsync(context, baseline.Path, ct).ConfigureAwait(false);
-            if (XRegistryNativeJson.Text(current, "createdat") !=
-                XRegistryNativeJson.Text(baseline.Metadata, "createdat"))
+            XRegistryRequest baseline = snapshot.Baseline
+                ?? throw new ServiceResultException(StatusCodes.BadInvalidState);
+            if (string.IsNullOrEmpty(baseline.ExpectedVersionIncarnation))
             {
-                return ServiceResult.Create(StatusCodes.BadInvalidState, "The pinned version incarnation changed.");
+                return ServiceResult.Create(StatusCodes.BadInvalidState, "The pinned Version has no incarnation.");
             }
             XRegistryResponse response = await ExecuteAsync(context, baseline with { Document = bytes }, ct)
                 .ConfigureAwait(false);
             return XRegistryNativeJson.Status(response);
+        }
+
+        private static bool CanWriteDocument(XRegistryEndpointDescription description)
+        {
+            return Qualified(description) && description.SupportsVersionIncarnationGuards;
+        }
+
+        private static void SetEpochStatus(PropertyState<uint>? property, JsonElement metadata)
+        {
+            property?.StatusCode = !metadata.TryGetProperty("epoch", out JsonElement epoch) ? StatusCodes.BadNoData :
+                    epoch.TryGetUInt32(out _) ? StatusCodes.Good : StatusCodes.BadOutOfRange;
         }
 
         private void BindMetadataFile(BaseObjectState parent, string path)
@@ -579,8 +663,9 @@ namespace Opc.Ua.XRegistry.Bridge.Native
 
         private void BindJsonFile(FileState node, string path)
         {
-            if (m_files.ContainsKey(node.NodeId))
+            if (m_files.TryGetValue(node.NodeId, out XRegistryNativeFile? existing))
             {
+                existing.Attach(node);
                 return;
             }
             m_files[node.NodeId] = new XRegistryNativeFile(node, m_options, m_budget, m_options.MaxMessageBytes,
@@ -589,7 +674,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                     _ = await AuthorizeAsync(context, false, ct).ConfigureAwait(false);
                     JsonElement metadata = await ReadMetadataAsync(context, path, ct).ConfigureAwait(false);
                     return new XRegistryFileSnapshot(XRegistryNativeJson.Bytes(metadata));
-                }, null);
+                }, null, deferDisposal: DeferProjectionFileDisposal, telemetry: Server.Telemetry);
             node.Size!.OnSimpleReadValueAsync = async (context, n, ct) =>
             {
                 JsonElement metadata = await ReadMetadataAsync(context, path, ct).ConfigureAwait(false);

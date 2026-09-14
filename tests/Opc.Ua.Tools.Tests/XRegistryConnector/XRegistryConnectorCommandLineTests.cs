@@ -127,8 +127,12 @@ namespace Opc.Ua.Tools.Tests.XRegistryConnector
             string deletes,
             bool propagate)
         {
-            InvocationResult result = await InvokeAsync(k_sync + " --conflict-policy " + policy +
-                " --deletes " + deletes + " --profile operator-a --job job-a --poll-interval 00:00:17")
+            InvocationResult result = await InvokeAsync(k_sync +
+                " --conflict-policy " +
+                policy +
+                " --deletes " +
+                deletes +
+                " --profile operator-a --job job-a --poll-interval 00:00:17")
                 .ConfigureAwait(false);
 
             Assert.That(result.ExitCode, Is.EqualTo(37));
@@ -342,7 +346,11 @@ namespace Opc.Ua.Tools.Tests.XRegistryConnector
                 await File.WriteAllTextAsync(model, """{"groups":{}}""").ConfigureAwait(false);
 
                 InvocationResult result = await InvokeAsync(k_httpGateway +
-                    " --config \"" + configuration + "\" --model \"" + model + "\"").ConfigureAwait(false);
+                    " --config \"" +
+                    configuration +
+                    "\" --model \"" +
+                    model +
+                    "\"").ConfigureAwait(false);
 
                 Assert.That(result.ExitCode, Is.EqualTo(37));
                 Assert.That(result.Executions, Is.EqualTo(1));
@@ -445,6 +453,62 @@ namespace Opc.Ua.Tools.Tests.XRegistryConnector
             Assert.That(result.ParserError, Is.Empty);
         }
 
+        [TestCase("state-status --state state", XRegistryConnectorCommand.StateStatus)]
+        [TestCase("state-backup --state state --snapshot backup", XRegistryConnectorCommand.StateBackup)]
+        [TestCase("state-restore --state state --snapshot backup", XRegistryConnectorCommand.StateRestore)]
+        public async Task StateCommandsHaveNoNetworkProfilesOrListenersAsync(
+            string arguments, XRegistryConnectorCommand expected)
+        {
+            InvocationResult result = await InvokeAsync(arguments).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.ExitCode, Is.EqualTo(37));
+                Assert.That(result.Executions, Is.EqualTo(1));
+                Assert.That(result.Settings!.Command, Is.EqualTo(expected));
+                Assert.That(result.Settings.StateDirectory, Is.EqualTo("state"));
+                Assert.That(result.Settings.OpcUaEndpoint, Is.Null);
+                Assert.That(result.Settings.HttpRoot, Is.Null);
+                Assert.That(result.Settings.ListenAddress, Is.Null);
+                Assert.That(result.Settings.SnapshotDirectory,
+                    Is.EqualTo(expected == XRegistryConnectorCommand.StateStatus ? null : "backup"));
+            });
+        }
+
+        [Test]
+        public async Task CompactionRetainsTheExactGenerationAndExplicitAcknowledgmentsAsync()
+        {
+            InvocationResult result = await InvokeAsync(
+                "state-compact --state state --expected-generation 9223372036854775807 --acknowledge first second")
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.ExitCode, Is.EqualTo(37));
+                Assert.That(result.Settings!.ExpectedGeneration, Is.EqualTo(long.MaxValue));
+                Assert.That(result.Settings.AcknowledgedOperationIds.Count, Is.EqualTo(2));
+                Assert.That(result.Settings.AcknowledgedOperationIds[0], Is.EqualTo("first"));
+                Assert.That(result.Settings.AcknowledgedOperationIds[1], Is.EqualTo("second"));
+            });
+        }
+
+        [TestCase("state-status")]
+        [TestCase("state-backup --state state")]
+        [TestCase("state-restore --state state")]
+        [TestCase("state-compact --state state --acknowledge first")]
+        [TestCase("state-compact --state state --expected-generation 3")]
+        [TestCase("state-compact --state state --expected-generation -1 --acknowledge first")]
+        [TestCase("state-compact --state state --expected-generation 3 --acknowledge first first")]
+        [TestCase("state-compact --state state --expected-generation 9223372036854775808 --acknowledge first")]
+        public async Task InvalidMaintenanceArgumentsNeverDispatchAsync(string arguments)
+        {
+            InvocationResult result = await InvokeAsync(arguments).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.ExitCode, Is.Not.Zero);
+                Assert.That(result.Executions, Is.Zero);
+                Assert.That(result.ValidationError + result.ParserError, Is.Not.Empty);
+            });
+        }
+
         private static async Task<InvocationResult> InvokeAsync(string arguments)
         {
             using var validationError = new StringWriter(CultureInfo.InvariantCulture);
@@ -481,8 +545,10 @@ namespace Opc.Ua.Tools.Tests.XRegistryConnector
         private const string k_httpGateway =
             "http-gateway --opcua opc.tcp://localhost:4840 --registry-node ns=2;s=Registry " +
             "--listen https://localhost:8443/ --public-root https://bridge.example/xregistry/";
+
         private const string k_opcUaGateway =
             "opcua-gateway --http-root https://registry.example/root/ --listen opc.tcp://localhost:4841";
+
         private const string k_sync =
             "sync --opcua opc.tcp://localhost:4840 --registry-node ns=2;s=Registry " +
             "--http-root https://registry.example/root/ --state xregistry-unit-state";

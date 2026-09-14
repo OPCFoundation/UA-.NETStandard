@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using Opc.Ua.XRegistry.Protocol;
 
 namespace Opc.Ua.XRegistry.Http
 {
@@ -49,6 +50,13 @@ namespace Opc.Ua.XRegistry.Http
         /// The default is <see langword="false"/>.
         /// </summary>
         public bool IsQualifiedBinding { get; init; }
+
+        /// <summary>
+        /// Opts into a known registry-relative alias mount whose IDs are immutable and never reused.
+        /// The qualified upstream must support doc reads and direct dispatch without redirects.
+        /// Null disables alias discovery; ordinary shortself advertisement alone is not this guarantee.
+        /// </summary>
+        public string? ShortLinkPrefix { get; init; }
 
         /// <summary>
         /// Gets the maximum size, in bytes, of each encoded or decoded HTTP body.
@@ -102,13 +110,34 @@ namespace Opc.Ua.XRegistry.Http
         public TimeSpan RequestTimeout { get; init; } = TimeSpan.FromSeconds(30);
 
         /// <summary>
+        /// Gets the bounded wait for releasing a hosted caller lease after response preparation.
+        /// Late cleanup is observed and logged without changing a known operation outcome.
+        /// </summary>
+        public TimeSpan CleanupTimeout { get; init; } = TimeSpan.FromSeconds(5);
+
+        /// <summary>
         /// Gets the optional telemetry context used to create the hosted route's request and backend-failure logger.
         /// The default is <see langword="null"/>.
         /// </summary>
         public ITelemetryContext? Telemetry { get; init; }
 
-        internal void Validate()
+        /// <summary>
+        /// Validates limits and optional profiles without opening a client or listener.
+        /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public void Validate()
         {
+            if (ShortLinkPrefix is { } prefix &&
+                (!prefix.StartsWith('/') ||
+                    prefix.Length < 2 ||
+                    XRegistryPath.Normalize(prefix) != prefix ||
+                    prefix.IndexOfAny(['?', '#', '$', '%', '\\'], 1) >= 0 ||
+                    prefix.IndexOf('/', 1) >= 0))
+            {
+                throw new ArgumentException("A short-link prefix must be one literal registry-relative segment.",
+                    nameof(ShortLinkPrefix));
+            }
             if (MaximumBodyBytes <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(MaximumBodyBytes));
@@ -128,6 +157,10 @@ namespace Opc.Ua.XRegistry.Http
             if (RequestTimeout <= TimeSpan.Zero || RequestTimeout.TotalMilliseconds > int.MaxValue)
             {
                 throw new ArgumentOutOfRangeException(nameof(RequestTimeout));
+            }
+            if (CleanupTimeout <= TimeSpan.Zero || CleanupTimeout.TotalMilliseconds > int.MaxValue)
+            {
+                throw new ArgumentOutOfRangeException(nameof(CleanupTimeout));
             }
         }
     }

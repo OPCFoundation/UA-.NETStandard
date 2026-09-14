@@ -33,6 +33,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.XRegistry.Protocol;
 using Opc.Ua.XRegistry.Server;
 
@@ -46,6 +47,9 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         {
             m_options = options;
         }
+
+        public XRegistryBridgeResourceUsage Usage => new(
+            Volatile.Read(ref m_handles), Interlocked.Read(ref m_bytes), Interlocked.Read(ref m_spoolBytes));
 
         public void ReserveHandle()
         {
@@ -87,10 +91,25 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             Interlocked.Add(ref m_bytes, -bytes);
         }
 
+        public void ReserveSpoolBytes(long bytes)
+        {
+            if (Interlocked.Add(ref m_spoolBytes, bytes) > m_options.MaxSpoolBytes)
+            {
+                Interlocked.Add(ref m_spoolBytes, -bytes);
+                throw new ServiceResultException(StatusCodes.BadOutOfMemory, "The native spool quota was exhausted.");
+            }
+        }
+
+        public void ReleaseSpoolBytes(long bytes)
+        {
+            Interlocked.Add(ref m_spoolBytes, -bytes);
+        }
+
         private readonly XRegistryBridgeNativeOptions m_options;
         private long m_bytes;
         private long m_nextHandle;
         private int m_handles;
+        private long m_spoolBytes;
     }
 
     /// <summary>
@@ -108,7 +127,9 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             Func<ISystemContext, XRegistryFileSnapshot, ByteString,
                 CancellationToken, ValueTask<ServiceResult>>? close,
             bool commitClean = false,
-            bool mutatesEndpoint = false)
+            bool mutatesEndpoint = false,
+            Func<bool>? deferDisposal = null,
+            ITelemetryContext? telemetry = null)
         {
             m_node = node;
             m_options = options;
@@ -118,10 +139,18 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             m_close = close;
             m_commitClean = commitClean;
             m_mutatesEndpoint = mutatesEndpoint;
+            m_deferDisposal = deferDisposal;
+            m_logger = telemetry.CreateLogger<XRegistryNativeFile>();
             Bind();
         }
 
         public NodeId NodeId => m_node.NodeId;
+
+        public void Attach(FileState node)
+        {
+            m_node = node;
+            Bind();
+        }
 
         public void Bind()
         {
@@ -219,6 +248,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             }
             await XRegistryNativeAuthorization.EnsureAsync(
                 m_options, context, write && m_mutatesEndpoint, ct).ConfigureAwait(false);
+            XRegistryCallContext caller = m_options.ContextFactory(context);
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -246,8 +276,9 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                     m_budget.ReleaseHandle();
                     throw;
                 }
-                int capacity = (mode & 4) != 0 ? 0 : snapshot.Bytes.Length;
-                int reserved = checked(snapshot.Bytes.Length + capacity);
+                bool hashed = m_options.SpoolDirectory is not null;
+                ByteString digest = hashed ? XRegistryNativeSpool.Digest(snapshot.Bytes) : default;
+                int reserved = hashed ? digest.Length : snapshot.Bytes.Length;
                 try
                 {
                     m_budget.ReserveBytes(reserved);
@@ -257,17 +288,50 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                     m_budget.ReleaseHandle();
                     throw;
                 }
-                var buffer = new MemoryStream(capacity);
-                if (capacity != 0)
+                // Successful attachment transfers ownership to the handle table; failure unwinds below.
+                // TODO: Remove when CA2000 tracks resources retained by asynchronous handle dictionaries.
+#pragma warning disable CA2000
+                var buffer = new XRegistryNativeSpool(m_options, m_budget);
+#pragma warning restore CA2000
+                bool attached = false;
+                try
                 {
-                    XRegistryNativeBuffers.Write(buffer, snapshot.Bytes);
+                    if ((mode & 4) == 0 && !snapshot.Bytes.IsEmpty)
+                    {
+                        await buffer.WriteAsync(snapshot.Bytes, ct).ConfigureAwait(false);
+                    }
+                    buffer.Position = (mode & 8) != 0 ? buffer.Length : 0;
+                    if (!SameCaller(caller, m_options.ContextFactory(context)))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadUserAccessDenied, "The caller changed while opening the file.");
+                    }
+                    m_handles.Add(id, new Handle(
+                        sessionId, caller, hashed ? snapshot with { Bytes = ByteString.Empty } : snapshot,
+                        buffer, write, (mode & 1) != 0, m_options.TimeProvider.GetUtcNow(),
+                            reserved, digest, snapshot.Bytes.Length));
+                    attached = true;
+                    m_node.OpenCount!.Value = checked((ushort)m_handles.Count);
+                    return id;
                 }
-                buffer.Position = (mode & 8) != 0 ? buffer.Length : 0;
-                m_handles.Add(id, new Handle(
-                    sessionId, m_options.ContextFactory(context), snapshot, buffer, write, (mode & 1) != 0,
-                    m_options.TimeProvider.GetUtcNow(), reserved));
-                m_node.OpenCount!.Value = checked((ushort)m_handles.Count);
-                return id;
+                finally
+                {
+                    try
+                    {
+                        if (!attached)
+                        {
+                            buffer.Dispose();
+                        }
+                    }
+                    finally
+                    {
+                        if (!attached)
+                        {
+                            m_budget.ReleaseBytes(reserved);
+                            m_budget.ReleaseHandle();
+                        }
+                    }
+                }
             }
             finally
             {
@@ -294,8 +358,8 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                 }
                 int count = (int)Math.Min(length, handle.Buffer.Length - handle.Buffer.Position);
                 byte[] bytes = new byte[count];
-                _ = handle.Buffer.Read(bytes, 0, count);
-                return ByteString.From(bytes);
+                int read = await handle.Buffer.ReadAsync(bytes, ct).ConfigureAwait(false);
+                return ByteString.From(bytes.AsSpan(0, read));
             }
             finally
             {
@@ -326,14 +390,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                 {
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
-                if (end > handle.Buffer.Capacity)
-                {
-                    int additional = (int)end - handle.Buffer.Capacity;
-                    m_budget.ReserveBytes(additional);
-                    handle.ReservedBytes += additional;
-                    handle.Buffer.Capacity = (int)end;
-                }
-                XRegistryNativeBuffers.Write(handle.Buffer, bytes);
+                await handle.Buffer.WriteAsync(bytes, ct).ConfigureAwait(false);
             }
             finally
             {
@@ -364,16 +421,30 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             }
             try
             {
-                var bytes = ByteString.From(handle.Buffer.ToArray());
-                if (handle.Write &&
-                    m_close is not null &&
-                    (m_commitClean || !bytes.Span.SequenceEqual(handle.Snapshot.Bytes.Span)))
+                if (!handle.Write || m_close is null)
                 {
-                    await XRegistryNativeAuthorization.EnsureAsync(
-                        m_options, context, m_mutatesEndpoint, ct).ConfigureAwait(false);
-                    return await m_close(context, handle.Snapshot, bytes, ct).ConfigureAwait(false);
+                    return ServiceResult.Good;
                 }
-                return ServiceResult.Good;
+                int materialized = checked((int)handle.Buffer.Length);
+                m_budget.ReserveBytes(materialized);
+                try
+                {
+                    ByteString bytes = await handle.Buffer.MaterializeAsync(ct).ConfigureAwait(false);
+                    bool changed = handle.Digest.IsNull
+                        ? !bytes.Span.SequenceEqual(handle.Snapshot.Bytes.Span)
+                        : bytes.Length != handle.OriginalLength || XRegistryNativeSpool.Digest(bytes) != handle.Digest;
+                    if (m_commitClean || changed)
+                    {
+                        await XRegistryNativeAuthorization.EnsureAsync(
+                            m_options, context, m_mutatesEndpoint, ct).ConfigureAwait(false);
+                        return await m_close(context, handle.Snapshot, bytes, ct).ConfigureAwait(false);
+                    }
+                    return ServiceResult.Good;
+                }
+                finally
+                {
+                    m_budget.ReleaseBytes(materialized);
+                }
             }
             finally
             {
@@ -419,6 +490,10 @@ namespace Opc.Ua.XRegistry.Bridge.Native
 
         public void Dispose()
         {
+            if (m_deferDisposal?.Invoke() == true)
+            {
+                return;
+            }
             bool cleanup;
             lock (m_lifetime)
             {
@@ -440,9 +515,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
 
         internal static bool SameCaller(XRegistryCallContext first, XRegistryCallContext second)
         {
-            return first.Subject == second.Subject &&
-                first.Authority == second.Authority &&
-                first.IsAuthenticated == second.IsAuthenticated;
+            return XRegistryEndpointLease.SameIdentity(first, second);
         }
 
         private void CompleteDisposal()
@@ -503,9 +576,20 @@ namespace Opc.Ua.XRegistry.Bridge.Native
 
         private void Release(Handle handle)
         {
-            handle.Buffer.Dispose();
-            m_budget.ReleaseBytes(handle.ReservedBytes);
-            m_budget.ReleaseHandle();
+            try
+            {
+                handle.Buffer.Dispose();
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+                or InvalidOperationException)
+            {
+                m_logger.NativeBufferCleanupFailed(exception);
+            }
+            finally
+            {
+                m_budget.ReleaseBytes(handle.ReservedBytes);
+                m_budget.ReleaseHandle();
+            }
         }
 
         private void ThrowIfDisposed()
@@ -562,23 +646,27 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             NodeId sessionId,
             XRegistryCallContext caller,
             XRegistryFileSnapshot snapshot,
-            MemoryStream buffer,
+            XRegistryNativeSpool buffer,
             bool write,
             bool read,
             DateTimeOffset opened,
-            int reservedBytes)
+            int reservedBytes,
+            ByteString digest,
+            int originalLength)
         {
             public NodeId SessionId { get; } = sessionId;
             public XRegistryCallContext Caller { get; } = caller;
             public XRegistryFileSnapshot Snapshot { get; } = snapshot;
-            public MemoryStream Buffer { get; } = buffer;
+            public XRegistryNativeSpool Buffer { get; } = buffer;
             public bool Write { get; } = write;
             public bool Read { get; } = read;
             public DateTimeOffset Opened { get; } = opened;
             public int ReservedBytes { get; set; } = reservedBytes;
+            public ByteString Digest { get; } = digest;
+            public int OriginalLength { get; } = originalLength;
         }
 
-        private readonly FileState m_node;
+        private FileState m_node;
         private readonly XRegistryBridgeNativeOptions m_options;
         private readonly XRegistryFileBudget m_budget;
         private readonly int m_maximumBytes;
@@ -589,6 +677,8 @@ namespace Opc.Ua.XRegistry.Bridge.Native
 
         private readonly bool m_commitClean;
         private readonly bool m_mutatesEndpoint;
+        private readonly Func<bool>? m_deferDisposal;
+        private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_gate = new(1, 1);
         private readonly Lock m_lifetime = new();
         private readonly Dictionary<uint, Handle> m_handles = [];
@@ -596,5 +686,14 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         private int m_closingWriters;
         private int m_activeOperations;
         private bool m_cleanupStarted;
+    }
+
+    internal static partial class XRegistryNativeFileLog
+    {
+        [LoggerMessage(EventId = XRegistryBridgeEventIds.NativeFile, Level = LogLevel.Error,
+            Message =
+                "Native file buffer cleanup failed; local reservations are released "
+                    + "without rewriting the operation outcome.")]
+        public static partial void NativeBufferCleanupFailed(this ILogger logger, Exception exception);
     }
 }

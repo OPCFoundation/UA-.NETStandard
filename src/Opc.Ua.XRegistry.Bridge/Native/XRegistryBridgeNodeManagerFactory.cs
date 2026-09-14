@@ -38,7 +38,8 @@ namespace Opc.Ua.XRegistry.Bridge.Native
     /// Opt-in address-space factory over an authoritative endpoint. Register this
     /// factory through the existing server DI or NodeManagerLifecycle infrastructure.
     /// </summary>
-    public sealed class XRegistryBridgeNodeManagerFactory : IAsyncNodeManagerFactory
+    public sealed class XRegistryBridgeNodeManagerFactory :
+        IAsyncNodeManagerFactory, IXRegistryBridgeProjection, IXRegistryBridgeResourceUsage
     {
         /// <summary>
         /// Creates an opt-in native projection factory borrowing the authoritative endpoint.
@@ -62,6 +63,27 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         ];
 
         /// <inheritdoc/>
+        public bool IsDegraded => m_manager is null ||
+            !m_manager.TryGetTarget(out XRegistryBridgeNodeManager? manager) ||
+            manager.IsProjectionDegraded ||
+            manager.IsNotificationDegraded;
+
+        /// <inheritdoc/>
+        public XRegistryBridgeResourceUsage? ResourceUsage =>
+            m_manager is not null && m_manager.TryGetTarget(out XRegistryBridgeNodeManager? manager)
+                ? manager.ResourceUsage : null;
+
+        /// <inheritdoc/>
+        public ValueTask RefreshAsync(CancellationToken cancellationToken = default)
+        {
+            if (m_manager is null || !m_manager.TryGetTarget(out XRegistryBridgeNodeManager? manager))
+            {
+                throw new System.InvalidOperationException("The bridge node manager has not been started.");
+            }
+            return manager.RefreshAsync(cancellationToken);
+        }
+
+        /// <inheritdoc/>
         public ValueTask<IAsyncNodeManager> CreateAsync(
             IServerInternal server, ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
@@ -72,12 +94,14 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             // Ownership passes to the server lifecycle, not this factory.
             // TODO: Remove when CA2000 understands ValueTask ownership transfer.
 #pragma warning disable CA2000
-            return new ValueTask<IAsyncNodeManager>(
-                new XRegistryBridgeNodeManager(server, configuration, m_endpoint, m_options));
+            var manager = new XRegistryBridgeNodeManager(server, configuration, m_endpoint, m_options);
+            m_manager = new System.WeakReference<XRegistryBridgeNodeManager>(manager);
+            return new ValueTask<IAsyncNodeManager>(manager);
 #pragma warning restore CA2000
         }
 
         private readonly IXRegistryEndpoint m_endpoint;
         private readonly XRegistryBridgeNativeOptions m_options;
+        private System.WeakReference<XRegistryBridgeNodeManager>? m_manager;
     }
 }

@@ -41,6 +41,31 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             Transaction transaction, XRegistryModelRules model, XRegistryTarget target,
             JsonObject? input, XRegistryAction action, ByteString document)
         {
+            if (IgnoreReadonly(transaction, target))
+            {
+                return;
+            }
+            if (action == XRegistryAction.Create &&
+                target.Kind is XRegistryEntityKind.Registry or XRegistryEntityKind.Group)
+            {
+                _ = GetEntry(transaction, target.Path);
+                JsonObject ownerCollections = XRegistryModelRules.Object(target.Definition[
+                    target.Kind == XRegistryEntityKind.Registry ? "groups" : "resources"]);
+                JsonObject supplied = input
+                    ?? throw new XRegistryRejectionException("bad_request", "A collection map is required.");
+                if (!document.IsNull || supplied.Any(pair => !ownerCollections.ContainsKey(pair.Key)))
+                {
+                    throw new XRegistryRejectionException(target.Kind == XRegistryEntityKind.Registry
+                        ? "groups_only" : "resources_only", "POST to an owner accepts nested collections only.");
+                }
+                foreach ((string name, JsonNode? values) in supplied)
+                {
+                    Mutate(transaction, model, model.Resolve(Child(target.Path, name)),
+                        XRegistryModelRules.Object(values), XRegistryAction.Create, default);
+                }
+                transaction.OwnerCollectionPost = true;
+                return;
+            }
             if (target.Kind == XRegistryEntityKind.Special)
             {
                 if (target.Singular != "modelsource" ||
@@ -49,71 +74,8 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                     throw new XRegistryRejectionException(
                         "action_not_supported", "This registry aspect is read-only.", 405);
                 }
-                JsonObject updated = input ??
-                    throw new XRegistryRejectionException("bad_request", "A model is required.");
-                if (action == XRegistryAction.Merge)
-                {
-                    updated = MergeModel(XRegistryModelRules.Object(transaction.Snapshot["modelsource"]), updated);
-                }
-                var proposed = new XRegistryModelRules((JsonObject)updated.DeepClone());
-                foreach ((string path, JsonNode? value) in transaction.Entries)
-                {
-                    XRegistryTarget entity = proposed.Resolve(path);
-                    JsonObject existingEntry = XRegistryModelRules.Object(value);
-                    if (entity.Kind == XRegistryEntityKind.Version &&
-                        !XRegistryModelRules.Boolean(entity.Definition["hasdocument"], true) &&
-                        (existingEntry["document"] is not null ||
-                            XRegistryModelRules.Boolean(model.Resolve(path).Definition["hasdocument"], true)))
-                    {
-                        throw new XRegistryRejectionException("hasdocument_violation",
-                            "The model cannot remove domain documents from existing versions.");
-                    }
-                    JsonObject metadata = Metadata(existingEntry);
-                    var attributes = entity.Definition[
-                        entity.Kind == XRegistryEntityKind.Meta ? "metaattributes" : "attributes"] as JsonObject;
-                    string kind = entity.Kind switch
-                    {
-                        XRegistryEntityKind.Registry => "registry",
-                        XRegistryEntityKind.Group => "group",
-                        XRegistryEntityKind.Meta => "meta",
-                        _ => "version"
-                    };
-                    foreach ((string name, _) in metadata)
-                    {
-                        if (!XRegistryModelRules.IsManaged(name) &&
-                            !XRegistryModelRules.IsStandard(name, kind) &&
-                            name != entity.Singular + "id" &&
-                            !(entity.Kind == XRegistryEntityKind.Version && name == "versionid") &&
-                            attributes?.ContainsKey(name) != true &&
-                            attributes?.ContainsKey("*") != true)
-                        {
-                            throw new XRegistryRejectionException("invalid_model",
-                                "The proposed model would leave an existing attribute undefined.");
-                        }
-                    }
-                    var checkedMetadata = (JsonObject)metadata.DeepClone();
-                    XRegistryModelRules.ValidateObject(checkedMetadata, attributes, kind);
-                    foreach ((string name, JsonNode? checkedValue) in checkedMetadata)
-                    {
-                        if (!XRegistryModelRules.IsManaged(name) &&
-                            !JsonNode.DeepEquals(checkedValue, metadata[name]))
-                        {
-                            throw new XRegistryRejectionException("invalid_model",
-                                "Populate required/defaulted attributes before changing their model.");
-                        }
-                    }
-                    if (entity.Kind == XRegistryEntityKind.Meta)
-                    {
-                        transaction.Resources.Add(Parent(path));
-                    }
-                }
-                transaction.Snapshot["modelsource"] = updated.DeepClone();
-                model.Model.Clear();
-                foreach ((string name, JsonNode? value) in proposed.Model)
-                {
-                    model.Model[name] = value?.DeepClone();
-                }
-                transaction.Touched.Add("/");
+                _ = input
+                    ?? throw new XRegistryRejectionException("bad_request", "A model is required.");
                 return;
             }
             if (target.IsCollection)
@@ -139,9 +101,15 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                     }
                     return;
                 }
-                foreach ((string id, JsonNode? value) in input ??
-                    throw new XRegistryRejectionException(
-                        "bad_request", "A collection request requires an entity map."))
+                IEnumerable<KeyValuePair<string, JsonNode?>> entities = input
+                    ?? throw new XRegistryRejectionException(
+                        "bad_request", "A collection request requires an entity map.");
+                if (target.Kind == XRegistryEntityKind.Versions)
+                {
+                    entities = entities.OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+                        .ThenBy(pair => pair.Key, StringComparer.Ordinal);
+                }
+                foreach ((string id, JsonNode? value) in entities)
                 {
                     Mutate(transaction, model, model.Resolve(Child(target.Path, id)),
                         XRegistryModelRules.Object(value),
@@ -193,13 +161,9 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                         default);
                 }
             }
-            if (target.Kind == XRegistryEntityKind.Registry && input["modelsource"] is JsonObject modelSource)
-            {
-                Mutate(transaction, model, model.Resolve("/modelsource"), modelSource, action, default);
-            }
         }
 
-        private void Delete(Transaction transaction, XRegistryTarget target, JsonObject? input)
+        private static void Delete(Transaction transaction, XRegistryTarget target, JsonObject? input)
         {
             if (target.Kind is XRegistryEntityKind.Registry or XRegistryEntityKind.Meta)
             {
@@ -226,7 +190,9 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             for (int index = 0; index < transaction.Request.Parameters.Count; index++)
             {
                 XRegistryParameter parameter = transaction.Request.Parameters[index];
-                if (parameter.Name == "epoch" && target.Path == transaction.Request.Path)
+                if (parameter.Name == "epoch" &&
+                    target.Path == transaction.Request.Path &&
+                    !transaction.IgnoredAspects.Contains("epoch"))
                 {
                     guard = JsonNode.Parse(parameter.Value ?? "null");
                 }
@@ -236,7 +202,8 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             {
                 string resource = Parent(Parent(path));
                 JsonObject meta = Metadata(GetEntry(transaction, resource + "/meta"));
-                if (XRegistryModelRules.Boolean(meta["defaultversionsticky"]) &&
+                if (!HasFlag(transaction.Request, "setdefaultversionid") &&
+                    XRegistryModelRules.Boolean(meta["defaultversionsticky"]) &&
                     XRegistryModelRules.Text(meta["defaultversionid"]) == Identity(path) &&
                     Children(transaction, resource + "/versions").Count > 1)
                 {
@@ -274,6 +241,10 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                     ["modifiedat"] = transaction.Timestamp
                 }
             };
+            if (idName == "versionid")
+            {
+                entry["incarnation"] = Guid.NewGuid().ToString("N");
+            }
             transaction.Entries[path] = entry;
             transaction.Created.Add(path);
             if (path != "/" && !path.EndsWith("/meta", StringComparison.Ordinal))
@@ -306,10 +277,14 @@ namespace Opc.Ua.XRegistry.Server.Protocol
         {
             JsonObject metadata = Metadata(GetEntry(transaction, path));
             metadata["createdat"] ??= transaction.Timestamp;
-            if (!input.ContainsKey("modifiedat") || input["modifiedat"] is null)
+            if (!input.ContainsKey("modifiedat") ||
+                input["modifiedat"] is null ||
+                JsonNode.DeepEquals(
+                    metadata["modifiedat"], transaction.OriginalEntries[path]?["metadata"]?["modifiedat"]))
             {
                 metadata["modifiedat"] = transaction.Timestamp;
             }
+            transaction.Stamped.Add(path);
             transaction.Touched.Add(path);
         }
 
@@ -320,6 +295,10 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 if (!transaction.Created.Contains(path) && transaction.Entries[path] is JsonObject entry)
                 {
                     Metadata(entry)["epoch"] = XRegistryModelRules.Unsigned(Metadata(entry)["epoch"]).AddOne();
+                    if (!transaction.Stamped.Contains(path))
+                    {
+                        Metadata(entry)["modifiedat"] = transaction.Timestamp;
+                    }
                 }
             }
         }

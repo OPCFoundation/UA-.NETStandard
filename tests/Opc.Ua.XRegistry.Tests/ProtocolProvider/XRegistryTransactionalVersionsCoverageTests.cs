@@ -133,9 +133,9 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
             using var endpoint = XRegistryProviderCoverage.Create();
             XRegistryResponse created = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
                 XRegistryAction.Replace, k_resource + "/versions/v1", input) with
-                {
-                    View = XRegistryView.Default
-                }).ConfigureAwait(false);
+            {
+                View = XRegistryView.Default
+            }).ConfigureAwait(false);
             XRegistryResponse document = await endpoint.ExecuteAsync(
                 XRegistryProviderCoverage.Request(XRegistryAction.Read, k_resource) with
                 {
@@ -159,7 +159,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
 
         [TestCase("""{"schema":{},"schemabase64":"AQID"}""", "one_resource", 400)]
         [TestCase("""{"schemabase64":"invalid!"}""", "bad_request", 400)]
-        [TestCase("""{"schemaurl":"https://example.test/document"}""", "action_not_supported", 405)]
+        [TestCase("""{"schemaurl":""}""", "invalid_attribute", 400)]
         [TestCase("""{"schemaid":"other"}""", "mismatched_id", 400)]
         [TestCase("""{"versionid":"other"}""", "mismatched_id", 400)]
         public async Task InvalidDocumentFormsAndAddressIdsRollBackImplicitParentsAsync(
@@ -188,9 +188,9 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 .ConfigureAwait(false);
             XRegistryResponse metadata = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
                 XRegistryAction.Replace, k_resource, """{"versionid":"metadata-only"}""") with
-                {
-                    View = XRegistryView.Default
-                }).ConfigureAwait(false);
+            {
+                View = XRegistryView.Default
+            }).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(metadata.StatusCode, Is.EqualTo(201));
@@ -243,11 +243,11 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 .ConfigureAwait(false);
             XRegistryResponse changed = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
                 XRegistryAction.Replace, k_resource + "/versions/v1", """{"contenttype":"application/metadata"}""") with
-                {
-                    Document = ByteString.From(new byte[] { 0, 255, 1, 2 }),
-                    ContentType = "application/octet-stream",
-                    View = XRegistryView.Default
-                }).ConfigureAwait(false);
+            {
+                Document = ByteString.From(new byte[] { 0, 255, 1, 2 }),
+                ContentType = "application/octet-stream",
+                View = XRegistryView.Default
+            }).ConfigureAwait(false);
             XRegistryResponse meta = await endpoint.ExecuteAsync(
                 XRegistryProviderCoverage.Request(XRegistryAction.Read, k_resource + "/meta")).ConfigureAwait(false);
             Assert.Multiple(() =>
@@ -421,8 +421,8 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
 
         [TestCase("""{"defaultversionid":"missing"}""", "invalid_defaultversionid", 400)]
         [TestCase("""{"defaultversionsticky":"true"}""", "invalid_attribute", 400)]
-        [TestCase("""{"xref":"/groups/other/schemas/r"}""", "action_not_supported", 405)]
-        [TestCase("""{"compatibility":"strict"}""", "action_not_supported", 405)]
+        [TestCase("""{"xref":"/absent/other/schemas/r"}""", "malformed_xref", 400)]
+        [TestCase("""{"compatibility":""}""", "invalid_attribute", 400)]
         public async Task InvalidMetaSelectionAndUnsupportedFeaturesCannotCreateAResourceAsync(
             string input, string code, int status)
         {
@@ -514,7 +514,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
             {
                 Assert.That(group.StatusCode, Is.EqualTo(201));
                 Assert.That(created.StatusCode, Is.EqualTo(201));
-                Assert.That(rejected.Error?.Code, Is.EqualTo("invalid_attribute"));
+                Assert.That(rejected.Error?.Code, Is.EqualTo("constraint_failure"));
                 Assert.That(missing.StatusCode, Is.EqualTo(404));
                 Assert.That(resource.Metadata.GetProperty("versionscount").GetInt32(), Is.EqualTo(1));
                 Assert.That(resource.Metadata.GetProperty("owner").GetString(), Is.EqualTo("tenant-a"));

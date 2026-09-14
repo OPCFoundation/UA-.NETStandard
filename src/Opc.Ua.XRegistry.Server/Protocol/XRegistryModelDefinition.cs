@@ -16,7 +16,7 @@
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
  * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
@@ -27,41 +27,25 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.IO;
-using System.Net.Http;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Text.Json.Nodes;
 
-namespace Opc.Ua.XRegistry.Bridge.Sync
+namespace Opc.Ua.XRegistry.Server.Protocol
 {
-    internal sealed class XRegistrySyncDeadline : IAsyncDisposable
+    /// <summary>
+    /// Shared model-language normalization for provider and bridge compatibility checks.
+    /// Includes must already be resolved; no document acquisition is performed.
+    /// </summary>
+    public static class XRegistryModelDefinition
     {
-        public XRegistrySyncDeadline(TimeProvider timeProvider, TimeSpan timeout, CancellationToken cancellationToken)
+        /// <summary>
+        /// Validates a model and adds implicit standard definitions without changing the supplied JSON.
+        /// </summary>
+        public static JsonElement Normalize(JsonElement model)
         {
-            m_cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            m_timer = timeProvider.CreateTimer(
-                static state => ((CancellationTokenSource)state!).Cancel(),
-                m_cancellation, timeout, Timeout.InfiniteTimeSpan);
+            var rules = new XRegistryModelRules(XRegistryModelRules.Object(JsonNode.Parse(model.GetRawText())));
+            using JsonDocument result = JsonDocument.Parse(rules.CompleteModel().ToJsonString());
+            return result.RootElement.Clone();
         }
-
-        public CancellationToken Token => m_cancellation.Token;
-
-        public async ValueTask DisposeAsync()
-        {
-            await m_timer.DisposeAsync().ConfigureAwait(false);
-            m_cancellation.Dispose();
-        }
-
-        public static bool IsEndpointFailure(Exception exception)
-        {
-            return exception is IOException or InvalidDataException or HttpRequestException or
-                UnauthorizedAccessException or ServiceResultException or TimeoutException or
-                OperationCanceledException or JsonException;
-        }
-
-        private readonly CancellationTokenSource m_cancellation;
-        private readonly ITimer m_timer;
     }
 }

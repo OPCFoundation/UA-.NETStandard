@@ -41,9 +41,178 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
     public sealed class XRegistryProtocolCodecTests
     {
         [Test]
+        public void GenerationGuardFieldsUseIndependentEnvelopesAndAffectRequestDigests()
+        {
+            var codec = new XRegistryProtocolCodec();
+            var request = new XRegistryRequest(XRegistryAction.Read, "/") { ExpectedGeneration = "observed" };
+            using var encoded = JsonDocument.Parse(codec.EncodeRequest(request).Memory);
+            XRegistryRequest literal = codec.DecodeRequest(Utf8(/*lang=json,strict*/ """
+                {"format":1,"action":0,"path":"/","view":0,"parameters":[],"expectedGeneration":"literal"}
+                """), XRegistryCallContext.Anonymous);
+            XRegistryResponse response = codec.DecodeResponse(Utf8(/*lang=json,strict*/ """
+                {"format":1,"status":200,"generation":"snapshot","links":[],"allowedActions":[]}
+                """));
+            using var encodedResponse = JsonDocument.Parse(codec.EncodeResponse(
+                new XRegistryResponse(200) { Generation = "returned" }).Memory);
+            Assert.Multiple(() =>
+            {
+                Assert.That(encoded.RootElement.GetProperty("expectedGeneration").GetString(), Is.EqualTo("observed"));
+                Assert.That(literal.ExpectedGeneration, Is.EqualTo("literal"));
+                Assert.That(response.Generation, Is.EqualTo("snapshot"));
+                Assert.That(encodedResponse.RootElement.GetProperty("generation").GetString(), Is.EqualTo("returned"));
+                Assert.That(codec.ComputeRequestDigest(request), Is.Not.EqualTo(codec.ComputeRequestDigest(
+                    request with { ExpectedGeneration = null })));
+                Assert.That(codec.ComputeRequestDigest(request), Is.Not.EqualTo(codec.ComputeRequestDigest(
+                    request with { ExpectedGeneration = "other" })));
+            });
+        }
+
+        [Test]
+        public void GenerationAdvertisementIsExplicitAndLegacyEnvelopesStayUnguarded()
+        {
+            var codec = new XRegistryProtocolCodec();
+            XRegistryEndpointDescription description = codec.DecodeDescription(Utf8(/*lang=json,strict*/ """
+                {"format":1,"registryId":"r","profile":"qualified","atomicMutations":false,
+                "conditionalMutations":false,"writeTouch":false,"operationReplay":false,
+                "generationGuards":true,"generation":"observed"}
+                """));
+            using var encoded = JsonDocument.Parse(codec.EncodeDescription(new XRegistryEndpointDescription("r")
+            {
+                SupportsGenerationGuards = true,
+                Generation = "encoded"
+            }).Memory);
+            Assert.Multiple(() =>
+            {
+                Assert.That(description.SupportsGenerationGuards, Is.True);
+                Assert.That(description.Generation, Is.EqualTo("observed"));
+                Assert.That(encoded.RootElement.GetProperty("generationGuards").GetBoolean(), Is.True);
+                Assert.That(encoded.RootElement.GetProperty("generation").GetString(), Is.EqualTo("encoded"));
+                Assert.That(codec.DecodeDescription(Utf8(k_description)).SupportsGenerationGuards, Is.False);
+                Assert.That(codec.DecodeDescription(Utf8(k_description)).Generation, Is.Null);
+                Assert.That(codec.DecodeResponse(Utf8(k_response)).Generation, Is.Null);
+                Assert.That(codec.DecodeRequest(Utf8(k_request), XRegistryCallContext.Anonymous).ExpectedGeneration,
+                    Is.Null);
+            });
+        }
+
+        [TestCase("generationGuards", "null")]
+        [TestCase("generationGuards", "\"true\"")]
+        [TestCase("generationGuards", "1")]
+        [TestCase("generation", "1")]
+        [TestCase("generation", "{}")]
+        public void GenerationDescriptionFieldsRejectWrongJsonKinds(string field, string value)
+        {
+            string literal = """
+                {"format":1,"registryId":"r","profile":"qualified","atomicMutations":false,
+                "conditionalMutations":false,"writeTouch":false,"operationReplay":false,
+                """ +
+                "\"" +
+                field +
+                "\":" +
+                value +
+                "}";
+            Assert.That(() => new XRegistryProtocolCodec().DecodeDescription(Utf8(literal)),
+                Throws.InstanceOf<JsonException>());
+        }
+
+        [Test]
+        public void VersionIncarnationRequestFieldUsesIndependentWireValuesAndChangesTheDigest()
+        {
+            var codec = new XRegistryProtocolCodec();
+            var request = new XRegistryRequest(XRegistryAction.Merge, "/groups/g/schemas/r/versions/v1")
+            {
+                ExpectedVersionIncarnation = "original-instance"
+            };
+            using var encoded = JsonDocument.Parse(codec.EncodeRequest(request).Memory);
+            XRegistryRequest decoded = codec.DecodeRequest(Utf8(/*lang=json,strict*/ """
+                {"format":1,"action":2,"path":"/groups/g/schemas/r/versions/v1","view":0,
+                "expectedVersionIncarnation":"literal-instance","parameters":[]}
+                """), XRegistryCallContext.Anonymous);
+            Assert.Multiple(() =>
+            {
+                Assert.That(encoded.RootElement.GetProperty("expectedVersionIncarnation").GetString(),
+                    Is.EqualTo("original-instance"));
+                Assert.That(decoded.ExpectedVersionIncarnation, Is.EqualTo("literal-instance"));
+                Assert.That(codec.DecodeRequest(Utf8(k_request), XRegistryCallContext.Anonymous)
+                    .ExpectedVersionIncarnation, Is.Null);
+                Assert.That(codec.ComputeRequestDigest(request),
+                    Is.Not.EqualTo(codec.ComputeRequestDigest(request with { ExpectedVersionIncarnation = null })));
+                Assert.That(codec.ComputeRequestDigest(request),
+                    Is.Not.EqualTo(codec.ComputeRequestDigest(request with { ExpectedVersionIncarnation = "other" })));
+            });
+        }
+
+        [Test]
+        public void VersionIncarnationResponseFieldUsesIndependentWireValuesAndDefaultsToAbsent()
+        {
+            var codec = new XRegistryProtocolCodec();
+            using var encoded = JsonDocument.Parse(codec.EncodeResponse(new XRegistryResponse(200)
+            {
+                VersionIncarnation = "returned-instance"
+            }).Memory);
+            XRegistryResponse decoded = codec.DecodeResponse(Utf8(/*lang=json,strict*/ """
+                {"format":1,"status":200,"versionIncarnation":"literal-instance","links":[],"allowedActions":[]}
+                """));
+            Assert.Multiple(() =>
+            {
+                Assert.That(encoded.RootElement.GetProperty("versionIncarnation").GetString(),
+                    Is.EqualTo("returned-instance"));
+                Assert.That(decoded.VersionIncarnation, Is.EqualTo("literal-instance"));
+                Assert.That(codec.DecodeResponse(Utf8(k_response)).VersionIncarnation, Is.Null);
+            });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void VersionIncarnationDescriptionFlagIsOptionalAndIndependent(bool supported)
+        {
+            var codec = new XRegistryProtocolCodec();
+            using var encoded = JsonDocument.Parse(codec.EncodeDescription(new XRegistryEndpointDescription("r")
+            {
+                SupportsVersionIncarnationGuards = supported
+            }).Memory);
+            string literal = """
+                {"format":1,"registryId":"r","profile":"qualified","atomicMutations":false,
+                "conditionalMutations":false,"writeTouch":false,"operationReplay":false,"versionIncarnationGuards":
+                """ +
+                (supported ? "true" : "false") +
+                "}";
+            XRegistryEndpointDescription decoded = codec.DecodeDescription(Utf8(literal));
+            Assert.Multiple(() =>
+            {
+                Assert.That(encoded.RootElement.TryGetProperty("versionIncarnationGuards", out JsonElement flag),
+                    Is.EqualTo(supported));
+                if (supported)
+                {
+                    Assert.That(flag.GetBoolean(), Is.True);
+                }
+                Assert.That(decoded.SupportsVersionIncarnationGuards, Is.EqualTo(supported));
+                Assert.That(decoded.SupportsAtomicMutations, Is.False);
+                Assert.That(decoded.SupportsPreparedMutations, Is.False);
+                Assert.That(codec.DecodeDescription(Utf8(k_description)).SupportsVersionIncarnationGuards, Is.False);
+            });
+        }
+
+        [TestCase("null")]
+        [TestCase("1")]
+        [TestCase("\"true\"")]
+        [TestCase("{}")]
+        public void VersionIncarnationDescriptionFlagRejectsNonBooleanValues(string invalid)
+        {
+            string literal = """
+                {"format":1,"registryId":"r","profile":"qualified","atomicMutations":false,
+                "conditionalMutations":false,"writeTouch":false,"operationReplay":false,"versionIncarnationGuards":
+                """ +
+                invalid +
+                "}";
+            Assert.That(() => new XRegistryProtocolCodec().DecodeDescription(Utf8(literal)),
+                Throws.InstanceOf<JsonException>());
+        }
+
+        [Test]
         public void EncodeRequestMatchesIndependentEnvelopeAndOmitsCallerContext()
         {
-            using JsonDocument metadata = JsonDocument.Parse(k_metadata);
+            using var metadata = JsonDocument.Parse(k_metadata);
             var request = new XRegistryRequest(XRegistryAction.Merge, "/groups/g")
             {
                 View = XRegistryView.Metadata,
@@ -100,7 +269,7 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
         [Test]
         public void EncodeResponseMatchesIndependentEnvelopeIncludingErrorAndLinks()
         {
-            using JsonDocument metadata = JsonDocument.Parse("""{"epoch":0,"resourceid":"r"}""");
+            using var metadata = JsonDocument.Parse("""{"epoch":0,"resourceid":"r"}""");
             var response = new XRegistryResponse(400)
             {
                 Metadata = metadata.RootElement,
@@ -150,8 +319,8 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
         [Test]
         public void EncodeDescriptionMatchesIndependentEnvelope()
         {
-            using JsonDocument model = JsonDocument.Parse("""{"groups":{"devices":{}}}""");
-            using JsonDocument capabilities = JsonDocument.Parse("""{"flags":["filter"]}""");
+            using var model = JsonDocument.Parse("""{"groups":{"devices":{}}}""");
+            using var capabilities = JsonDocument.Parse("""{"flags":["filter"]}""");
             var description = new XRegistryEndpointDescription("registry-a")
             {
                 Profile = "transactional-v1",
@@ -204,16 +373,21 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
                 SupportsWriteTouch = touch,
                 SupportsOperationReplay = replay
             };
-            using JsonDocument encoded = JsonDocument.Parse(codec.EncodeDescription(description).Memory);
+            using var encoded = JsonDocument.Parse(codec.EncodeDescription(description).Memory);
             Assert.That(encoded.RootElement.GetProperty("atomicMutations").GetBoolean(), Is.EqualTo(atomic));
             Assert.That(encoded.RootElement.GetProperty("conditionalMutations").GetBoolean(), Is.EqualTo(conditional));
             Assert.That(encoded.RootElement.GetProperty("writeTouch").GetBoolean(), Is.EqualTo(touch));
             Assert.That(encoded.RootElement.GetProperty("operationReplay").GetBoolean(), Is.EqualTo(replay));
 
             string literal = """{"format":1,"registryId":"r","profile":"unqualified","atomicMutations":""" +
-                (atomic ? "true" : "false") + ""","conditionalMutations":""" + (conditional ? "true" : "false") +
-                ""","writeTouch":""" + (touch ? "true" : "false") +
-                ""","operationReplay":""" + (replay ? "true" : "false") + "}";
+                (atomic ? "true" : "false") +
+                ""","conditionalMutations":""" +
+                (conditional ? "true" : "false") +
+                ""","writeTouch":""" +
+                (touch ? "true" : "false") +
+                ""","operationReplay":""" +
+                (replay ? "true" : "false") +
+                "}";
             XRegistryEndpointDescription decoded = codec.DecodeDescription(Utf8(literal));
             Assert.That(decoded.SupportsAtomicMutations, Is.EqualTo(atomic));
             Assert.That(decoded.SupportsConditionalMutations, Is.EqualTo(conditional));
@@ -227,14 +401,14 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
         [TestCase(true, true)]
         public void DescriptionDistinguishesAbsentAndNullModelAndCapabilities(bool nullModel, bool nullCapabilities)
         {
-            using JsonDocument document = JsonDocument.Parse("null");
+            using var document = JsonDocument.Parse("null");
             var description = new XRegistryEndpointDescription("r")
             {
                 Model = nullModel ? document.RootElement : default,
                 Capabilities = nullCapabilities ? document.RootElement : default
             };
             var codec = new XRegistryProtocolCodec();
-            using JsonDocument encoded = JsonDocument.Parse(codec.EncodeDescription(description).Memory);
+            using var encoded = JsonDocument.Parse(codec.EncodeDescription(description).Memory);
             Assert.That(encoded.RootElement.TryGetProperty("model", out JsonElement model), Is.EqualTo(nullModel));
             Assert.That(model.ValueKind, Is.EqualTo(nullModel ? JsonValueKind.Null : JsonValueKind.Undefined));
             Assert.That(encoded.RootElement.TryGetProperty("capabilities", out JsonElement capabilities),
@@ -246,7 +420,8 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
                 "\"atomicMutations\":false,\"conditionalMutations\":false," +
                 "\"writeTouch\":false,\"operationReplay\":false" +
                 (nullModel ? ",\"model\":null" : string.Empty) +
-                (nullCapabilities ? ",\"capabilities\":null" : string.Empty) + "}";
+                (nullCapabilities ? ",\"capabilities\":null" : string.Empty) +
+                "}";
             XRegistryEndpointDescription decoded = codec.DecodeDescription(Utf8(literal));
             Assert.That(decoded.Model.ValueKind, Is.EqualTo(nullModel ? JsonValueKind.Null : JsonValueKind.Undefined));
             Assert.That(decoded.Capabilities.ValueKind,
@@ -259,14 +434,14 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
         [TestCase(true, true)]
         public void RequestMetadataAndDocumentPresenceRemainIndependent(bool nullMetadata, bool emptyDocument)
         {
-            using JsonDocument metadata = JsonDocument.Parse("null");
+            using var metadata = JsonDocument.Parse("null");
             var codec = new XRegistryProtocolCodec();
             var request = new XRegistryRequest(XRegistryAction.Replace, "/")
             {
                 Metadata = nullMetadata ? metadata.RootElement : default,
                 Document = emptyDocument ? ByteString.Empty : default
             };
-            using JsonDocument encoded = JsonDocument.Parse(codec.EncodeRequest(request).Memory);
+            using var encoded = JsonDocument.Parse(codec.EncodeRequest(request).Memory);
             Assert.That(encoded.RootElement.TryGetProperty("metadata", out JsonElement encodedMetadata),
                 Is.EqualTo(nullMetadata));
             Assert.That(encodedMetadata.ValueKind,
@@ -280,7 +455,8 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
 
             string literal = """{"format":1,"action":1,"path":"/","view":0""" +
                 (nullMetadata ? ""","metadata":null""" : string.Empty) +
-                (emptyDocument ? ",\"document\":\"\"" : string.Empty) + "}";
+                (emptyDocument ? ",\"document\":\"\"" : string.Empty) +
+                "}";
             XRegistryRequest decoded = codec.DecodeRequest(Utf8(literal), XRegistryCallContext.Anonymous);
             Assert.That(decoded.Metadata.ValueKind,
                 Is.EqualTo(nullMetadata ? JsonValueKind.Null : JsonValueKind.Undefined));
@@ -295,14 +471,14 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
         [TestCase(true, true)]
         public void ResponseMetadataAndDocumentPresenceRemainIndependent(bool nullMetadata, bool emptyDocument)
         {
-            using JsonDocument metadata = JsonDocument.Parse("null");
+            using var metadata = JsonDocument.Parse("null");
             var codec = new XRegistryProtocolCodec();
             var response = new XRegistryResponse(200)
             {
                 Metadata = nullMetadata ? metadata.RootElement : default,
                 Document = emptyDocument ? ByteString.Empty : default
             };
-            using JsonDocument encoded = JsonDocument.Parse(codec.EncodeResponse(response).Memory);
+            using var encoded = JsonDocument.Parse(codec.EncodeResponse(response).Memory);
             Assert.That(encoded.RootElement.TryGetProperty("metadata", out JsonElement encodedMetadata),
                 Is.EqualTo(nullMetadata));
             Assert.That(encodedMetadata.ValueKind,
@@ -316,7 +492,8 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
 
             string literal = """{"format":1,"status":200""" +
                 (nullMetadata ? ""","metadata":null""" : string.Empty) +
-                (emptyDocument ? ",\"document\":\"\"" : string.Empty) + "}";
+                (emptyDocument ? ",\"document\":\"\"" : string.Empty) +
+                "}";
             XRegistryResponse decoded = codec.DecodeResponse(Utf8(literal));
             Assert.That(decoded.Metadata.ValueKind,
                 Is.EqualTo(nullMetadata ? JsonValueKind.Null : JsonValueKind.Undefined));
@@ -335,13 +512,13 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
             string resourceEpoch)
         {
             string metadataJson = "{\"epoch\":" + versionEpoch + ",\"meta\":{\"epoch\":" + resourceEpoch + "}}";
-            using JsonDocument metadata = JsonDocument.Parse(metadataJson);
+            using var metadata = JsonDocument.Parse(metadataJson);
             var codec = new XRegistryProtocolCodec();
             var request = new XRegistryRequest(XRegistryAction.Merge, "/groups/g")
             {
                 Metadata = metadata.RootElement
             };
-            using JsonDocument encoded = JsonDocument.Parse(codec.EncodeRequest(request).Memory);
+            using var encoded = JsonDocument.Parse(codec.EncodeRequest(request).Memory);
             JsonElement encodedMetadata = encoded.RootElement.GetProperty("metadata");
             Assert.That(encodedMetadata.GetProperty("epoch").ValueKind, Is.EqualTo(JsonValueKind.Number));
             Assert.That(encodedMetadata.GetProperty("epoch").GetRawText(), Is.EqualTo(versionEpoch));
@@ -359,7 +536,7 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
         [Test]
         public void DecodeRequestUsesOnlySuppliedHostAuthenticationDespiteSpoofedEnvelope()
         {
-            const string literal = """
+            const string literal = /*lang=json,strict*/ """
                 {"format":1,"action":0,"path":"/","view":0,
                  "context":{"subject":"attacker","authority":"untrusted","isAuthenticated":true,"roles":["admin"]},
                  "subject":"attacker","authority":"untrusted","roles":["admin"],"sessionId":"spoofed"}
@@ -386,7 +563,7 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
         [Test]
         public void DecodeRequestRequiresHostContextEvenWhenEnvelopeClaimsAuthentication()
         {
-            const string literal = """
+            const string literal = /*lang=json,strict*/ """
                 {"format":1,"action":0,"path":"/","view":0,"context":{"subject":"admin","isAuthenticated":true}}
                 """;
 
@@ -397,7 +574,7 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
         [Test]
         public void RequestDigestMatchesIndependentSha256AndExcludesHostContext()
         {
-            using JsonDocument metadata = JsonDocument.Parse(k_metadata);
+            using var metadata = JsonDocument.Parse(k_metadata);
             var request = new XRegistryRequest(XRegistryAction.Merge, "/groups/g")
             {
                 View = XRegistryView.Metadata,
@@ -455,7 +632,7 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
                 "metadata-null" => "null",
                 _ => k_metadata
             };
-            using JsonDocument metadata = JsonDocument.Parse(metadataJson);
+            using var metadata = JsonDocument.Parse(metadataJson);
             var request = new XRegistryRequest(
                 mutation == "action" ? XRegistryAction.Replace : XRegistryAction.Merge,
                 mutation == "path" ? "/groups/other" : "/groups/g")
@@ -566,14 +743,14 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
         [TestCase("42")]
         [TestCase("{")]
         [TestCase("{}")]
-        [TestCase("""{"format":0}""")]
-        [TestCase("""{"format":2}""")]
-        [TestCase("""{"format":"1"}""")]
-        [TestCase("""{"format":1.5}""")]
-        [TestCase("""{"format":4294967296}""")]
-        [TestCase("""{"format":1,"format":1}""")]
-        [TestCase("""{"format":1,"f\u006frmat":1}""")]
-        [TestCase("""{"format":1,"extra":0,"extra":1}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":0}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":2}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":"1"}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1.5}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":4294967296}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"format":1}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"f\u006frmat":1}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"extra":0,"extra":1}""")]
         public void AllDecodersRejectHostileRootEnvelopes(string literal)
         {
             ByteString data = Utf8(literal);
@@ -585,30 +762,32 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
             Assert.That(() => codec.DecodeDescription(data), Throws.InstanceOf<JsonException>());
         }
 
-        [TestCase("""{"format":1,"path":"/","view":0}""")]
-        [TestCase("""{"format":1,"action":null,"path":"/","view":0}""")]
-        [TestCase("""{"format":1,"action":"0","path":"/","view":0}""")]
-        [TestCase("""{"format":1,"action":0.5,"path":"/","view":0}""")]
-        [TestCase("""{"format":1,"action":-1,"path":"/","view":0}""")]
-        [TestCase("""{"format":1,"action":6,"path":"/","view":0}""")]
-        [TestCase("""{"format":1,"action":4294967296,"path":"/","view":0}""")]
-        [TestCase("""{"format":1,"action":0,"path":"/"}""")]
-        [TestCase("""{"format":1,"action":0,"path":"/","view":-1}""")]
-        [TestCase("""{"format":1,"action":0,"path":"/","view":2}""")]
-        [TestCase("""{"format":1,"action":0,"path":"/","view":"0"}""")]
-        [TestCase("""{"format":1,"action":0,"path":null,"view":0}""")]
-        [TestCase("""{"format":1,"action":0,"view":0}""")]
-        [TestCase("""{"format":1,"action":0,"path":"/","view":0,"document":null}""")]
-        [TestCase("""{"format":1,"action":0,"path":"/","view":0,"document":false}""")]
-        [TestCase("""{"format":1,"action":0,"path":"/","view":0,"document":"invalid!"}""")]
-        [TestCase("""{"format":1,"action":0,"path":"/","view":0,"contentType":3}""")]
-        [TestCase("""{"format":1,"action":0,"path":"/","view":0,"operationId":{}}""")]
-        [TestCase("""{"format":1,"action":0,"path":"/","view":0,"parameters":{}}""")]
-        [TestCase("""{"format":1,"action":0,"path":"/","view":0,"parameters":[null]}""")]
-        [TestCase("""{"format":1,"action":0,"path":"/","view":0,"parameters":[{}]}""")]
-        [TestCase("""{"format":1,"action":0,"path":"/","view":0,"parameters":[{"name":""}]}""")]
-        [TestCase("""{"format":1,"action":0,"path":"/","view":0,"parameters":[{"name":"a","value":0}]}""")]
-        [TestCase("""{"format":1,"action":0,"path":"/","view":0,"parameters":[{"name":"a","name":"b"}]}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"path":"/","view":0}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":null,"path":"/","view":0}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":"0","path":"/","view":0}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":0.5,"path":"/","view":0}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":-1,"path":"/","view":0}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":6,"path":"/","view":0}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":4294967296,"path":"/","view":0}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":0,"path":"/"}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":0,"path":"/","view":-1}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":0,"path":"/","view":2}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":0,"path":"/","view":"0"}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":0,"path":null,"view":0}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":0,"view":0}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":0,"path":"/","view":0,"document":null}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":0,"path":"/","view":0,"document":false}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":0,"path":"/","view":0,"document":"invalid!"}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":0,"path":"/","view":0,"contentType":3}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":0,"path":"/","view":0,"operationId":{}}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":0,"path":"/","view":0,"parameters":{}}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":0,"path":"/","view":0,"parameters":[null]}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":0,"path":"/","view":0,"parameters":[{}]}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"action":0,"path":"/","view":0,"parameters":[{"name":""}]}""")]
+        [TestCase(/*lang=json,strict*/
+            """{"format":1,"action":0,"path":"/","view":0,"parameters":[{"name":"a","value":0}]}""")]
+        [TestCase(/*lang=json,strict*/
+            """{"format":1,"action":0,"path":"/","view":0,"parameters":[{"name":"a","name":"b"}]}""")]
         public void DecodeRequestRejectsMalformedFieldsAndNestedEnvelopeMembers(string literal)
         {
             Assert.That(() => new XRegistryProtocolCodec().DecodeRequest(Utf8(literal), XRegistryCallContext.Anonymous),
@@ -644,7 +823,7 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
         [Test]
         public void DecodeParametersPreservesUnknownNamesOmittedNullAndEmptyValuesInOrder()
         {
-            const string literal = """
+            const string literal = /*lang=json,strict*/ """
                 {"format":1,"action":0,"path":"/","view":0,"parameters":[
                     {"name":"future-flag"},{"name":"future-flag","value":null},{"name":"future-flag","value":""}]}
                 """;
@@ -694,29 +873,31 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
             Assert.That(() => new XRegistryProtocolCodec().EncodeRequest(request), Throws.ArgumentException);
         }
 
-        [TestCase("""{"format":1}""")]
-        [TestCase("""{"format":1,"status":"200"}""")]
-        [TestCase("""{"format":1,"status":200.5}""")]
-        [TestCase("""{"format":1,"status":4294967296}""")]
-        [TestCase("""{"format":1,"status":200,"status":201}""")]
-        [TestCase("""{"format":1,"status":200,"document":null}""")]
-        [TestCase("""{"format":1,"status":200,"document":"?"}""")]
-        [TestCase("""{"format":1,"status":200,"location":false}""")]
-        [TestCase("""{"format":1,"status":200,"contentLocation":0}""")]
-        [TestCase("""{"format":1,"status":200,"correlationId":[]}""")]
-        [TestCase("""{"format":1,"status":400,"error":null}""")]
-        [TestCase("""{"format":1,"status":400,"error":{"code":"x"}}""")]
-        [TestCase("""{"format":1,"status":400,"error":{"code":"x","code":"y","detail":"d"}}""")]
-        [TestCase("""{"format":1,"status":400,"error":{"code":"x","detail":"d","subject":true}}""")]
-        [TestCase("""{"format":1,"status":200,"links":{}}""")]
-        [TestCase("""{"format":1,"status":200,"links":[null]}""")]
-        [TestCase("""{"format":1,"status":200,"links":[{"relation":"self"}]}""")]
-        [TestCase("""{"format":1,"status":200,"links":[{"relation":"a","relation":"b","target":"/"}]}""")]
-        [TestCase("""{"format":1,"status":200,"allowedActions":null}""")]
-        [TestCase("""{"format":1,"status":200,"allowedActions":[-1]}""")]
-        [TestCase("""{"format":1,"status":200,"allowedActions":[6]}""")]
-        [TestCase("""{"format":1,"status":200,"allowedActions":["0"]}""")]
-        [TestCase("""{"format":1,"status":200,"allowedActions":[0.5]}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":"200"}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":200.5}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":4294967296}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":200,"status":201}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":200,"document":null}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":200,"document":"?"}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":200,"location":false}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":200,"contentLocation":0}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":200,"correlationId":[]}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":400,"error":null}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":400,"error":{"code":"x"}}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":400,"error":{"code":"x","code":"y","detail":"d"}}""")]
+        [TestCase(
+            /*lang=json,strict*/ """{"format":1,"status":400,"error":{"code":"x","detail":"d","subject":true}}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":200,"links":{}}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":200,"links":[null]}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":200,"links":[{"relation":"self"}]}""")]
+        [TestCase(/*lang=json,strict*/
+            """{"format":1,"status":200,"links":[{"relation":"a","relation":"b","target":"/"}]}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":200,"allowedActions":null}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":200,"allowedActions":[-1]}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":200,"allowedActions":[6]}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":200,"allowedActions":["0"]}""")]
+        [TestCase(/*lang=json,strict*/ """{"format":1,"status":200,"allowedActions":[0.5]}""")]
         public void DecodeResponseRejectsMalformedStatusErrorLinksAndActions(string literal)
         {
             Assert.That(() => new XRegistryProtocolCodec().DecodeResponse(Utf8(literal)),
@@ -808,7 +989,8 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
             string contentType = new('a', textLength);
             var request = new XRegistryRequest(XRegistryAction.Read, "/") { ContentType = contentType };
             string literal = "{\"format\":1,\"action\":0,\"path\":\"/\",\"view\":0,\"contentType\":\"" +
-                contentType + "\",\"parameters\":[]}";
+                contentType +
+                "\",\"parameters\":[]}";
             int length = Encoding.UTF8.GetByteCount(literal);
 
             Assert.That(new XRegistryProtocolCodec(length).EncodeRequest(request), Is.EqualTo(Utf8(literal)));
@@ -820,7 +1002,8 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
         public void ResponseAndDescriptionEncodingUseExactEnvelopeByteLimits()
         {
             var response = new XRegistryResponse(204);
-            const string responseJson = """{"format":1,"status":204,"links":[],"allowedActions":[]}""";
+            const string responseJson =
+                /*lang=json,strict*/ """{"format":1,"status":204,"links":[],"allowedActions":[]}""";
             int responseLength = Encoding.UTF8.GetByteCount(responseJson);
             Assert.That(new XRegistryProtocolCodec(responseLength).EncodeResponse(response),
                 Is.EqualTo(Utf8(responseJson)));
@@ -841,7 +1024,8 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
         [Test]
         public void DecodeByteLimitCountsUtf8BytesAndIncludesExactBoundary()
         {
-            ByteString data = Utf8("{\"format\":1,\"action\":0,\"path\":\"/groups/\u6c34\",\"view\":0}");
+            ByteString data =
+                Utf8(/*lang=json,strict*/ "{\"format\":1,\"action\":0,\"path\":\"/groups/\u6c34\",\"view\":0}");
             var context = new XRegistryCallContext("reader");
 
             XRegistryRequest request = new XRegistryProtocolCodec(data.Length).DecodeRequest(data, context);
@@ -871,7 +1055,7 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
         [Test]
         public void RequestEncodingAndDecodingIncludeExactDepthAndRejectAdjacentDepth()
         {
-            using JsonDocument metadata = JsonDocument.Parse("""{"items":[]}""");
+            using var metadata = JsonDocument.Parse("""{"items":[]}""");
             var request = new XRegistryRequest(XRegistryAction.Merge, "/") { Metadata = metadata.RootElement };
             const string literal = "{\"format\":1,\"action\":2,\"path\":\"/\",\"view\":0," +
                 "\"metadata\":{\"items\":[]},\"parameters\":[]}";
@@ -890,7 +1074,7 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
         public void EncodeJsonIncludesExactDepthAndRejectsAdjacentDepth()
         {
             JsonNode value = JsonNode.Parse("""{"items":[[1]]}""")!;
-            const string literal = """{"items":[[1]]}""";
+            const string literal = /*lang=json,strict*/ """{"items":[[1]]}""";
 
             Assert.That(new XRegistryProtocolCodec(maximumDepth: 3).EncodeJson(value), Is.EqualTo(Utf8(literal)));
             Assert.That(() => new XRegistryProtocolCodec(maximumDepth: 2).EncodeJson(value),
@@ -900,7 +1084,7 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
         [Test]
         public void ResponseAndDescriptionEnforceDepthInsideMetadataDocuments()
         {
-            using JsonDocument metadata = JsonDocument.Parse("""{"items":[1]}""");
+            using var metadata = JsonDocument.Parse("""{"items":[1]}""");
             var response = new XRegistryResponse(200) { Metadata = metadata.RootElement };
             const string responseJson = "{\"format\":1,\"status\":200,\"metadata\":{\"items\":[1]}," +
                 "\"links\":[],\"allowedActions\":[]}";
@@ -930,11 +1114,14 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
 
         private const string k_metadata =
             """{"epoch":4294967296,"meta":{"epoch":0},"enabled":true,"tags":[2,"x"],"nullable":null}""";
+
         private const string k_request = "{\"format\":1,\"action\":2,\"path\":\"/groups/g\",\"view\":1,\"metadata\":" +
-            k_metadata + ",\"document\":\"AAH/gA==\",\"contentType\":\"application/octet-stream\"," +
+            k_metadata +
+            ",\"document\":\"AAH/gA==\",\"contentType\":\"application/octet-stream\"," +
             "\"operationId\":\"op-7\"," +
             "\"parameters\":[{\"name\":\"filter\",\"value\":\"a=1\"},{\"name\":\"filter\",\"value\":null}," +
             "{\"name\":\"sort\",\"value\":\"\"}]}";
+
         private const string k_response = "{\"format\":1,\"status\":400," +
             "\"metadata\":{\"epoch\":0,\"resourceid\":\"r\"}," +
             "\"document\":\"AP8=\",\"contentType\":\"application/json\",\"location\":\"/groups/g/resources/r\"," +
@@ -942,10 +1129,12 @@ namespace Opc.Ua.XRegistry.Tests.Protocol
             "\"error\":{\"code\":\"mismatched_epoch\",\"detail\":\"Expected epoch 0.\",\"subject\":\"/groups/g\"}," +
             "\"links\":[{\"relation\":\"self\",\"target\":\"/groups/g\"}," +
             "{\"relation\":\"alternate\",\"target\":\"/groups/g/resources/r\"}],\"allowedActions\":[0,5]}";
+
         private const string k_description = "{\"format\":1,\"registryId\":\"registry-a\"," +
             "\"profile\":\"transactional-v1\",\"model\":{\"groups\":{\"devices\":{}}}," +
             "\"capabilities\":{\"flags\":[\"filter\"]},\"atomicMutations\":true," +
             "\"conditionalMutations\":false,\"writeTouch\":true,\"operationReplay\":false}";
+
         private const string k_digest = "ecb2e55b848896fd36cf278d46addbb1063b09c70326e756362541e469fcd07e";
     }
 }

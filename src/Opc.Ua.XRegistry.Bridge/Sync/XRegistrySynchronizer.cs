@@ -36,6 +36,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.XRegistry.Protocol;
 
 namespace Opc.Ua.XRegistry.Bridge.Sync
@@ -148,10 +149,28 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                     throw new InvalidDataException(
                         "Synchronization state belongs to another job, endpoint identity, or authenticated scope.");
                 }
+                foreach (XRegistryVersionCorrespondence mapping in m_options.VersionCorrespondences)
+                {
+                    if (state.VersionCorrespondences.TryGetValue(
+                        mapping.CanonicalPath, out XRegistryVersionCorrespondence? existing) &&
+                        existing != mapping)
+                    {
+                        throw new InvalidDataException(
+                            "Configured Version correspondence differs from retained identity evidence.");
+                    }
+                    if (state.VersionCorrespondences.Values.Any(value => value.CanonicalPath != mapping.CanonicalPath &&
+                        (value.OpcUaPath == mapping.OpcUaPath || value.HttpPath == mapping.HttpPath)))
+                    {
+                        throw new InvalidDataException("Version correspondence cannot collapse endpoint identities.");
+                    }
+                    state.VersionCorrespondences[mapping.CanonicalPath] = mapping;
+                }
                 var nativeReader = new XRegistrySyncInventoryReader(
-                    m_opcUa, m_options.OpcUaContext, m_options, m_timeProvider, XRegistrySyncSide.OpcUa);
+                    m_opcUa, m_options.OpcUaContext, m_options, m_timeProvider, XRegistrySyncSide.OpcUa,
+                    new XRegistrySyncCorrespondence(state.VersionCorrespondences, XRegistrySyncSide.OpcUa));
                 var httpReader = new XRegistrySyncInventoryReader(
-                    m_http, m_options.HttpContext, m_options, m_timeProvider, XRegistrySyncSide.Http);
+                    m_http, m_options.HttpContext, m_options, m_timeProvider, XRegistrySyncSide.Http,
+                    new XRegistrySyncCorrespondence(state.VersionCorrespondences, XRegistrySyncSide.Http));
                 Task<XRegistrySyncInventory> nativeTask = nativeReader.ReadAsync(cancellationToken).AsTask();
                 Task<XRegistrySyncInventory> httpTask = httpReader.ReadAsync(cancellationToken).AsTask();
                 await Task.WhenAll(nativeTask, httpTask).ConfigureAwait(false);
@@ -164,6 +183,14 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                 {
                     return Report(pass);
                 }
+                if (!await SynchronizeModelsAsync(pass, cancellationToken).ConfigureAwait(false))
+                {
+                    pass.ScopeValid = false;
+                    await SaveAsync(pass, cancellationToken).ConfigureAwait(false);
+                    return Report(pass);
+                }
+                native = pass.Native;
+                http = pass.Http;
                 if (native.Model!.Signature != http.Model!.Signature)
                 {
                     AddConflict(pass, "/", "incompatible_model",
@@ -222,8 +249,8 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                 m_logger.SyncPassCompleted(report.Status, report.Applied, report.Pending, report.Conflicts);
                 return report;
             }
-            catch (Exception exception) when (exception is IOException or InvalidDataException or
-                UnauthorizedAccessException or ObjectDisposedException or OverflowException)
+            catch (Exception exception) when (exception is IOException or InvalidDataException
+                or UnauthorizedAccessException or ObjectDisposedException or OverflowException)
             {
                 records.Add(new XRegistrySyncRecord("/", XRegistrySyncRecordKind.Failure, exception.Message));
                 m_logger.SyncStateFailed(exception);
@@ -479,6 +506,10 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
 
         private static XRegistrySyncObservation? Find(XRegistrySyncInventory inventory, string path)
         {
+            if (path == "/modelsource")
+            {
+                return inventory.ModelSource;
+            }
             return inventory.Entries.TryGetValue(path, out XRegistrySyncObservation? observation) ? observation : null;
         }
 
@@ -496,8 +527,8 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
         {
             XRegistrySyncObservation? native = Find(pass.Native, path);
             XRegistrySyncObservation? http = Find(pass.Http, path);
-            XRegistrySyncEntityKind kind = (native ?? http)?.Kind ??
-                pass.State.Baselines[path].OpcUa.Kind;
+            XRegistrySyncEntityKind kind = (native ?? http)?.Kind
+                ?? pass.State.Baselines[path].OpcUa.Kind;
             bool oneMissing = native is null || http is null;
             bool existed = pass.State.Baselines.ContainsKey(path);
             if (existed && oneMissing)
@@ -531,6 +562,17 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                 ["opcUaContext"] = Context(options.OpcUaContext),
                 ["httpContext"] = Context(options.HttpContext)
             };
+            if (options.VersionCorrespondences.Count != 0)
+            {
+                value["versionCorrespondences"] = new JsonArray(options.VersionCorrespondences.ToList()
+                    .OrderBy(mapping => mapping.CanonicalPath, StringComparer.Ordinal).Select(
+                        mapping => (JsonNode?)new JsonObject
+                        {
+                            ["canonical"] = mapping.CanonicalPath,
+                            ["opcua"] = mapping.OpcUaPath,
+                            ["http"] = mapping.HttpPath
+                        }).ToArray());
+            }
             return XRegistrySyncJson.Fingerprint(value);
         }
 
@@ -577,8 +619,8 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                 InventoryComplete = complete,
                 Observed =
                     (pass?.Native.Entries.Keys.Concat(pass.Http.Entries.Keys).Distinct(StringComparer.Ordinal)
-                    .Count()) ??
-                    0,
+                    .Count())
+                    ?? 0,
                 Converged = records.Where(record => record.Kind == XRegistrySyncRecordKind.Converged)
                     .Select(record => record.Path).Distinct(StringComparer.Ordinal).Count(),
                 Applied = records.Count(record => record.Kind == XRegistrySyncRecordKind.Applied),
@@ -590,15 +632,6 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                 Records = [.. records]
             };
         }
-
-        private readonly IXRegistryEndpoint m_opcUa;
-        private readonly IXRegistryEndpoint m_http;
-        private readonly IXRegistrySyncStateStore m_store;
-        private readonly XRegistrySyncOptions m_options;
-        private readonly TimeProvider m_timeProvider;
-        private readonly ILogger m_logger;
-        private readonly XRegistrySyncStateCodec m_codec;
-        private readonly string m_configuration;
 
         private sealed class Pass(
             XRegistrySyncState state,
@@ -614,9 +647,9 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
 
             public IXRegistrySyncStateSession Session { get; } = session;
 
-            public XRegistrySyncInventory Native { get; } = native;
+            public XRegistrySyncInventory Native { get; set; } = native;
 
-            public XRegistrySyncInventory Http { get; } = http;
+            public XRegistrySyncInventory Http { get; set; } = http;
 
             public bool DryRun { get; } = dryRun;
 
@@ -646,6 +679,15 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                 return side == XRegistrySyncSide.OpcUa ? nativeReader : httpReader;
             }
         }
+
+        private readonly IXRegistryEndpoint m_opcUa;
+        private readonly IXRegistryEndpoint m_http;
+        private readonly IXRegistrySyncStateStore m_store;
+        private readonly XRegistrySyncOptions m_options;
+        private readonly TimeProvider m_timeProvider;
+        private readonly ILogger m_logger;
+        private readonly XRegistrySyncStateCodec m_codec;
+        private readonly string m_configuration;
     }
 
     internal static partial class XRegistrySynchronizerLog
@@ -662,5 +704,12 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
         [LoggerMessage(EventId = XRegistryBridgeEventIds.XRegistrySynchronizer + 2, Level = LogLevel.Warning,
             Message = "An abandoned preparation could not be released after its deadline.")]
         public static partial void PreparationCleanupFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = XRegistryBridgeEventIds.XRegistrySynchronizer + 3, Level = LogLevel.Information,
+            Message =
+                "xRegistry sync audit: job={Job} operation={Operation} target={Target} side={Side} status={Status}.")]
+        public static partial void SyncMutationCompleted(
+            this ILogger logger, RedactionWrapper<string> job, RedactionWrapper<string> operation,
+            RedactionWrapper<string> target, XRegistrySyncSide side, int status);
     }
 }

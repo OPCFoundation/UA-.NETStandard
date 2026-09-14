@@ -32,5 +32,8 @@ namespace Opc.Ua
     internal static class XRegistryBridgeEventIds
     {
         public const int XRegistrySynchronizer = 0;
+        public const int ScopedEndpoint = 100;
+        public const int Runner = 200;
+        public const int NativeFile = 3000;
     }
 }

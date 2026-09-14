@@ -33,6 +33,7 @@ using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Opc.Ua.XRegistry.Protocol;
 
@@ -52,7 +53,14 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             };
             string groupPath = Parent(Parent(resource));
             XRegistryTarget groupTarget = model.Resolve(groupPath);
-            _ = EnsureEntry(transaction, groupPath, groupTarget.Singular + "id", Identity(groupPath));
+            JsonObject groupEntry =
+                EnsureEntry(transaction, groupPath, groupTarget.Singular + "id", Identity(groupPath));
+            if (transaction.Created.Contains(groupPath))
+            {
+                groupEntry["metadata"] = XRegistryModelRules.Apply(Metadata(groupEntry), [],
+                    groupTarget.Definition["attributes"] as JsonObject, true, groupTarget.Singular + "id",
+                    Identity(groupPath), "group");
+            }
             bool created = !transaction.Entries.ContainsKey(resource + "/meta");
             JsonObject metaEntry = EnsureEntry(
                 transaction, resource + "/meta", target.Singular + "id", Identity(resource));
@@ -62,6 +70,10 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 transaction.Touched.Add(groupPath);
             }
             transaction.Resources.Add(resource);
+            if (MutateReference(transaction, model, target, input, action, document, metaEntry, ref created))
+            {
+                return;
+            }
 
             if (target.Kind == XRegistryEntityKind.Version)
             {
@@ -91,8 +103,8 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 }
                 string? requested = input["versionid"] is JsonNode value ? XRegistryModelRules.Text(value) : null;
                 string? versionId = created
-                    ? requested ??
-                        (metaInput?["defaultversionid"] is JsonNode selected
+                    ? requested
+                        ?? (metaInput?["defaultversionid"] is JsonNode selected
                             ? XRegistryModelRules.Text(selected) : null)
                     : action == XRegistryAction.Create ? requested : priorDefault;
                 if (!created && action != XRegistryAction.Create && requested is not null && requested != priorDefault)
@@ -103,7 +115,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 bool generated = false;
                 if (versionId is null && (versions is null || versions.Count == 0 || action == XRegistryAction.Create))
                 {
-                    versionId = AssignVersion(transaction, resource);
+                    versionId = AssignVersion(transaction, resource, target.Definition);
                     generated = true;
                 }
                 if (versionId is not null && versions?.ContainsKey(versionId) != true)
@@ -111,10 +123,16 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                     UpdateVersion(transaction, model.Resolve(Child(resource + "/versions", versionId)),
                         input, action, document, generated);
                 }
+                if (action == XRegistryAction.Create &&
+                    target.Path == transaction.Request.Path &&
+                    versionId is not null)
+                {
+                    transaction.ResultVersionPath = Child(resource + "/versions", versionId);
+                }
             }
             else if (created)
             {
-                string id = AssignVersion(transaction, resource);
+                string id = AssignVersion(transaction, resource, target.Definition);
                 UpdateVersion(transaction, model.Resolve(Child(resource + "/versions", id)),
                     [], XRegistryAction.Replace, default, true);
             }
@@ -122,15 +140,10 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             if (metaInput is not null)
             {
                 CheckEpoch(transaction, resource + "/meta", metaInput["epoch"]);
-                if (metaInput["xref"] is not null)
+                if (metaInput["compatibility"] is not null &&
+                    XRegistryModelRules.Text(metaInput["compatibility"]).Length == 0)
                 {
-                    throw new XRegistryRejectionException("action_not_supported",
-                        "Cross-reference resources require an endpoint with qualified reference resolution.", 405);
-                }
-                if (metaInput["compatibility"] is not null)
-                {
-                    throw new XRegistryRejectionException("action_not_supported",
-                        "This endpoint has no domain compatibility validator.", 405);
+                    throw new XRegistryRejectionException("invalid_attribute", "Compatibility must be nonempty.");
                 }
                 metaEntry["metadata"] = XRegistryModelRules.Apply(Metadata(metaEntry), metaInput,
                     target.Definition["metaattributes"] as JsonObject, action == XRegistryAction.Merge,
@@ -152,12 +165,18 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             bool creating = !transaction.Entries.ContainsKey(target.Path);
             string resource = Parent(Parent(target.Path));
             string id = Identity(target.Path);
+            if (XRegistryModelRules.Text(target.Definition["versionmode"]) == "semver")
+            {
+                _ = XRegistrySemanticVersion.Parse(id);
+            }
             if (creating && !assigned && !XRegistryModelRules.Boolean(target.Definition["setversionid"], true))
             {
                 throw new XRegistryRejectionException(
                     "versionid_not_allowed", "Version IDs are server-assigned for this type.");
             }
             JsonObject entry = EnsureEntry(transaction, target.Path, "versionid", id);
+            JsonNode? previousAncestor = Metadata(entry)["ancestorid"]?.DeepClone();
+            JsonNode? previousExternal = Metadata(entry)[target.Singular + "url"]?.DeepClone();
             CheckEpoch(transaction, target.Path, input["epoch"]);
             if (input[target.Singular + "id"] is JsonNode resourceId &&
                 XRegistryModelRules.Text(resourceId) != Identity(resource))
@@ -171,8 +190,23 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 target.Singular + "id", target.Singular, target.Singular + "base64", target.Singular + "url"
             };
             entry["metadata"] = XRegistryModelRules.Apply(Metadata(entry), input,
-                target.Definition["attributes"] as JsonObject, patch, "versionid", id, "version", excluded);
+                ConstrainedAttributes(transaction, target), patch, "versionid", id, "version", excluded);
             Metadata(entry)[target.Singular + "id"] = Identity(resource);
+            if (!creating && !input.ContainsKey("ancestorid"))
+            {
+                Metadata(entry)["ancestorid"] = previousAncestor;
+            }
+            if (assigned &&
+                Metadata(entry)["ancestorid"] is JsonValue requestedAncestor &&
+                requestedAncestor.TryGetValue(out string? ancestorId) &&
+                ancestorId == "request")
+            {
+                Metadata(entry)["ancestorid"] = id;
+            }
+            if (previousExternal is not null && !input.ContainsKey(target.Singular + "url") && document.IsNull)
+            {
+                Metadata(entry)[target.Singular + "url"] = previousExternal;
+            }
             Stamp(transaction, target.Path, input);
             if (creating &&
                 Metadata(entry)["ancestorid"] is null &&
@@ -203,7 +237,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             string[] forms = [name, name + "base64", name + "url"];
             int count = forms.Count(input.ContainsKey);
             bool hasDocument = XRegistryModelRules.Boolean(target.Definition["hasdocument"], true);
-            if ((!hasDocument && (!bytes.IsNull || count != 0)) || count > 1)
+            if ((!hasDocument && (!bytes.IsNull || count != 0)) || count > 1 || (count != 0 && bytes.Length != 0))
             {
                 throw new XRegistryRejectionException(
                     "one_resource", "The resource document representation is invalid.");
@@ -229,10 +263,23 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             }
             else if (count != 0)
             {
-                if (input[name + "url"] is not null)
+                if (input[name + "url"] is JsonNode reference)
                 {
-                    throw new XRegistryRejectionException("action_not_supported",
-                        "Remote document URLs require a qualified document-resolution provider.", 405);
+                    string address = XRegistryModelRules.Text(reference);
+                    if (address.Length is 0 or > 4096 ||
+                        address.Contains('\\', StringComparison.Ordinal) ||
+                        address.Any(char.IsControl) ||
+                        !Uri.TryCreate(address, UriKind.RelativeOrAbsolute, out Uri? uri) ||
+                        (uri.IsAbsoluteUri && uri.UserInfo.Length != 0))
+                    {
+                        throw new XRegistryRejectionException("invalid_attribute",
+                            "The external document URI must be bounded and contain no credentials " +
+                            "or control characters.");
+                    }
+                    Metadata(entry)[name + "url"] = address;
+                    entry.Remove("document");
+                    entry.Remove("blob");
+                    return;
                 }
                 if (input[name + "base64"] is JsonNode encoded)
                 {
@@ -247,7 +294,12 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 }
                 else if (input[name] is JsonNode inline)
                 {
-                    bytes = ByteString.From(Encoding.UTF8.GetBytes(inline.ToJsonString()));
+                    string representation = XRegistryModelRules.DocumentRepresentation(target.Definition,
+                        Metadata(entry)["contenttype"] is JsonNode contentType
+                            ? XRegistryModelRules.Text(contentType) : null);
+                    bytes = ByteString.From(Encoding.UTF8.GetBytes(representation == "string" &&
+                        inline.GetValueKind() == JsonValueKind.String
+                        ? XRegistryModelRules.Text(inline) : inline.ToJsonString()));
                 }
                 else
                 {
@@ -266,11 +318,21 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                         "bad_request", "The document exceeds its configured byte limit.", 413);
                 }
                 entry["document"] = Base64(bytes);
+                entry.Remove("blob");
+                Metadata(entry).Remove(name + "url");
             }
         }
 
-        private void FinalizeResources(Transaction transaction, XRegistryModelRules model)
+        private static void FinalizeResources(Transaction transaction, XRegistryModelRules model)
         {
+            foreach ((string path, _) in transaction.Entries)
+            {
+                if (model.Resolve(path).Kind == XRegistryEntityKind.Meta &&
+                    transaction.Touched.Contains(Parent(Parent(Parent(path)))))
+                {
+                    transaction.Resources.Add(Parent(path));
+                }
+            }
             foreach (string resource in transaction.Resources.ToArray())
             {
                 if (transaction.Entries[resource + "/meta"] is not JsonObject metaEntry)
@@ -280,41 +342,82 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 JsonObject definition = model.Resolve(resource).Definition;
                 List<string> versions = OrderedVersions(transaction, resource, definition);
                 JsonObject meta = Metadata(metaEntry);
+                if (meta["xref"] is not null)
+                {
+                    continue;
+                }
+                string? previousDefault = meta["defaultversionid"] is JsonNode oldDefault
+                    ? XRegistryModelRules.Text(oldDefault) : null;
                 if (versions.Count == 0)
                 {
                     transaction.Entries.Remove(resource + "/meta");
                     transaction.Touched.Add(Parent(Parent(resource)));
                     continue;
                 }
-                FixAncestry(transaction, versions, definition);
+                versions = ArrangeVersions(transaction, resource, definition);
                 SelectDefault(transaction, versions, meta, definition);
                 BigInteger maxVersions = XRegistryModelRules.Unsigned(definition["maxversions"]);
                 while (maxVersions > 0 && versions.Count > maxVersions)
                 {
-                    string? oldest = versions.FirstOrDefault(path =>
-                        maxVersions == 1 || Identity(path) != XRegistryModelRules.Text(meta["defaultversionid"])) ??
-                        throw new XRegistryRejectionException(
+                    IEnumerable<string> ordered = XRegistryModelRules.Text(definition["versionmode"]) == "manual"
+                        ? versions.Where(
+                            path => XRegistryModelRules.Text(Metadata(GetEntry(transaction, path))["ancestorid"]) ==
+                                Identity(path)) : versions;
+                    string? oldest = ordered.FirstOrDefault(path =>
+                        maxVersions == 1 || Identity(path) != XRegistryModelRules.Text(meta["defaultversionid"]))
+                        ?? throw new XRegistryRejectionException(
                             "bad_request",
                             "No version is eligible for retention pruning.");
                     transaction.Entries.Remove(oldest);
                     versions.Remove(oldest);
                     transaction.Touched.Add(resource + "/meta");
-                    FixAncestry(transaction, versions, definition, allowRemovedAncestors: true);
+                    versions = ArrangeVersions(transaction, resource, definition, allowRemovedAncestors: true);
                     SelectDefault(transaction, versions, meta, definition);
                 }
-                ValidateMatchingAttributes(transaction, versions, definition["attributes"] as JsonObject);
-                ValidateGroupConstraints(transaction, model, resource, versions);
+                if (previousDefault != XRegistryModelRules.Text(meta["defaultversionid"]) &&
+                    !transaction.Created.Contains(resource + "/meta"))
+                {
+                    transaction.Touched.Add(resource + "/meta");
+                }
             }
         }
 
         private static List<string> OrderedVersions(Transaction transaction, string resource, JsonObject definition)
         {
             string mode = XRegistryModelRules.Text(definition["versionmode"]);
+            if (mode == "semver")
+            {
+                return [.. Children(transaction, resource + "/versions")
+                    .OrderBy(path => XRegistrySemanticVersion.Parse(Identity(path)))
+                    .ThenBy(Identity, StringComparer.Ordinal)];
+            }
             string timestamp = mode == "modifiedat" ? "modifiedat" : "createdat";
             return [.. Children(transaction, resource + "/versions")
                 .OrderBy(path => XRegistryModelRules.Text(Metadata(GetEntry(transaction, path))[timestamp]),
                     StringComparer.Ordinal)
                 .ThenBy(Identity, StringComparer.OrdinalIgnoreCase).ThenBy(Identity, StringComparer.Ordinal)];
+        }
+
+        private static List<string> ArrangeVersions(
+            Transaction transaction, string resource, JsonObject definition, bool allowRemovedAncestors = false)
+        {
+            List<string> versions = OrderedVersions(transaction, resource, definition);
+            for (int attempt = 0; attempt <= versions.Count; attempt++)
+            {
+                FixAncestry(transaction, versions, definition, allowRemovedAncestors);
+                if (XRegistryModelRules.Text(definition["versionmode"]) != "modifiedat")
+                {
+                    return versions;
+                }
+                List<string> ordered = OrderedVersions(transaction, resource, definition);
+                if (ordered.SequenceEqual(versions))
+                {
+                    return versions;
+                }
+                versions = ordered;
+            }
+            throw new XRegistryRejectionException(
+                "invalid_model", "The Version order did not converge within its bound.");
         }
 
         private static void FixAncestry(
@@ -326,6 +429,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             foreach (string path in versions)
             {
                 JsonObject metadata = Metadata(GetEntry(transaction, path));
+                JsonNode? previous = metadata["ancestorid"]?.DeepClone();
                 string id = Identity(path);
                 if (!manual || metadata["ancestorid"] is null)
                 {
@@ -341,6 +445,14 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                             "invalid_ancestor", "The requested ancestor does not exist.");
                     }
                     metadata["ancestorid"] = id;
+                }
+                if (!JsonNode.DeepEquals(previous, metadata["ancestorid"]) && !transaction.Created.Contains(path))
+                {
+                    transaction.Touched.Add(path);
+                    if (transaction.Stamped.Add(path))
+                    {
+                        metadata["modifiedat"] = transaction.Timestamp;
+                    }
                 }
                 prior = id;
             }
@@ -446,12 +558,8 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             string group = Parent(Parent(resource));
             string resourceType = Identity(Parent(resource));
             JsonObject groupMetadata = Metadata(GetEntry(transaction, group));
-            JsonObject? constraints = groupMetadata["constraints"]?[resourceType] as JsonObject ??
-                model.Resolve(group).Definition["constraints"]?[resourceType] as JsonObject;
-            if (constraints is null)
-            {
-                return;
-            }
+            JsonObject constraints = EffectiveConstraints(model.Resolve(group).Definition["constraints"] as JsonObject,
+                groupMetadata["constraints"] as JsonObject, resourceType);
             foreach ((string name, JsonNode? value) in constraints)
             {
                 JsonObject constraint = XRegistryModelRules.Object(value);
@@ -463,14 +571,15 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                         !choices.Any(choice => JsonNode.DeepEquals(actual, choice)))
                     {
                         throw new XRegistryRejectionException(
-                            "invalid_attribute", "A group constraint rejected a version value.");
+                            "constraint_failure", "A group constraint rejected a version value.");
                     }
                     if (constraint["equals"] is JsonNode reference &&
-                        !JsonNode.DeepEquals(
-                            actual, FindAttribute(groupMetadata, XRegistryModelRules.Text(reference))))
+                        XRegistryModelRules.Text(reference).Length != 0 &&
+                        FindAttribute(groupMetadata, XRegistryModelRules.Text(reference)) is JsonNode expected &&
+                        !JsonNode.DeepEquals(actual, expected))
                     {
                         throw new XRegistryRejectionException(
-                            "invalid_attribute", "A group equality constraint is not satisfied.");
+                            "constraint_failure", "A group equality constraint is not satisfied.");
                     }
                 }
             }
@@ -478,16 +587,21 @@ namespace Opc.Ua.XRegistry.Server.Protocol
 
         private static JsonNode? FindAttribute(JsonObject value, string path)
         {
-            JsonNode? current = value;
-            foreach (string name in path.Split('.'))
-            {
-                current = current is JsonObject obj ? obj[name] : null;
-            }
-            return current;
+            return XRegistryQueryPath.Values(value, XRegistryQueryPath.Parse(path, "constraint_failure"))
+                .FirstOrDefault();
         }
 
-        private static string AssignVersion(Transaction transaction, string resource)
+        private static string AssignVersion(Transaction transaction, string resource, JsonObject definition)
         {
+            if (XRegistryModelRules.Text(definition["versionmode"]) == "semver")
+            {
+                BigInteger major = BigInteger.One;
+                foreach (string path in Children(transaction, resource + "/versions"))
+                {
+                    major = BigInteger.Max(major, XRegistrySemanticVersion.Parse(Identity(path)).Major + 1);
+                }
+                return major.ToString(CultureInfo.InvariantCulture) + ".0.0";
+            }
             int next = 1;
             while (transaction.Entries.ContainsKey(
                 Child(resource + "/versions", next.ToString(CultureInfo.InvariantCulture))))

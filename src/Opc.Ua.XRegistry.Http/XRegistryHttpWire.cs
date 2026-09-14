@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -61,7 +62,7 @@ namespace Opc.Ua.XRegistry.Http
             XRegistryView view = shape.IsResource && request.View == XRegistryView.Metadata
                 ? XRegistryView.Metadata : XRegistryView.Default;
             var message = new HttpRequestMessage(new HttpMethod(Method(request.Action)),
-                Address.GetUri(request.Path, view, request.Parameters));
+                Address.GetUri(request.AddressPath ?? request.Path, view, request.Parameters));
             try
             {
                 message.Headers.AcceptEncoding.ParseAdd("gzip, deflate");
@@ -177,9 +178,11 @@ namespace Opc.Ua.XRegistry.Http
             string? contentLocation = GetSingle(headers, "Content-Location");
             string? correlation = GetSingle(headers, "xRegistry-xregcorrelationid");
             string? contentType = GetSingle(headers, "Content-Type");
-            if (location is not null)
+            DateTimeOffset? expires = null;
+            if (GetSingle(headers, "Expires") is not null)
             {
-                location = Address.ReadLink(location, sentUri);
+                // RFC 9111 section 5.3 defines invalid dates (notably "0") as already expired.
+                expires = message.Content?.Headers.Expires ?? DateTimeOffset.FromUnixTimeSeconds(0);
             }
             if (contentLocation is not null)
             {
@@ -197,7 +200,8 @@ namespace Opc.Ua.XRegistry.Http
                     GetEncodings(headers), cancellationToken).ConfigureAwait(false);
             }
             int status = (int)message.StatusCode;
-            if ((status is 204 or 304 || (status == 303 && shape.IsDocumentView(request))) && !bytes.IsEmpty)
+            if ((status is 204 or 304 || (status == 303 && shape.IsDocumentView(request, response: true))) &&
+                !bytes.IsEmpty)
             {
                 throw new InvalidDataException("The backend returned a body for a bodyless HTTP response.");
             }
@@ -220,7 +224,7 @@ namespace Opc.Ua.XRegistry.Http
                     }
                 }
             }
-            else if (shape.IsDocumentView(request))
+            else if (shape.IsDocumentView(request, response: true))
             {
                 metadata = XRegistryHttpHeaders.Decode(headers, contentType, shape, request: false, Body);
                 metadata = XRegistryHttpLinks.Translate(metadata, request, model, Address, Body, sentUri);
@@ -244,6 +248,12 @@ namespace Opc.Ua.XRegistry.Http
             {
                 throw new InvalidDataException("A metadata response is missing its JSON body.");
             }
+            bool documentRedirect = XRegistryHttpDocumentReference.IsRedirect(
+                status, metadata, location, request, shape);
+            if (location is not null && !documentRedirect)
+            {
+                location = Address.ReadLink(location, sentUri);
+            }
             return new XRegistryResponse(status)
             {
                 Metadata = metadata,
@@ -252,6 +262,7 @@ namespace Opc.Ua.XRegistry.Http
                 Location = location,
                 ContentLocation = contentLocation,
                 CorrelationId = correlation is null ? null : XRegistryHttpHeaders.DecodeValue(correlation),
+                Expires = expires,
                 Links = ReadLinks(headers, sentUri),
                 AllowedActions = ReadAllowedActions(headers),
                 Error = error
@@ -265,7 +276,8 @@ namespace Opc.Ua.XRegistry.Http
             JsonElement model)
         {
             var headers = new List<KeyValuePair<string, string>>();
-            bool documentView = shape.IsDocumentView(request);
+            bool documentView = shape.IsDocumentView(request, response: true);
+            bool documentRedirect = XRegistryHttpDocumentReference.IsRedirect(response, request, shape);
             if (response.IsSuccess && response.Error is null)
             {
                 if ((!documentView && !response.Document.IsNull) ||
@@ -323,7 +335,8 @@ namespace Opc.Ua.XRegistry.Http
             }
             XRegistryHttpHeaders.ValidateContentType(contentType);
             AddHeader(headers, "Content-Type", contentType);
-            AddHeader(headers, "Location", response.Location is null ? null : Address.WriteLink(response.Location));
+            AddHeader(headers, "Location", response.Location is null ? null :
+                documentRedirect ? response.Location : Address.WriteLink(response.Location));
             AddHeader(headers, "Content-Location",
                 response.ContentLocation is null ? null : Address.WriteLink(response.ContentLocation));
             if (response.CorrelationId is not null)
@@ -335,6 +348,10 @@ namespace Opc.Ua.XRegistry.Http
             }
             headers.Add(new KeyValuePair<string, string>("Link",
                 "<" + Address.Root.AbsoluteUri + ">;rel=xregistry-root"));
+            if (response.Expires is { } expires)
+            {
+                AddHeader(headers, "Expires", expires.UtcDateTime.ToString("R", CultureInfo.InvariantCulture));
+            }
             foreach (XRegistryLink link in response.Links)
             {
                 if (link.Relation == "xregistry-root")
@@ -343,7 +360,13 @@ namespace Opc.Ua.XRegistry.Http
                 }
                 ValidateRelation(link.Relation);
                 headers.Add(new KeyValuePair<string, string>(
-                    "Link", "<" + Address.WriteLink(link.Target) + ">;rel=\"" + link.Relation + "\""));
+                    "Link", "<" +
+                        Address.WriteLink(link.Target) +
+                        ">;rel=\"" +
+                        link.Relation +
+                        "\"" +
+                        (link.Count is { } count
+                            ? ";count=" + count.ToString(CultureInfo.InvariantCulture) : string.Empty)));
             }
             if (response.AllowedActions.Count != 0 ||
                 request.Action == XRegistryAction.Describe ||
@@ -358,7 +381,13 @@ namespace Opc.Ua.XRegistry.Http
             }
             ArrayOf<KeyValuePair<string, string>> result = [.. headers];
             XRegistryHttpHeaders.ValidateBudget(result, Options);
-            return new XRegistryHttpPreparedResponse(response.StatusCode, body, result);
+            // The HTTP binding specifies 200 for metadata POST to a Resource, including its first Version.
+            int status = response.StatusCode == 201 &&
+                request.Action == XRegistryAction.Create &&
+                shape.Kind == XRegistryHttpEntityKind.Resource &&
+                (request.View == XRegistryView.Metadata || !shape.HasDocument)
+                    ? 200 : response.StatusCode;
+            return new XRegistryHttpPreparedResponse(status, body, result);
         }
 
         public static string Method(XRegistryAction action)
@@ -495,8 +524,8 @@ namespace Opc.Ua.XRegistry.Http
                 }
             }
             if (!document &&
-                request.Action is XRegistryAction.Replace or XRegistryAction.Merge or
-                    XRegistryAction.Create &&
+                request.Action is XRegistryAction.Replace or XRegistryAction.Merge
+                    or XRegistryAction.Create &&
                 request.Metadata.ValueKind == JsonValueKind.Undefined)
             {
                 throw new XRegistryHttpWireException(400, "missing_body",
@@ -545,19 +574,32 @@ namespace Opc.Ua.XRegistry.Http
                         throw new InvalidDataException("A registry Link header is malformed.");
                     }
                     string target = Address.ReadLink(value[1..close], sentUri);
+                    string? relations = null;
+                    ulong? count = null;
                     foreach (string parameter in value[(close + 1)..].Split(';'))
                     {
                         string part = parameter.Trim();
+                        if (part.StartsWith("count=", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (count is not null ||
+                                !ulong.TryParse(part[6..].Trim('"'), NumberStyles.None,
+                                    CultureInfo.InvariantCulture, out ulong parsed))
+                            {
+                                throw new InvalidDataException("A pagination count must be one unsigned UInt64.");
+                            }
+                            count = parsed;
+                            continue;
+                        }
                         if (!part.StartsWith("rel=", StringComparison.OrdinalIgnoreCase))
                         {
                             continue;
                         }
-                        string relations = part[4..].Trim('"');
-                        foreach (string relation in relations.Split(' '))
-                        {
-                            ValidateRelation(relation);
-                            links.Add(new XRegistryLink(relation, target));
-                        }
+                        relations = part[4..].Trim('"');
+                    }
+                    foreach (string relation in relations?.Split(' ') ?? [])
+                    {
+                        ValidateRelation(relation);
+                        links.Add(new XRegistryLink(relation, target) { Count = count });
                     }
                 }
             }
@@ -566,8 +608,8 @@ namespace Opc.Ua.XRegistry.Http
 
         private JsonElement CreateError(XRegistryError error)
         {
-            bool httpError = error.Code is "api_not_found" or "details_required" or
-                "extra_xregistry_header" or "header_error" or "missing_body";
+            bool httpError = error.Code is "api_not_found" or "details_required"
+                or "extra_xregistry_header" or "header_error" or "missing_body";
             string type = error.Code.Contains(':', StringComparison.Ordinal) ? error.Code :
                 "https://github.com/xregistry/spec/blob/main/core/" +
                 (

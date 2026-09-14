@@ -111,8 +111,8 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
             Assert.Multiple(() =>
             {
                 Assert.That(rejected.StatusCode, Is.EqualTo(400));
-                Assert.That(model.Metadata.GetProperty("groups").GetProperty("groups")
-                    .TryGetProperty("attributes", out _), Is.False);
+                Assert.That(model.Metadata.GetProperty("groups").GetProperty("groups").GetProperty("attributes")
+                    .TryGetProperty("requirednew", out _), Is.False);
             });
         }
 
@@ -154,8 +154,8 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
 
         private static XRegistryTransactionalEndpoint Create(string? json = null)
         {
-            using var model = JsonDocument.Parse(json ??
-                """
+            using var model = JsonDocument.Parse(json
+                ?? """
                 {"groups":{"groups":{"singular":"group","resources":{"schemas":{
                 "singular":"schema","hasdocument":true}}}}}
                 """);

@@ -78,6 +78,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 ChunkSize = 256,
                 MaxMessageBytes = 2 * 1024 * 1024,
                 MaxDocumentBytes = 1024 * 1024,
+                SpoolDirectory = Path.Combine(m_root, "spool"),
+                MemoryBufferThreshold = 1024,
                 MaxBufferedBytes = 8 * 1024 * 1024
             };
             m_serverFixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry))
@@ -388,8 +390,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             Assert.That(handle, Is.Zero);
             Assert.That(version, Is.EqualTo("v1"));
             AttributesTypeClient labels = await m_generic.GetResource(resource).GetLabelsAsync(m_telemetry)
-                .ConfigureAwait(false) ??
-                throw new InvalidOperationException("Labels missing.");
+                .ConfigureAwait(false)
+                ?? throw new InvalidOperationException("Labels missing.");
             await labels.AddAttributeAsync("team", "native", 0).ConfigureAwait(false);
             NodeId description = await ChildAsync(resource, "Description").ConfigureAwait(false);
             m_forwarder.Entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -918,7 +920,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             });
         }
 
-        private async Task ResetEndpointAsync(string? modelJson = null)
+        private async Task ResetEndpointAsync(
+            string? modelJson = null, TimeProvider? timeProvider = null, bool shortLinks = false)
         {
             m_forwarder.Inner?.Dispose();
             m_store?.Dispose();
@@ -931,25 +934,43 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             {
                 RegistryId = "native-test-registry",
                 Model = model.RootElement,
+                ShortLinksEnabled = shortLinks,
                 PublicRoot = new Uri("https://registry.example.test/")
-            }, m_store);
+            }, m_store, timeProvider);
             m_forwarder.AdvertiseAtomic = true;
             m_forwarder.AdvertiseConditional = true;
             m_forwarder.AdvertiseTouch = true;
             m_forwarder.AdvertiseReplay = true;
+            m_forwarder.AdvertiseIncarnations = true;
+            m_forwarder.AdvertiseGenerations = true;
+            m_forwarder.OmitIncarnations = false;
+            m_forwarder.AfterReadAsync = null;
+            m_forwarder.AfterPrepareAsync = null;
+            m_forwarder.DisposeEntered = null;
+            m_forwarder.DisposeRelease = null;
+            m_forwarder.DisposeCompleted = null;
+            m_forwarder.FailDisposal = false;
+            m_forwarder.IgnoreCommitCancellation = false;
+            m_forwarder.FailCommitAfterBarrier = false;
             m_forwarder.FailReads = false;
+            m_forwarder.CorrelationId = null;
+            m_forwarder.ChangeCorrelationOnCommit = false;
             m_forwarder.Entered = null;
             m_forwarder.Release = null;
             m_forwarder.Mutations.Clear();
+            if (shortLinks)
+            {
+                _ = await m_forwarder.Inner.InitializeShortLinksAsync(s_writer).ConfigureAwait(false);
+            }
             await m_forwarder.Inner.InspectAsync(s_writer).ConfigureAwait(false);
         }
 
         private async Task SeedAsync(string path, string json)
         {
             var body = (JsonObject)JsonNode.Parse(json)!;
-            string content = body["schema"]?.GetValue<string>() ??
-                body["doc"]?.GetValue<string>() ??
-                    throw new InvalidOperationException("The binary seed requires a document.");
+            string content = body["schema"]?.GetValue<string>()
+                ?? body["doc"]?.GetValue<string>()
+                    ?? throw new InvalidOperationException("The binary seed requires a document.");
             body.Remove("schema");
             body.Remove("doc");
             XRegistryResponse response = await m_forwarder.Inner.ExecuteAsync(
@@ -1102,7 +1123,21 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             public bool AdvertiseConditional { get; set; } = true;
             public bool AdvertiseTouch { get; set; } = true;
             public bool AdvertiseReplay { get; set; } = true;
+            public bool AdvertiseIncarnations { get; set; } = true;
+            public bool AdvertiseGenerations { get; set; } = true;
+            public bool OmitIncarnations { get; set; }
+            public Func<XRegistryRequest, CancellationToken, ValueTask>? AfterReadAsync { get; set; }
+            public Func<CancellationToken, ValueTask>? AfterPrepareAsync { get; set; }
+            public TaskCompletionSource<bool>? DisposeEntered { get; set; }
+            public TaskCompletionSource<bool>? DisposeRelease { get; set; }
+            public TaskCompletionSource<bool>? DisposeCompleted { get; set; }
+            public int CompletedDisposals => Volatile.Read(ref m_completedDisposals);
+            public bool FailDisposal { get; set; }
+            public bool IgnoreCommitCancellation { get; set; }
+            public bool FailCommitAfterBarrier { get; set; }
             public bool FailReads { get; set; }
+            public string? CorrelationId { get; set; }
+            public bool ChangeCorrelationOnCommit { get; set; }
             public ConcurrentQueue<XRegistryRequest> Mutations { get; } = new();
             public TaskCompletionSource<bool>? Entered { get; set; }
             public TaskCompletionSource<bool>? Release { get; set; }
@@ -1117,7 +1152,10 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                     SupportsAtomicMutations = AdvertiseAtomic && description.SupportsAtomicMutations,
                     SupportsConditionalMutations = AdvertiseConditional && description.SupportsConditionalMutations,
                     SupportsWriteTouch = AdvertiseTouch && description.SupportsWriteTouch,
-                    SupportsOperationReplay = AdvertiseReplay && description.SupportsOperationReplay
+                    SupportsOperationReplay = AdvertiseReplay && description.SupportsOperationReplay,
+                    SupportsVersionIncarnationGuards = AdvertiseIncarnations &&
+                        description.SupportsVersionIncarnationGuards,
+                    SupportsGenerationGuards = AdvertiseGenerations && description.SupportsGenerationGuards
                 };
             }
 
@@ -1137,7 +1175,12 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                         await Release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
                     }
                 }
-                return await Inner.ExecuteAsync(request, cancellationToken).ConfigureAwait(false);
+                XRegistryResponse response = await Inner.ExecuteAsync(request, cancellationToken).ConfigureAwait(false);
+                if (!request.IsMutation && AfterReadAsync is not null)
+                {
+                    await AfterReadAsync(request, cancellationToken).ConfigureAwait(false);
+                }
+                return OmitIncarnations ? response with { VersionIncarnation = null } : response;
             }
 
             public ValueTask<XRegistryOperationOutcome> GetOperationOutcomeAsync(
@@ -1151,14 +1194,45 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             {
                 IXRegistryPreparedOperation operation = await Inner.PrepareAsync(request, cancellationToken)
                     .ConfigureAwait(false);
-                return new ForwardedPreparation(this, request, operation);
+                var forwarded = new ForwardedPreparation(this, request, operation);
+                bool returned = false;
+                try
+                {
+                    if (AfterPrepareAsync is not null)
+                    {
+                        await AfterPrepareAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    returned = true;
+                    return forwarded;
+                }
+                finally
+                {
+                    if (!returned)
+                    {
+                        await forwarded.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
             }
 
             private sealed class ForwardedPreparation(
                 ForwardingEndpoint owner, XRegistryRequest request, IXRegistryPreparedOperation inner)
-                : IXRegistryPreparedOperation
+                : IXRegistryPreparedSnapshot
             {
-                public XRegistryResponse Response => inner.Response;
+                public XRegistryResponse Response => inner.Response with { CorrelationId = owner.CorrelationId };
+
+                public bool HasCandidate => inner is IXRegistryPreparedSnapshot { HasCandidate: true };
+
+                public ValueTask<XRegistryEndpointDescription> InspectCandidateAsync(
+                    CancellationToken cancellationToken = default)
+                {
+                    return ((IXRegistryPreparedSnapshot)inner).InspectCandidateAsync(cancellationToken);
+                }
+
+                public ValueTask<XRegistryResponse> ReadCandidateAsync(
+                    XRegistryRequest read, CancellationToken cancellationToken = default)
+                {
+                    return ((IXRegistryPreparedSnapshot)inner).ReadCandidateAsync(read, cancellationToken);
+                }
 
                 public async ValueTask<XRegistryResponse> CommitAsync(CancellationToken cancellationToken = default)
                 {
@@ -1166,16 +1240,46 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                     owner.Entered?.TrySetResult(true);
                     if (owner.Release is not null)
                     {
-                        await owner.Release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        if (owner.IgnoreCommitCancellation)
+                        {
+                            await owner.Release.Task.ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await owner.Release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        }
                     }
-                    return await inner.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    if (owner.FailCommitAfterBarrier)
+                    {
+                        throw new IOException("Injected late provider commit failure.");
+                    }
+                    XRegistryResponse response = await inner.CommitAsync(owner.IgnoreCommitCancellation
+                        ? CancellationToken.None : cancellationToken).ConfigureAwait(false);
+                    return response with
+                    {
+                        CorrelationId = owner.ChangeCorrelationOnCommit ? "changed-correlation" : owner.CorrelationId
+                    };
                 }
 
-                public ValueTask DisposeAsync()
+                public async ValueTask DisposeAsync()
                 {
-                    return inner.DisposeAsync();
+                    bool fail = owner.FailDisposal;
+                    owner.DisposeEntered?.TrySetResult(true);
+                    if (owner.DisposeRelease is not null)
+                    {
+                        await owner.DisposeRelease.Task.ConfigureAwait(false);
+                    }
+                    await inner.DisposeAsync().ConfigureAwait(false);
+                    Interlocked.Increment(ref owner.m_completedDisposals);
+                    owner.DisposeCompleted?.TrySetResult(true);
+                    if (fail)
+                    {
+                        throw new IOException("Injected provider disposal failure.");
+                    }
                 }
             }
+
+            private int m_completedDisposals;
         }
 
         private sealed class CapturingFactory(IAsyncNodeManagerFactory inner) : IAsyncNodeManagerFactory

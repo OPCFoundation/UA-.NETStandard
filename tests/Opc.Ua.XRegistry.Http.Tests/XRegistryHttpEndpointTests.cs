@@ -286,8 +286,8 @@ namespace Opc.Ua.XRegistry.Http.Tests
                 "https://registry.example/registry/schemagroups/cafe%CC%81/schemas/100%25$details" +
                 "?epoch=0&epoch=18446744073709551616&epoch=null&inline&inline=&inline=a%2Cb" +
                 "&filter=x%3D1%2Cy%3Dtrue&filter=name%3Da%20b&ignore&ignore=&ignore=%2A" +
-                "&sort=name%3Ddesc&doc&binary&collections&specversion=1.0-rc4&setdefaultversionid=v2&future=a%2Bb%26c")
-                    );
+                "&sort=name%3Ddesc&doc&binary&collections&specversion=1.0-rc4" +
+                "&setdefaultversionid=v2&future=a%2Bb%26c"));
             Assert.That(handler.Requests[1].HasContent, Is.False);
             Assert.That(response.Metadata.GetProperty("epoch").GetRawText(), Is.EqualTo("18446744073709551616"));
             Assert.That(response.Metadata.GetProperty("value").GetRawText(), Is.EqualTo("[true,null,1.5]"));
@@ -502,6 +502,43 @@ namespace Opc.Ua.XRegistry.Http.Tests
             Assert.That(response.AllowedActions.ToArray(), Is.EqualTo([ XRegistryAction.Read,
                 XRegistryAction.Describe ]));
             Assert.That(handler.Requests, Is.Empty);
+        }
+
+        [Test]
+        public async Task VersionIncarnationGuardRejectsBeforeAnyHttpRequest()
+        {
+            using var handler = new RecordingHttpHandler(HttpTestData.InspectionResponse);
+            using var client = new HttpClient(handler);
+            var endpoint = new XRegistryHttpEndpoint(client, HttpTestData.RegistryRoot, HttpTestData.Qualified);
+            XRegistryResponse response = await endpoint.ExecuteAsync(new XRegistryRequest(
+                XRegistryAction.Replace, "/groups/g/schemas/r/versions/v1")
+            {
+                ExpectedVersionIncarnation = "pinned-version",
+                Document = ByteString.Empty
+            }).ConfigureAwait(false);
+
+            Assert.That(response.StatusCode, Is.EqualTo(405));
+            Assert.That(response.Error?.Code, Is.EqualTo("action_not_supported"));
+            Assert.That(handler.Requests, Is.Empty);
+        }
+
+        [TestCase(XRegistryAction.Read)]
+        [TestCase(XRegistryAction.Replace)]
+        public async Task GenerationGuardRejectsBeforeAnyHttpRequest(XRegistryAction action)
+        {
+            using var handler = new RecordingHttpHandler(HttpTestData.InspectionResponse);
+            using var client = new HttpClient(handler);
+            var endpoint = new XRegistryHttpEndpoint(client, HttpTestData.RegistryRoot, HttpTestData.Qualified);
+            XRegistryResponse response = await endpoint.ExecuteAsync(new XRegistryRequest(action, "/")
+            {
+                ExpectedGeneration = "observed"
+            }).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(response.StatusCode, Is.EqualTo(405));
+                Assert.That(response.Error?.Code, Is.EqualTo("action_not_supported"));
+                Assert.That(handler.Requests, Is.Empty);
+            });
         }
 
         [Test]
@@ -790,7 +827,8 @@ namespace Opc.Ua.XRegistry.Http.Tests
                 "\"metaurl\":\"/registry/schemagroups/g/schemas/r/meta\"," +
                 "\"versionsurl\":\"/registry/schemagroups/g/schemas/r/versions\"," +
                 "\"defaultversionurl\":\"/registry/schemagroups/g/schemas/r/versions/v2\"," +
-                "\"schema\":{\"self\":\"https://foreign.example/json\"},\"note\":\"https://foreign.example/opaque\"}";
+                "\"schema\":{\"self\":\"https://foreign.example/json\"}," +
+                "\"note\":\"https://foreign.example/opaque\"}";
             using var handler = new RecordingHttpHandler(message => message.RequestUri!.AbsolutePath ==
                 "/registry/model"
                 ? HttpTestData.JsonResponse(HttpTestData.Model) : HttpTestData.JsonResponse(raw));

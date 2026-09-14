@@ -51,21 +51,156 @@ namespace Opc.Ua.XRegistry.Bridge.Native
 
         public IEnumerable<IXRegistryProjectionGroup> Groups => NativeGroups.ToArray() ?? [];
 
+        public JsonElement ModelSource { get; init; }
+
+        public bool HasUnrepresentableEpochs
+        {
+            get
+            {
+                if (!Root.GetProperty("epoch").TryGetUInt32(out _))
+                {
+                    return true;
+                }
+                foreach (XRegistryNativeGroup group in NativeGroups)
+                {
+                    if (!group.Metadata.GetProperty("epoch").TryGetUInt32(out _))
+                    {
+                        return true;
+                    }
+                    foreach (XRegistryNativeResource resource in group.NativeResources)
+                    {
+                        if (!resource.HasVersion ||
+                            !resource.Metadata.GetProperty("epoch").TryGetUInt32(out _) ||
+                            !resource.Meta.GetProperty("epoch").TryGetUInt32(out _))
+                        {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+        }
+
+        public XRegistryProjectionEventSnapshot Events()
+        {
+            ImmutableArray<XRegistryProjectionEventGroup>.Builder groups =
+                ImmutableArray.CreateBuilder<XRegistryProjectionEventGroup>();
+            foreach (XRegistryNativeGroup group in NativeGroups)
+            {
+                ImmutableArray<XRegistryProjectionEventResource>.Builder resources =
+                    ImmutableArray.CreateBuilder<XRegistryProjectionEventResource>();
+                foreach (IGrouping<string, XRegistryNativeResource> resourceGroup in
+                    group.NativeResources.ToList().GroupBy(resource => resource.Path, StringComparer.Ordinal))
+                {
+                    XRegistryNativeResource resource = resourceGroup.First(item => item.IsDefaultVersion);
+                    ImmutableArray<XRegistryProjectionEventVersion> versions =
+                        [.. resourceGroup.Where(version => version.HasVersion).Select(version =>
+                        new XRegistryProjectionEventVersion(version.VersionId, version.VersionPath,
+                            (uint)version.Epoch, Attributes(version.Metadata))
+                        {
+                            SourceName = version.Name.Length == 0 ? version.Version : version.Name,
+                            Labels = version.Labels,
+                            CreatedAt = version.CreatedAt,
+                            ModifiedAt = version.ModifiedAt,
+                            CompleteAttributeInventory = !version.HasDocument
+                        })];
+                    resources.Add(new XRegistryProjectionEventResource(
+                        resource.GroupId, resource.ResourceId, resource.Path,
+                        (uint)resource.Epoch, (uint)resource.MetaEpoch, resource.MetaLabels,
+                        resource.Meta.TryGetProperty("deprecated", out _), resource.VersionId, versions)
+                    {
+                        CollectionName = XRegistryPath.GetSegments(resource.Path)[2],
+                        Name = resource.Name,
+                        Description = resource.Description,
+                        SourceName = resource.Name.Length == 0 ? resource.Id : resource.Name,
+                        MetaCreatedAt = resource.MetaCreatedAt,
+                        MetaModifiedAt = resource.MetaModifiedAt
+                    });
+                }
+                groups.Add(new XRegistryProjectionEventGroup(group.GroupId, group.Xid, (uint)group.Epoch,
+                    group.Labels, group.Metadata.TryGetProperty("deprecated", out _), resources.ToImmutable())
+                {
+                    CollectionName = group.Collection,
+                    SourceName = group.Name.Length == 0 ? group.Id : group.Name,
+                    Attributes = Attributes(group.Metadata)
+                });
+            }
+            return new XRegistryProjectionEventSnapshot("/", XRegistryNativeJson.ProjectionEpoch(Root), Labels,
+                groups.ToImmutable())
+            {
+                Attributes = Attributes(Root),
+                Model = Description.Model.GetRawText(),
+                ModelSource = ModelSource.ValueKind == JsonValueKind.Undefined ? null : ModelSource.GetRawText(),
+                Capabilities = Description.Capabilities.GetRawText()
+            };
+        }
+
+        public bool EquivalentTo(XRegistryNativeSnapshot other)
+        {
+            if (Description.RegistryId != other.Description.RegistryId ||
+                Description.PublicRoot != other.Description.PublicRoot ||
+                Description.SupportsAtomicMutations != other.Description.SupportsAtomicMutations ||
+                Description.SupportsConditionalMutations != other.Description.SupportsConditionalMutations ||
+                Description.SupportsWriteTouch != other.Description.SupportsWriteTouch ||
+                Description.SupportsPreparedMutations != other.Description.SupportsPreparedMutations ||
+                Description.SupportsOperationReplay != other.Description.SupportsOperationReplay ||
+                !SameJson(Description.Model, other.Description.Model) ||
+                !SameJson(Description.Capabilities, other.Description.Capabilities) ||
+                !SameJson(ModelSource, other.ModelSource) ||
+                !SameJson(Root, other.Root) ||
+                NativeGroups.Count != other.NativeGroups.Count)
+            {
+                return false;
+            }
+            for (int index = 0; index < NativeGroups.Count; index++)
+            {
+                XRegistryNativeGroup group = NativeGroups[index];
+                XRegistryNativeGroup prior = other.NativeGroups[index];
+                if (group.Path != prior.Path ||
+                    !SameJson(group.Metadata, prior.Metadata) ||
+                    group.NativeResources.Count != prior.NativeResources.Count)
+                {
+                    return false;
+                }
+                for (int resourceIndex = 0; resourceIndex < group.NativeResources.Count; resourceIndex++)
+                {
+                    XRegistryNativeResource resource = group.NativeResources[resourceIndex];
+                    XRegistryNativeResource previous = prior.NativeResources[resourceIndex];
+                    if (resource.VersionPath != previous.VersionPath ||
+                        !SameJson(resource.Metadata, previous.Metadata) ||
+                        !SameJson(resource.Meta, previous.Meta))
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
         public static async ValueTask<XRegistryNativeSnapshot> LoadAsync(
             IXRegistryEndpoint endpoint, XRegistryBridgeNativeOptions options, CancellationToken ct)
         {
             XRegistryCallContext context = options.ProjectionContext;
             XRegistryEndpointDescription description = await endpoint.InspectAsync(context, ct).ConfigureAwait(false);
+            var scope = new XRegistryGenerationReadScope(endpoint, description);
             JsonElement groupDefinitions = XRegistryNativeJson.RequiredObject(description.Model, "groups");
-            JsonElement root = await ReadAsync(endpoint, "/", context, ct).ConfigureAwait(false);
-            _ = XRegistryNativeJson.Epoch(root);
+            JsonElement root = await ReadAsync(scope, "/", context, ct).ConfigureAwait(false);
+            JsonElement modelSource = default;
+            if (description.Capabilities.ValueKind == JsonValueKind.Object &&
+                description.Capabilities.TryGetProperty("available", out JsonElement available) &&
+                available.ValueKind == JsonValueKind.Object &&
+                available.TryGetProperty("modelsource", out _))
+            {
+                modelSource = await ReadAsync(scope, "/modelsource", context, ct).ConfigureAwait(false);
+            }
+            _ = XRegistryNativeJson.ProjectionEpoch(root);
             var groups = new List<XRegistryNativeGroup>();
             int count = 1;
             foreach (JsonProperty groupDefinition in groupDefinitions.EnumerateObject())
             {
                 string singular = XRegistryNativeJson.RequiredText(groupDefinition.Value, "singular");
                 JsonElement groupMap = await CollectionAsync(
-                    endpoint, XRegistryPath.FromSegments([groupDefinition.Name]), context, options, ct)
+                    scope, XRegistryPath.FromSegments([groupDefinition.Name]), context, options, ct)
                     .ConfigureAwait(false);
                 foreach (JsonProperty item in groupMap.EnumerateObject())
                 {
@@ -80,17 +215,27 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                             resourceDefinition.Value, "singular");
                         string collectionPath = groupPath + XRegistryPath.FromSegments([resourceDefinition.Name]);
                         JsonElement resourceMap = await CollectionAsync(
-                            endpoint, collectionPath, context, options, ct).ConfigureAwait(false);
+                            scope, collectionPath, context, options, ct).ConfigureAwait(false);
                         foreach (JsonProperty resource in resourceMap.EnumerateObject())
                         {
                             string path = collectionPath + XRegistryPath.FromSegments([resource.Name]);
                             XRegistryNativeJson.ValidateIdentity(
                                 resource.Value, resourceSingular + "id", resource.Name);
-                            JsonElement meta = await ReadAsync(endpoint, path + "/meta", context, ct)
+                            JsonElement meta = await ReadAsync(scope, path + "/meta", context, ct)
                                 .ConfigureAwait(false);
+                            if (meta.TryGetProperty("xref", out _) && !meta.TryGetProperty("defaultversionid", out _))
+                            {
+                                resources.Add(new XRegistryNativeResource(groupPath, path, resource.Name, string.Empty,
+                                    resourceDefinition.Value, resource.Value, meta, true, hasVersion: false));
+                                if (++count > options.MaxEntities)
+                                {
+                                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                                }
+                                continue;
+                            }
                             string defaultId = XRegistryNativeJson.RequiredText(meta, "defaultversionid");
                             JsonElement versions = await CollectionAsync(
-                                endpoint, path + "/versions", context, options, ct).ConfigureAwait(false);
+                                scope, path + "/versions", context, options, ct).ConfigureAwait(false);
                             if (!versions.TryGetProperty(defaultId, out _))
                             {
                                 throw new ServiceResultException(StatusCodes.BadInvalidState,
@@ -123,7 +268,21 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                     }
                 }
             }
-            return new XRegistryNativeSnapshot(description, root, [.. groups]);
+            _ = await scope.InspectAsync(context, ct).ConfigureAwait(false);
+            var snapshot = new XRegistryNativeSnapshot(description, root, [.. groups]) { ModelSource = modelSource };
+            int mappedProperties = 0;
+            foreach ((string path, JsonElement metadata, JsonElement definition) in
+                XRegistryNativeAttributePlan.Entities(snapshot))
+            {
+                mappedProperties += options.AttributeMappings.ToList().Count(mapping => mapping.Matches(path));
+                if (mappedProperties > options.MaxMappedProperties)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded,
+                        "The complete projection exceeds its mapped-property quota.");
+                }
+                XRegistryNativeAttributePlan.Preflight(metadata, definition, path, options.AttributeMappings);
+            }
+            return snapshot;
         }
 
         internal static async ValueTask<JsonElement> ReadAsync(
@@ -139,8 +298,29 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             return response.Metadata;
         }
 
+        private static ImmutableSortedDictionary<string, string> Attributes(JsonElement metadata)
+        {
+            ImmutableSortedDictionary<string, string>.Builder attributes =
+                ImmutableSortedDictionary.CreateBuilder<string, string>(StringComparer.Ordinal);
+            foreach (JsonProperty property in metadata.EnumerateObject())
+            {
+                if (property.Name is not ("self" or "xid"))
+                {
+                    attributes[property.Name] = property.Value.GetRawText();
+                }
+            }
+            return attributes.ToImmutable();
+        }
+
+        private static bool SameJson(JsonElement first, JsonElement second)
+        {
+            return first.ValueKind == second.ValueKind &&
+                (first.ValueKind == JsonValueKind.Undefined ||
+                    JsonNode.DeepEquals(JsonNode.Parse(first.GetRawText()), JsonNode.Parse(second.GetRawText())));
+        }
+
         private static async ValueTask<JsonElement> CollectionAsync(
-            IXRegistryEndpoint endpoint, string path, XRegistryCallContext context,
+            XRegistryGenerationReadScope endpoint, string path, XRegistryCallContext context,
             XRegistryBridgeNativeOptions options, CancellationToken ct)
         {
             var request = new XRegistryRequest(XRegistryAction.Read, path)
@@ -217,7 +397,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             Definition = definition;
             Metadata = metadata;
             NativeResources = resources;
-            Epoch = XRegistryNativeJson.Epoch(metadata);
+            Epoch = XRegistryNativeJson.ProjectionEpoch(metadata);
             Labels = XRegistryNativeJson.Labels(metadata);
         }
 
@@ -236,11 +416,12 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         public IEnumerable<IXRegistryProjectionResource> Resources => NativeResources.ToArray() ?? [];
     }
 
-    internal sealed class XRegistryNativeResource : IXRegistryProjectionResource, IXRegistryProjectionResourceMeta
+    internal sealed class XRegistryNativeResource :
+        IXRegistryProjectionResource, IXRegistryProjectionResourceMeta, IXRegistryProjectionResourcePresence
     {
         public XRegistryNativeResource(
             string groupPath, string resourcePath, string id, string version,
-            JsonElement definition, JsonElement metadata, JsonElement meta, bool isDefault)
+            JsonElement definition, JsonElement metadata, JsonElement meta, bool isDefault, bool hasVersion = true)
         {
             GroupPath = groupPath;
             Path = resourcePath;
@@ -250,8 +431,9 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             Metadata = metadata;
             Meta = meta;
             IsDefaultVersion = isDefault;
-            Epoch = XRegistryNativeJson.Epoch(metadata);
-            MetaEpoch = XRegistryNativeJson.Epoch(meta);
+            HasVersion = hasVersion;
+            Epoch = hasVersion ? XRegistryNativeJson.ProjectionEpoch(metadata) : 0;
+            MetaEpoch = hasVersion ? XRegistryNativeJson.ProjectionEpoch(meta) : 0;
             Labels = XRegistryNativeJson.Labels(metadata);
             MetaLabels = XRegistryNativeJson.Labels(meta);
         }
@@ -263,24 +445,30 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         public JsonElement Definition { get; }
         public JsonElement Metadata { get; }
         public JsonElement Meta { get; }
-        public string VersionPath => Path + "/versions" + XRegistryPath.FromSegments([Version]);
+        public string VersionPath => HasVersion ? Path + "/versions" + XRegistryPath.FromSegments([Version]) : Path;
         public string GroupId => Uri.EscapeDataString(GroupPath);
         public string ResourceId => Uri.EscapeDataString(Path);
-        public string Xid => VersionPath;
+        public string Xid => HasVersion ? VersionPath : Path;
         public string Name => XRegistryNativeJson.Text(Metadata, "name");
         public string Description => XRegistryNativeJson.Text(Metadata, "description");
         public string VersionId => Uri.EscapeDataString(Version);
         public string Format => XRegistryNativeJson.Text(Metadata, "format");
         public string ContentType => XRegistryNativeJson.Text(Metadata, "contenttype");
         public long Epoch { get; }
-        public DateTime CreatedAt => XRegistryNativeJson.Timestamp(Metadata, "createdat");
-        public DateTime ModifiedAt => XRegistryNativeJson.Timestamp(Metadata, "modifiedat");
+        public DateTime CreatedAt => HasVersion ? XRegistryNativeJson.Timestamp(Metadata, "createdat") : default;
+        public DateTime ModifiedAt => HasVersion ? XRegistryNativeJson.Timestamp(Metadata, "modifiedat") : default;
         public ImmutableSortedDictionary<string, string> Labels { get; }
         public long MetaEpoch { get; }
         public ImmutableSortedDictionary<string, string> MetaLabels { get; }
-        public DateTime MetaCreatedAt => XRegistryNativeJson.Timestamp(Meta, "createdat");
-        public DateTime MetaModifiedAt => XRegistryNativeJson.Timestamp(Meta, "modifiedat");
+        public DateTime MetaCreatedAt => HasVersion ? XRegistryNativeJson.Timestamp(Meta, "createdat") : default;
+        public DateTime MetaModifiedAt => HasVersion ? XRegistryNativeJson.Timestamp(Meta, "modifiedat") : default;
         public bool IsDefaultVersion { get; }
+        public bool HasVersion { get; }
+
+        public bool DocumentWritable => HasVersion &&
+            !Meta.TryGetProperty("xref", out _) &&
+            !(Meta.TryGetProperty("readonly", out JsonElement readOnly) && readOnly.ValueKind == JsonValueKind.True) &&
+            !Metadata.TryGetProperty(XRegistryNativeJson.RequiredText(Definition, "singular") + "url", out _);
 
         public bool HasDocument => !Definition.TryGetProperty("hasdocument", out JsonElement value) ||
             value.ValueKind == JsonValueKind.True;
@@ -358,6 +546,36 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             return result;
         }
 
+        public static JsonNode EpochGuard(JsonElement value)
+        {
+            _ = ProjectionEpoch(value);
+            return JsonNode.Parse(value.GetProperty("epoch").GetRawText())!;
+        }
+
+        public static uint ProjectionEpoch(JsonElement value)
+        {
+            RequireObject(value);
+            if (!value.TryGetProperty("epoch", out JsonElement epoch) || epoch.ValueKind != JsonValueKind.Number)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "An explicit unsigned epoch is required.");
+            }
+            if (epoch.TryGetUInt32(out uint result))
+            {
+                return result;
+            }
+            foreach (char digit in epoch.GetRawText())
+            {
+                if (digit is < '0' or > '9')
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported, "The epoch is not an unsigned integer.");
+                }
+            }
+            // Native UInt32 properties carry BadOutOfRange; full metadata and guards retain the original integer.
+            return 0;
+        }
+
         public static DateTime Timestamp(JsonElement value, string name)
         {
             string text = Text(value, name);
@@ -414,7 +632,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
 
         public static StatusCode Status(XRegistryResponse response)
         {
-            return response.Error?.Code == "mismatched_epoch"
+            return response.Error?.Code is "mismatched_epoch" or "version_incarnation_changed" or "concurrent_change"
                 ? StatusCodes.BadInvalidState
                 : response.StatusCode switch
                 {

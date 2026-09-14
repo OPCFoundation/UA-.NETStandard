@@ -48,7 +48,7 @@ namespace Opc.Ua.XRegistry.Http
     /// Use AddXRegistryHttpEndpoint for a no-redirect, no-cookie default pipeline.
     /// Call contexts are not serialized into headers or used as credentials.
     /// </remarks>
-    public sealed class XRegistryHttpEndpoint : IXRegistryEndpoint
+    public sealed partial class XRegistryHttpEndpoint : IXRegistryEndpoint, IXRegistryAddressResolver
     {
         /// <summary>
         /// Initializes a bounded HTTP adapter for the configured registry without taking ownership of its client.
@@ -150,18 +150,22 @@ namespace Opc.Ua.XRegistry.Http
         /// <exception cref="OperationCanceledException">
         /// The operation was canceled or exceeded its request timeout.
         /// </exception>
+        /// <exception cref="InvalidDataException"></exception>
         public async ValueTask<XRegistryResponse> ExecuteAsync(
             XRegistryRequest request,
             CancellationToken cancellationToken = default)
         {
             request.ThrowIfNull(nameof(request));
             request.Context.ThrowIfNull(nameof(request.Context));
-            if (request.OperationId is not null)
+            if (request.OperationId is not null ||
+                request.ExpectedVersionIncarnation is not null ||
+                request.ExpectedGeneration is not null ||
+                (request.AddressPath is not null && !IsShortLink(request.AddressPath)))
             {
                 return new XRegistryResponse(405)
                 {
                     Error = new XRegistryError("action_not_supported",
-                        "The HTTP binding does not provide operation replay protection.")
+                        "The HTTP binding does not provide replay, Version incarnation, generation or address guards.")
                     { Subject = request.Path },
                     AllowedActions = [XRegistryAction.Read, XRegistryAction.Describe]
                 };
@@ -173,10 +177,24 @@ namespace Opc.Ua.XRegistry.Http
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(m_options.RequestTimeout);
             JsonElement model = default;
+            XRegistryEndpointDescription? inspected = null;
+            if (IsShortLink(request.AddressPath ?? request.Path))
+            {
+                inspected = await InspectCoreAsync(request.Context, timeout.Token).ConfigureAwait(false);
+                XRegistryAddressResolution resolution = await ResolveAddressCoreAsync(request, inspected, timeout.Token)
+                    .ConfigureAwait(false);
+                if (resolution.Rejection is { } rejection)
+                {
+                    return rejection;
+                }
+                request = resolution.Request;
+                model = inspected.Model;
+            }
             if (request.IsMutation)
             {
-                XRegistryEndpointDescription description = await InspectCoreAsync(
-                    request.Context, timeout.Token).ConfigureAwait(false);
+                XRegistryEndpointDescription description = inspected ??
+                    await InspectCoreAsync(
+                        request.Context, timeout.Token).ConfigureAwait(false);
                 if (!XRegistryHttpWire.AllowsMutation(description, request.Action) ||
                     !AvailableMutable(description.Capabilities, request.Path switch
                     {
@@ -190,12 +208,20 @@ namespace Opc.Ua.XRegistry.Http
                 }
                 model = description.Model;
             }
-            else if (!XRegistryHttpShape.IsWellKnown(request.Path))
+            else if (model.ValueKind == JsonValueKind.Undefined && !XRegistryHttpShape.IsWellKnown(request.Path))
             {
                 model = await ReadMetadataAsync("/model", request.Context, timeout.Token).ConfigureAwait(false);
             }
             var shape = XRegistryHttpShape.Resolve(model, request.Path);
             XRegistryResponse response = await SendAsync(request, shape, model, timeout.Token).ConfigureAwait(false);
+            if (request.AddressPath is not null &&
+                response.IsSuccess &&
+                response.Metadata.ValueKind == JsonValueKind.Object &&
+                response.Metadata.TryGetProperty("xid", out JsonElement xid) &&
+                (xid.ValueKind != JsonValueKind.String || xid.GetString() != request.Path))
+            {
+                throw new InvalidDataException("The HTTP alias changed its canonical entity during execution.");
+            }
             if (!request.IsMutation &&
                 request.Path is "/" or "/export" &&
                 response.IsSuccess &&
@@ -239,10 +265,18 @@ namespace Opc.Ua.XRegistry.Http
                 AvailableMutable(capabilities, "modelsource") ||
                 AvailableMutable(capabilities, "capabilities");
             bool qualified = m_options.IsQualifiedBinding && pinned && mutable;
+            if (m_options.ShortLinkPrefix is { } aliasPrefix &&
+                model.TryGetProperty("groups", out JsonElement groups) &&
+                groups.ValueKind == JsonValueKind.Object &&
+                groups.TryGetProperty(aliasPrefix[1..], out _))
+            {
+                throw new InvalidDataException("The configured alias mount collides with a model collection.");
+            }
             return new XRegistryEndpointDescription(identity.GetString()!)
             {
                 Profile = qualified ? "http-1.0-rc4-qualified" : "http-unqualified",
                 PublicRoot = RegistryRoot,
+                ShortLinkPrefix = Contains(capabilities, "flags", "doc") ? m_options.ShortLinkPrefix : null,
                 Model = model,
                 Capabilities = capabilities,
                 SupportsAtomicMutations = qualified,

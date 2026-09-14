@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET8_0_OR_GREATER
+#if XREGISTRY_HTTP_MODERN
 using System;
 using System.Globalization;
 using System.Linq;
@@ -46,6 +46,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.XRegistry.Bridge.Native;
 using Opc.Ua.XRegistry.Bridge.Sync;
 using Opc.Ua.XRegistry.Http;
@@ -136,7 +137,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
         }
 
         [Test]
-        public async Task NativeGatewayWritesThroughIndependentHttpFixtureAndCleanCloseDoesNotTouchAsync()
+        public async Task NativeGatewayWritesThroughHttpButRejectsUnfencedFileWritesAsync()
         {
             using var handler = new IndependentRegistryHttpHandler();
             using var http = new HttpClient(handler);
@@ -153,17 +154,44 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 "/groups/g").ConfigureAwait(false);
             NodeId resource = await FindChildEntityAsync(group, "/groups/g/schemas/r").ConfigureAwait(false);
             var file = new ResourceTypeClient(m_session, resource, m_telemetry);
-            uint clean = await file.OpenAsync(2).ConfigureAwait(false);
+            ArrayOf<ReferenceDescription> properties = await XRegistryOpcUaEndpoint.BrowseAsync(
+                m_session, resource, options, CancellationToken.None).ConfigureAwait(false);
+            foreach (string name in new[] { "Writable", "UserWritable" })
+            {
+                ReferenceDescription property = properties.ToList().Single(item => item.BrowseName.Name == name);
+                DataValue value = await m_session.ReadValueAsync(
+                    ExpandedNodeId.ToNodeId(property.NodeId, m_session.NamespaceUris)).ConfigureAwait(false);
+                Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(value.WrappedValue.TryGetValue(out bool writable), Is.True);
+                Assert.That(writable, Is.False);
+            }
+            uint clean = await file.OpenAsync(1).ConfigureAwait(false);
             await file.CloseAsync(clean).ConfigureAwait(false);
+            foreach (byte mode in new byte[] { 2, 6 })
+            {
+                ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await file.OpenAsync(mode).ConfigureAwait(false));
+                Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+            }
+            ServiceResultException createRejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_generic.GetGroup(group).CreateResourceAsync("unfenced", "v1", true).ConfigureAwait(false));
+            Assert.That(createRejected.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(handler.Writes, Is.Zero);
-            uint write = await file.OpenAsync(6).ConfigureAwait(false);
-            await file.WriteAsync(write, ByteString.From(new byte[] { 0, 255, 5 })).ConfigureAwait(false);
-            await file.CloseAsync(write).ConfigureAwait(false);
+            var native = new XRegistryOpcUaEndpoint(m_session, factory.Manager.RegistryNodeId, options, m_telemetry);
+            XRegistryResponse written = await native.ExecuteAsync(Request(
+                XRegistryAction.Replace, "/groups/g/schemas/r/versions/v1",
+                /*lang=json,strict*/ """{"epoch":0}""") with
+            {
+                View = XRegistryView.Default,
+                Document = ByteString.From(new byte[] { 0, 255, 5 }),
+                ContentType = "application/octet-stream"
+            }).ConfigureAwait(false);
             uint read = await file.OpenAsync(1).ConfigureAwait(false);
             ByteString bytes = await file.ReadAsync(read, 32).ConfigureAwait(false);
             await file.CloseAsync(read).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
+                Assert.That(written.StatusCode, Is.EqualTo(200));
                 Assert.That(handler.Writes, Is.EqualTo(1));
                 Assert.That(handler.ExpectedEpoch, Is.EqualTo("0"));
                 Assert.That(handler.Document, Is.EqualTo(new byte[] { 0, 255, 5 }));
@@ -420,12 +448,12 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 };
             }
 
-            private const string k_created = "2026-01-01T00:00:00Z";
-
             public const string ModelJson = """
                 {"groups":{"groups":{"singular":"group","resources":{"schemas":{
                 "singular":"schema","hasdocument":true}}}}}
                 """;
+
+            private const string k_created = "2026-01-01T00:00:00Z";
         }
     }
 }

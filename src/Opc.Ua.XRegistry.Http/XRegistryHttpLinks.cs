@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Opc.Ua.XRegistry.Protocol;
@@ -55,7 +56,10 @@ namespace Opc.Ua.XRegistry.Http
                 documentOptions: new JsonDocumentOptions { MaxDepth = 1024 })!;
             string path = request.Path == "/export" ? "/" : request.Path;
             var shape = XRegistryHttpShape.Resolve(model, path);
-            Visit(root, path, shape, model, address, upstreamRequest, shape.IsDocumentView(request), protocolLinks);
+            bool documentView = !request.IsMutation ||
+                request.Parameters.ToList().Any(parameter => parameter.Name == "doc");
+            Visit(root, path, shape, model, address, upstreamRequest,
+                shape.IsDocumentView(request, response: true), protocolLinks, documentView);
             return body.Parse(body.Encode(root));
         }
 
@@ -67,7 +71,8 @@ namespace Opc.Ua.XRegistry.Http
             XRegistryHttpAddress address,
             Uri? upstreamRequest,
             bool documentHeaders = false,
-            bool protocolLinks = false)
+            bool protocolLinks = false,
+            bool documentView = false)
         {
             if (shape.IsCollection)
             {
@@ -77,7 +82,7 @@ namespace Opc.Ua.XRegistry.Http
                     {
                         string childPath = XRegistryPath.FromSegments([.. XRegistryPath.GetSegments(path), entry.Key]);
                         Visit(child, childPath, XRegistryHttpShape.Resolve(model, childPath),
-                            model, address, upstreamRequest, protocolLinks: protocolLinks);
+                            model, address, upstreamRequest, protocolLinks: protocolLinks, documentView: documentView);
                     }
                 }
                 return;
@@ -87,18 +92,24 @@ namespace Opc.Ua.XRegistry.Http
                 return;
             }
             TranslateLink(entity, "self", address, upstreamRequest,
-                shape.IsResource && shape.HasDocument && !documentHeaders, protocolLinks);
-            if (shape.Kind is XRegistryHttpEntityKind.Resource or XRegistryHttpEntityKind.Version or
-                XRegistryHttpEntityKind.Meta)
+                shape.IsResource && shape.HasDocument && !documentHeaders, protocolLinks, documentView);
+            TranslateLink(entity, "shortself", address, upstreamRequest, protocolLinks: protocolLinks);
+            if (shape.Kind is XRegistryHttpEntityKind.Resource or XRegistryHttpEntityKind.Version
+                or XRegistryHttpEntityKind.Meta)
             {
-                TranslateLink(entity, "metaurl", address, upstreamRequest, protocolLinks: protocolLinks);
-                TranslateLink(entity, "versionsurl", address, upstreamRequest, protocolLinks: protocolLinks);
-                TranslateLink(entity, "defaultversionurl", address, upstreamRequest, protocolLinks: protocolLinks);
+                TranslateLink(entity, "metaurl", address, upstreamRequest,
+                    protocolLinks: protocolLinks, documentView: documentView);
+                TranslateLink(entity, "versionsurl", address, upstreamRequest,
+                    protocolLinks: protocolLinks, documentView: documentView);
+                TranslateLink(entity, "defaultversionurl", address, upstreamRequest,
+                    protocolLinks: protocolLinks, documentView: documentView);
             }
             if (shape.Kind == XRegistryHttpEntityKind.Resource)
             {
-                VisitChild(entity, "meta", path + "/meta", model, address, upstreamRequest, protocolLinks);
-                VisitChild(entity, "versions", path + "/versions", model, address, upstreamRequest, protocolLinks);
+                VisitChild(
+                    entity, "meta", path + "/meta", model, address, upstreamRequest, protocolLinks, documentView);
+                VisitChild(entity, "versions", path + "/versions", model,
+                    address, upstreamRequest, protocolLinks, documentView);
             }
             JsonElement collections = default;
             if (shape.Kind == XRegistryHttpEntityKind.Registry && model.ValueKind == JsonValueKind.Object)
@@ -114,10 +125,11 @@ namespace Opc.Ua.XRegistry.Http
                 foreach (JsonProperty collection in collections.EnumerateObject())
                 {
                     TranslateLink(entity, collection.Name + "url", address, upstreamRequest,
-                        protocolLinks: protocolLinks);
+                        protocolLinks: protocolLinks, documentView: documentView);
                     string childPath = XRegistryPath.FromSegments(
                         [.. XRegistryPath.GetSegments(path), collection.Name]);
-                    VisitChild(entity, collection.Name, childPath, model, address, upstreamRequest, protocolLinks);
+                    VisitChild(entity, collection.Name, childPath, model,
+                        address, upstreamRequest, protocolLinks, documentView);
                 }
             }
         }
@@ -129,12 +141,12 @@ namespace Opc.Ua.XRegistry.Http
             JsonElement model,
             XRegistryHttpAddress address,
             Uri? upstreamRequest,
-            bool protocolLinks)
+            bool protocolLinks, bool documentView)
         {
             if (entity.TryGetPropertyValue(name, out JsonNode? node) && node is JsonObject child)
             {
                 Visit(child, path, XRegistryHttpShape.Resolve(model, path), model, address, upstreamRequest,
-                    protocolLinks: protocolLinks);
+                    protocolLinks: protocolLinks, documentView: documentView);
             }
         }
 
@@ -144,15 +156,20 @@ namespace Opc.Ua.XRegistry.Http
             XRegistryHttpAddress address,
             Uri? upstreamRequest,
             bool details = false,
-            bool protocolLinks = false)
+            bool protocolLinks = false,
+            bool documentView = false)
         {
             if (!entity.TryGetPropertyValue(name, out JsonNode? node) || node is null)
             {
                 return;
             }
-            if (node is not JsonValue value || !value.TryGetValue(out string? target))
+            if (node is not JsonValue value || !value.TryGetValue(out string? target) || target is null)
             {
                 throw new JsonException("A registry navigation URL must be a string.");
+            }
+            if (documentView && target.StartsWith("#/", StringComparison.Ordinal))
+            {
+                return;
             }
             if (upstreamRequest is not null)
             {

@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET8_0_OR_GREATER
+#if XREGISTRY_HTTP_MODERN
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -210,9 +210,12 @@ namespace Opc.Ua.XRegistry.Http.Tests
             using HttpResponseMessage response = await host.Client.SendAsync(message).ConfigureAwait(false);
 
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
-            Assert.That(authorized, Has.Count.EqualTo(1));
-            Assert.That(inspectionCounts, Has.Count.EqualTo(1));
+            Assert.That(authorized, Has.Count.EqualTo(2));
+            Assert.That(inspectionCounts, Has.Count.EqualTo(2));
             Assert.That(inspectionCounts[0], Is.Zero);
+            Assert.That(inspectionCounts[1], Is.EqualTo(1));
+            Assert.That(authorized[1].Metadata.ValueKind, Is.EqualTo(JsonValueKind.Undefined));
+            Assert.That(authorized[1].Context, Is.SameAs(caller));
             XRegistryRequest candidate = authorized[0];
             Assert.That(candidate.Action, Is.EqualTo(XRegistryAction.Replace));
             Assert.That(candidate.Path, Is.EqualTo("/schemagroups/cafe%CC%81/schemas/r"));
@@ -735,7 +738,7 @@ namespace Opc.Ua.XRegistry.Http.Tests
                     Metadata = HttpTestData.Json(
                         "{\"self\":\"/schemagroups/g/schemas/r\"," +
                         "\"schemaurl\":\"https://external.example/document\",\"epoch\":0}"),
-                    Location = "/schemagroups/g/schemas/other",
+                    Location = "https://external.example/document",
                     ContentType = "application/json"
                 }
             };
@@ -754,7 +757,7 @@ namespace Opc.Ua.XRegistry.Http.Tests
                 Is.EqualTo("https://external.example/document"));
             Assert.That(HttpHostTestData.Header(response, "xRegistry-epoch"), Is.EqualTo("0"));
             Assert.That(response.Headers.Location!.AbsoluteUri,
-                Is.EqualTo("https://public.example/registry/schemagroups/g/schemas/other"));
+                Is.EqualTo("https://external.example/document"));
             Assert.That(backend.Requests, Has.Count.EqualTo(1));
         }
     }

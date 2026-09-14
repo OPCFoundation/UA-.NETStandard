@@ -71,6 +71,12 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
 
         public XRegistrySyncStateManager State => new(Store, Options.JobId, Clock);
 
+        public static XRegistryCallContext Writer { get; } = new("operator")
+        {
+            IsAuthenticated = true,
+            Roles = ["xregistry.write"]
+        };
+
         public XRegistrySynchronizer Engine(
             IXRegistrySyncStateStore? store = null,
             XRegistrySyncOptions? options = null)
@@ -115,12 +121,6 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
             return string.Join(Environment.NewLine, report.Records.Span.ToArray()
                 .Select(record => $"{record.Kind} {record.Path}: {record.Detail}"));
         }
-
-        public static XRegistryCallContext Writer { get; } = new("operator")
-        {
-            IsAuthenticated = true,
-            Roles = ["xregistry.write"]
-        };
 
         public const string Group = "/schemagroups/g";
         public const string Resource = "/schemagroups/g/schemas/r";
@@ -199,6 +199,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
 
         public Func<XRegistryRequest, XRegistryResponse, XRegistryResponse>? TransformResponse { get; set; }
 
+        public Func<XRegistryRequest, XRegistryRequest>? TransformRequest { get; set; }
+
         public Func<CancellationToken, ValueTask<XRegistryEndpointDescription>>? InspectOverrideAsync { get; set; }
 
         public async ValueTask<XRegistryEndpointDescription> InspectAsync(
@@ -259,7 +261,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
             {
                 await BeforeExecuteAsync(request, cancellationToken).ConfigureAwait(false);
             }
-            XRegistryResponse response = await m_endpoint.ExecuteAsync(request, cancellationToken)
+            XRegistryResponse response =
+                await m_endpoint.ExecuteAsync(TransformRequest?.Invoke(request) ?? request, cancellationToken)
                 .ConfigureAwait(false);
             if (request.IsMutation && response.IsSuccess)
             {
@@ -352,9 +355,6 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
             m_endpoint.Dispose();
         }
 
-        private readonly FixtureTransactionStore m_store;
-        private readonly XRegistryTransactionalEndpoint m_endpoint;
-
         private sealed class FixtureTransactionStore(bool replay) : IXRegistryTransactionStore
         {
             public bool SupportsDurableReplay => replay;
@@ -374,6 +374,9 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
 
             private readonly InMemoryXRegistryTransactionStore m_inner = new();
         }
+
+        private readonly FixtureTransactionStore m_store;
+        private readonly XRegistryTransactionalEndpoint m_endpoint;
     }
 
     internal sealed class SyncClock : TimeProvider
@@ -413,10 +416,6 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
             return timer;
         }
 
-        private DateTimeOffset m_now = new(2026, 9, 10, 12, 0, 0, TimeSpan.Zero);
-        private readonly List<ManualTimer> m_timers = [];
-        private readonly Lock m_gate = new();
-
         private sealed class ManualTimer(SyncClock owner, TimerCallback callback, object? state) : ITimer
         {
             public bool Change(TimeSpan dueTime, TimeSpan period)
@@ -450,5 +449,9 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
 
             private DateTimeOffset m_due;
         }
+
+        private DateTimeOffset m_now = new(2026, 9, 10, 12, 0, 0, TimeSpan.Zero);
+        private readonly List<ManualTimer> m_timers = [];
+        private readonly Lock m_gate = new();
     }
 }

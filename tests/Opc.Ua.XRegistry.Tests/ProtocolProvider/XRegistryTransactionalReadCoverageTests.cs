@@ -64,10 +64,10 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 Assert.That(description.SupportsPreparedMutations, Is.True);
                 Assert.That(description.SupportsOperationReplay, Is.EqualTo(durable));
                 Assert.That(description.Capabilities.GetProperty("versionmodes").GetRawText(),
-                    Is.EqualTo("""["manual","createdat","modifiedat"]"""));
-                Assert.That(description.Capabilities.GetProperty("pagination").GetBoolean(), Is.False);
+                    Is.EqualTo("""["manual","createdat","modifiedat","semver"]"""));
+                Assert.That(description.Capabilities.GetProperty("pagination").GetBoolean(), Is.True);
                 Assert.That(description.Capabilities.GetProperty("available").GetProperty("modelsource")
-                    .GetProperty("mutable").GetBoolean(), Is.True);
+                    .GetProperty("mutable").GetBoolean(), Is.False);
                 Assert.That(schema.GetProperty("maxversions").GetInt32(), Is.Zero);
                 Assert.That(schema.GetProperty("versionmode").GetString(), Is.EqualTo("manual"));
                 Assert.That(schema.GetProperty("hasdocument").GetBoolean(), Is.True);
@@ -171,7 +171,6 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
 
         [TestCase("inline", "*")]
         [TestCase("inline", "schema")]
-        [TestCase("doc", null)]
         public async Task DocumentSelectionEmbedsExactBase64WithoutChangingTheDocumentViewAsync(
             string flag, string? selection)
         {
@@ -241,14 +240,14 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
         [TestCase("/model", "Read,Describe")]
         [TestCase("/capabilities", "Read,Describe")]
         [TestCase("/groups", "Read,Create,Merge,Delete,Describe")]
-        [TestCase("/groups/g", "Read,Replace,Merge,Delete,Describe")]
+        [TestCase("/groups/g", "Read,Create,Replace,Merge,Delete,Describe")]
         public async Task DescribeReportsExactActionsWithoutCreatingMissingEntitiesAsync(string path, string actions)
         {
             using var endpoint = XRegistryProviderCoverage.Create();
             XRegistryResponse response = await endpoint.ExecuteAsync(
                 XRegistryProviderCoverage.Request(XRegistryAction.Describe, path)).ConfigureAwait(false);
-            XRegistryAction[] allowed = response.AllowedActions.ToArray() ??
-                throw new AssertionException("The endpoint omitted its declared actions.");
+            XRegistryAction[] allowed = response.AllowedActions.ToArray()
+                ?? throw new AssertionException("The endpoint omitted its declared actions.");
             XRegistryResponse root = await endpoint.ExecuteAsync(
                 XRegistryProviderCoverage.Request(XRegistryAction.Read, "/")).ConfigureAwait(false);
             Assert.Multiple(() =>
@@ -302,8 +301,10 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                     Parameters = [new XRegistryParameter("specversion", "unsupported")]
                 }).ConfigureAwait(false);
             Assert.That(read.StatusCode, Is.EqualTo(200));
-            Assert.That(read.Metadata.TryGetProperty("groups", out _), Is.False);
-            await XRegistryProviderCoverage.AssertPristineAsync(endpoint, rejected, "bad_flag").ConfigureAwait(false);
+            Assert.That(read.Metadata.GetProperty("groups").GetRawText(), Is.EqualTo("{}"));
+            Assert.That(read.Metadata.TryGetProperty("model", out _), Is.False);
+            await XRegistryProviderCoverage.AssertPristineAsync(endpoint, rejected, "unsupported_specversion")
+                .ConfigureAwait(false);
         }
 
         [TestCase("/capabilities")]
@@ -317,13 +318,17 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
             {
                 Assert.That(response.StatusCode, Is.EqualTo(200));
                 Assert.That(response.Metadata.GetProperty("flags").GetRawText(),
-                    Is.EqualTo("""["inline","doc","binary","collections","epoch","specversion"]"""));
+                    Is.EqualTo(
+                        """["inline","doc","binary","collections","epoch","specversion","filter","sort",""" +
+                        "\"ignore\",\"setdefaultversionid\"]"));
                 Assert.That(response.Metadata.GetProperty("available").GetProperty("model")
                     .GetProperty("mutable").GetBoolean(), Is.False);
                 Assert.That(response.Metadata.GetProperty("available").GetProperty("entities")
                     .GetProperty("mutable").GetBoolean(), Is.True);
-                Assert.That(response.Metadata.GetProperty("formats").GetRawText(), Is.EqualTo("[]"));
-                Assert.That(response.Metadata.GetProperty("compatibilities").GetRawText(), Is.EqualTo("{}"));
+                Assert.That(response.Metadata.GetProperty("formats").GetRawText(),
+                    Is.EqualTo("""["JSON/1.0","XML/1.0"]"""));
+                Assert.That(response.Metadata.GetProperty("compatibilities").GetRawText(),
+                    Is.EqualTo("""{"JSON/1.0":["identical"],"XML/1.0":["identical"]}"""));
             });
         }
 

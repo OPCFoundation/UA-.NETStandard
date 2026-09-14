@@ -61,7 +61,16 @@ namespace Opc.Ua.XRegistry.Connector
                 CreateCommand("conflicts", "List persisted conflicts without contacting either registry.",
                     XRegistryConnectorCommand.Conflicts, execute, error),
                 CreateCommand("resolve", "Record a guarded resolution decision for a persisted conflict.",
-                    XRegistryConnectorCommand.Resolve, execute, error)
+                    XRegistryConnectorCommand.Resolve, execute, error),
+                CreateCommand("state-status", "Inspect durable state without contacting either registry.",
+                    XRegistryConnectorCommand.StateStatus, execute, error),
+                CreateCommand("state-backup", "Copy validated state into a pristine private snapshot directory.",
+                    XRegistryConnectorCommand.StateBackup, execute, error),
+                CreateCommand("state-restore", "Restore validated backup state into a pristine job directory.",
+                    XRegistryConnectorCommand.StateRestore, execute, error),
+                CreateCommand(
+                    "state-compact", "Retire explicitly acknowledged terminal intents at an exact generation.",
+                    XRegistryConnectorCommand.StateCompact, execute, error)
             };
         }
 
@@ -79,7 +88,9 @@ namespace Opc.Ua.XRegistry.Connector
             bool gateway = kind is XRegistryConnectorCommand.HttpGateway or XRegistryConnectorCommand.OpcUaGateway;
             bool network = native || http;
             bool state = kind is XRegistryConnectorCommand.Sync or XRegistryConnectorCommand.Conflicts
-                or XRegistryConnectorCommand.Resolve;
+                or XRegistryConnectorCommand.Resolve or XRegistryConnectorCommand.StateStatus
+                or XRegistryConnectorCommand.StateBackup or XRegistryConnectorCommand.StateRestore
+                or XRegistryConnectorCommand.StateCompact;
             var opcua = new Option<string?>("--opcua") { Description = "Upstream OPC UA discovery URL." };
             var registryNode = new Option<string?>("--registry-node")
             {
@@ -146,6 +157,23 @@ namespace Opc.Ua.XRegistry.Connector
                 Description = "prefer-opcua or prefer-http; applied only after revalidation by sync.",
                 Required = true
             };
+            var snapshot = new Option<string?>("--snapshot")
+            {
+                Description = "Private recovery storage directory for this job, not a JSON file.",
+                Required = true
+            };
+            var generation = new Option<long>("--expected-generation")
+            {
+                Description = "Exact state generation observed before acknowledging terminal operations.",
+                Required = true
+            };
+            var acknowledge = new Option<string[]>("--acknowledge")
+            {
+                Description = "Explicit terminal operation IDs to retire; pending work is never eligible.",
+                Required = true,
+                AllowMultipleArgumentsPerToken = true,
+                Arity = ArgumentArity.OneOrMore
+            };
 
             var command = new Command(name, description);
             if (native)
@@ -190,6 +218,15 @@ namespace Opc.Ua.XRegistry.Connector
                 command.Options.Add(conflict);
                 command.Options.Add(resolution);
             }
+            if (kind is XRegistryConnectorCommand.StateBackup or XRegistryConnectorCommand.StateRestore)
+            {
+                command.Options.Add(snapshot);
+            }
+            if (kind == XRegistryConnectorCommand.StateCompact)
+            {
+                command.Options.Add(generation);
+                command.Options.Add(acknowledge);
+            }
 
             command.SetAction(async (result, cancellationToken) =>
             {
@@ -225,7 +262,14 @@ namespace Opc.Ua.XRegistry.Connector
                         PollInterval = kind == XRegistryConnectorCommand.Sync
                             ? ParseInterval(result.GetValue(interval)!) : TimeSpan.FromSeconds(5),
                         ConflictId = kind == XRegistryConnectorCommand.Resolve ? result.GetValue(conflict) : null,
-                        Resolution = kind == XRegistryConnectorCommand.Resolve ? result.GetValue(resolution) : null
+                        Resolution = kind == XRegistryConnectorCommand.Resolve ? result.GetValue(resolution) : null,
+                        SnapshotDirectory =
+                            kind is XRegistryConnectorCommand.StateBackup or XRegistryConnectorCommand.StateRestore
+                            ? result.GetValue(snapshot) : null,
+                        ExpectedGeneration = kind == XRegistryConnectorCommand.StateCompact
+                            ? result.GetValue(generation) : 0,
+                        AcknowledgedOperationIds = kind == XRegistryConnectorCommand.StateCompact
+                            ? new ArrayOf<string>(result.GetValue(acknowledge) ?? []) : default
                     };
                     settings.Validate();
                 }

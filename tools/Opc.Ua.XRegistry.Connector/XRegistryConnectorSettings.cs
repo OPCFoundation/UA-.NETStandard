@@ -28,12 +28,13 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace Opc.Ua.XRegistry.Connector
 {
     /// <summary>
-    /// Connector deployment and read-only administration commands.
+    /// Connector deployment and explicit offline administration commands.
     /// </summary>
     public enum XRegistryConnectorCommand
     {
@@ -42,7 +43,11 @@ namespace Opc.Ua.XRegistry.Connector
         Sync,
         Inspect,
         Conflicts,
-        Resolve
+        Resolve,
+        StateStatus,
+        StateBackup,
+        StateRestore,
+        StateCompact
     }
 
     /// <summary>
@@ -90,6 +95,21 @@ namespace Opc.Ua.XRegistry.Connector
         public string? Resolution { get; init; }
 
         /// <summary>
+        /// Private directory containing a validated recovery copy for the same job.
+        /// </summary>
+        public string? SnapshotDirectory { get; init; }
+
+        /// <summary>
+        /// Exact generation acknowledged for offline intent compaction.
+        /// </summary>
+        public long ExpectedGeneration { get; init; }
+
+        /// <summary>
+        /// Explicit terminal operation IDs whose response payloads may be retired.
+        /// </summary>
+        public ArrayOf<string> AcknowledgedOperationIds { get; init; }
+
+        /// <summary>
         /// Validates the complete deployment before opening state, listeners or connections.
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException">
@@ -103,7 +123,7 @@ namespace Opc.Ua.XRegistry.Connector
         /// </exception>
         public void Validate()
         {
-            if (Command is < XRegistryConnectorCommand.HttpGateway or > XRegistryConnectorCommand.Resolve)
+            if (Command is < XRegistryConnectorCommand.HttpGateway or > XRegistryConnectorCommand.StateCompact)
             {
                 throw new ArgumentOutOfRangeException(nameof(Command));
             }
@@ -165,10 +185,33 @@ namespace Opc.Ua.XRegistry.Connector
                 }
             }
             if (Command is XRegistryConnectorCommand.Sync or XRegistryConnectorCommand.Conflicts
-                or XRegistryConnectorCommand.Resolve)
+                or XRegistryConnectorCommand.Resolve or XRegistryConnectorCommand.StateStatus
+                or XRegistryConnectorCommand.StateBackup or XRegistryConnectorCommand.StateRestore
+                or XRegistryConnectorCommand.StateCompact)
             {
                 Require(StateDirectory, "--state is required.");
                 _ = Path.GetFullPath(StateDirectory!);
+            }
+            if (Command is XRegistryConnectorCommand.StateBackup or XRegistryConnectorCommand.StateRestore)
+            {
+                Require(SnapshotDirectory, "--snapshot is required.");
+                _ = Path.GetFullPath(SnapshotDirectory!);
+            }
+            if (Command == XRegistryConnectorCommand.StateCompact)
+            {
+                if (ExpectedGeneration < 0 || AcknowledgedOperationIds.Count == 0)
+                {
+                    throw new ArgumentException(
+                        "Compaction requires a nonnegative --expected-generation and explicit --acknowledge IDs.");
+                }
+                var acknowledged = new HashSet<string>(StringComparer.Ordinal);
+                foreach (string id in AcknowledgedOperationIds)
+                {
+                    if (string.IsNullOrWhiteSpace(id) || !acknowledged.Add(id))
+                    {
+                        throw new ArgumentException("Acknowledged operation IDs must be nonblank and distinct.");
+                    }
+                }
             }
             if (Command == XRegistryConnectorCommand.Inspect)
             {

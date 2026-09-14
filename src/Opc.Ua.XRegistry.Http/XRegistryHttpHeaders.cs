@@ -73,7 +73,7 @@ namespace Opc.Ua.XRegistry.Http
                     }
                     continue;
                 }
-                string type = shape.AttributeType(property.Name);
+                string type = shape.AttributeType(property.Name, values: metadata);
                 if (property.Value.ValueKind == JsonValueKind.Object && type == "map")
                 {
                     if (request && !property.Value.EnumerateObject().MoveNext())
@@ -83,7 +83,7 @@ namespace Opc.Ua.XRegistry.Http
                     foreach (JsonProperty entry in property.Value.EnumerateObject())
                     {
                         Add(result, names, property.Name + "." + entry.Name, entry.Value,
-                            shape.AttributeType(property.Name, mapItem: true), request);
+                            shape.AttributeType(property.Name, mapItem: true, values: metadata), request);
                     }
                 }
                 else
@@ -103,6 +103,17 @@ namespace Opc.Ua.XRegistry.Http
         {
             var metadata = new JsonObject();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var selectors = new JsonObject { ["contenttype"] = contentType };
+            foreach (KeyValuePair<string, string> header in headers)
+            {
+                if (header.Key.StartsWith("xRegistry-", StringComparison.OrdinalIgnoreCase) &&
+                    !header.Key.Contains('.', StringComparison.Ordinal))
+                {
+                    string value = DecodeValue(header.Value);
+                    selectors[header.Key["xRegistry-".Length..].ToLowerInvariant()] = value == "null" ? null : value;
+                }
+            }
+            JsonElement values = codec.Parse(codec.Encode(selectors));
             foreach (KeyValuePair<string, string> header in headers)
             {
                 if (!header.Key.StartsWith("xRegistry-", StringComparison.OrdinalIgnoreCase))
@@ -124,7 +135,7 @@ namespace Opc.Ua.XRegistry.Http
                     throw new XRegistryHttpWireException(400, "extra_xregistry_header",
                         "The attribute is not permitted as an xRegistry header.");
                 }
-                string type = shape.AttributeType(attribute, dot >= 0);
+                string type = shape.AttributeType(attribute, dot >= 0, values);
                 JsonNode? value = DecodeValue(header.Value, type);
                 if (dot < 0)
                 {
@@ -136,7 +147,7 @@ namespace Opc.Ua.XRegistry.Http
                 }
                 else
                 {
-                    if (shape.AttributeType(attribute) != "map")
+                    if (shape.AttributeType(attribute, values: values) != "map")
                     {
                         throw Error("A dotted attribute header requires a model-defined scalar map.");
                     }

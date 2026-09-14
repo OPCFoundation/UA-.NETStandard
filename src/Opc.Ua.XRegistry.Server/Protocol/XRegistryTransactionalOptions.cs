@@ -70,6 +70,28 @@ namespace Opc.Ua.XRegistry.Server.Protocol
         public Uri PublicRoot { get; init; } = new("https://localhost/");
 
         /// <summary>
+        /// Publishes persistent shortself addresses after explicit InitializeShortLinksAsync maintenance.
+        /// Disabling only suppresses serialization; existing aliases and their routing remain retained.
+        /// </summary>
+        public bool ShortLinksEnabled { get; init; }
+
+        /// <summary>
+        /// Reserved registry-relative alias mount.
+        /// It cannot collide with a model collection or change after initialization.
+        /// </summary>
+        public string ShortLinkPrefix { get; init; } = "/_s";
+
+        /// <summary>
+        /// Maximum live aliases, including logical Resource, Meta and referenced Version addresses.
+        /// </summary>
+        public int MaxShortLinks { get; init; } = 8192;
+
+        /// <summary>
+        /// Explicit discovery catalog. Entries are published but never contacted by the endpoint.
+        /// </summary>
+        public ArrayOf<Uri> DiscoveryRegistries { get; init; }
+
+        /// <summary>
         /// Maximum entity count, including root, groups, resource meta and versions.
         /// </summary>
         public int MaxEntities { get; init; } = 4096;
@@ -93,6 +115,56 @@ namespace Opc.Ua.XRegistry.Server.Protocol
         /// Aggregate encoded candidate bytes retained by outstanding preparations.
         /// </summary>
         public int MaxPreparedBytes { get; init; } = 256 * 1024 * 1024;
+
+        /// <summary>
+        /// Maximum records in a top-level collection response. Clients can request a
+        /// smaller positive limit. Inline collections are never partially paginated.
+        /// </summary>
+        public int PageSize { get; init; } = 1000;
+
+        /// <summary>
+        /// Lifetime of an authenticated generation-bound continuation. No server
+        /// snapshot is retained; a registry mutation or restart invalidates the cursor.
+        /// </summary>
+        public TimeSpan CursorLifetime { get; init; } = TimeSpan.FromMinutes(5);
+
+        /// <summary>
+        /// Optional approved include-document source; no network resolution is enabled by default.
+        /// </summary>
+        public IXRegistryModelDocumentResolver? ModelResolver { get; init; }
+
+        /// <summary>
+        /// Base URI for relative includes, defaulting to PublicRoot/modelsource.
+        /// </summary>
+        public Uri? ModelSourceUri { get; init; }
+
+        /// <summary>
+        /// Maximum encoded expanded model size and individual included-document size.
+        /// </summary>
+        public int MaxModelBytes { get; init; } = 4 * 1024 * 1024;
+
+        /// <summary>
+        /// Maximum combined object and include recursion depth.
+        /// </summary>
+        public int MaxModelDepth { get; init; } = 64;
+
+        /// <summary>
+        /// Maximum include references processed during a single model update.
+        /// </summary>
+        public int MaxModelDocuments { get; init; } = 64;
+
+        /// <summary>
+        /// Qualified domain validators. The default checks JSON/1.0 and XML/1.0 syntax only.
+        /// Hosts can replace or extend this list; duplicate format ownership is rejected.
+        /// </summary>
+        public ArrayOf<IXRegistryDocumentValidator> DocumentValidators { get; init; } =
+            [new XRegistrySyntaxDocumentValidator()];
+
+        /// <summary>
+        /// Optional immutable document storage. When configured, new generations retain blob references
+        /// rather than copying every domain document into the metadata snapshot.
+        /// </summary>
+        public IXRegistryDocumentStore? DocumentStore { get; init; }
 
         /// <summary>
         /// Default mutation authorization requires this role and authenticated identity.

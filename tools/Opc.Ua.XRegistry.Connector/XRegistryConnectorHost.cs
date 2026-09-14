@@ -44,6 +44,7 @@ using Microsoft.Extensions.Hosting;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.XRegistry.Bridge;
 using Opc.Ua.XRegistry.Bridge.Native;
 using Opc.Ua.XRegistry.Bridge.Sync;
 using Opc.Ua.XRegistry.Http;
@@ -67,7 +68,9 @@ namespace Opc.Ua.XRegistry.Connector
             try
             {
                 settings.Validate();
-                if (settings.Command is XRegistryConnectorCommand.Conflicts or XRegistryConnectorCommand.Resolve)
+                if (settings.Command is XRegistryConnectorCommand.Conflicts or XRegistryConnectorCommand.Resolve
+                    or XRegistryConnectorCommand.StateStatus or XRegistryConnectorCommand.StateBackup
+                    or XRegistryConnectorCommand.StateRestore or XRegistryConnectorCommand.StateCompact)
                 {
                     return await RunStateCommandAsync(settings, cancellationToken).ConfigureAwait(false);
                 }
@@ -81,9 +84,11 @@ namespace Opc.Ua.XRegistry.Connector
             }
             catch (Exception exception) when (exception is
                 IOException or HttpRequestException or ServiceResultException or UnauthorizedAccessException
-                or ArgumentException or InvalidOperationException or KeyNotFoundException or InvalidDataException)
+                    or ArgumentException or InvalidOperationException or KeyNotFoundException or InvalidDataException)
             {
-                await Console.Error.WriteLineAsync(exception.Message).ConfigureAwait(false);
+                string message = exception is XRegistryHttpException { Response: { } response }
+                    ? $"{exception.Message} HTTP status {response.StatusCode}." : exception.Message;
+                await Console.Error.WriteLineAsync(message).ConfigureAwait(false);
                 return 1;
             }
         }
@@ -95,6 +100,8 @@ namespace Opc.Ua.XRegistry.Connector
             Configure(builder.Services, builder.Configuration, builder.Logging, settings);
             IHost host = builder.Build();
             ManagedSession? session = null;
+            FileXRegistrySyncStateStore? state = null;
+            XRegistryBridgeRunner? runner = null;
             try
             {
                 await host.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -127,60 +134,156 @@ namespace Opc.Ua.XRegistry.Connector
                 }
                 if (settings.Command == XRegistryConnectorCommand.OpcUaGateway)
                 {
+                    using var startup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,
+                        host.Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping);
+                    startup.CancelAfter(host.Services.GetRequiredService<XRegistryBridgeNativeOptions>()
+                        .PreparedOperationTimeout);
+                    try
+                    {
+                        await host.Services.GetRequiredService<NativeReadiness>().Started.WaitAsync(startup.Token)
+                            .ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+                    {
+                        throw new InvalidOperationException(
+                            "The OPC UA server failed startup or exceeded its startup deadline.", exception);
+                    }
+                    runner = new XRegistryBridgeRunner(new XRegistryBridgeRunOptions
+                    {
+                        Mode = XRegistryBridgeMode.OpcUaGateway,
+                        PollInterval = settings.PollInterval
+                    }, [new XRegistryBridgeUpstream("http", http!, context)],
+                        host.Services.GetRequiredService<ITelemetryContext>(),
+                        projection: host.Services.GetRequiredService<IXRegistryBridgeProjection>());
+                    await RequireHealthyStartupAsync(runner, cancellationToken).ConfigureAwait(false);
                     await XRegistryConnectorOutput.ReadyAsync("opcua-gateway",
                         host.Services.GetRequiredService<XRegistryBridgeNativeOptions>().RootAddress.ToString())
                         .ConfigureAwait(false);
-                    await host.WaitForShutdownAsync(cancellationToken).ConfigureAwait(false);
-                    return 0;
+                    using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,
+                        host.Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping);
+                    return await runner.RunAsync(cancellationToken: stop.Token).ConfigureAwait(false);
                 }
-                var state = new FileXRegistrySyncStateStore(
+                // The finally callback owns this store until delayed reconciliation has really stopped.
+                // TODO: Remove when CA2000 recognizes deferred asynchronous disposal ownership.
+#pragma warning disable CA2000
+                state = new FileXRegistrySyncStateStore(
                     LocalFileSystem.Instance, Path.Combine(settings.StateDirectory!, settings.JobId));
-                await using ConfiguredAsyncDisposable stateLifetime = state.ConfigureAwait(false);
+#pragma warning restore CA2000
                 var options = new XRegistrySyncOptions(settings.JobId,
                     settings.OpcUaEndpoint!.AbsoluteUri + "#" + settings.RegistryNodeId,
                     settings.HttpRoot!.AbsoluteUri)
                 {
                     ConflictPolicy = ParsePolicy(settings.ConflictPolicy),
                     PropagateDeletes = settings.PropagateDeletes,
+                    VersionCorrespondences =
+                        ReadVersionCorrespondences(host.Services.GetRequiredService<IConfiguration>()),
                     OpcUaContext = context,
                     HttpContext = context
                 };
                 var synchronizer = new XRegistrySynchronizer(
                     native!, http!, state, options, host.Services.GetRequiredService<ITelemetryContext>());
-                while (true)
+                runner = new XRegistryBridgeRunner(new XRegistryBridgeRunOptions
                 {
-                    XRegistrySyncReport report = await synchronizer.RunOnceAsync(settings.DryRun, cancellationToken)
-                        .ConfigureAwait(false);
-                    await XRegistryConnectorOutput.ReportAsync(report).ConfigureAwait(false);
-                    if (settings.Once || settings.DryRun || report.Status == XRegistrySyncStatus.Failed)
+                    Mode = XRegistryBridgeMode.Synchronization,
+                    PollInterval = settings.PollInterval,
+                    Once = settings.Once,
+                    DryRun = settings.DryRun
+                },
+                    [new XRegistryBridgeUpstream("opcua", native!, context),
+                        new XRegistryBridgeUpstream("http", http!, context)],
+                    host.Services.GetRequiredService<ITelemetryContext>(), synchronizer);
+                using var syncStop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,
+                    host.Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping);
+                return await runner.RunAsync(async (status, _) =>
+                {
+                    if (status.Synchronization is { } report)
                     {
-                        return report.ExitCode;
+                        await XRegistryConnectorOutput.ReportAsync(report).ConfigureAwait(false);
                     }
-                    await Task.Delay(settings.PollInterval, cancellationToken).ConfigureAwait(false);
-                }
+                }, syncStop.Token).ConfigureAwait(false);
             }
             finally
             {
-                try
+                await ReleaseWhenIdleAsync(runner, async () =>
                 {
-                    if (session is not null)
+                    try
                     {
-                        await session.DisposeAsync().ConfigureAwait(false);
+                        if (session is not null)
+                        {
+                            await session.DisposeAsync().ConfigureAwait(false);
+                        }
                     }
-                    using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-                    await host.StopAsync(stop.Token).ConfigureAwait(false);
-                }
-                finally
+                    finally
+                    {
+                        try
+                        {
+                            if (state is not null)
+                            {
+                                await state.DisposeAsync().ConfigureAwait(false);
+                            }
+                        }
+                        finally
+                        {
+                            try
+                            {
+                                using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                                await host.StopAsync(stop.Token).ConfigureAwait(false);
+                            }
+                            finally
+                            {
+                                if (host is IAsyncDisposable disposable)
+                                {
+                                    await disposable.DisposeAsync().ConfigureAwait(false);
+                                }
+                                else
+                                {
+                                    host.Dispose();
+                                }
+                            }
+                        }
+                    }
+                }).ConfigureAwait(false);
+            }
+        }
+
+        internal static async Task ReleaseWhenIdleAsync(
+            XRegistryBridgeRunner? runner, Func<Task> release, TimeSpan? timeout = null)
+        {
+            Task cleanup = CompleteReleaseAsync();
+            try
+            {
+                await cleanup.WaitAsync(timeout ?? TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+            }
+            catch (TimeoutException) when (!cleanup.IsCompleted)
+            {
+                await Console.Error.WriteLineAsync(
+                    "xRegistry shutdown is deferred until in-flight operations finish; their resources remain owned.")
+                    .ConfigureAwait(false);
+                _ = ObserveReleaseAsync(cleanup);
+            }
+
+            async Task CompleteReleaseAsync()
+            {
+                if (runner is not null)
                 {
-                    if (host is IAsyncDisposable disposable)
-                    {
-                        await disposable.DisposeAsync().ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        host.Dispose();
-                    }
+                    await runner.WaitForPendingOperationsAsync().ConfigureAwait(false);
                 }
+                await release().ConfigureAwait(false);
+            }
+        }
+
+        private static async Task ObserveReleaseAsync(Task cleanup)
+        {
+            try
+            {
+                await cleanup.ConfigureAwait(false);
+            }
+            catch (Exception exception) when (exception is IOException or HttpRequestException or
+                ServiceResultException or UnauthorizedAccessException or ArgumentException or InvalidOperationException
+                or OperationCanceledException)
+            {
+                await Console.Error.WriteLineAsync("Deferred xRegistry shutdown failed: " + exception.Message)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -197,20 +300,20 @@ namespace Opc.Ua.XRegistry.Connector
                 if (settings.ListenAddress.Scheme == Uri.UriSchemeHttps)
                 {
                     options.ConfigureHttpsDefaults(https =>
-                        https.ServerCertificateSelector = (_, _) => selectedCertificate ??
-                            throw new InvalidOperationException("The managed HTTPS certificate is not available."));
+                        https.ServerCertificateSelector = (_, _) => selectedCertificate
+                            ?? throw new InvalidOperationException("The managed HTTPS certificate is not available."));
                 }
             });
             WebApplication app = builder.Build();
-            await using ConfiguredAsyncDisposable appLifetime = app.ConfigureAwait(false);
-            using CertificateEntry? entry = settings.ListenAddress.Scheme == Uri.UriSchemeHttps
+            var lifetime = new HttpGatewayLifetime(app);
+            await using ConfiguredAsyncDisposable appLifetime = lifetime.ConfigureAwait(false);
+            CertificateEntry? entry = lifetime.Entry = settings.ListenAddress.Scheme == Uri.UriSchemeHttps
                 ? await AcquireCertificateAsync(app.Services, cancellationToken).ConfigureAwait(false) : null;
-            using X509Certificate2? tls = entry?.Certificate?.AsX509Certificate2();
-            selectedCertificate = tls;
+            selectedCertificate = lifetime.Certificate = entry?.Certificate?.AsX509Certificate2();
             ManagedSession session = await app.Services
                 .GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>()(cancellationToken)
                 .ConfigureAwait(false);
-            await using ConfiguredAsyncDisposable sessionLifetime = session.ConfigureAwait(false);
+            lifetime.Session = session;
             IXRegistryEndpoint endpoint = await CreateNativeAsync(session, app.Services, settings, cancellationToken)
                 .ConfigureAwait(false);
             IConfiguration configuration = app.Services.GetRequiredService<IConfiguration>();
@@ -221,7 +324,14 @@ namespace Opc.Ua.XRegistry.Connector
                     configuration["HttpServer:SecretStoreType"] ?? "Environment"),
                 ReadBoolean(configuration, "HttpServer:AllowAnonymousReads", true));
             app.Use(authentication.InvokeAsync);
-            app.MapXRegistry(settings.PublicHttpRoot!.AbsolutePath.TrimEnd('/'), endpoint,
+            var runner = lifetime.Runner = new XRegistryBridgeRunner(new XRegistryBridgeRunOptions
+            {
+                Mode = XRegistryBridgeMode.HttpGateway,
+                PollInterval = settings.PollInterval
+            }, [new XRegistryBridgeUpstream("opcua", endpoint, OperatorContext(settings.CredentialProfile))],
+                app.Services.GetRequiredService<ITelemetryContext>());
+            app.MapXRegistry(settings.PublicHttpRoot!.AbsolutePath.TrimEnd('/'),
+                app.Services.GetService<IXRegistryEndpointResolver>() ?? XRegistryEndpointResolver.Borrow(endpoint),
                 new XRegistryHttpRouteOptions(settings.PublicHttpRoot)
                 {
                     RequireAuthenticatedUser = false,
@@ -235,31 +345,91 @@ namespace Opc.Ua.XRegistry.Connector
                 });
             app.MapGet("/_bridge/ready", async context =>
             {
-                try
-                {
-                    XRegistryEndpointDescription description = await endpoint.InspectAsync(
-                        OperatorContext(settings.CredentialProfile), context.RequestAborted).ConfigureAwait(false);
-                    context.Response.ContentType = "application/json";
-                    await context.Response.WriteAsync(XRegistryConnectorOutput.Readiness(true,
-                        description.SupportsAtomicMutations &&
-                        description.SupportsConditionalMutations &&
-                        description.SupportsWriteTouch &&
-                        description.SupportsPreparedMutations),
-                        context.RequestAborted).ConfigureAwait(false);
-                }
-                catch (Exception exception) when (
-                    exception is ServiceResultException or IOException or HttpRequestException)
-                {
-                    context.Response.StatusCode = Microsoft.AspNetCore.Http.StatusCodes.Status503ServiceUnavailable;
-                    await context.Response.WriteAsync(XRegistryConnectorOutput.Readiness(false), context.RequestAborted)
-                        .ConfigureAwait(false);
-                }
+                XRegistryBridgeStatus status = runner.Status;
+                context.Response.StatusCode = status.Ready
+                    ? Microsoft.AspNetCore.Http.StatusCodes.Status200OK
+                    : Microsoft.AspNetCore.Http.StatusCodes.Status503ServiceUnavailable;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsync(XRegistryConnectorOutput.Readiness(status.Ready, status.CanWrite),
+                    context.RequestAborted).ConfigureAwait(false);
             });
+            await RequireHealthyStartupAsync(runner, cancellationToken).ConfigureAwait(false);
             await app.StartAsync(cancellationToken).ConfigureAwait(false);
             await XRegistryConnectorOutput.ReadyAsync("http-gateway", settings.PublicHttpRoot.AbsoluteUri)
                 .ConfigureAwait(false);
-            await app.WaitForShutdownAsync(cancellationToken).ConfigureAwait(false);
-            return 0;
+            using var runStop =
+                CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, app.Lifetime.ApplicationStopping);
+            return await runner.RunAsync(cancellationToken: runStop.Token).ConfigureAwait(false);
+        }
+
+        private static async Task RequireHealthyStartupAsync(
+            XRegistryBridgeRunner runner, CancellationToken cancellationToken)
+        {
+            XRegistryBridgeStatus status = await runner.RunOnceAsync(cancellationToken).ConfigureAwait(false);
+            if (!status.Ready)
+            {
+                throw new InvalidOperationException("The bridge cannot become ready: " + status.Failure);
+            }
+        }
+
+        private sealed class NativeReadiness
+        {
+            public Task Started => m_started.Task;
+
+            public void MarkStarted()
+            {
+                m_started.TrySetResult(true);
+            }
+
+            private readonly TaskCompletionSource<bool> m_started =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        private sealed class HttpGatewayLifetime(WebApplication app) : IAsyncDisposable
+        {
+            public ManagedSession? Session { get; set; }
+
+            public CertificateEntry? Entry { get; set; }
+
+            public X509Certificate2? Certificate { get; set; }
+
+            public XRegistryBridgeRunner? Runner { get; set; }
+
+            public ValueTask DisposeAsync()
+            {
+                return new ValueTask(ReleaseWhenIdleAsync(Runner, ReleaseAsync));
+            }
+
+            private async Task ReleaseAsync()
+            {
+                try
+                {
+                    using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                    await app.StopAsync(stop.Token).ConfigureAwait(false);
+                }
+                finally
+                {
+                    try
+                    {
+                        if (Session is not null)
+                        {
+                            await Session.DisposeAsync().ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            await app.DisposeAsync().ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            Certificate?.Dispose();
+                            Entry?.Dispose();
+                        }
+                    }
+                }
+            }
         }
 
         private static async Task<IXRegistryEndpoint> CreateNativeAsync(
@@ -295,8 +465,8 @@ namespace Opc.Ua.XRegistry.Connector
                 .GetRequiredService<IOpcUaApplicationConfigurationProvider>().GetAsync(cancellationToken)
                 .ConfigureAwait(false);
             return configuration.CertificateManager?.AcquireApplicationCertificateBySecurityPolicy(
-                SecurityPolicies.Basic256Sha256) ??
-                throw new InvalidOperationException(
+                SecurityPolicies.Basic256Sha256)
+                ?? throw new InvalidOperationException(
                     "Provision a managed application certificate for the HTTPS listener.");
         }
 
@@ -313,10 +483,35 @@ namespace Opc.Ua.XRegistry.Connector
                     settings.ConflictId!, ParsePolicy(settings.Resolution!), cancellationToken).ConfigureAwait(false);
                 await XRegistryConnectorOutput.ConflictsAsync([conflict]).ConfigureAwait(false);
             }
-            else
+            else if (settings.Command == XRegistryConnectorCommand.Conflicts)
             {
                 await XRegistryConnectorOutput.ConflictsAsync(
                     await manager.ListConflictsAsync(cancellationToken).ConfigureAwait(false)).ConfigureAwait(false);
+            }
+            else if (settings.Command is XRegistryConnectorCommand.StateBackup
+                or XRegistryConnectorCommand.StateRestore)
+            {
+                var recovery = new FileXRegistrySyncStateStore(
+                    LocalFileSystem.Instance, Path.Combine(settings.SnapshotDirectory!, settings.JobId));
+                await using ConfiguredAsyncDisposable recoveryLifetime = recovery.ConfigureAwait(false);
+                var recoveryManager = new XRegistrySyncStateManager(recovery, settings.JobId);
+                XRegistrySyncStateManager source = settings.Command == XRegistryConnectorCommand.StateBackup
+                    ? manager : recoveryManager;
+                XRegistrySyncStateManager destination = settings.Command == XRegistryConnectorCommand.StateBackup
+                    ? recoveryManager : manager;
+                ByteString snapshot = await source.ExportSnapshotAsync(cancellationToken).ConfigureAwait(false);
+                _ = await destination.RestoreIntoPristineAsync(snapshot, cancellationToken).ConfigureAwait(false);
+                await XRegistryConnectorOutput.StateAsync(settings.Command,
+                    await destination.ReadStatusAsync(cancellationToken).ConfigureAwait(false)).ConfigureAwait(false);
+            }
+            else
+            {
+                int retired = settings.Command == XRegistryConnectorCommand.StateCompact
+                    ? await manager.CompactAsync(settings.ExpectedGeneration, settings.AcknowledgedOperationIds,
+                        cancellationToken).ConfigureAwait(false) : 0;
+                await XRegistryConnectorOutput.StateAsync(settings.Command,
+                    await manager.ReadStatusAsync(cancellationToken).ConfigureAwait(false), retired).ConfigureAwait(
+                        false);
             }
             return 0;
         }

@@ -539,7 +539,8 @@ namespace Opc.Ua.XRegistry.Http.Tests
                     return HttpTestData.JsonResponse(HttpTestData.Model);
                 }
                 HttpResponseMessage response = HttpTestData.BytesResponse([], status: status);
-                response.Headers.Location = new Uri("https://registry.example/registry/schemagroups/g/schemas/other");
+                response.Headers.Location = new Uri(status == 303 ? "https://external.example/document" :
+                    "https://registry.example/registry/schemagroups/g/schemas/other");
                 response.Headers.TryAddWithoutValidation("xRegistry-epoch", "0");
                 response.Headers.TryAddWithoutValidation("xRegistry-schemaurl", "https://external.example/document");
                 return response;
@@ -555,7 +556,8 @@ namespace Opc.Ua.XRegistry.Http.Tests
             Assert.That(result.Metadata.GetProperty("epoch").GetInt32(), Is.Zero);
             Assert.That(result.Metadata.GetProperty("schemaurl").GetString(),
                 Is.EqualTo("https://external.example/document"));
-            Assert.That(result.Location, Is.EqualTo("/schemagroups/g/schemas/other"));
+            Assert.That(result.Location, Is.EqualTo(status == 303 ? "https://external.example/document" :
+                "/schemagroups/g/schemas/other"));
             Assert.That(handler.Requests, Has.Count.EqualTo(2));
         }
 

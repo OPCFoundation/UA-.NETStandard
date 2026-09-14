@@ -1,9 +1,9 @@
 # Bounded synchronization over `IXRegistryEndpoint`
 
 This bridge-local policy layer uses existing endpoints. It adds no transport,
-event feed, distributed transaction, or exactly-once guarantee. One writer owns
-each state directory. The host schedules `RunOnceAsync` at its configured polling
-interval; native events may prompt another pass but are not required.
+distributed transaction or exactly-once guarantee. One writer owns each state
+directory. `XRegistryBridgeRunner` supplies periodic full repair and optionally
+coalesces existing native change hints; hosts can also schedule `RunOnceAsync` directly.
 
 ```csharp
 using Opc.Ua.XRegistry.Bridge.Sync;
@@ -41,10 +41,19 @@ are bounded. An incomplete scan never authorizes an absence-based creation or de
 
 Fingerprints include exact collection-aware paths, meaningful metadata, and document
 bytes. Object property ordering and equivalent JSON number spellings are canonical.
-Top-level generated epochs, times, links, counts, default projections, and correlation
-are excluded; identically named fields in user-defined nested metadata are retained.
+Top-level generated epochs, links, counts, default projections and correlation
+are excluded; identically named fields in nested metadata are retained. The
+creation/modification timestamp is meaningful when the model uses it for Version ordering.
 Each side keeps its own exact unsigned epoch, including zero and values beyond UInt32.
 Epochs are guards at their originating endpoint, never cross-registry ordering.
+
+When an endpoint advertises generation guards, the full inventory additionally
+pins its inspected generation across metadata, content, collection pages and
+the final inspection. A late descendant-only update invalidates that inventory
+even when the root epoch and membership are unchanged. The read scope is
+released before mutation/recovery dispatch; it must not accidentally constrain
+later reads to a pre-mutation generation. Ordinary HTTP does not acquire this
+guarantee through the bridge, and retains the existing unguarded scan checks.
 
 Supported writes require measured atomic and conditional mutation guarantees:
 
@@ -58,10 +67,24 @@ Supported writes require measured atomic and conditional mutation guarantees:
 | Empty group deletion | Enabled by default; requires baseline, complete inventories, current absence, confirmed empty child collections, and the destination's original epoch. |
 | Resource, nonempty group, or exact Version deletion | Requires `IXRegistryPreparedEndpoint` and `SupportsPreparedMutations`. The bridge stages the deletion, rechecks the affected subtree (including Resource Meta/default and sibling Versions), then commits with global-generation invalidation. Changed or incomplete observations abort without mutation. |
 
-This deliberately narrow profile **does not** synchronize model/configuration changes,
-external resource/document references, read-only/immutable domain attributes,
-server-assigned Version identities, automatic retention/ordering, or ancestry changes
-to existing Versions. These produce explicit records/conflicts, not approximations.
+Compatible, independently verifiable modelsource extensions are published before
+dependent entities. Model baselines and pending model intents are durable.
+Retention/type-changing migrations and unresolved model includes remain held.
+Qualified prepared Resource closures synchronize matching attributes, ordering,
+retention and ancestry dependencies only when their previews match the source
+and their siblings have not changed independently.
+
+External document URLs are retained without fetching content. An xref inventory
+contains its source configuration, not copied target Versions. Dangling xrefs
+have an unavailable epoch, not a synthetic zero. Changing unguardable reference
+configuration requires a prepared destination. Read-only/immutable domain
+attributes still require an explicit domain mapping.
+
+Version correspondence can be configured explicitly or obtained from a qualified
+assigned-ID preparation. The actual identity is retained before commit, canonical
+IDs are used in baselines, and default/ancestor IDs and model-typed references are
+translated at endpoint boundaries. Correspondence never moves a Version to a
+different Resource, changes collection types, or treats an opaque string as a reference.
 Resource/nonempty subtree deletion and exact-Version deletion are held when the
 destination cannot prepare an operation with global mutation invalidation. An
 ordinary HTTP backend does not offer that guarantee; a prepared native endpoint
@@ -69,10 +92,10 @@ can offer it through the experimental extension. Local validation aborts are not
 recorded as if the server had returned a mutation result. `PropagateDeletes = false` retains live baselines
 without propagating absence; it is not an unguarded-delete mode.
 
-Pagination accepts bounded same-collection registry-relative `next` links with
-`cursor`, `page`, `limit`, `pagesize`, or `offset`. Cycles, duplicate entries,
-cross-scope links, filtered pages, and unqualified pagination flags make a scan
-incomplete. There is no synthetic watch endpoint or event replay cursor.
+Pagination consumes bounded, opaque, same-collection registry-relative `next`
+links without guessing the server's query grammar. Cycles, duplicate entries
+and cross-scope links make a scan incomplete. There is no synthetic HTTP watch
+endpoint or event replay cursor.
 
 ## Recovery and conflict administration
 
@@ -93,6 +116,9 @@ creation/assigned-Version outcomes remain pending even when an entity currently
 looks equal. Newer edits after a known commit become conflicts without replacing the
 old baseline. Pending intents, outcomes, conflicts, and tombstones have no TTL.
 Quota exhaustion stops the job instead of discarding evidence.
+`CompactAsync(expectedGeneration, acknowledgedOperationIds)` removes only
+explicitly acknowledged terminal intents without active conflict dependencies.
+Baselines, tombstones, pending work and the monotonic sequence are preserved.
 
 ```csharp
 var manager = new XRegistrySyncStateManager(store, options.JobId, timeProvider);
@@ -120,7 +146,9 @@ Custom filesystems must explicitly supply `IXRegistrySyncFileDurability`.
 Default UNC/device paths also require explicit qualification.
 
 `MemoryXRegistrySyncStateStore` is process-local and makes no restart durability claim.
-State binds the job, both configured endpoint/root identities, caller subject,
+State format 2 reads legacy format 1 and retains model baselines and Version
+correspondence. A changed legacy scope is not silently rebound. State binds the job,
+both configured endpoint/root identities, caller subject,
 authority/authentication/roles, both registry IDs, and effective model. Reusing state
 for another scope is rejected. Session reconnect IDs are intentionally not scope.
 

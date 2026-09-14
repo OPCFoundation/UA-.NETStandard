@@ -86,11 +86,14 @@ namespace Opc.Ua.XRegistry.Protocol
             {
                 writer.WriteNumber("action", (int)request.Action);
                 writer.WriteString("path", request.Path);
+                WriteOptionalString(writer, "addressPath", request.AddressPath);
                 writer.WriteNumber("view", (int)request.View);
                 WriteMetadata(writer, "metadata", request.Metadata);
                 WriteDocument(writer, request.Document);
                 WriteOptionalString(writer, "contentType", request.ContentType);
                 WriteOptionalString(writer, "operationId", request.OperationId);
+                WriteOptionalString(writer, "expectedVersionIncarnation", request.ExpectedVersionIncarnation);
+                WriteOptionalString(writer, "expectedGeneration", request.ExpectedGeneration);
                 writer.WriteStartArray("parameters");
                 for (int index = 0; index < request.Parameters.Count; index++)
                 {
@@ -139,11 +142,14 @@ namespace Opc.Ua.XRegistry.Protocol
 
             return new XRegistryRequest(action, ReadString(root, "path"))
             {
+                AddressPath = ReadOptionalString(root, "addressPath"),
                 View = view,
                 Metadata = ReadMetadata(root, "metadata"),
                 Document = ReadDocument(root),
                 ContentType = ReadOptionalString(root, "contentType"),
                 OperationId = ReadOptionalString(root, "operationId"),
+                ExpectedVersionIncarnation = ReadOptionalString(root, "expectedVersionIncarnation"),
+                ExpectedGeneration = ReadOptionalString(root, "expectedGeneration"),
                 Parameters = [.. parameters],
                 Context = context
             };
@@ -161,6 +167,12 @@ namespace Opc.Ua.XRegistry.Protocol
                 WriteOptionalString(writer, "location", response.Location);
                 WriteOptionalString(writer, "contentLocation", response.ContentLocation);
                 WriteOptionalString(writer, "correlationId", response.CorrelationId);
+                WriteOptionalString(writer, "versionIncarnation", response.VersionIncarnation);
+                WriteOptionalString(writer, "generation", response.Generation);
+                if (response.Expires is { } expires)
+                {
+                    writer.WriteString("expires", expires);
+                }
                 if (response.Error is not null)
                 {
                     writer.WriteStartObject("error");
@@ -175,6 +187,10 @@ namespace Opc.Ua.XRegistry.Protocol
                     writer.WriteStartObject();
                     writer.WriteString("relation", response.Links[index].Relation);
                     writer.WriteString("target", response.Links[index].Target);
+                    if (response.Links[index].Count is { } count)
+                    {
+                        writer.WriteNumber("count", count);
+                    }
                     writer.WriteEndObject();
                 }
                 writer.WriteEndArray();
@@ -208,7 +224,13 @@ namespace Opc.Ua.XRegistry.Protocol
                 foreach (JsonElement link in linkArray.EnumerateArray())
                 {
                     RequireUniqueObject(link);
-                    links.Add(new XRegistryLink(ReadString(link, "relation"), ReadString(link, "target")));
+                    links.Add(new XRegistryLink(ReadString(link, "relation"), ReadString(link, "target"))
+                    {
+                        Count = link.TryGetProperty("count", out JsonElement count)
+                            ? count.ValueKind == JsonValueKind.Number && count.TryGetUInt64(out ulong number)
+                                ? number : throw new JsonException("A pagination count must be an unsigned UInt64.")
+                            : null
+                    });
                 }
             }
 
@@ -236,6 +258,13 @@ namespace Opc.Ua.XRegistry.Protocol
                 Location = ReadOptionalString(root, "location"),
                 ContentLocation = ReadOptionalString(root, "contentLocation"),
                 CorrelationId = ReadOptionalString(root, "correlationId"),
+                VersionIncarnation = ReadOptionalString(root, "versionIncarnation"),
+                Generation = ReadOptionalString(root, "generation"),
+                Expires = root.TryGetProperty("expires", out JsonElement expires)
+                    ? expires.ValueKind == JsonValueKind.String &&
+                        expires.TryGetDateTimeOffset(out DateTimeOffset expiration)
+                        ? expiration : throw new JsonException("A pagination expiration must be a timestamp.")
+                    : null,
                 Links = [.. links],
                 AllowedActions = [.. actions],
                 Error = error
@@ -250,6 +279,7 @@ namespace Opc.Ua.XRegistry.Protocol
                 writer.WriteString("registryId", description.RegistryId);
                 writer.WriteString("profile", description.Profile);
                 WriteOptionalString(writer, "publicRoot", description.PublicRoot?.AbsoluteUri);
+                WriteOptionalString(writer, "shortLinkPrefix", description.ShortLinkPrefix);
                 WriteMetadata(writer, "model", description.Model);
                 WriteMetadata(writer, "capabilities", description.Capabilities);
                 writer.WriteBoolean("atomicMutations", description.SupportsAtomicMutations);
@@ -260,6 +290,19 @@ namespace Opc.Ua.XRegistry.Protocol
                 {
                     writer.WriteBoolean("preparedMutations", true);
                 }
+                if (description.SupportsPreparedSnapshots)
+                {
+                    writer.WriteBoolean("preparedSnapshots", true);
+                }
+                if (description.SupportsVersionIncarnationGuards)
+                {
+                    writer.WriteBoolean("versionIncarnationGuards", true);
+                }
+                if (description.SupportsGenerationGuards)
+                {
+                    writer.WriteBoolean("generationGuards", true);
+                }
+                WriteOptionalString(writer, "generation", description.Generation);
             });
         }
 
@@ -272,6 +315,7 @@ namespace Opc.Ua.XRegistry.Protocol
                 Profile = ReadString(root, "profile"),
                 PublicRoot = ReadOptionalString(root, "publicRoot") is string rootUri
                     ? new Uri(rootUri, UriKind.Absolute) : null,
+                ShortLinkPrefix = ReadOptionalString(root, "shortLinkPrefix"),
                 Model = ReadMetadata(root, "model"),
                 Capabilities = ReadMetadata(root, "capabilities"),
                 SupportsAtomicMutations = ReadBoolean(root, "atomicMutations"),
@@ -279,7 +323,14 @@ namespace Opc.Ua.XRegistry.Protocol
                 SupportsWriteTouch = ReadBoolean(root, "writeTouch"),
                 SupportsOperationReplay = ReadBoolean(root, "operationReplay"),
                 SupportsPreparedMutations = root.TryGetProperty("preparedMutations", out _) &&
-                    ReadBoolean(root, "preparedMutations")
+                    ReadBoolean(root, "preparedMutations"),
+                SupportsPreparedSnapshots = root.TryGetProperty("preparedSnapshots", out _) &&
+                    ReadBoolean(root, "preparedSnapshots"),
+                SupportsVersionIncarnationGuards = root.TryGetProperty("versionIncarnationGuards", out _) &&
+                    ReadBoolean(root, "versionIncarnationGuards"),
+                SupportsGenerationGuards = root.TryGetProperty("generationGuards", out _) &&
+                    ReadBoolean(root, "generationGuards"),
+                Generation = ReadOptionalString(root, "generation")
             };
         }
 
@@ -289,6 +340,11 @@ namespace Opc.Ua.XRegistry.Protocol
         /// </summary>
         public string ComputeRequestDigest(XRegistryRequest request)
         {
+            request.ThrowIfNull(nameof(request));
+            if (request.AddressPath is { } address)
+            {
+                request = request.AtPath(address) with { AddressPath = null };
+            }
 #if NET5_0_OR_GREATER
             byte[] digest = SHA256.HashData(EncodeRequest(request).Span);
 #else

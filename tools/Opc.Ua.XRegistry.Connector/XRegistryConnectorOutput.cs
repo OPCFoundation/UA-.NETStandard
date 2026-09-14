@@ -116,6 +116,24 @@ namespace Opc.Ua.XRegistry.Connector
             return WriteAsync(new JsonObject { ["conflicts"] = output });
         }
 
+        public static Task StateAsync(
+            XRegistryConnectorCommand command, XRegistrySyncStateStatus state, int retired = 0)
+        {
+            return WriteAsync(new JsonObject
+            {
+                ["command"] = command.ToString(),
+                ["generation"] = state.Generation,
+                ["baselines"] = state.Baselines,
+                ["intents"] = state.Intents,
+                ["outcomes"] = state.Outcomes,
+                ["verified"] = state.Verified,
+                ["pending"] = state.Pending,
+                ["conflicts"] = state.Conflicts,
+                ["tombstones"] = state.Tombstones,
+                ["retired"] = retired
+            });
+        }
+
         private static Task WriteAsync(JsonObject document)
         {
             return Console.Out.WriteLineAsync(document.ToJsonString());

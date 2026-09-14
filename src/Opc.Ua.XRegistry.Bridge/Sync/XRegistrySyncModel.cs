@@ -35,6 +35,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Opc.Ua.XRegistry.Protocol;
+using Opc.Ua.XRegistry.Server.Protocol;
 
 namespace Opc.Ua.XRegistry.Bridge.Sync
 {
@@ -43,7 +44,7 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
         public XRegistrySyncModel(JsonElement model, XRegistrySyncOptions options)
         {
             m_options = options;
-            JsonObject normalized = XRegistrySyncJson.Object(model);
+            JsonObject normalized = XRegistrySyncJson.Object(XRegistryModelDefinition.Normalize(model));
             normalized["attributes"] ??= new JsonObject();
             JsonObject groups = RequireObject(normalized["groups"]);
             foreach ((string name, JsonNode? value) in groups)
@@ -93,6 +94,10 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
 
         public XRegistrySyncDefinition Resolve(string path)
         {
+            if (path == "/modelsource")
+            {
+                return new XRegistrySyncDefinition(XRegistrySyncEntityKind.Model, Document, "modelsource", path);
+            }
             ArrayOf<string> segments = XRegistryPath.GetSegments(path);
             if (segments.Count == 0)
             {
@@ -126,11 +131,27 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
         public XRegistrySyncObservation Observe(string path, JsonElement metadata, ByteString bytes)
         {
             XRegistrySyncDefinition definition = Resolve(path);
-            string epoch = XRegistrySyncJson.Epoch(metadata);
+            bool reference = definition.Kind == XRegistrySyncEntityKind.ResourceMeta &&
+                metadata.TryGetProperty("xref", out JsonElement xref) &&
+                xref.ValueKind == JsonValueKind.String;
+            string epoch = reference && !metadata.TryGetProperty("epoch", out _)
+                ? string.Empty : XRegistrySyncJson.Epoch(metadata);
             JsonObject meaningful = XRegistrySyncJson.Object(metadata);
             ValidateIdentity(definition, meaningful);
+            if (reference)
+            {
+                meaningful = new JsonObject { ["xref"] = JsonNode.Parse(metadata.GetProperty("xref").GetRawText()) };
+            }
             foreach (string name in s_generated)
             {
+                if (definition.Kind == XRegistrySyncEntityKind.Version &&
+                    ((name == "createdat" &&
+                        XRegistrySyncJson.String(definition.Model, "versionmode") == "createdat") ||
+                        (name == "modifiedat" &&
+                            XRegistrySyncJson.String(definition.Model, "versionmode") == "modifiedat")))
+                {
+                    continue;
+                }
                 meaningful.Remove(name);
             }
             meaningful.Remove(definition.Singular + "id");
@@ -152,8 +173,11 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             else if (definition.Kind == XRegistrySyncEntityKind.Version)
             {
                 meaningful.Remove("versionid");
-                meaningful.Remove(definition.Singular);
-                meaningful.Remove(definition.Singular + "base64");
+                if (definition.HasDocument)
+                {
+                    meaningful.Remove(definition.Singular);
+                    meaningful.Remove(definition.Singular + "base64");
+                }
                 meaningful.Remove("meta");
                 meaningful.Remove("versions");
             }
@@ -168,6 +192,13 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                 Fingerprint(path, definition.Kind, canonical, bytes, m_options.MaximumInventoryBytes,
                     m_options.MaximumJsonDepth),
                 epoch, canonical, bytes);
+        }
+
+        public static XRegistrySyncObservation ObserveModel(JsonElement source, string rootEpoch)
+        {
+            return new XRegistrySyncObservation("/modelsource", XRegistrySyncEntityKind.Model,
+                Fingerprint("/modelsource", XRegistrySyncEntityKind.Model, source, default),
+                    rootEpoch, source, default);
         }
 
         public static string Fingerprint(
@@ -201,10 +232,9 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                 {
                     return "Automatic version ordering or retention needs a qualified compound operation.";
                 }
-                if (source.Metadata.TryGetProperty("xref", out _) ||
-                    source.Metadata.TryGetProperty(definition.Singular + "url", out _))
+                if (source.Metadata.TryGetProperty("xref", out _))
                 {
-                    return "External resource/document references are not synchronized.";
+                    return "Cross-reference Resources require a qualified compound operation.";
                 }
                 if (destination is null && !model.GetProperty("setversionid").GetBoolean())
                 {
@@ -285,8 +315,8 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             {
                 throw new JsonException("A model collection key differs from its plural identity.");
             }
-            string singular = definition["singular"]?.GetValue<string>() ??
-                throw new JsonException("A model collection requires a singular identity.");
+            string singular = definition["singular"]?.GetValue<string>()
+                ?? throw new JsonException("A model collection requires a singular identity.");
             _ = XRegistryPath.FromSegments([singular]);
             definition["plural"] = name;
             definition["attributes"] ??= new JsonObject();

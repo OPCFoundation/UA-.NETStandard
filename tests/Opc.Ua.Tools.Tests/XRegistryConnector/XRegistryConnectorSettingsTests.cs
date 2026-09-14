@@ -170,7 +170,7 @@ namespace Opc.Ua.Tools.Tests.XRegistryConnector
         }
 
         [TestCase(-1)]
-        [TestCase(6)]
+        [TestCase(10)]
         public void UnknownCommandsAreRejected(int command)
         {
             var settings = new XRegistryConnectorSettings { Command = (XRegistryConnectorCommand)command };
@@ -253,7 +253,7 @@ namespace Opc.Ua.Tools.Tests.XRegistryConnector
         public void LoopbackHttpRequiresOptInOnEveryHttpAddress(
             [Values("HttpRoot", "ListenAddress", "PublicHttpRoot")] string field,
             [Values("http://localhost:8080/", "http://127.0.0.1:8080/", "http://[::1]:8080/")] string address,
-            [Values(false, true)] bool allowLoopback)
+            [Values] bool allowLoopback)
         {
             var local = new Uri(address);
             var settings = new XRegistryConnectorSettings

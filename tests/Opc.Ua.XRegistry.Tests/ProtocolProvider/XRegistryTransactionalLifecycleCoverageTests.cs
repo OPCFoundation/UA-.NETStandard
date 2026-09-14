@@ -527,10 +527,11 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
         }
 
         private const string k_candidate =
-            "{\"format\":1,\"generation\":1,\"registryid\":\"coverage-registry\","
-            + "\"modelsource\":{\"groups\":{}},\"entries\":{\"/\":{\"metadata\":{"
-            + "\"registryid\":\"coverage-registry\",\"epoch\":1,\"createdat\":\"2026-01-02T03:04:05.0000000Z\","
-            + "\"modifiedat\":\"2026-01-02T03:04:05.0000000Z\",\"name\":\"candidate\"}}},\"operations\":{}}";
+            "{\"format\":1,\"generation\":1,\"registryid\":\"coverage-registry\"," +
+            "\"modelsource\":{\"groups\":{}},\"resolvedmodel\":{\"groups\":{}},\"resourceorigins\":{}," +
+            "\"entries\":{\"/\":{\"metadata\":{" +
+            "\"registryid\":\"coverage-registry\",\"epoch\":1,\"createdat\":\"2026-01-02T03:04:05.0000000Z\"," +
+            "\"modifiedat\":\"2026-01-02T03:04:05.0000000Z\",\"name\":\"candidate\"}}},\"operations\":{}}";
     }
 
     internal static class XRegistryProviderCoverage
@@ -548,7 +549,8 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
             {
                 RegistryId = "coverage-registry",
                 PublicRoot = new Uri("https://registry.example/registry/"),
-                Model = Parse(modelJson ?? """
+                Model = Parse(modelJson
+                    ?? """
                     {"groups":{"groups":{"singular":"group","resources":{"schemas":{"singular":"schema"}}}}}
                     """)
             };

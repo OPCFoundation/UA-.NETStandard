@@ -45,7 +45,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
     /// Deliberately limited adapter for unextended servers. It reads the actual
     /// hierarchy and never infers layout from a version label or communication failure.
     /// </summary>
-    internal sealed class XRegistryBaseOpcUaEndpoint(
+    internal sealed partial class XRegistryBaseOpcUaEndpoint(
         ISession session, NodeId root, XRegistryBridgeNativeOptions options, ITelemetryContext telemetry)
         : IXRegistryEndpoint
     {
@@ -59,10 +59,13 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         public async ValueTask<XRegistryResponse> ExecuteAsync(
             XRegistryRequest request, CancellationToken cancellationToken = default)
         {
-            if (request.IsMutation)
+            if (request.IsMutation ||
+                request.ExpectedVersionIncarnation is not null ||
+                request.ExpectedGeneration is not null ||
+                request.AddressPath is not null)
             {
                 return Unsupported(
-                    "The base native binding cannot implement atomic conditional HTTP touch semantics.");
+                    "The base native binding cannot implement HTTP mutations, incarnation or generation guards.");
             }
             if (request.Action == XRegistryAction.Describe)
             {
@@ -111,7 +114,9 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             }
             if (entry.Unsupported)
             {
-                return Unsupported("The runtime layout does not identify the logical resource's default or Meta.");
+                return Unsupported(request.Path == "/"
+                    ? "The native root omits required Epoch or SpecVersion metadata; no values are fabricated."
+                    : "The runtime layout does not identify the logical resource's default or Meta.");
             }
             if (request.View == XRegistryView.Default && !entry.DocumentNode.IsNull)
             {
@@ -147,20 +152,19 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             ReferenceDescription? modelFile = Child(rootChildren, "Model");
             if (modelFile is not null)
             {
-                FileTypeClient file = await client.GetRegistry(root).GetModelAsync(telemetry, ct).ConfigureAwait(false)
-                    ?? throw new ServiceResultException(StatusCodes.BadNoCommunication,
-                        "The browsed Model file could not be resolved.");
+                var file = new FileTypeClient(session, Local(modelFile), telemetry);
                 model = await ReadJsonFileAsync(file, ct).ConfigureAwait(false);
             }
             JsonElement definitions = XRegistryNativeJson.RequiredObject(model, "groups");
             JsonObject registry = await MetadataAsync(rootChildren, EntityKind.Registry, ct).ConfigureAwait(false);
+            ValidateAttributeMapping(model, "/");
+            await ReadMappedAttributesAsync(root, rootChildren, EntityKind.Registry, registry, model, "/", ct)
+                .ConfigureAwait(false);
             string registryId = XRegistryNativeJson.RequiredText(XRegistryNativeJson.Element(registry), "registryid");
             JsonElement capabilities = default;
-            if (Child(rootChildren, "Capabilities") is not null)
+            if (Child(rootChildren, "Capabilities") is { } capabilitiesFile)
             {
-                FileTypeClient file = await client.GetRegistry(root).GetCapabilitiesAsync(telemetry, ct)
-                    .ConfigureAwait(false) ??
-                    throw new ServiceResultException(StatusCodes.BadNoCommunication);
+                var file = new FileTypeClient(session, Local(capabilitiesFile), telemetry);
                 JsonElement raw = await ReadJsonFileAsync(file, ct).ConfigureAwait(false);
                 var limited = (JsonObject)JsonNode.Parse(raw.GetRawText())!;
                 limited["mutable"] = new JsonArray();
@@ -170,7 +174,8 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             }
             var entries = new Dictionary<string, Entry>(StringComparer.Ordinal)
             {
-                ["/"] = new(XRegistryNativeJson.Element(registry), NodeId.Null),
+                ["/"] = new(XRegistryNativeJson.Element(registry), NodeId.Null,
+                    !registry.ContainsKey("epoch") || !registry.ContainsKey("specversion")),
                 ["/model"] = new(model, NodeId.Null)
             };
             if (capabilities.ValueKind != JsonValueKind.Undefined)
@@ -196,10 +201,13 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                 string groupPath = ResolveEntityPath(metadata, definitions, id, "/");
                 string collection = XRegistryPath.GetSegments(groupPath)[0];
                 JsonElement definition = definitions.GetProperty(collection);
-                ValidateAttributeMapping(definition);
+                ValidateAttributeMapping(definition, groupPath);
                 metadata.Remove("groupid");
                 metadata[XRegistryNativeJson.RequiredText(definition, "singular") + "id"] = id;
                 metadata["xid"] = groupPath;
+                await ReadMappedAttributesAsync(
+                    groupNode, groupChildren, EntityKind.Group, metadata, definition, groupPath, ct)
+                    .ConfigureAwait(false);
                 entries.Add(groupPath, new Entry(XRegistryNativeJson.Element(metadata), NodeId.Null));
                 JsonElement resourceDefinitions = XRegistryNativeJson.RequiredObject(definition, "resources");
                 foreach (JsonProperty resourceDefinition in resourceDefinitions.EnumerateObject())
@@ -222,7 +230,6 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                         resourceMetadata, resourceDefinitions, resourceId, groupPath);
                     string resourceCollection = XRegistryPath.GetSegments(resourcePath)[2];
                     JsonElement resourceDefinition = resourceDefinitions.GetProperty(resourceCollection);
-                    ValidateAttributeMapping(resourceDefinition);
                     string resourceIdAttribute =
                         XRegistryNativeJson.RequiredText(resourceDefinition, "singular") + "id";
                     resourceMetadata.Remove("resourceid");
@@ -235,6 +242,11 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                         string version = Required(resourceMetadata, "versionid");
                         string versionPath = resourcePath + "/versions" + XRegistryPath.FromSegments([version]);
                         resourceMetadata["xid"] = versionPath;
+                        ValidateAttributeMapping(resourceDefinition, versionPath);
+                        await ReadMappedAttributesAsync(
+                            resourceNode, children, EntityKind.Resource,
+                            resourceMetadata, resourceDefinition, versionPath, ct)
+                            .ConfigureAwait(false);
                         AddVersion(entries, versionPath, resourceMetadata, resourceNode, resourceDefinition);
                         entries[resourcePath] = new Entry(default, NodeId.Null, true);
                         entries[resourcePath + "/meta"] = new Entry(default, NodeId.Null, true);
@@ -250,6 +262,10 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                     meta[resourceIdAttribute] = resourceId;
                     meta["defaultversionid"] = defaultVersion;
                     meta["xid"] = resourcePath + "/meta";
+                    ValidateAttributeMapping(resourceDefinition, resourcePath + "/meta");
+                    await ReadMappedAttributesAsync(
+                        resourceNode, children, EntityKind.Meta, meta, resourceDefinition, resourcePath + "/meta", ct)
+                        .ConfigureAwait(false);
                     entries.Add(resourcePath + "/meta", new Entry(XRegistryNativeJson.Element(meta), NodeId.Null));
                     ArrayOf<ReferenceDescription> versionChildren = await ChildrenAsync(Local(versions), ct)
                         .ConfigureAwait(false);
@@ -260,8 +276,9 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                         {
                             continue;
                         }
-                        JsonObject versionMetadata = await MetadataAsync(
-                            await ChildrenAsync(Local(versionNode), ct).ConfigureAwait(false), EntityKind.Resource, ct)
+                        ArrayOf<ReferenceDescription> versionProperties = await ChildrenAsync(Local(versionNode), ct)
+                            .ConfigureAwait(false);
+                        JsonObject versionMetadata = await MetadataAsync(versionProperties, EntityKind.Resource, ct)
                             .ConfigureAwait(false);
                         string version = Required(versionMetadata, "versionid");
                         string versionPath = resourcePath + "/versions" + XRegistryPath.FromSegments([version]);
@@ -273,6 +290,11 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                         versionMetadata.Remove("resourceid");
                         versionMetadata[resourceIdAttribute] = resourceId;
                         versionMetadata["xid"] = versionPath;
+                        ValidateAttributeMapping(resourceDefinition, versionPath);
+                        await ReadMappedAttributesAsync(
+                            Local(versionNode), versionProperties, EntityKind.Resource,
+                            versionMetadata, resourceDefinition, versionPath, ct)
+                            .ConfigureAwait(false);
                         AddVersion(entries, versionPath, versionMetadata, Local(versionNode), resourceDefinition);
                     }
                     string defaultPath = resourcePath + "/versions" + XRegistryPath.FromSegments([defaultVersion]);
@@ -282,6 +304,11 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                             "The selected native default version was absent from the actual Versions folder.");
                     }
                     resourceMetadata["xid"] = resourcePath;
+                    ValidateAttributeMapping(resourceDefinition, resourcePath);
+                    await ReadMappedAttributesAsync(
+                        resourceNode, children, EntityKind.Resource,
+                        resourceMetadata, resourceDefinition, resourcePath, ct)
+                        .ConfigureAwait(false);
                     entries.Add(resourcePath,
                         new Entry(XRegistryNativeJson.Element(resourceMetadata), selected.DocumentNode));
                 }
@@ -292,9 +319,9 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             }
             return new Inventory(new XRegistryEndpointDescription(registryId)
             {
-                Profile = legacy
-                    ? "native-base-readonly-flat-explicit-versions"
-                    : "native-base-readonly-distinct-core",
+                Profile = legacy ? "native-base-readonly-flat-explicit-versions" :
+                    entries["/"].Unsupported
+                        ? "native-base-readonly-partial-root" : "native-base-readonly-distinct-core",
                 Model = model,
                 Capabilities = capabilities
             }, entries, collections, client);
@@ -304,16 +331,16 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             ArrayOf<ReferenceDescription> children, EntityKind kind, CancellationToken ct)
         {
             var properties = new List<(ReferenceDescription Node, string Name)>();
+            var names = new HashSet<string>(StringComparer.Ordinal);
             foreach (ReferenceDescription reference in children)
             {
                 if (reference.NodeClass != NodeClass.Variable ||
-                    session.NamespaceUris.GetString(reference.BrowseName.NamespaceIndex) !=
-                    XRegistryWellKnown.XRegistryNamespaceUri)
+                    !IsBaseNamespace(reference.BrowseName.NamespaceIndex))
                 {
                     continue;
                 }
-                string name = reference.BrowseName.Name ??
-                    throw new ServiceResultException(StatusCodes.BadBrowseNameInvalid);
+                string name = reference.BrowseName.Name
+                    ?? throw new ServiceResultException(StatusCodes.BadBrowseNameInvalid);
                 if (kind == EntityKind.Meta)
                 {
                     if (!name.StartsWith("Meta", StringComparison.Ordinal))
@@ -328,6 +355,11 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                 }
                 if (s_coreProperties.Contains(name))
                 {
+                    if (!names.Add(name))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNotSupported,
+                            "The configured base-property namespaces contain ambiguous fields.");
+                    }
                     properties.Add((reference, name.ToLowerInvariant()));
                 }
             }
@@ -379,35 +411,10 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                     }
                 }
             }
-            ReferenceDescription? labels = Child(children, kind == EntityKind.Meta ? "MetaLabels" : "Labels");
-            if (labels is not null)
+            if (kind != EntityKind.Registry || metadata.ContainsKey("epoch"))
             {
-                var values = new JsonObject();
-                ArrayOf<ReferenceDescription> labelNodes = await ChildrenAsync(Local(labels), ct)
-                    .ConfigureAwait(false);
-                foreach (ReferenceDescription label in labelNodes.ToArray() ?? [])
-                {
-                    if (label.NodeClass != NodeClass.Variable)
-                    {
-                        continue;
-                    }
-                    DataValue data = await session.ReadValueAsync(Local(label), ct).ConfigureAwait(false);
-                    if (StatusCode.IsBad(data.StatusCode))
-                    {
-                        throw new ServiceResultException(data.StatusCode);
-                    }
-                    if (!data.WrappedValue.TryGetValue(out string value))
-                    {
-                        throw new ServiceResultException(StatusCodes.BadTypeMismatch,
-                            "A label is not a string; no JSON string coercion is permitted.");
-                    }
-                    string name = label.BrowseName.Name ??
-                        throw new ServiceResultException(StatusCodes.BadBrowseNameInvalid);
-                    values[name] = value;
-                }
-                metadata["labels"] = values;
+                _ = XRegistryNativeJson.Epoch(XRegistryNativeJson.Element(metadata));
             }
-            _ = XRegistryNativeJson.Epoch(XRegistryNativeJson.Element(metadata));
             return metadata;
         }
 
@@ -453,8 +460,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         {
             ReferenceDescription[] matches = [.. (children.ToArray() ?? []).Where(reference =>
                 reference.BrowseName.Name == name &&
-                session.NamespaceUris.GetString(reference.BrowseName.NamespaceIndex) ==
-                    XRegistryWellKnown.XRegistryNamespaceUri)];
+                IsBaseNamespace(reference.BrowseName.NamespaceIndex))];
             return matches.Length switch
             {
                 0 => null,
@@ -466,6 +472,13 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         private ValueTask<ArrayOf<ReferenceDescription>> ChildrenAsync(NodeId node, CancellationToken ct)
         {
             return XRegistryOpcUaEndpoint.BrowseAsync(session, node, options, ct);
+        }
+
+        private bool IsBaseNamespace(ushort index)
+        {
+            string? uri = session.NamespaceUris.GetString(index);
+            return uri == XRegistryWellKnown.XRegistryNamespaceUri ||
+                options.BasePropertyNamespaceUris.ToList().Contains(uri, StringComparer.Ordinal);
         }
 
         private NodeId Local(ReferenceDescription reference)
@@ -506,13 +519,30 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             return parent.TrimEnd('/') + XRegistryPath.FromSegments([candidates[0].Name, id]);
         }
 
-        private static void ValidateAttributeMapping(JsonElement definition)
+        private void ValidateAttributeMapping(JsonElement definition, string path)
         {
-            if (definition.TryGetProperty("attributes", out JsonElement attributes))
+            ArrayOf<XRegistryNativeAttributeMapping> mappings =
+                [.. options.AttributeMappings.ToList().Where(mapping => mapping.Matches(path))];
+            string attributeName = XRegistryPath.GetSegments(path).Count == 5 ? "metaattributes" : "attributes";
+            if (definition.TryGetProperty(attributeName, out JsonElement attributes))
             {
                 foreach (JsonProperty attribute in attributes.EnumerateObject())
                 {
-                    if (!s_mappedAttributes.Contains(attribute.Name))
+                    string? singular = definition.TryGetProperty("singular", out JsonElement singularValue)
+                        ? singularValue.GetString() : null;
+                    bool collection = (definition.TryGetProperty("resources", out JsonElement resources) ||
+                        definition.TryGetProperty("groups", out resources)) &&
+                        resources.EnumerateObject().Any(resource => attribute.Name == resource.Name ||
+                            attribute.Name == resource.Name + "url" ||
+                            attribute.Name == resource.Name + "count");
+                    if (!s_mappedAttributes.Contains(attribute.Name) &&
+                        !s_standardAttributes.Contains(attribute.Name) &&
+                        attribute.Name != singular + "id" &&
+                        attribute.Name != singular &&
+                        attribute.Name != singular + "url" &&
+                        attribute.Name != singular + "base64" &&
+                        !collection &&
+                        !XRegistryNativeAttributePlan.CoversDefinition(attribute.Value, [attribute.Name], mappings))
                     {
                         throw new ServiceResultException(StatusCodes.BadNotSupported,
                             $"The model attribute '{attribute.Name}' needs a typed domain mapping or the extension.");
@@ -572,6 +602,16 @@ namespace Opc.Ua.XRegistry.Bridge.Native
         private static readonly HashSet<string> s_mappedAttributes = new(StringComparer.Ordinal)
         {
             "name", "description", "labels", "createdat", "modifiedat", "format", "contenttype"
+        };
+
+        private static readonly HashSet<string> s_standardAttributes = new(StringComparer.Ordinal)
+        {
+            "registryid", "versionid", "self", "shortself", "xid", "epoch", "specversion", "documentation",
+            "icon", "deprecated", "constraints", "isdefault", "ancestorid", "xref", "compatibility",
+            "formatvalidated", "formatvalidatedreason",
+            "compatibilityvalidated", "compatibilityvalidatedreason", "meta", "metaurl", "versions", "versionsurl",
+            "versionscount", "defaultversionid", "defaultversionsticky", "defaultversionurl", "readonly",
+            "model", "modelsource", "capabilities", "capabilitiesoffered", "xregcorrelationid"
         };
 
         private static readonly HashSet<string> s_unsupportedFlags = new(StringComparer.Ordinal)

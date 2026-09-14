@@ -63,6 +63,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             m_options = options.ThrowIfNull(nameof(options));
             m_store = store.ThrowIfNull(nameof(store));
             m_time = timeProvider ?? TimeProvider.System;
+            ValidateShortLinkOptions(options);
             if (string.IsNullOrWhiteSpace(options.RegistryId) ||
                 string.IsNullOrWhiteSpace(options.WriteRole) ||
                 options.MaxEntities < 1 ||
@@ -70,6 +71,16 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 options.MaxStateBytes < 1024 ||
                 options.MaxPreparedOperations < 1 ||
                 options.MaxPreparedBytes < 1 ||
+                options.PageSize < 1 ||
+                options.CursorLifetime <= TimeSpan.Zero ||
+                options.CursorLifetime > TimeSpan.FromDays(1) ||
+                options.MaxModelBytes < 1024 ||
+                options.MaxModelDepth is < 1 or > 128 ||
+                options.MaxModelDocuments < 1 ||
+                (options.ModelSourceUri is not null &&
+                    (!options.ModelSourceUri.IsAbsoluteUri ||
+                        options.ModelSourceUri.UserInfo.Length != 0 ||
+                        options.ModelSourceUri.Fragment.Length != 0)) ||
                 options.Model.ValueKind != JsonValueKind.Object ||
                 options.PublicRoot is null ||
                 !options.PublicRoot.IsAbsoluteUri ||
@@ -82,13 +93,38 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             }
             try
             {
-                _ = new XRegistryModelRules(XRegistryModelRules.Object(JsonNode.Parse(options.Model.GetRawText())));
+                JsonObject source = XRegistryModelRules.Object(JsonNode.Parse(options.Model.GetRawText()));
+                if (!HasModelIncludes(source))
+                {
+                    _ = new XRegistryModelRules(source);
+                }
             }
             catch (XRegistryRejectionException exception)
             {
                 throw new ArgumentException(exception.Message, nameof(options), exception);
             }
             m_codec = new XRegistryProtocolCodec(options.MaxStateBytes);
+            foreach (Uri registry in options.DiscoveryRegistries)
+            {
+                if (registry is null || !registry.IsAbsoluteUri || registry.UserInfo.Length != 0)
+                {
+                    throw new ArgumentException("Discovery registries require absolute URIs without credentials.",
+                        nameof(options));
+                }
+            }
+            var formats = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (IXRegistryDocumentValidator validator in options.DocumentValidators)
+            {
+                validator.ThrowIfNull(nameof(options));
+                foreach (string format in validator.Formats)
+                {
+                    if (string.IsNullOrWhiteSpace(format) || !formats.Add(format))
+                    {
+                        throw new ArgumentException(
+                            "Each nonempty format must have exactly one validator.", nameof(options));
+                    }
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -100,23 +136,12 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             {
                 throw new UnauthorizedAccessException("Registry inspection is not authorized.");
             }
+            bool canWrite = await AuthorizeAsync(context, true, cancellationToken).ConfigureAwait(false);
             await m_serial.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 JsonObject snapshot = await LoadAsync(cancellationToken).ConfigureAwait(false);
-                var model = new XRegistryModelRules((JsonObject)snapshot["modelsource"]!.DeepClone());
-                return new XRegistryEndpointDescription(m_options.RegistryId)
-                {
-                    Model = Element(model.Model),
-                    Capabilities = Element(Capabilities()),
-                    Profile = "experimental-transactional-v1",
-                    PublicRoot = m_options.PublicRoot,
-                    SupportsAtomicMutations = true,
-                    SupportsConditionalMutations = true,
-                    SupportsWriteTouch = true,
-                    SupportsOperationReplay = m_store.SupportsDurableReplay,
-                    SupportsPreparedMutations = true
-                };
+                return DescribeSnapshot(snapshot, m_observationGeneration, canWrite);
             }
             finally
             {
@@ -148,6 +173,8 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 return new PreparedOperation(
                     Error("bad_request", "The document exceeds the configured byte limit.", 413));
             }
+            bool canWrite = request.IsMutation ||
+                await AuthorizeAsync(request.Context, true, cancellationToken).ConfigureAwait(false);
             try
             {
                 _ = m_codec.EncodeRequest(request);
@@ -164,6 +191,12 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 string? digest = key is null ? null : m_codec.ComputeRequestDigest(request);
                 if (key is not null && prior["operations"]?[key] is JsonObject operation)
                 {
+                    if (operation["retiredstatus"] is not null)
+                    {
+                        return new PreparedOperation(Error("operation_retired",
+                            "This acknowledged operation cannot be replayed or reused; its outcome body was retired.",
+                                410));
+                    }
                     return new PreparedOperation(XRegistryModelRules.Text(operation["digest"]) == digest
                         ? m_codec.DecodeResponse(ByteString.From(Convert.FromBase64String(
                             XRegistryModelRules.Text(operation["response"]))))
@@ -176,20 +209,60 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 }
 
                 JsonObject candidate = request.IsMutation ? (JsonObject)prior.DeepClone() : prior;
-                var transaction = new Transaction(candidate, request, m_time.GetUtcNow().UtcDateTime);
-                var model = new XRegistryModelRules((JsonObject)candidate["modelsource"]!.DeepClone());
+                var transaction = new Transaction(candidate, prior, request, m_time.GetUtcNow().UtcDateTime)
+                {
+                    CanWrite = canWrite
+                };
+                var model = new XRegistryModelRules(SnapshotModel(candidate));
                 XRegistryResponse response;
                 try
                 {
+                    RequireShortLinks(candidate);
+                    request = ResolveShortLink(candidate, model, request);
+                    transaction.Request = request;
+                    if (request.ExpectedGeneration is not null &&
+                        request.ExpectedGeneration != m_observationGeneration)
+                    {
+                        throw new XRegistryRejectionException("concurrent_change",
+                            "The registry changed after observation. The request was not applied.", 409);
+                    }
                     XRegistryTarget target = model.Resolve(request.Path);
-                    ValidateFlags(target, request);
+                    if (request.ExpectedVersionIncarnation is not null)
+                    {
+                        if (target.Kind != XRegistryEntityKind.Version)
+                        {
+                            throw new XRegistryRejectionException("action_not_supported",
+                                "An incarnation guard requires an explicitly addressed Version.", 405);
+                        }
+                        if (transaction.Entries[target.Path] is not JsonObject version ||
+                            GetVersionIncarnation(version) != request.ExpectedVersionIncarnation)
+                        {
+                            throw new XRegistryRejectionException("version_incarnation_changed",
+                                "The pinned Version was deleted or replaced.", 409);
+                        }
+                    }
+                    if (!request.IsMutation)
+                    {
+                        ValidateFlags(model, target, request);
+                    }
                     if (request.Action == XRegistryAction.Describe)
                     {
-                        return new PreparedOperation(new XRegistryResponse(204) { AllowedActions = Allowed(target) });
+                        return new PreparedOperation(new XRegistryResponse(204)
+                        {
+                            AllowedActions = Allowed(target, canWrite),
+                            Generation = m_observationGeneration
+                        });
                     }
                     if (request.IsMutation)
                     {
-                        Mutate(transaction, model, target, Body(request.Metadata), request.Action, request.Document);
+                        JsonObject? body = PrepareWriteBody(transaction, model, target, Body(request.Metadata));
+                        await PrepareModelMutationAsync(transaction, target, body, cancellationToken).ConfigureAwait(
+                            false);
+                        ApplyProposedModel(transaction, model);
+                        ValidateFlags(model, target, request);
+                        Mutate(transaction, model, target, body, request.Action, request.Document);
+                        ApplyDefaultSelection(transaction, target);
+                        ValidateConstraintDeclarations(transaction, model);
                         FinalizeResources(transaction, model);
                         if (transaction.Entries.Count > m_options.MaxEntities)
                         {
@@ -197,13 +270,19 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                                 "bad_request", "The registry entity quota is exhausted.", 413);
                         }
                         ApplyCounters(transaction);
+                        ValidateModelState(transaction, prior, model);
+                        ValidateResourceState(transaction, model);
+                        ValidateReferences(transaction, model);
+                        await ValidateDocumentsAsync(transaction, model, cancellationToken).ConfigureAwait(false);
+                        UpdateShortLinks(transaction, model);
                         if (request.Action == XRegistryAction.Delete)
                         {
                             response = new XRegistryResponse(204);
                         }
                         else
                         {
-                            response = Read(transaction, model, target) with
+                            response = (await ReadAsync(transaction, model, target, cancellationToken).ConfigureAwait(
+                                false)) with
                             {
                                 Location = transaction.Created.Contains(StoragePath(target)) ? Url(target.Path) : null
                             };
@@ -215,7 +294,9 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                     }
                     else
                     {
-                        response = Read(transaction, model, target);
+                        response =
+                            (await ReadAsync(transaction, model, target, cancellationToken).ConfigureAwait(false)) with
+                            { Generation = m_observationGeneration };
                     }
                     _ = m_codec.EncodeResponse(response);
                 }
@@ -249,6 +330,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 }
                 candidate["generation"] = XRegistryModelRules.Unsigned(prior["generation"])
                     .AddOne();
+                await StageDocumentsAsync(candidate, cancellationToken).ConfigureAwait(false);
                 ByteString replacement;
                 try
                 {
@@ -258,14 +340,17 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 {
                     return new PreparedOperation(Error(exception.Code, exception.Message, exception.StatusCode));
                 }
-                if (replacement.Length > m_options.MaxPreparedBytes - Interlocked.Read(ref m_preparedBytes))
+                int reservedBytes = checked(replacement.Length +
+                    (m_options.DocumentStore is null ? 0 : m_codec.EncodeResponse(response).Length));
+                if (reservedBytes > m_options.MaxPreparedBytes - Interlocked.Read(ref m_preparedBytes))
                 {
                     return new PreparedOperation(Error("too_many_requests",
                         "The prepared-generation byte quota is exhausted.", 429));
                 }
-                Interlocked.Add(ref m_preparedBytes, replacement.Length);
+                Interlocked.Add(ref m_preparedBytes, reservedBytes);
                 Interlocked.Increment(ref m_preparedOperations);
-                return new PreparedOperation(response, this, request.Context, m_expected, replacement, candidate);
+                return new PreparedOperation(
+                    response, this, request.Context, m_expected, replacement, candidate, reservedBytes);
             }
             finally
             {
@@ -291,6 +376,12 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 {
                     return new XRegistryOperationOutcome(XRegistryOperationState.Unknown, null);
                 }
+                if (operation["retiredstatus"] is JsonNode retired)
+                {
+                    int status = retired.GetValue<int>();
+                    return new XRegistryOperationOutcome(status is >= 200 and < 300
+                        ? XRegistryOperationState.Committed : XRegistryOperationState.Rejected, null);
+                }
                 XRegistryResponse response = m_codec.DecodeResponse(ByteString.From(Convert.FromBase64String(
                     XRegistryModelRules.Text(operation["response"]))));
                 return new XRegistryOperationOutcome(
@@ -307,6 +398,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
         public void Dispose()
         {
             m_disposed = true;
+            Array.Clear(m_cursorKey, 0, m_cursorKey.Length);
             m_serial.Dispose();
         }
 
@@ -342,6 +434,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 }
                 m_expected = operation.Replacement;
                 m_snapshot = operation.Candidate;
+                m_observationGeneration = Guid.NewGuid().ToString("N");
                 return operation.Response;
             }
             finally
@@ -400,8 +493,13 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 return m_snapshot;
             }
             m_expected = loaded;
+            m_snapshot = null;
             if (m_expected.IsNull)
             {
+                var expansion = new XRegistryModelExpansion(m_options);
+                JsonObject initialModel = await expansion.ExpandAsync(
+                    XRegistryModelRules.Object(JsonNode.Parse(m_options.Model.GetRawText())), cancellationToken)
+                    .ConfigureAwait(false);
                 string now = m_time.GetUtcNow().UtcDateTime.ToString("O", CultureInfo.InvariantCulture);
                 var root = new JsonObject
                 {
@@ -412,9 +510,8 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 };
                 try
                 {
-                    JsonObject model = XRegistryModelRules.Object(JsonNode.Parse(m_options.Model.GetRawText()));
                     root = XRegistryModelRules.Apply(root, Body(m_options.InitialMetadata) ?? [],
-                        model["attributes"] as JsonObject, true, "registryid", m_options.RegistryId, "registry");
+                        initialModel["attributes"] as JsonObject, true, "registryid", m_options.RegistryId, "registry");
                 }
                 catch (XRegistryRejectionException exception)
                 {
@@ -427,6 +524,8 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                     ["generation"] = 0,
                     ["registryid"] = m_options.RegistryId,
                     ["modelsource"] = JsonNode.Parse(m_options.Model.GetRawText()),
+                    ["resolvedmodel"] = initialModel,
+                    ["resourceorigins"] = expansion.ResourceOrigins,
                     ["entries"] = new JsonObject
                     {
                         ["/"] = new JsonObject
@@ -436,6 +535,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                     },
                     ["operations"] = new JsonObject()
                 };
+                m_observationGeneration = Guid.NewGuid().ToString("N");
                 return m_snapshot;
             }
             if (m_expected.Length > m_options.MaxStateBytes)
@@ -445,14 +545,27 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             try
             {
                 JsonObject restored = XRegistryModelRules.Object(JsonNode.Parse(m_expected.Span));
-                if (XRegistryModelRules.Unsigned(restored["format"]) != 1 ||
+                if ((XRegistryModelRules.Unsigned(restored["format"]) != 1 &&
+                    XRegistryModelRules.Unsigned(restored["format"]) != 2) ||
                     XRegistryModelRules.Text(restored["registryid"]) != m_options.RegistryId)
                 {
                     throw new InvalidDataException("The persisted registry identity or format is incompatible.");
                 }
                 _ = XRegistryModelRules.Unsigned(restored["generation"]);
                 _ = XRegistryModelRules.Object(restored["operations"]);
-                var model = new XRegistryModelRules((JsonObject)restored["modelsource"]!.DeepClone());
+                ValidateShortLinkState(restored);
+                JsonObject storedSource = XRegistryModelRules.Object(restored["modelsource"]);
+                if (!HasModelIncludes(storedSource))
+                {
+                    var sourceModel = new XRegistryModelRules((JsonObject)storedSource.DeepClone());
+                    restored["resourceorigins"] ??= sourceModel.ResourceOrigins.DeepClone();
+                }
+                if (restored["resolvedmodel"] is null)
+                {
+                    restored["resolvedmodel"] = await new XRegistryModelExpansion(m_options).ExpandAsync(
+                        XRegistryModelRules.Object(restored["modelsource"]), cancellationToken).ConfigureAwait(false);
+                }
+                var model = new XRegistryModelRules(SnapshotModel(restored));
                 JsonObject entries = XRegistryModelRules.Object(restored["entries"]);
                 if (!entries.ContainsKey("/") || entries.Count > m_options.MaxEntities)
                 {
@@ -461,17 +574,45 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 }
                 foreach ((string path, JsonNode? value) in entries)
                 {
-                    _ = model.Resolve(path);
+                    XRegistryTarget target = model.Resolve(path);
                     JsonObject entry = XRegistryModelRules.Object(value);
                     _ = XRegistryModelRules.Unsigned(entry["metadata"]?["epoch"]);
+                    if (target.Kind == XRegistryEntityKind.Version && !entry.ContainsKey("incarnation"))
+                    {
+                        // A legacy guard belongs to these exact loaded bytes until a mutation persists it.
+                        entry["incarnation"] = Guid.NewGuid().ToString("N");
+                    }
+                    if (entry.TryGetPropertyValue("incarnation", out JsonNode? incarnation) &&
+                        (incarnation is not JsonValue identifier ||
+                            !identifier.TryGetValue(out string? text) ||
+                            !Guid.TryParseExact(text, "N", out Guid incarnationId) ||
+                            incarnationId == Guid.Empty))
+                    {
+                        throw new InvalidDataException("A persisted Version incarnation is invalid.");
+                    }
                     if (entry["document"] is not null &&
                         Convert.FromBase64String(XRegistryModelRules.Text(entry["document"])).Length >
                             m_options.MaxDocumentBytes)
                     {
                         throw new InvalidDataException("A persisted document exceeds its quota.");
                     }
+                    if (entry["blob"] is not null &&
+                        (m_options.DocumentStore is null ||
+                            BlobReference(entry["blob"]).Length > m_options.MaxDocumentBytes ||
+                            entry["document"] is not null))
+                    {
+                        throw new InvalidDataException(
+                            "A persisted blob requires its document store and valid bounds.");
+                    }
+                    if (entry["blob"] is not null)
+                    {
+                        using Stream verified = await m_options.DocumentStore!.OpenReadAsync(
+                            BlobReference(entry["blob"]), cancellationToken).ConfigureAwait(false);
+                    }
                 }
+                ValidateShortLinkEntities(restored, model);
                 m_snapshot = restored;
+                m_observationGeneration = Guid.NewGuid().ToString("N");
                 return restored;
             }
             catch (Exception exception) when (
@@ -544,7 +685,8 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 ContentType = source.ContentType,
                 Location = source.Location,
                 ContentLocation = source.ContentLocation,
-                Links = source.Links
+                Links = source.Links,
+                VersionIncarnation = source.VersionIncarnation
             };
         }
 
@@ -560,6 +702,11 @@ namespace Opc.Ua.XRegistry.Server.Protocol
         private string Url(string path)
         {
             return m_options.PublicRoot.AbsoluteUri.TrimEnd('/') + (path == "/" ? string.Empty : path);
+        }
+
+        private static string GetVersionIncarnation(JsonObject entry)
+        {
+            return XRegistryModelRules.Text(entry["incarnation"]);
         }
 
         private static string StoragePath(XRegistryTarget target)
@@ -594,24 +741,38 @@ namespace Opc.Ua.XRegistry.Server.Protocol
 
         private static JsonObject GetEntry(Transaction transaction, string path)
         {
-            return transaction.Entries[path] as JsonObject ??
-                throw new XRegistryRejectionException("not_found", "The entity does not exist.", 404);
+            return transaction.Entries[path] as JsonObject
+                ?? throw new XRegistryRejectionException("not_found", "The entity does not exist.", 404);
         }
 
-        private static ArrayOf<XRegistryAction> Allowed(XRegistryTarget target)
+        private static ArrayOf<XRegistryAction> Allowed(XRegistryTarget target, bool canWrite = true)
         {
-            if (target.Kind == XRegistryEntityKind.Special && target.Singular != "modelsource")
+            if (!canWrite || (target.Kind == XRegistryEntityKind.Special && target.Singular != "modelsource"))
             {
                 return [XRegistryAction.Read, XRegistryAction.Describe];
             }
-            return target.IsCollection
-                ? [XRegistryAction.Read, XRegistryAction.Create, XRegistryAction.Merge,
+            return target.Kind switch
+            {
+                XRegistryEntityKind.Groups or XRegistryEntityKind.Resources or XRegistryEntityKind.Versions =>
+                    [XRegistryAction.Read, XRegistryAction.Create, XRegistryAction.Merge,
+                        XRegistryAction.Delete, XRegistryAction.Describe],
+                XRegistryEntityKind.Resource =>
+                    [XRegistryAction.Read, XRegistryAction.Create, XRegistryAction.Replace, XRegistryAction.Merge,
+                        XRegistryAction.Delete, XRegistryAction.Describe],
+                XRegistryEntityKind.Registry =>
+                    [XRegistryAction.Read, XRegistryAction.Create, XRegistryAction.Replace, XRegistryAction.Merge,
+                        XRegistryAction.Describe],
+                XRegistryEntityKind.Group =>
+                    [XRegistryAction.Read, XRegistryAction.Create, XRegistryAction.Replace, XRegistryAction.Merge,
+                        XRegistryAction.Delete, XRegistryAction.Describe],
+                XRegistryEntityKind.Meta or XRegistryEntityKind.Special =>
+                    [XRegistryAction.Read, XRegistryAction.Replace, XRegistryAction.Merge, XRegistryAction.Describe],
+                _ => [XRegistryAction.Read, XRegistryAction.Replace, XRegistryAction.Merge,
                     XRegistryAction.Delete, XRegistryAction.Describe]
-                : [XRegistryAction.Read, XRegistryAction.Replace, XRegistryAction.Merge,
-                    XRegistryAction.Delete, XRegistryAction.Describe];
+            };
         }
 
-        private static JsonObject Capabilities()
+        private JsonObject Capabilities(bool canWrite = true)
         {
             return new JsonObject
             {
@@ -619,59 +780,74 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 {
                     ["capabilities"] = new JsonObject { ["mutable"] = false },
                     ["capabilitiesoffered"] = new JsonObject { ["mutable"] = false },
-                    ["entities"] = new JsonObject { ["mutable"] = true },
+                    ["entities"] = new JsonObject { ["mutable"] = canWrite },
                     ["model"] = new JsonObject { ["mutable"] = false },
-                    ["modelsource"] = new JsonObject { ["mutable"] = true },
+                    ["modelsource"] = new JsonObject { ["mutable"] = canWrite },
                     ["export"] = new JsonObject { ["mutable"] = false }
                 },
-                ["flags"] = new JsonArray("inline", "doc", "binary", "collections", "epoch", "specversion"),
-                ["ignores"] = new JsonArray(),
+                ["flags"] = new JsonArray("inline", "doc", "binary", "collections", "epoch", "specversion",
+                    "filter", "sort", "ignore", "setdefaultversionid"),
+                ["ignores"] = new JsonArray("capabilities", "defaultversionid", "defaultversionsticky",
+                    "epoch", "id", "modelsource", "readonly"),
                 ["mutable"] = new JsonArray(),
-                ["versionmodes"] = new JsonArray("manual", "createdat", "modifiedat"),
+                ["versionmodes"] = new JsonArray("manual", "createdat", "modifiedat", "semver"),
                 ["specversions"] = new JsonArray("1.0-rc4"),
-                ["pagination"] = false,
-                ["shortself"] = false,
+                ["pagination"] = true,
+                ["shortself"] = m_options.ShortLinksEnabled,
                 ["formats"] = new JsonArray(),
                 ["compatibilities"] = new JsonObject()
             };
         }
 
-        private static void ValidateFlags(XRegistryTarget target, XRegistryRequest request)
-        {
-            for (int index = 0; index < request.Parameters.Count; index++)
-            {
-                XRegistryParameter parameter = request.Parameters[index];
-                if (parameter.Name == "collections" &&
-                    target.Kind is not (XRegistryEntityKind.Registry or XRegistryEntityKind.Group))
-                {
-                    throw new XRegistryRejectionException(
-                        "bad_flag", "collections applies only to a registry or group.");
-                }
-                if (parameter.Name == "specversion" && parameter.Value != "1.0-rc4")
-                {
-                    throw new XRegistryRejectionException("bad_flag", "The requested specversion is unsupported.");
-                }
-            }
-        }
-
-        private sealed class Transaction(JsonObject snapshot, XRegistryRequest request, DateTime now)
+        private sealed class Transaction(
+            JsonObject snapshot, JsonObject original, XRegistryRequest request, DateTime now)
         {
             public JsonObject Snapshot { get; } = snapshot;
 
             public JsonObject Entries { get; } = XRegistryModelRules.Object(snapshot["entries"]);
 
-            public XRegistryRequest Request { get; } = request;
+            public JsonObject OriginalEntries { get; } = XRegistryModelRules.Object(original["entries"]);
+
+            public XRegistryRequest Request { get; set; } = request;
 
             public string Timestamp { get; } = now.ToString("O", CultureInfo.InvariantCulture);
 
             public HashSet<string> Touched { get; } = new(StringComparer.Ordinal);
 
+            public HashSet<string> Stamped { get; } = new(StringComparer.Ordinal);
+
             public HashSet<string> Created { get; } = new(StringComparer.Ordinal);
 
             public HashSet<string> Resources { get; } = new(StringComparer.Ordinal);
+
+            public bool QueryPrepared { get; set; }
+
+            public HashSet<string>? QueryPaths { get; set; }
+
+            public int PageOffset { get; set; }
+
+            public int PageLimit { get; set; }
+
+            public DateTimeOffset? CursorExpires { get; set; }
+
+            public JsonObject? ProposedModel { get; set; }
+
+            public JsonObject? ProposedSource { get; set; }
+
+            public JsonObject? ProposedOrigins { get; set; }
+
+            public HashSet<string> IgnoredAspects { get; set; } = new(StringComparer.Ordinal);
+
+            public HashSet<string> IgnoredPaths { get; } = new(StringComparer.Ordinal);
+
+            public bool CanWrite { get; init; }
+
+            public string? ResultVersionPath { get; set; }
+
+            public bool OwnerCollectionPost { get; set; }
         }
 
-        private sealed class PreparedOperation : IXRegistryPreparedOperation
+        private sealed class PreparedOperation : IXRegistryPreparedSnapshot
         {
             public PreparedOperation(XRegistryResponse response)
             {
@@ -680,7 +856,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
 
             public PreparedOperation(
                 XRegistryResponse response, XRegistryTransactionalEndpoint owner, XRegistryCallContext context,
-                ByteString expected, ByteString replacement, JsonObject candidate)
+                ByteString expected, ByteString replacement, JsonObject candidate, int reservedBytes)
                 : this(response)
             {
                 m_owner = owner;
@@ -688,7 +864,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 Expected = expected;
                 Replacement = replacement;
                 Candidate = candidate;
-                m_reservedBytes = replacement.Length;
+                m_reservedBytes = reservedBytes;
             }
 
             public XRegistryResponse Response { get; }
@@ -700,6 +876,33 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             public ByteString Replacement { get; private set; }
 
             public JsonObject? Candidate { get; private set; }
+
+            public string CandidateGeneration { get; } = Guid.NewGuid().ToString("N");
+
+            public bool HasCandidate =>
+                Volatile.Read(ref m_consumed) == 0 && Candidate is not null && Response.IsSuccess;
+
+            public ValueTask<XRegistryEndpointDescription> InspectCandidateAsync(
+                CancellationToken cancellationToken = default)
+            {
+                RequireCandidate();
+                return m_owner!.InspectCandidateAsync(this, cancellationToken);
+            }
+
+            public ValueTask<XRegistryResponse> ReadCandidateAsync(
+                XRegistryRequest request, CancellationToken cancellationToken = default)
+            {
+                RequireCandidate();
+                return m_owner!.ReadCandidateAsync(this, request, cancellationToken);
+            }
+
+            public void RequireCandidate()
+            {
+                if (!HasCandidate)
+                {
+                    throw new InvalidOperationException("This operation has no live successful candidate.");
+                }
+            }
 
             public async ValueTask<XRegistryResponse> CommitAsync(CancellationToken cancellationToken = default)
             {
@@ -749,6 +952,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
         private readonly SemaphoreSlim m_serial = new(1, 1);
         private JsonObject? m_snapshot;
         private ByteString m_expected;
+        private string? m_observationGeneration;
         private bool m_disposed;
         private bool m_indeterminate;
         private int m_preparedOperations;

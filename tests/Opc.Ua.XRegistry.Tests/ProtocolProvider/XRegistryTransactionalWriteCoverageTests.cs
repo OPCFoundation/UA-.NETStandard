@@ -16,7 +16,7 @@
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
  * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
@@ -38,6 +38,138 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
     [TestFixture]
     public sealed class XRegistryTransactionalWriteCoverageTests
     {
+        [Test]
+        public async Task ModifiedAtWritesDistinguishOmittedNullEqualAndDifferentValuesAsync(
+            [Values("/", "/groups/g", "/groups/g/schemas/r/meta", "/groups/g/schemas/r/versions/v1")] string path,
+            [Values(XRegistryAction.Replace, XRegistryAction.Merge)] XRegistryAction action,
+            [Values("absent", "null", "same", "different")] string presence)
+        {
+            using XRegistryTransactionalEndpoint endpoint = XRegistryProviderCoverage.Create();
+            XRegistryResponse seeded = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
+                XRegistryAction.Replace, "/groups/g/schemas/r/versions/v1", "{}")).ConfigureAwait(false);
+            Assert.That(seeded.StatusCode, Is.EqualTo(201));
+            XRegistryResponse dated = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
+                XRegistryAction.Merge, path, /*lang=json,strict*/ """{"modifiedat":"2001-02-03T04:05:06Z"}"""))
+                .ConfigureAwait(false);
+            Assert.That(dated.StatusCode, Is.EqualTo(200), dated.Error?.Detail);
+            string json = presence switch
+            {
+                "absent" => "{}",
+                "null" => /*lang=json,strict*/ """{"modifiedat":null}""",
+                "same" => /*lang=json,strict*/ """{"modifiedat":"2001-02-03T04:05:06+00:00"}""",
+                _ => /*lang=json,strict*/ """{"modifiedat":"2040-05-06T07:08:09+01:00"}"""
+            };
+            string expected = presence == "different" ? "2040-05-06T06:08:09.0000000Z" : "2026-01-02T03:04:05.0000000Z";
+            XRegistryResponse changed = await endpoint.ExecuteAsync(
+                XRegistryProviderCoverage.Request(action, path, json)).ConfigureAwait(false);
+            XRegistryResponse read = await endpoint.ExecuteAsync(
+                XRegistryProviderCoverage.Request(XRegistryAction.Read, path)).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(changed.StatusCode, Is.EqualTo(200), changed.Error?.Detail);
+                Assert.That(changed.Metadata.GetProperty("modifiedat").GetString(), Is.EqualTo(expected));
+                Assert.That(read.Metadata.GetProperty("modifiedat").GetString(), Is.EqualTo(expected));
+            });
+        }
+
+        [Test]
+        public async Task ParentModifiedAtTracksMembershipButNotDescendantUpdatesAsync(
+            [Values("registry", "group", "meta")] string level,
+            [Values("update", "create", "delete")] string change)
+        {
+            using XRegistryTransactionalEndpoint endpoint = XRegistryProviderCoverage.Create();
+            foreach (string version in new[] { "v1", "v2" })
+            {
+                XRegistryResponse seeded = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
+                    XRegistryAction.Replace, "/groups/g/schemas/r/versions/" + version, "{}")).ConfigureAwait(false);
+                Assert.That(seeded.StatusCode, Is.EqualTo(201));
+            }
+            string parent = level switch
+            {
+                "registry" => "/",
+                "group" => "/groups/g",
+                _ => "/groups/g/schemas/r/meta"
+            };
+            XRegistryResponse dated = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
+                XRegistryAction.Merge, parent, /*lang=json,strict*/ """{"modifiedat":"2001-02-03T04:05:06Z"}"""))
+                .ConfigureAwait(false);
+            Assert.That(dated.StatusCode, Is.EqualTo(200), dated.Error?.Detail);
+            string existing = level switch
+            {
+                "registry" => "/groups/g",
+                "group" => "/groups/g/schemas/r",
+                _ => "/groups/g/schemas/r/versions/v1"
+            };
+            string created = level switch
+            {
+                "registry" => "/groups/next",
+                "group" => "/groups/g/schemas/next/versions/v1",
+                _ => "/groups/g/schemas/r/versions/v3"
+            };
+            XRegistryAction action = change switch
+            {
+                "create" => XRegistryAction.Replace,
+                "delete" => XRegistryAction.Delete,
+                _ => XRegistryAction.Merge
+            };
+            XRegistryResponse changed = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
+                action, change == "create" ? created : existing,
+                change == "update" ? /*lang=json,strict*/ """{"name":"child-edit"}""" : "{}"))
+                .ConfigureAwait(false);
+            XRegistryResponse read = await endpoint.ExecuteAsync(
+                XRegistryProviderCoverage.Request(XRegistryAction.Read, parent)).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(changed.StatusCode, Is.EqualTo(change switch
+                {
+                    "create" => 201,
+                    "delete" => 204,
+                    _ => 200
+                }), changed.Error?.Detail);
+                Assert.That(read.Metadata.GetProperty("modifiedat").GetString(),
+                    Is.EqualTo(change == "update" ? "2001-02-03T04:05:06.0000000Z" : "2026-01-02T03:04:05.0000000Z"));
+            });
+        }
+
+        [Test]
+        public async Task CreatedAtPutDistinguishesOmittedNullAndExplicitValuesAsync(
+            [Values("/", "/groups/g", "/groups/g/schemas/r/meta", "/groups/g/schemas/r/versions/v1")] string path,
+            [Values("absent", "null", "explicit")] string presence)
+        {
+            using XRegistryTransactionalEndpoint endpoint = XRegistryProviderCoverage.Create();
+            XRegistryResponse seeded = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
+                XRegistryAction.Replace, "/groups/g/schemas/r/versions/v1", "{}")).ConfigureAwait(false);
+            Assert.That(seeded.StatusCode, Is.EqualTo(201));
+            XRegistryResponse dated = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
+                XRegistryAction.Merge, path, /*lang=json,strict*/ """{"createdat":"2001-02-03T04:05:06Z"}"""))
+                .ConfigureAwait(false);
+            Assert.That(dated.StatusCode, Is.EqualTo(200), dated.Error?.Detail);
+            string json = presence switch
+            {
+                "absent" => "{}",
+                "null" => /*lang=json,strict*/ """{"createdat":null}""",
+                _ => /*lang=json,strict*/ """{"createdat":"2040-05-06T07:08:09Z"}"""
+            };
+            string expected = presence switch
+            {
+                "absent" => "2001-02-03T04:05:06.0000000Z",
+                "null" => "2026-01-02T03:04:05.0000000Z",
+                _ => "2040-05-06T07:08:09.0000000Z"
+            };
+            XRegistryResponse replaced = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
+                XRegistryAction.Replace, path, json)).ConfigureAwait(false);
+            XRegistryResponse read = await endpoint.ExecuteAsync(
+                XRegistryProviderCoverage.Request(XRegistryAction.Read, path)).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(replaced.StatusCode, Is.EqualTo(200), replaced.Error?.Detail);
+                Assert.That(replaced.Metadata.GetProperty("createdat").GetString(), Is.EqualTo(expected));
+                Assert.That(read.Metadata.GetProperty("createdat").GetString(), Is.EqualTo(expected));
+                Assert.That(read.Metadata.GetProperty("modifiedat").GetString(),
+                    Is.EqualTo("2026-01-02T03:04:05.0000000Z"));
+            });
+        }
+
         [TestCase(3, 413)]
         [TestCase(4, 201)]
         public async Task EntityQuotaCountsImplicitGroupMetaAndVersionAtTheExactBoundaryAsync(
@@ -47,7 +179,8 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 XRegistryProviderCoverage.Options() with { MaxEntities = maximum },
                 new InMemoryXRegistryTransactionStore(), new XRegistryProviderCoverageTimeProvider());
             XRegistryResponse response = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
-                XRegistryAction.Replace, "/groups/g/schemas/r", """{"versionid":"v1"}""")).ConfigureAwait(false);
+                XRegistryAction.Replace, "/groups/g/schemas/r", /*lang=json,strict*/ """{"versionid":"v1"}"""))
+                    .ConfigureAwait(false);
             Assert.That(response.StatusCode, Is.EqualTo(expectedStatus));
             if (maximum == 3)
             {
@@ -68,12 +201,12 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
             }
         }
 
-        [TestCase("""{"a":{},"a":{"name":"duplicate"}}""", "bad_request", 400)]
-        [TestCase("""{"a":{"name":"valid"},"b":{"groupid":"other"}}""", "mismatched_id", 400)]
+        [TestCase(/*lang=json,strict*/ """{"a":{},"a":{"name":"duplicate"}}""", "bad_request", 400)]
+        [TestCase(/*lang=json,strict*/ """{"a":{"name":"valid"},"b":{"groupid":"other"}}""", "mismatched_id", 400)]
         public async Task DuplicateOrMismatchedCollectionIdsCannotPublishAnySiblingAsync(
             string input, string code, int status)
         {
-            using var endpoint = XRegistryProviderCoverage.Create();
+            using XRegistryTransactionalEndpoint endpoint = XRegistryProviderCoverage.Create();
             XRegistryResponse response = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
                 XRegistryAction.Merge, "/groups", input)).ConfigureAwait(false);
             await XRegistryProviderCoverage.AssertPristineAsync(endpoint, response, code, status)
@@ -82,11 +215,11 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
 
         [TestCase("/groups", null)]
         [TestCase("/groups", "[]")]
-        [TestCase("/groups/g/schemas/r", """{"versions":[]}""")]
-        [TestCase("/groups/g/schemas/r", """{"versions":null}""")]
+        [TestCase("/groups/g/schemas/r", /*lang=json,strict*/ """{"versions":[]}""")]
+        [TestCase("/groups/g/schemas/r", /*lang=json,strict*/ """{"versions":null}""")]
         public async Task InvalidCollectionBodyShapesCannotCreateEntitiesAsync(string path, string? input)
         {
-            using var endpoint = XRegistryProviderCoverage.Create();
+            using XRegistryTransactionalEndpoint endpoint = XRegistryProviderCoverage.Create();
             XRegistryResponse rejected = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
                 XRegistryAction.Create, path, input)).ConfigureAwait(false);
             await XRegistryProviderCoverage.AssertPristineAsync(endpoint, rejected, "bad_request")
@@ -96,17 +229,20 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
         [Test]
         public async Task CollectionDeleteSkipsMissingIdsButRollsBackMismatchedIdsAsync()
         {
-            using var endpoint = XRegistryProviderCoverage.Create();
+            using XRegistryTransactionalEndpoint endpoint = XRegistryProviderCoverage.Create();
             XRegistryResponse created = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
-                XRegistryAction.Create, "/groups", """{"a":{"name":"first"},"b":{"name":"second"}}"""))
+                XRegistryAction.Create,
+                    "/groups", /*lang=json,strict*/ """{"a":{"name":"first"},"b":{"name":"second"}}"""))
                 .ConfigureAwait(false);
             XRegistryResponse rejected = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
                 XRegistryAction.Delete, "/groups",
-                """{"absent":{},"a":{"groupid":"other"},"b":{}}""")).ConfigureAwait(false);
+                                     /*lang=json,strict*/
+                                     """{"absent":{},"a":{"groupid":"other"},"b":{}}""")).ConfigureAwait(false);
             XRegistryResponse retained = await endpoint.ExecuteAsync(
                 XRegistryProviderCoverage.Request(XRegistryAction.Read, "/groups")).ConfigureAwait(false);
             XRegistryResponse deleted = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
-                XRegistryAction.Delete, "/groups", """{"absent":{},"a":{"groupid":"a","epoch":0}}"""))
+                XRegistryAction.Delete,
+                    "/groups", /*lang=json,strict*/ """{"absent":{},"a":{"groupid":"a","epoch":0}}"""))
                 .ConfigureAwait(false);
             XRegistryResponse remaining = await endpoint.ExecuteAsync(
                 XRegistryProviderCoverage.Request(XRegistryAction.Read, "/groups")).ConfigureAwait(false);
@@ -132,9 +268,10 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
         [Test]
         public async Task DeleteEpochFlagOverridesBodyAndMalformedFlagCannotMutateAsync()
         {
-            using var endpoint = XRegistryProviderCoverage.Create();
+            using XRegistryTransactionalEndpoint endpoint = XRegistryProviderCoverage.Create();
             XRegistryResponse created = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
-                XRegistryAction.Replace, "/groups/g", """{"name":"retained"}""")).ConfigureAwait(false);
+                XRegistryAction.Replace, "/groups/g", /*lang=json,strict*/ """{"name":"retained"}""")).ConfigureAwait(
+                    false);
             XRegistryResponse invalid = await endpoint.ExecuteAsync(
                 XRegistryProviderCoverage.Request(XRegistryAction.Delete, "/groups/g") with
                 {
@@ -143,10 +280,10 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
             XRegistryResponse retained = await endpoint.ExecuteAsync(
                 XRegistryProviderCoverage.Request(XRegistryAction.Read, "/groups/g")).ConfigureAwait(false);
             XRegistryResponse deleted = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
-                XRegistryAction.Delete, "/groups/g", """{"epoch":999}""") with
-                {
-                    Parameters = [new XRegistryParameter("epoch", "0")]
-                }).ConfigureAwait(false);
+                XRegistryAction.Delete, "/groups/g", /*lang=json,strict*/ """{"epoch":999}""") with
+            {
+                Parameters = [new XRegistryParameter("epoch", "0")]
+            }).ConfigureAwait(false);
             XRegistryResponse missing = await endpoint.ExecuteAsync(
                 XRegistryProviderCoverage.Request(XRegistryAction.Read, "/groups/g")).ConfigureAwait(false);
             Assert.Multiple(() =>
@@ -163,7 +300,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
         [Test]
         public async Task DeletingLastVersionRemovesResourceMetaAndTouchesOnlyItsGroupAsync()
         {
-            using var endpoint = XRegistryProviderCoverage.Create();
+            using XRegistryTransactionalEndpoint endpoint = XRegistryProviderCoverage.Create();
             XRegistryResponse created = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
                 XRegistryAction.Replace, "/groups/g/schemas/r/versions/v1", "{}")).ConfigureAwait(false);
             XRegistryResponse deleted = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
@@ -191,9 +328,10 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
         [TestCase("/groups/g")]
         public async Task RawDocumentCannotMutateNonDocumentEntitiesAsync(string path)
         {
-            using var endpoint = XRegistryProviderCoverage.Create();
+            using XRegistryTransactionalEndpoint endpoint = XRegistryProviderCoverage.Create();
             XRegistryResponse rejected = await endpoint.ExecuteAsync(
-                XRegistryProviderCoverage.Request(XRegistryAction.Merge, path, """{"name":"not-published"}""") with
+                XRegistryProviderCoverage.Request(
+                    XRegistryAction.Merge, path, /*lang=json,strict*/ """{"name":"not-published"}""") with
                 {
                     Document = ByteString.Empty
                 }).ConfigureAwait(false);
@@ -212,34 +350,36 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
         public async Task ProtectedTargetsRejectUnsupportedActionsWithoutMutationAsync(
             string path, XRegistryAction action)
         {
-            using var endpoint = XRegistryProviderCoverage.Create();
+            using XRegistryTransactionalEndpoint endpoint = XRegistryProviderCoverage.Create();
             XRegistryResponse rejected = await endpoint.ExecuteAsync(
                 XRegistryProviderCoverage.Request(action, path, "{}")).ConfigureAwait(false);
             await XRegistryProviderCoverage.AssertPristineAsync(endpoint, rejected, "action_not_supported", 405)
                 .ConfigureAwait(false);
             Assert.That(rejected.AllowedActions.ToArray(),
-                Is.EqualTo(new[] { XRegistryAction.Read, XRegistryAction.Describe }));
+                Is.EqualTo([XRegistryAction.Read, XRegistryAction.Describe]));
         }
 
         [Test]
         public async Task RootModelSourceMergeRemovesUnusedDefinitionsAndAppliesNewRulesAtomicallyAsync()
         {
-            using var endpoint = XRegistryProviderCoverage.Create("""
+            using XRegistryTransactionalEndpoint endpoint = XRegistryProviderCoverage.Create(/*lang=json,strict*/ """
                 {"groups":{"groups":{"singular":"group","resources":{},
                 "attributes":{"obsolete":{"type":"string"}}}}}
                 """);
             XRegistryResponse changed = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
                 XRegistryAction.Merge, "/",
-                """
+                                     /*lang=json,strict*/
+                                     """
                 {"name":"with-model","modelsource":{"groups":{"groups":{"attributes":{
                 "obsolete":null,"added":{"type":"integer"}}}}}}
                 """)).ConfigureAwait(false);
             XRegistryResponse created = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
-                XRegistryAction.Replace, "/groups/g", """{"added":7}""")).ConfigureAwait(false);
+                XRegistryAction.Replace, "/groups/g", /*lang=json,strict*/ """{"added":7}""")).ConfigureAwait(false);
             XRegistryResponse source = await endpoint.ExecuteAsync(
                 XRegistryProviderCoverage.Request(XRegistryAction.Read, "/modelsource")).ConfigureAwait(false);
             XRegistryResponse rejected = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
-                XRegistryAction.Merge, "/groups/g", """{"obsolete":"not-defined"}""")).ConfigureAwait(false);
+                XRegistryAction.Merge, "/groups/g", /*lang=json,strict*/ """{"obsolete":"not-defined"}"""))
+                    .ConfigureAwait(false);
             XRegistryResponse group = await endpoint.ExecuteAsync(
                 XRegistryProviderCoverage.Request(XRegistryAction.Read, "/groups/g")).ConfigureAwait(false);
             Assert.Multiple(() =>
@@ -249,7 +389,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 Assert.That(changed.Metadata.GetProperty("epoch").GetInt32(), Is.EqualTo(1));
                 Assert.That(created.StatusCode, Is.EqualTo(201));
                 Assert.That(source.Metadata.GetProperty("groups").GetProperty("groups").GetProperty("attributes")
-                    .GetRawText(), Is.EqualTo("""{"added":{"type":"integer"}}"""));
+                    .GetRawText(), Is.EqualTo(/*lang=json,strict*/ """{"added":{"type":"integer"}}"""));
                 Assert.That(rejected.Error?.Code, Is.EqualTo("invalid_attribute"));
                 Assert.That(group.Metadata.GetProperty("added").GetInt32(), Is.EqualTo(7));
                 Assert.That(group.Metadata.GetProperty("epoch").GetInt32(), Is.Zero);

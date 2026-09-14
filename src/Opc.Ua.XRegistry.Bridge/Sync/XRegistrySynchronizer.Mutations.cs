@@ -16,7 +16,7 @@
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
  * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
@@ -32,6 +32,8 @@ using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.XRegistry.Protocol;
 
 namespace Opc.Ua.XRegistry.Bridge.Sync
@@ -49,11 +51,23 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             XRegistrySyncInventory origin = pass.Inventory(Other(destinationSide));
             XRegistrySyncModel model = target.Model!;
             XRegistrySyncDefinition definition = model.Resolve(source.Path);
+            if (destination is null &&
+                source.Kind is XRegistrySyncEntityKind.ResourceMeta or XRegistrySyncEntityKind.Version &&
+                !definition.Model.GetProperty("setversionid").GetBoolean())
+            {
+                await CopyAssignedVersionAsync(pass, source, destinationSide, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+            if (RequiresResourceClosure(definition, source, destination))
+            {
+                await CopyResourceAsync(pass, source, destinationSide, cancellationToken).ConfigureAwait(false);
+                return;
+            }
             string? unsupported = XRegistrySyncModel.UnsupportedWrite(definition, source, destination);
             if (unsupported is not null || !Qualified(target))
             {
-                Unsupported(pass, source.Path, unsupported ??
-                    "The destination does not qualify atomic mutations with exact conditional epochs.");
+                Unsupported(pass, source.Path, unsupported
+                    ?? "The destination does not qualify atomic mutations with exact conditional epochs.");
                 return;
             }
             ArrayOf<XRegistrySyncObservation> sources = [source];
@@ -266,7 +280,9 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             ArrayOf<XRegistrySyncObservation> sources,
             ArrayOf<XRegistrySyncObservation> before,
             CancellationToken cancellationToken,
-            bool preparedDeletion = false)
+            bool preparedDeletion = false,
+            bool preparedWrite = false,
+            bool assignsVersion = false)
         {
             foreach (XRegistrySyncObservation source in sources.Span.ToArray())
             {
@@ -309,10 +325,14 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             }
             string operationId = pass.State.NextId("operation");
             bool replay = pass.Inventory(destinationSide).Description!.SupportsOperationReplay &&
-                (destinationSide == XRegistrySyncSide.OpcUa ? m_opcUa : m_http) is IXRegistryOperationJournalEndpoint;
+                (destinationSide == XRegistrySyncSide.OpcUa ? m_opcUa
+                    : m_http) is IXRegistryOperationJournalEndpoint;
             request = request with { OperationId = replay ? operationId : null };
             var intent = new XRegistrySyncIntent(
-                operationId, path, destinationSide, kind, request, sources, before, m_timeProvider.GetUtcNow());
+                operationId, path, destinationSide, kind, request, sources, before, m_timeProvider.GetUtcNow())
+            {
+                AssignsVersion = assignsVersion
+            };
             pass.State.Intents.Add(intent.Id, intent);
             pass.Dirty = true;
             await SaveAsync(pass, cancellationToken).ConfigureAwait(false);
@@ -320,12 +340,17 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             XRegistryResponse response;
             try
             {
-                if (preparedDeletion)
+                if (preparedDeletion || preparedWrite)
                 {
-                    PreparedDeletionResult prepared = await CommitPreparedDeletionAsync(pass, intent, cancellationToken)
+                    PreparedDeletionResult prepared =
+                        await CommitPreparedDeletionAsync(pass, intent, cancellationToken, preparedDeletion)
                         .ConfigureAwait(false);
                     if (prepared.Response is null)
                     {
+                        if (assignsVersion)
+                        {
+                            pass.State.VersionCorrespondences.Remove(intent.Path);
+                        }
                         pass.State.Intents[intent.Id] = intent with
                         {
                             State = XRegistrySyncIntentState.Conflicted,
@@ -349,7 +374,8 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                         .ConfigureAwait(false);
                 }
             }
-            catch (Exception exception) when (XRegistrySyncDeadline.IsEndpointFailure(exception) &&
+            catch (Exception exception) when (!pass.StateCommitInProgress &&
+                XRegistryOperationDeadline.IsEndpointFailure(exception) &&
                 !(exception is OperationCanceledException && cancellationToken.IsCancellationRequested))
             {
                 intent = intent with { Failure = exception.Message };
@@ -358,6 +384,11 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                 await SaveAsync(pass, cancellationToken).ConfigureAwait(false);
                 await RecoverIntentAsync(pass, intent, cancellationToken).ConfigureAwait(false);
                 return;
+            }
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                m_logger.SyncMutationCompleted(Redact.Create(m_options.JobId), Redact.Create(intent.Id),
+                    Redact.Create(intent.Path), destinationSide, response.StatusCode);
             }
             intent = intent with
             {
@@ -368,7 +399,11 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             pass.Dirty = true;
             if (!response.IsSuccess)
             {
-                if (preparedDeletion)
+                if (assignsVersion)
+                {
+                    pass.State.VersionCorrespondences.Remove(intent.Path);
+                }
+                if (preparedDeletion || preparedWrite)
                 {
                     foreach (XRegistrySyncObservation observation in before)
                     {

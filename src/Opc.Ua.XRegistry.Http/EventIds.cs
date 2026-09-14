@@ -32,5 +32,6 @@ namespace Opc.Ua
     internal static class XRegistryHttpEventIds
     {
         public const int Dispatcher = 0;
+        public const int LeaseLifetime = 100;
     }
 }

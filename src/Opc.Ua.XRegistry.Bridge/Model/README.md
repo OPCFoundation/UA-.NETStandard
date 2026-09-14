@@ -90,6 +90,17 @@ Response and inspection bodies also use FileType, so they are not limited to one
 handle and call AbortRequest to release its node. Session close and bounded file lifetimes reclaim abandoned transfers.
 File/count/byte/chunk/entity/page limits are validated in `XRegistryBridgeNativeOptions`.
 
+Transfer initialization rolls back its node and local quota on failure. Losing an upload during provider preparation
+also releases the orphaned response preview. Ownership is revoked before cleanup; provider work is never awaited while
+holding the shared transfer-table synchronization. Bulk expiry/session/shutdown cleanup starts for the whole detached
+set, even when one provider disposal fails.
+
+`PreparedOperationTimeout` bounds each authoritative Prepare or Commit phase (30 seconds by default), and
+`CleanupTimeout` bounds waiting for cleanup (5 seconds). Injected `TimeProvider` timers also drive synchronization.
+Late preparations are aborted. Late commits keep ownership until completion and are logged; a timeout means unknown
+outcome, not permission to retry. Active resources are not disposed early. A known commit response remains authoritative
+when subsequent cleanup fails. These limits do not yet bound all network/authorization or projection work in every mode.
+
 Preparation is advertised only if the endpoint implements `IXRegistryPreparedEndpoint`
 and qualifies `SupportsPreparedMutations`. The client also probes the actual version-2
 methods; a version label or provider flag alone is not sufficient. `AbortRequest` on
@@ -110,8 +121,17 @@ their exact identities. Base group/resource creation rejects ambiguous multi-col
 one arbitrarily. The extension addresses those collections explicitly.
 
 Core properties, string labels, independent Resource Meta/Version epochs, Model and Capabilities files are live endpoint
-reads. An experimental read-only `Metadata` FileType preserves complete typed JSON for each entity. Arbitrary JSON is not
-stringified into `AttributesType`. UInt32 epoch overflow or a missing authoritative default/version mapping is rejected.
+reads. An experimental read-only `Metadata` FileType preserves complete typed JSON for each entity. Unmapped arbitrary JSON
+is not flattened or stringified into `AttributesType`. Missing ordinary default/version mappings are rejected; a dangling
+xref instead has a logical node with no invented Versions and `BadNoData` for inaccessible properties. Wider epochs remain exact
+in extended metadata and file guards while the companion UInt32 scalar returns `BadOutOfRange`.
+
+`AttributeMappings` adds explicit model-driven profiles for canonical String Properties and typed domain Properties.
+Profiles use namespace URIs, entity roles and literal logical paths, not display-name guesses or namespace indexes.
+Canonical compound values use JSON only when their profile explicitly selects that encoding; ordinary labels remain
+strings. Typed scalars and arrays reject precision loss and incorrect DataType/ValueRank. Registered field-accessible
+structures use an explicit activator and type ID without reflection or automatic type download. Mapping preflight and
+`MaxMappedProperties` bound publication, including changed models. Inactive conditional values expose `BadNoData`.
 
 Native create/delete/label methods and single-property Writes use the same authoritative endpoint path as extension
 commits. Create checks membership and sends an atomic request guarded by the parent's counter; it does not publish a
@@ -119,13 +139,24 @@ local-only placeholder. Multi-property Writes are rejected before side effects: 
 mutation. All writes require actual atomic, conditional and touch guarantees, not a nominal HTTP transport label.
 
 Resource FileType Open pins an exact Version and its bytes. Writes and seeks are staged; a changed Close awaits a
-conditional endpoint mutation. Clean or byte-identical Close does not touch the endpoint. Changing the default Version
-does not retarget an existing handle. A rejected or uncertain upstream mutation is never acknowledged as a local success.
+conditional endpoint mutation. Writable Open additionally requires `SupportsVersionIncarnationGuards` and a nonempty
+`VersionIncarnation` from the exact Version read. Close sends `ExpectedVersionIncarnation`; the authoritative provider
+checks it atomically with the epoch and mutation, including when a replacement has identical timestamps and epoch.
+Clean or byte-identical Close does not touch the endpoint. Changing the default Version does not retarget an existing
+handle or invalidate its incarnation. A rejected or uncertain upstream mutation is never acknowledged as a local success.
+
+The optional incarnation fields extend codec format 1 without changing the version-2 method signatures. They are not
+xRegistry metadata, HTTP headers or HTTP validators. Requests requiring a guard are rejected before dispatch when a
+backend does not advertise it. New transactional Versions retain their random incarnation in durable state. Older
+format-1 Versions without that field get guards bound to the exact loaded state. Reads do not change storage; the next
+successful mutation persists those guards. Before persistence, reloading changed legacy state or reopening the endpoint
+invalidates them. Deleting and recreating a Version always assigns a new incarnation. Invalid persisted incarnations
+fail closed, including repeated reads after a cached generation becomes invalid.
 
 ## Explicit limits
 
 - One node manager exposes one configured visibility scope. `AuthorizeCallerAsync` checks inbound subjects/roles
-  independently; the mapped subject/authority/authentication state must match `ProjectionContext`. Use separate instances
+  independently; the mapped subject/authority/authentication/role scope must match `ProjectionContext`. Use separate instances
   for different data visibility scopes; shared cached projections are not a per-caller authorization mechanism.
 - Writes always require SignAndEncrypt. The host owns certificates, trust, credentials and caller mapping.
   Native write fixtures use encrypted sessions with generated username credentials; no insecure test bypass exists.
@@ -133,19 +164,35 @@ does not retarget an existing handle. A rejected or uncertain upstream mutation 
   `BaseModel`. It reads real core nodes through `GenericXRegistryClient`; a network/access error is not legacy discovery.
 - Legacy sibling Version files are enumerated as observed. Their logical default and Resource Meta are unavailable unless
   genuinely represented. No synthetic single-version history, modelsource or offered capabilities are generated.
-- Base-only query shaping, custom typed domain-attribute mappings and unsupported aspect operations are explicitly rejected.
+- Base-only query shaping, unmapped domain attributes and unsupported aspect operations are explicitly rejected.
   Standard capability flags for the limited adapter do not advertise writes or unsupported query/extra APIs.
-- Base epochs are UInt32. Wider counters remain representable in codec messages but cannot be projected through these
-  core properties. Upstream state/model changes that become unrepresentable fail reads/refresh rather than truncate data.
-- Inventories use bounded complete collection scans. They are not a distributed snapshot when an external endpoint offers
-  no snapshot primitive. Relative next-page links must remain within the same collection; interrupted scans are not published.
-- Version write guards use the endpoint epoch and check observed creation identity. The interface has no atomic incarnation
-  CAS: an external delete/recreate race between the identity check and mutation cannot be given a stronger guarantee.
+- `BasePropertyNamespaceUris` explicitly permits alternate inherited-property layouts, including the existing WoT
+  projection. Missing Registry Epoch or SpecVersion makes the root representation unavailable; RefreshGeneration is
+  not substituted for Epoch. Exact Version reads can remain available through the configured mappings.
+- Base epochs are UInt32. Wider counters remain lossless in metadata and write guards; the scalar returns `BadOutOfRange`
+  and native epoch-bearing event delivery is marked degraded rather than truncating the value.
+- Inventories use bounded complete collection scans. Negotiated generation guards bind inspection, each read and every
+  page to one registry generation, with a final inspection check before accepting the scan. A changed or missing promised
+  token rejects the scan. Tokens are activation-local, not entity epochs or retained snapshot leases. External endpoints
+  without the guarantee remain unguarded, not distributed snapshots. Relative next-page links must remain within the same
+  collection; interrupted scans are not published.
+- Standard HTTP cannot convey Version incarnation guards. An HTTP-backed projection therefore exposes read-only
+  resource FileTypes; qualified core request mutations remain available through the experimental transport.
+  The unextended native adapter remains entirely read-only. No timestamp check or local lock is used to pretend
+  an ordinary HTTP endpoint can provide incarnation fencing.
 - Response allocation is pre-commit on prepared backends; nonprepared external HTTP
   commits and transport failures can still leave an indeterminate client outcome.
   A failed projection refresh after a known prepared commit is logged, and subsequent
   reads must refresh rather than serving stale Good data. The transport cannot undo
   an external HTTP commit or manufacture a durable outcome record.
-- No event history, durable notification stream or native change-event emission is implemented by this slice. Current reads
-  and explicit refresh are authoritative; notifications are not advertised as a replay mechanism.
-- Content is bounded in memory, not streamed to disk. File handles cannot outlive their owning session or retired native node.
+- Native events use the shared coalescer/generated states after a known commit or complete external refresh. They are
+  invalidation hints, not durable history. Local candidates stage projection, event construction and address-space observer
+  notifications before commit; rejected candidates restore prior nodes without retiring existing pinned file handles.
+- `IXRegistryChangeFeed` uses the ManagedSession V2 manager with one coalesced, bounded full-repair hint. Iterator disposal
+  removes its monitored item/subscription. Model/reconnect changes end the old feed for re-inspection; polling remains
+  mandatory and no quiet/partial stream authorizes deletion.
+- `SpoolDirectory` enables individually owned spill files above `MemoryBufferThreshold`, with separate `MaxSpoolBytes`
+  accounting. The CLI enables this by default. Failed spool writes invalidate the handle rather than publishing partial
+  content. Close, session retirement and node disposal reclaim owned files and reservations.
+- File handles cannot outlive their owning session or retired native node. Externally referenced documents retain their
+  URI in Metadata and are not fetched or represented as successful empty files.

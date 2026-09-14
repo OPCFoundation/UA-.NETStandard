@@ -151,14 +151,14 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
         }
 
         [Test]
-        public async Task ReadonlyAndImmutableDefaultsSurviveReplacementAndIgnoreCallerValuesAsync()
+        public async Task ReadonlyDefaultsSurviveReplacementAndIgnoreCallerValuesAsync()
         {
             using var endpoint = CreateWithAttributes("""
                 {"server":{"type":"string","required":true,"readonly":true,"default":"owned"},
-                "fixed":{"type":"integer","required":true,"immutable":true,"default":7},
+                "fixed":{"type":"integer","required":true,"readonly":true,"default":7},
                 "settings":{"type":"object","attributes":{
                 "server":{"type":"string","required":true,"readonly":true,"default":"nested"},
-                "fixed":{"type":"integer","required":true,"immutable":true,"default":11},
+                "fixed":{"type":"integer","required":true,"readonly":true,"default":11},
                 "editable":{"type":"string"}}}}
                 """);
             XRegistryResponse created = await endpoint.ExecuteAsync(XRegistryProviderCoverage.Request(
@@ -244,7 +244,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
         [TestCase("""{"groups":{"Upper":{"singular":"group"}}}""")]
         [TestCase("""{"groups":{},"xinclude":[]}""")]
         [TestCase("""{"groups":{},"typemap":{}}""")]
-        [TestCase("""{"groups":{"groups":{"singular":"group","ximportresources":[]}}}""")]
+        [TestCase("""{"groups":{"groups":{"singular":"group","ximportresources":["/absent/schemas"]}}}""")]
         public void UnsupportedModelStructureIsRejectedBeforeOpeningStorage(string model)
         {
             ArgumentException? error = Assert.Throws<ArgumentException>(() =>
@@ -258,8 +258,8 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
             });
         }
 
-        [TestCase("""{"type":"string","ifvalues":{}}""", "invalid_model")]
-        [TestCase("""{"type":"xid","target":"/groups"}""", "invalid_model")]
+        [TestCase("""{"type":"array","item":{"type":"string"},"ifvalues":{}}""", "invalid_model")]
+        [TestCase("""{"type":"string","target":"/groups"}""", "invalid_model")]
         [TestCase("""{"type":"array"}""", "invalid_model")]
         [TestCase("""{"type":"map","item":null}""", "invalid_model")]
         [TestCase("""{"type":"string","default":"missing-required"}""", "model_required_true")]
@@ -285,15 +285,20 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
         [TestCase("versionmode", "\"unknown\"")]
         [TestCase("hasdocument", "\"true\"")]
         [TestCase("maxversions", "-1")]
-        [TestCase("validateformat", "true")]
+        [TestCase("validateformat", "\"true\"")]
         [TestCase("validatecompatibility", "true")]
-        [TestCase("strictvalidation", "true")]
+        [TestCase("strictvalidation", "\"true\"")]
         [TestCase("ximport", "[]")]
         public void UnsupportedResourceFeaturesAreRejectedAtConstruction(string name, string value)
         {
             string model = """
                 {"groups":{"groups":{"singular":"group","resources":{"schemas":{"singular":"schema",
-                """ + "\"" + name + "\":" + value + "}}}}}";
+                """ +
+                "\"" +
+                name +
+                "\":" +
+                value +
+                "}}}}}";
             ArgumentException? error = Assert.Throws<ArgumentException>(() =>
             {
                 using var endpoint = XRegistryProviderCoverage.Create(model);

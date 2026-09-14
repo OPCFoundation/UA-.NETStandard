@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET8_0_OR_GREATER
+#if XREGISTRY_HTTP_MODERN
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -99,6 +99,8 @@ namespace Opc.Ua.XRegistry.Http.Tests
 
         public Func<CancellationToken, ValueTask<XRegistryResponse>>? CommitCallback { get; set; }
 
+        public Func<ValueTask>? PreparedDisposeCallback { get; set; }
+
         public int Commits { get; private set; }
 
         public int Aborts { get; private set; }
@@ -144,13 +146,16 @@ namespace Opc.Ua.XRegistry.Http.Tests
                     ? new ValueTask<XRegistryResponse>(Response) : endpoint.CommitCallback(cancellationToken);
             }
 
-            public ValueTask DisposeAsync()
+            public async ValueTask DisposeAsync()
             {
                 if (!m_committed)
                 {
                     endpoint.Aborts++;
                 }
-                return default;
+                if (endpoint.PreparedDisposeCallback is { } dispose)
+                {
+                    await dispose().ConfigureAwait(false);
+                }
             }
 
             private bool m_committed;
@@ -174,7 +179,8 @@ namespace Opc.Ua.XRegistry.Http.Tests
             XRegistryHttpRouteOptions? options = null,
             ClaimsPrincipal? principal = null,
             string pattern = "/registry",
-            Action<HttpContext>? prepare = null)
+            Action<HttpContext>? prepare = null,
+            IXRegistryEndpointResolver? resolver = null)
         {
             IHost host = new HostBuilder().ConfigureWebHost(web => web
                 .UseTestServer()
@@ -201,7 +207,8 @@ namespace Opc.Ua.XRegistry.Http.Tests
                     });
                     app.UseRouting();
                     app.UseEndpoints(routes => routes.MapXRegistry(
-                        pattern, endpoint, options ?? new XRegistryHttpRouteOptions(HttpHostTestData.PublicRoot)));
+                        pattern, resolver ?? XRegistryEndpointResolver.Borrow(endpoint),
+                        options ?? new XRegistryHttpRouteOptions(HttpHostTestData.PublicRoot)));
                 })).Build();
             try
             {

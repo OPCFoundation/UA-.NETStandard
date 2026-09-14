@@ -44,7 +44,8 @@ namespace Opc.Ua.XRegistry.Bridge.Native
     /// Endpoint over a host-owned ManagedSession. The session's authenticated identity,
     /// not caller-supplied envelope metadata, is authoritative on the remote server.
     /// </summary>
-    public sealed class XRegistryOpcUaEndpoint : IXRegistryOperationJournalEndpoint, IXRegistryPreparedEndpoint
+    public sealed partial class XRegistryOpcUaEndpoint :
+        IXRegistryOperationJournalEndpoint, IXRegistryPreparedEndpoint, IXRegistryChangeFeed
     {
         /// <summary>
         /// Binds an endpoint to a host-owned authenticated session and an explicitly selected registry root.
@@ -89,6 +90,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             XRegistryEndpointDescription description = m_codec.DecodeDescription(bytes);
             return description with
             {
+                SupportsPreparedSnapshots = false,
                 SupportsPreparedMutations = description.SupportsPreparedMutations &&
                     await DiscoverBridgeAsync(cancellationToken,
                         requirePrepared: true).ConfigureAwait(false) is not null
@@ -105,9 +107,10 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                 throw new ServiceResultException(StatusCodes.BadSecurityModeInsufficient);
             }
             RegistryBridgeTypeClient bridge = await DiscoverBridgeAsync(cancellationToken, requirePrepared: true)
-                .ConfigureAwait(false) ??
-                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                .ConfigureAwait(false)
+                ?? throw new ServiceResultException(StatusCodes.BadNotSupported,
                     "The native endpoint does not expose prepared mutation methods.");
+            await RequireGuardSupportAsync(request, cancellationToken).ConfigureAwait(false);
             ByteString encoded = m_codec.EncodeRequest(request);
             (NodeId upload, uint handle) = await bridge.BeginRequestAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -150,6 +153,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             {
                 throw new ServiceResultException(StatusCodes.BadSecurityModeInsufficient);
             }
+            await RequireGuardSupportAsync(request, cancellationToken).ConfigureAwait(false);
             ByteString encoded = m_codec.EncodeRequest(request);
             string digest = m_codec.ComputeRequestDigest(request);
             (NodeId upload, uint handle) = await bridge.BeginRequestAsync(cancellationToken).ConfigureAwait(false);
@@ -190,8 +194,8 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             {
                 throw new ArgumentException("An operation identity is required.", nameof(operationId));
             }
-            RegistryBridgeTypeClient? bridge = await DiscoverBridgeAsync(cancellationToken).ConfigureAwait(false) ??
-                throw new ServiceResultException(
+            RegistryBridgeTypeClient? bridge = await DiscoverBridgeAsync(cancellationToken).ConfigureAwait(false)
+                ?? throw new ServiceResultException(
                     StatusCodes.BadNotSupported, "The base binding has no outcome journal.");
             (uint state, NodeId file, uint handle) = await bridge.GetOperationOutcomeAsync(
                 operationId, cancellationToken).ConfigureAwait(false);
@@ -325,7 +329,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             }
             if (candidates.Length != 1 ||
                 ExpandedNodeId.ToNodeId(candidates[0].TypeDefinition, m_session.NamespaceUris) !=
-                ExpandedNodeId.ToNodeId(Model.ObjectTypeIds.RegistryBridgeType, m_session.NamespaceUris))
+                    ExpandedNodeId.ToNodeId(Model.ObjectTypeIds.RegistryBridgeType, m_session.NamespaceUris))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadTypeMismatch, "The experimental bridge type is invalid.");
@@ -336,8 +340,8 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             ReferenceDescription? protocol = (bridgeChildren.ToArray() ?? []).SingleOrDefault(reference =>
                 reference.BrowseName.Name == "ProtocolVersion" &&
                 m_session.NamespaceUris.GetString(reference.BrowseName.NamespaceIndex) ==
-                    XRegistryBridgeNativeOptions.ExperimentalNamespaceUri) ??
-                throw new ServiceResultException(
+                    XRegistryBridgeNativeOptions.ExperimentalNamespaceUri)
+                ?? throw new ServiceResultException(
                     StatusCodes.BadNotSupported, "The experimental protocol is unversioned.");
             DataValue value = await m_session.ReadValueAsync(
                 ExpandedNodeId.ToNodeId(protocol.NodeId, m_session.NamespaceUris), ct).ConfigureAwait(false);
@@ -374,6 +378,32 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                 }
             }
             return count == 1;
+        }
+
+        private async ValueTask RequireGuardSupportAsync(XRegistryRequest request, CancellationToken ct)
+        {
+            if (request.ExpectedVersionIncarnation is null &&
+                request.ExpectedGeneration is null &&
+                request.AddressPath is null)
+            {
+                return;
+            }
+            XRegistryEndpointDescription description = await InspectAsync(request.Context, ct).ConfigureAwait(false);
+            if (request.AddressPath is not null && description.ShortLinkPrefix is null)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    "The native endpoint does not advertise original-address revalidation.");
+            }
+            if (request.ExpectedVersionIncarnation is not null && !description.SupportsVersionIncarnationGuards)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    "The native endpoint does not advertise Version incarnation guards.");
+            }
+            if (request.ExpectedGeneration is not null && !description.SupportsGenerationGuards)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    "The native endpoint does not advertise registry generation guards.");
+            }
         }
 
         private XRegistryBaseOpcUaEndpoint BaseEndpoint()

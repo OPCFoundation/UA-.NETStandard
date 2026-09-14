@@ -32,26 +32,30 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Numerics;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Opc.Ua.XRegistry.Protocol;
 
 namespace Opc.Ua.XRegistry.Server.Protocol
 {
-    internal sealed class XRegistryModelRules
+    internal sealed partial class XRegistryModelRules
     {
         public XRegistryModelRules(JsonObject model)
         {
             Model = model;
+            ValidateModelMembers(model, s_registryModelMembers);
             if (model["groups"] is not JsonObject groups)
             {
                 throw new XRegistryRejectionException("invalid_model", "A registry model requires a groups map.");
             }
+            ImportResources(model, groups);
             ValidateAttributes(model["attributes"]);
             RejectExternalDefinitions(model);
             foreach ((string name, JsonNode? value) in groups)
             {
                 JsonObject group = Object(value);
+                ValidateModelMembers(group, s_groupModelMembers);
                 ValidateType(name, group);
                 ValidateAttributes(group["attributes"]);
                 RejectExternalDefinitions(group);
@@ -63,6 +67,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 foreach ((string resourceName, JsonNode? resourceValue) in resources)
                 {
                     JsonObject resource = Object(resourceValue);
+                    ValidateModelMembers(resource, s_resourceModelMembers);
                     ValidateType(resourceName, resource);
                     RejectExternalDefinitions(resource);
                     ValidateAttributes(resource["attributes"]);
@@ -74,10 +79,10 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                     resource["singleversionroot"] ??= false;
                     resource["versionmode"] ??= "manual";
                     string mode = Text(resource["versionmode"]).ToLowerInvariant();
-                    if (mode is not ("manual" or "createdat" or "modifiedat"))
+                    if (mode is not ("manual" or "createdat" or "modifiedat" or "semver"))
                     {
                         throw new XRegistryRejectionException("invalid_model",
-                            "This provider supports manual, createdat and modifiedat version ordering.");
+                            "The version ordering algorithm is not supported.");
                     }
                     resource["versionmode"] = mode;
                     if (mode != "manual")
@@ -88,18 +93,36 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                     {
                         _ = Boolean(resource[flag]);
                     }
-                    if (Boolean(resource["validateformat"]) ||
-                        Boolean(resource["validatecompatibility"]) ||
-                        Boolean(resource["strictvalidation"]))
+                    bool validateFormat = Boolean(resource["validateformat"]);
+                    if (Boolean(resource["validatecompatibility"]) && !validateFormat)
                     {
                         throw new XRegistryRejectionException("invalid_model",
-                            "Format/compatibility validation requires a qualified domain endpoint.");
+                            "Compatibility validation requires format validation.");
                     }
+                    _ = Boolean(resource["strictvalidation"]);
+                    ValidateTypeMap(resource["typemap"]);
+                    ValidateMatchVersions(resource["attributes"] as JsonObject, true, false);
                 }
+            }
+            ValidateMatchVersions(model["attributes"] as JsonObject, false, false);
+            foreach ((_, JsonNode? group) in groups)
+            {
+                ValidateMatchVersions(group?["attributes"] as JsonObject, false, false);
+                foreach ((_, JsonNode? resource) in Object(group?["resources"]))
+                {
+                    ValidateMatchVersions(resource?["metaattributes"] as JsonObject, false, false);
+                }
+            }
+            JsonObject complete = CompleteModel();
+            foreach ((_, JsonNode? group) in Object(complete["groups"]))
+            {
+                XRegistryConstraintRules.ValidateGroup(Object(group));
             }
         }
 
         public JsonObject Model { get; }
+
+        internal JsonObject ResourceOrigins { get; } = [];
 
         public XRegistryTarget Resolve(string path)
         {
@@ -110,7 +133,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             }
             if (parts.Count == 1 &&
                 parts[0] is
-                    "model" or "modelsource" or "capabilities" or "capabilitiesoffered" or "export")
+                    "model" or "modelsource" or "capabilities" or "capabilitiesoffered" or "export" or ".xregistry")
             {
                 return new(path, XRegistryEntityKind.Special, Model, parts[0]);
             }
@@ -152,6 +175,8 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             JsonObject old, JsonObject input, JsonObject? definitions, bool patch,
             string idName, string id, string kind, HashSet<string>? excluded = null)
         {
+            JsonObject? declared = definitions;
+            definitions = EffectiveAttributes(definitions, Prospective(old, input, patch, definitions));
             if (input.TryGetPropertyValue(idName, out JsonNode? givenId) && givenId is not null && Text(givenId) != id)
             {
                 throw new XRegistryRejectionException(
@@ -162,6 +187,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             {
                 if (IsManaged(name) ||
                     name == idName ||
+                    name == "createdat" ||
                     Boolean(definitions?[name]?["readonly"]) ||
                     Boolean(definitions?[name]?["immutable"]))
                 {
@@ -203,12 +229,31 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 }
             }
             result[idName] = id;
-            ValidateObject(result, definitions, kind);
+            ValidateObject(result, declared, kind);
+            if (declared is not null)
+            {
+                JsonObject? effective = EffectiveAttributes(declared, result);
+                foreach ((string name, _) in result)
+                {
+                    if (name != idName &&
+                        excluded?.Contains(name) != true &&
+                        !IsManaged(name) &&
+                        !IsStandard(name, kind) &&
+                        effective?.ContainsKey(name) != true &&
+                        effective?.ContainsKey("*") != true)
+                    {
+                        throw new XRegistryRejectionException("invalid_attribute",
+                            "An attribute is not active under the current conditional model.");
+                    }
+                }
+            }
             return result;
         }
 
-        public static void ValidateObject(JsonObject value, JsonObject? definitions, string kind)
+        public static void ValidateObject(
+            JsonObject value, JsonObject? definitions, string kind, bool extendedNames = false)
         {
+            definitions = EffectiveAttributes(definitions, value);
             if (definitions is not null)
             {
                 foreach ((string name, JsonNode? rule) in definitions)
@@ -234,6 +279,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             }
             foreach ((string name, JsonNode? node) in value.ToArray())
             {
+                ValidateAttributeName(name, extendedNames);
                 if (node is null)
                 {
                     value.Remove(name);
@@ -244,6 +290,16 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 {
                     throw new XRegistryRejectionException("invalid_attribute",
                         $"Nested attribute '{name}' is not defined in the model.");
+                }
+                if (node is JsonValue &&
+                    (!IsManaged(name) || kind == "extension") &&
+                    (definition is null || Text(definition["type"]) != "any" || IsStandard(name, kind)))
+                {
+                    ValidateScalarSize(node, name);
+                }
+                if (kind == "version" && name == "format" && Text(node).Length == 0)
+                {
+                    throw new XRegistryRejectionException("invalid_attribute", "A format identifier must be nonempty.");
                 }
                 if (definition is not null && (!IsManaged(name) || kind == "extension"))
                 {
@@ -289,6 +345,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             {
                 return fallback;
             }
+
             if (value is JsonValue scalar && scalar.TryGetValue(out bool result))
             {
                 return result;
@@ -319,8 +376,8 @@ namespace Opc.Ua.XRegistry.Server.Protocol
 
         public static JsonObject Object(JsonNode? value)
         {
-            return value as JsonObject ??
-                throw new XRegistryRejectionException("bad_request", "Expected a JSON object.");
+            return value as JsonObject
+                ?? throw new XRegistryRejectionException("bad_request", "Expected a JSON object.");
         }
 
         public static bool IsManaged(string name)
@@ -337,13 +394,87 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 or "modifiedat" or "deprecated" ||
                 (kind == "version" && name is "contenttype" or "format" or "ancestorid") ||
                 (kind == "group" && name == "constraints") ||
-                (kind == "meta" && name is "defaultversionid" or "defaultversionsticky" or "xref" or "compatibility");
+                (kind == "meta" &&
+                    name is "defaultversionid" or "defaultversionsticky" or "xref" or "compatibility");
+        }
+
+        internal static void ValidateConstraintValue(JsonNode value, JsonObject definition, string name)
+        {
+            ValidateValue(value, definition, name);
+        }
+
+        internal static bool TryTimestamp(string text, out DateTimeOffset result)
+        {
+            result = default;
+            if (text.Length < 20 ||
+                text[4] != '-' ||
+                text[7] != '-' ||
+                text[10] is not ('T' or 't') ||
+                text[13] != ':' ||
+                text[16] != ':')
+            {
+                return false;
+            }
+            for (int index = 0; index < 19; index++)
+            {
+                if (index is not (4 or 7 or 10 or 13 or 16) && text[index] is not (>= '0' and <= '9'))
+                {
+                    return false;
+                }
+            }
+            bool utc = text[^1] is 'Z' or 'z';
+            int zone = text.Length - (utc ? 1 : 6);
+            if (zone < 19)
+            {
+                return false;
+            }
+            if (zone != 19)
+            {
+                if (zone == 20 || text[19] != '.')
+                {
+                    return false;
+                }
+                for (int index = 20; index < zone; index++)
+                {
+                    if (text[index] is not (>= '0' and <= '9'))
+                    {
+                        return false;
+                    }
+                }
+            }
+            if (!utc)
+            {
+                if (text[zone] is not ('+' or '-') || text[zone + 3] != ':')
+                {
+                    return false;
+                }
+                for (int index = zone + 1; index < text.Length; index++)
+                {
+                    if (index != zone + 3 && text[index] is not (>= '0' and <= '9'))
+                    {
+                        return false;
+                    }
+                }
+            }
+            return DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out result);
+        }
+
+        private static void ValidateScalarSize(JsonNode value, string name)
+        {
+            string text = value.GetValueKind() == JsonValueKind.String ? Text(value) : value.ToJsonString();
+            if (Encoding.UTF8.GetByteCount(name) + Encoding.UTF8.GetByteCount(text) > 4096)
+            {
+                throw new XRegistryRejectionException(
+                    "invalid_attribute", "A scalar attribute exceeds its 4096-byte limit.");
+            }
         }
 
         private static JsonObject ApplyNestedObject(
             JsonObject old, JsonObject input, JsonObject definition, bool patch)
         {
-            var attributes = definition["attributes"] as JsonObject;
+            bool extendedNames = ExtendedNames(definition);
+            var attributes = EffectiveAttributes(definition["attributes"] as JsonObject,
+                Prospective(old, input, patch, definition["attributes"] as JsonObject));
             JsonObject result = patch ? (JsonObject)old.DeepClone() : [];
             foreach ((string name, JsonNode? value) in old)
             {
@@ -354,8 +485,9 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             }
             foreach ((string name, JsonNode? value) in input)
             {
-                JsonObject? rule = (attributes?[name] as JsonObject ?? attributes?["*"] as JsonObject) ??
-                    throw new XRegistryRejectionException(
+                ValidateAttributeName(name, extendedNames);
+                JsonObject? rule = (attributes?[name] as JsonObject ?? attributes?["*"] as JsonObject)
+                    ?? throw new XRegistryRejectionException(
                         "invalid_attribute", $"Undefined nested attribute '{name}'.");
                 if (Boolean(rule["readonly"]) || Boolean(rule["immutable"]))
                 {
@@ -374,7 +506,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                     result[name] = value.DeepClone();
                 }
             }
-            ValidateObject(result, attributes, "extension");
+            ValidateObject(result, definition["attributes"] as JsonObject, "extension", extendedNames);
             return result;
         }
 
@@ -412,7 +544,8 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 case "any":
                     return;
                 case "object":
-                    ValidateObject(Object(node), definition["attributes"] as JsonObject, "extension");
+                    ValidateObject(Object(node), definition["attributes"] as JsonObject, "extension",
+                        ExtendedNames(definition));
                     valid = true;
                     break;
                 case "map":
@@ -492,6 +625,7 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             {
                 throw new XRegistryRejectionException("invalid_attribute", $"Attribute '{name}' violates its model.");
             }
+            ValidateTarget(node, definition);
         }
 
         private static void ValidateType(string key, JsonObject type)
@@ -505,67 +639,15 @@ namespace Opc.Ua.XRegistry.Server.Protocol
             ValidateMapKey(Text(type["singular"]));
         }
 
-        private static bool TryTimestamp(string text, out DateTimeOffset result)
-        {
-            result = default;
-            if (text.Length < 20 ||
-                text[4] != '-' ||
-                text[7] != '-' ||
-                text[10] is not ('T' or 't') ||
-                text[13] != ':' ||
-                text[16] != ':')
-            {
-                return false;
-            }
-            for (int index = 0; index < 19; index++)
-            {
-                if (index is not (4 or 7 or 10 or 13 or 16) && text[index] is not (>= '0' and <= '9'))
-                {
-                    return false;
-                }
-            }
-            bool utc = text[^1] is 'Z' or 'z';
-            int zone = text.Length - (utc ? 1 : 6);
-            if (zone < 19)
-            {
-                return false;
-            }
-            if (zone != 19)
-            {
-                if (zone == 20 || text[19] != '.')
-                {
-                    return false;
-                }
-                for (int index = 20; index < zone; index++)
-                {
-                    if (text[index] is not (>= '0' and <= '9'))
-                    {
-                        return false;
-                    }
-                }
-            }
-            if (!utc)
-            {
-                if (text[zone] is not ('+' or '-') || text[zone + 3] != ':')
-                {
-                    return false;
-                }
-                for (int index = zone + 1; index < text.Length; index++)
-                {
-                    if (index != zone + 3 && text[index] is not (>= '0' and <= '9'))
-                    {
-                        return false;
-                    }
-                }
-            }
-            return DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out result);
-        }
-
-        private static void ValidateAttributes(JsonNode? rules)
+        private static void ValidateAttributes(JsonNode? rules, int depth = 0, bool extendedNames = false)
         {
             if (rules is null)
             {
                 return;
+            }
+            if (depth > 32)
+            {
+                throw new XRegistryRejectionException("invalid_model", "The model nesting limit was exceeded.");
             }
             foreach ((string name, JsonNode? value) in Object(rules))
             {
@@ -573,13 +655,10 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 string type = Text(definition["type"]);
                 if (name != "*")
                 {
-                    ValidateMapKey(name);
+                    ValidateAttributeName(name, extendedNames);
                 }
-                if (definition["ifvalues"] is not null || definition["target"] is not null)
-                {
-                    throw new XRegistryRejectionException("invalid_model",
-                        "Conditional attributes and typed-reference constraints require a qualified domain endpoint.");
-                }
+                ValidateAttributeDefinition(name, definition, Object(rules), depth, extendedNames);
+                definition["name"] ??= name;
                 if (definition["default"] is JsonNode defaultValue)
                 {
                     if (type is "array" or "map" or "object" or "any")
@@ -596,18 +675,24 @@ namespace Opc.Ua.XRegistry.Server.Protocol
                 }
                 if (type == "object")
                 {
-                    ValidateAttributes(definition["attributes"]);
+                    ValidateAttributes(definition["attributes"], depth + 1, ExtendedNames(definition));
                 }
                 if (type is "array" or "map" && definition["item"] is not JsonObject)
                 {
                     throw new XRegistryRejectionException("invalid_model", "Collections require an item definition.");
+                }
+                if (type is "array" or "map")
+                {
+                    var item = Object(definition["item"]);
+                    var wrapper = new JsonObject { ["item"] = item.DeepClone() };
+                    ValidateAttributes(wrapper, depth + 1);
                 }
             }
         }
 
         private static void RejectExternalDefinitions(JsonObject model)
         {
-            foreach (string name in new[] { "ximportresources", "ximport", "xinclude", "includes", "typemap" })
+            foreach (string name in new[] { "ximport", "xinclude", "includes", "$include", "$includes" })
             {
                 if (model[name] is not null)
                 {
@@ -621,10 +706,32 @@ namespace Opc.Ua.XRegistry.Server.Protocol
         {
             if (name.Length is < 1 or > 63 ||
                 !IsLowerAlphaNumeric(name[0]) ||
-                name.Any(character => !IsLowerAlphaNumeric(character) && character is not ('.' or ':' or '-' or '_')))
+                name.Any(
+                    character => !IsLowerAlphaNumeric(character) && character is not ('.' or ':' or '-' or '_')))
             {
                 throw new XRegistryRejectionException("invalid_attribute", "Invalid model attribute or map key.");
             }
+        }
+
+        private static void ValidateAttributeName(string name, bool extended)
+        {
+            if (extended)
+            {
+                ValidateMapKey(name);
+                return;
+            }
+            if (name.Length is < 1 or > 63 ||
+                name[0] is >= '0' and <= '9' ||
+                name.Any(character => !IsLowerAlphaNumeric(character) && character != '_'))
+            {
+                throw new XRegistryRejectionException("invalid_attribute", "Invalid attribute name.");
+            }
+        }
+
+        private static bool ExtendedNames(JsonObject definition)
+        {
+            return definition["namecharset"] is JsonNode charset &&
+                Text(charset).Equals("extended", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsLowerAlphaNumeric(char character)

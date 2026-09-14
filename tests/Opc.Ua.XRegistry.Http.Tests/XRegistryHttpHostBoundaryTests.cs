@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET8_0_OR_GREATER
+#if XREGISTRY_HTTP_MODERN
 using System;
 using System.Net;
 using System.Net.Http;
@@ -913,7 +913,7 @@ namespace Opc.Ua.XRegistry.Http.Tests
             Task execution = SendRequestAsync();
             await entered.Task.ConfigureAwait(false);
 
-            caller.Cancel();
+            await caller.CancelAsync().ConfigureAwait(false);
             await aborted.Task.ConfigureAwait(false);
             bool cancelled = false;
             try

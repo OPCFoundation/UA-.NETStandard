@@ -42,6 +42,11 @@ The endpoint does not dispose the supplied `HttpClient`. That client's credentia
 provider is the upstream identity. A protocol call context is **not** converted to
 authentication headers. Use isolated clients/endpoints when mapping callers to
 different upstream credential profiles.
+For hosting, the `MapXRegistry` overload accepting `IXRegistryEndpointResolver`
+acquires a caller-bound endpoint/session lease for the complete request. The
+same lease is revalidated before preparation and publication, and released only
+after the operation stops using it. Arbitrary inbound authorization headers are
+never forwarded to the selected upstream.
 
 ```csharp
 IHttpClientBuilder clientBuilder = services.AddXRegistryHttpEndpoint(
@@ -146,6 +151,28 @@ do not provide remote preparation merely because they conform to the HTTP bindin
 When supplied, `XRegistryEndpointDescription.PublicRoot` identifies authoritative
 navigation URLs for rebasing to the frontend's configured root. Arbitrary foreign
 navigation links are rejected, not followed.
+Backend deadlines are enforced even when a provider ignores cancellation.
+Late preparations are aborted rather than committed; late commits retain their
+lease until their actual outcome completes. `CleanupTimeout` bounds the wait for
+lease disposal, and cleanup errors are logged without rewriting a known commit.
+
+### Alias dispatch
+
+When the caller-bound endpoint implements `IXRegistryAddressResolver`, hosting
+resolves aliases before model-dependent body decoding using that same lease.
+It authorizes the canonical path as well as the presented address, retains
+`AddressPath` for authoritative revalidation, and directly dispatches the request.
+It never redirects a mutation or asks the client to replay its body. `shortself`
+links are rebased to the public frontend root and retained in document views.
+An explicit resolver rejection retains its status; a malformed upstream alias
+response or transport failure returns HTTP 502 without leaking backend details.
+
+Outbound `XRegistryHttpOptions.ShortLinkPrefix` is an explicit deployment
+qualification, not discovery from `shortself: true`: the upstream must provide
+immutable, never-reused aliases, direct dispatch and `doc` metadata reads.
+Resolution probes the alias for its canonical `xid`, but the actual request
+still uses the original alias URI. This profile does not add remote preparation,
+incarnation guards or operation replay to an ordinary HTTP server.
 
 ## Supported wire profile
 
@@ -204,13 +231,15 @@ or loopback-IP HTTP roots for local use; it never permits arbitrary plaintext
 remote roots. Credentials, queries, fragments, malformed escapes, traversal and
 ambiguous separators are rejected. Navigation links must remain on the configured
 origin **and inside its registry root**. Redirects are surfaced, never followed by
-the transport. External document URL metadata is preserved without fetching it;
-cross-origin document redirects are deliberately unsupported by this profile.
+the transport. An external document `303` is preserved only when its valid
+`Location` exactly matches the Resource's document-URI metadata; it is not treated
+as a navigable registry link and no credentials or request are forwarded to it.
 
 Default limits are 32 MiB per encoded/decoded body, JSON depth 64, 128 headers,
 64 KiB of header names/values, 128 query parameters and 16,384 URI characters.
 `RequestTimeout` defaults to 30 seconds over inspection/execution/body reads;
 hosting additionally bounds response writing. Cancellation propagates throughout.
+The independent caller/operation cleanup wait defaults to five seconds.
 Small independent error budgets ensure a tiny configured payload limit still
 produces a meaningful rejection. Configure the same or tighter representability
 limits in the authoritative provider.
@@ -220,8 +249,9 @@ page traversal, external model/schema resolution, external document retrieval,
 HTTP operation replay, push/watch endpoints, compression on writes/responses,
 Brotli/zstd, Range responses, or ETag/date validator semantics. HTTP `If-*`
 validator preconditions are explicitly rejected rather than silently turned into
-unconditional writes; use xRegistry epoch preconditions. Link parameters other than
-relation and target have no field in the shared protocol contract. Discovery,
+unconditional writes; use xRegistry epoch preconditions. Pagination Link `count`
+and result-set `Expires` are retained in the shared protocol and native envelopes.
+Other extension Link parameters are not advertised. Discovery,
 inline/base64 documents and optional query features are passed through to the
 provider, not advertised as independently implemented business features here.
 

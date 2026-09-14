@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET8_0_OR_GREATER
+#if XREGISTRY_HTTP_MODERN
 using System.Net;
 using System.Net.Http;
 using System.Text;

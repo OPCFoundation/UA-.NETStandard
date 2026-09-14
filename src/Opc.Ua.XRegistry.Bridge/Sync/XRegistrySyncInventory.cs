@@ -16,7 +16,7 @@
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
  * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
@@ -45,6 +45,8 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
 
         public XRegistrySyncModel? Model { get; set; }
 
+        public XRegistrySyncObservation? ModelSource { get; set; }
+
         public bool Complete { get; set; } = true;
 
         public bool ScopeStable { get; set; }
@@ -61,7 +63,8 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
         XRegistryCallContext context,
         XRegistrySyncOptions options,
         TimeProvider timeProvider,
-        XRegistrySyncSide side)
+        XRegistrySyncSide side,
+        XRegistrySyncCorrespondence? correspondence = null)
     {
         public async ValueTask<XRegistrySyncInventory> ReadAsync(CancellationToken cancellationToken)
         {
@@ -69,9 +72,18 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             try
             {
                 inventory.Description = await InspectAsync(cancellationToken).ConfigureAwait(false);
+                m_readScope = new XRegistryGenerationReadScope(endpoint, inventory.Description);
                 inventory.Model = new XRegistrySyncModel(inventory.Description.Model, options);
                 XRegistrySyncObservation root = await ReadRootAsync(inventory, cancellationToken).ConfigureAwait(false);
                 Add(inventory, root);
+                if (inventory.Description.Capabilities.ValueKind == JsonValueKind.Object &&
+                    inventory.Description.Capabilities.TryGetProperty("available", out JsonElement available) &&
+                    available.ValueKind == JsonValueKind.Object &&
+                    available.TryGetProperty("modelsource", out _))
+                {
+                    inventory.ModelSource = await ReadEntityAsync("/modelsource", inventory.Model, cancellationToken)
+                        .ConfigureAwait(false);
+                }
                 foreach (string groups in inventory.Model.GroupCollections.Span.ToArray())
                 {
                     string groupCollection = XRegistrySyncModel.Child("/", groups);
@@ -94,6 +106,10 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                                 string resourcePath = XRegistrySyncModel.Child(resourceCollection, resourceId);
                                 if (!await InventoryEntityAsync(inventory, resourcePath + "/meta", cancellationToken)
                                     .ConfigureAwait(false))
+                                {
+                                    continue;
+                                }
+                                if (inventory.Entries[resourcePath + "/meta"].Metadata.TryGetProperty("xref", out _))
                                 {
                                     continue;
                                 }
@@ -147,25 +163,51 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             {
                 Fail(inventory, "/", exception.Message);
             }
+            finally
+            {
+                m_readScope = null;
+            }
             return inventory;
         }
 
         public async ValueTask<XRegistryEndpointDescription> InspectAsync(CancellationToken cancellationToken)
         {
-            var deadline = new XRegistrySyncDeadline(timeProvider, options.RequestTimeout, cancellationToken);
+            var deadline = new XRegistryOperationDeadline(timeProvider, options.RequestTimeout, cancellationToken);
             await using ConfiguredAsyncDisposable deadlineLifetime = deadline.ConfigureAwait(false);
-            return await endpoint.InspectAsync(context, deadline.Token).AsTask().WaitAsync(deadline.Token)
-                .ConfigureAwait(false);
+            XRegistryEndpointDescription description =
+                await (m_readScope ?? endpoint).InspectAsync(context, deadline.Token)
+                .AsTask().WaitAsync(deadline.Token).ConfigureAwait(false);
+            correspondence?.SetDescription(description);
+            return description;
         }
 
         public async ValueTask<XRegistryResponse> ExecuteAsync(
             XRegistryRequest request,
             CancellationToken cancellationToken)
         {
-            var deadline = new XRegistrySyncDeadline(timeProvider, options.RequestTimeout, cancellationToken);
+            var deadline = new XRegistryOperationDeadline(timeProvider, options.RequestTimeout, cancellationToken);
             await using ConfiguredAsyncDisposable deadlineLifetime = deadline.ConfigureAwait(false);
-            return await endpoint.ExecuteAsync(request with { Context = context }, deadline.Token).AsTask()
+            XRegistryResponse response = await (m_readScope ?? endpoint).ExecuteAsync(
+                MapRequest(request) with { Context = context }, deadline.Token).AsTask()
                 .WaitAsync(deadline.Token).ConfigureAwait(false);
+            return MapResponse(request, response);
+        }
+
+        public XRegistryRequest MapRequest(XRegistryRequest request)
+        {
+            return correspondence is null ? request : request.AtPath(correspondence.Address(request.Path)) with
+            {
+                Metadata = correspondence.Metadata(request.Path, request.Metadata, true),
+                Parameters = correspondence.Parameters(request.Path, request.Parameters)
+            };
+        }
+
+        public XRegistryResponse MapResponse(XRegistryRequest request, XRegistryResponse response)
+        {
+            return correspondence is null ? response : response with
+            {
+                Metadata = correspondence.Metadata(request.Path, response.Metadata, false)
+            };
         }
 
         public async ValueTask<XRegistryOperationOutcome> OutcomeAsync(
@@ -176,7 +218,7 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             {
                 return new XRegistryOperationOutcome(XRegistryOperationState.Unknown, null);
             }
-            var deadline = new XRegistrySyncDeadline(timeProvider, options.RequestTimeout, cancellationToken);
+            var deadline = new XRegistryOperationDeadline(timeProvider, options.RequestTimeout, cancellationToken);
             await using ConfiguredAsyncDisposable deadlineLifetime = deadline.ConfigureAwait(false);
             return await journal.GetOperationOutcomeAsync(operationId, context, deadline.Token).AsTask()
                 .WaitAsync(deadline.Token).ConfigureAwait(false);
@@ -187,6 +229,24 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             XRegistrySyncModel model,
             CancellationToken cancellationToken)
         {
+            if (path == "/modelsource")
+            {
+                XRegistryResponse root = await ExecuteAsync(new XRegistryRequest(XRegistryAction.Read, "/"),
+                    cancellationToken).ConfigureAwait(false);
+                RequireRead(root, "/");
+                XRegistryResponse source = await ExecuteAsync(new XRegistryRequest(XRegistryAction.Read, path),
+                    cancellationToken).ConfigureAwait(false);
+                RequireRead(source, path);
+                XRegistryResponse after = await ExecuteAsync(new XRegistryRequest(XRegistryAction.Read, "/"),
+                    cancellationToken).ConfigureAwait(false);
+                RequireRead(after, "/");
+                string epoch = XRegistrySyncJson.Epoch(root.Metadata);
+                if (XRegistrySyncJson.Epoch(after.Metadata) != epoch)
+                {
+                    throw new IOException("The registry changed while reading its model source.");
+                }
+                return XRegistrySyncModel.ObserveModel(source.Metadata, epoch);
+            }
             XRegistrySyncDefinition definition = model.Resolve(path);
             var request = new XRegistryRequest(XRegistryAction.Read, path) { View = XRegistryView.Metadata };
             XRegistryResponse first = await ExecuteAsync(request, cancellationToken).ConfigureAwait(false);
@@ -196,7 +256,8 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             }
             RequireRead(first, path);
             ByteString bytes = default;
-            if (definition.HasDocument)
+            if (definition.HasDocument &&
+                !first.Metadata.TryGetProperty(definition.Singular + "url", out _))
             {
                 XRegistryResponse document = await ExecuteAsync(request with { View = XRegistryView.Default },
                     cancellationToken).ConfigureAwait(false);
@@ -269,7 +330,7 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             {
                 return false;
             }
-            return XRegistrySyncDeadline.IsEndpointFailure(exception) ||
+            return XRegistryOperationDeadline.IsEndpointFailure(exception) ||
                 exception is ArgumentException or InvalidOperationException or KeyNotFoundException;
         }
 
@@ -382,10 +443,9 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                 int equals = part.AsSpan().IndexOf('=');
                 string name = Uri.UnescapeDataString(equals < 0 ? part : part[..equals]);
                 string? value = equals < 0 ? null : Unescape(part, equals + 1);
-                if (name is not ("cursor" or "page" or "limit" or "pagesize" or "offset"))
+                if (name.Length == 0)
                 {
-                    throw new JsonException(
-                        "This pagination parameter is not qualified for full synchronization scans.");
+                    throw new JsonException("A pagination query parameter has no name.");
                 }
                 parameters.Add(new XRegistryParameter(name, value));
             }
@@ -410,6 +470,10 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             foreach (XRegistrySyncObservation meta in inventory.Entries.Values.Where(
                 entry => entry.Kind == XRegistrySyncEntityKind.ResourceMeta))
             {
+                if (meta.Metadata.TryGetProperty("xref", out _))
+                {
+                    continue;
+                }
                 if (!meta.Metadata.TryGetProperty("defaultversionid", out JsonElement id) ||
                     id.ValueKind != JsonValueKind.String ||
                     !inventory.Entries.ContainsKey(
@@ -424,5 +488,6 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
 
         private int m_pages;
         private long m_bytes;
+        private XRegistryGenerationReadScope? m_readScope;
     }
 }

@@ -50,6 +50,15 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
 
         public long Sequence { get; set; }
 
+        public XRegistrySyncBaseline? ModelBaseline { get; set; }
+
+        public JsonElement ModelDefinition { get; set; }
+
+        public string RegistryScope { get; set; } = string.Empty;
+
+        public SortedDictionary<string, XRegistryVersionCorrespondence> VersionCorrespondences { get; } =
+            new(StringComparer.Ordinal);
+
         public SortedDictionary<string, XRegistrySyncBaseline> Baselines { get; } = new(StringComparer.Ordinal);
 
         public SortedDictionary<string, XRegistrySyncIntent> Intents { get; } = new(StringComparer.Ordinal);
@@ -102,6 +111,8 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
 
         public string? Failure { get; init; }
 
+        public bool AssignsVersion { get; init; }
+
         public bool Pending => State is XRegistrySyncIntentState.Prepared or XRegistrySyncIntentState.Responded;
     }
 
@@ -122,6 +133,17 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                 ["scope"] = state.ScopeFingerprint,
                 ["generation"] = state.Generation,
                 ["sequence"] = state.Sequence,
+                ["registryScope"] = state.RegistryScope,
+                ["modelBaseline"] = state.ModelBaseline is null ? null : Baseline(state.ModelBaseline),
+                ["modelDefinition"] = state.ModelDefinition.ValueKind == JsonValueKind.Undefined
+                    ? null : XRegistrySyncJson.Object(state.ModelDefinition),
+                ["versionCorrespondences"] =
+                    new JsonArray(state.VersionCorrespondences.Values.Select(mapping => (JsonNode?)new JsonObject
+                    {
+                        ["canonical"] = mapping.CanonicalPath,
+                        ["opcua"] = mapping.OpcUaPath,
+                        ["http"] = mapping.HttpPath
+                    }).ToArray()),
                 ["baselines"] = new JsonArray([.. state.Baselines.Values.Select(Baseline).Cast<JsonNode?>()]),
                 ["intents"] = new JsonArray([.. state.Intents.Values.Select(Intent).Cast<JsonNode?>()]),
                 ["conflicts"] = new JsonArray([.. state.Conflicts.Values.Select(Conflict).Cast<JsonNode?>()]),
@@ -129,7 +151,7 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             };
             var envelope = new JsonObject
             {
-                ["format"] = 1,
+                ["format"] = 2,
                 ["sha256"] = XRegistrySyncJson.Fingerprint(payload, maximumBytes, maximumDepth),
                 ["payload"] = payload
             };
@@ -142,8 +164,8 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             {
                 return DecodeCore(bytes);
             }
-            catch (Exception exception) when (exception is JsonException or FormatException or
-                InvalidOperationException or KeyNotFoundException or ArgumentException or OverflowException)
+            catch (Exception exception) when (exception is JsonException or FormatException
+                or InvalidOperationException or KeyNotFoundException or ArgumentException or OverflowException)
             {
                 throw new InvalidDataException("Synchronization state is malformed; explicit recovery is required.",
                     exception);
@@ -167,7 +189,7 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
         {
             using JsonDocument document = XRegistrySyncJson.Parse(bytes, maximumBytes, maximumDepth);
             JsonElement envelope = document.RootElement;
-            _ = XRegistrySyncJson.Integer(envelope, "format", 1, 1);
+            _ = XRegistrySyncJson.Integer(envelope, "format", 1, 2);
             JsonElement payload = envelope.GetProperty("payload");
             string checksum = XRegistrySyncJson.Fingerprint(
                 XRegistrySyncJson.Object(payload), maximumBytes, maximumDepth);
@@ -183,6 +205,38 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                 Generation = NonnegativeLong(payload, "generation"),
                 Sequence = NonnegativeLong(payload, "sequence")
             };
+            if (payload.TryGetProperty("registryScope", out JsonElement registryScope))
+            {
+                state.RegistryScope = registryScope.GetString()
+                    ?? throw new InvalidDataException("The registry scope must be a string.");
+            }
+            if (payload.TryGetProperty("modelBaseline", out JsonElement modelBaseline) &&
+                modelBaseline.ValueKind != JsonValueKind.Null)
+            {
+                state.ModelBaseline = ReadBaseline(modelBaseline);
+            }
+            if (payload.TryGetProperty("modelDefinition", out JsonElement definition) &&
+                definition.ValueKind != JsonValueKind.Null)
+            {
+                _ = XRegistrySyncJson.Object(definition);
+                state.ModelDefinition = definition.Clone();
+            }
+            if (payload.TryGetProperty("versionCorrespondences", out JsonElement mappings))
+            {
+                var nativePaths = new HashSet<string>(StringComparer.Ordinal);
+                var httpPaths = new HashSet<string>(StringComparer.Ordinal);
+                foreach (JsonElement mapping in mappings.EnumerateArray())
+                {
+                    var value = new XRegistryVersionCorrespondence(XRegistrySyncJson.String(mapping, "canonical"),
+                        XRegistrySyncJson.String(mapping, "opcua"), XRegistrySyncJson.String(mapping, "http"));
+                    if (!nativePaths.Add(value.OpcUaPath) || !httpPaths.Add(value.HttpPath))
+                    {
+                        throw new InvalidDataException(
+                            "A stored Version correspondence collapses endpoint identities.");
+                    }
+                    Add(state.VersionCorrespondences, value.CanonicalPath, value);
+                }
+            }
             if (string.IsNullOrWhiteSpace(state.JobId) || state.ConfigurationFingerprint.Length != 64)
             {
                 throw new InvalidDataException("Synchronization state has no valid owner identity.");
@@ -238,7 +292,8 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                 ["response"] = value.Response is null
                     ? null
                     : Convert.ToBase64String(codec.EncodeResponse(value.Response).ToArray()),
-                ["failure"] = value.Failure
+                ["failure"] = value.Failure,
+                ["assignsVersion"] = value.AssignsVersion
             };
         }
 
@@ -309,13 +364,25 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                 Response = OptionalBytes(element, "response") is { IsNull: false } response
                     ? codec.DecodeResponse(response)
                     : null,
-                Failure = XRegistrySyncJson.OptionalString(element, "failure")
+                Failure = XRegistrySyncJson.OptionalString(element, "failure"),
+                AssignsVersion = element.TryGetProperty("assignsVersion", out JsonElement assigned) &&
+                    assigned.ValueKind == JsonValueKind.True
             };
             if ((intent.Kind == XRegistrySyncIntentKind.Delete && intent.DestinationBefore.Count == 0) ||
                 (intent.Kind != XRegistrySyncIntentKind.Delete && intent.Source.Count == 0) ||
                 (intent.State == XRegistrySyncIntentState.Responded && intent.Response is null))
             {
                 throw new InvalidDataException("A stored synchronization intent has no verification evidence.");
+            }
+            if (intent.AssignsVersion &&
+                (intent.Kind != XRegistrySyncIntentKind.Create ||
+                    intent.Source.Count != 1 ||
+                    intent.Source[0].Kind != XRegistrySyncEntityKind.Version ||
+                    XRegistryPath.GetSegments(intent.Path).Count != 6 ||
+                    intent.Request.Action != XRegistryAction.Create ||
+                    intent.Request.Path != XRegistrySyncModel.ResourcePath(intent.Path)))
+            {
+                throw new InvalidDataException("An assigned-Version intent has an inconsistent scope.");
             }
             return intent;
         }
@@ -328,7 +395,8 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                 Date(element, "confirmedAt"));
             if (baseline.OpcUa.Path != baseline.Http.Path ||
                 baseline.OpcUa.Kind != baseline.Http.Kind ||
-                baseline.OpcUa.Fingerprint != baseline.Http.Fingerprint)
+                (baseline.OpcUa.Kind != XRegistrySyncEntityKind.Model &&
+                    baseline.OpcUa.Fingerprint != baseline.Http.Fingerprint))
             {
                 throw new InvalidDataException("A synchronization baseline does not describe equal live states.");
             }
@@ -338,11 +406,16 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
         private XRegistrySyncObservation ReadObservation(JsonElement element)
         {
             string epoch = XRegistrySyncJson.String(element, "epoch");
-            XRegistrySyncJson.ValidateEpoch(epoch);
             string path = Path(element);
-            var kind = (XRegistrySyncEntityKind)XRegistrySyncJson.Integer(element, "kind", 0, 3);
+            var kind = (XRegistrySyncEntityKind)XRegistrySyncJson.Integer(element, "kind", 0, 4);
             JsonElement metadata = element.GetProperty("metadata");
             _ = XRegistrySyncJson.Object(metadata);
+            if (epoch.Length != 0 ||
+                kind != XRegistrySyncEntityKind.ResourceMeta ||
+                !metadata.TryGetProperty("xref", out _))
+            {
+                XRegistrySyncJson.ValidateEpoch(epoch);
+            }
             var observation = new XRegistrySyncObservation(
                 path, kind, XRegistrySyncJson.String(element, "fingerprint"),
                 epoch, metadata, OptionalBytes(element, "document"));

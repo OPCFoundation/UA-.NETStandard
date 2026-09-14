@@ -98,7 +98,12 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
         /// <summary>
         /// A specifically identified Version's metadata and any document, not a default Version projection.
         /// </summary>
-        Version
+        Version,
+
+        /// <summary>
+        /// Modelsource configuration, guarded by the owning registry's epoch.
+        /// </summary>
+        Model
     }
 
     /// <summary>
@@ -274,6 +279,12 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
         public XRegistryCallContext HttpContext { get; init; } = XRegistryCallContext.Anonymous;
 
         /// <summary>
+        /// Explicit initial Version identity correspondence. Persisted assignments remain authoritative thereafter.
+        /// Mappings cannot move a Version into another Resource or collapse different identities.
+        /// </summary>
+        public ArrayOf<XRegistryVersionCorrespondence> VersionCorrespondences { get; init; }
+
+        /// <summary>
         /// Gets the positive limit on observed entities per endpoint inventory and entries per collection.
         /// Defaults to 10,000.
         /// </summary>
@@ -397,6 +408,7 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
         /// <summary>
         /// Gets this endpoint's exact unsigned epoch as a decimal string, including zero and values beyond UInt32.
         /// It guards only this endpoint's observation and is never ordered against the other registry's epoch.
+        /// An empty string denotes an unavailable xref epoch and cannot be used as a conditional write guard.
         /// </summary>
         public string Epoch { get; }
 

@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using Opc.Ua.XRegistry.Protocol;
 
@@ -60,15 +62,25 @@ namespace Opc.Ua.XRegistry.Http
         public bool IsCollection => Kind is
             XRegistryHttpEntityKind.Groups or XRegistryHttpEntityKind.Resources or XRegistryHttpEntityKind.Versions;
 
-        public bool IsDocumentView(XRegistryRequest request)
+        public bool IsDocumentView(XRegistryRequest request, bool response = false)
         {
+            if (response)
+            {
+                foreach (XRegistryParameter parameter in request.Parameters)
+                {
+                    if (parameter.Name == "doc")
+                    {
+                        return false;
+                    }
+                }
+            }
             return IsResource &&
                 HasDocument &&
                 request.View == XRegistryView.Default &&
                 request.Action is not (XRegistryAction.Delete or XRegistryAction.Describe);
         }
 
-        public string AttributeType(string name, bool mapItem = false)
+        public string AttributeType(string name, bool mapItem = false, JsonElement values = default)
         {
             if (name == "labels")
             {
@@ -85,9 +97,9 @@ namespace Opc.Ua.XRegistry.Http
             if (Definition.ValueKind == JsonValueKind.Object)
             {
                 string first = Kind == XRegistryHttpEntityKind.Meta ? "metaattributes" : "attributes";
-                if (TryAttributeType(Definition, first, name, mapItem, out string? type) ||
+                if (TryAttributeType(Definition, first, name, mapItem, values, out string? type) ||
                     (Kind == XRegistryHttpEntityKind.Resource &&
-                        TryAttributeType(Definition, "resourceattributes", name, mapItem, out type)))
+                        TryAttributeType(Definition, "resourceattributes", name, mapItem, values, out type)))
                 {
                     return type!;
                 }
@@ -97,8 +109,8 @@ namespace Opc.Ua.XRegistry.Http
 
         public static bool IsWellKnown(string path)
         {
-            return path is "/" or "/model" or "/modelsource" or "/capabilities" or
-                "/capabilitiesoffered" or "/export" or "/.xregistry";
+            return path is "/" or "/model" or "/modelsource" or "/capabilities"
+                or "/capabilitiesoffered" or "/export" or "/.xregistry";
         }
 
         public static XRegistryHttpShape Resolve(JsonElement model, string path)
@@ -179,28 +191,89 @@ namespace Opc.Ua.XRegistry.Http
             string container,
             string name,
             bool mapItem,
+            JsonElement values,
             out string? type)
         {
             type = null;
             if (!definition.TryGetProperty(container, out JsonElement attributes) ||
-                attributes.ValueKind != JsonValueKind.Object ||
-                !attributes.TryGetProperty(name, out JsonElement attribute) ||
-                attribute.ValueKind != JsonValueKind.Object)
+                attributes.ValueKind != JsonValueKind.Object)
             {
                 return false;
             }
+            return TryConditionalAttributeType(attributes, name, mapItem, values, out type) ||
+                TryConditionalAttributeType(attributes, "*", mapItem, values, out type);
+        }
+
+        private static bool TryConditionalAttributeType(
+            JsonElement attributes, string name, bool mapItem, JsonElement values, out string? type)
+        {
+            type = null;
+            var pending = new Queue<JsonElement>();
+            pending.Enqueue(attributes);
+            int inspected = 0;
+            while (pending.Count != 0)
+            {
+                JsonElement current = pending.Dequeue();
+                if (++inspected > 4096)
+                {
+                    throw new JsonException("The conditional attribute expansion limit was exceeded.");
+                }
+                if (current.TryGetProperty(name, out JsonElement attribute) &&
+                    attribute.ValueKind == JsonValueKind.Object)
+                {
+                    string candidate = ReadAttributeType(attribute, mapItem);
+                    if (type is not null && type != candidate)
+                    {
+                        throw new XRegistryHttpWireException(400, "header_error",
+                            "Ambiguous header types require a discriminator or the metadata representation.");
+                    }
+                    type = candidate;
+                }
+                foreach (JsonProperty selector in current.EnumerateObject())
+                {
+                    if (selector.Value.ValueKind != JsonValueKind.Object ||
+                        !selector.Value.TryGetProperty("ifvalues", out JsonElement conditions) ||
+                        conditions.ValueKind != JsonValueKind.Object)
+                    {
+                        continue;
+                    }
+                    JsonElement actual = default;
+                    bool known = values.ValueKind == JsonValueKind.Object &&
+                        values.TryGetProperty(selector.Name, out actual);
+                    string? key = actual.ValueKind switch
+                    {
+                        JsonValueKind.String => actual.GetString(),
+                        JsonValueKind.Null or JsonValueKind.Undefined => null,
+                        _ => actual.GetRawText()
+                    };
+                    foreach (JsonProperty branch in conditions.EnumerateObject())
+                    {
+                        if ((!known || string.Equals(key, branch.Name, StringComparison.OrdinalIgnoreCase)) &&
+                            branch.Value.ValueKind == JsonValueKind.Object &&
+                            branch.Value.TryGetProperty("siblingattributes", out JsonElement siblings) &&
+                            siblings.ValueKind == JsonValueKind.Object)
+                        {
+                            pending.Enqueue(siblings);
+                        }
+                    }
+                }
+            }
+            return type is not null;
+        }
+
+        private static string ReadAttributeType(JsonElement attribute, bool mapItem)
+        {
             if (mapItem &&
                 (!attribute.TryGetProperty("item", out attribute) ||
                     attribute.ValueKind != JsonValueKind.Object))
             {
-                return false;
+                throw new JsonException("A map header requires a declared item type.");
             }
             if (!attribute.TryGetProperty("type", out JsonElement value) || value.ValueKind != JsonValueKind.String)
             {
                 throw new JsonException("An effective attribute model must declare its type.");
             }
-            type = value.GetString();
-            return true;
+            return value.GetString()!;
         }
     }
 }
