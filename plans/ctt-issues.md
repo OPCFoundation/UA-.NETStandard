@@ -299,6 +299,20 @@ proper case index) so a failed assertion reports the actual case instead of thro
 JavaScript error.
 
 
+### `Err-025.js` expects `BadNotSupported` instead of `Bad_HistoryOperationUnsupported`
+
+The script reads raw history of a Static Scalar node that has `Historizing = FALSE` but the HistoryRead
+access-level bit, and accepts only `BadNotSupported` as the operation result
+(`OperationResults: new ExpectedAndAcceptedResults( [ StatusCode.BadNotSupported ] )`). OPC UA Part 4
+§5.11.3.4 (Table 52) defines `Bad_HistoryOperationUnsupported` for "the requested history operation is
+not supported for the requested node"; `Bad_NotSupported` is not listed for HistoryRead. The reference
+server returns `Bad_HistoryOperationUnsupported` for `ns=2;s=Scalar_Static_NonHistorizing_Boolean`
+(`HistoryReadNonHistorizingNodeIsUnsupportedAsync`). The Historical Access Delete cases already accept both
+codes.
+
+**Recommended CTT fix:** accept `BadHistoryOperationUnsupported` (and keep `BadNotSupported` for older
+servers).
+
 ## 9. Node Management AddNodes — invalid reference and requested-NodeId CTT configuration
 
 
@@ -352,16 +366,6 @@ operation succeeds while values for which no indexed data exists carry `BadIndex
 
 **Recommended CTT fix:** require the per-node result to be Good, decode `HistoryData`, and assert
 `BadIndexRangeNoData` on each affected `DataValue.StatusCode`.
-
-### Historical Access `Err-012.js` uses a non-historizing node for an access-denied test
-
-The configured node does not support history, so the server returns
-`BadHistoryOperationUnsupported` before any history authorization check can produce
-`BadUserAccessDenied`.
-
-**Recommended CTT project fix:** configure a node that is historizing and readable by an authorized
-identity but explicitly denies HistoryRead to the identity used by this case. A test cannot validate
-access denial with a node that has no supported history operation.
 
 ### Attribute array helpers omit `NodeId[]` conversion (https://mantis.opcfoundation.org/view.php?id=11261)
 
@@ -461,3 +465,53 @@ The script correctly checks `PublishHelper.Response.MoreNotifications` at line 3
 The event MonitoredItem has SelectClauses but no WhereClause, so it accepts every event emitted by the Server. The test's scalar Write generates an `AuditWriteUpdateEvent` when auditing is enabled, and a Server-root event subscriber is expected to receive it. The script then reports any event as unexpected; it may also leave a trigger event queued because the preceding step does not drain `MoreNotifications`.
 
 **Recommended CTT fix:** select EventType, filter for only the trigger event the test is validating, and drain every response while `MoreNotifications` is true. Do not treat correctly emitted audit events as Subscription-Minimum failures.
+
+## 11. Findings from closing the reference-server skips (#4479)
+
+### Address Space Atomicity `001.js` only sees the first 10000 variables, sorted by NodeId string
+
+`001.js` calls `FindObjectsOfType(BaseVariableType, IncludeSubTypes, MaxNodesToReturn: 10000)` on the CTT
+cache. The result is sorted by the NodeId string (`i=10020`, `i=104`, ..., `ns=10;...`, `ns=2;...`) and cut
+at 10000 entries. On the reference server the 5000 `ns=2;s=Scalar_Simulation_Mass_*` and
+`ns=2;s=Scalar_Static_Mass_*` variables fill the list before any `ns=2;s=Scalar_Static_*` variable, so
+`Scalar_Static_NonatomicReadWrite` is never examined and the CU is skipped as "No node found that have the
+NonatomicRead or NonatomicWrite flag". Line 42 also tests `value >> 8 & 3 !== 0`, which JavaScript
+evaluates as `(value >> 8) & (3 !== 0)`, so only NonatomicRead is detected.
+
+`/Advanced/Test Tool/Address Space Model/UaNodesToIgnore` is not a workaround: the entries are matched as
+substrings, so `ns=2;s=Scalar_Static_Mass` also removes `ns=2;s=Scalar` and its whole subtree from the cache.
+The reference server therefore adds `ns=2;s=AccessRights_AccessAll_NonatomicReadWrite`, which sorts before
+the mass variables.
+
+**Recommended CTT fix:** filter the cache for AccessLevelEx before applying MaxNodesToReturn (or page through
+all variables), test `((value >> 8) & 3) !== 0`, and match UaNodesToIgnore entries by NodeId equality.
+
+### Monitor Basic `039.js` calls `getMatrixValues` without including its library
+
+With multi-dimensional sample arrays configured, `039.js` stops with *"Can't find variable: getMatrixValues"*
+at line 45. The function is defined in `library/Base/indexRangeRelatedUtilities.js`, which neither the test
+case nor the Monitor Basic `initialize.js` includes.
+
+**Recommended CTT fix:** include `./library/Base/indexRangeRelatedUtilities.js` in the CU's `initialize.js`.
+
+### View Basic 2 `015.js` compares browse results by index
+
+`AssertReferenceArraysEqual` (`library/ServiceBased/ViewServiceSet/Browse.js`) compares the references of a
+ReferenceType-filtered Browse with the matching references of an unfiltered Browse position by position.
+Part 4 §5.9.2 does not define an order for the returned references. The reference server now returns
+filtered references in the same relative order as an unfiltered Browse, so the case passes, but a server with
+a different ordering fails it. **Recommended CTT fix:** compare the reference sets without regard to order,
+as `AssertNodeReferencesInListNotOrdered` already does.
+
+### Reference server project settings
+
+`samples/UAReferenceServer.ctt.xml` changes for #4479:
+
+| Setting | Value | Reason |
+| --- | --- | --- |
+| `/Server Test/NodeIds/Static/All Profiles/Scalar/Bool` | `ns=2;s=Scalar_Static_NonHistorizing_Boolean` | Historical Access Read Raw `Err-025.js` and Delete Value `dat-Err-001.js`/`Err-004.js` take the first Static Scalar node as the non-historizing node. The HA Profile and Aggregate Boolean settings stay on `Scalar_Static_Boolean`. |
+| `/Server Test/NodeIds/References/Has References of a ReferenceType and SubType` | `i=2253` | The Server object has `HasComponent` and `HasAddIn` references. `References_HasReferenceTypeAndSubType` loses its hierarchical references in the source generator (#4484). |
+| `/Server Test/NodeIds/NodeClasses/Object` | `i=2253` | The node references Methods, so View Basic 2 `018.js` covers every NodeClass. |
+
+Base Info Diagnostics `018-1.js` to `018-3.js` need a session with the SecurityAdmin or ConfigureAdmin role over
+SignAndEncrypt to write `Server.ServerDiagnostics.EnabledFlag` (the project's `sysadmin` user).

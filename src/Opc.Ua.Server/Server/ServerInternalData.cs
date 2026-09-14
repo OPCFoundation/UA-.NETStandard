@@ -1323,10 +1323,13 @@ namespace Opc.Ua.Server
             serverObject.ServerArray!.OnSimpleReadValue = OnReadServerArray;
             serverObject.ServerArray.MinimumSamplingInterval = 1000;
 
-            // dynamic change of enabledFlag is disabled to pass CTT
-            serverObject.ServerDiagnostics!.EnabledFlag!.AccessLevel = AccessLevels.CurrentRead;
+            // the diagnostics collection can be enabled and disabled by an administrator
+            // (Part 5 §6.3.3); the user access level grants the write access.
+            serverObject.ServerDiagnostics!.EnabledFlag!.AccessLevel = AccessLevels.CurrentReadOrWrite;
             serverObject.ServerDiagnostics.EnabledFlag.UserAccessLevel = AccessLevels
-                .CurrentRead;
+                .CurrentReadOrWrite;
+            serverObject.ServerDiagnostics.EnabledFlag.OnReadUserAccessLevel
+                = OnReadDiagnosticsEnabledFlagUserAccessLevel;
             serverObject.ServerDiagnostics.EnabledFlag.OnSimpleReadValue
                 = OnReadDiagnosticsEnabledFlag;
             serverObject.ServerDiagnostics.EnabledFlag.OnSimpleWriteValue
@@ -1533,11 +1536,48 @@ namespace Opc.Ua.Server
             NodeState node,
             ref Variant value)
         {
-            bool enabled = (bool)value;
+            if (!value.TryGetValue(out bool enabled))
+            {
+                return StatusCodes.BadTypeMismatch;
+            }
+
             DiagnosticsNodeManager.SetDiagnosticsEnabledAsync(DefaultSystemContext, enabled)
                 .AsTask().GetAwaiter().GetResult();
 
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Grants write access to Diagnostics.EnabledFlag only to a user with the
+        /// SecurityAdmin or ConfigureAdmin role on an encrypted channel.
+        /// </summary>
+        private static ServiceResult OnReadDiagnosticsEnabledFlagUserAccessLevel(
+            ISystemContext context,
+            NodeState node,
+            ref byte value)
+        {
+            if (!HasDiagnosticsAdminAccess(context))
+            {
+                value &= unchecked((byte)~AccessLevels.CurrentWrite);
+            }
+
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Returns true if the session of the context may change the diagnostics settings.
+        /// </summary>
+        private static bool HasDiagnosticsAdminAccess(ISystemContext context)
+        {
+            if (context is not SessionSystemContext { OperationContext: OperationContext operationContext } session ||
+                operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
+            {
+                return false;
+            }
+
+            ArrayOf<NodeId> roles = session.UserIdentity?.GrantedRoleIds ?? default;
+            return roles.Contains(ObjectIds.WellKnownRole_SecurityAdmin) ||
+                roles.Contains(ObjectIds.WellKnownRole_ConfigureAdmin);
         }
 
         /// <summary>

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -531,10 +532,12 @@ ObjectIds.Server,
 
             if (serverDiagnostics.SamplingIntervalDiagnosticsArray != null)
             {
-                // This array is not evaluated heavily on normal DoScan, so it stays BadWaitingForInitialData
+                // Sampling interval diagnostics are not collected; the array is empty but readable.
                 Assert.That(serverDiagnostics.SamplingIntervalDiagnosticsArray.StatusCode.Code,
-                    Is.EqualTo(StatusCodes.BadWaitingForInitialData));
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(serverDiagnostics.SamplingIntervalDiagnosticsArray.Value, Is.Empty);
             }
+            Assert.That(serverDiagnostics.SubscriptionDiagnosticsArray?.StatusCode.Code, Is.EqualTo(StatusCodes.Good));
 
             // The rest are populated with empty arrays due to no sessions in test
             if (serverDiagnostics.SubscriptionDiagnosticsArray != null)
@@ -554,6 +557,113 @@ ObjectIds.Server,
                 manager.FindPredefinedNode<ServerDiagnosticsSummaryState>(VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary);
             Assert.That(serverDiagSummary, Is.Not.Null);
             Assert.That(serverDiagSummary.StatusCode.Code, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public async Task SetDiagnosticsEnabledAsync_Toggle_HidesAndRestoresDiagnosticsAsync()
+        {
+            var config = new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() };
+            SetupServerMock();
+
+            using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
+            var externalRefs = new Dictionary<NodeId, IList<IReference>>();
+            await manager.CreateAddressSpaceAsync(externalRefs).ConfigureAwait(false);
+
+            static ServiceResult SummaryCallback(ISystemContext ctx, NodeState node, ref Variant value)
+            {
+                value = Variant.FromStructure(new ServerDiagnosticsSummaryDataType { CumulatedSessionCount = 7 });
+                return ServiceResult.Good;
+            }
+            static ServiceResult UpdateCallback(ISystemContext ctx, NodeState node, ref Variant value) => ServiceResult.Good;
+
+            await manager.CreateServerDiagnosticsAsync(
+                manager.SystemContext,
+                new ServerDiagnosticsSummaryDataType(),
+                SummaryCallback,
+                CancellationToken.None).ConfigureAwait(false);
+
+            NodeId liveSessionId = await manager.CreateSessionDiagnosticsAsync(
+                manager.SystemContext,
+                new SessionDiagnosticsDataType { SessionName = "LiveSession" },
+                UpdateCallback,
+                new SessionSecurityDiagnosticsDataType(),
+                UpdateCallback).ConfigureAwait(false);
+            NodeId subscriptionId = await manager.CreateSubscriptionDiagnosticsAsync(
+                manager.SystemContext,
+                new SubscriptionDiagnosticsDataType { SubscriptionId = 42, SessionId = liveSessionId },
+                UpdateCallback).ConfigureAwait(false);
+
+            BaseVariableState cumulatedSessionCount = manager.FindPredefinedNode<BaseVariableState>(
+                VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary_CumulatedSessionCount);
+            Assert.That(ReadValue(manager, cumulatedSessionCount).StatusCode, Is.EqualTo(StatusCodes.Good));
+
+            // Act: disable
+            await manager.SetDiagnosticsEnabledAsync(manager.SystemContext, false).ConfigureAwait(false);
+
+            DataValue disabledValue = ReadValue(manager, cumulatedSessionCount);
+            Assert.That(disabledValue.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));
+            Assert.That(disabledValue.WrappedValue.IsNull, Is.True);
+            ServerDiagnosticsState serverDiagnostics = manager.FindPredefinedNode<ServerDiagnosticsState>(ObjectIds.Server_ServerDiagnostics);
+            Assert.That(
+                ReadValue(manager, serverDiagnostics.SubscriptionDiagnosticsArray).StatusCode,
+                Is.EqualTo(StatusCodes.BadNotReadable));
+            Assert.That(manager.FindPredefinedNode<NodeState>(liveSessionId), Is.Null);
+            Assert.That(manager.FindPredefinedNode<NodeState>(subscriptionId), Is.Null);
+
+            // a session created while disabled gets an id but no node.
+            NodeId laterSessionId = await manager.CreateSessionDiagnosticsAsync(
+                manager.SystemContext,
+                new SessionDiagnosticsDataType { SessionName = "LaterSession" },
+                UpdateCallback,
+                new SessionSecurityDiagnosticsDataType(),
+                UpdateCallback).ConfigureAwait(false);
+            Assert.That(laterSessionId.IsNull, Is.False);
+            Assert.That(manager.FindPredefinedNode<NodeState>(laterSessionId), Is.Null);
+
+            // Act: enable
+            await manager.SetDiagnosticsEnabledAsync(manager.SystemContext, true).ConfigureAwait(false);
+
+            DataValue enabledValue = ReadValue(manager, cumulatedSessionCount);
+            Assert.That(enabledValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(enabledValue.WrappedValue.GetUInt32(), Is.EqualTo(7));
+
+            SessionDiagnosticsObjectState liveSession = manager.FindPredefinedNode<SessionDiagnosticsObjectState>(liveSessionId);
+            SessionDiagnosticsObjectState laterSession = manager.FindPredefinedNode<SessionDiagnosticsObjectState>(laterSessionId);
+            Assert.That(liveSession, Is.Not.Null, "The live session node is restored with its NodeId.");
+            Assert.That(laterSession, Is.Not.Null, "The session created while disabled gets its node.");
+            Assert.That(liveSession.SessionDiagnostics, Is.Not.Null);
+            Assert.That(liveSession.SessionDiagnostics.NodeId.IsNull, Is.False);
+            Assert.That(manager.FindPredefinedNode<SubscriptionDiagnosticsState>(subscriptionId), Is.Not.Null);
+
+            SessionsDiagnosticsSummaryState summary = manager.FindPredefinedNode<SessionsDiagnosticsSummaryState>(
+                ObjectIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary);
+            var references = new List<IReference>();
+            summary.GetReferences(manager.SystemContext, references, ReferenceTypeIds.HasComponent, false);
+            Assert.That(
+                references.Select(r => (NodeId)r.TargetId),
+                Is.SupersetOf(new[] { liveSessionId, laterSessionId }));
+            Assert.That(
+                references.Count(r => (NodeId)r.TargetId == liveSessionId),
+                Is.EqualTo(1),
+                "The summary must not reference a session twice.");
+
+            // deleting the restored nodes still works.
+            await manager.DeleteSubscriptionDiagnosticsAsync(manager.SystemContext, subscriptionId).ConfigureAwait(false);
+            await manager.DeleteSessionDiagnosticsAsync(manager.SystemContext, liveSessionId).ConfigureAwait(false);
+            Assert.That(manager.FindPredefinedNode<NodeState>(subscriptionId), Is.Null);
+            Assert.That(manager.FindPredefinedNode<NodeState>(liveSessionId), Is.Null);
+        }
+
+        private static DataValue ReadValue(DiagnosticsNodeManager manager, NodeState node)
+        {
+            var value = new DataValue();
+            ServiceResult result = node.ReadAttribute(
+                manager.SystemContext,
+                Attributes.Value,
+                default,
+                default,
+                ref value);
+            return ServiceResult.IsBad(result) ? DataValue.FromStatusCode(result.StatusCode) : value;
         }
 
         [Test]
@@ -942,7 +1052,7 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             // Test behavior when diagnostics are disabled
             await manager.SetDiagnosticsEnabledAsync(manager.SystemContext, false).ConfigureAwait(false);
             result = sessionArrayNode.OnSimpleReadValue(adminContext, sessionArrayNode, ref arrayValue);
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadOutOfService));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));
         }
 
         [Test]

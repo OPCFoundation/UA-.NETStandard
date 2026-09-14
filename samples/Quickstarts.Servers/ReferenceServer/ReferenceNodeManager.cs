@@ -214,13 +214,13 @@ namespace Quickstarts.ReferenceServer
                 Variant.From(CreateArray(10, i => (ulong)i).ToArrayOf()));
             SetPredefinedVariableValue(
                 "Scalar_Static_Arrays2D_Integer",
-                Variant.From(CreateMatrix(2, 2, (r, c) => (long)((r * 2) + c))));
+                Variant.From(CreateMatrix(5, 5, (r, c) => (long)((r * 5) + c))));
             SetPredefinedVariableValue(
                 "Scalar_Static_Arrays2D_Number",
-                Variant.From(CreateMatrix(2, 2, (r, c) => (double)((r * 2) + c))));
+                Variant.From(CreateMatrix(5, 5, (r, c) => (double)((r * 5) + c))));
             SetPredefinedVariableValue(
                 "Scalar_Static_Arrays2D_UInteger",
-                Variant.From(CreateMatrix(2, 2, (r, c) => (ulong)((r * 2) + c))));
+                Variant.From(CreateMatrix(5, 5, (r, c) => (ulong)((r * 5) + c))));
             SetPredefinedVariableValue(
                 "Scalar_Static_ArrayDynamic_Integer",
                 Variant.From(CreateArray(10, i => (long)i).ToArrayOf()));
@@ -262,6 +262,20 @@ namespace Quickstarts.ReferenceServer
                     { 0.0, 1.0, 2.0 },
                     { 3.0, 4.0, 5.0 }
                 })));
+
+            // MinimumSamplingInterval is an optional attribute (Part 3 §5.6.2). One static
+            // DataItem does not provide it, so clients can verify that the server revises the
+            // sampling interval of such a node to MinSupportedSampleRate (CTT Base Info Server
+            // Capabilities 2 002.js requires a node that returns BadAttributeIdInvalid). A DA
+            // item is used because the Address Space WriteMask cases write every attribute of
+            // the static scalars back.
+            if (FindPredefinedNode<BaseVariableState>(
+                new NodeId("DataAccess_DataItem_String", NamespaceIndex)) is BaseVariableState stringItem)
+            {
+                stringItem.MinimumSamplingInterval = MinimumSamplingIntervals.Indeterminate;
+                stringItem.OnReadMinimumSamplingInterval = static (context, node, ref value) =>
+                    StatusCodes.BadAttributeIdInvalid;
+            }
         }
 
         private void SetPredefinedVariableValue(string identifier, Variant value)
@@ -455,7 +469,7 @@ namespace Quickstarts.ReferenceServer
         /// Fixed length used for every dimension of a generated multi-dimensional
         /// array so its value and ArrayDimensions attribute stay deterministic.
         /// </summary>
-        private const uint MultiDimensionalArrayLength = 3;
+        private const uint MultiDimensionalArrayLength = 5;
 
         /// <summary>
         /// String node-id prefix shared by every variable under the
@@ -1012,6 +1026,57 @@ namespace Quickstarts.ReferenceServer
                 BrowsePath = [new QualifiedName(browseName)],
                 AttributeId = Attributes.Value
             };
+        }
+
+        /// <summary>
+        /// Rejects a HistoryRead of a variable that is not historized.
+        /// </summary>
+        /// <remarks>
+        /// The server-wide historian answers every node with an empty result. A variable
+        /// that advertises the HistoryRead access level but has Historizing = false and no
+        /// archive (Scalar_Static_NonHistorizing_Boolean) returns
+        /// Bad_HistoryOperationUnsupported instead (Part 4 §5.11.3, CTT Historical Access
+        /// Read Raw Err-025.js).
+        /// </remarks>
+        protected override bool TryHandleHistoryRead(
+            ISystemContext context,
+            NodeState source,
+            HistoryReadDetails details,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            HistoryReadValueId nodeToRead,
+            HistoryReadResult result,
+            out ServiceResult status)
+        {
+            if (source is BaseVariableState { Historizing: false } variable &&
+                !HistorianDispatcher.IsAnnotationsProperty(variable) &&
+                !IsArchived(variable.NodeId))
+            {
+                status = StatusCodes.BadHistoryOperationUnsupported;
+                return true;
+            }
+
+            return base.TryHandleHistoryRead(
+                context,
+                source,
+                details,
+                timestampsToReturn,
+                releaseContinuationPoints,
+                nodeToRead,
+                result,
+                out status);
+        }
+
+        private bool IsArchived(NodeId nodeId)
+        {
+            if (m_historian == null)
+            {
+                return false;
+            }
+
+            // the in-memory historian completes synchronously.
+            ValueTask<bool> historizing = m_historian.IsHistorizingAsync(nodeId, CancellationToken.None);
+            return !historizing.IsCompletedSuccessfully || historizing.Result;
         }
 
         private async Task SeedHistoricalNodeAsync(BaseVariableState variable, CancellationToken cancellationToken)
