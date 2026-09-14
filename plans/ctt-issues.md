@@ -634,9 +634,14 @@ validator in `library/ClassBased/Events.js` line 78 also reads `args.ActionTimes
 the same test instead reports *"Did not receive an ApplicationRegistrationChangedAuditEventType
 event"*: the monitored item is created with QueueSize 1, and the server kept only the newest audit
 event (server side, fixed by [#4480](https://github.com/OPCFoundation/UA-.NETStandard/pull/4480)).
-With both names corrected and a larger queue in a copy of the scripts, the event is received and
-SourceNode, SourceName, MethodId and InputArguments verify. **Fix:** use `"ActionTimeStamp"` in the
-field list and in `Events.js`.
+With both names corrected and a larger queue in a copy of the scripts, the event is received, it
+carries a current ActionTimeStamp (for example `2026-09-14T11:12:58.148Z`), and SourceNode,
+SourceName, MethodId and InputArguments verify. The validator then aborts at `Events.js` line 85
+(*"'this.ActionTimestamp.isNull' [undefined] is not a function"*) because it calls `isNull()` on the
+event field Variant instead of a `UaDateTime`. The other audit tests of the CU (`011.js`, `028.js`) use
+the same QueueSize 1 subscription and miss their event in some runs. **Fix:** use `"ActionTimeStamp"`
+in the field list and in `Events.js`, convert the field with `toDateTime()`, and create the audit
+monitored items with a queue size above 1.
 
 ### C24. GDS Application Directory `019.js` step 3 batch RegisterApplication never reaches the server
 
@@ -819,8 +824,14 @@ it is classified as a server or CTT issue.
     that are not a registered ApplicationUri still return an empty array, which `003.js` (up to
     MaxStringLength `X` characters) expects.
 
-  CTT GDS rerun with the fixes: 47 errors (baseline 60). `074.js` and Query Applications `025.js`
-  newly fail as described in C21. CTT defects: C19–C31. Not applicable to this server: GDS AliasName
+  CTT GDS rerun with the fixes: 47 errors (baseline 60); 48 in a later run where `028.js` missed its
+  audit event (C23). `074.js` and Query Applications `025.js` newly fail as described in C21. A run
+  against a copy of the scripts with the recommended fixes of C19, C20, C22, C23, C25 and C29 applied
+  leaves 41 errors: `010.js`, `060.js`, `065.js`, `067.js`, `078.js`, `079.js` and Query Applications
+  `011.js`, `016.js` then pass, `018.js` receives a correct audit event, and `005.js` shows the expected
+  `Bad_EncodingLimitsExceeded` ServiceFault. That fault carries RequestHandle 0 (Part 4 §7.33: the
+  requestHandle *should* be echoed even for invalid requests), a transport-level observation outside
+  the GDS. CTT defects: C19–C31. Not applicable to this server: GDS AliasName
   Discovery `001.js`, `002.js`,
   `004.js` (see *CTT project configuration notes*). Application Directory `018.js` also needs the
   event queue size fix of [#4480](https://github.com/OPCFoundation/UA-.NETStandard/pull/4480) (C23).
