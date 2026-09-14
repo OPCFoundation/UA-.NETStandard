@@ -620,7 +620,7 @@ server whose alarm types go active at different times therefore leaves some type
 and the test runs to 3 × Alarm Cycle Time. Against the reference server this happened in 6 of 7 runs while its boolean and analog alarm
 sources used different periods, and still in 3 of 5 once they shared the limits but stepped on
 timers that drifted up to one simulation tick apart, because the booleans then reported in a later
-publish. With both sources stepping on the same interval boundaries it passed in 3 of 3 runs. The
+publish. With both sources stepping on the same interval boundaries it passed in 6 of 6 runs. The
 conditions it disabled are only re-enabled when the RefreshEnd event arrives (line 237). **Fix:** keep accepting first active events
 until the refresh is started for all non-ignored types, or mark types without an active event as
 skipped when the refresh is issued.
@@ -632,7 +632,7 @@ skipped when the refresh is issued.
 For *every* event of a condition the test calls Disable, Disable and Enable on the alarm thread
 session without keeping per-condition state. Each Disable/Enable raises a new condition event, which
 triggers the same three calls again: runs recorded up to 364 passes per alarm type and 706–868
-events within 15 s. In 8 of 25 Enable runs against the reference server the CTT alarm thread then
+events within 15 s. In 8 of 28 Enable runs against the reference server the CTT alarm thread then
 returned **no events at all** for the rest of the CU, so every following test case (`Err_004.js`,
 `Err_005.js`) ran to 3 × Alarm Cycle Time.
 
@@ -741,7 +741,7 @@ it is classified as a server or CTT issue.
   Enable `Test_003.js` often ran to 3 × Alarm Cycle Time (C21, C22), and Enable intermittently stops receiving events
   after `Err_004.js` bursts (C23). The reference server's boolean
   and analog alarm sources now change state in the same simulation pass; with that Enable
-  `Test_003.js` passed in 3 of 3 runs.
+  `Test_003.js` passed in 6 of 6 runs.
 - **GDS QueryServers / QueryApplications Like filters.** Against the GDS node manager in CTT mode
   (`src/Opc.Ua.Gds.Server`, `ApplicationsDatabaseBase.IsMatchPattern`):
   - Application Directory `066.js`, `068.js`, `071.js`, `073.js`, `075.js` and Query Applications
