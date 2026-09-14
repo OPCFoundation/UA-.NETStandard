@@ -122,7 +122,10 @@ namespace Opc.Ua
         {
             if (target is BaseDataVariableState state)
             {
-                state.EnumStrings = EnumStrings;
+                // EnumStrings is a child that base.CopyTo does not clone (it
+                // lives in a typed field, not in m_children), so clone it here.
+                state.EnumStrings =
+                    (PropertyState<ArrayOf<LocalizedText>>?)EnumStrings?.Clone();
             }
             base.CopyTo(target);
         }

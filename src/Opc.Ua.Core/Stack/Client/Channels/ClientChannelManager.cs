@@ -191,25 +191,9 @@ namespace Opc.Ua
             ISecurityPolicyRegistry? securityPolicies = null,
             CancellationToken ct = default)
         {
-            // initialize the channel which will be created with the server.
-            string uriScheme = new Uri(description.EndpointUrl
-                ?? throw new ArgumentException("EndpointUrl cannot be null", nameof(description))).Scheme;
-            transportChannelBindings ??= GetDefaultBindingsLazy();
-            ITransportChannel channel =
-                transportChannelBindings.Create(uriScheme, messageContext.Telemetry)
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadProtocolVersionUnsupported,
-                    "Unsupported transport profile for scheme {0}.",
-                    uriScheme);
-
-            if (channel is not ISecureChannel secureChannel)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadNotSupported,
-                    "The transport channel does not support opening.");
-            }
-
-            // create a UA channel.
+            // Built before anything that can throw, so every failure below runs
+            // the cleanup that releases the caller's certificate handles - this
+            // method owns them from here on.
             var settings = new TransportChannelSettings
             {
                 Description = description,
@@ -219,8 +203,28 @@ namespace Opc.Ua
                 SecurityPolicyRegistry = securityPolicies
             };
 
+            ITransportChannel? channel = null;
+
             try
             {
+                // initialize the channel which will be created with the server.
+                string uriScheme = new Uri(description.EndpointUrl
+                    ?? throw new ArgumentException("EndpointUrl cannot be null", nameof(description))).Scheme;
+                transportChannelBindings ??= GetDefaultBindingsLazy();
+                channel =
+                    transportChannelBindings.Create(uriScheme, messageContext.Telemetry)
+                    ?? throw ServiceResultException.Create(
+                        StatusCodes.BadProtocolVersionUnsupported,
+                        "Unsupported transport profile for scheme {0}.",
+                        uriScheme);
+
+                if (channel is not ISecureChannel secureChannel)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNotSupported,
+                        "The transport channel does not support opening.");
+                }
+
                 if (description.ServerCertificate.Length > 0)
                 {
                     settings.ServerCertificate = Utils.ParseCertificateBlob(
@@ -237,17 +241,16 @@ namespace Opc.Ua
                 settings.Factory = messageContext.Factory;
 
                 await secureChannel.OpenAsync(connection, settings, ct).ConfigureAwait(false);
+
+                ITransportChannel opened = channel;
+                channel = null;
+                return opened;
             }
             catch
             {
-                // settings.ServerCertificate is allocated above; dispose on
-                // failure since the channel never assumed ownership.
-                settings.ServerCertificate?.Dispose();
-                channel.Dispose();
+                ReleaseUnopenedChannel(channel, settings);
                 throw;
             }
-
-            return channel;
         }
 
         /// <summary>
@@ -277,37 +280,9 @@ namespace Opc.Ua
             ISecurityPolicyRegistry? securityPolicies = null,
             CancellationToken ct = default)
         {
-            var endpointUrl = new Uri(description.EndpointUrl
-                ?? throw new ArgumentException("EndpointUrl cannot be null", nameof(description)));
-            string uriScheme = description.TransportProfileUri switch
-            {
-                Profiles.UaTcpTransport => Utils.UriSchemeOpcTcp,
-                Profiles.HttpsBinaryTransport => Utils.UriSchemeOpcHttps,
-                Profiles.HttpsJsonTransport => Utils.UriSchemeOpcHttps,
-                Profiles.HttpsOpenApiTransport => Utils.UriSchemeOpcHttpsWebApi,
-                Profiles.UaWssTransport => Utils.UriSchemeOpcWss,
-                Profiles.UaWssJsonTransport => "opc.wss+json",
-                Profiles.WssOpenApiTransport => Utils.UriSchemeOpcWssOpenApi,
-                _ => endpointUrl.Scheme
-            };
-
-            // initialize the channel which will be created with the server.
-            transportChannelBindings ??= GetDefaultBindingsLazy();
-            ITransportChannel channel =
-                transportChannelBindings.Create(uriScheme, messageContext.Telemetry)
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadProtocolVersionUnsupported,
-                    "Unsupported transport profile for scheme {0}.",
-                    uriScheme);
-
-            if (channel is not ISecureChannel secureChannel)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadNotSupported,
-                    "The transport channel does not support opening.");
-            }
-
-            // create a UA-TCP channel.
+            // Built before anything that can throw, so every failure below runs
+            // the cleanup that releases the caller's certificate handles - this
+            // method owns them from here on.
             var settings = new TransportChannelSettings
             {
                 Description = description,
@@ -317,8 +292,40 @@ namespace Opc.Ua
                 SecurityPolicyRegistry = securityPolicies
             };
 
+            ITransportChannel? channel = null;
+
             try
             {
+                var endpointUrl = new Uri(description.EndpointUrl
+                    ?? throw new ArgumentException("EndpointUrl cannot be null", nameof(description)));
+                string uriScheme = description.TransportProfileUri switch
+                {
+                    Profiles.UaTcpTransport => Utils.UriSchemeOpcTcp,
+                    Profiles.HttpsBinaryTransport => Utils.UriSchemeOpcHttps,
+                    Profiles.HttpsJsonTransport => Utils.UriSchemeOpcHttps,
+                    Profiles.HttpsOpenApiTransport => Utils.UriSchemeOpcHttpsWebApi,
+                    Profiles.UaWssTransport => Utils.UriSchemeOpcWss,
+                    Profiles.UaWssJsonTransport => "opc.wss+json",
+                    Profiles.WssOpenApiTransport => Utils.UriSchemeOpcWssOpenApi,
+                    _ => endpointUrl.Scheme
+                };
+
+                // initialize the channel which will be created with the server.
+                transportChannelBindings ??= GetDefaultBindingsLazy();
+                channel =
+                    transportChannelBindings.Create(uriScheme, messageContext.Telemetry)
+                    ?? throw ServiceResultException.Create(
+                        StatusCodes.BadProtocolVersionUnsupported,
+                        "Unsupported transport profile for scheme {0}.",
+                        uriScheme);
+
+                if (channel is not ISecureChannel secureChannel)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNotSupported,
+                        "The transport channel does not support opening.");
+                }
+
                 if (description.ServerCertificate.Length > 0)
                 {
                     settings.ServerCertificate = Utils.ParseCertificateBlob(
@@ -335,16 +342,42 @@ namespace Opc.Ua
                 settings.Factory = messageContext.Factory;
 
                 await secureChannel.OpenAsync(endpointUrl, settings, ct).ConfigureAwait(false);
+
+                ITransportChannel opened = channel;
+                channel = null;
+                return opened;
             }
             catch
             {
-                // settings.ServerCertificate is allocated above; dispose on
-                // failure since the channel never assumed ownership.
-                settings.ServerCertificate?.Dispose();
-                channel.Dispose();
+                ReleaseUnopenedChannel(channel, settings);
                 throw;
             }
-            return channel;
+        }
+
+        /// <summary>
+        /// Releases everything a channel that never opened was holding: the
+        /// channel itself and the certificate handles the settings took over.
+        /// </summary>
+        /// <remarks>
+        /// Disposing the channel releases the settings' certificates and clears
+        /// them when it got as far as storing the settings, so the disposals
+        /// after it cover only the handles it never saw. Each therefore runs
+        /// exactly once, which matters because these are reference-counted
+        /// handles the caller AddRef'd for this call.
+        /// </remarks>
+        private static void ReleaseUnopenedChannel(
+            ITransportChannel? channel,
+            TransportChannelSettings settings)
+        {
+            settings.ServerCertificate?.Dispose();
+            settings.ServerCertificate = null;
+
+            channel?.Dispose();
+
+            settings.ClientCertificate?.Dispose();
+            settings.ClientCertificate = null;
+            settings.ClientCertificateChain?.Dispose();
+            settings.ClientCertificateChain = null;
         }
 
         /// <summary>
@@ -1259,6 +1292,9 @@ namespace Opc.Ua
             CancellationToken ct)
         {
             IServiceMessageContext context = Configuration.CreateMessageContext();
+
+            // The entry already owns a per-transport snapshot, distinct from the manager's handles.
+            // It also releases these handles when a custom transport does not own its settings.
             return CreateChannelAsync(
                 endpoint,
                 context,

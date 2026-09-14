@@ -49,7 +49,11 @@ namespace Opc.Ua
         /// The change subject used to emit certificate change events.
         /// </param>
         /// <param name="getCertificates">
-        /// A delegate that returns an owned snapshot of the current application certificates.
+        /// A delegate that returns a snapshot of the current application
+        /// certificates. It must hand back a collection this monitor owns and
+        /// disposes: the timer callback runs while other threads add, replace
+        /// and dispose entries, so enumerating the live list would throw and
+        /// could read an entry that has just been released.
         /// </param>
         /// <param name="expiryThreshold">
         /// The time span before expiry at which a warning is emitted.

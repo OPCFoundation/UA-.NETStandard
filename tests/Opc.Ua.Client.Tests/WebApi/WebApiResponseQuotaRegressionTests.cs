@@ -85,8 +85,12 @@ namespace Opc.Ua.Client.Tests.WebApi
             }
         }
 
-        [Test]
-        public async Task RequestTimeoutRemainsActiveWhileReadingTheOpenApiBodyAsync()
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task RequestTimeoutRemainsActiveWhileReadingTheOpenApiBodyAsync(
+            bool sharedClient,
+            bool clientTimeoutIsShorter)
         {
             var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var body = new Mock<Stream> { CallBase = true };
@@ -101,12 +105,25 @@ namespace Opc.Ua.Client.Tests.WebApi
 #endif
             using var content = new ProbeContent(body.Object, -1);
             using var handler = new ResponseHandler(content);
-            using var http = new HttpClient(handler) { BaseAddress = new Uri("https://localhost/ua/") };
-            using var client = new WebApiClient(http, new WebApiClientOptions
+            TimeSpan clientTimeout = clientTimeoutIsShorter ? TimeSpan.FromSeconds(1) : TimeSpan.FromSeconds(30);
+            using var http = new HttpClient(handler)
+            {
+                BaseAddress = new Uri("https://localhost/ua/"),
+                Timeout = clientTimeout
+            };
+            if (sharedClient)
+            {
+                using HttpResponseMessage warmup = await http.GetAsync(new Uri("https://localhost/warmup"))
+                    .ConfigureAwait(false);
+            }
+            var options = new WebApiClientOptions
             {
                 MessageContext = ServiceMessageContext.Create(NUnitTelemetryContext.Create()),
-                RequestTimeout = TimeSpan.FromSeconds(1)
-            });
+                RequestTimeout = clientTimeoutIsShorter ? TimeSpan.FromSeconds(10) : TimeSpan.FromSeconds(1)
+            };
+            using var client = sharedClient
+                ? new WebApiClient(http, new Uri("https://localhost/ua/"), options)
+                : new WebApiClient(http, options);
             using var cancellation = new CancellationTokenSource();
             Task<ReadResponse> pending = client.ReadAsync(new ReadRequest(), cancellation.Token).AsTask();
             try
@@ -117,6 +134,12 @@ namespace Opc.Ua.Client.Tests.WebApi
                 Assert.That(completed, Is.SameAs(pending));
                 Assert.CatchAsync<OperationCanceledException>(() => pending);
                 Assert.That(content.IsDisposed, Is.True);
+                Assert.That(content.SerializeCalls, Is.Zero);
+                if (sharedClient)
+                {
+                    Assert.That(http.Timeout, Is.EqualTo(clientTimeout));
+                    Assert.That(http.DefaultRequestHeaders.Accept, Is.Empty);
+                }
             }
             finally
             {
@@ -151,6 +174,13 @@ namespace Opc.Ua.Client.Tests.WebApi
                 HttpRequestMessage request,
                 CancellationToken cancellationToken)
             {
+                if (request.RequestUri?.AbsolutePath == "/warmup")
+                {
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new ByteArrayContent([])
+                    });
+                }
                 m_content.RequestToken = cancellationToken;
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = m_content });
             }

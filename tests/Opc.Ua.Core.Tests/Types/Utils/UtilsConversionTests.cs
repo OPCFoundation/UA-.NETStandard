@@ -358,6 +358,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         [Test]
+        public void IsUriHttpRelatedSchemeWithOpcHttps()
+        {
+            Assert.That(Utils.IsUriHttpRelatedScheme("opc.https://localhost:4840"), Is.True);
+        }
+
+        [Test]
         public void IsUriHttpRelatedSchemeWithOpcTcp()
         {
             Assert.That(Utils.IsUriHttpRelatedScheme("opc.tcp://localhost:4840"), Is.False);

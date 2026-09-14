@@ -107,7 +107,10 @@ namespace Opc.Ua.WotCon.Tests
             Variant expected = TypeInfo.GetDefaultVariantValue(Ua.DataTypeIds.String, ValueRanks.Scalar);
 
             Assert.That(actual, Is.EqualTo(expected));
-            Assert.That(actual, Is.Not.EqualTo(Variant.Null));
+            // The value is typed, not the UA Null variant. Asked through
+            // Equals this is ambiguous, because a String variant whose payload
+            // is null and Variant.Null compare equal; IsNull states it exactly.
+            Assert.That(actual.IsNull, Is.False);
             Assert.That(actual.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.String));
         }
 

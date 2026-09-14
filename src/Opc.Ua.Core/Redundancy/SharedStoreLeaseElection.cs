@@ -29,6 +29,8 @@
 
 using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -93,17 +95,13 @@ namespace Opc.Ua.Redundancy
         {
             get
             {
-                bool expired;
                 bool isLeader;
                 lock (m_lock)
                 {
-                    expired = ExpireLeaseIfNeeded();
+                    ExpireLeaseIfNeeded();
                     isLeader = m_isLeader;
                 }
-                if (expired)
-                {
-                    LeadershipChanged?.Invoke(false);
-                }
+                DispatchNotifications();
                 return isLeader;
             }
         }
@@ -114,7 +112,6 @@ namespace Opc.Ua.Redundancy
         /// <inheritdoc/>
         public async ValueTask<bool> TryAcquireOrRenewAsync(CancellationToken ct = default)
         {
-            bool expired;
             long attempt;
             lock (m_lock)
             {
@@ -122,13 +119,10 @@ namespace Opc.Ua.Redundancy
                 {
                     throw new ObjectDisposedException(nameof(SharedStoreLeaseElection));
                 }
-                expired = ExpireLeaseIfNeeded();
+                ExpireLeaseIfNeeded();
                 attempt = ++m_attempt;
             }
-            if (expired)
-            {
-                LeadershipChanged?.Invoke(false);
-            }
+            DispatchNotifications();
 
             (bool found, ByteString current) = await m_store.TryGetAsync(m_leaseKey, ct).ConfigureAwait(false);
             if (!IsCurrentAttempt(attempt))
@@ -177,7 +171,6 @@ namespace Opc.Ua.Redundancy
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
-            bool changed;
             lock (m_lock)
             {
                 if (m_disposed)
@@ -186,14 +179,14 @@ namespace Opc.Ua.Redundancy
                 }
                 m_disposed = true;
                 ++m_attempt;
-                changed = m_isLeader;
+                if (m_isLeader)
+                {
+                    m_pendingNotifications.Enqueue(false);
+                }
                 m_isLeader = false;
                 m_expiryTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
             }
-            if (changed)
-            {
-                LeadershipChanged?.Invoke(false);
-            }
+            DispatchNotifications();
 
             m_cts.Cancel();
             await m_expiryTimer.DisposeAsync().ConfigureAwait(false);
@@ -230,6 +223,8 @@ namespace Opc.Ua.Redundancy
                     catch (Exception ex)
                     {
                         m_logger?.SharedStoreLeaseElectionLogMessage0(ex, m_nodeId);
+
+                        OnLeaseExpiry();
                     }
 
                     await m_timeProvider.Delay(m_renewInterval, ct).ConfigureAwait(false);
@@ -263,35 +258,32 @@ namespace Opc.Ua.Redundancy
 
         private bool IsCurrentAttempt(long attempt)
         {
-            bool expired;
             bool current;
             lock (m_lock)
             {
-                expired = ExpireLeaseIfNeeded();
+                ExpireLeaseIfNeeded();
                 current = !m_disposed && attempt == m_attempt;
             }
-            if (expired)
-            {
-                LeadershipChanged?.Invoke(false);
-            }
+            DispatchNotifications();
             return current;
         }
 
         private bool CompleteAttempt(long attempt, bool acquired, long timestamp, long expiryTicks)
         {
-            bool expired;
-            bool changed = false;
             bool confirmed = false;
             lock (m_lock)
             {
-                expired = ExpireLeaseIfNeeded();
+                ExpireLeaseIfNeeded();
                 if (!m_disposed && attempt == m_attempt)
                 {
                     TimeSpan remaining = acquired
                         ? GetRemainingLeaseTime(timestamp, expiryTicks)
                         : TimeSpan.Zero;
                     confirmed = acquired && remaining > TimeSpan.Zero;
-                    changed = m_isLeader != confirmed;
+                    if (m_isLeader != confirmed)
+                    {
+                        m_pendingNotifications.Enqueue(confirmed);
+                    }
                     m_isLeader = confirmed;
                     if (confirmed)
                     {
@@ -306,49 +298,45 @@ namespace Opc.Ua.Redundancy
                     }
                 }
             }
-            if (expired)
-            {
-                LeadershipChanged?.Invoke(false);
-            }
-            if (changed)
-            {
-                LeadershipChanged?.Invoke(confirmed);
-            }
+            DispatchNotifications();
             return confirmed;
         }
 
         private void OnLeaseExpiry()
         {
-            bool expired;
-            lock (m_lock)
+            try
             {
-                expired = ExpireLeaseIfNeeded();
-                if (m_isLeader)
+                lock (m_lock)
                 {
-                    m_expiryTimer.Change(
-                        GetRemainingLeaseTime(m_confirmedTimestamp, m_confirmedExpiryTicks),
-                        Timeout.InfiniteTimeSpan);
+                    ExpireLeaseIfNeeded();
+                    if (m_isLeader)
+                    {
+                        m_expiryTimer.Change(
+                            GetRemainingLeaseTime(m_confirmedTimestamp, m_confirmedExpiryTicks),
+                            Timeout.InfiniteTimeSpan);
+                    }
                 }
+                DispatchNotifications();
             }
-            if (expired)
+            catch (Exception ex)
             {
-                LeadershipChanged?.Invoke(false);
+                m_logger?.SharedStoreLeaseElectionLogMessage2(ex, m_nodeId);
             }
         }
 
-        private bool ExpireLeaseIfNeeded()
+        private void ExpireLeaseIfNeeded()
         {
             if (!m_isLeader ||
                 GetRemainingLeaseTime(m_confirmedTimestamp, m_confirmedExpiryTicks) > TimeSpan.Zero)
             {
-                return false;
+                return;
             }
 
             m_isLeader = false;
+            m_pendingNotifications.Enqueue(false);
             // Replies belonging to the expired authority cannot establish a new lease.
             ++m_attempt;
             m_expiryTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-            return true;
         }
 
         private TimeSpan GetRemainingLeaseTime(long timestamp, long expiryTicks)
@@ -356,6 +344,63 @@ namespace Opc.Ua.Redundancy
             TimeSpan utcRemaining = TimeSpan.FromTicks(expiryTicks - m_timeProvider.GetUtcNow().UtcTicks);
             TimeSpan elapsedRemaining = m_leaseDuration - m_timeProvider.GetElapsedTime(timestamp);
             return utcRemaining < elapsedRemaining ? utcRemaining : elapsedRemaining;
+        }
+
+        /// <summary>
+        /// Delivers queued <see cref="LeadershipChanged"/> notifications in the
+        /// order the transitions were made.
+        /// </summary>
+        /// <remarks>
+        /// The renew loop and the expiry timer both make transitions, so two can
+        /// race. Each is queued under the state lock as it is made, and one
+        /// caller at a time drains the queue outside that lock: handlers run
+        /// without holding it, and a handler that itself causes a transition
+        /// queues it for after its own notification rather than being called
+        /// back re-entrantly with the newer value first.
+        /// </remarks>
+        private void DispatchNotifications()
+        {
+            lock (m_lock)
+            {
+                if (m_notifying || m_pendingNotifications.Count == 0)
+                {
+                    return;
+                }
+
+                m_notifying = true;
+            }
+
+            ExceptionDispatchInfo? firstFailure = null;
+
+            while (true)
+            {
+                bool value;
+
+                lock (m_lock)
+                {
+                    if (m_pendingNotifications.Count == 0)
+                    {
+                        m_notifying = false;
+                        break;
+                    }
+
+                    value = m_pendingNotifications.Dequeue();
+                }
+
+                try
+                {
+                    LeadershipChanged?.Invoke(value);
+                }
+                catch (Exception ex)
+                {
+                    // Keep draining: a handler that throws must not strand the
+                    // notifications queued behind it. The first failure still
+                    // reaches the caller that made the transition.
+                    firstFailure ??= ExceptionDispatchInfo.Capture(ex);
+                }
+            }
+
+            firstFailure?.Throw();
         }
 
         private static ByteString EncodeLease(string owner, long expiryUtcTicks)
@@ -404,6 +449,18 @@ namespace Opc.Ua.Redundancy
         private bool m_isLeader;
         private bool m_started;
         private bool m_disposed;
+
+        /// <summary>
+        /// Leadership notifications not yet delivered, in transition order.
+        /// Guarded by <see cref="m_lock"/>.
+        /// </summary>
+        private readonly Queue<bool> m_pendingNotifications = new();
+
+        /// <summary>
+        /// Whether a caller is draining <see cref="m_pendingNotifications"/>.
+        /// Guarded by <see cref="m_lock"/>.
+        /// </summary>
+        private bool m_notifying;
     }
 
     /// <summary>
@@ -422,6 +479,13 @@ namespace Opc.Ua.Redundancy
         [LoggerMessage(EventId = CoreEventIds.SharedStoreLeaseElection + 1, Level = LogLevel.Error,
             Message = "Lease election release failed for {NodeId}.")]
         public static partial void SharedStoreLeaseElectionLogMessage1(
+            this ILogger logger,
+            global::System.Exception? exception,
+            string nodeId);
+
+        [LoggerMessage(EventId = CoreEventIds.SharedStoreLeaseElection + 2, Level = LogLevel.Error,
+            Message = "Lease election step-down failed for {NodeId}; a LeadershipChanged handler threw.")]
+        public static partial void SharedStoreLeaseElectionLogMessage2(
             this ILogger logger,
             global::System.Exception? exception,
             string nodeId);

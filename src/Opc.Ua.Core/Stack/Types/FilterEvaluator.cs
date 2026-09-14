@@ -473,7 +473,11 @@ namespace Opc.Ua
 
                 if (value.TryGetValue(out string lhsString) && rhs.TryGetValue(out string rhsString))
                 {
-                    if (lhsString.Equals(rhsString, ContentFilter.EqualsOperatorDefaultStringComparison))
+                    // a non-matching string operand only rules out this operand,
+                    // not the rest of the list.
+                    if (lhsString.Equals(
+                        rhsString,
+                        ContentFilter.EqualsOperatorDefaultStringComparison))
                     {
                         return true;
                     }

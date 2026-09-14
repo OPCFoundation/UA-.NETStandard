@@ -186,7 +186,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificates));
             }
 
-            // A negative maximum keeps no rejected history.
+            // A negative maximum disables new rejected-certificate storage.
             if (maxCertificates < 0)
             {
                 return;

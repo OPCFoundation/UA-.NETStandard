@@ -267,27 +267,39 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            switch (securityPolicy.CertificateKeyFamily)
+            // A nonce the peer chose is data, not a programming error: the
+            // key-agreement checks inside CreateNonce reject an out-of-range
+            // Diffie-Hellman value or an off-curve point by throwing, and this
+            // method's contract is to answer false so the caller can report
+            // BadNonceInvalid rather than a generic internal error.
+            try
             {
-                case CertificateKeyFamily.RSA:
-                    if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.RSADH)
-                    {
-                        m_remoteNonce = Nonce.CreateNonce(securityPolicy, nonce);
-                        return true;
-                    }
-
-                    // try to catch programming errors by rejecting nonces with all zeros.
-                    for (int ii = 0; ii < nonce.Length; ii++)
-                    {
-                        if (nonce[ii] != 0)
+                switch (securityPolicy.CertificateKeyFamily)
+                {
+                    case CertificateKeyFamily.RSA:
+                        if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.RSADH)
                         {
+                            m_remoteNonce = Nonce.CreateNonce(securityPolicy, nonce);
                             return true;
                         }
-                    }
-                    break;
-                case CertificateKeyFamily.ECC:
-                    m_remoteNonce = Nonce.CreateNonce(securityPolicy, nonce);
-                    return true;
+
+                        // try to catch programming errors by rejecting nonces with all zeros.
+                        for (int ii = 0; ii < nonce.Length; ii++)
+                        {
+                            if (nonce[ii] != 0)
+                            {
+                                return true;
+                            }
+                        }
+                        break;
+                    case CertificateKeyFamily.ECC:
+                        m_remoteNonce = Nonce.CreateNonce(securityPolicy, nonce);
+                        return true;
+                }
+            }
+            catch (ArgumentException e)
+            {
+                m_logger.UaSCChannelNonceRejected(e);
             }
 
             return false;
@@ -1429,9 +1441,30 @@ namespace Opc.Ua.Bindings
             }
             catch
             {
-                BufferManager.ReturnBuffer(plainText.Array, nameof(ReadAsymmetricMessage));
+                // Decrypt took a buffer of its own; only the returned body keeps
+                // it alive. A signature, padding or short body failure is
+                // reachable before authentication, so leaking it here lets a
+                // peer drain the pool with malformed OPN messages.
+                ReturnDecryptedBuffer(plainText);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Returns the buffer <see cref="Decrypt"/> allocated for the plain text
+        /// when nothing downstream took ownership of it.
+        /// </summary>
+        /// <remarks>
+        /// The body an asymmetric read hands back is a segment of a buffer of its
+        /// own, distinct from the chunk it was decrypted from. Only the chunk
+        /// collection built further down returns it, so any path that fails
+        /// between the read and that collection has to return it here.
+        /// </remarks>
+        protected void ReturnDecryptedBuffer(ArraySegment<byte> plainText)
+        {
+            // Returned under the name Decrypt rented it with, so the buffer
+            // manager's own owner tracking lines the two up.
+            ReturnBuffer(plainText, "Decrypt");
         }
 
         /// <summary>
@@ -1542,7 +1575,7 @@ namespace Opc.Ua.Bindings
             }
             catch
             {
-                BufferManager.ReturnBuffer(plainText.Array, nameof(ReadAsymmetricMessageAsync));
+                ReturnDecryptedBuffer(plainText);
                 throw;
             }
         }

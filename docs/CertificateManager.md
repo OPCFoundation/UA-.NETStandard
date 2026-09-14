@@ -751,8 +751,9 @@ CA signing and CRL revocation. Located in `Opc.Ua.Security.Certificates`.
 ### Pluggable Store Backends
 
 The rejected-certificate store limit uses zero for unlimited history and a
-negative value to disable new rejected-certificate storage. Directory
-pruning preserves the zero-limit history. Native X509 snapshots have
+negative value to disable new rejected-certificate storage. Negative limits
+retain existing backend behavior: Directory prunes prior history, while the
+shared key/value store leaves it intact. Native X509 snapshots have
 explicit owners for matching and nonmatching entries; returned matches
 remain usable after the store closes.
 

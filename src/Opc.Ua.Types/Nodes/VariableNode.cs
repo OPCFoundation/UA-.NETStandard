@@ -377,7 +377,8 @@ namespace Opc.Ua
                     AccessLevelEx = (uint)value;
                     return ServiceResult.Good;
                 case Attributes.MinimumSamplingInterval:
-                    MinimumSamplingInterval = (int)value;
+                    // The attribute is a Duration (Double), not an Int32.
+                    MinimumSamplingInterval = (double)value;
                     return ServiceResult.Good;
                 case Attributes.Historizing:
                     Historizing = (bool)value;

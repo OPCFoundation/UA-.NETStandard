@@ -170,6 +170,7 @@ namespace Opc.Ua
 
             public bool IsEnabled(LogLevel logLevel)
             {
+                // The event ID owns category filtering; the level alone cannot decide it.
                 return logLevel != LogLevel.None &&
                     (Tracing.IsEnabled() || m_provider.HasEnabledTraceOutput());
             }
@@ -441,6 +442,10 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
+                        // Interpolated, not a format string: WriteLine(string,
+                        // string) is the better overload for two string
+                        // arguments, so the second would be taken as a category
+                        // and the placeholder printed verbatim.
                         Debug.WriteLine($"Could not write to trace file. Error={e.Message}");
                         Debug.WriteLine($"FilePath={traceFileName}");
                     }

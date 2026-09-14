@@ -142,13 +142,14 @@ namespace Opc.Ua.Encoders
             bool isJsonDecoder = decoder.EncodingType == EncodingType.Json;
             if (unionSelector == 0 && isJsonDecoder)
             {
+                // The Verbose JSON encoding writes no SwitchField, so the
+                // selector has to be recovered from the member name. Every
+                // union field is a candidate - filtering by IsOptional left the
+                // list empty and every such union decoded as selector 0.
                 var fields = new List<string>();
                 foreach (Field property in PropertyList)
                 {
-                    if (property.IsOptional)
-                    {
-                        fields.Add(property.Name!);
-                    }
+                    fields.Add(property.Name!);
                 }
 
                 unionSelector = decoder.ReadSwitchField(fields, out _);

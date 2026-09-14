@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -416,6 +417,37 @@ namespace Opc.Ua.Client.Tests
             Assert.That(errors.Count, Is.EqualTo(2));
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(errors[1].StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+        }
+
+        [Test]
+        public async Task ReleaseContinuationPointAsyncLogsAndSwallowsAFailureAsync()
+        {
+            var failure = new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+            var session = new Mock<ISessionClient>();
+            session.Setup(s => s.BrowseNextAsync(
+                    It.IsAny<RequestHeader>(),
+                    true,
+                    It.IsAny<ArrayOf<ByteString>>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(failure);
+            var logger = new Mock<ILogger>();
+            logger.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
+
+            await session.Object
+                .ReleaseContinuationPointAsync(ByteString.From([1, 2, 3]), logger.Object)
+                .ConfigureAwait(false);
+
+#pragma warning disable CA1873 // Moq Verify on ILogger.Log is an expression tree, not an executed logging call.
+            logger.Verify(
+                l => l.Log(
+                    LogLevel.Warning,
+                    It.Is<EventId>(eventId => eventId.Name == "ReleaseContinuationPointFailed"),
+                    It.IsAny<It.IsAnyType>(),
+                    failure,
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+                Times.Once,
+                "a failed release must be visible, not silently dropped");
+#pragma warning restore CA1873
         }
 
         private static ISession CreateSession(

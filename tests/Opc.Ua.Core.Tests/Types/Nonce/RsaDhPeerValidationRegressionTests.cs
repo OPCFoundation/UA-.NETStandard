@@ -30,7 +30,6 @@
 using System;
 using System.Numerics;
 using System.Reflection;
-using System.Security.Cryptography;
 using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Types.Nonce
@@ -67,11 +66,11 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
                 _ => length
             };
             byte[] encoded = Encode(value, peerLength);
-            Assert.Throws<CryptographicException>(() =>
+            Assert.That(() =>
             {
                 RSADiffieHellman remote = RSADiffieHellman.Create(encoded);
                 local.DeriveRawSecretAgreement(remote);
-            });
+            }, Throws.ArgumentException);
         }
 
         [TestCase(RSADiffieHellmanGroup.FFDHE2048)]

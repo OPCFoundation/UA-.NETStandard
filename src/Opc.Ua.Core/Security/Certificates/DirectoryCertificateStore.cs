@@ -337,9 +337,10 @@ namespace Opc.Ua
 
                 DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
                 int entries = 0;
+
                 foreach (Certificate certificate in certificates)
                 {
-                    // limit the number of certificates added per call.
+                    // Limit the number of certificates added per call; zero is unlimited.
                     if (maxCertificates != 0 && entries >= maxCertificates)
                     {
                         break;
@@ -377,6 +378,7 @@ namespace Opc.Ua
                     entries++;
                 }
 
+                // Preserve unlimited history at zero and the existing negative-cap pruning contract.
                 entries = 0;
                 foreach (Entry entry in m_certificates.Values
                     .OrderByDescending(e => e.LastWriteTimeUtc))

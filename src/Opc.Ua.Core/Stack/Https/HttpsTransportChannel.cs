@@ -34,6 +34,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -315,15 +316,6 @@ namespace Opc.Ua.Bindings
             }
             catch (HttpRequestException hre)
             {
-                StatusCode statusCode = hre.InnerException switch
-                {
-                    WebException { Status: WebExceptionStatus.Timeout } => StatusCodes.BadRequestTimeout,
-                    WebException { Status: WebExceptionStatus.ConnectionClosed or WebExceptionStatus.ConnectFailure }
-                        => StatusCodes.BadNotConnected,
-                    SocketException { SocketErrorCode: SocketError.TimedOut } => StatusCodes.BadRequestTimeout,
-                    SocketException => StatusCodes.BadNotConnected,
-                    _ => StatusCodes.BadUnknownResponse
-                };
                 if (hre.InnerException is WebException webex)
                 {
                     m_logger.HttpsChannelLog1(webex);
@@ -333,7 +325,10 @@ namespace Opc.Ua.Bindings
                     m_logger.HttpsChannelLog2(hre);
                 }
                 throw ServiceResultException.Create(
-                    statusCode, hre, "Error sending request: {0}", hre.InnerException?.Message ?? hre.Message);
+                    MapRequestFailure(hre),
+                    hre,
+                    "Error sending request: {0}",
+                    hre.InnerException?.Message ?? hre.Message);
             }
             catch (OperationCanceledException e)
             {
@@ -735,6 +730,12 @@ namespace Opc.Ua.Bindings
                 var client = new HttpClient(handler);
 #pragma warning restore CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
                 handler = null; // ownership transferred to HttpClient
+
+                // No MaxResponseContentBufferSize here: it only bounds buffering
+                // HttpClient does itself, and every response is read with
+                // HttpCompletionOption.ResponseHeadersRead and bounded by
+                // HttpResponseBodyReader. Setting it would read as a limit that is
+                // in force on the factory-supplied client too, and it is not.
                 return client;
             }
             finally
@@ -804,6 +805,65 @@ namespace Opc.Ua.Bindings
                 return JsonDecoder.DecodeMessage<IServiceResponse>(memory.ToArray(), context);
             }
             return BinaryDecoder.DecodeMessage<IServiceResponse>(stream, context);
+        }
+
+        /// <summary>
+        /// Maps a failed HTTP request onto the status code the stack reports for
+        /// it, distinguishing a transport failure worth retrying from a delivered
+        /// HTTP error or a rejected TLS handshake.
+        /// </summary>
+        private static StatusCode MapRequestFailure(HttpRequestException exception)
+        {
+            if (exception.InnerException is WebException webException)
+            {
+                return webException.Status switch
+                {
+                    WebExceptionStatus.Timeout => StatusCodes.BadRequestTimeout,
+                    WebExceptionStatus.ConnectionClosed or WebExceptionStatus.ConnectFailure
+                        => StatusCodes.BadNotConnected,
+                    _ => StatusCodes.BadUnknownResponse
+                };
+            }
+            if (exception.InnerException is SocketException socketException)
+            {
+                return MapSocketError(socketException.SocketErrorCode);
+            }
+
+            // A TLS failure - including a server certificate the UA validator
+            // rejected in the handler callback - is permanent for this endpoint.
+            if (exception.InnerException is AuthenticationException)
+            {
+                return StatusCodes.BadSecurityChecksFailed;
+            }
+
+            // Anything else reached the server or failed for a reason the
+            // transport cannot fix by trying again: EnsureSuccessStatusCode
+            // throws with no inner exception at all.
+            return StatusCodes.BadUnknownResponse;
+        }
+
+        /// <summary>
+        /// Maps the socket error behind a failed HTTP request onto the status
+        /// code the stack reports for it.
+        /// </summary>
+        private static StatusCode MapSocketError(SocketError error)
+        {
+            switch (error)
+            {
+                case SocketError.TimedOut:
+                    return StatusCodes.BadRequestTimeout;
+                case SocketError.ConnectionAborted:
+                case SocketError.ConnectionRefused:
+                case SocketError.ConnectionReset:
+                case SocketError.HostDown:
+                case SocketError.HostNotFound:
+                case SocketError.HostUnreachable:
+                case SocketError.NetworkDown:
+                case SocketError.NetworkUnreachable:
+                    return StatusCodes.BadNotConnected;
+                default:
+                    return StatusCodes.BadUnknownResponse;
+            }
         }
 
         /// <summary>

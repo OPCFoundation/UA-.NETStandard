@@ -42,7 +42,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     public sealed class StoreRevocationContractRegressionTests
     {
         [Test]
-        public async Task UnsupportedOsRevocationReturnsTheCapabilityStatusAsync()
+        public async Task UnsupportedOsRevocationReturnsUnknownStatusAsync()
         {
             using Certificate certificate = CertificateBuilder.Create("CN=Revocation Capability")
                 .SetRSAKeySize(2048).CreateForRSA();
@@ -55,7 +55,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 Assert.That(store.SupportsCRLs, Is.False);
                 StatusCode status = await store.IsRevokedAsync(certificate, certificate).ConfigureAwait(false);
-                Assert.That(status, Is.EqualTo(StatusCodes.BadNotSupported));
+                Assert.That(status, Is.EqualTo(StatusCodes.BadCertificateRevocationUnknown));
             }
             finally
             {

@@ -738,6 +738,13 @@ namespace Opc.Ua.Bindings
 
             BufferCollection? chunksToProcess = null;
 
+            // The decrypted body lives in a buffer of its own, separate from the
+            // chunk it came from, and only the chunk collection returns it. Until
+            // it joins that collection it is this method's to return - the
+            // certificate and sequence-number checks below both reject messages a
+            // peer can send at will.
+            bool bodyOwned = true;
+
             try
             {
                 // verify server certificate.
@@ -752,11 +759,13 @@ namespace Opc.Ua.Bindings
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
+                    bodyOwned = false;
                     SaveIntermediateChunk(requestId, messageBody, false, gateHeld: true);
                     return false;
                 }
 
                 // get the chunks to process.
+                bodyOwned = false;
                 chunksToProcess = GetSavedChunks(requestId, messageBody, false, gateHeld: true);
 
                 // read message body.
@@ -844,6 +853,12 @@ namespace Opc.Ua.Bindings
 #pragma warning disable CA1508
                 serverCertificate?.Dispose();
 #pragma warning restore CA1508
+
+                if (bodyOwned)
+                {
+                    ReturnDecryptedBuffer(messageBody);
+                }
+
                 chunksToProcess?.Release(BufferManager, "ProcessOpenSecureChannelResponse");
             }
 

@@ -624,7 +624,11 @@ namespace Opc.Ua.Sessions.Tests
 
         [Theory]
         [Order(210)]
-        public async Task ConnectAndReconnectAsync(bool reconnectAbort, bool useMaxReconnectPeriod)
+        [CancelAfter(120_000)]
+        public async Task ConnectAndReconnectAsync(
+            bool reconnectAbort,
+            bool useMaxReconnectPeriod,
+            CancellationToken ct)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -640,7 +644,8 @@ namespace Opc.Ua.Sessions.Tests
             int sessionClosing = 0;
             session.SessionClosing += (sender, e) => sessionClosing++;
 
-            var quitEvent = new ManualResetEvent(false);
+            var reconnected = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             var reconnectHandler = new SessionReconnectHandler(
                 telemetry,
                 reconnectAbort,
@@ -674,10 +679,16 @@ namespace Opc.Ua.Sessions.Tests
                         TestContext.Out.WriteLine("Reconnect aborted reusing secure channel.");
                     }
 
-                    quitEvent.Set();
+                    reconnected.TrySetResult(true);
                 });
 
-            bool timeout = quitEvent.WaitOne(connectTimeout);
+            // Await rather than block: the reconnect this waits for runs on
+            // the thread pool, and parking a pool thread on it (WaitOne) is
+            // what lets parallel fixtures starve a small CI runner.
+            Task completed = await Task
+                .WhenAny(reconnected.Task, Task.Delay(connectTimeout, ct))
+                .ConfigureAwait(false);
+            bool timeout = ReferenceEquals(completed, reconnected.Task);
             Assert.That(timeout, Is.True);
 
             if (reconnectAbort)
@@ -692,7 +703,7 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(sessionConfigChanged, Is.EqualTo(reconnectAbort ? 0 : 1));
             Assert.That(sessionClosing, Is.Zero);
 
-            StatusCode result = await session.CloseAsync().ConfigureAwait(false);
+            StatusCode result = await session.CloseAsync(ct).ConfigureAwait(false);
             reconnectHandler.Dispose();
             session.Dispose();
 
@@ -887,7 +898,10 @@ namespace Opc.Ua.Sessions.Tests
         /// </summary>
         [Theory]
         [Order(250)]
-        public async Task ReconnectSessionOnAlternateChannelAsync(bool closeChannel)
+        [CancelAfter(120_000)]
+        public async Task ReconnectSessionOnAlternateChannelAsync(
+            bool closeChannel,
+            CancellationToken ct)
         {
             ServiceResultException sre;
 
@@ -905,7 +919,7 @@ namespace Opc.Ua.Sessions.Tests
 
             // test by reading a value
             ServerStatusDataType value1 = await session1.ReadValueAsync<ServerStatusDataType>(
-                VariableIds.Server_ServerStatus).ConfigureAwait(false);
+                VariableIds.Server_ServerStatus, ct).ConfigureAwait(false);
             Assert.That(value1, Is.Not.Null);
 
             // save the channel to close it later
@@ -926,12 +940,12 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(channel2, Is.Not.Null);
 
             // activate the session on the new channel
-            await session1.ReconnectAsync(channel2, CancellationToken.None)
+            await session1.ReconnectAsync(channel2, ct)
                 .ConfigureAwait(false);
 
             // test by reading a value
             ServerStatusDataType value2 = await session1.ReadValueAsync<ServerStatusDataType>(
-                VariableIds.Server_ServerStatus).ConfigureAwait(false);
+                VariableIds.Server_ServerStatus, ct).ConfigureAwait(false);
             Assert.That(value2, Is.Not.Null);
             Assert.That(value2.State, Is.EqualTo(value1.State));
 
@@ -946,31 +960,31 @@ namespace Opc.Ua.Sessions.Tests
 
             // test by reading a value
             ServerStatusDataType value3 = await session1.ReadValueAsync<ServerStatusDataType>(
-                VariableIds.Server_ServerStatus).ConfigureAwait(false);
+                VariableIds.Server_ServerStatus, ct).ConfigureAwait(false);
             Assert.That(value3, Is.Not.Null);
             Assert.That(value3.State, Is.EqualTo(value1.State));
 
             // close the session, keep the channel open
-            await session1.CloseAsync(closeChannel: false, CancellationToken.None)
+            await session1.CloseAsync(closeChannel: false, ct)
                 .ConfigureAwait(false);
 
             // cannot read using a closed session, validate the status code
             sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await session1.ReadValueAsync<ServerStatusDataType>(
-                    VariableIds.Server_ServerStatus).ConfigureAwait(false));
+                    VariableIds.Server_ServerStatus, ct).ConfigureAwait(false));
             Assert.That(
                 sre.StatusCode,
                 Is.EqualTo(StatusCodes.BadSessionIdInvalid),
                 sre.Message);
 
             // close the channel
-            await channel2.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            await channel2.CloseAsync(ct).ConfigureAwait(false);
             channel2.Dispose();
 
             // cannot read using a closed channel, validate the status code
             sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await session1.ReadValueAsync<ServerStatusDataType>(
-                    VariableIds.Server_ServerStatus).ConfigureAwait(false));
+                    VariableIds.Server_ServerStatus, ct).ConfigureAwait(false));
 
             if (StatusCodes.BadSecureChannelClosed != sre.StatusCode)
             {
@@ -998,9 +1012,11 @@ namespace Opc.Ua.Sessions.Tests
         [TestCase(SecurityPolicies.RSA_DH_ChaChaPoly, true)]
         [TestCase(SecurityPolicies.RSA_DH_ChaChaPoly, false)]
         [TestCaseSource(nameof(ReconnectSessionOnAlternateChannelWithSavedSessionSecretsEccTestCases))]
+        [CancelAfter(120_000)]
         public async Task ReconnectSessionOnAlternateChannelWithSavedSessionSecretsAsync(
             string securityPolicy,
-            bool anonymous)
+            bool anonymous,
+            CancellationToken ct)
         {
             await IgnoreIfPolicyNotAdvertisedAsync(securityPolicy).ConfigureAwait(false);
 
@@ -1033,7 +1049,7 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(session1, Is.Not.Null);
 
             ServerStatusDataType value1 = await session1.ReadValueAsync<ServerStatusDataType>(
-                VariableIds.Server_ServerStatus).ConfigureAwait(false);
+                VariableIds.Server_ServerStatus, ct).ConfigureAwait(false);
             Assert.That(value1, Is.Not.Null);
 
             // save the session configuration
@@ -1067,17 +1083,19 @@ namespace Opc.Ua.Sessions.Tests
             session2.RenewUserIdentity += (_, _) => userIdentity;
 
             // activate the session from saved session secrets on the new channel
-            await session2.ReconnectAsync(channel2, CancellationToken.None)
+            await session2.ReconnectAsync(channel2, ct)
                 .ConfigureAwait(false);
-            Thread.Sleep(500);
+            // Awaited, not Thread.Sleep: blocking a pool thread inside an async
+            // test is what starves a small runner when fixtures run in parallel.
+            await Task.Delay(500, ct).ConfigureAwait(false);
 
             Assert.That(session2.SessionId, Is.EqualTo(session1.SessionId));
 
             ServerStatusDataType value2 = await session2.ReadValueAsync<ServerStatusDataType>(
-                VariableIds.Server_ServerStatus).ConfigureAwait(false);
+                VariableIds.Server_ServerStatus, ct).ConfigureAwait(false);
             Assert.That(value2, Is.Not.Null);
 
-            await Task.Delay(500).ConfigureAwait(false);
+            await Task.Delay(500, ct).ConfigureAwait(false);
 
             // cannot read using a closed channel, validate the status code
             if (endpoint.EndpointUrl.ToString()
@@ -1085,7 +1103,7 @@ namespace Opc.Ua.Sessions.Tests
             {
                 sre = Assert.ThrowsAsync<ServiceResultException>(
                     async () => await session1.ReadValueAsync<ServerStatusDataType>(
-                        VariableIds.Server_ServerStatus).ConfigureAwait(false));
+                        VariableIds.Server_ServerStatus, ct).ConfigureAwait(false));
                 Assert.That(
                     sre.StatusCode,
                     Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid),
@@ -1094,16 +1112,16 @@ namespace Opc.Ua.Sessions.Tests
             else
             {
                 object result = await session1.ReadValueAsync<ServerStatusDataType>(
-                    VariableIds.Server_ServerStatus).ConfigureAwait(false);
+                    VariableIds.Server_ServerStatus, ct).ConfigureAwait(false);
                 Assert.That(result, Is.Not.Null);
             }
 
             session1.DeleteSubscriptionsOnClose = true;
-            await session1.CloseAsync(1000).ConfigureAwait(false);
+            await session1.CloseAsync(1000, ct).ConfigureAwait(false);
             session1?.Dispose();
 
             session2.DeleteSubscriptionsOnClose = true;
-            await session2.CloseAsync(1000).ConfigureAwait(false);
+            await session2.CloseAsync(1000, ct).ConfigureAwait(false);
             session2?.Dispose();
         }
 

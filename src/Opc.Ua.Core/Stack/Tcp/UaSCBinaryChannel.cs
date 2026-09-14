@@ -305,11 +305,30 @@ namespace Opc.Ua.Bindings
                 // drain without blocking. State-change notifications stop being
                 // accepted immediately and any in flight are cancelled.
                 m_backgroundWork.Dispose();
-                m_receiveLoop?.Dispose();
 
-                IUaSCByteTransport? transport = Interlocked.Exchange(ref m_transport, null);
+                IUaSCByteTransport? transport = DetachTransport();
                 transport?.Close();
                 DiscardTokens();
+
+                // A message the peer never finished sending leaves its chunks
+                // queued here. Nothing else returns them, so a client that sends
+                // one intermediate chunk and disconnects would cost the pool a
+                // receive buffer per channel.
+                //
+                // Dispose runs alongside the receive loop, which may be saving a
+                // chunk at this moment, so the collection is detached under the
+                // same lock every partial message operation takes, and closed so
+                // a chunk saved afterwards is not queued into a new collection
+                // nothing would ever release.
+                BufferCollection? partialChunks;
+
+                lock (m_partialMessageLock)
+                {
+                    m_partialMessageClosed = true;
+                    partialChunks = m_partialMessageChunks;
+                    m_partialMessageChunks = null;
+                }
+                partialChunks?.Release(BufferManager, "Dispose");
 
                 ServerCertificateChain?.Dispose();
                 ServerCertificateChain = null;
@@ -519,52 +538,104 @@ namespace Opc.Ua.Bindings
         /// <see cref="DoMessageLimitsExceeded(bool)"/>, which tears the channel
         /// down and must know whether it may take the gate.
         /// </param>
+        /// <remarks>
+        /// Always takes ownership of <paramref name="chunk"/>: it is either added
+        /// to the partial message, or returned to the <see cref="BufferManager"/>
+        /// straight away. A caller must therefore never pass a chunk it has
+        /// already handed over — use <see cref="TakeSavedChunks"/> when the body
+        /// is saved and only the collection is wanted.
+        /// </remarks>
         protected bool SaveIntermediateChunk(
             uint requestId,
             ArraySegment<byte> chunk,
             bool isServerContext,
             bool gateHeld)
         {
-            bool firstChunk = false;
-            if (m_partialMessageChunks == null)
-            {
-                firstChunk = true;
-                m_partialMessageChunks = [];
-            }
+            bool firstChunk;
+            bool chunkOrSizeLimitsExceeded;
 
-            bool chunkOrSizeLimitsExceeded = MessageLimitsExceeded(
-                isServerContext,
-                m_partialMessageChunks.TotalSize,
-                m_partialMessageChunks.Count);
-
-            if ((m_partialRequestId != requestId) || chunkOrSizeLimitsExceeded)
+            lock (m_partialMessageLock)
             {
-                if (m_partialMessageChunks.Count > 0)
+                // Disposal has already released the partial message and nothing
+                // will release it again, so a chunk arriving after that goes
+                // straight back to the pool rather than into a new collection.
+                if (m_partialMessageClosed)
                 {
-                    m_logger.UaSCChannelLog4(m_partialRequestId);
+                    ReturnBuffer(chunk, "SaveIntermediateChunk");
+                    return false;
                 }
 
-                m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
+                firstChunk = m_partialMessageChunks == null;
+                m_partialMessageChunks ??= [];
+
+                chunkOrSizeLimitsExceeded = MessageLimitsExceeded(
+                    isServerContext,
+                    m_partialMessageChunks.TotalSize,
+                    m_partialMessageChunks.Count);
+
+                if ((m_partialRequestId != requestId) || chunkOrSizeLimitsExceeded)
+                {
+                    if (m_partialMessageChunks.Count > 0)
+                    {
+                        m_logger.UaSCChannelLog4(m_partialRequestId);
+                    }
+
+                    m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
+                }
+
+                if (!chunkOrSizeLimitsExceeded && requestId != 0 && chunk.Array != null)
+                {
+                    m_partialRequestId = requestId;
+                    m_partialMessageChunks.Add(chunk);
+                }
+                else
+                {
+                    ReturnBuffer(chunk, "SaveIntermediateChunk");
+                }
             }
 
+            // Outside the lock: tearing the channel down can take the gate, and
+            // the partial message lock must stay a leaf.
             if (chunkOrSizeLimitsExceeded)
             {
                 DoMessageLimitsExceeded(gateHeld);
-                BufferManager.ReturnBuffer(chunk.Array, "SaveIntermediateChunk");
-                return firstChunk;
-            }
-
-            if (requestId != 0 && chunk.Array != null)
-            {
-                m_partialRequestId = requestId;
-                m_partialMessageChunks.Add(chunk);
-            }
-            else
-            {
-                BufferManager.ReturnBuffer(chunk.Array, "SaveIntermediateChunk");
             }
 
             return firstChunk;
+        }
+
+        /// <summary>
+        /// Whether chunks of a message are already waiting for the rest of it,
+        /// so that the next chunk continues a message rather than starting one.
+        /// </summary>
+        /// <remarks>
+        /// A caller that has to inspect the first chunk of a message checks this
+        /// before handing the chunk to <see cref="SaveIntermediateChunk"/>: that
+        /// call takes ownership and can return the buffer to the pool at once,
+        /// so the body is only safe to read beforehand.
+        /// </remarks>
+        protected bool HasPartialMessage
+        {
+            get
+            {
+                lock (m_partialMessageLock)
+                {
+                    return m_partialMessageChunks != null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns a pooled buffer nothing downstream took ownership of.
+        /// </summary>
+        /// <param name="buffer">The segment whose array goes back to the pool.</param>
+        /// <param name="owner">The owner name the buffer manager tracks it under.</param>
+        protected void ReturnBuffer(ArraySegment<byte> buffer, string owner)
+        {
+            if (buffer.Array != null)
+            {
+                BufferManager.ReturnBuffer(buffer.Array, owner);
+            }
         }
 
         /// <summary>
@@ -578,9 +649,23 @@ namespace Opc.Ua.Bindings
             bool gateHeld)
         {
             SaveIntermediateChunk(requestId, chunk, isServerContext, gateHeld);
-            BufferCollection savedChunks = m_partialMessageChunks!;
-            m_partialMessageChunks = null;
-            return savedChunks;
+            return TakeSavedChunks();
+        }
+
+        /// <summary>
+        /// Detaches the chunks saved so far without offering another one. Used
+        /// where the final chunk has already been saved and only the collection
+        /// is needed; passing it to <see cref="GetSavedChunks"/> a second time
+        /// would either queue the same buffer twice or release it early.
+        /// </summary>
+        protected BufferCollection TakeSavedChunks()
+        {
+            lock (m_partialMessageLock)
+            {
+                BufferCollection savedChunks = m_partialMessageChunks ?? [];
+                m_partialMessageChunks = null;
+                return savedChunks;
+            }
         }
 
         /// <summary>
@@ -588,7 +673,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected int GetSavedChunksTotalSize()
         {
-            return m_partialMessageChunks?.TotalSize ?? 0;
+            lock (m_partialMessageLock)
+            {
+                return m_partialMessageChunks?.TotalSize ?? 0;
+            }
         }
 
         /// <summary>
@@ -700,8 +788,14 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles an error parsing or verifying a message.
         /// </summary>
+        /// <remarks>
+        /// The default reports the error to the log. A channel that has to act
+        /// on it — fault, reconnect, fail the pending operation — does so at the
+        /// point the error is detected rather than relying on this.
+        /// </remarks>
         protected virtual void HandleMessageProcessingError(ServiceResult result)
         {
+            m_logger.UaSCChannelMessageProcessingError(ChannelId, result);
         }
 
         /// <summary>
@@ -750,7 +844,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Sets up the receive-loop state (CTS, task, running flag) and
+        /// Installs the transport and its cancellation lifetime together and
         /// runs the supplied <paramref name="loopBody"/> on a background
         /// task. Used by <see cref="StartReceiveLoop"/> for the default
         /// long-running loop and by derived classes (e.g.
@@ -807,6 +901,22 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Detaches the current <see cref="Transport"/> and signals the receive
+        /// loop reading from it to stop, without waiting for it to finish. The
+        /// returned transport is the caller's responsibility — the channel's own
+        /// <see cref="Dispose(bool)"/> will no longer close it.
+        /// </summary>
+        /// <remarks>
+        /// The synchronous counterpart to <see cref="DetachTransportAsync"/>,
+        /// for the handover in <c>TcpServerChannel</c> that runs on the very
+        /// receive loop being stopped and so cannot await it.
+        /// </remarks>
+        protected internal IUaSCByteTransport? DetachTransport()
+        {
+            return DetachTransport(out _);
+        }
+
+        /// <summary>
         /// Stops the channel's receive loop (if running), detaches the current
         /// <see cref="Transport"/> from the channel, and returns it. The
         /// returned transport is the caller's responsibility — the channel's
@@ -843,7 +953,7 @@ namespace Opc.Ua.Bindings
                 loop = m_receiveLoop;
                 m_receiveLoop = null;
             }
-            loop?.Cancel();
+            loop?.Dispose();
             return transport;
         }
 
@@ -1530,6 +1640,20 @@ namespace Opc.Ua.Bindings
         private uint m_partialRequestId;
         private BufferCollection? m_partialMessageChunks;
 
+        /// <summary>
+        /// Guards <see cref="m_partialMessageChunks"/>,
+        /// <see cref="m_partialRequestId"/> and
+        /// <see cref="m_partialMessageClosed"/>. The channel gate cannot serve:
+        /// it is not re-entrant, the client saves response chunks without it,
+        /// and disposal does not take it. Nothing is acquired while this is held.
+        /// </summary>
+        private readonly Lock m_partialMessageLock = new();
+
+        /// <summary>
+        /// Set once disposal has released the partial message.
+        /// </summary>
+        private bool m_partialMessageClosed;
+
         private IUaSCByteTransport? m_transport;
         private readonly BackgroundTaskScope m_backgroundWork;
         private sealed class ReceiveLoop : IDisposable
@@ -1761,6 +1885,19 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             Exception exception,
             uint channelId);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 15, Level = LogLevel.Error,
+            Message = "ChannelId {ChannelId}: Could not process an incoming message. {ServiceResult}")]
+        public static partial void UaSCChannelMessageProcessingError(
+            this ILogger logger,
+            uint channelId,
+            ServiceResult serviceResult);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 16, Level = LogLevel.Debug,
+            Message = "The nonce supplied by the peer was rejected.")]
+        public static partial void UaSCChannelNonceRejected(
+            this ILogger logger,
+            Exception exception);
     }
 
 }

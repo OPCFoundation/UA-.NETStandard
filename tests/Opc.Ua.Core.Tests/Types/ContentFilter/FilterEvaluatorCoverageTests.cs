@@ -248,6 +248,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void InListWithStringMemberAfterLeadingMismatchYieldsTrue()
         {
+            // A leading mismatch only rules out that operand; the remaining
+            // list entries are still compared.
             ContentFilterElement element = Element(
                 FilterOperator.InList,
                 new LiteralOperand(Variant.From("x")),
