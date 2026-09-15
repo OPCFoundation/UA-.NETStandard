@@ -92,7 +92,7 @@ Things to know:
 - The results file is written only when the run ends. Wait with a timeout instead of `-Wait`
   (`$p.WaitForExit($ms)`, then `Stop-Process` on timeout): scripts that open a message box still
   do so with `--hidden` and wait for input forever (A & C CertificateExpiration, see
-  [ctt-issues.md](ctt-issues.md) C24). A killed run leaves no results, so split long selections.
+  [ctt-issues.md](ctt-issues.md) C44). A killed run leaves no results, so split long selections.
 - Only one CTT instance should talk to the server at a time. Check with
   `Get-Process uacompliancetest` before starting another.
 - Full CTT documentation: `<CttDir>\help\command_line_interface.htm`.
@@ -282,8 +282,10 @@ Measured on 2026-09-14 (CTT 1.05.06, scripts 1.05.513, `ConsoleReferenceServer -
 | **Total** | **about 87 min + hang** | **18:45** | |
 
 The same group run with the default cycle of 60 s took 24:21 and 29:23. The spread comes from A & C
-Enable: when its alarm thread stops returning events, `Test_003.js`, `Err_004.js` and `Err_005.js` each
-run to 3 × cycle (C43, 9 minutes at cycle 60, 4.5 at cycle 30).
+Enable: `Test_003.js` missed alarm types while the server's boolean and analog alarm sources stepped a
+tick apart (C42, fixed on the server side), and after the `Err_004.js` burst the CTT alarm thread can stop
+returning events (C43), so `Err_004.js` and `Err_005.js` run to 3 × cycle (6 minutes at cycle 60, 3 at
+cycle 30).
 
 How the A&C scripts spend time:
 
@@ -314,7 +316,6 @@ With the server fixes of 2026-09-14, the recommended run reports errors only in 
 `Test_002.js` (C10) and `Test_004.js` (C11), and A & C Enable `Test_002.js` (C12/C39). A & C Comment
 skips `Test_001.js`–`Test_004.js` (C39) and `Err_006.js`; ten Shelving test cases pass without testing
 anything unless chattering alarms are configured (see ctt-issues.md, CTT project configuration notes).
-
 ## 7. Session and Subscription Services
 
 The *Session Services* group (4 CUs, 32 test cases) and the *Subscription Services* group (14 CUs,

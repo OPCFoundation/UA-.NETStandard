@@ -74,8 +74,6 @@ namespace Alarms
             string name,
             double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED)
         {
-            m_analog = false;
-
             m_alarm ??= new DiscreteAlarmState(m_parent);
 
             // Call the base class to set parameters
