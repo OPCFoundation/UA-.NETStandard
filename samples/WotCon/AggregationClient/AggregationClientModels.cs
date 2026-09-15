@@ -29,6 +29,7 @@
 
 using System;
 using Opc.Ua;
+using Opc.Ua.Identity;
 using Opc.Ua.WotCon.Client;
 
 namespace AggregationClient
@@ -67,6 +68,24 @@ namespace AggregationClient
         public string? PkiRoot { get; set; }
 
         /// <summary>
+        /// Gets or sets whether untrusted server certificates may be accepted for development.
+        /// Defaults to false; this does not select SecurityPolicy None.
+        /// </summary>
+        public bool AutoAcceptUntrustedCertificates { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether to select unsecured endpoints for an isolated demonstration.
+        /// Defaults to false, selecting SignAndEncrypt with Basic256Sha256; certificate trust is independent.
+        /// </summary>
+        public bool UseSecurityPolicyNone { get; set; }
+
+        /// <summary>
+        /// Gets or sets the authenticated identity provider used for registry management.
+        /// Secrets are resolved by the provider, not stored in these options.
+        /// </summary>
+        public IClientIdentityProvider? IdentityProvider { get; set; }
+
+        /// <summary>
         /// Gets or sets the directory containing documents.json and its documents.
         /// </summary>
         public string DocumentsDirectory { get; set; } =
@@ -74,6 +93,7 @@ namespace AggregationClient
 
         /// <summary>
         /// Gets or sets whether to run the explicit control and alarm demonstration.
+        /// Defaults to false; enabling this also connects to both sources to verify forwarded methods and alarm state.
         /// </summary>
         public bool ExerciseControls { get; set; }
     }
@@ -84,7 +104,7 @@ namespace AggregationClient
     public sealed class AggregationClientResult
     {
         /// <summary>
-        /// Initializes a result.
+        /// Captures the registry load result and browse/read results for a single materialized pump.
         /// </summary>
         public AggregationClientResult(
             WotRegistryBulkLoadResult loadResult,
@@ -97,7 +117,8 @@ namespace AggregationClient
         }
 
         /// <summary>
-        /// Initializes the result of loading both pumps.
+        /// Captures registry loading, per-pump results, and optional control round trips.
+        /// Exposes the first pump's browse/read results through the single-pump properties when present.
         /// </summary>
         public AggregationClientResult(
             WotRegistryBulkLoadResult loadResult,
@@ -146,7 +167,7 @@ namespace AggregationClient
     public sealed class WotPumpControlResult
     {
         /// <summary>
-        /// Initializes the completed control result.
+        /// Records the pump and source whose management and alarm round trips completed.
         /// </summary>
         public WotPumpControlResult(string pumpName, string sourceName)
         {
@@ -171,7 +192,7 @@ namespace AggregationClient
     public sealed class WotPumpResult
     {
         /// <summary>
-        /// Initializes the pump result.
+        /// Captures a pump's discovered root, browsed nodes, and typed measurement results.
         /// </summary>
         public WotPumpResult(
             string name,
@@ -212,7 +233,7 @@ namespace AggregationClient
     public sealed class WotPumpBrowseNode
     {
         /// <summary>
-        /// Initializes a browse result.
+        /// Captures the identity, names, and node class returned by browsing a materialized pump.
         /// </summary>
         public WotPumpBrowseNode(
             NodeId nodeId,
@@ -253,7 +274,7 @@ namespace AggregationClient
     public sealed class WotPumpValueResult
     {
         /// <summary>
-        /// Initializes a value result.
+        /// Captures one named pump property's node ID, read status, and typed value.
         /// </summary>
         public WotPumpValueResult(
             string name,

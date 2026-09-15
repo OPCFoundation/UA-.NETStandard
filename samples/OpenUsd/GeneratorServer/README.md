@@ -17,9 +17,24 @@ dotnet run --project samples/OpenUsd/GeneratorServer -- \
 | Argument | Default | Meaning |
 |---|---|---|
 | `--generators N` | 2 | How many sets to simulate (1…100) |
-| `--faults` | `true` | Let the first set develop faults on a slow rotation |
+| `--faults true\|false` | `true` | Let the first set develop faults on a slow rotation |
 | `--port` | 62543 | Endpoint port |
 | `--host` | `0.0.0.0` | Bind host |
+
+## Trust and startup configuration
+
+Trust both application certificates before connecting. Untrusted client certificates
+are rejected by default; SecurityPolicy None is not exposed. For isolated development,
+`--auto-accept` (aliases `--autoaccept`, `-a`) accepts untrusted client certificates and
+warns on stderr, without bypassing other certificate checks or message security.
+Omission or explicit `false` keeps trust enforcement; JSON/configuration cannot enable
+this sample flag. The connector's trust flag does not configure server-side trust.
+
+`--help` has no host/PKI side effects. Unknown switches, malformed values, ports outside
+1–65535 and generator counts outside 1–100 fail. Named sample options override
+positional `key=value` settings, then forwarded host arguments and normal
+JSON/environment configuration. Other host switches can be forwarded after the
+sample's `--`, for example `--auto-accept=false -- --Logging:LogLevel:Default Warning`.
 
 ## The machine
 

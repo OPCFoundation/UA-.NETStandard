@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <PackageId>Fixture.Contributor</PackageId>
+    <PackageVersion>2.0.0</PackageVersion>
+    <IsPackable>false</IsPackable>
+    <IncludeSymbols>false</IncludeSymbols>
+    <TargetFramework>net8.0</TargetFramework>
+    <ProjectAssetsFile>$(MSBuildThisFileDirectory)project.assets.json</ProjectAssetsFile>
+    <TargetPath>$(MSBuildThisFileDirectory)bin\net8.0\Contributor.dll</TargetPath>
+    <AssemblyName>Contributor</AssemblyName>
+    <RoslynApiVersion>4.0</RoslynApiVersion>
+  </PropertyGroup>
+</Project>

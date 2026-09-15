@@ -75,6 +75,30 @@ builder.Services.AddMcpServer()
 
 See [Architecture](../../docs/McpServer.md#architecture) for the full picture.
 
+### Executable host connection policy
+
+In this executable (both stdio and HTTP), `Connect` requires **SignAndEncrypt**
+when `securityMode` is omitted. It does not fall back to an unsecured endpoint.
+If no endpoint matches, use `GetEndpoints` to inspect the available modes and
+policies. An explicitly supplied `securityPolicy` is still honored.
+
+An explicit `securityMode: "Sign"` or `"None"` is preserved. `None` is an
+isolated-lab opt-in to unsigned, unencrypted OPC UA messages, not certificate
+auto-acceptance. Explicit null, empty, or invalid modes return an actionable
+tool error; they cannot select the library's automatic fallback.
+
+`autoAcceptCerts` remains false by default. Explicit true accepts only untrusted
+server certificates for that connection, not other certificate errors, and
+does not change endpoint selection. Neither consent is inherited by subsequent
+connections. Relaxation warnings contain no request arguments and use telemetry
+logging; all stdio logs go to stderr, leaving stdout for JSON-RPC.
+
+These are **executable host policies**, not changes to `Opc.Ua.Mcp.Core`.
+Applications using the embedding example above retain the library's existing
+most-secure-available selection, which can fall back to None, and must choose
+their own request policy. Configure trust through the certificate stores or PKI
+tools rather than enabling auto-acceptance for normal use.
+
 ## Documentation
 
 See the [full documentation](../../docs/McpServer.md) and [NuGet readme](McpREADME.md).
@@ -117,9 +141,13 @@ Add to `.vscode/mcp.json`:
 Tool: Connect
 Arguments:
   endpointUrl: "opc.tcp://localhost:62541/Quickstarts/ReferenceServer"
-  useSecurity: true
-  autoAcceptCerts: true
+  securityMode: "SignAndEncrypt"
+  autoAcceptCerts: false
 ```
+
+For an isolated lab only, explicitly supply `securityMode: "None"` when the
+server intentionally exposes an unsecured endpoint. Add `autoAcceptCerts: true`
+only when independently consenting to the untrusted-certificate exception.
 
 ### Browse the Objects folder
 

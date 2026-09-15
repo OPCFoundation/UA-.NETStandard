@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -57,38 +57,90 @@ namespace Opc.Ua.OpenUsd.Connector
     /// </summary>
     public static class OpenUsdConnectorRunner
     {
+        /// <summary>
+        /// Stores parsed connector command-line options for the server, live layer, viewport, and command bindings.
+        /// </summary>
         internal sealed class ConnectorRunOptions
         {
+            /// <summary>
+            /// Gets the OPC UA server endpoint URL to connect to.
+            /// </summary>
             public string Server { get; private set; } = string.Empty;
 
+            /// <summary>
+            /// Gets the output path for the live USD override layer.
+            /// </summary>
             public string OutPath { get; private set; } = string.Empty;
 
+            /// <summary>
+            /// Gets the requested run duration in seconds; nonpositive values leave shutdown to user cancellation.
+            /// </summary>
             public int Seconds { get; private set; }
 
+            /// <summary>
+            /// Gets whether to open an interactive viewport in addition to writing the live layer.
+            /// </summary>
             public bool View { get; private set; }
 
+            /// <summary>
+            /// Gets the requested viewport renderer, or null to use the host default.
+            /// </summary>
             public string? Renderer { get; private set; }
 
+            /// <summary>
+            /// Gets an explicit stage path to open instead of composing the downloaded root layers.
+            /// </summary>
             public string? StagePath { get; private set; }
 
+            /// <summary>
+            /// Gets the directory containing optional viewport plugins.
+            /// </summary>
             public string? PluginPath { get; private set; }
 
+            /// <summary>
+            /// Gets the camera prim path that overrides the stage's initial camera selection.
+            /// </summary>
             public string? CameraPath { get; private set; }
 
+            /// <summary>
+            /// Gets whether viewport picking reports the selected prim path.
+            /// </summary>
             public bool PrintPickCommands { get; private set; }
 
+            /// <summary>
+            /// Gets the optional prim path used for command-oriented picking.
+            /// </summary>
             public string? CommandPrimPath { get; private set; }
 
+            /// <summary>
+            /// Gets the parsed strategy for selecting prims in the viewport.
+            /// </summary>
             public UsdViewPickMode PickMode { get; private set; }
 
+            /// <summary>
+            /// Gets the optional cache directory for the server's served USD asset closure.
+            /// </summary>
             public string? FetchAssetsPath { get; private set; }
 
+            /// <summary>
+            /// Gets whether the caller explicitly permits unsecured endpoints and server-certificate validation
+            /// overrides.
+            /// </summary>
             public bool Insecure { get; private set; }
 
+            /// <summary>
+            /// Gets whether writing through discovered command bindings is explicitly enabled.
+            /// </summary>
             public bool EnableCommands { get; private set; }
 
+            /// <summary>
+            /// Gets the optional command setpoint text to parse using invariant culture.
+            /// </summary>
             public string? CommandValue { get; private set; }
 
+            /// <summary>
+            /// Parses connector options and defaults, returning false when the requested pick mode is invalid.
+            /// </summary>
             public static bool TryParse(
                 string[] args,
                 string currentDirectory,
@@ -144,6 +196,9 @@ namespace Opc.Ua.OpenUsd.Connector
         }
 
         // Excluded because this opens a live OPC UA Session against a running server and the parser decisions are tested.
+        /// <summary>
+        /// Runs the connector with the requested connection, asset-delivery, viewport, and command options.
+        /// </summary>
         [ExcludeFromCodeCoverage]
         public static async Task<int> RunAsync(string[] args)
         {
@@ -187,6 +242,14 @@ namespace Opc.Ua.OpenUsd.Connector
             // an unsecured endpoint and blanket certificate acceptance, which is only
             // appropriate for a localhost demo with self-signed certificates.
             bool insecure = options.Insecure;
+            if (insecure)
+            {
+                Console.Error.WriteLine(
+                    "WARNING: --insecure requests an unsecured endpoint (least-secure fallback if None is "
+                    + "unavailable) and accepts any server-certificate validation error, not only unknown trust. "
+                    + "This also applies to sessions opened by --federate. Use only for isolated testing; "
+                    + "this does not enable command writes.");
+            }
 
             // Command bindings (UsdToUaCommand) are opt-in and disabled by default
             // (fail-closed). --enable-commands lets the connector actuate the single
@@ -242,8 +305,6 @@ namespace Opc.Ua.OpenUsd.Connector
             {
                 // Demo-only: accept any server certificate.
                 config.CertificateManager.AcceptError = static (cert, err) => true;
-                Console.WriteLine(
-                    "WARNING: --insecure: using an unsecured endpoint and accepting any server certificate.");
             }
 
             Console.WriteLine($"Connecting to {server} ...");
@@ -381,6 +442,9 @@ namespace Opc.Ua.OpenUsd.Connector
             return exit;
         }
 
+        /// <summary>
+        /// Writes the selected prim path to standard output after checking for cancellation.
+        /// </summary>
         internal static Task PrintPickedPrimAsync(
             string primPath,
             CancellationToken cancellationToken)
@@ -388,6 +452,9 @@ namespace Opc.Ua.OpenUsd.Connector
             return PrintPickedPrimAsync(primPath, Console.Out, cancellationToken);
         }
 
+        /// <summary>
+        /// Writes the selected prim path to the supplied output after checking for cancellation.
+        /// </summary>
         internal static Task PrintPickedPrimAsync(
             string primPath,
             TextWriter output,
@@ -398,6 +465,9 @@ namespace Opc.Ua.OpenUsd.Connector
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Creates viewport options and optionally connects prim-picking notifications to the selected output.
+        /// </summary>
         internal static UsdViewOptions CreateViewOptions(
             string stagePath,
             string? renderer,
@@ -430,6 +500,9 @@ namespace Opc.Ua.OpenUsd.Connector
             return options;
         }
 
+        /// <summary>
+        /// Waits until cancellation signals normal connector shutdown.
+        /// </summary>
         internal static async Task WaitForShutdownAsync(CancellationToken cancellationToken)
         {
             try
@@ -442,6 +515,9 @@ namespace Opc.Ua.OpenUsd.Connector
             }
         }
 
+        /// <summary>
+        /// Parses an invariant-culture command setpoint only when command writes are enabled.
+        /// </summary>
         internal static bool TryParseCommandValue(
             bool enableCommands,
             string? commandValueOpt,
@@ -459,6 +535,9 @@ namespace Opc.Ua.OpenUsd.Connector
 
         // Writes a self-contained stage.usda that composes the connector's live override
         // over every server-delivered root layer, all now local in the cache directory.
+        /// <summary>
+        /// Writes a cached stage composing the live override above all downloaded root layers and seeds the live layer.
+        /// </summary>
         internal static void WriteStageUsda(string cacheDir, List<OpenUsdConnector.FetchedAsset> fetched)
         {
             var rootNames = new List<string>();
@@ -548,6 +627,9 @@ namespace Opc.Ua.OpenUsd.Connector
             return GetPrivateStateRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
         }
 
+        /// <summary>
+        /// Creates the connector state directory under the supplied base, falling back beside the executable if absent.
+        /// </summary>
         internal static string GetPrivateStateRoot(string? baseDirectory)
         {
             if (string.IsNullOrEmpty(baseDirectory))

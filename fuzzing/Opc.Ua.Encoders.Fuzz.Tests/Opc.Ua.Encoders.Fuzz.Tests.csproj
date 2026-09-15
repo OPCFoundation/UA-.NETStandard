@@ -48,23 +48,23 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Opc.Ua.Encoders.Fuzz.Corpus\Testcases.Binary\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Link>Testcases\Binary\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\Opc.Ua.Encoders.Fuzz.Corpus\Testcases.Json\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Link>Testcases\Json\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\Opc.Ua.Encoders.Fuzz.Corpus\Testcases.Xml\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Link>Testcases\Xml\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\Opc.Ua.Encoders.Fuzz.Corpus\Testcases.BuiltInTypes\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Link>Testcases\BuiltInTypes\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\Opc.Ua.Encoders.Fuzz.Corpus\Testcases.Parsers\**\*.*">
-      <Link>Testcases\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <Link>Testcases\Parsers\%(RecursiveDir)%(FileName)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Assets\**">

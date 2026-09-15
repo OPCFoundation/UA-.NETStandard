@@ -1,3 +1,32 @@
+# ========================================================================
+# Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+#
+# OPC Foundation MIT License 1.00
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation
+# files (the "Software"), to deal in the Software without
+# restriction, including without limitation the rights to use,
+# copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following
+# conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+# OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+#
+# The complete license agreement can be found here:
+# http://opcfoundation.org/License/MIT/1.00/
+# ========================================================================
+
 <#
  .SYNOPSIS
     Creates a job-matrix variable for downstream pipeline jobs.
@@ -54,6 +83,13 @@
     because an empty matrix skips the downstream job, which rolls up as a
     successful stage and would let the 'Tests passed' gate approve a run that
     executed no tests.
+
+ .PARAMETER TestHostTfm
+    For test matrices, evaluate each project with MSBuild and omit unsupported
+    hosts and compatibility shells. A successful all-TFM build is not a test.
+
+ .PARAMETER LibraryTfm
+    CustomTestTarget used for applicability evaluation. Defaults to TestHostTfm.
 #>
 
 Param(
@@ -65,9 +101,12 @@ Param(
     [string]    $Configurations  = '',
     [string]    $Files           = '',
     [string]    $Tfms            = '',
+    [string]    $TestHostTfm     = '',
+    [string]    $LibraryTfm      = '',
     [switch]    $AllowEmpty
 )
 
+$ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrEmpty($BuildRoot)) {
     $BuildRoot = & (Join-Path $PSScriptRoot 'get-root.ps1') -fileName '*.slnx'
 }
@@ -120,7 +159,7 @@ if ($fileList.Count -gt 0) {
             $items += Get-Item -LiteralPath $full
         }
         else {
-            Write-Warning "File not found: $rel"
+            throw "Requested matrix file was not found: $rel"
         }
     }
 }
@@ -139,6 +178,22 @@ else {
 }
 
 foreach ($item in $items) {
+    if ($TestHostTfm -and $item.Extension -eq '.csproj') {
+        $target = $LibraryTfm
+        if (-not $target) { $target = $TestHostTfm }
+        # Evaluation (not a build) observes imported framework restrictions too.
+        # Empty compatibility shells are build coverage, never test coverage.
+        $evaluation = & dotnet msbuild $item.FullName -nologo -maxcpucount:1 -nodeReuse:false `
+            "-p:CustomTestTarget=$target" `
+            '-getProperty:TargetFramework,TargetFrameworks,_RestrictedToLegacyTfm'
+        if ($LASTEXITCODE -ne 0) { throw "Cannot evaluate test project: $($item.Name)" }
+        $properties = ($evaluation -join "`n" | ConvertFrom-Json).Properties
+        $supported = @("$($properties.TargetFramework);$($properties.TargetFrameworks)" -split ';')
+        if ($properties._RestrictedToLegacyTfm -eq 'true' -or $TestHostTfm -notin $supported) {
+            Write-Host "Not applicable: $($item.Name), host=$TestHostTfm, library=$target (evaluated framework restriction)."
+            continue
+        }
+    }
     $fullFolder = $item.DirectoryName.Replace('\', '/')
     $folder     = $item.DirectoryName.Replace($BuildRoot, '').Replace('\', '/').TrimStart('/')
     $file       = $item.FullName.Replace($BuildRoot, '').Replace('\', '/').TrimStart('/')
