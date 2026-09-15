@@ -50,7 +50,9 @@ namespace Opc.Ua.XRegistry.Client
             string endpointUrl,
             CancellationToken cancellationToken = default)
         {
-            _ = await VerifyFederationResourceAsync(target, endpointUrl, cancellationToken).ConfigureAwait(false);
+            ResourceTypeClient resource = await VerifyFederationResourceAsync(
+                target, endpointUrl, cancellationToken).ConfigureAwait(false);
+            await CloseBindingAsync(resource.Session).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -84,8 +86,29 @@ namespace Opc.Ua.XRegistry.Client
                 throw new ArgumentNullException(nameof(trustedTarget));
             }
             cancellationToken.ThrowIfCancellationRequested();
+            ISessionClient binding = await CaptureFederationBindingAsync(referencingSession, cancellationToken)
+                .ConfigureAwait(false);
+            try
+            {
+                return await FollowBoundExternalReferenceAsync(
+                    binding, proxyNodeId, trustedTarget, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                await CloseBindingAsync(binding).ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask<ResourceTypeClient> FollowBoundExternalReferenceAsync(
+            ISessionClient referencingSession,
+            NodeId proxyNodeId,
+            XRegistryFederationTarget trustedTarget,
+            CancellationToken cancellationToken)
+        {
+            using var typeCache = new NodeCache(new NodeCacheContext(referencingSession), Telemetry);
             await RequireObjectTypeAsync(
-                referencingSession, proxyNodeId, ObjectTypeIds.ResourceType, cancellationToken).ConfigureAwait(false);
+                referencingSession, typeCache, proxyNodeId, ObjectTypeIds.ResourceType, cancellationToken)
+                .ConfigureAwait(false);
 
             DataValue originValue = await ReadFederationPropertyAsync(
                 referencingSession, proxyNodeId, BrowseNames.OriginRegistry,
@@ -118,11 +141,11 @@ namespace Opc.Ua.XRegistry.Client
             {
                 throw new ServiceResultException(StatusCodes.BadTypeMismatch, "The proxy reference is not a NodeId.");
             }
-            string? serverUri = referencingSession.ServerUris.GetString(reference.ServerIndex);
+            string? serverUri = referencingSession.MessageContext.ServerUris.GetString(reference.ServerIndex);
             string? namespaceUri = reference.NamespaceUri;
             if (string.IsNullOrEmpty(namespaceUri))
             {
-                namespaceUri = referencingSession.NamespaceUris.GetString(reference.NamespaceIndex);
+                namespaceUri = referencingSession.MessageContext.NamespaceUris.GetString(reference.NamespaceIndex);
             }
             if (string.IsNullOrEmpty(serverUri) ||
                 string.IsNullOrEmpty(namespaceUri) ||
@@ -157,11 +180,33 @@ namespace Opc.Ua.XRegistry.Client
                     StatusCodes.BadNotSupported,
                     "The native provider requires a trusted application/registry-root origin.");
             }
-            if (!Session.Connected)
+            ISessionClient binding = await CaptureFederationBindingAsync(Session, cancellationToken)
+                .ConfigureAwait(false);
+            try
+            {
+                return await VerifyBoundFederationResourceAsync(
+                    binding, target, origin, endpointUrl, cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                await CloseBindingAsync(binding).ConfigureAwait(false);
+                throw;
+            }
+        }
+
+        private async ValueTask<ResourceTypeClient> VerifyBoundFederationResourceAsync(
+            ISessionClient session,
+            XRegistryFederationTarget target,
+            RegistryOriginDataType origin,
+            string endpointUrl,
+            CancellationToken cancellationToken)
+        {
+            using var typeCache = new NodeCache(new NodeCacheContext(session), Telemetry);
+            if (!session.Connected)
             {
                 throw new ServiceResultException(StatusCodes.BadSessionClosed);
             }
-            EndpointDescription endpoint = Session.Endpoint;
+            EndpointDescription endpoint = session.Endpoint;
             if (endpoint.SecurityMode is not (MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt))
             {
                 throw new ServiceResultException(
@@ -169,7 +214,8 @@ namespace Opc.Ua.XRegistry.Client
             }
             if (!string.Equals(endpoint.EndpointUrl, endpointUrl, StringComparison.Ordinal) ||
                 !string.Equals(endpoint.Server.ApplicationUri, target.ServerUri, StringComparison.Ordinal) ||
-                !string.Equals(Session.ServerUris.GetString(0), target.ServerUri, StringComparison.Ordinal) ||
+                !string.Equals(
+                    session.MessageContext.ServerUris.GetString(0), target.ServerUri, StringComparison.Ordinal) ||
                 m_registryIdentity != origin.RegistryNodeId)
             {
                 throw new ServiceResultException(
@@ -177,28 +223,28 @@ namespace Opc.Ua.XRegistry.Client
                     "The authorized Session does not match the pinned origin/locator.");
             }
 
-            NodeId registry = ResolveFederationNode(Session, origin.RegistryNodeId);
-            NodeId resource = ResolveFederationNode(Session, target.ResourceNodeId);
-            await RequireObjectTypeAsync(Session, registry, ObjectTypeIds.RegistryType, cancellationToken)
+            NodeId registry = ResolveFederationNode(session, origin.RegistryNodeId);
+            NodeId resource = ResolveFederationNode(session, target.ResourceNodeId);
+            await RequireObjectTypeAsync(session, typeCache, registry, ObjectTypeIds.RegistryType, cancellationToken)
                 .ConfigureAwait(false);
-            await RequireObjectTypeAsync(Session, resource, ObjectTypeIds.ResourceType, cancellationToken)
+            await RequireObjectTypeAsync(session, typeCache, resource, ObjectTypeIds.ResourceType, cancellationToken)
                 .ConfigureAwait(false);
-            await RequireObjectTypeAsync(Session, resource, Ua.ObjectTypeIds.FileType, cancellationToken)
+            await RequireObjectTypeAsync(session, typeCache, resource, Ua.ObjectTypeIds.FileType, cancellationToken)
                 .ConfigureAwait(false);
 
-            ushort domainNamespace = RequireFederationNamespace(Session, RegistryNamespaceUri);
+            ushort domainNamespace = RequireFederationNamespace(session, RegistryNamespaceUri);
             NodeId group = await RequireFederationChildAsync(
-                Session, registry, ReferenceTypeIds.HierarchicalReferences,
+                session, registry, ReferenceTypeIds.HierarchicalReferences,
                 new QualifiedName(target.GroupId, domainNamespace), NodeClass.Object, cancellationToken)
                 .ConfigureAwait(false);
-            await RequireObjectTypeAsync(Session, group, ObjectTypeIds.GroupType, cancellationToken)
+            await RequireObjectTypeAsync(session, typeCache, group, ObjectTypeIds.GroupType, cancellationToken)
                 .ConfigureAwait(false);
-            string groupXid = await ReadFederationStringAsync(Session, group, BrowseNames.Xid, cancellationToken)
+            string groupXid = await ReadFederationStringAsync(session, group, BrowseNames.Xid, cancellationToken)
                 .ConfigureAwait(false);
-            string resourceXid = await ReadFederationStringAsync(Session, resource, BrowseNames.Xid, cancellationToken)
+            string resourceXid = await ReadFederationStringAsync(session, resource, BrowseNames.Xid, cancellationToken)
                 .ConfigureAwait(false);
             NodeId ownedResource = await RequireFederationChildAsync(
-                Session, group, ReferenceTypeIds.HierarchicalReferences,
+                session, group, ReferenceTypeIds.HierarchicalReferences,
                 new QualifiedName(target.ResourceId, domainNamespace), NodeClass.Object, cancellationToken)
                 .ConfigureAwait(false);
             if (ownedResource != resource ||
@@ -211,18 +257,19 @@ namespace Opc.Ua.XRegistry.Client
             }
 
             NodeId versions = await RequireFederationChildAsync(
-                Session, resource, ReferenceTypeIds.HasComponent,
+                session, resource, ReferenceTypeIds.HasComponent,
                 new QualifiedName(BrowseNames.Versions,
-                    RequireFederationNamespace(Session, XRegistryWellKnown.XRegistryNamespaceUri)),
+                    RequireFederationNamespace(session, XRegistryWellKnown.XRegistryNamespaceUri)),
                 NodeClass.Object, cancellationToken).ConfigureAwait(false);
-            await RequireObjectTypeAsync(Session, versions, ObjectTypeIds.ResourceVersionsType, cancellationToken)
+            await RequireObjectTypeAsync(
+                session, typeCache, versions, ObjectTypeIds.ResourceVersionsType, cancellationToken)
                 .ConfigureAwait(false);
             foreach (string methodName in s_federationReadMethods)
             {
                 NodeId method = await RequireFederationChildAsync(
-                    Session, resource, ReferenceTypeIds.HasComponent,
+                    session, resource, ReferenceTypeIds.HasComponent,
                     new QualifiedName(methodName, 0), NodeClass.Method, cancellationToken).ConfigureAwait(false);
-                Node node = await Session.ReadNodeAsync(method, cancellationToken).ConfigureAwait(false);
+                Node node = await session.ReadNodeAsync(method, cancellationToken).ConfigureAwait(false);
                 if (node is not MethodNode { Executable: true } fileMethod)
                 {
                     throw new ServiceResultException(
@@ -235,7 +282,7 @@ namespace Opc.Ua.XRegistry.Client
                 }
             }
 
-            var proxy = new ResourceTypeClient(Session, resource, Telemetry);
+            var proxy = new ResourceTypeClient(session, resource, Telemetry);
             ResourceVersionsTypeClient? versionProxy = await proxy.GetVersionsAsync(Telemetry, cancellationToken)
                 .ConfigureAwait(false);
             if (versionProxy is null || versionProxy.ObjectId != versions)
@@ -244,11 +291,13 @@ namespace Opc.Ua.XRegistry.Client
                     StatusCodes.BadNotSupported,
                     "The generated client cannot resolve the verified Versions hierarchy.");
             }
+            cancellationToken.ThrowIfCancellationRequested();
             return proxy;
         }
 
         private static async ValueTask RequireObjectTypeAsync(
-            ISession session,
+            ISessionClient session,
+            NodeCache typeCache,
             NodeId nodeId,
             ExpandedNodeId requiredType,
             CancellationToken cancellationToken)
@@ -268,7 +317,7 @@ namespace Opc.Ua.XRegistry.Client
             NodeId expectedType = ResolveFederationNode(session, requiredType);
             if (types.Count != 1 ||
                 types[0].NodeId.ServerIndex != 0 ||
-                !await session.NodeCache.IsTypeOfAsync(
+                !await typeCache.IsTypeOfAsync(
                     ResolveFederationNode(session, types[0].NodeId), expectedType, cancellationToken)
                     .ConfigureAwait(false))
             {
@@ -279,7 +328,7 @@ namespace Opc.Ua.XRegistry.Client
         }
 
         private static async ValueTask<NodeId> RequireFederationChildAsync(
-            ISession session,
+            ISessionClient session,
             NodeId parent,
             NodeId referenceType,
             QualifiedName browseName,
@@ -317,7 +366,7 @@ namespace Opc.Ua.XRegistry.Client
         }
 
         private static async ValueTask<DataValue> ReadFederationPropertyAsync(
-            ISession session,
+            ISessionClient session,
             NodeId parent,
             string name,
             ExpandedNodeId expectedDataType,
@@ -344,7 +393,7 @@ namespace Opc.Ua.XRegistry.Client
         }
 
         private static async ValueTask<string> ReadFederationStringAsync(
-            ISession session,
+            ISessionClient session,
             NodeId parent,
             string name,
             CancellationToken cancellationToken)
@@ -359,9 +408,9 @@ namespace Opc.Ua.XRegistry.Client
             return text;
         }
 
-        private static NodeId ResolveFederationNode(ISession session, ExpandedNodeId nodeId)
+        private static NodeId ResolveFederationNode(ISessionClient session, ExpandedNodeId nodeId)
         {
-            var resolved = ExpandedNodeId.ToNodeId(nodeId, session.NamespaceUris);
+            var resolved = ExpandedNodeId.ToNodeId(nodeId, session.MessageContext.NamespaceUris);
             if (resolved.IsNull)
             {
                 throw new ServiceResultException(
@@ -370,15 +419,40 @@ namespace Opc.Ua.XRegistry.Client
             return resolved;
         }
 
-        private static ushort RequireFederationNamespace(ISession session, string namespaceUri)
+        private static ushort RequireFederationNamespace(ISessionClient session, string namespaceUri)
         {
-            int index = session.NamespaceUris.GetIndex(namespaceUri);
+            int index = session.MessageContext.NamespaceUris.GetIndex(namespaceUri);
             if (index < 0)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadNotSupported, "The Session does not expose the required federation namespace.");
             }
             return (ushort)index;
+        }
+
+        private static ValueTask<ISessionClient> CaptureFederationBindingAsync(
+            ISessionClient session,
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (session is not ISessionBindingProvider provider)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "Federation requires a generation-bound session provider.");
+            }
+            return provider.CreateBindingAsync(ct);
+        }
+
+        private static async ValueTask CloseBindingAsync(ISessionClient binding)
+        {
+            try
+            {
+                await binding.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            finally
+            {
+                binding.Dispose();
+            }
         }
 
         private static readonly string[] s_federationReadMethods =

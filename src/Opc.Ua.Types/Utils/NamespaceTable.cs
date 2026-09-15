@@ -98,6 +98,20 @@ namespace Opc.Ua
 #endif
 
         /// <summary>
+        /// Gets the monotonic mutation version of this table.
+        /// </summary>
+        public long Version
+        {
+            get
+            {
+                lock (m_syncRoot)
+                {
+                    return m_version;
+                }
+            }
+        }
+
+        /// <summary>
         /// Updates the table of namespace uris.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="strings"/> is <c>null</c>.</exception>
@@ -111,6 +125,7 @@ namespace Opc.Ua
             lock (m_syncRoot)
             {
                 m_strings = [.. strings];
+                Interlocked.Increment(ref m_version);
 
 #if DEBUG
                 if (m_shared)
@@ -151,6 +166,7 @@ namespace Opc.Ua
             lock (m_syncRoot)
             {
                 m_strings.Add(value);
+                Interlocked.Increment(ref m_version);
                 return m_strings.Count - 1;
             }
         }
@@ -207,6 +223,7 @@ namespace Opc.Ua
 #endif
 
                     m_strings.Add(value);
+                    Interlocked.Increment(ref m_version);
                     return (ushort)(m_strings.Count - 1);
                 }
 
@@ -237,6 +254,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Captures the mapping and its mutation version in one observation.
+        /// </summary>
+        public ArrayOf<string> GetSnapshot(out long version)
+        {
+            lock (m_syncRoot)
+            {
+                version = m_version;
+                return [.. m_strings];
+            }
+        }
+
+        /// <summary>
         /// Returns the number of entries in the table.
         /// </summary>
         public int Count
@@ -254,7 +283,9 @@ namespace Opc.Ua
         /// Creates a mapping between the URIs in a source table and the indexes in the current table.
         /// </summary>
         /// <param name="source">The string table to map.</param>
-        /// <param name="updateTable">if set to <c>true</c> if missing URIs should be added to the current tables.</param>
+        /// <param name="updateTable">
+        /// If set to <c>true</c>, missing URIs should be added to the current tables.
+        /// </param>
         /// <returns>A list of indexes in the current table.</returns>
         public ushort[]? CreateMapping(StringTable source, bool updateTable)
         {
@@ -315,6 +346,7 @@ namespace Opc.Ua
         /// </summary>
         protected List<string> m_strings;
         private readonly Lock m_syncRoot = new();
+        private long m_version;
 
 #if DEBUG
         /// <summary>

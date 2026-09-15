@@ -82,12 +82,18 @@ namespace Opc.Ua
             if (!Disposed)
             {
                 CloseChannelAsync(default).GetAwaiter().GetResult();
-
-                m_meter?.Dispose();
-                m_instruments.Clear();
-
-                Disposed = true;
+                DisposeClientResources();
             }
+        }
+
+        /// <summary>
+        /// Releases local diagnostics after a derived client has released its channel.
+        /// </summary>
+        protected void DisposeClientResources()
+        {
+            m_meter?.Dispose();
+            m_instruments.Clear();
+            Disposed = true;
         }
 
         /// <inheritdoc/>
@@ -148,7 +154,7 @@ namespace Opc.Ua
             }
             protected set
             {
-                ITransportChannel? channel = Interlocked.Exchange(ref m_channel, value);
+                ITransportChannel? channel = ExchangeChannel(value);
 
                 if (ReferenceEquals(channel, value))
                 {
@@ -230,7 +236,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual async Task<StatusCode> CloseAsync(CancellationToken ct = default)
         {
-            ITransportChannel? channel = Interlocked.Exchange(ref m_channel, null);
+            ITransportChannel? channel = ExchangeChannel(null);
             if (channel != null)
             {
                 try
@@ -267,7 +273,42 @@ namespace Opc.Ua
         /// </summary>
         protected void InitializeChannel(ITransportChannel channel)
         {
-            Interlocked.Exchange(ref m_channel, channel);
+            ExchangeChannel(channel);
+        }
+
+        /// <summary>
+        /// Captures the current channel and its replacement generation.
+        /// </summary>
+        /// <exception cref="ServiceResultException">The client has no open channel.</exception>
+        protected ITransportChannel CaptureChannel(out long generation)
+        {
+            lock (m_bindingGate)
+            {
+                ThrowIfDisposed();
+                generation = m_channelGeneration;
+                return m_channel ?? throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
+            }
+        }
+
+        /// <summary>
+        /// Checks whether a captured channel generation is still current.
+        /// </summary>
+        protected bool IsChannelCurrent(ITransportChannel channel, long generation)
+        {
+            lock (m_bindingGate)
+            {
+                return !Disposed && ReferenceEquals(m_channel, channel) && m_channelGeneration == generation;
+            }
+        }
+
+        private ITransportChannel? ExchangeChannel(ITransportChannel? replacement)
+        {
+            lock (m_bindingGate)
+            {
+                ITransportChannel? previous = Interlocked.Exchange(ref m_channel, replacement);
+                m_channelGeneration++;
+                return previous;
+            }
         }
 
         /// <summary>
@@ -284,7 +325,7 @@ namespace Opc.Ua
         /// </summary>
         protected async Task CloseChannelAsync(CancellationToken ct)
         {
-            ITransportChannel? channel = Interlocked.Exchange(ref m_channel, null);
+            ITransportChannel? channel = ExchangeChannel(null);
 
             if (channel != null)
             {
@@ -310,7 +351,7 @@ namespace Opc.Ua
         /// </summary>
         protected void ReleaseChannel()
         {
-            Interlocked.Exchange(ref m_channel, null);
+            ExchangeChannel(null);
         }
 
         /// <summary>
@@ -318,7 +359,7 @@ namespace Opc.Ua
         /// </summary>
         protected void DisposeChannel()
         {
-            ITransportChannel? channel = Interlocked.Exchange(ref m_channel, null);
+            ITransportChannel? channel = ExchangeChannel(null);
 
             try
             {
@@ -334,7 +375,24 @@ namespace Opc.Ua
         /// The authorization token used to connect to the server.
         /// </summary>
         /// <value>The authentication token.</value>
-        protected NodeId AuthenticationToken { get; set; } = NodeId.Null;
+        protected NodeId AuthenticationToken
+        {
+            get
+            {
+                lock (m_bindingGate)
+                {
+                    return m_authenticationToken;
+                }
+            }
+            set
+            {
+                lock (m_bindingGate)
+                {
+                    m_authenticationToken = value;
+                    m_channelGeneration++;
+                }
+            }
+        }
 
         /// <summary>
         /// Updates the header of a service request.
@@ -686,7 +744,8 @@ namespace Opc.Ua
             if (response != null && response.Count != 0 && response.Count != request.Count)
             {
                 throw ServiceResultException.Unexpected(
-                    "The server failed to fill in the DiagnosticInfos array correctly when returning an operation level error.");
+                    "The server failed to fill in the DiagnosticInfos array correctly " +
+                    "when returning an operation level error.");
             }
         }
 
@@ -705,7 +764,8 @@ namespace Opc.Ua
             if (!response.IsEmpty && response.Count != request.Count)
             {
                 throw ServiceResultException.Unexpected(
-                    "The server failed to fill in the DiagnosticInfos array correctly when returning an operation level error.");
+                    "The server failed to fill in the DiagnosticInfos array correctly " +
+                    "when returning an operation level error.");
             }
         }
 
@@ -837,6 +897,9 @@ namespace Opc.Ua
         private readonly ILogger m_eventLogger;
         private readonly Meter m_meter;
         private ITransportChannel? m_channel;
+        private readonly Lock m_bindingGate = new();
+        private long m_channelGeneration;
+        private NodeId m_authenticationToken;
         private readonly ConcurrentDictionary<string, Instrument<double>> m_instruments = [];
         private int m_nextRequestHandle;
         private int m_pendingRequestCount;
@@ -911,5 +974,4 @@ namespace Opc.Ua
             int pendingRequestCount,
             int statusCode);
     }
-
 }

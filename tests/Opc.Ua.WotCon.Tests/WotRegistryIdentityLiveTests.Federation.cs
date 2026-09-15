@@ -295,66 +295,107 @@ namespace Opc.Ua.WotCon.Tests
             string serverUri = valid.ServerUri;
             ResourceState logical = m_manager.FindPredefinedNode<ResourceState>(
                 allocation.LogicalResource.ResourceNodeId)!;
-            switch (fault)
+            ResourceState? ambiguousResource = null;
+            void PreserveAmbiguity(ISystemContext context, NodeState node, NodeStateChangeMasks changes) =>
+                node.BrowseName = logical.BrowseName;
+            try
             {
-                case "missing-resource":
-                    resourceId = new ExpandedNodeId("missing-federation-resource", Namespaces.WotCon);
-                    break;
-                case "content-variable":
-                    resourceId = NodeId.ToExpandedNodeId(
-                        m_manager.FindPredefinedNode<WoTDocumentState>(allocation.Version.ResourceNodeId)!
-                            .ContentDigest!.NodeId,
-                        m_client.Session.NamespaceUris);
-                    break;
-                case "versions-folder":
-                    resourceId = NodeId.ToExpandedNodeId(logical.Versions!.NodeId, m_client.Session.NamespaceUris);
-                    break;
-                case "exact-version":
-                    resourceId = NodeId.ToExpandedNodeId(
-                        allocation.Version.ResourceNodeId, m_client.Session.NamespaceUris);
-                    break;
-                case "wrong-registry":
-                    origin.RegistryNodeId = new ExpandedNodeId("other-registry", Namespaces.WotCon);
-                    break;
-                case "wrong-application":
-                    origin.ServerUri = serverUri = "urn:untrusted:application";
-                    break;
-                case "missing-namespace":
-                    resourceId = resourceId.WithNamespaceUri("urn:federation:missing-namespace");
-                    break;
-                case "conflicting-xid":
-                    logical.Xid!.Value = "/groups/other/resources/other";
-                    break;
-                case "ambiguous-resource":
-                    WotRegistryResourceAllocation other = await group.CreateThingDescriptionResourceAsync(
-                        "urn:federation:other-thing", "v1", ct: ct).ConfigureAwait(false);
-                    m_manager.FindPredefinedNode<ResourceState>(other.LogicalResource.ResourceNodeId)!.BrowseName =
-                        logical.BrowseName;
-                    break;
-                case "unsupported-read":
-                    logical.Read!.Executable = false;
-                    break;
-                default:
-                    Assert.Fail("Unknown federation fault.");
-                    break;
-            }
-            var target = new XRegistryFederationTarget(origin, serverUri, resourceId, valid.ResourceXid);
-
-            await WithNativeFederationClientAsync(async (session, client) =>
-            {
-                int before = m_store.Blobs.Reads;
-                await Assert.ThatAsync(async () => await client.VerifyLogicalResourceAsync(
-                        target, session.Endpoint.EndpointUrl!, ct).ConfigureAwait(false),
-                    Throws.TypeOf<ServiceResultException>()
-                        .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(expectedStatus))
-                    .ConfigureAwait(false);
-                Assert.Multiple(() =>
+                switch (fault)
                 {
-                    Assert.That(m_store.Blobs.Reads, Is.EqualTo(before));
-                    Assert.That(logical.OpenCount!.Value, Is.Zero);
-                    Assert.That(session.NamespaceUris.GetIndex("urn:federation:missing-namespace"), Is.EqualTo(-1));
-                });
-            }).ConfigureAwait(false);
+                    case "missing-resource":
+                        resourceId = new ExpandedNodeId("missing-federation-resource", Namespaces.WotCon);
+                        break;
+                    case "content-variable":
+                        resourceId = NodeId.ToExpandedNodeId(
+                            m_manager.FindPredefinedNode<WoTDocumentState>(allocation.Version.ResourceNodeId)!
+                                .ContentDigest!.NodeId,
+                            m_client.Session.NamespaceUris);
+                        break;
+                    case "versions-folder":
+                        resourceId = NodeId.ToExpandedNodeId(logical.Versions!.NodeId, m_client.Session.NamespaceUris);
+                        break;
+                    case "exact-version":
+                        resourceId = NodeId.ToExpandedNodeId(
+                            allocation.Version.ResourceNodeId, m_client.Session.NamespaceUris);
+                        break;
+                    case "wrong-registry":
+                        origin.RegistryNodeId = new ExpandedNodeId("other-registry", Namespaces.WotCon);
+                        break;
+                    case "wrong-application":
+                        origin.ServerUri = serverUri = "urn:untrusted:application";
+                        break;
+                    case "missing-namespace":
+                        resourceId = resourceId.WithNamespaceUri("urn:federation:missing-namespace");
+                        break;
+                    case "conflicting-xid":
+                        logical.Xid!.Value = "/groups/other/resources/other";
+                        break;
+                    case "ambiguous-resource":
+                        WotRegistryResourceAllocation other = await group.CreateThingDescriptionResourceAsync(
+                            "urn:federation:other-thing", "v1", ct: ct).ConfigureAwait(false);
+                        ambiguousResource = m_manager.FindPredefinedNode<ResourceState>(
+                            other.LogicalResource.ResourceNodeId)!;
+                        // Queued projection updates must not remove the fault before native verification.
+                        ambiguousResource.StateChanged += PreserveAmbiguity;
+                        ambiguousResource.BrowseName = logical.BrowseName;
+                        await group.CreateThingDescriptionResourceAsync(
+                            "urn:federation:reconcile-trigger", "v1", ct: ct).ConfigureAwait(false);
+                        break;
+                    case "unsupported-read":
+                        logical.Read!.Executable = false;
+                        break;
+                    default:
+                        Assert.Fail("Unknown federation fault.");
+                        break;
+                }
+                var target = new XRegistryFederationTarget(origin, serverUri, resourceId, valid.ResourceXid);
+
+                await WithNativeFederationClientAsync(async (session, client) =>
+                {
+                    int before = m_store.Blobs.Reads;
+                    if (ambiguousResource is not null)
+                    {
+                        var browser = new Browser(session, new BrowserOptions
+                        {
+                            ReferenceTypeId = Ua.ReferenceTypeIds.HierarchicalReferences
+                        });
+                        ArrayOf<ReferenceDescription> references = await browser.BrowseAsync(group.GroupNodeId, ct)
+                            .ConfigureAwait(false);
+                        int matchingNames = 0;
+                        foreach (ReferenceDescription reference in references)
+                        {
+                            if (reference.BrowseName == logical.BrowseName)
+                            {
+                                matchingNames++;
+                            }
+                        }
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(ambiguousResource.NodeId, Is.Not.EqualTo(logical.NodeId));
+                            Assert.That(matchingNames, Is.EqualTo(2));
+                        });
+                    }
+                    await Assert.ThatAsync(async () => await client.VerifyLogicalResourceAsync(
+                            target, session.Endpoint.EndpointUrl!, ct).ConfigureAwait(false),
+                        Throws.TypeOf<ServiceResultException>()
+                            .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(expectedStatus))
+                        .ConfigureAwait(false);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(m_store.Blobs.Reads, Is.EqualTo(before));
+                        Assert.That(logical.OpenCount!.Value, Is.Zero);
+                        Assert.That(session.NamespaceUris.GetIndex("urn:federation:missing-namespace"), Is.EqualTo(-1));
+                        if (ambiguousResource is not null)
+                        {
+                            Assert.That(ambiguousResource.BrowseName, Is.EqualTo(logical.BrowseName));
+                        }
+                    });
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                ambiguousResource?.StateChanged -= PreserveAmbiguity;
+            }
         }
 
         [Test]

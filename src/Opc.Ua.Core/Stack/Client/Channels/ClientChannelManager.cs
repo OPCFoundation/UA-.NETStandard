@@ -501,12 +501,11 @@ namespace Opc.Ua
             SecurityPolicyRegistry = securityPolicies;
             m_options = options ?? new ChannelManagerOptions();
             m_diagnostics = new ClientChannelManagerDiagnostics(
-                TelemetryExtensions.CreateLogger(
-                    telemetry,
+                telemetry.CreateLogger(
                     CoreEventIds.ChannelManagerCompatibilityCategory));
             if (enableGeneralTelemetry)
             {
-                Logger = TelemetryExtensions.CreateLogger<ClientChannelManager>(telemetry);
+                Logger = telemetry.CreateLogger<ClientChannelManager>();
                 m_meter = telemetry?.CreateMeter();
                 m_metrics = m_meter != null
                     ? new ClientChannelManagerMetrics(this, m_meter)
@@ -1216,7 +1215,8 @@ namespace Opc.Ua
         }
 
         private readonly ClientChannelManagerCertRotation m_certRotation;
-#pragma warning disable IDE0052 // Background certificate-rotation task is retained so it is not garbage-collected early.
+        // Background certificate-rotation task is retained so it is not garbage-collected early.
+#pragma warning disable IDE0052
         private Task? m_certificateRotationTask;
 #pragma warning restore IDE0052
 
@@ -1249,7 +1249,7 @@ namespace Opc.Ua
             return CurrentClientCertificateSnapshot;
         }
 
-        ValueTask<ITransportChannel> IChannelEntryHost.CreateChannelAsync(
+        async ValueTask<ITransportChannel> IChannelEntryHost.CreateChannelAsync(
             ConfiguredEndpoint endpoint,
             Certificate? clientCertificate,
             CertificateCollection? clientCertificateChain,
@@ -1257,13 +1257,28 @@ namespace Opc.Ua
             CancellationToken ct)
         {
             IServiceMessageContext context = Configuration.CreateMessageContext();
-            return CreateChannelAsync(
-                endpoint,
-                context,
-                clientCertificate,
-                clientCertificateChain,
-                reverseConnection,
-                ct);
+            Certificate? ownedCertificate = null;
+            CertificateCollection? ownedChain = null;
+            try
+            {
+                // Transport settings own their references independently of the
+                // manager's reusable certificate snapshot.
+                ownedCertificate = clientCertificate?.AddRef();
+                ownedChain = clientCertificateChain?.AddRef();
+                return await CreateChannelAsync(
+                    endpoint,
+                    context,
+                    ownedCertificate,
+                    ownedChain,
+                    reverseConnection,
+                    ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                ownedChain?.Dispose();
+                ownedCertificate?.Dispose();
+                throw;
+            }
         }
 
         Activity? IChannelEntryHost.StartReconnectActivity(ChannelEntry entry)

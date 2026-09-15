@@ -32,7 +32,7 @@ namespace Opc.Ua
     /// <summary>
     /// The client side interface with a UA server.
     /// </summary>
-    public partial class SessionClient : ISessionClient
+    public partial class SessionClient : ISessionClient, ISessionBindingProvider
     {
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -41,9 +41,9 @@ namespace Opc.Ua
         /// <c>false</c> to release only unmanaged resources.</param>
         protected override void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && !Disposed)
             {
-                SessionId = default;
+                SessionCreated(default, default);
             }
 
             base.Dispose(disposing);
@@ -68,8 +68,12 @@ namespace Opc.Ua
         /// <param name="sessionCookie">The session cookie.</param>
         public virtual void SessionCreated(NodeId sessionId, NodeId sessionCookie)
         {
-            SessionId = sessionId;
-            AuthenticationToken = sessionCookie;
+            lock (m_sessionBindingGate)
+            {
+                SessionId = sessionId;
+                AuthenticationToken = sessionCookie;
+                m_sessionIncarnation++;
+            }
         }
     }
 }
