@@ -947,9 +947,9 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         [Obsolete("Channels are now managed centrally via IClientChannelManager. " +
-                "Use ManagedSessionBuilder.WithChannelManager(...) or " +
-                "Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
-                "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
+            "Use ManagedSessionBuilder.WithChannelManager(...) or " +
+            "Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
+            "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
         public void AttachChannel(ITransportChannel channel)
         {
             InnerSession.AttachChannel(channel);
@@ -957,9 +957,9 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         [Obsolete("Channels are now managed centrally via IClientChannelManager. " +
-                "Use ManagedSessionBuilder.WithChannelManager(...) or " +
-                "Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
-                "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
+            "Use ManagedSessionBuilder.WithChannelManager(...) or " +
+            "Session.CreateAsync(IClientChannelManager, ...) instead of manual " +
+            "AttachChannel/DetachChannel. This method remains functional for back-compat.")]
         public void DetachChannel()
         {
             InnerSession.DetachChannel();
@@ -1040,9 +1040,9 @@ namespace Opc.Ua.Client
                 // flag to false so the channel is opened against exactly that URL
                 // instead of re-discovering and adopting the server-advertised URL.
                 string? profile = ConfiguredEndpoint.Description.TransportProfileUri;
-                bool updateBeforeConnect = ConfiguredEndpoint.UpdateBeforeConnect
-                    && !Profiles.IsHttpsOpenApi(profile)
-                    && !Profiles.IsWssOpenApi(profile);
+                bool updateBeforeConnect = ConfiguredEndpoint.UpdateBeforeConnect &&
+                    !Profiles.IsHttpsOpenApi(profile) &&
+                    !Profiles.IsWssOpenApi(profile);
 
                 IDisposable? connectLease = null;
                 Session session;
@@ -1117,7 +1117,7 @@ namespace Opc.Ua.Client
                     }
 
                     WireSessionEvents(session);
-                    m_session = session;
+                    SetBindingSession(session);
                 }
                 finally
                 {
@@ -1421,7 +1421,7 @@ namespace Opc.Ua.Client
             Session? session = m_session;
             if (session != null)
             {
-                m_session = null;
+                SetBindingSession(null);
                 UnwireSessionEvents(session);
 
                 try
@@ -1885,7 +1885,7 @@ namespace Opc.Ua.Client
                 StateMachine.RequestClose();
 
                 Session? session = m_session;
-                m_session = null;
+                SetBindingSession(null);
 
                 if (session != null)
                 {
@@ -1923,7 +1923,7 @@ namespace Opc.Ua.Client
                 .ConfigureAwait(false);
 
             Session? session = m_session;
-            m_session = null;
+            SetBindingSession(null);
 
             if (session != null)
             {
@@ -1937,7 +1937,6 @@ namespace Opc.Ua.Client
                 {
                     m_logger.ManagedSessionDisposeCloseFailed(ex);
                 }
-
             }
 
             GC.SuppressFinalize(this);
@@ -2116,5 +2115,4 @@ namespace Opc.Ua.Client
             this ILogger logger,
             Exception? exception);
     }
-
 }

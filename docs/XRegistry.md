@@ -431,6 +431,13 @@ actual application/endpoint rather than mutable configured endpoint labels, and 
 registry root, Group ownership, logical Resource type/Xid, typed Versions folder and executable
 FileType read Methods. Verification does not open a file or read content.
 
+Both the remote session and referencing session must provide
+[`ISessionBindingProvider`](SessionBindings.md). Stock native/managed sessions
+capture authenticated dispatch, session incarnation and namespace/server maps
+coherently. All verification requests and the returned generated client use that
+binding, not a mutable ISession forwarder. Unsupported custom adapters reject
+with `Bad_NotSupported` before native verification/content actions.
+
 The alternative stable `OriginUri` form is available to explicitly configured custom providers.
 It has empty `ServerUri` and null `RegistryNodeId` inside `OriginRegistry`; the native Session
 provider rejects that form with `Bad_NotSupported` rather than inventing an application/root
@@ -460,9 +467,22 @@ the local referencing Session:
 ```csharp
 ResourceTypeClient logical = await remote.FollowExternalReferenceAsync(
     localSession, proxyNodeId, binding, ct);
-ResourceVersionsTypeClient? versions = await logical.GetVersionsAsync(telemetry, ct);
-ByteString document = await logical.ReadDocumentAsync(ct: ct);
+try
+{
+    ResourceVersionsTypeClient? versions = await logical.GetVersionsAsync(telemetry, ct);
+    ByteString document = await logical.ReadDocumentAsync(ct: ct);
+}
+finally
+{
+    await logical.Session.CloseAsync(CancellationToken.None);
+    logical.Session.Dispose();
+}
 ```
+
+Close any explicit file handles before releasing the returned binding.
+In-place session recreation, native/managed channel replacement or map mutation
+invalidates it; it cannot redirect a later Open/Read to another peer. Acquire a
+fresh verified binding after authorized same-origin relocation or table changes.
 
 The client validates the actual scalar declarations as well as their values: `OriginRegistry`
 must declare `RegistryOriginDataType`, `ExternalReference` must declare `ExpandedNodeId`, and
