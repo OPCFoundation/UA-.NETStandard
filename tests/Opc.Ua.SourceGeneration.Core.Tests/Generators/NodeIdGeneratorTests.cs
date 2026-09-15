@@ -228,5 +228,95 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Assert
             m_mockFileSystem.Verify(fs => fs.OpenWrite(It.IsAny<string>()), Times.Once);
         }
+
+        /// <summary>
+        /// Regression: the string identifier was interpolated straight into a C#
+        /// string literal, so a PLC style id containing a backslash or a quote -
+        /// common in vendor NodeSets - produced source that does not compile
+        /// (CS1009). The literal must be escaped.
+        /// </summary>
+        [Test]
+        public void Emit_StringIdWithBackslashAndQuote_EscapesTheLiteral()
+        {
+            var node = new ObjectTypeDesign
+            {
+                SymbolicId = new System.Xml.XmlQualifiedName(
+                    "PlcTagType", "http://test.org/UA/"),
+                SymbolicName = new System.Xml.XmlQualifiedName(
+                    "PlcTagType", "http://test.org/UA/"),
+                StringId = "PLC1\\DB10.\"Tag\""
+            };
+
+            m_mockModelDesign.Setup(m => m.Nodes).Returns([node]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+
+            using var fileSystem = new VirtualFileSystem();
+            m_context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = m_mockModelDesign.Object,
+                Telemetry = m_mockTelemetry.Object,
+                Options = new GeneratorOptions()
+            };
+
+            new NodeIdGenerator(m_context).Emit();
+
+            string output = ReadOnlyGeneratedFile(fileSystem);
+
+            Assert.That(
+                output,
+                Does.Contain("\"PLC1\\\\DB10.\\\"Tag\\\"\""),
+                "the string identifier must be emitted as an escaped C# literal");
+            Assert.That(
+                output,
+                Does.Not.Contain("\"PLC1\\DB10.\"Tag\"\""),
+                "the raw identifier would not compile");
+        }
+
+        /// <summary>
+        /// A node without any identifier falls back to its symbolic name, which
+        /// is escaped through the same path.
+        /// </summary>
+        [Test]
+        public void Emit_NodeWithoutIdentifier_EmitsEscapedSymbolicName()
+        {
+            var node = new ObjectTypeDesign
+            {
+                SymbolicId = new System.Xml.XmlQualifiedName(
+                    "PlainType", "http://test.org/UA/"),
+                SymbolicName = new System.Xml.XmlQualifiedName(
+                    "PlainType", "http://test.org/UA/")
+            };
+
+            m_mockModelDesign.Setup(m => m.Nodes).Returns([node]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+
+            using var fileSystem = new VirtualFileSystem();
+            m_context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = m_mockModelDesign.Object,
+                Telemetry = m_mockTelemetry.Object,
+                Options = new GeneratorOptions()
+            };
+
+            new NodeIdGenerator(m_context).Emit();
+
+            Assert.That(
+                ReadOnlyGeneratedFile(fileSystem),
+                Does.Contain("public const string PlainType = \"PlainType\";"));
+        }
+
+        private static string ReadOnlyGeneratedFile(VirtualFileSystem fileSystem)
+        {
+            var buffer = new System.Text.StringBuilder();
+            foreach (string file in fileSystem.CreatedFiles)
+            {
+                buffer.AppendLine(System.Text.Encoding.UTF8.GetString(fileSystem.Get(file)));
+            }
+            return buffer.ToString();
+        }
     }
 }

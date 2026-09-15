@@ -802,6 +802,23 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(ChannelToken token, uint requestId, ServiceResult fault)
         {
+            SendServiceFault(token, requestId, fault, requestHandle: 0);
+        }
+
+        /// <summary>
+        /// Sends a fault response secured with the symmetric keys.
+        /// </summary>
+        /// <param name="token">The token that secures the fault.</param>
+        /// <param name="requestId">The request id of the failed request.</param>
+        /// <param name="fault">The fault to report.</param>
+        /// <param name="requestHandle">The RequestHandle of the failed request, echoed in
+        /// the ResponseHeader as OPC 10000-4 §7.33 recommends; 0 if it is unknown.</param>
+        protected void SendServiceFault(
+            ChannelToken token,
+            uint requestId,
+            ServiceResult fault,
+            uint requestHandle)
+        {
             m_logger.TcpListenChannelLog7(ChannelId, requestId, fault.StatusCode);
 
             BufferCollection? buffers = null;
@@ -812,6 +829,8 @@ namespace Opc.Ua.Bindings
                 var response = new ServiceFault();
 
                 response.ResponseHeader.ServiceResult = fault.Code;
+                response.ResponseHeader.RequestHandle = requestHandle;
+                response.ResponseHeader.Timestamp = DateTime.UtcNow;
 
                 var stringTable = new StringTable();
 

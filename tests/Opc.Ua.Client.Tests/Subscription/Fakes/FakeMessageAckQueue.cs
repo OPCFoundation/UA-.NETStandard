@@ -160,6 +160,24 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             }
         }
 
+        /// <summary>
+        /// Test-controlled answer for
+        /// <see cref="IMessageAckQueue.OwnsSubscriptionId"/>. Defaults to
+        /// <c>true</c>, i.e. the caller still owns the id.
+        /// </summary>
+        public Func<IMessageProcessor, uint, bool>? OnOwnsSubscriptionId { get; set; }
+
+        /// <summary>
+        /// Ids <see cref="OwnsSubscriptionId"/> was asked about.
+        /// </summary>
+        public List<uint> OwnershipChecks { get; } = [];
+
+        public bool OwnsSubscriptionId(IMessageProcessor subscription, uint subscriptionId)
+        {
+            OwnershipChecks.Add(subscriptionId);
+            return OnOwnsSubscriptionId?.Invoke(subscription, subscriptionId) ?? true;
+        }
+
         public void Update()
         {
             UpdateCalls++;

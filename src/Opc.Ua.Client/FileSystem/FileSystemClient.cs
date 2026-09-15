@@ -35,6 +35,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client.FileSystem
 {
@@ -101,6 +102,7 @@ namespace Opc.Ua.Client.FileSystem
             Options = (options ?? new FileSystemClientOptions()).Clone();
             Options.Validate();
             m_pathCache = new PathCache(Options.PathCacheSize);
+            m_logger = session.MessageContext.Telemetry.CreateLogger<FileSystemClient>();
             Root = new UaDirectoryInfo(this, parent: null, rootDirectoryId, kRootBrowseName, []);
         }
 
@@ -557,38 +559,49 @@ namespace Opc.Ua.Client.FileSystem
                 (uint)NodeClass.Object,
                 ct).ConfigureAwait(false);
 
-            while (true)
+            try
             {
-                // Materialise to an array first — ReadOnlySpan<T>.Enumerator
-                // (returned by ArrayOf<T>.GetEnumerator) cannot cross an
-                // async iterator's `yield return` boundary.
-                var snapshot = new ReferenceDescription[references.Count];
-                for (int i = 0; i < references.Count; i++)
+                while (true)
                 {
-                    snapshot[i] = references[i];
-                }
-                foreach (ReferenceDescription reference in snapshot)
-                {
-                    UaFileSystemInfo? info = TryClassifyChild(
-                        directory,
-                        reference,
-                        typeTree,
-                        includeFiles,
-                        includeDirectories);
-                    if (info != null)
+                    // Materialise to an array first — ReadOnlySpan<T>.Enumerator
+                    // (returned by ArrayOf<T>.GetEnumerator) cannot cross an
+                    // async iterator's `yield return` boundary.
+                    var snapshot = new ReferenceDescription[references.Count];
+                    for (int i = 0; i < references.Count; i++)
                     {
-                        yield return info;
+                        snapshot[i] = references[i];
                     }
+                    foreach (ReferenceDescription reference in snapshot)
+                    {
+                        UaFileSystemInfo? info = TryClassifyChild(
+                            directory,
+                            reference,
+                            typeTree,
+                            includeFiles,
+                            includeDirectories);
+                        if (info != null)
+                        {
+                            yield return info;
+                        }
+                    }
+                    if (continuation.IsNull || continuation.Length == 0)
+                    {
+                        yield break;
+                    }
+                    (_, continuation, references) = await Session.BrowseNextAsync(
+                        requestHeader: null,
+                        releaseContinuationPoint: false,
+                        continuation,
+                        ct).ConfigureAwait(false);
                 }
-                if (continuation.IsNull || continuation.Length == 0)
-                {
-                    yield break;
-                }
-                (_, continuation, references) = await Session.BrowseNextAsync(
-                    requestHeader: null,
-                    releaseContinuationPoint: false,
-                    continuation,
-                    ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                // Part 4 §5.9.3.2: a consumer that stops enumerating early
+                // (break, Take, an exception) must not leave the point pinned
+                // against the session quota.
+                await Session.ReleaseContinuationPointAsync(continuation, m_logger)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -1370,6 +1383,7 @@ namespace Opc.Ua.Client.FileSystem
         private static readonly QualifiedName kRootBrowseName = new("FileSystem");
 
         private readonly PathCache m_pathCache;
+        private readonly ILogger m_logger;
         private bool m_typeTreeFetched;
     }
 }

@@ -760,9 +760,11 @@ namespace Opc.Ua.Sessions.Tests
         /// </summary>
         [Theory]
         [Order(400)]
+        [CancelAfter(300_000)]
         public async Task MBNodeCacheBrowseAllVariablesMultipleNodesAsync(
             ManagedBrowseTestDataProvider testData,
-            ContinuationPointPolicy policy)
+            ContinuationPointPolicy policy,
+            CancellationToken ct)
         {
             var theSession = (Session)Session;
             theSession.NodeCache.Clear();
@@ -790,7 +792,7 @@ namespace Opc.Ua.Sessions.Tests
             var nodesToBrowse = new List<ExpandedNodeId> { ObjectIds.ObjectsFolder };
 
             await Session
-                .FetchTypeTreeAsync(ReferenceTypeIds.References, new CancellationToken())
+                .FetchTypeTreeAsync(ReferenceTypeIds.References, ct)
                 .ConfigureAwait(false);
 
             var referenceTypeIds = new List<NodeId> { ReferenceTypeIds.HierarchicalReferences };
@@ -805,7 +807,7 @@ namespace Opc.Ua.Sessions.Tests
                             referenceTypeIds,
                             false,
                             true,
-                            new CancellationToken())
+                            ct)
                         .ConfigureAwait(false);
                     nextNodesToBrowse.AddRange(organizers.ConvertAll(n => n.NodeId));
                     ArrayOf<INode> objectNodes = organizers.Filter(n => n is ObjectNode);

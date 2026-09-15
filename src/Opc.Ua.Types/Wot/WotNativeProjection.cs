@@ -1003,17 +1003,31 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
+            // Each of these members is written at most once: a node that
+            // carries two HasTypeDefinition (or HasSubtype, or HasModellingRule)
+            // references would otherwise produce a duplicate JSON member.
+            bool typeDefinitionWritten = false;
+            bool superTypeWritten = false;
+            bool modellingRuleWritten = false;
+
             foreach (Reference reference in node.References)
             {
                 if (reference.IsForward &&
                     IsReference(reference.ReferenceType, "HasTypeDefinition", "i=40"))
                 {
-                    WriteString(writer, "typeDefinition", reference.Value);
+                    if (!typeDefinitionWritten)
+                    {
+                        typeDefinitionWritten =
+                            WriteString(writer, "typeDefinition", reference.Value);
+                    }
                 }
                 else if (!reference.IsForward &&
                     IsReference(reference.ReferenceType, "HasSubtype", "i=45"))
                 {
-                    WriteString(writer, "superType", reference.Value);
+                    if (!superTypeWritten)
+                    {
+                        superTypeWritten = WriteString(writer, "superType", reference.Value);
+                    }
                 }
                 else if (reference.IsForward &&
                     IsReference(reference.ReferenceType, "HasModellingRule", "i=37") &&
@@ -1022,7 +1036,11 @@ namespace Opc.Ua.Wot
                         reference.Value,
                         out string modellingRule))
                 {
-                    writer.WriteString("modellingRule", modellingRule);
+                    if (!modellingRuleWritten)
+                    {
+                        writer.WriteString("modellingRule", modellingRule);
+                        modellingRuleWritten = true;
+                    }
                 }
             }
         }
@@ -1316,15 +1334,21 @@ namespace Opc.Ua.Wot
             return [.. result];
         }
 
-        private static void WriteString(
+        /// <summary>
+        /// Writes a string member unless the value is absent. Returns whether
+        /// the member was written so a caller can avoid writing it twice.
+        /// </summary>
+        private static bool WriteString(
             Utf8JsonWriter writer,
             string name,
             string? value)
         {
-            if (!string.IsNullOrEmpty(value))
+            if (string.IsNullOrEmpty(value))
             {
-                writer.WriteString(name, value);
+                return false;
             }
+            writer.WriteString(name, value);
+            return true;
         }
 
         private static string? GetString(JsonElement element, string name)

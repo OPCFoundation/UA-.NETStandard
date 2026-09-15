@@ -1210,9 +1210,26 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                IServiceRequest input = BinaryDecoder.DecodeMessage<IServiceRequest>(
-                    buffer,
-                    m_quotas.MessageContext);
+                IServiceRequest input;
+                try
+                {
+                    input = BinaryDecoder.DecodeMessage<IServiceRequest>(
+                        buffer,
+                        m_quotas.MessageContext);
+                }
+                catch (ServiceResultException sre)
+                {
+                    // Report a request the decoder rejected (for example a string
+                    // above MaxStringLength) as a ServiceFault that echoes its
+                    // RequestHandle (OPC 10000-4 §7.33).
+                    IServiceResponse decodeFault = EndpointBase.CreateFault(
+                        m_logger,
+                        null,
+                        sre,
+                        RequestHandleReader.FromBinary(buffer));
+                    await WriteServiceResponseAsync(context, decodeFault, ct).ConfigureAwait(false);
+                    return;
+                }
 
                 if (m_mutualTlsEnabled && input.TypeId == DataTypeIds.CreateSessionRequest)
                 {
@@ -1301,7 +1318,7 @@ namespace Opc.Ua.Bindings
                     {
                         IServiceResponse serviceResponse = EndpointBase.CreateFault(
                             m_logger,
-                            null,
+                            input,
                             serviceResultException);
                         await WriteServiceResponseAsync(context, serviceResponse, ct)
                             .ConfigureAwait(false);
@@ -1388,18 +1405,17 @@ namespace Opc.Ua.Bindings
                 }
 
                 IServiceRequest input;
+                byte[]? payload = null;
                 try
                 {
-                    input = await JsonRequestMapper
-                        .DecodeRequestAsync(context.Request.Body, m_quotas.MessageContext, ct)
+                    payload = await JsonRequestMapper
+                        .ReadAllBoundedAsync(context.Request.Body, m_quotas.MessageContext.MaxMessageSize, ct)
                         .ConfigureAwait(false);
+                    input = JsonRequestMapper.DecodeRequest(payload, m_quotas.MessageContext);
                 }
                 catch (ServiceResultException sre)
                 {
-                    IServiceResponse fault = EndpointBase.CreateFault(
-                        m_logger,
-                        null,
-                        sre);
+                    IServiceResponse fault = JsonRequestMapper.CreateFault(m_logger, payload, sre);
                     await WriteJsonResponseAsync(context, fault, ct).ConfigureAwait(false);
                     return;
                 }
@@ -1432,7 +1448,7 @@ namespace Opc.Ua.Bindings
                     // for discovery services (Part 4 §5.4 / §5.5).
                     IServiceResponse discoveryFault = EndpointBase.CreateFault(
                         m_logger,
-                        null,
+                        input,
                         new ServiceResultException(
                             StatusCodes.BadSecurityPolicyRejected,
                             "Channel can only be used for discovery."));
@@ -1904,10 +1920,10 @@ namespace Opc.Ua.Bindings
                     while (!completed);
 
                     IServiceResponse responseToSend;
+                    byte[] messageBytes = new byte[totalRead];
+                    Buffer.BlockCopy(receiveBuffer, 0, messageBytes, 0, totalRead);
                     try
                     {
-                        byte[] messageBytes = new byte[totalRead];
-                        Buffer.BlockCopy(receiveBuffer, 0, messageBytes, 0, totalRead);
                         IServiceRequest request = JsonDecoder.DecodeMessage<IServiceRequest>(
                             messageBytes,
                             m_quotas.MessageContext);
@@ -1919,7 +1935,7 @@ namespace Opc.Ua.Bindings
                             // when no MessageSecurityMode.None JSON endpoint matches.
                             responseToSend = EndpointBase.CreateFault(
                                 m_logger,
-                                null,
+                                request,
                                 new ServiceResultException(
                                     StatusCodes.BadSecurityPolicyRejected,
                                     "Channel can only be used for discovery."));
@@ -1933,12 +1949,12 @@ namespace Opc.Ua.Bindings
                     }
                     catch (ServiceResultException sre)
                     {
-                        responseToSend = EndpointBase.CreateFault(m_logger, null, sre);
+                        responseToSend = JsonRequestMapper.CreateFault(m_logger, messageBytes, sre);
                     }
                     catch (Exception ex)
                     {
                         m_logger.ErrorProcessingJsonRequest(ex);
-                        responseToSend = EndpointBase.CreateFault(m_logger, null, ex);
+                        responseToSend = JsonRequestMapper.CreateFault(m_logger, messageBytes, ex);
                     }
 
                     byte[] responseBytes = JsonRequestMapper.EncodeResponse(
@@ -2117,10 +2133,10 @@ namespace Opc.Ua.Bindings
                     while (!completed);
 
                     IServiceResponse responseToSend;
+                    byte[] messageBytes = new byte[totalRead];
+                    Buffer.BlockCopy(receiveBuffer, 0, messageBytes, 0, totalRead);
                     try
                     {
-                        byte[] messageBytes = new byte[totalRead];
-                        Buffer.BlockCopy(receiveBuffer, 0, messageBytes, 0, totalRead);
                         IServiceRequest request = JsonDecoder.DecodeMessage<IServiceRequest>(
                             messageBytes,
                             m_quotas.MessageContext);
@@ -2132,12 +2148,12 @@ namespace Opc.Ua.Bindings
                     }
                     catch (ServiceResultException sre)
                     {
-                        responseToSend = EndpointBase.CreateFault(m_logger, null, sre);
+                        responseToSend = JsonRequestMapper.CreateFault(m_logger, messageBytes, sre);
                     }
                     catch (Exception ex)
                     {
                         m_logger.ErrorProcessingOpenApiRequest(ex);
-                        responseToSend = EndpointBase.CreateFault(m_logger, null, ex);
+                        responseToSend = JsonRequestMapper.CreateFault(m_logger, messageBytes, ex);
                     }
 
                     byte[] responseBytes = JsonRequestMapper.EncodeResponse(

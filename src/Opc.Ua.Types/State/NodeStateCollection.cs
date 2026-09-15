@@ -445,7 +445,11 @@ namespace Opc.Ua
 
             var serverUris = new StringTable();
 
-            if (!decoder.LoadStringTable("ServerUris", "ServerUri", context.ServerUris))
+            // Load into the local table, like the namespace table above. Loading
+            // into context.ServerUris left serverUris empty, so the mapping
+            // below was built from nothing and the document's server indexes
+            // were never translated.
+            if (!decoder.LoadStringTable("ServerUris", "ServerUri", serverUris))
             {
                 serverUris = null;
             }

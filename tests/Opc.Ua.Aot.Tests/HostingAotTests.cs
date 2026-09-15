@@ -284,6 +284,7 @@ namespace Opc.Ua.Aot.Tests
                 [new Server.AliasNames.AliasNameCategoryDescriptor(
                     ObjectIds.TagVariables, QualifiedName.From(BrowseNames.TagVariables),
                     Server.AliasNames.AliasNameCapabilities.All)]);
+            using var aliasRegistry = new Server.AliasNames.AliasNameStoreRegistry();
             aliases.Seed(ObjectIds.TagVariables, "AotBuildName",
                 VariableIds.Server_ServerStatus_BuildInfo_ProductName, null, ReferenceTypeIds.AliasFor);
             var host = new AotCompositionHost(fixture.Telemetry, observations, builder =>
@@ -304,6 +305,7 @@ namespace Opc.Ua.Aot.Tests
                 {
                     observations.ResourceDependency = services.GetRequiredService<AotCompositionObservations>();
                     resources.Add("AotComposition.Greeting", "de-DE", "Hallo aus AOT");
+                    resources.Add("AotComposition.Fallback", "de-DE", "Hallo {0}");
                 });
                 builder.AddIdentityAuthenticator<AnonymousAuthenticator>();
                 builder.AddIdentityAuthenticator(usernameAuthenticator);
@@ -330,7 +332,9 @@ namespace Opc.Ua.Aot.Tests
                     observations.EmptyFactoryCalls++;
                     return [];
                 });
-                builder.AddAliasNameStore(aliases);
+                builder.AddAliasNameStoreRegistry(aliasRegistry);
+                builder.Services.AddSingleton<IServerPreStartupTask>(
+                    new AotAliasInitializationTask(aliasRegistry, aliases, observations));
                 builder.ConfigureAliasNames(options => options.MaterializeAliasNodes = true);
                 builder.AddStartupTask<AotCompositionStartupTask>();
                 builder.AddStartupTask<AotCompositionStartupTask>();
@@ -350,6 +354,7 @@ namespace Opc.Ua.Aot.Tests
 
             await Assert.That(observations.FactoryConstructions).IsEqualTo(0);
             await Assert.That(observations.AuthenticatorFactoryCalls).IsEqualTo(0);
+            await Assert.That(aliasRegistry.Stores.Count).IsEqualTo(0);
             await host.StartAsync().ConfigureAwait(false);
 
             await Assert.That(host.Context.CurrentState).IsEqualTo(ServerState.Running);
@@ -370,6 +375,7 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(ReadAotCompositionMarker(host.Context, "urn:aot:composition:instance")).IsEqualTo(23);
             await Assert.That(ReadAotCompositionMarker(host.Context, "urn:aot:composition:deferred")).IsEqualTo(37);
             await Assert.That(observations.StartupCalls).IsEqualTo(1);
+            await Assert.That(observations.AliasInitializationCalls).IsEqualTo(1);
             await Assert.That(observations.Events.SequenceEqual(["generic", "delegate"])).IsTrue();
             await Assert.That(observations.DelegateDependency).IsSameReferenceAs(observations);
             await Assert.That(observations.DelegateContext).IsSameReferenceAs(host.Context);
@@ -383,6 +389,14 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(greeting.Locale).IsEqualTo("de-DE");
             await Assert.That(observations.Server.ResourceManager.Translate(
                 ["en-US"], "AotComposition.Greeting", "fallback").Text).IsEqualTo("Hello from AOT");
+            var fallback = new LocalizedText("AotComposition.Fallback", "en-US", "Hello {0}", "AOT");
+            LocalizedText german = observations.Server.ResourceManager.Translate(["de-DE"], fallback);
+            LocalizedText english = observations.Server.ResourceManager.Translate(["en-US"], german);
+            await Assert.That(german.Locale).IsEqualTo("de-DE");
+            await Assert.That(german.Text).IsEqualTo("Hallo AOT");
+            await Assert.That(german.TranslationInfo).IsEqualTo(fallback.TranslationInfo);
+            await Assert.That(english.Locale).IsEqualTo("en-US");
+            await Assert.That(english.Text).IsEqualTo("Hello AOT");
             await Assert.That(observations.AuthenticatorFactoryCalls).IsEqualTo(1);
             await Assert.That(observations.AuthenticatorDependency).IsSameReferenceAs(observations);
             await Assert.That(observations.CertificateValidator)
@@ -506,6 +520,7 @@ namespace Opc.Ua.Aot.Tests
             public int AuthenticatorFactoryCalls { get; set; }
             public int AuthenticationCalls { get; set; }
             public int StartupCalls { get; set; }
+            public int AliasInitializationCalls { get; set; }
             public int MarkerAtFailure { get; set; }
             public uint HistoryLimitAtDelegate { get; set; }
             public bool DelegateCancellationCanBeCanceled { get; set; }
@@ -521,6 +536,22 @@ namespace Opc.Ua.Aot.Tests
             public AotCompositionObservations DelegateDependency { get; set; }
             public AotValueNodeManager GenericManager { get; set; }
             public List<string> Events { get; } = [];
+        }
+
+        private sealed class AotAliasInitializationTask(
+            Server.AliasNames.IAliasNameStoreRegistry registry,
+            Server.AliasNames.IAliasNameStore store,
+            AotCompositionObservations observations) : IServerPreStartupTask
+        {
+            public ValueTask OnServerStartingAsync(
+                IServerContext server,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                registry.Register(store);
+                observations.AliasInitializationCalls++;
+                return default;
+            }
         }
 
         public sealed class AotCompositionStartupTask(AotCompositionObservations observations) : IServerStartupTask
