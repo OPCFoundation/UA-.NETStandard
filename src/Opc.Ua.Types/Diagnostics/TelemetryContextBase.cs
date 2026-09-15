@@ -40,7 +40,7 @@ namespace Opc.Ua
     /// <summary>
     /// Base telemetry context implementation
     /// </summary>
-    public class TelemetryContextBase : ITelemetryContext
+    public class TelemetryContextBase : IAssemblyTelemetryContext
     {
         /// <inheritdoc/>
         public ILoggerFactory LoggerFactory { get; }
@@ -61,7 +61,6 @@ namespace Opc.Ua
         // GetCallingAssembly has to be called from the public entry point:
         // inside a private helper it only ever reports this assembly, so every
         // meter and activity source was named after Opc.Ua.Types.
-        [Obsolete("Use CreateMeter(Assembly) to specify the component assembly.")]
         [MethodImpl(MethodImplOptions.NoInlining)]
         public Meter CreateMeter()
         {
@@ -86,7 +85,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        [Obsolete("Use GetActivitySource(Assembly) to specify the component assembly.")]
         public ActivitySource ActivitySource
         {
             [MethodImpl(MethodImplOptions.NoInlining)]

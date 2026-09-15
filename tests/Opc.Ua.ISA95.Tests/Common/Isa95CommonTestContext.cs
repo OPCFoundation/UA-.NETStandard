@@ -133,20 +133,10 @@ namespace Opc.Ua.ISA95.Tests.Common
                 return new Meter("Opc.Ua.ISA95.Tests");
             }
 
-            public Meter CreateMeter(System.Reflection.Assembly assembly)
-            {
-                return CreateMeter();
-            }
-
             public ILoggerFactory LoggerFactory => NullLoggerFactory.Instance;
 
             public ActivitySource ActivitySource { get; } =
                 new ActivitySource("Opc.Ua.ISA95.Tests");
-
-            public ActivitySource GetActivitySource(System.Reflection.Assembly assembly)
-            {
-                return ActivitySource;
-            }
         }
     }
 }

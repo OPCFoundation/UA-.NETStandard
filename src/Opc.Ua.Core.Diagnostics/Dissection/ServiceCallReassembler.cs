@@ -655,16 +655,6 @@ namespace Opc.Ua.Pcap.Dissection
                 return new Meter("Opc.Ua.Core.Diagnostics.ServiceCallReassembler");
             }
 
-            public Meter CreateMeter(System.Reflection.Assembly assembly)
-            {
-                return CreateMeter();
-            }
-
-            public ActivitySource GetActivitySource(System.Reflection.Assembly assembly)
-            {
-                return ActivitySource;
-            }
-
             private NoopTelemetryContext()
             {
             }

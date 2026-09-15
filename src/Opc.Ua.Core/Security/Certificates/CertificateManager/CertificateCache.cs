@@ -58,7 +58,9 @@ namespace Opc.Ua
             int privateKeyCacheCapacity = kDefaultPrivateKeyCacheCapacity,
             TimeSpan? privateKeyTtl = null)
         {
-            m_meter = telemetry?.CreateMeter();
+            m_meter = telemetry == null
+                ? null
+                : TelemetryExtensions.CreateMeter(telemetry);
 
             privateKeyTtl ??= s_defaultPrivateKeyTtl;
 

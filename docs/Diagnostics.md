@@ -28,13 +28,19 @@ design follows Microsoft's [guidance for library authors](https://learn.microsof
 ```csharp
 public interface ITelemetryContext
 {
-    // Creates a new Meter for the component assembly (caller disposes).
-    Meter CreateMeter(Assembly assembly);
+    // Creates a new Meter for recording metrics (caller disposes).
+    Meter CreateMeter();
 
     // Factory used to create typed ILogger instances.
     ILoggerFactory LoggerFactory { get; }
 
-    // Gets the shared ActivitySource for the component assembly.
+    // Shared ActivitySource representing the current assembly/component.
+    ActivitySource ActivitySource { get; }
+}
+
+public interface IAssemblyTelemetryContext
+{
+    Meter CreateMeter(Assembly assembly);
     ActivitySource GetActivitySource(Assembly assembly);
 }
 ```
@@ -69,8 +75,10 @@ public static class TelemetryExtensions
 **Always use the extension methods**. The metric and tracing extensions
 capture the component assembly at the call site, and all extensions
 provide a default context when the supplied `ITelemetryContext` is
-`null`. In debug builds, the fallback also reports a debug check so
-missing telemetry is caught early.
+`null`. They use `IAssemblyTelemetryContext` when available and preserve
+the fixed sources returned by existing `ITelemetryContext`
+implementations otherwise. In debug builds, the fallback also reports a
+debug check so missing telemetry is caught early.
 
 ### Obtaining a telemetry context
 

@@ -52,7 +52,7 @@ namespace Opc.Ua
         {
             m_logger = telemetry.CreateLogger<ClientBase>();
             m_eventLogger = telemetry.CreateLogger(CoreEventIds.CoreCompatibilityCategory);
-            m_meter = telemetry.CreateMeter();
+            m_meter = TelemetryExtensions.CreateMeter(telemetry);
 
             if (channel == null)
             {

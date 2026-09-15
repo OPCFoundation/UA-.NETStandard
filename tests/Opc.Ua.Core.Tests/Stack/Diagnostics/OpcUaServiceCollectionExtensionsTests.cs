@@ -259,16 +259,6 @@ namespace Opc.Ua.Core.Tests.Stack.Diagnostics
             {
                 return new("Stub");
             }
-
-            public Meter CreateMeter(System.Reflection.Assembly assembly)
-            {
-                return CreateMeter();
-            }
-
-            public ActivitySource GetActivitySource(System.Reflection.Assembly assembly)
-            {
-                return ActivitySource;
-            }
         }
 
         private sealed class BufferManagerFactoryStub : IBufferManagerFactory

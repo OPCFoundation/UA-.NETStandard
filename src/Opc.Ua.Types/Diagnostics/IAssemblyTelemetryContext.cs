@@ -29,28 +29,29 @@
 
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
+using System.Reflection;
 
-namespace Opc.Ua.Pcap.Tests
+namespace Opc.Ua
 {
     /// <summary>
-    /// Minimal <see cref="ITelemetryContext"/> for unit tests: routes all
-    /// logging to <see cref="NullLoggerFactory.Instance"/> and uses
-    /// dedicated activity / meter sources so production diagnostics are
-    /// not contaminated.
+    /// Provides assembly-aware tracing and metrics.
     /// </summary>
-    internal sealed class TestTelemetryContext : ITelemetryContext
+    public interface IAssemblyTelemetryContext : ITelemetryContext
     {
-        public static TestTelemetryContext Instance { get; } = new();
+        /// <summary>
+        /// Create the meter instance for the specified assembly.
+        /// The caller is responsible to dispose the meter instance
+        /// returned.
+        /// </summary>
+        /// <param name="assembly">The component assembly producing the metrics.</param>
+        Meter CreateMeter(Assembly assembly);
 
-        public ILoggerFactory LoggerFactory => NullLoggerFactory.Instance;
-
-        public ActivitySource ActivitySource { get; } = new("Opc.Ua.Core.Diagnostics.Tests");
-
-        public Meter CreateMeter()
-        {
-            return new Meter("Opc.Ua.Core.Diagnostics.Tests");
-        }
+        /// <summary>
+        /// Get an activity source for the specified assembly.
+        /// Do not dispose the activity source returned as it is
+        /// held as part of the telemetry context.
+        /// </summary>
+        /// <param name="assembly">The component assembly producing the activities.</param>
+        ActivitySource GetActivitySource(Assembly assembly);
     }
 }

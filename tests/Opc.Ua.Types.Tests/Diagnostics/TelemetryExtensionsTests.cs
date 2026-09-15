@@ -76,11 +76,41 @@ namespace Opc.Ua.Types.Tests.Diagnostics
             Assert.That(activity!.Source.Name, Is.EqualTo(expectedSourceName));
         }
 
+        [Test]
+        public void LegacyContextUsesExistingSources()
+        {
+            using var telemetry = new LegacyTelemetryContext();
+
+            using Meter meter = TelemetryExtensions.CreateMeter(telemetry);
+            ActivitySource source = telemetry.GetActivitySource();
+
+            Assert.That(meter.Name, Is.EqualTo("Legacy"));
+            Assert.That(source, Is.SameAs(telemetry.ActivitySource));
+        }
+
         private sealed class TestTelemetryContext : TelemetryContextBase
         {
             public TestTelemetryContext()
                 : base(NullLoggerFactory.Instance)
             {
+            }
+        }
+
+        private sealed class LegacyTelemetryContext : ITelemetryContext, System.IDisposable
+        {
+            public Microsoft.Extensions.Logging.ILoggerFactory LoggerFactory =>
+                NullLoggerFactory.Instance;
+
+            public ActivitySource ActivitySource { get; } = new("Legacy");
+
+            public Meter CreateMeter()
+            {
+                return new Meter("Legacy");
+            }
+
+            public void Dispose()
+            {
+                ActivitySource.Dispose();
             }
         }
     }

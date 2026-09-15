@@ -411,19 +411,9 @@ namespace Opc.Ua.Server.Tests
                 return m_meter;
             }
 
-            public Meter CreateMeter(System.Reflection.Assembly assembly)
-            {
-                return m_meter;
-            }
-
             public ILoggerFactory LoggerFactory { get; }
 
             public ActivitySource ActivitySource { get; }
-
-            public ActivitySource GetActivitySource(System.Reflection.Assembly assembly)
-            {
-                return ActivitySource;
-            }
 
             private readonly Meter m_meter;
 
