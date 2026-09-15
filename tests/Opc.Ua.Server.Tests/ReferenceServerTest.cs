@@ -2706,9 +2706,12 @@ namespace Opc.Ua.Server.Tests
         /// Test that the HasReferenceTypeAndSubType node exists and has the expected references.
         /// </summary>
         [Test]
-        public async Task ReferencesHasReferenceTypeAndSubTypeNodeExistsAsync()
+        public async Task ReferencesHasReferenceTypeAndSubTypePreservesBrowseReferencesAsync()
         {
-            var nodeId = new NodeId("References_HasReferenceTypeAndSubType", 2);
+            int namespaceIndex = m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            Assert.That(namespaceIndex, Is.GreaterThan(0));
+            var nodeId = new NodeId("References_HasReferenceTypeAndSubType", (ushort)namespaceIndex);
             m_requestHeader.Timestamp = DateTimeUtc.Now;
             ArrayOf<ReadValueId> nodesToRead =
             [
@@ -2725,6 +2728,86 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
             Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
                 "Read of References_HasReferenceTypeAndSubType should succeed");
+
+            var instructionsId = new NodeId("Scalar_Instructions", (ushort)namespaceIndex);
+            var booleanId = new NodeId("Scalar_Static_Boolean", (ushort)namespaceIndex);
+            ArrayOf<BrowseDescription> nodesToBrowse =
+            [
+                Describe(nodeId, ReferenceTypeIds.HasComponent, BrowseDirection.Forward),
+                Describe(nodeId, ReferenceTypeIds.HasComponent, BrowseDirection.Forward, includeSubtypes: true),
+                Describe(instructionsId, ReferenceTypeIds.HasComponent, BrowseDirection.Inverse),
+                Describe(booleanId, ReferenceTypeIds.HasOrderedComponent, BrowseDirection.Inverse),
+                Describe(nodeId, ReferenceTypeIds.References, BrowseDirection.Both, includeSubtypes: true),
+                Describe(instructionsId, ReferenceTypeIds.Organizes, BrowseDirection.Inverse),
+                Describe(booleanId, ReferenceTypeIds.Organizes, BrowseDirection.Inverse)
+            ];
+            BrowseResponse response = await m_server.BrowseAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                null,
+                0,
+                nodesToBrowse,
+                RequestLifetime.None).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(response.ResponseHeader, response.Results, nodesToBrowse);
+            for (int index = 0; index < response.Results.Count; index++)
+            {
+                Assert.That(response.Results[index].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(response.Results[index].ContinuationPoint.IsEmpty, Is.True);
+            }
+            Assert.Multiple(() =>
+            {
+                Assert.That(response.Results[0].References.Count, Is.EqualTo(1));
+                Assert.That(response.Results[1].References.Count, Is.EqualTo(2));
+                Assert.That(response.Results[2].References.Count, Is.EqualTo(1));
+                Assert.That(response.Results[3].References.Count, Is.EqualTo(1));
+            });
+            ReferenceDescription component = response.Results[0].References[0];
+            ReferenceDescription orderedComponent = response.Results[1].References.ToArray()
+                .Single(reference => reference.ReferenceTypeId == ReferenceTypeIds.HasOrderedComponent);
+            ReferenceDescription[] allReferences = response.Results[4].References.ToArray();
+            Assert.Multiple(() =>
+            {
+                Assert.That(component.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasComponent));
+                Assert.That(component.IsForward, Is.True);
+                Assert.That(component.NodeId, Is.EqualTo(new ExpandedNodeId(instructionsId)));
+                Assert.That(orderedComponent.IsForward, Is.True);
+                Assert.That(orderedComponent.NodeId, Is.EqualTo(new ExpandedNodeId(booleanId)));
+                Assert.That(response.Results[2].References[0].IsForward, Is.False);
+                Assert.That(response.Results[2].References[0].NodeId, Is.EqualTo(new ExpandedNodeId(nodeId)));
+                Assert.That(response.Results[3].References[0].IsForward, Is.False);
+                Assert.That(response.Results[3].References[0].NodeId, Is.EqualTo(new ExpandedNodeId(nodeId)));
+                Assert.That(allReferences, Has.Length.EqualTo(4));
+                Assert.That(allReferences.Any(reference =>
+                    reference.ReferenceTypeId == ReferenceTypeIds.HasTypeDefinition &&
+                    reference.IsForward &&
+                    reference.NodeId == VariableTypeIds.BaseDataVariableType), Is.True);
+                Assert.That(allReferences.Any(reference =>
+                    reference.ReferenceTypeId == ReferenceTypeIds.Organizes &&
+                    !reference.IsForward &&
+                    reference.NodeId == new NodeId("References", (ushort)namespaceIndex)), Is.True);
+                Assert.That(response.Results[5].References.ToArray().Any(reference =>
+                    !reference.IsForward &&
+                    reference.NodeId == new NodeId("Scalar", (ushort)namespaceIndex)), Is.True);
+                Assert.That(response.Results[6].References.ToArray().Any(reference =>
+                    !reference.IsForward &&
+                    reference.NodeId == new NodeId("Scalar_Static", (ushort)namespaceIndex)), Is.True);
+            });
+
+            static BrowseDescription Describe(
+                NodeId id,
+                NodeId referenceTypeId,
+                BrowseDirection direction,
+                bool includeSubtypes = false)
+            {
+                return new BrowseDescription
+                {
+                    NodeId = id,
+                    BrowseDirection = direction,
+                    ReferenceTypeId = referenceTypeId,
+                    IncludeSubtypes = includeSubtypes,
+                    ResultMask = (uint)BrowseResultMask.All
+                };
+            }
         }
 
         /// <summary>

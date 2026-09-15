@@ -2388,6 +2388,15 @@ input is supplied to the others as a resolution dependency (both
 > NodeSet2's generated types — set the per-file MSBuild metadata on the
 > NodeSet2 entry to control it.
 
+NodeSet2 `ParentNodeId` identifies a node's ownership relationship, not every
+hierarchical reference to it. The generator preserves additional hierarchical
+links, such as `HasComponent`, `HasOrderedComponent`, or `HasAddIn` to a node
+owned by another parent, without moving that node. Only the exact reference
+represented by the parent/child relationship is implicit. Address-space
+registration completes reverse references, and generation deduplicates links
+by their resolved reference type, direction, and target NodeId. Rebuild the
+consuming project to regenerate its address-space code.
+
 #### Importing a NodeSet2 overlay at runtime — `builder.Import`
 
 The models above are compiled into the assembly. A NodeSet2 document
