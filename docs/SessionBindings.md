@@ -57,6 +57,13 @@ snapshots. A source map mutation, including a change followed by restoration of
 the same values, invalidates the old binding. `StringTable.GetSnapshot` captures
 the mapping and its mutation `Version` together.
 
+Capture also checks that the owning session's maps agree with the live context
+of the transport actually selected for dispatch. Contradictory holders reject
+capture. Both the source context and the copied context track table-holder
+generations: replacing either table invalidates the binding even if the original
+reference is restored before the next request. Assigning an unchanged reference
+does not itself invalidate a binding.
+
 The bound client cannot replace its channel/session incarnation or override its
 authentication token. Its endpoint and channel-certificate observations are
 captured values, not references to a later selected peer. Its generated clients
@@ -77,7 +84,9 @@ invalidation retains the original exception as its cause.
 ## Invalidation, cancellation and support
 
 Invalidated bindings report `BadSecurityChecksFailed`; a locally closed client
-can also report its normal closed-client status. Cancellation remains
+can also report its normal closed-client status. Invalidation is permanent for
+that binding, even if the owning capability later becomes current again.
+Cancellation remains
 `OperationCanceledException` and is not converted into a binding success.
 Capture on a closed session fails, and reconnect is not supported on the captured
 transport itself.
@@ -90,7 +99,8 @@ change the origin/identity policy applied by a higher-level client.
 The stock implementation supports UA-SC binary native channels (including their
 TCP and byte-transport-derived channels) and managed leases over those channels.
 Other transport implementations and custom mapping-table subclasses without the
-required owner tracking reject capture with `BadNotSupported`. Custom session
+required owner tracking reject capture with `BadNotSupported`, as do custom
+message-context implementations. Custom session
 adapters may expose `ISessionBindingProvider` only if they enforce the complete
 dispatch/result guarantee; comparing current endpoint labels is not sufficient.
 No support is inferred merely from an adapter implementing `ISession`.

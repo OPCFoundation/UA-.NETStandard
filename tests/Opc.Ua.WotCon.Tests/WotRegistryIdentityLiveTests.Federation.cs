@@ -122,6 +122,7 @@ namespace Opc.Ua.WotCon.Tests
                         int reads = m_store.Blobs.Reads;
                         ResourceTypeClient resource = await remote.FollowExternalReferenceAsync(
                             localSession, localNodeId, target, ct).ConfigureAwait(false);
+                        using ISessionClient resourceSession = resource.Session;
                         ResourceVersionsTypeClient? versions = await resource.GetVersionsAsync(m_telemetry, ct)
                             .ConfigureAwait(false);
                         Assert.That(versions, Is.Not.Null);
@@ -150,6 +151,7 @@ namespace Opc.Ua.WotCon.Tests
 
                         uint oldHandle = await resource.OpenAsync(1, ct).ConfigureAwait(false);
                         uint newHandle = 0;
+                        ISessionClient? currentBinding = null;
                         try
                         {
                             await m_server.NodeManagerLifecycle.RemoveAsync(lookupRegistration, null, ct)
@@ -167,6 +169,7 @@ namespace Opc.Ua.WotCon.Tests
                                 Is.EqualTo(secondBytes));
                             ResourceTypeClient current = await remote.FollowExternalReferenceAsync(
                                 localSession, localNodeId, target, ct).ConfigureAwait(false);
+                            currentBinding = current.Session;
                             newHandle = await current.OpenAsync(1, ct).ConfigureAwait(false);
                             ByteString oldContent = await resource.ReadAsync(oldHandle, 4096, ct).ConfigureAwait(false);
                             ByteString newContent = await current.ReadAsync(newHandle, 4096, ct).ConfigureAwait(false);
@@ -186,10 +189,24 @@ namespace Opc.Ua.WotCon.Tests
                         }
                         finally
                         {
-                            await resource.CloseAsync(oldHandle, CancellationToken.None).ConfigureAwait(false);
-                            if (newHandle != 0)
+                            try
                             {
-                                await resource.CloseAsync(newHandle, CancellationToken.None).ConfigureAwait(false);
+                                try
+                                {
+                                    await resource.CloseAsync(oldHandle, CancellationToken.None).ConfigureAwait(false);
+                                }
+                                finally
+                                {
+                                    if (newHandle != 0)
+                                    {
+                                        await resource.CloseAsync(newHandle, CancellationToken.None)
+                                            .ConfigureAwait(false);
+                                    }
+                                }
+                            }
+                            finally
+                            {
+                                currentBinding?.Dispose();
                             }
                         }
 
@@ -223,6 +240,7 @@ namespace Opc.Ua.WotCon.Tests
                                 .ConfigureAwait(false);
                             ResourceTypeClient relocated = await alternate.FollowExternalReferenceAsync(
                                 localSession, localNodeId, target, ct).ConfigureAwait(false);
+                            using ISessionClient relocatedSession = relocated.Session;
                             ExpandedNodeId relocatedReference = await ReadFederationReferenceAsync(
                                 localSession, localNodeId, ct).ConfigureAwait(false);
                             ByteString relocatedBytes = await relocated.ReadDocumentAsync(ct: ct).ConfigureAwait(false);
@@ -529,6 +547,7 @@ namespace Opc.Ua.WotCon.Tests
                 {
                     ResourceTypeClient original = await remote.FollowExternalReferenceAsync(
                         localSession, localNodeId, target, ct).ConfigureAwait(false);
+                    using ISessionClient originalSession = original.Session;
                     var local = (ResourceState)localServer.Manager.Find(localNodeId)!;
                     ExpandedNodeId originalReference = await ReadFederationReferenceAsync(
                         localSession, localNodeId, ct).ConfigureAwait(false);
@@ -550,6 +569,7 @@ namespace Opc.Ua.WotCon.Tests
                             replacementSession.Endpoint.EndpointUrl!, replacement, ct).ConfigureAwait(false);
                         ResourceTypeClient rebased = await replacement.FollowExternalReferenceAsync(
                             localSession, localNodeId, target, ct).ConfigureAwait(false);
+                        using ISessionClient rebasedSession = rebased.Session;
                         ByteString content = await rebased.ReadDocumentAsync(ct: ct).ConfigureAwait(false);
                         Assert.Multiple(() =>
                         {
@@ -577,6 +597,7 @@ namespace Opc.Ua.WotCon.Tests
                             null, reordered.ServerIndex);
                         ResourceTypeClient indexed = await replacement.FollowExternalReferenceAsync(
                             localSession, localNodeId, target, ct).ConfigureAwait(false);
+                        using ISessionClient indexedSession = indexed.Session;
                         Assert.Multiple(() =>
                         {
                             Assert.That(sourceNamespace, Is.Not.EqualTo(replacementNamespace));
@@ -722,10 +743,14 @@ namespace Opc.Ua.WotCon.Tests
                             });
                         }
                         int reads = m_store.Blobs.Reads;
-                        await Assert.ThatAsync(async () => await remote.FollowExternalReferenceAsync(
-                                localSession, localNodeId, target, ct).ConfigureAwait(false),
-                            Throws.TypeOf<ServiceResultException>()
-                                .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(expectedStatus),
+                        await Assert.ThatAsync(async () =>
+                        {
+                            ResourceTypeClient unexpected = await remote.FollowExternalReferenceAsync(
+                                localSession, localNodeId, target, ct).ConfigureAwait(false);
+                            using ISessionClient binding = unexpected.Session;
+                            await binding.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                        }, Throws.TypeOf<ServiceResultException>()
+                            .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(expectedStatus),
                             $"Proxy fault: {fault}").ConfigureAwait(false);
                         Assert.That(m_store.Blobs.Reads, Is.EqualTo(reads), $"Proxy fault: {fault}");
                         Assert.That(remoteSession.Endpoint.EndpointUrl, Is.EqualTo(endpointUrl));

@@ -15,6 +15,7 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Core" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Types" />
     <InternalsVisibleTo Include="Opc.Ua.Types.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Encoders.Tests" />

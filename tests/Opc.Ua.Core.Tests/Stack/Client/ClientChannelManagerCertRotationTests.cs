@@ -280,7 +280,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     await channel.CloseAsync().ConfigureAwait(false);
                 }
                 await sut.DisposeAsync().ConfigureAwait(false);
-                DisposeOpenedServerCertificates(openSettings);
+                DisposeOpenedChannelCertificates(openSettings);
             }
         }
 
@@ -328,7 +328,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     await channel.CloseAsync().ConfigureAwait(false);
                 }
                 await sut.DisposeAsync().ConfigureAwait(false);
-                DisposeOpenedServerCertificates(openSettings);
+                DisposeOpenedChannelCertificates(openSettings);
             }
         }
 
@@ -377,7 +377,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             finally
             {
                 await sut.DisposeAsync().ConfigureAwait(false);
-                DisposeOpenedServerCertificates(openSettings);
+                DisposeOpenedChannelCertificates(openSettings);
             }
         }
 
@@ -430,7 +430,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     await secondChannel.CloseAsync().ConfigureAwait(false);
                 }
                 await sut.DisposeAsync().ConfigureAwait(false);
-                DisposeOpenedServerCertificates(openSettings);
+                DisposeOpenedChannelCertificates(openSettings);
             }
         }
 
@@ -541,7 +541,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
-        private static void DisposeOpenedServerCertificates(
+        private static void DisposeOpenedChannelCertificates(
             ConcurrentQueue<TransportChannelSettings> openSettings)
         {
             while (openSettings.TryDequeue(out TransportChannelSettings? opened))

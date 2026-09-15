@@ -81,6 +81,18 @@ namespace Opc.Ua
                 throw new ServiceResultException(
                     StatusCodes.BadNotSupported, "The transport cannot capture a generation-bound session.");
             }
+            if (channel.MessageContext is not ServiceMessageContext sourceContext ||
+                sourceContext.GetType() != typeof(ServiceMessageContext))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "Custom message contexts must provide their own binding capability.");
+            }
+            long sourceMappingVersion = sourceContext.MappingVersion;
+            if (!ReferenceEquals(sourceContext.NamespaceUris, namespaces) ||
+                !ReferenceEquals(sourceContext.ServerUris, servers))
+            {
+                throw TransportChannelBinding.InvalidBinding();
+            }
             var namespaceCopy = new NamespaceTable(
                 namespaces.GetSnapshot(out long namespaceVersion).ToArray() ??
                 throw TransportChannelBinding.InvalidBinding());
@@ -91,6 +103,7 @@ namespace Opc.Ua
             long copiedServerVersion = serverCopy.Version;
             TransportChannelBinding captured = await provider.CreateTransportBindingAsync(ct).ConfigureAwait(false);
             ServiceMessageContext? context = null;
+            long copiedMappingVersion = 0;
             bool IsCurrent()
             {
                 bool current;
@@ -102,11 +115,17 @@ namespace Opc.Ua
                 }
                 return current &&
                     IsChannelCurrent(channel, channelGeneration) &&
+                    captured.HasSourceContext(sourceContext) &&
+                    ReferenceEquals(channel.MessageContext, sourceContext) &&
+                    ReferenceEquals(sourceContext.NamespaceUris, namespaces) &&
+                    ReferenceEquals(sourceContext.ServerUris, servers) &&
+                    sourceContext.MappingVersion == sourceMappingVersion &&
                     namespaces.Version == namespaceVersion &&
                     servers.Version == serverVersion &&
                     context is not null &&
                     ReferenceEquals(context.NamespaceUris, namespaceCopy) &&
                     ReferenceEquals(context.ServerUris, serverCopy) &&
+                    context.MappingVersion == copiedMappingVersion &&
                     namespaceCopy.Version == copiedNamespaceVersion &&
                     serverCopy.Version == copiedServerVersion &&
                     ownerCurrent();
@@ -115,6 +134,7 @@ namespace Opc.Ua
             {
                 ct.ThrowIfCancellationRequested();
                 context = TransportChannelBinding.CopyContext(captured.MessageContext, namespaceCopy, serverCopy);
+                copiedMappingVersion = context.MappingVersion;
                 captured.AddValidation(IsCurrent, context);
                 captured.ThrowIfInvalid();
                 return new BoundSessionClient(captured, sessionId, authenticationToken, telemetry)

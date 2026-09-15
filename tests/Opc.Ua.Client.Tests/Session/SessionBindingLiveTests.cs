@@ -63,12 +63,12 @@ namespace Opc.Ua.Client.Tests
                 ISessionClient binding = await provider.CreateBindingAsync(timeout.Token).ConfigureAwait(false);
                 try
                 {
-                    DataValue currentTime = await binding.ReadValueAsync(
+                    DataValue serverStateValue = await binding.ReadValueAsync(
                         VariableIds.Server_ServerStatus_State, timeout.Token).ConfigureAwait(false);
                     Assert.Multiple(() =>
                     {
-                        Assert.That(currentTime.StatusCode, Is.EqualTo(StatusCodes.Good));
-                        Assert.That(currentTime.WrappedValue.TryGetValue(out ServerState state), Is.True);
+                        Assert.That(serverStateValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                        Assert.That(serverStateValue.WrappedValue.TryGetValue(out ServerState state), Is.True);
                         Assert.That(state, Is.EqualTo(ServerState.Running));
                         Assert.That(binding.SessionId, Is.EqualTo(session.SessionId));
                         Assert.That(binding.Endpoint.Server.ApplicationUri,

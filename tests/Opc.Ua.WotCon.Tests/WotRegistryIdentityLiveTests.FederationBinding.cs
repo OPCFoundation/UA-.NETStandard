@@ -111,6 +111,8 @@ namespace Opc.Ua.WotCon.Tests
                             {
                                 followed = await client.FollowExternalReferenceAsync(
                                     localSession, proxyNodeId, target, ct).ConfigureAwait(false);
+                                using ISessionClient followedSession = followed.Session;
+                                await followedSession.CloseAsync(CancellationToken.None).ConfigureAwait(false);
                             }
                             else
                             {
@@ -191,15 +193,16 @@ namespace Opc.Ua.WotCon.Tests
                     {
                         ResourceTypeClient resource = await trustedClient.FollowExternalReferenceAsync(
                             localSession, proxyNodeId, target, ct).ConfigureAwait(false);
-                        Assert.That(resource.Session, Is.Not.SameAs(trustedSession));
-                        Assert.That(resource.Session.Endpoint.Server.ApplicationUri, Is.EqualTo(target.ServerUri));
-                        var native = (Session)trustedSession;
-                        int trustedReads = m_store.Blobs.Reads;
-                        int otherReads = otherStore.Blobs.Reads;
-                        ResourceState otherResource = otherManager.FindPredefinedNode<ResourceState>(
-                            otherAllocation.LogicalResource.ResourceNodeId)!;
+                        using ISessionClient binding = resource.Session;
                         try
                         {
+                            Assert.That(binding, Is.Not.SameAs(trustedSession));
+                            Assert.That(binding.Endpoint.Server.ApplicationUri, Is.EqualTo(target.ServerUri));
+                            var native = (Session)trustedSession;
+                            int trustedReads = m_store.Blobs.Reads;
+                            int otherReads = otherStore.Blobs.Reads;
+                            ResourceState otherResource = otherManager.FindPredefinedNode<ResourceState>(
+                                otherAllocation.LogicalResource.ResourceNodeId)!;
                             await native.RecreateInPlaceAsync(otherSession.ConfiguredEndpoint, ct: ct)
                                 .ConfigureAwait(false);
                             Assert.That(native.Endpoint.Server.ApplicationUri,
@@ -221,11 +224,132 @@ namespace Opc.Ua.WotCon.Tests
                         }
                         finally
                         {
-                            await resource.Session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
-                            resource.Session.Dispose();
+                            await binding.CloseAsync(CancellationToken.None).ConfigureAwait(false);
                         }
                     }).ConfigureAwait(false);
                 }, ct).ConfigureAwait(false)).ConfigureAwait(false);
+        }
+
+        [TestCase(false, false, false)]
+        [TestCase(false, false, true)]
+        [TestCase(false, true, false)]
+        [TestCase(false, true, true)]
+        [TestCase(true, false, false)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, false)]
+        [TestCase(true, true, true)]
+        public async Task FederationReturnedBindingRejectsMappingHolderAbaBeforeContentAsync(
+            bool namespaceMapping,
+            bool sourceContext,
+            bool observeInvalidation)
+        {
+            const string catalogue = "urn:r09:mapping-holder-catalogue";
+            const string thing = "urn:r09:mapping-holder-thing";
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = timeout.Token;
+            WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
+                WoTDocumentKindEnum.ThingDescription, catalogue, ct).ConfigureAwait(false);
+            WotRegistryResourceAllocation allocation = await group.CreateThingDescriptionResourceAsync(
+                thing, "v1", ct: ct).ConfigureAwait(false);
+            var bytes = ByteString.From(TestMaterialization.Td(thing, "mapping-holder"));
+            await allocation.Version.Proxy.UploadAsync(bytes, ct: ct).ConfigureAwait(false);
+            XRegistryFederationTarget target = CreateNativeFederationTarget(group, allocation);
+            ResourceState logical = m_manager.FindPredefinedNode<ResourceState>(
+                allocation.LogicalResource.ResourceNodeId)!;
+
+            await WithNativeFederationClientAsync(async (remoteSession, remote) =>
+                await WithNativeFederationProxyAsync(target, remote, async (
+                    localServer, localSession, proxyNodeId) =>
+                {
+                    ResourceTypeClient resource = await remote.FollowExternalReferenceAsync(
+                        localSession, proxyNodeId, target, ct).ConfigureAwait(false);
+                    using (ISessionClient binding = resource.Session)
+                    {
+                        var context = (ServiceMessageContext)(sourceContext
+                            ? remoteSession.MessageContext
+                            : binding.MessageContext);
+                        NamespaceTable namespaces = context.NamespaceUris;
+                        StringTable servers = context.ServerUris;
+                        uint? handle = null;
+                        try
+                        {
+                            DataValue serverStateValue = await binding.ReadValueAsync(
+                                Ua.VariableIds.Server_ServerStatus_State, ct).ConfigureAwait(false);
+                            Assert.Multiple(() =>
+                            {
+                                Assert.That(serverStateValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                                Assert.That(serverStateValue.WrappedValue.TryGetValue(out ServerState state), Is.True);
+                                Assert.That(state, Is.EqualTo(ServerState.Running));
+                            });
+                            int reads = m_store.Blobs.Reads;
+                            if (namespaceMapping)
+                            {
+                                context.NamespaceUris = new NamespaceTable(namespaces.ToArray());
+                            }
+                            else
+                            {
+                                context.ServerUris = new StringTable(servers.ToArray());
+                            }
+                            if (observeInvalidation)
+                            {
+                                await Assert.ThatAsync(() => binding.ReadValueAsync(
+                                        Ua.VariableIds.Server_ServerStatus_State, ct),
+                                    Throws.TypeOf<ServiceResultException>()
+                                        .With.Property(nameof(ServiceResultException.StatusCode))
+                                        .EqualTo(StatusCodes.BadSecurityChecksFailed)).ConfigureAwait(false);
+                            }
+                            context.NamespaceUris = namespaces;
+                            context.ServerUris = servers;
+                            await Assert.ThatAsync(
+                                async () => handle = await resource.OpenAsync(1, ct).ConfigureAwait(false),
+                                Throws.TypeOf<ServiceResultException>()
+                                    .With.Property(nameof(ServiceResultException.StatusCode))
+                                    .EqualTo(StatusCodes.BadSecurityChecksFailed)).ConfigureAwait(false);
+                            Assert.Multiple(() =>
+                            {
+                                Assert.That(m_store.Blobs.Reads, Is.EqualTo(reads));
+                                Assert.That(logical.OpenCount!.Value, Is.Zero);
+                            });
+                        }
+                        finally
+                        {
+                            context.NamespaceUris = namespaces;
+                            context.ServerUris = servers;
+                            try
+                            {
+                                if (handle is uint openedHandle)
+                                {
+                                    var owner = new ResourceTypeClient(remoteSession, resource.ObjectId, m_telemetry);
+                                    await owner.CloseAsync(openedHandle, CancellationToken.None).ConfigureAwait(false);
+                                }
+                            }
+                            finally
+                            {
+                                await binding.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                            }
+                        }
+                    }
+                    DataValue ownerState = await remoteSession.ReadValueAsync(
+                        Ua.VariableIds.Server_ServerStatus_State, ct).ConfigureAwait(false);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(ownerState.StatusCode, Is.EqualTo(StatusCodes.Good));
+                        Assert.That(ownerState.WrappedValue.TryGetValue(out ServerState state), Is.True);
+                        Assert.That(state, Is.EqualTo(ServerState.Running));
+                    });
+                    ResourceTypeClient fresh = await remote.FollowExternalReferenceAsync(
+                        localSession, proxyNodeId, target, ct).ConfigureAwait(false);
+                    using ISessionClient freshBinding = fresh.Session;
+                    try
+                    {
+                        Assert.That(await fresh.ReadDocumentAsync(ct: ct).ConfigureAwait(false), Is.EqualTo(bytes));
+                        Assert.That(logical.OpenCount!.Value, Is.Zero);
+                    }
+                    finally
+                    {
+                        await freshBinding.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         private static Mock<ISession> CreateFederationForwardingSession(
@@ -343,6 +467,8 @@ namespace Opc.Ua.WotCon.Tests
                             {
                                 returned = await trustedClient.FollowExternalReferenceAsync(
                                     localSession, proxyNodeId, target, ct).ConfigureAwait(false);
+                                using ISessionClient returnedSession = returned.Session;
+                                await returnedSession.CloseAsync(CancellationToken.None).ConfigureAwait(false);
                             }
                             else
                             {
