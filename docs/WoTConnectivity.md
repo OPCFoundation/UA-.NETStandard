@@ -1100,6 +1100,19 @@ source; and `uav:select` filters on affordance kind, semantic identifier and typ
 tokens. The predicate set is closed — a filter carrying any other key is rejected
 rather than ignored — so a filter stays decidable by inspection.
 
+Type and semantic-ID predicates compare expanded identities in the filter's
+original context and the candidate affordance's original context. Different
+prefixes for the same namespace can match; equal spellings bound to different
+namespaces do not. Local and term-scoped contexts, definition-time mappings,
+type vocabularies and original document locations remain owner-specific.
+Predicate identities must be established before source acquisition.
+
+Constraints within one filter are conjunctive, including every listed type;
+filters are disjunctive. A definite matching type or filter is not defeated by
+an unrelated unresolved alternative. If the remaining evidence cannot determine
+membership, resolution reports `ProjectionSelectorInvalid`, rather than
+guessing a match or returning a successful partial view.
+
 Present controls are validated before source acquisition, including in nested
 projections. `uav:sourceDigest`, `uav:routing`, and `uav:namePrefix` must have their
 declared string shapes; a non-string value is not treated as an omitted pin,

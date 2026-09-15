@@ -119,6 +119,8 @@ namespace Opc.Ua.Wot
         /// An affordance matches only when it carries every listed value.
         /// </remarks>
         public ArrayOf<string> TypeTokens { get; init; }
+
+        internal JsonElement ContextOwner { get; init; }
     }
 
     /// <summary>

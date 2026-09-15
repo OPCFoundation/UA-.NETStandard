@@ -188,7 +188,9 @@ namespace Opc.Ua.Wot
             var openDocuments = new List<WotDocument>();
             try
             {
+                string projectionOrigin = documentLocation ?? projectionDocument.Id ?? string.Empty;
                 if (!ValidateContexts(projectionDocument, diagnostics) ||
+                    !ValidatePredicateIdentities(projectionDocument, projection, projectionOrigin, diagnostics) ||
                     !ValidateSecurityDefinitions(projectionDocument, context.Options.MaxDepth, diagnostics))
                 {
                     return null;
@@ -214,7 +216,6 @@ namespace Opc.Ua.Wot
                     return null;
                 }
 
-                string projectionOrigin = documentLocation ?? projectionDocument.Id ?? string.Empty;
                 JsonObject securityDefinitions =
                     SeedSecurityDefinitions(projectionDocument, projectionOrigin);
                 var selection = new Selection(projectionDocument, projectionOrigin, securityDefinitions);
@@ -816,7 +817,7 @@ namespace Opc.Ua.Wot
             foreach ((WotAffordanceKind kind, string name, JsonElement definition)
                 in EnumerateAffordances(source.Document))
             {
-                if (MatchesSource(source.Source, kind, name, definition))
+                if (MatchesSource(source, kind, name, definition, selection, diagnostics))
                 {
                     candidates.Add((kind, name, definition));
                 }
@@ -1407,87 +1408,172 @@ namespace Opc.Ua.Wot
         }
 
         private static bool MatchesSource(
-            WotProjectionManifestSource source,
+            ResolvedSource source,
             WotAffordanceKind kind,
             string name,
-            JsonElement definition)
+            JsonElement definition,
+            Selection selection,
+            List<WotDiagnostic> diagnostics)
         {
-            if (source.SelectAll)
+            if (source.Source.SelectAll)
             {
                 return true;
             }
-            if (source.Filters.IsNull)
+            if (source.Source.Filters.IsNull)
             {
                 return false;
             }
-            for (int ii = 0; ii < source.Filters.Count; ii++)
+            bool unknown = false;
+            for (int ii = 0; ii < source.Source.Filters.Count; ii++)
             {
-                if (MatchesFilter(source.Filters[ii], kind, definition))
+                PredicateMatch match = MatchesFilter(source.Source.Filters[ii], kind, definition, source, selection);
+                if (match == PredicateMatch.Match)
                 {
                     return true;
                 }
+                unknown |= match == PredicateMatch.Unknown;
+            }
+            if (unknown)
+            {
+                AddError(diagnostics, WotDiagnosticCode.ProjectionSelectorInvalid,
+                    "An affordance's predicate membership cannot be determined in its original semantic context.",
+                    source.DocumentHref + "#/" + MapName(kind) + "/" + EscapePointer(name));
             }
             return false;
         }
 
-        private static bool MatchesFilter(
+        private static PredicateMatch MatchesFilter(
             WotProjectionFilter filter,
             WotAffordanceKind kind,
-            JsonElement definition)
+            JsonElement definition,
+            ResolvedSource source,
+            Selection selection)
         {
             if (filter.AffordanceKind != WotAffordanceKind.Any &&
                 filter.AffordanceKind != kind)
             {
-                return false;
+                return PredicateMatch.Mismatch;
             }
-            if (filter.SemanticId is not null &&
-                !HasSemanticId(definition, filter.SemanticId))
+            bool unknown = false;
+            if (filter.SemanticId is not null)
             {
-                return false;
+                PredicateMatch match = HasSemanticId(definition, filter, source, selection);
+                if (match == PredicateMatch.Mismatch)
+                {
+                    return match;
+                }
+                unknown = match == PredicateMatch.Unknown;
             }
             if (!filter.TypeTokens.IsNull)
             {
                 for (int ii = 0; ii < filter.TypeTokens.Count; ii++)
                 {
-                    if (!HasTypeToken(definition, filter.TypeTokens[ii]))
+                    PredicateMatch match = HasTypeToken(
+                        definition, filter.TypeTokens[ii], filter, source, selection);
+                    if (match == PredicateMatch.Mismatch)
                     {
-                        return false;
+                        return match;
                     }
+                    unknown |= match == PredicateMatch.Unknown;
                 }
             }
-            return true;
+            return unknown ? PredicateMatch.Unknown : PredicateMatch.Match;
         }
 
-        private static bool HasSemanticId(JsonElement definition, string semanticId)
+        private static PredicateMatch HasSemanticId(
+            JsonElement definition, WotProjectionFilter filter, ResolvedSource source,
+            Selection selection)
         {
             return definition.TryGetProperty(
                     "uav:semanticId", out JsonElement value) &&
-                value.ValueKind == JsonValueKind.String &&
-                string.Equals(value.GetString(), semanticId, StringComparison.Ordinal);
+                value.ValueKind == JsonValueKind.String
+                ? MatchesSemanticIdentity(
+                    value.GetString()!, filter.SemanticId!, false, definition, filter, source, selection)
+                : PredicateMatch.Mismatch;
         }
 
-        private static bool HasTypeToken(JsonElement definition, string token)
+        private static PredicateMatch HasTypeToken(
+            JsonElement definition, string token, WotProjectionFilter filter, ResolvedSource source,
+            Selection selection)
         {
             if (!definition.TryGetProperty("@type", out JsonElement types))
             {
-                return false;
+                return PredicateMatch.Mismatch;
             }
             if (types.ValueKind == JsonValueKind.String)
             {
-                return string.Equals(types.GetString(), token, StringComparison.Ordinal);
+                return MatchesSemanticIdentity(
+                    types.GetString()!, token, true, definition, filter, source, selection);
             }
+            bool unknown = false;
             if (types.ValueKind == JsonValueKind.Array)
             {
                 foreach (JsonElement item in types.EnumerateArray())
                 {
-                    if (item.ValueKind == JsonValueKind.String &&
-                        string.Equals(item.GetString(), token, StringComparison.Ordinal))
+                    if (item.ValueKind == JsonValueKind.String)
                     {
-                        return true;
+                        PredicateMatch match = MatchesSemanticIdentity(
+                            item.GetString()!, token, true, definition, filter, source, selection);
+                        if (match == PredicateMatch.Match)
+                        {
+                            return match;
+                        }
+                        unknown |= match == PredicateMatch.Unknown;
                     }
                 }
             }
-            return false;
+            return unknown ? PredicateMatch.Unknown : PredicateMatch.Mismatch;
+        }
+
+        private static PredicateMatch MatchesSemanticIdentity(
+            string sourceValue, string predicateValue, bool vocabulary, JsonElement definition,
+            WotProjectionFilter filter, ResolvedSource source, Selection selection)
+        {
+            if (!TryExpandSemanticIdentity(
+                    predicateValue, selection.Document, filter.ContextOwner, selection.DocumentHref, vocabulary,
+                    out string expected) ||
+                !TryExpandSemanticIdentity(
+                    sourceValue, source.Document, definition, source.DocumentHref, vocabulary, out string actual))
+            {
+                return PredicateMatch.Unknown;
+            }
+            return string.Equals(expected, actual, StringComparison.Ordinal)
+                ? PredicateMatch.Match : PredicateMatch.Mismatch;
+        }
+
+        private static bool ValidatePredicateIdentities(
+            WotDocument document, WotProjection projection, string origin, List<WotDiagnostic> diagnostics)
+        {
+            foreach (WotProjectionManifestSource source in projection.Sources)
+            {
+                foreach (WotProjectionFilter filter in source.Filters)
+                {
+                    if (filter.SemanticId is not null &&
+                        !Validate(filter.SemanticId, false, filter.ContextOwner))
+                    {
+                        return false;
+                    }
+                    foreach (string token in filter.TypeTokens)
+                    {
+                        if (!Validate(token, true, filter.ContextOwner))
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+
+            bool Validate(string value, bool vocabulary, JsonElement owner)
+            {
+                if (TryExpandSemanticIdentity(value, document, owner, origin, vocabulary, out _))
+                {
+                    return true;
+                }
+                AddError(diagnostics, WotDiagnosticCode.ProjectionSelectorInvalid,
+                    "A selection predicate cannot be resolved in its original semantic context.", value);
+                return false;
+            }
         }
 
         private static IEnumerable<string> ReadOrganizesHrefs(WotDocument document)
@@ -2340,6 +2426,13 @@ namespace Opc.Ua.Wot
                 }
             }
             return count;
+        }
+
+        private enum PredicateMatch
+        {
+            Mismatch,
+            Match,
+            Unknown
         }
 
         private sealed class ResolvedSource

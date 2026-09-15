@@ -571,7 +571,8 @@ namespace Opc.Ua.Wot
                 {
                     AffordanceKind = kind,
                     SemanticId = semanticId,
-                    TypeTokens = new ArrayOf<string>([.. typeTokens])
+                    TypeTokens = new ArrayOf<string>([.. typeTokens]),
+                    ContextOwner = filter
                 }
                 : null;
         }
