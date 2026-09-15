@@ -48,6 +48,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [Parallelizable(ParallelScope.All)]
     public class EventManagerTests
     {
+        private static readonly string[] s_threeEvents = ["event0", "event1", "event2"];
+
         private static OperationContext NewContext()
         {
             return new OperationContext(
@@ -253,7 +255,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             // EventQueueOverflowEvent, so compare the exact payloads.
             Assert.That(
                 notifications.Select(n => n.EventFields[0].GetString()),
-                Is.EqualTo(new[] { "event0", "event1", "event2" }));
+                Is.EqualTo(s_threeEvents));
         }
 
         /// <summary>
@@ -317,7 +319,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(
                 notifications.Select(n => n.EventFields[0].GetString()),
-                Is.EqualTo(new[] { "event0", "event1", "event2" }));
+                Is.EqualTo(s_threeEvents));
         }
 
         [Test]

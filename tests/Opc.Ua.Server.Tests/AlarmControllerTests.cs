@@ -44,6 +44,8 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class AlarmControllerTests
     {
+        private static readonly string[] s_limitStates = ["HighHigh", "High", "Normal", "Low", "LowLow"];
+
         [Test]
         public void BooleanAndAnalogSourcesChangeStateOnTheSameStep()
         {
@@ -78,7 +80,7 @@ namespace Opc.Ua.Server.Tests
                 });
             }
 
-            Assert.That(bands, Is.EquivalentTo(new[] { "HighHigh", "High", "Normal", "Low", "LowLow" }),
+            Assert.That(bands, Is.EquivalentTo(s_limitStates),
                 "One simulation period must visit every limit state.");
         }
 
