@@ -875,7 +875,14 @@ endpoint still shows an empty string. `015.js` compares these copies and reports
 different configurations. Logged on 2026-09-14: the server returned `2` with an empty SecurityPolicyUri on all
 three Basic256Sha256 endpoints; only the SignAndEncrypt copies changed inside the CTT. An empty
 SecurityPolicyUri means "use the endpoint's policy" (Part 4 §7.41), so the server's policies are also
-equal in effect. Separately, `015.js` line 20 indexes `foundTokens[i]` with the endpoint index. **Fix:**
+equal in effect. Confirmed on 2026-09-15 with a dump of `gServerCapabilities.Endpoints` in a project copy: before
+`initialize.js` calls `Find` the three Basic256Sha256 endpoints (Sign, SignAndEncrypt `opc.tcp`, SignAndEncrypt
+`opc.wss`) all carry Anonymous `1`, UserName `2`, X509 `3` with an empty SecurityPolicyUri, and the None endpoint
+carries `4`–`6` with explicit URIs (`#None`, `#Basic256Sha256`, `#Basic256Sha256`); after the two `Find` calls
+only the UserName entries of the two SignAndEncrypt endpoints show `#Basic256Sha256`, and `015.js` reports exactly
+that difference. The server's PolicyIds (`ServerBase.GetUserTokenPolicies`: one id per distinct TokenType,
+SecurityPolicyUri, IssuedTokenType and IssuerEndpointUrl) satisfy the uniqueness rule of Mantis 11258. Separately,
+`015.js` line 20 indexes `foundTokens[i]` with the endpoint index. **Fix:**
 set the SecurityPolicyUri on the returned clone only, and index `foundTokens` with the token position.
 
 ### C37. Session Base secure test cases send CreateSession with the `opc.wss` EndpointUrl
