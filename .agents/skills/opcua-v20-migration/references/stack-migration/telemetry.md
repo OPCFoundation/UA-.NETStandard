@@ -123,6 +123,8 @@ explicit telemetry context**.
   `ITelemetryContext Telemetry { get; }`.
 - `ITransportBindingFactory<T>.Create(...)` now takes
   `ITelemetryContext`.
+- `ITelemetryContext` gains `CreateMeter(Assembly)` and
+  `GetActivitySource(Assembly)` for component-specific telemetry.
 
 ### System context
 

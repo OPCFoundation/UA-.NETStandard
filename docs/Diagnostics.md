@@ -31,11 +31,17 @@ public interface ITelemetryContext
     // Creates a new Meter for recording metrics (caller disposes).
     Meter CreateMeter();
 
+    // Creates a Meter for a specific assembly (caller disposes).
+    Meter CreateMeter(Assembly assembly);
+
     // Factory used to create typed ILogger instances.
     ILoggerFactory LoggerFactory { get; }
 
     // Shared ActivitySource representing the current assembly/component.
     ActivitySource ActivitySource { get; }
+
+    // Gets the shared ActivitySource for a specific assembly.
+    ActivitySource GetActivitySource(Assembly assembly);
 }
 ```
 
@@ -55,16 +61,22 @@ public static class TelemetryExtensions
     ILogger CreateLogger(this ITelemetryContext context, string categoryName);
     ILogger<T> CreateLogger<T>(this ITelemetryContext context);
 
+    // Captures the calling assembly and creates its Meter.
+    Meter CreateMeter(this ITelemetryContext context);
+
+    // Captures the calling assembly and gets its shared ActivitySource.
+    ActivitySource GetActivitySource(this ITelemetryContext context);
+
     // Starts a new Activity with the shared ActivitySource.
     Activity StartActivity(this ITelemetryContext context, string activityName, ActivityKind kind = ActivityKind.Internal);
 }
 ```
 
-**Always use the extension methods**. They guarantee a non-null logger
-and activity even when the supplied `ITelemetryContext` is `null` or
-returns `null` from a property: in release builds the fallback is a
-backwards-compatible trace logger; in debug builds it is a debug-check
-logger that throws if used so missing telemetry is caught early.
+The metric and tracing members on `ITelemetryContext` identify the
+component assembly at the call site. The extension methods provide the
+same behavior when the supplied `ITelemetryContext` may be `null`, using
+the default context when necessary. In debug builds, the fallback also
+reports a debug check so missing telemetry is caught early.
 
 ### Obtaining a telemetry context
 
@@ -112,8 +124,11 @@ right place to materialize the context.
 
 ### Using the telemetry context
 
-Always use the extension methods to obtain loggers, meters, and
-activities. The returned instance is guaranteed to be non-null.
+Use the context directly when it is non-null. Use the extension methods
+when a context may be null; the returned instance is guaranteed to be
+non-null. Because `ITelemetryContext.CreateMeter()` shadows its extension,
+invoke the nullable meter fallback explicitly as
+`TelemetryExtensions.CreateMeter(telemetry)`.
 
 ```csharp
 // Obtain telemetry context
@@ -141,6 +156,11 @@ Store the obtained logger / meter / activity-source references in
 cached by the `ILoggerProvider`, so obtaining one is cheap. Still,
 be mindful of the per-object reference cost when creating loggers for
 very large object populations (`NodeState`, `NodeId`).
+
+Resolve source names before registering an `ActivityListener`, and keep its
+`ShouldListenTo` filter free of source lookups. Creating an `ActivitySource`
+synchronously invokes existing listeners; resolving a missing source inside
+that filter can recursively re-enter source creation.
 
 `ConsoleReferenceClient` and `ConsoleReferenceServer` show the full
 pattern end-to-end.
@@ -277,12 +297,12 @@ looks like:
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("opc-ua-client"))
     .WithTracing(t => t
-        .AddSource("Opc.Ua.Core")             // names used by stack ActivitySources
-        .AddSource("Opc.Ua.Client.Session")
+        .AddSource("Opc.Ua.Core*")            // assembly-qualified source names
+        .AddSource("Opc.Ua.Client*")
         .AddOtlpExporter())
     .WithMetrics(m => m
-        .AddMeter("Opc.Ua.Client.*")          // wildcard match for stack meters
-        .AddMeter("Opc.Ua.Server.*")
+        .AddMeter("Opc.Ua.Client*")            // assembly-qualified meter names
+        .AddMeter("Opc.Ua.Server*")
         .AddOtlpExporter());
 ```
 
