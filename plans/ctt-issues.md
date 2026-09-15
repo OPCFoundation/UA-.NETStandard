@@ -53,6 +53,8 @@ running the CTT is in [ctt-testing.md](ctt-testing.md).
 | C38 | Subscription Durable `012.js`: denied diagnostics Browse and missing braces | — | Not filed |
 | C39–C44 | Alarms and Conditions script defects | — | Not filed |
 | C45–C47 | Reference server coverage script defects (#4479) | — | Not filed |
+| C48 | Aggregates: Minimum/Maximum ignore Uncertain values beyond the Good extremum | — | Not filed |
+| C49 | Aggregates: Min/MaxActualTime and Minimum keep Raw when non-Good values make the result Uncertain | — | Not filed |
 
 Mantis states were last checked on 2026-09-13.
 
@@ -485,8 +487,11 @@ index, report missing ClientHandles, and write a representably different value.
 
 Retain is derived from the main event's Active/Acked/Confirmed fields. Part 9 §5.5.2 requires
 `Retain=true` while any ConditionBranch still needs operator input. **Fix:** include outstanding
-branches in `ValidateRetain`. This also covers Confirm `Test_001.js` for Discrete, OffNormal and
-SystemOffNormal alarms.
+branches in `ValidateRetain`. This also covers Confirm `Test_001.js`, depending on the alarm phase when the
+confirmation event arrives: in the full run of 2026-09-15 it failed for all 14 alarm types (logged in a
+reproduction: *"ValidateRetain failed retain = true Active State = false AckedState = true ConfirmedState =
+Confirmed"*), while the same CU alone and in an Acknowledge/Alarm/Basic/Comment/Confirm run confirmed active
+alarms and passed 14 of 14.
 
 ### C11. Alarm `Test_004.js` calls `ReadHelper` re-entrantly from the alarm callback
 
@@ -508,16 +513,16 @@ The server's EUR CurrencyUnit is `NumericCode=978`, `Exponent=2`, `AlphabeticCod
 `D2 03 02`). The script reports an empty Exponent, so the `toCurrencyUnitType()` conversion loses
 the field. **Fix:** decode the SByte Exponent after NumericCode.
 
-### C14. Auditing Connections cannot find entries by `ClientAuditEntryId`
+### C14. Auditing Connections cannot find entries by `ClientAuditEntryId` (withdrawn: server defect, fixed)
 
 - **Helper:** `library/…/AuditValidationHelper.js`, line 346 (*"Unable to Find Entry for ClientAuditEntryId"*)
 
-The server emits AuditOpenSecureChannel, AuditCreateSession, AuditActivateSession and
-AuditCloseSession events carrying `ClientAuditEntryId` from `RequestHeader.AuditEntryId`. A
-subscriber with the CTT's `AuthenticatedUser` role receives them (Part 3 §8.55). The CTT's
-`Test.Audit` collection still does not find them. The cause lies in the CTT's audit subscription
-parameters, the `FindEntryVerbose` WhereClause, the `ClientAuditEntryId` comparison or publish
-timing; it has not been pinpointed to a line.
+Not a CTT defect. The CTT audit subscription monitors `Server.EventNotifier` with QueueSize 1, and the
+server took an event queueSize of 1 literally, so the audit events of one connect overwrote each other
+(the CTT buffer showed EventQueueOverflowEventType events). Part 4 §7.21 makes 0 the server default and
+1 the server minimum for event items; the server now revises both to its default queue size
+([#4480](https://github.com/OPCFoundation/UA-.NETStandard/pull/4480)). In the full run of 2026-09-15
+Auditing Connections `001.js`, `007.js`, `011.js`, `012.js` and `020.js` pass.
 
 ### C15. Base Info Core Structure 2 — `InfoFactory.js` Organizes check dereferences an undefined type
 
@@ -1027,6 +1032,35 @@ the operator to change the server clock. In a `--close --hidden` run the dialog 
 The CU needs an operator (and a server whose clock can be moved past a certificate's expiration
 limit). **Fix:** skip dialogs in hidden/automated runs, or add a project setting that answers them.
 
+### C48. Aggregate oracle: Minimum/Maximum ignore Uncertain values beyond the Good extremum
+
+- **Tests:** Aggregate – Minimum, Maximum, MinimumActualTime, MaximumActualTime (`001-02.js`, `001-03.js`, …;
+  24 readings per aggregate on the numeric HA nodes)
+- **Error:** *"Query did not result in identical readings"*
+
+Part 13 §5.4.3.10–§5.4.3.13: *"If Bad values exist then the Status is Uncertain_DataSubNormal. If an Uncertain value
+is less than the minimum Good value the Status is Uncertain_DataSubNormal"* (greater than the maximum for
+Maximum/MaximumActualTime). Since [#4477](https://github.com/OPCFoundation/UA-.NETStandard/pull/4477)
+`MinMaxAggregateCalculator.ComputeMinMax` applies the second rule. In a logged run (2026-09-15, AGGDIAG project
+copy, section 4 of ctt-testing.md) the server returned for `ns=2;s=Scalar_Static_Int32`, interval
+`07:25:01.050Z`: value 8, `UncertainDataSubNormal` + Calculated (`0x40A40401`); the oracle expects the same value
+and timestamp with `Good` (`0x00000401`). Value and timestamp agree in every differing reading; only the status
+differs. **Fix:** apply the Uncertain-value rule in the oracle. Before #4477 the server ignored it too, so these
+readings passed.
+
+### C49. Aggregate oracle: ActualTime aggregates keep Raw when non-Good values make the result Uncertain
+
+- **Tests:** Aggregate – MinimumActualTime and MaximumActualTime (228 readings each), Minimum (14 readings)
+- **Error:** *"Query did not result in identical readings"*
+
+The Calculated bit of MinimumActualTime/MaximumActualTime is *"Set Sometimes If the Status was set to
+Uncertain_DataSubNormal because of non-Good values in the interval"* (§5.4.3.12/§5.4.3.13; Minimum and Maximum:
+*"… if the Minimum value is not on the startTime of the interval or if the Status was set to
+Uncertain_DataSubNormal because of non-Good values"*). The server (since #4477) returns
+`UncertainDataSubNormal` + Calculated (`0x40A40401`, with MultipleValues `0x40A40405`) for intervals that contain a
+Bad value; the oracle expects `UncertainDataSubNormal` with Raw bits (`0x40A40000` / `0x40A40404`). **Fix:** set the
+Calculated bit whenever the status is Uncertain because of non-Good input.
+
 ## Needs clarification
 
 ### U1. NumberOfTransitions with TreatUncertainAsBad=true
@@ -1060,23 +1094,23 @@ does not currently exercise:
 - **AnnotationCount never returns `BadNoData` or sets `Partial`** (`CountAggregateCalculator`). The
   §5.4.3.20 table specifies BadNoData before/after the end of data; it is ambiguous whether "data"
   means Annotations or the raw archive.
-- **Uncertain values ignored in Minimum/Maximum** (`MinMaxAggregateCalculator`). §5.4.3.10/11 make
-  the result Uncertain when an Uncertain value is below (above) the Good minimum (maximum).
 - **Value-based status ignores TreatUncertainAsBad=false** (`AggregateCalculator.GetValueBasedStatusCode`).
 - **DeltaBounds Uncertain-bound check is unreachable** (`StartEndAggregateCalculator`). An earlier
   `!IsGood` return means an Uncertain bound with TreatUncertainAsBad=false gives BadNoData instead of
   `UncertainDataSubNormal` (§5.4.3.30).
 
-The last three only show once the CTT sends explicit aggregate configurations (C1).
+The last two only show once the CTT sends explicit aggregate configurations (C1). The Uncertain-value rule of
+Minimum/Maximum is implemented since #4477 and shows as C48.
 
 ### Open server findings to investigate
 
 Failures that are not explained by a known CTT defect yet. Each needs a focused reproduction before
 it is classified as a server or CTT issue.
 
-- **Auditing Connections cannot find audit events.** `011.js`/`012.js` (ClientAuditEntryId) and
-  `001.js`/`007.js`/`020.js` (AuditOpenSecureChannel/CreateSession/ActivateSession event types). See
-  C14; a separate root-cause investigation is running.
+- **Auditing Connections cannot find audit events (fixed, #4480).** `011.js`/`012.js`
+  (ClientAuditEntryId) and `001.js`/`007.js`/`020.js` (AuditOpenSecureChannel/CreateSession/ActivateSession
+  event types) failed because event items with queueSize 1 kept only the last event (see C14). They pass
+  in the full run of 2026-09-15.
 - **A & C Refresh `Err_004.js` / `BadSubscriptionIdInvalid` cascade (investigated 2026-09-14, not
   reproduced).** In the failing run the ten subscriptions that `Err_004.js` creates on the alarm
   thread session, and the alarm thread subscription itself, were gone when the first
@@ -1181,10 +1215,29 @@ it is classified as a server or CTT issue.
   publish, and returned an empty keep-alive although notifications were available (Part 4 §5.14.1.1). The
   data only came one Publish later. `InnerPublish` now collects ready items before it sends a keep-alive
   (`SubscriptionTests.FirstPublishAfterTransferOfAbandonedSubscriptionReturnsQueuedDataAsync`).
+- **AddNodes after a child rename returns `BadNodeIdExists` (found 2026-09-15, PR interaction #4477 × #4486).**
+  With both PRs merged, `AsyncCustomNodeManagerNodeManagementTests.AddNodeAsync_DuplicateBrowseNameUnderParentWithManyChildren_ReturnsBadBrowseNameDuplicatedAsync`
+  (added by #4486) fails at line 250: *"expected Good result; got BadNodeIdExists"*. AddNodes without a
+  RequestedNewNodeId derives the NodeId from the parent and the BrowseName
+  (`AsyncCustomNodeManager.AllocateNodeIdForAddNodes` → `CreateChildNodeId`). The test renames child `Child42` and
+  adds a new `Child42`; the derived NodeId is the one the renamed node still owns. Before #4477 the node was
+  registered with `PredefinedNodes.AddOrUpdate`, which silently replaced the renamed live node; #4477 reserves the
+  id and uses `TryAdd`, so the add now fails. Neither behavior is right: the BrowseName is free, so the server
+  should allocate a different NodeId (for example fall back to `m_nodeIdFactory.NextCounterNodeId()` when the
+  derived id is already registered). No CTT test case renames nodes, so the CTT run does not show it.
 - **CloseSession latency.** Subscription Basic `Err-011.js` and Subscription Publish Basic `cleanup.js` warn
   that CloseSession responses arrive 600–700 ms after the request (tolerance 100 ms). Closing a session with
   and without a subscription on the in-process `ReferenceServer` takes 0–19 ms, so the time is not spent in
   `SessionManager`/`SubscriptionManager.SessionClosingAsync`; not investigated further (warning only).
+  The latency also makes Security None `007.js` and Security Basic256Sha256 `005.js` fail (seen 2026-09-15 on
+  origin/master and on the merge of #4477/#4482/#4485/#4486, so not a regression): *"CloseSecureChannel().Result
+  received BadInvalidState, but expected … Good"* at `007.js` line 93. The test opens 74 SecureChannels with
+  active Sessions, adds five idle channels 10 s apart (`Min Lifetime of SecureChannel`), closes the 74 Sessions
+  one by one (600–700 ms each, about 48 s) and then expects the last idle channel to close with Good. That channel
+  never renews its security token, so the server closes it once its 30 s lifetime has run out, before the
+  script gets to it; `BadInvalidState` is the CTT client's result for an already closed channel. Either the
+  CloseSession delay (with about 75 sessions whose SessionThreads keep publishing) or a script that assumes the
+  whole step fits into one token lifetime has to change; which one needs a server log with per-request timing.
 
 ## CTT project configuration notes
 
@@ -1221,7 +1274,16 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
 - **DI Base Model.** The 14 DI Base Model CUs (the `DI ITagNameplate`/`DI IVendorNameplate` units
   under `maintree/OPC UA FX`) skip entirely: the reference server has no
   `http://opcfoundation.org/UA/DI/` or `http://opcfoundation.org/UA/FX/Data/` namespace and no FxRoot
-  folder. Testing them needs a server that loads the DI and UA FX models.
+  folder. Testing them needs a server that loads the DI and UA FX models. The same applies to every
+  *UAFX* group (AutomationComponent, Base, FunctionalEntity, FxAsset: 59 CUs): `initialize.js` reports the
+  missing DI and FX/Data namespaces as errors, UAFX FxRoot `001.js` fails, and the rest skips.
+- **PubSub Publisher UADP CUs.** *PubSub Publisher UADP chunking*, *Defined Ordering* and *Periodic Fixed
+  Settings* abort in `initialize.js` (*"ConfigurePubSubTest(): Failed to upload PubSubConfiguration to server"*,
+  `library/PubSub/PubSubUtilities.js` line 1232). The reference server keeps the standard `PublishSubscribe`
+  object but implements no PubSub publisher: neither the PubSubConfiguration file (`Open` is not implemented) nor
+  `AddConnection`/`AddPublishedDataItems`. Not applicable; deselect the PubSub General group.
+- **UserDefinedCU.** The CTT's sample custom CU (`ProfileSet_Custom.xml`) logs *"Hello error"*/*"Hello warning"*
+  by design. Deselect it.
 - **Discovery.** Find Servers Filter `002.js` needs at least two servers known to FindServers (an LDS);
   Find Servers Self `010.js` and Get Endpoints `009.js` need a multi-homed host or several hostnames.
   Find Servers Filter `003.js`/`006.js` and Get Endpoints `002.js` warn that `de-DE` was requested
