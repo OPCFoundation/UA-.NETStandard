@@ -783,8 +783,270 @@ namespace Opc.Ua.Schema.Model
             {
                 return string.Empty;
             }
-            return field.Name.ToSafeSymbolName(true, "m_");
+            // Derived from the property name, which is sanitized and already
+            // disambiguated against its siblings. Mapping the authored name
+            // directly is lossy in a way the property mapping is not: "Value Id"
+            // and "ValueId" both collapse onto "m_valueId" (CS0102, even though
+            // their properties differ), and characters that are legal in a
+            // BrowseName but not in an identifier survive into the field name -
+            // "$Value" became "m_$Value", which does not compile at all.
+            return field.GetPropertyName().TrimStart('@').ToSafeSymbolName(true, "m_");
         }
+
+        /// <summary>
+        /// Returns the C# identifier of the property a structure field is
+        /// generated as. Structure field names are authored data, so they can be
+        /// C# keywords or collide with the members every generated data type
+        /// carries; neither would compile when used verbatim. The wire name is
+        /// unaffected - it is emitted from <see cref="Parameter.Name"/>.
+        /// </summary>
+        public static string GetPropertyName(this Parameter field)
+        {
+            return GetGeneratedName(field, s_propertyNames, BuildPropertyNames);
+        }
+
+        /// <summary>
+        /// Looks a field's generated name up in the map computed once for its
+        /// whole structure. Deciding one field at a time cannot work: three
+        /// authored names that sanitize alike ("A-", "A?", "A!" all give "A_")
+        /// each see only the others' pre-disambiguation names, so the second and
+        /// third both pick the same replacement.
+        /// </summary>
+        private static string GetGeneratedName(
+            Parameter field,
+            ConditionalWeakTable<DataTypeDesign, string[]> cache,
+            ConditionalWeakTable<DataTypeDesign, string[]>.CreateValueCallback build)
+        {
+            if (string.IsNullOrEmpty(field?.Name))
+            {
+                return string.Empty;
+            }
+            if (field.Parent is not DataTypeDesign dataType || dataType.Fields == null)
+            {
+                return field.Name.ToCSharpIdentifierPreserveCase();
+            }
+
+            int index = IndexOfField(dataType.Fields, field);
+            if (index < 0)
+            {
+                return field.Name.ToCSharpIdentifierPreserveCase();
+            }
+            return cache.GetValue(dataType, build)[index];
+        }
+
+        private static int IndexOfField(Parameter[] fields, Parameter field)
+        {
+            for (int ii = 0; ii < fields.Length; ii++)
+            {
+                if (ReferenceEquals(fields[ii], field))
+                {
+                    return ii;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// Assigns every field of a structure its generated property name in one
+        /// pass, in declaration order, so each name is unique within the class.
+        /// A name is taken by an earlier property, by the backing field of an
+        /// earlier property, by a member the templates declare, by the enclosing
+        /// type's own name, or by an inherited property.
+        /// </summary>
+        private static string[] BuildPropertyNames(DataTypeDesign dataType)
+        {
+            Parameter[] fields = dataType.Fields;
+            var names = new string[fields.Length];
+
+            var taken = new HashSet<string>(StringComparer.Ordinal);
+            taken.UnionWith(s_reservedDataTypeMembers);
+            taken.UnionWith(s_reservedDataTypeFields);
+            if (!string.IsNullOrEmpty(dataType.SymbolicName?.Name))
+            {
+                // A member may not carry the name of its enclosing type.
+                taken.Add(dataType.SymbolicName.Name);
+            }
+
+            // Inherited properties, keyed by generated name. A derived field
+            // that carries the *same* authored name as an inherited one is a
+            // deliberate redeclaration (the generator emits it as an override),
+            // so only a different wire name landing on the same identifier is a
+            // collision - that would be CS0108 on the generated class.
+            Dictionary<string, string> inherited = CollectInheritedPropertyNames(dataType);
+
+            for (int ii = 0; ii < fields.Length; ii++)
+            {
+                Parameter field = fields[ii];
+                if (string.IsNullOrEmpty(field?.Name))
+                {
+                    names[ii] = string.Empty;
+                    continue;
+                }
+
+                string candidate = SanitizeFieldName(field.Name);
+                string suffixed = candidate + "Field";
+                while (IsTaken(taken, inherited, candidate, field.Name))
+                {
+                    candidate = suffixed;
+                    suffixed += "_";
+                }
+
+                taken.Add(candidate);
+                // Reserve the backing field the property is stored in, so two
+                // properties cannot share one ("Value" and "value" both map to
+                // "m_value", and a field literally named "m_value" would take
+                // the name of another field's store).
+                taken.Add(ToBackingFieldName(candidate));
+
+                // Re-apply the keyword escape: the replacement may no longer be
+                // one, and the original may still be.
+                names[ii] = candidate.ToCSharpIdentifierPreserveCase();
+            }
+
+            return names;
+        }
+
+        private static bool IsTaken(
+            HashSet<string> taken,
+            Dictionary<string, string> inherited,
+            string candidate,
+            string authoredName)
+        {
+            return taken.Contains(candidate) ||
+                taken.Contains(ToBackingFieldName(candidate)) ||
+                (inherited.TryGetValue(candidate, out string inheritedFrom) &&
+                    !string.Equals(inheritedFrom, authoredName, StringComparison.Ordinal));
+        }
+
+        /// <summary>
+        /// The generated property names of every field inherited through the
+        /// base type chain, mapped to the authored name each came from.
+        /// </summary>
+        private static Dictionary<string, string> CollectInheritedPropertyNames(
+            DataTypeDesign dataType)
+        {
+            var result = new Dictionary<string, string>(StringComparer.Ordinal);
+            var visited = new HashSet<XmlQualifiedName>();
+
+            for (var baseType = dataType.BaseTypeNode as DataTypeDesign;
+                baseType?.Fields != null;
+                baseType = baseType.BaseTypeNode as DataTypeDesign)
+            {
+                if (baseType.SymbolicId != null && !visited.Add(baseType.SymbolicId))
+                {
+                    // A cyclic base chain is reported elsewhere; do not hang.
+                    break;
+                }
+                foreach (Parameter field in baseType.Fields)
+                {
+                    if (string.IsNullOrEmpty(field?.Name))
+                    {
+                        continue;
+                    }
+                    string name = field.GetPropertyName().TrimStart('@');
+                    if (!result.ContainsKey(name))
+                    {
+                        result[name] = field.Name;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        private static string SanitizeFieldName(string name)
+        {
+            return name.ToCSharpIdentifierPreserveCase().TrimStart('@');
+        }
+
+        private static string ToBackingFieldName(string propertyName)
+        {
+            return propertyName.ToSafeSymbolName(true, "m_");
+        }
+
+        private static readonly ConditionalWeakTable<DataTypeDesign, string[]>
+            s_propertyNames = new();
+        private static readonly ConditionalWeakTable<DataTypeDesign, string[]>
+            s_fieldsEnumMemberNames = new();
+
+        /// <summary>
+        /// Backing fields the data type templates declare themselves, which a
+        /// generated property therefore cannot be named after.
+        /// </summary>
+        private static readonly HashSet<string> s_reservedDataTypeFields =
+            new(StringComparer.Ordinal) { "m_FieldNames", "m_pooledSentinel" };
+
+        /// <summary>
+        /// Returns the C# identifier of the member a structure field is given in
+        /// the generated <c>{ClassName}Fields</c> enumeration. Same reasoning as
+        /// <see cref="GetPropertyName(Parameter)"/>, but the only name already
+        /// taken in that scope is <c>None</c>.
+        /// </summary>
+        public static string GetFieldsEnumMemberName(this Parameter field)
+        {
+            return GetGeneratedName(
+                field, s_fieldsEnumMemberNames, BuildFieldsEnumMemberNames);
+        }
+
+        /// <summary>
+        /// Assigns every field its member name in the generated
+        /// <c>{ClassName}Fields</c> enumeration, in one pass for the same reason
+        /// as the property names. The enumeration is its own scope, so the only
+        /// name taken up front is <c>None</c>.
+        /// </summary>
+        private static string[] BuildFieldsEnumMemberNames(DataTypeDesign dataType)
+        {
+            Parameter[] fields = dataType.Fields;
+            var names = new string[fields.Length];
+            var taken = new HashSet<string>(StringComparer.Ordinal) { "None" };
+
+            for (int ii = 0; ii < fields.Length; ii++)
+            {
+                Parameter field = fields[ii];
+                if (string.IsNullOrEmpty(field?.Name))
+                {
+                    names[ii] = string.Empty;
+                    continue;
+                }
+
+                string candidate = SanitizeFieldName(field.Name);
+                string suffixed = candidate + "Field";
+                while (taken.Contains(candidate))
+                {
+                    candidate = suffixed;
+                    suffixed += "_";
+                }
+
+                taken.Add(candidate);
+                names[ii] = candidate.ToCSharpIdentifierPreserveCase();
+            }
+
+            return names;
+        }
+
+
+        private static readonly HashSet<string> s_reservedDataTypeMembers =
+            new(StringComparer.Ordinal)
+            {
+                "SwitchField",
+                "EncodingMask",
+                "EncodingMaskFieldNames",
+                "Reuse",
+                "TypeId",
+                "BinaryEncodingId",
+                "XmlEncodingId",
+                "JsonEncodingId",
+                "Encode",
+                "Decode",
+                "IsEqual",
+                "Equals",
+                "GetHashCode",
+                "GetType",
+                "ToString",
+                "Clone",
+                "MemberwiseClone",
+                "Initialize"
+            };
 
         /// <summary>
         /// Returns the field name of a child node.
@@ -1231,12 +1493,38 @@ namespace Opc.Ua.Schema.Model
                     {
                         floatValue = 0;
                     }
+                    // NaN and the infinities have no literal form in C# - they
+                    // format as "NaN" / "Infinity", which would not compile.
+                    if (float.IsNaN(floatValue))
+                    {
+                        return MakeReturnType("float.NaN");
+                    }
+                    if (float.IsPositiveInfinity(floatValue))
+                    {
+                        return MakeReturnType("float.PositiveInfinity");
+                    }
+                    if (float.IsNegativeInfinity(floatValue))
+                    {
+                        return MakeReturnType("float.NegativeInfinity");
+                    }
                     return MakeReturnType(CoreUtils.Format("(float){0}", floatValue));
                 case BasicDataType.Number:
                 case BasicDataType.Double:
                     if (decodedValue is not double doubleValue)
                     {
                         doubleValue = 0;
+                    }
+                    if (double.IsNaN(doubleValue))
+                    {
+                        return MakeReturnType("double.NaN");
+                    }
+                    if (double.IsPositiveInfinity(doubleValue))
+                    {
+                        return MakeReturnType("double.PositiveInfinity");
+                    }
+                    if (double.IsNegativeInfinity(doubleValue))
+                    {
+                        return MakeReturnType("double.NegativeInfinity");
                     }
                     return MakeReturnType(CoreUtils.Format("(double){0}", doubleValue));
                 case BasicDataType.String:
@@ -1896,14 +2184,27 @@ namespace Opc.Ua.Schema.Model
             {
                 if (parent.Parent == null && parent.Hierarchy != null)
                 {
+                    // The hierarchy is keyed by the path relative to the root, so
+                    // the root's own symbolic name has to come off the front.
+                    // Strip that exact prefix rather than everything up to the
+                    // first '_', which mangles the path whenever the root type's
+                    // name itself contains an underscore.
                     string relativePath = instance.SymbolicId.Name;
+                    string rootPrefix = parent.SymbolicId?.Name + "_";
 
-                    int index = relativePath.IndexOf('_', StringComparison.Ordinal);
-
-                    if (index != -1)
-
+                    if (rootPrefix.Length > 1 &&
+                        relativePath.StartsWith(rootPrefix, StringComparison.Ordinal))
                     {
-                        relativePath = relativePath[(index + 1)..];
+                        relativePath = relativePath[rootPrefix.Length..];
+                    }
+                    else
+                    {
+                        int index = relativePath.IndexOf('_', StringComparison.Ordinal);
+
+                        if (index != -1)
+                        {
+                            relativePath = relativePath[(index + 1)..];
+                        }
                     }
                     if (parent.Hierarchy.Nodes.TryGetValue(relativePath,
                         out HierarchyNode hierarchyNode) &&
@@ -2303,7 +2604,13 @@ namespace Opc.Ua.Schema.Model
             Namespace ns = GetNamespace(namespaces, namespaceUri);
             if (ns != null)
             {
-                if (!string.IsNullOrEmpty(ns.XmlNamespace))
+                // The "...Xsd" companion constant only exists when the XML
+                // namespace differs from the namespace URI - ConstantsGenerator
+                // emits it under exactly that condition. Referencing it whenever
+                // XmlNamespace is merely non-empty names a constant that was
+                // never declared (CS0117 in the generated sources).
+                if (!string.IsNullOrEmpty(ns.XmlNamespace) &&
+                    !string.Equals(ns.XmlNamespace, ns.Value, StringComparison.Ordinal))
                 {
                     return CoreUtils.Format("{1}.Namespaces.{0}Xsd", ns.Name, ns.Prefix);
                 }

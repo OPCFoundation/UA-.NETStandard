@@ -62,13 +62,15 @@ namespace Opc.Ua.Client.WebApi
         public HttpMessageHandler? HttpMessageHandler { get; set; }
 
         /// <summary>
-        /// When <c>true</c>, <see cref="HttpMessageHandler"/> is
-        /// disposed when the client is disposed. Defaults to
-        /// <c>true</c> only when the client created the handler
-        /// internally; ignored when the caller injected
-        /// <see cref="HttpMessageHandler"/> directly (caller owns it).
+        /// When <c>true</c>, <see cref="HttpMessageHandler"/> is disposed
+        /// together with the client. Defaults to <c>false</c>: an injected
+        /// handler belongs to the caller, and it is commonly shared between
+        /// channels - the first channel to close would otherwise dispose it
+        /// and every other channel would fail with
+        /// <see cref="System.ObjectDisposedException"/>. The transport channel
+        /// sets it to <c>true</c> for the TLS handler it creates itself.
         /// </summary>
-        public bool DisposeHandler { get; set; } = true;
+        public bool DisposeHandler { get; set; }
 
         /// <summary>
         /// Bearer token to attach to every outbound request as

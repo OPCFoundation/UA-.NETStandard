@@ -151,6 +151,22 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Adopts already resolved mapping tables and the current nesting depth
+        /// from an outer decoder. Used when an ExtensionObject body is decoded
+        /// from inside another decoder - the nested body is part of the same
+        /// message and must share both.
+        /// </summary>
+        internal void InheritDecodingState(
+            ushort[]? namespaceMappings,
+            ushort[]? serverMappings,
+            uint nestingLevel)
+        {
+            m_namespaceMappings = namespaceMappings;
+            m_serverMappings = serverMappings;
+            m_nestingLevel = nestingLevel;
+        }
+
+        /// <summary>
         /// Completes reading and closes the stream.
         /// </summary>
         public void Close()
@@ -797,6 +813,10 @@ namespace Opc.Ua
                 {
                     XmlElement element = extension.TryGetAsXml(out XmlElement xe) ? xe : default;
                     using var xmlDecoder = new XmlDecoder(element, Context);
+                    xmlDecoder.InheritDecodingState(
+                        m_namespaceMappings,
+                        m_serverMappings,
+                        m_nestingLevel);
                     try
                     {
                         System.Xml.XmlElement? xmlElement = element.AsXmlElement();
@@ -811,8 +831,12 @@ namespace Opc.Ua
 
                         xmlDecoder.Close();
                     }
-                    catch (Exception e)
+                    catch (Exception e) when (
+                        e is not ServiceResultException sre ||
+                        sre.StatusCode != StatusCodes.BadEncodingLimitsExceeded)
                     {
+                        // An encoding limit breach must not be downgraded into a
+                        // successful decode that keeps the over limit raw body.
                         Logger.CouldNotDecodeKnownTypeXml(activator.XmlName, e.Message, element.OuterXml);
                     }
                 }
@@ -983,7 +1007,15 @@ namespace Opc.Ua
                     encodeableTypeId);
             }
 
-            var encodeable = (T)activator.CreateInstance();
+            if (activator.CreateInstance() is not T encodeable)
+            {
+                // The type id comes from the wire and need not name a T at all.
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Type '{0}' is not a {1}.",
+                    encodeableTypeId,
+                    typeof(T).Name);
+            }
             CheckAndIncrementNestingLevel();
             try
             {
@@ -2061,7 +2093,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private DiagnosticInfo? ReadDiagnosticInfo(int depth)
         {
-            if (depth >= DiagnosticInfo.MaxInnerDepth)
+            if (depth > DiagnosticInfo.MaxInnerDepth)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,

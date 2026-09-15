@@ -4114,7 +4114,33 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ReadDiagnosticInfoThrowsWhenInnerDepthExceedsMaxInnerDepth()
         {
-            // Arrange
+            // Arrange - a hand crafted chain that is one level deeper than the
+            // encoder would ever write.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+
+            var buffer = new List<byte>();
+            for (int ii = 0; ii <= DiagnosticInfo.MaxInnerDepth + 1; ii++)
+            {
+                buffer.Add(0x40); // InnerDiagnosticInfo present
+            }
+            buffer.Add(0x00); // innermost has no fields
+
+            using var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
+
+            // Act
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadDiagnosticInfo(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ReadDiagnosticInfoAcceptsEveryLevelTheEncoderWrites()
+        {
+            // Regression: the encoder emits an InnerDiagnosticInfo while
+            // depth < MaxInnerDepth, so the deepest child it writes sits at
+            // depth == MaxInnerDepth. The decoder used to reject that level.
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             DiagnosticInfo diagnosticInfo = CreateDiagnosticInfoChain(DiagnosticInfo.MaxInnerDepth);
@@ -4125,11 +4151,10 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
-            // Act
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadDiagnosticInfo(null));
+            DiagnosticInfo decoded = decoder.ReadDiagnosticInfo(null);
 
-            // Assert
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(CountDiagnosticInfoDepth(decoded), Is.EqualTo(DiagnosticInfo.MaxInnerDepth + 1));
         }
 
         [Test]

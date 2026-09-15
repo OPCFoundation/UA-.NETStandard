@@ -811,7 +811,7 @@ namespace Opc.Ua.Client
                 opts.NetworkRedundancy,
                 m_reverseConnectManager,
                 opts.ConnectGate,
-                ct).ConfigureAwait(false);
+                ct: ct).ConfigureAwait(false);
 
             if (opts.ModelChangeTracking)
             {
@@ -819,8 +819,11 @@ namespace Opc.Ua.Client
             }
             if (opts.LoadComplexTypes)
             {
-                var complexTypeSystem = new ComplexTypeSystem(
-                    new ComplexTypes.NodeCacheResolver(session, m_telemetry), m_telemetry);
+                // The type system owns a resolver whose NodeCache registers a
+                // Meter; it is only needed for this one-shot load, so dispose
+                // it rather than leaving it rooted for the process lifetime.
+                using ComplexTypeSystem complexTypeSystem =
+                    ComplexTypes.ComplexTypeSystemClientExtensions.Create(session, m_telemetry);
                 await complexTypeSystem.LoadAsync(ct: ct).ConfigureAwait(false);
             }
 

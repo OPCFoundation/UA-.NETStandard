@@ -729,14 +729,47 @@ namespace Opc.Ua.Schema.Model
         {
             UpdateNamespaceTables(model);
 
-            // import types from target dictionary.
-            var nodes = new List<NodeDesign>();
-
-            foreach (NodeDesign node in model.Items)
+            // import types from target dictionary. Importing a type resolves
+            // its base type against the already imported nodes, so a base
+            // declared after its subtype in the same file has to be imported
+            // first - declaration order inside a design file must not matter.
+            // Index under both names a BaseType reference can spell: an authored
+            // SymbolicId when the design pins one, and the SymbolicName
+            // otherwise. The sibling pass in ValidateDictionary keys on
+            // SymbolicId, so indexing only SymbolicName here left the two halves
+            // of the same fix disagreeing about what a base type is.
+            NodeDesign[] items = model.Items;
+            var indexByName = new Dictionary<XmlQualifiedName, int>();
+            for (int ii = 0; ii < items.Length; ii++)
             {
-                if (Import(model, node, null))
+                if (items[ii] is not TypeDesign)
                 {
-                    nodes.Add(node);
+                    continue;
+                }
+                if (!IsNull(items[ii].SymbolicName))
+                {
+                    indexByName[items[ii].SymbolicName] = ii;
+                }
+                if (!IsNull(items[ii].SymbolicId))
+                {
+                    indexByName[items[ii].SymbolicId] = ii;
+                }
+            }
+
+            var visited = new bool[items.Length];
+            var keep = new bool[items.Length];
+            for (int ii = 0; ii < items.Length; ii++)
+            {
+                ImportBaseTypesFirst(model, items, ii, indexByName, visited, keep);
+            }
+
+            // Keep the declared order in the model, which the generators rely on.
+            var nodes = new List<NodeDesign>();
+            for (int ii = 0; ii < items.Length; ii++)
+            {
+                if (keep[ii])
+                {
+                    nodes.Add(items[ii]);
                 }
             }
 
@@ -1235,6 +1268,29 @@ namespace Opc.Ua.Schema.Model
             bool hasDataTypesDefined = false;
             bool hasMethodsDefined = false;
 
+            // Validating a type reads its base type's resolved state, so a base
+            // declared after its subtype in the same design file has to be
+            // validated first. Index the file's own nodes and walk the base
+            // chain ahead of each node rather than relying on declaration order.
+            // Index under both names a BaseType reference can spell, matching
+            // the import pre-pass: a type whose SymbolicId differs from its
+            // SymbolicName is reachable under either, and indexing only one of
+            // them let the two passes disagree about what a base type is.
+            var bySymbolicId = new Dictionary<XmlQualifiedName, NodeDesign>();
+            foreach (NodeDesign node in dictionary.Items)
+            {
+                if (!IsNull(node.SymbolicName))
+                {
+                    bySymbolicId[node.SymbolicName] = node;
+                }
+                if (!IsNull(node.SymbolicId))
+                {
+                    bySymbolicId[node.SymbolicId] = node;
+                }
+            }
+
+            var validated = new HashSet<XmlQualifiedName>();
+
             foreach (NodeDesign node in dictionary.Items)
             {
                 if (node is DataTypeDesign)
@@ -1246,7 +1302,7 @@ namespace Opc.Ua.Schema.Model
                 {
                     hasMethodsDefined = true;
                 }
-                Validate(node);
+                ValidateBaseTypesFirst(node, bySymbolicId, validated);
             }
 
             foreach (NodeDesign node in dictionary.Items)
@@ -1416,13 +1472,21 @@ namespace Opc.Ua.Schema.Model
 
         private static void CollectDynamicIds(NodeDesign node, HashSet<uint> dynamicIds)
         {
-            dynamicIds.Add(node.NumericId);
+            // Only nodes that actually carry a numeric id. An unassigned node
+            // reads back as 0, and the range scan below starts at 1 and runs
+            // until the set is empty, so a 0 in the set makes it walk the whole
+            // uint range before overflowing into a negative NumericRange.
+            if (node.NumericIdSpecified && node.NumericId != 0)
+            {
+                dynamicIds.Add(node.NumericId);
+            }
 
             if (node.Hierarchy.NodeList != null)
             {
                 foreach (HierarchyNode child in node.Hierarchy.NodeList)
                 {
-                    if (child.Instance.NumericIdSpecified)
+                    if (child.Instance.NumericIdSpecified &&
+                        child.Instance.NumericId != 0)
                     {
                         dynamicIds.Add(child.Instance.NumericId);
                     }
@@ -1582,7 +1646,15 @@ namespace Opc.Ua.Schema.Model
                 }
                 else if (parent != null && parent.Hierarchy != null)
                 {
-                    string id = node.SymbolicId.Name[(parent.SymbolicId.Name.Length + 1)..];
+                    // The hierarchy is keyed by the path relative to the root, so
+                    // the root's symbolic name has to come off the front - but
+                    // only when it actually is the prefix. Slicing blind throws
+                    // for any child whose id was not derived from the parent's.
+                    string parentPrefix = parent.SymbolicId.Name + "_";
+                    string id = node.SymbolicId.Name.StartsWith(
+                        parentPrefix, StringComparison.Ordinal)
+                        ? node.SymbolicId.Name[parentPrefix.Length..]
+                        : node.SymbolicId.Name;
 
                     if (parent.Hierarchy.Nodes.TryGetValue(id, out HierarchyNode hierarchyNode))
                     {
@@ -1989,6 +2061,39 @@ namespace Opc.Ua.Schema.Model
             };
         }
 
+        /// <summary>
+        /// Maps the value rank of a decoded default value onto the design
+        /// schema's <see cref="ValueRank"/>. A rank above one dimension keeps
+        /// its matrix shape instead of collapsing onto a plain array.
+        /// </summary>
+        private static ValueRank GetValueRank(int valueRank)
+        {
+            if (valueRank == ValueRanks.Scalar)
+            {
+                return ValueRank.Scalar;
+            }
+            if (valueRank > ValueRanks.OneDimension)
+            {
+                return ValueRank.OneOrMoreDimensions;
+            }
+            return ValueRank.Array;
+        }
+
+        /// <summary>
+        /// The number of bits an option set carries, taken from the width of its
+        /// base type. Mirrors the LengthInBits the binary schema generator emits.
+        /// </summary>
+        private static int GetOptionSetBitCount(DataTypeDesign dataType)
+        {
+            return dataType.BaseType?.Name switch
+            {
+                "SByte" or "Byte" => 8,
+                "Int16" or "UInt16" => 16,
+                "Int64" or "UInt64" => 64,
+                _ => 32
+            };
+        }
+
         private void AddEnumStrings(DataTypeDesign dataType)
         {
             var children = new List<InstanceDesign>();
@@ -2011,9 +2116,15 @@ namespace Opc.Ua.Schema.Model
 
                 int last = 0;
 
-                for (int ii = 0; ii < 32; ii++)
+                // Walk as many bits as the option set's base type carries, and
+                // compute the bit as an unsigned 64-bit value: "1 << 31" is
+                // negative as an int, so bit 31 never matched its field, and
+                // bits 32-63 of a 64 bit option set were never emitted at all.
+                int bitCount = GetOptionSetBitCount(dataType);
+
+                for (int ii = 0; ii < bitCount; ii++)
                 {
-                    int hit = 1 << ii;
+                    decimal hit = 1UL << ii;
 
                     foreach (Parameter parameter in dataType.Fields)
                     {
@@ -2792,10 +2903,21 @@ namespace Opc.Ua.Schema.Model
                 }
             }
 
-            // Remove identifiers that are already known
+            // Remove identifiers that are already known. Only entries of the
+            // namespace this CSV belongs to: the map is keyed by symbolic id and
+            // spans every loaded namespace (built-in types, dependency payloads),
+            // so matching on the bare name would drop a pinned identifier just
+            // because some other namespace happens to declare the same name -
+            // the node then gets a fresh id while the pinned one stays reserved.
             foreach (XmlQualifiedName symbolicId in m_symbolicIdToNodeId.Keys)
             {
-                identifiers.Remove(symbolicId.Name);
+                if (string.Equals(
+                    symbolicId.Namespace,
+                    dictionary.TargetNamespace,
+                    StringComparison.Ordinal))
+                {
+                    identifiers.Remove(symbolicId.Name);
+                }
             }
 
             // assign identifiers.
@@ -3175,14 +3297,16 @@ namespace Opc.Ua.Schema.Model
             // check numeric id.
             if (node.NumericIdSpecified)
             {
-                if (m_identifiers.ContainsKey(node.NumericId))
+                (string, uint) identifierKey =
+                    (node.SymbolicId.Namespace, node.NumericId);
+                if (m_identifiers.ContainsKey(identifierKey))
                 {
                     throw Exception(
                         "The NumericId is already used by another node: {0}.",
                         node.NumericId);
                 }
 
-                m_identifiers.Add(node.NumericId, node);
+                m_identifiers.Add(identifierKey, node);
             }
 
             // add a display name.
@@ -3480,14 +3604,16 @@ namespace Opc.Ua.Schema.Model
 
                 if (encoding.NumericIdSpecified)
                 {
-                    if (m_identifiers.ContainsKey(encoding.NumericId))
+                    (string, uint) identifierKey =
+                        (encoding.SymbolicId.Namespace, encoding.NumericId);
+                    if (m_identifiers.ContainsKey(identifierKey))
                     {
                         throw Exception(
                             "The NumericId is already used by another node: {0}.",
                             encoding.SymbolicId.Name);
                     }
 
-                    m_identifiers.Add(encoding.NumericId, encoding);
+                    m_identifiers.Add(identifierKey, encoding);
                 }
             }
 
@@ -3796,6 +3922,65 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
+        /// Imports the node at <paramref name="index"/>, importing any base type
+        /// declared in the same design file first. <paramref name="visited"/> is
+        /// set before recursing, so an inheritance cycle terminates and is then
+        /// reported by the normal resolution path.
+        /// </summary>
+        private void ImportBaseTypesFirst(
+            ModelDesign model,
+            NodeDesign[] items,
+            int index,
+            IReadOnlyDictionary<XmlQualifiedName, int> indexByName,
+            bool[] visited,
+            bool[] keep)
+        {
+            if (visited[index])
+            {
+                return;
+            }
+
+            visited[index] = true;
+
+            if (items[index] is TypeDesign type &&
+                !IsNull(type.BaseType) &&
+                indexByName.TryGetValue(type.BaseType, out int baseIndex) &&
+                baseIndex != index)
+            {
+                ImportBaseTypesFirst(model, items, baseIndex, indexByName, visited, keep);
+            }
+
+            keep[index] = Import(model, items[index], null);
+        }
+
+        /// <summary>
+        /// Validates <paramref name="node"/>, validating any base type declared
+        /// in the same design file first. <paramref name="validated"/> doubles as
+        /// the in-progress set, so an inheritance cycle terminates and is then
+        /// reported by the normal resolution path.
+        /// </summary>
+        private void ValidateBaseTypesFirst(
+            NodeDesign node,
+            IReadOnlyDictionary<XmlQualifiedName, NodeDesign> bySymbolicId,
+            HashSet<XmlQualifiedName> validated)
+        {
+            if (!IsNull(node.SymbolicId) && !validated.Add(node.SymbolicId))
+            {
+                return;
+            }
+
+            if (node is TypeDesign type &&
+                !IsNull(type.BaseType) &&
+                bySymbolicId.TryGetValue(type.BaseType, out NodeDesign baseNode) &&
+                !ReferenceEquals(baseNode, node))
+            {
+                ValidateBaseTypesFirst(baseNode, bySymbolicId, validated);
+            }
+
+            Validate(node);
+        }
+
+        /// <summary>
         /// Validates a node.
         /// </summary>
         private void Validate(NodeDesign node)
@@ -4016,10 +4201,13 @@ namespace Opc.Ua.Schema.Model
                     if (!variant.TypeInfo.IsUnknown)
                     {
                         variableType.DecodedValue = variant.AsBoxedObject(Variant.BoxingBehavior.Legacy);
-                        variableType.ValueRank = variant.TypeInfo.ValueRank == ValueRanks.Scalar ?
-                            ValueRank.Scalar :
-                            ValueRank.Array;
-                        variableType.ValueRankSpecified = true;
+                        // See the sibling in the variable branch: an authored
+                        // ValueRank wins over the shape of the default value.
+                        if (!variableType.ValueRankSpecified)
+                        {
+                            variableType.ValueRank = GetValueRank(variant.TypeInfo.ValueRank);
+                            variableType.ValueRankSpecified = true;
+                        }
                     }
 
                     decoder.Close();
@@ -4039,16 +4227,24 @@ namespace Opc.Ua.Schema.Model
 
                         if (baseType.DataType != variableType.DataType)
                         {
+                            // Walk the whole data type inheritance chain: the
+                            // narrowed data type only has to be *a* subtype of
+                            // the base variable type's, however many levels
+                            // deep. Stopping after one step rejected legal
+                            // models three or more levels down.
                             XmlQualifiedName ii = variableType.DataTypeNode.BaseType;
+                            var visited = new HashSet<XmlQualifiedName>();
 
-                            if (ii != null && ii != baseType.DataType)
+                            while (ii != null &&
+                                ii != baseType.DataType &&
+                                visited.Add(ii))
                             {
                                 DataTypeDesign parent = this.FindNode<DataTypeDesign>(
                                     ii,
                                     variableType.SymbolicId.Name,
                                     "DataType");
 
-                                ii = parent.BaseType;
+                                ii = parent?.BaseType;
                             }
 
                             if (ii != baseType.DataType)
@@ -4077,6 +4273,7 @@ namespace Opc.Ua.Schema.Model
                 */
 
                 ValidateParameters(dataType, dataType.Fields);
+                ValidateFieldNamesAreUsableAsXmlNames(dataType);
 
                 dataType.IsStructure = IsTypeOf(
                     dataType,
@@ -4287,9 +4484,14 @@ namespace Opc.Ua.Schema.Model
                     Variant variant = decoder.ReadVariantValue(null, default);
                     if (!variant.TypeInfo.IsUnknown)
                     {
-                        variable.ValueRank =
-                            variant.TypeInfo.ValueRank == ValueRanks.Scalar ? ValueRank.Scalar : ValueRank.Array;
-                        variable.ValueRankSpecified = true;
+                        // Infer the rank from the shape of the default value only
+                        // when the design did not state one - an authored
+                        // ValueRank is the contract and must win.
+                        if (!variable.ValueRankSpecified)
+                        {
+                            variable.ValueRank = GetValueRank(variant.TypeInfo.ValueRank);
+                            variable.ValueRankSpecified = true;
+                        }
                         variable.DecodedValue = variant.AsBoxedObject(Variant.BoxingBehavior.Legacy);
                     }
 
@@ -4375,6 +4577,38 @@ namespace Opc.Ua.Schema.Model
                         method.HasChildren = true;
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// A structure field's name is the XML element name the field is encoded
+        /// under, and the name the generated XSD declares it with, so it has to
+        /// be a legal XML name (an NCName). Escaping it would only make the
+        /// document well formed - "Read&amp;Write" written as "Read&amp;amp;Write"
+        /// still decodes to a name xs:element/@name does not accept, and the
+        /// XML encoder would emit an element nothing can read. Report it against
+        /// the design rather than emitting a schema that fails validation.
+        /// </summary>
+        private void ValidateFieldNamesAreUsableAsXmlNames(DataTypeDesign dataType)
+        {
+            if (dataType.Fields == null)
+            {
+                return;
+            }
+
+            foreach (Parameter field in dataType.Fields)
+            {
+                if (field == null || SourceGenerationUtils.IsValidXmlName(field.Name))
+                {
+                    continue;
+                }
+
+                throw Exception(
+                    "The field '{0}' of data type '{1}' is not a legal XML name, " +
+                    "so the type has no XML encoding and no valid XSD can be " +
+                    "generated for it. Rename the field in the design.",
+                    field.Name,
+                    dataType.SymbolicId.Name);
             }
         }
 
@@ -6222,7 +6456,14 @@ namespace Opc.Ua.Schema.Model
         private Dictionary<XmlQualifiedName, NodeDesign> m_nodes;
         private Dictionary<string, string[]> m_namespaceTables;
         private Dictionary<NodeId, NodeDesign> m_nodesByNodeId;
-        private Dictionary<uint, NodeDesign> m_identifiers;
+
+        /// <summary>
+        /// Explicitly assigned numeric identifiers, keyed by namespace URI and
+        /// identifier. A NodeId is only unique within its namespace, so keying
+        /// on the identifier alone rejects a legal explicit NumericId just
+        /// because another loaded namespace already uses the same number.
+        /// </summary>
+        private Dictionary<(string Namespace, uint Id), NodeDesign> m_identifiers;
         private Dictionary<XmlQualifiedName, string> m_browseNames = [];
         private readonly ServiceMessageContext m_context;
         private readonly IReadOnlyList<string> m_exclusions;

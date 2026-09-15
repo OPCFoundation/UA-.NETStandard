@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using NUnit.Framework;
 
 // The encodeable type registry and runtime stand-in APIs are experimental.
@@ -49,6 +50,36 @@ namespace Opc.Ua.Schema.Tests
     [Category("Schema")]
     public class ComplexTypeSystemCoverageTests
     {
+        [Test]
+        [TestCase(true)]
+        [TestCase(false)]
+        public void DisposeReleasesTheResolverOnlyWhenOwned(bool ownsResolver)
+        {
+            var resolver = new Mock<IComplexTypeResolver>();
+            Mock<IDisposable> disposable = resolver.As<IDisposable>();
+            var system = new ComplexTypeSystem(
+                resolver.Object,
+                new DefaultComplexTypeFactory(),
+                null!,
+                ownsResolver);
+
+            system.Dispose();
+
+            disposable.Verify(d => d.Dispose(), ownsResolver ? Times.Once() : Times.Never());
+        }
+
+        [Test]
+        public void DisposeLeavesACallerSuppliedResolverAlone()
+        {
+            var resolver = new Mock<IComplexTypeResolver>();
+            Mock<IDisposable> disposable = resolver.As<IDisposable>();
+            var system = new ComplexTypeSystem(resolver.Object, new DefaultComplexTypeFactory(), null!);
+
+            system.Dispose();
+
+            disposable.Verify(d => d.Dispose(), Times.Never());
+        }
+
         [Test]
         public async Task LoadAsyncBuildsEnumAndCachesDefinition()
         {

@@ -734,8 +734,24 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new RSADiffieHellman instance from the nonce.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="nonce"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException">
+        /// The nonce does not belong to a supported finite field group, or the
+        /// public key it carries is outside the valid range for that group.
+        /// </exception>
         public static RSADiffieHellman Create(byte[] nonce)
         {
+            if (nonce == null)
+            {
+                throw new ArgumentNullException(nameof(nonce));
+            }
+
+            if (!TryGetGroupModulus(nonce.Length, out BigInteger p))
+            {
+                throw new ArgumentException(
+                    "Invalid nonce data provided", nameof(nonce));
+            }
+
             var dh = new RSADiffieHellman();
 
             byte[] bytes = new byte[nonce.Length + 1];
@@ -748,7 +764,48 @@ namespace Opc.Ua
             dh.m_publicKey = new BigInteger(bytes);
             dh.m_nonceLength = nonce.Length;
 
+            // Part 6 §6.7.6 / RFC 7919 §5.1: a peer value outside 2 <= y <= p-2
+            // is rejected. Without this the shared secret can be forced to a
+            // known constant by sending 0, 1 or p-1.
+            if (!IsValidPeerValue(dh.m_publicKey, p))
+            {
+                throw new ArgumentException(
+                    "Invalid nonce data provided", nameof(nonce));
+            }
+
             return dh;
+        }
+
+        /// <summary>
+        /// Returns the finite field prime for the group a nonce of the given
+        /// length belongs to.
+        /// </summary>
+        private static bool TryGetGroupModulus(int nonceLength, out BigInteger p)
+        {
+            switch (nonceLength)
+            {
+                case 256:
+                    p = s_P2048.Value;
+                    return true;
+                case 384:
+                    p = s_P3072.Value;
+                    return true;
+                case 512:
+                    p = s_P4096.Value;
+                    return true;
+                default:
+                    p = BigInteger.Zero;
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Returns whether a peer's public value lies in the safe range
+        /// 2 &lt;= y &lt;= p-2 for the group with prime <paramref name="p"/>.
+        /// </summary>
+        private static bool IsValidPeerValue(BigInteger y, BigInteger p)
+        {
+            return y >= 2 && y <= p - 2;
         }
 
         /// <summary>
@@ -770,30 +827,35 @@ namespace Opc.Ua
         /// <summary>
         /// Derives the raw secret agreement from the remote key.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
         /// <exception cref="InvalidOperationException"></exception>
         /// <exception cref="NotSupportedException"></exception>
         public byte[] DeriveRawSecretAgreement(RSADiffieHellman remoteKey)
         {
+            if (remoteKey == null)
+            {
+                throw new ArgumentNullException(nameof(remoteKey));
+            }
+
             if (m_privateKey.IsZero)
             {
                 throw new InvalidOperationException("Private key not available.");
             }
 
-            BigInteger p;
-
-            switch (m_nonceLength)
+            if (!TryGetGroupModulus(m_nonceLength, out BigInteger p))
             {
-                case 256:
-                    p = s_P2048.Value;
-                    break;
-                case 384:
-                    p = s_P3072.Value;
-                    break;
-                case 512:
-                    p = s_P4096.Value;
-                    break;
-                default:
-                    throw new NotSupportedException("Unsupported RSA DH finite group type.");
+                throw new NotSupportedException("Unsupported RSA DH finite group type.");
+            }
+
+            // The peer must be in the same group, and its public value must lie
+            // in 2 <= y <= p-2 (checked again here because a key can be
+            // assembled without going through Create).
+            if (remoteKey.m_nonceLength != m_nonceLength ||
+                !IsValidPeerValue(remoteKey.m_publicKey, p))
+            {
+                throw new ArgumentException(
+                    "Invalid remote key provided", nameof(remoteKey));
             }
 
             var shared = BigInteger.ModPow(remoteKey.m_publicKey, m_privateKey, p);

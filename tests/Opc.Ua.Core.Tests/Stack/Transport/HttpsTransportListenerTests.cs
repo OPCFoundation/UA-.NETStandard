@@ -459,11 +459,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
-        /// Verify SendAsync returns InternalServerError for invalid binary payload.
+        /// Verify SendAsync answers a binary payload that cannot be decoded with a
+        /// ServiceFault (like the JSON path) instead of an HTTP error.
         /// </summary>
         /// <returns></returns>
         [Test]
-        public async Task SendAsyncReturnsInternalServerErrorForInvalidBodyAsync()
+        public async Task SendAsyncRespondsWithServiceFaultForInvalidBodyAsync()
         {
             await using HttpsTransportListener listener = CreatePartiallyOpenedListener();
             var context = new DefaultHttpContext();
@@ -471,11 +472,52 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             context.Request.ContentType = "application/octet-stream";
             context.Request.ContentLength = 4;
             context.Request.Body = new MemoryStream([0x01, 0x02, 0x03, 0x04]);
-            context.Response.Body = new MemoryStream();
+            using var responseBody = new MemoryStream();
+            context.Response.Body = responseBody;
 
             await listener.SendAsync(context).ConfigureAwait(false);
 
-            Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.InternalServerError));
+            Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.OK));
+            ServiceFault fault = BinaryDecoder.DecodeMessage<ServiceFault>(
+                responseBody.ToArray(),
+                ServiceMessageContext.Create(m_telemetry));
+            Assert.That(StatusCode.IsBad(fault.ResponseHeader.ServiceResult), Is.True);
+            Assert.That(fault.ResponseHeader.RequestHandle, Is.Zero);
+        }
+
+        /// <summary>
+        /// A binary request the decoder rejects for a string above MaxStringLength
+        /// is answered with a ServiceFault that echoes its RequestHandle
+        /// (OPC 10000-4 §7.33).
+        /// </summary>
+        [Test]
+        public async Task SendAsyncServiceFaultEchoesRequestHandleOfUndecodableRequestAsync()
+        {
+            await using HttpsTransportListener listener = CreatePartiallyOpenedListener();
+            ServiceMessageContext encodeContext = ServiceMessageContext.Create(m_telemetry);
+            encodeContext.MaxStringLength = 0;
+            byte[] body = BinaryEncoder.EncodeMessage(
+                CreateReadRequestWithLongNodeId(4711, DefaultEncodingLimits.MaxStringLength + 100),
+                encodeContext);
+            var context = new DefaultHttpContext();
+            context.Request.Method = "POST";
+            context.Request.ContentType = "application/octet-stream";
+            context.Request.ContentLength = body.Length;
+            context.Request.Body = new MemoryStream(body);
+            using var responseBody = new MemoryStream();
+            context.Response.Body = responseBody;
+
+            await listener.SendAsync(context).ConfigureAwait(false);
+
+            Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.OK));
+            ServiceFault fault = BinaryDecoder.DecodeMessage<ServiceFault>(
+                responseBody.ToArray(),
+                ServiceMessageContext.Create(m_telemetry));
+            Assert.That(
+                fault.ResponseHeader.ServiceResult,
+                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(fault.ResponseHeader.RequestHandle, Is.EqualTo(4711u));
+            Assert.That((DateTime)fault.ResponseHeader.Timestamp, Is.GreaterThan(DateTime.UtcNow.AddMinutes(-1)));
         }
 
         /// <summary>
@@ -547,6 +589,98 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             // The fault payload's StringTable carries the BadDecodingError
             // symbolic name and the mapper's failure description.
             Assert.That(body, Does.Contain("BadDecodingError"));
+        }
+
+        /// <summary>
+        /// A JSON request that cannot be decoded after its RequestHeader is
+        /// answered with a ServiceFault that echoes the RequestHandle
+        /// (OPC 10000-4 §7.33).
+        /// </summary>
+        [Test]
+        public async Task SendJsonAsyncServiceFaultEchoesRequestHandleOfUndecodableRequestAsync()
+        {
+            await using HttpsTransportListener listener = CreatePartiallyOpenedListener();
+            byte[] payload = System.Text.Encoding.UTF8.GetBytes(
+                "{\"UaTypeId\":\"i=4294967\",\"UaBody\":{\"RequestHeader\":{\"RequestHandle\":4711}}}");
+            var context = new DefaultHttpContext();
+            context.Request.Method = "POST";
+            context.Request.ContentType = Profiles.OpcUaJsonContentType;
+            context.Request.ContentLength = payload.Length;
+            context.Request.Body = new MemoryStream(payload);
+            using var responseBody = new MemoryStream();
+            context.Response.Body = responseBody;
+
+            await listener.SendJsonAsync(context).ConfigureAwait(false);
+
+            Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.OK));
+            IServiceResponse response = JsonDecoder.DecodeMessage<IServiceResponse>(
+                responseBody.ToArray(),
+                ServiceMessageContext.Create(m_telemetry));
+            Assert.That(response, Is.InstanceOf<ServiceFault>());
+            Assert.That(StatusCode.IsBad(response.ResponseHeader.ServiceResult), Is.True);
+            Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(4711u));
+        }
+
+        /// <summary>
+        /// Without a matching JSON endpoint the listener only serves discovery;
+        /// the fault for another decoded request echoes its RequestHandle.
+        /// </summary>
+        [Test]
+        public async Task SendJsonAsyncDiscoveryOnlyFaultEchoesRequestHandleAsync()
+        {
+            await using HttpsTransportListener listener = CreatePartiallyOpenedListener();
+            var request = new ReadRequest
+            {
+                RequestHeader = new RequestHeader { Timestamp = DateTime.UtcNow, RequestHandle = 2024 },
+                NodesToRead = [new ReadValueId { NodeId = new NodeId(1u), AttributeId = Attributes.Value }]
+            };
+            byte[] payload;
+            using (var memory = new MemoryStream())
+            {
+                using (var encoder = new JsonEncoder(memory, ServiceMessageContext.Create(m_telemetry), JsonEncoderOptions.Compact))
+                {
+                    encoder.EncodeMessage(request, request.TypeId);
+                }
+                payload = memory.ToArray();
+            }
+            var context = new DefaultHttpContext();
+            context.Request.Method = "POST";
+            context.Request.ContentType = Profiles.OpcUaJsonContentType;
+            context.Request.ContentLength = payload.Length;
+            context.Request.Body = new MemoryStream(payload);
+            using var responseBody = new MemoryStream();
+            context.Response.Body = responseBody;
+
+            await listener.SendJsonAsync(context).ConfigureAwait(false);
+
+            IServiceResponse response = JsonDecoder.DecodeMessage<IServiceResponse>(
+                responseBody.ToArray(),
+                ServiceMessageContext.Create(m_telemetry));
+            Assert.That(response, Is.InstanceOf<ServiceFault>());
+            Assert.That(
+                response.ResponseHeader.ServiceResult,
+                Is.EqualTo((StatusCode)StatusCodes.BadSecurityPolicyRejected));
+            Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(2024u));
+        }
+
+        private static ReadRequest CreateReadRequestWithLongNodeId(uint requestHandle, int nodeIdLength)
+        {
+            return new ReadRequest
+            {
+                RequestHeader = new RequestHeader
+                {
+                    Timestamp = DateTime.UtcNow,
+                    RequestHandle = requestHandle
+                },
+                NodesToRead =
+                [
+                    new ReadValueId
+                    {
+                        NodeId = new NodeId(new string('n', nodeIdLength), 1),
+                        AttributeId = Attributes.Value
+                    }
+                ]
+            };
         }
 
         /// <summary>
