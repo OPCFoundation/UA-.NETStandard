@@ -367,8 +367,8 @@ With the server fixes of 2026-09-14:
 
 - **Subscription Services:** errors only in Subscription Minimum 02 `020.js` (issue 19) and Subscription
   Durable `012.js` (C38). Warnings: Durable `002.js` (RevisedLifetimeInHours 10 for a requested UInt32 max,
-  expected), Publish Min 05 `003.js` (project configuration), and CloseSession latency in Subscription Basic
-  `Err-011.js` (always) and Publish Basic `cleanup.js` (sometimes).
+  expected), Publish Min 05 `003.js` (project configuration), and CloseSession delay warnings in Subscription Basic
+  `Err-011.js` (always) and Publish Basic `cleanup.js` (sometimes; a CTT artifact, [ctt-issues.md](ctt-issues.md) C50).
 - **Session Services:** errors only in Session Base `Err-002.js`, `Err-005.js` and `Err-022.js` (C37).
   Skips: `Err-009.js` (no Kerberos in the CTT) and `Err-023.js` (the server offers SecurityPolicy None).
 
@@ -513,7 +513,9 @@ runs of 2026-09-13/14, except
 - Auditing: 0 errors (C14 was the event queue size bug, fixed by #4480).
 - A & C Confirm `Test_001.js` can fail for all alarm types depending on the alarm phase (C10).
 - Newly covered: UAFX (no FX model), PubSub Publisher UADP (no PubSub publisher) and Security None /
-  Basic256Sha256 `007.js`/`005.js` (fail on origin/master too, see *CloseSession latency* in ctt-issues.md).
+  Basic256Sha256 `007.js`/`005.js` (fail on origin/master too: the server closes idle SecureChannels after 30 s of
+  silence although their token is valid for 60 s, and the CTT needs 41 s for the step because of C50; see
+  ctt-issues.md, open server findings).
 
 ## Pitfalls
 

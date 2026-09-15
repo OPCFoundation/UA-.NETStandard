@@ -55,6 +55,7 @@ running the CTT is in [ctt-testing.md](ctt-testing.md).
 | C45–C47 | Reference server coverage script defects (#4479) | — | Not filed |
 | C48 | Aggregates: Minimum/Maximum ignore Uncertain values beyond the Good extremum | — | Not filed |
 | C49 | Aggregates: Min/MaxActualTime and Minimum keep Raw when non-Good values make the result Uncertain | — | Not filed |
+| C50 | CloseSession on a Session with a running SessionThread: request timestamp taken before a ~550 ms thread stop | — | Not filed |
 
 Mantis states were last checked on 2026-09-13.
 
@@ -1061,6 +1062,22 @@ Uncertain_DataSubNormal because of non-Good values"*). The server (since #4477) 
 Bad value; the oracle expects `UncertainDataSubNormal` with Raw bits (`0x40A40000` / `0x40A40404`). **Fix:** set the
 Calculated bit whenever the status is Uncertain because of non-Good input.
 
+### C50. CloseSession timestamps the request before the CTT stops the Session's SessionThread
+
+- **Tests:** Security None `007.js`, Security Basic256Sha256 `005.js` (step 3); Subscription Publish Basic
+  `cleanup.js` (its `initialize.js` starts a `SessionThread` on `Test.Session`)
+- **Helpers:** `library/ServiceBased/SessionServiceSet/CloseSession.js` (`session.closeSession`),
+  `library/Base/sessionThread.js`; the delay check is `library/ClassBased/UaR.js` line 239
+- **Warning:** *"CloseSession.Response.ResponseHeader.Timestamp shows a delay in excess of 600ms"*
+
+`UaR.js` compares the server's `ResponseHeader.Timestamp` with the request's `RequestHeader.Timestamp`. When a
+`SessionThread` still runs on the Session, `closeSession` builds and stamps the request, stops the thread (about
+550 ms) and only then sends it. Logged on 2026-09-15 (see *CloseSession latency* below): the server received each
+request about 520 ms after its timestamp and answered within 2–5 ms; stopping the threads first made CloseSession
+take 0–7 ms. In `007.js` the extra 41 s also let the idle channels time out on the server (see the server finding
+below). **Fix:** stop the SessionThread before building the CloseSession request (or stamp the header when the
+request is sent); in `007.js` stop `sessionThreads[i]` in step 3 as the cleanup branch already does.
+
 ## Needs clarification
 
 ### U1. NumberOfTransitions with TreatUncertainAsBad=true
@@ -1225,19 +1242,33 @@ it is classified as a server or CTT issue.
   id and uses `TryAdd`, so the add now fails. Neither behavior is right: the BrowseName is free, so the server
   should allocate a different NodeId (for example fall back to `m_nodeIdFactory.NextCounterNodeId()` when the
   derived id is already registered). No CTT test case renames nodes, so the CTT run does not show it.
-- **CloseSession latency.** Subscription Basic `Err-011.js` and Subscription Publish Basic `cleanup.js` warn
-  that CloseSession responses arrive 600–700 ms after the request (tolerance 100 ms). Closing a session with
-  and without a subscription on the in-process `ReferenceServer` takes 0–19 ms, so the time is not spent in
-  `SessionManager`/`SubscriptionManager.SessionClosingAsync`; not investigated further (warning only).
-  The latency also makes Security None `007.js` and Security Basic256Sha256 `005.js` fail (seen 2026-09-15 on
-  origin/master and on the merge of #4477/#4482/#4485/#4486, so not a regression): *"CloseSecureChannel().Result
-  received BadInvalidState, but expected … Good"* at `007.js` line 93. The test opens 74 SecureChannels with
-  active Sessions, adds five idle channels 10 s apart (`Min Lifetime of SecureChannel`), closes the 74 Sessions
-  one by one (600–700 ms each, about 48 s) and then expects the last idle channel to close with Good. That channel
-  never renews its security token, so the server closes it once its 30 s lifetime has run out, before the
-  script gets to it; `BadInvalidState` is the CTT client's result for an already closed channel. Either the
-  CloseSession delay (with about 75 sessions whose SessionThreads keep publishing) or a script that assumes the
-  whole step fits into one token lifetime has to change; which one needs a server log with per-request timing.
+- **CloseSession latency (investigated 2026-09-15: CTT client, not the server).** Subscription Publish Basic
+  `cleanup.js`, Security None `007.js` and Security Basic256Sha256 `005.js` warn that CloseSession responses
+  arrive 500–700 ms after the request. Measured with `007.js` step 3 (74 CloseSession calls) against a server
+  build that logged the arrival of every request in `TcpServerChannel.HandleIncomingMessageAsync` and the
+  phases of `StandardServer.CloseSessionAsync`: the server received each CloseSession about 520 ms after the
+  CTT's `RequestHeader.Timestamp` and completed it in 2–5 ms (node managers, subscriptions, SessionManager). The
+  CTT's own measurement (`clientMs`) was 505–614 ms. Every one of those sessions runs a CTT `SessionThread`
+  (a Read of the server status about once per second). A copy of `007.js` that calls
+  `sessionThreads[i].StopThread()` before `CloseSessionHelper.Execute` spent 516–619 ms in `StopThread` and then
+  0–7 ms (average 1.7 ms) in CloseSession. The CTT stamps the request, waits for its SessionThread to stop and
+  only then sends the request, so the delay and the warning are client artifacts (C50).
+- **Security None `007.js` / Security Basic256Sha256 `005.js` fail: the server closes an idle SecureChannel
+  before its SecurityToken expires (server finding, pre-existing).** Seen 2026-09-15 on origin/master and on the
+  merge of #4477/#4482/#4485/#4486: *"CloseSecureChannel().Result received BadInvalidState, but expected … Good"*
+  at `007.js` line 93. The test opens 74 SecureChannels with Sessions, adds five channels without Sessions 10 s
+  apart (`Min Lifetime of SecureChannel`), closes the 74 Sessions (41 s because of C50) and then expects the
+  newest idle channel to close with Good. That channel requested lifetime 0 and got a 60 s token
+  (`TcpMessageLimits.MinSecurityTokenLifeTime`), but `TcpTransportListener.DetectInactiveChannels` closes every
+  channel without traffic for longer than `TransportQuotas.ChannelLifetime` (30 s, checked every 15 s), so the
+  channel was gone after about 51 s of silence; `BadInvalidState` is the CTT's result for a channel the server
+  already closed. Part 4 §5.6.2.1: *"Each SecureChannel exists until it is explicitly closed or until the last
+  token has expired and the overlap period has elapsed"*; the Server shall close the oldest unused Session-less
+  SecureChannel *before reaching the maximum number* of SecureChannels (here 1000). With `ChannelLifetime` =
+  120000 in `Ctt.ReferenceServer.Config.xml` (no code change) `007.js` passes with the same 41 s step 3.
+  **Fix direction:** do not close an open channel for inactivity while its current SecurityToken (plus the 25 %
+  overlap) is still valid, and keep the oldest-unused eviction for admission at MaxChannelCount; an idle
+  timeout for channels that never completed OpenSecureChannel can stay.
 
 ## CTT project configuration notes
 
