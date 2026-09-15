@@ -93,7 +93,7 @@ namespace Quickstarts
         /// <inheritdoc/>
         public Meter CreateMeter(System.Reflection.Assembly assembly)
         {
-            ArgumentNullException.ThrowIfNull(assembly);
+            assembly.ThrowIfNull(nameof(assembly));
             return CreateMeter();
         }
 
@@ -103,7 +103,7 @@ namespace Quickstarts
         /// <inheritdoc/>
         public ActivitySource GetActivitySource(System.Reflection.Assembly assembly)
         {
-            ArgumentNullException.ThrowIfNull(assembly);
+            assembly.ThrowIfNull(nameof(assembly));
             return ActivitySource;
         }
 

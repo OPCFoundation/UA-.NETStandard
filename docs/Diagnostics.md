@@ -157,6 +157,11 @@ cached by the `ILoggerProvider`, so obtaining one is cheap. Still,
 be mindful of the per-object reference cost when creating loggers for
 very large object populations (`NodeState`, `NodeId`).
 
+Resolve source names before registering an `ActivityListener`, and keep its
+`ShouldListenTo` filter free of source lookups. Creating an `ActivitySource`
+synchronously invokes existing listeners; resolving a missing source inside
+that filter can recursively re-enter source creation.
+
 `ConsoleReferenceClient` and `ConsoleReferenceServer` show the full
 pattern end-to-end.
 

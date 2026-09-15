@@ -453,12 +453,16 @@ namespace Opc.Ua.Server.TestFramework
         /// </summary>
         public void StartActivityListenerInternal(bool disableActivityLogging = false)
         {
+            // Source construction invokes ShouldListenTo synchronously, so resolve before registration.
+            ActivitySource activitySource = m_telemetry.GetActivitySource();
+            string expectedName = activitySource.Name;
+
             if (disableActivityLogging)
             {
                 // Create an instance of ActivityListener without logging
                 ActivityListener = new ActivityListener
                 {
-                    ShouldListenTo = (source) => source.Name == m_telemetry.GetActivitySource().Name,
+                    ShouldListenTo = source => source.Name == expectedName,
                     Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = _ => { },
                     ActivityStopped = _ => { }
@@ -469,7 +473,7 @@ namespace Opc.Ua.Server.TestFramework
                 // Create an instance of ActivityListener and configure its properties with logging
                 ActivityListener = new ActivityListener
                 {
-                    ShouldListenTo = (source) => source.Name == m_telemetry.GetActivitySource().Name,
+                    ShouldListenTo = source => source.Name == expectedName,
                     Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = activity =>
                     {
