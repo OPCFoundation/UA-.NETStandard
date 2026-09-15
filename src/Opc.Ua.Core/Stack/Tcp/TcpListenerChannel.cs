@@ -354,6 +354,40 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Whether the inactivity cleanup should close the channel.
+        /// </summary>
+        /// <remarks>
+        /// A channel that exchanged no message for longer than <paramref name="channelLifetime"/>
+        /// is due for cleanup, unless it is open and its current or renewed security token has
+        /// not expired yet: OPC 10000-4 §5.6.2.1 keeps a SecureChannel until it is closed or
+        /// until its last token has expired. Channels that never opened, faulted channels and
+        /// channels without a token keep the plain inactivity timeout.
+        /// </remarks>
+        /// <param name="channelLifetime">The inactivity timeout in milliseconds.</param>
+        internal bool IsInactivityCleanupDue(int channelLifetime)
+        {
+            if (ElapsedSinceLastActiveTime <= channelLifetime)
+            {
+                return false;
+            }
+
+            if (State != TcpChannelState.Open)
+            {
+                return true;
+            }
+
+            return !IsTokenValid(CurrentToken) && !IsTokenValid(RenewedToken);
+        }
+
+        /// <summary>
+        /// Whether a security token exists and has not expired.
+        /// </summary>
+        private bool IsTokenValid(ChannelToken? token)
+        {
+            return token != null && !token.IsExpired(TimeProvider);
+        }
+
+        /// <summary>
         /// The time in milliseconds elapsed since the channel received or sent messages
         /// or received a keep alive.
         /// </summary>

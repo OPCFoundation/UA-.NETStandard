@@ -1349,7 +1349,7 @@ namespace Opc.Ua.Bindings
             bool cleanup = false;
             foreach (KeyValuePair<uint, TcpListenerChannel> chEntry in activeChannels)
             {
-                if (chEntry.Value.ElapsedSinceLastActiveTime > m_quotas.ChannelLifetime)
+                if (chEntry.Value.IsInactivityCleanupDue(m_quotas.ChannelLifetime))
                 {
                     channels.Add(chEntry.Value);
                     cleanup = true;
