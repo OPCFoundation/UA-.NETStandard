@@ -540,9 +540,7 @@ namespace Opc.Ua
             if (enableGeneralTelemetry)
             {
                 Logger = TelemetryExtensions.CreateLogger<ClientChannelManager>(telemetry);
-                m_meter = telemetry == null
-                    ? null
-                    : TelemetryExtensions.CreateMeter(telemetry);
+                m_meter = telemetry?.CreateMeter();
                 m_metrics = m_meter != null
                     ? new ClientChannelManagerMetrics(this, m_meter)
                     : null;

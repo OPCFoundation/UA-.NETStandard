@@ -99,7 +99,7 @@ namespace Opc.Ua.Client
             m_values = valuesBuilder.Build();
             m_refs = refsBuilder.Build();
 
-            m_meter = TelemetryExtensions.CreateMeter(telemetry);
+            m_meter = telemetry.CreateMeter();
             RegisterMetrics(m_meter, "nodes", m_nodes);
             RegisterMetrics(m_meter, "values", m_values);
             RegisterMetrics(m_meter, "references", m_refs);

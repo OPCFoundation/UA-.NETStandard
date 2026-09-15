@@ -42,9 +42,19 @@ namespace Opc.Ua.Types.Tests.Diagnostics
         {
             var telemetry = new TestTelemetryContext();
 
-            using Meter meter = TelemetryExtensions.CreateMeter(telemetry);
+            using Meter meter = telemetry.CreateMeter();
 
             Assert.That(meter.Name, Is.EqualTo(typeof(TelemetryExtensionsTests).Assembly.FullName));
+        }
+
+        [Test]
+        public void ActivitySourceUsesCallingAssembly()
+        {
+            var telemetry = new TestTelemetryContext();
+
+            ActivitySource source = telemetry.ActivitySource;
+
+            Assert.That(source.Name, Is.EqualTo(typeof(TelemetryExtensionsTests).Assembly.FullName));
         }
 
         [Test]
@@ -77,15 +87,38 @@ namespace Opc.Ua.Types.Tests.Diagnostics
         }
 
         [Test]
-        public void LegacyContextUsesExistingSources()
+        public void ContextUsesAssemblyAwareSources()
         {
-            using var telemetry = new LegacyTelemetryContext();
+            using var telemetry = new AssemblyTelemetryContext();
 
             using Meter meter = TelemetryExtensions.CreateMeter(telemetry);
             ActivitySource source = telemetry.GetActivitySource();
 
-            Assert.That(meter.Name, Is.EqualTo("Legacy"));
-            Assert.That(source, Is.SameAs(telemetry.ActivitySource));
+            Assert.That(meter.Name, Is.EqualTo(typeof(TelemetryExtensionsTests).Assembly.FullName));
+            Assert.That(source.Name, Is.EqualTo(typeof(TelemetryExtensionsTests).Assembly.FullName));
+        }
+
+        [Test]
+        public void NullResultsUseDefaultSources()
+        {
+            var telemetry = new NullTelemetryContext();
+            string expectedSourceName = typeof(TelemetryExtensionsTests).Assembly.FullName!;
+            using var listener = new ActivityListener
+            {
+                ShouldListenTo = source => source.Name == expectedSourceName,
+                Sample = static (ref ActivityCreationOptions<ActivityContext> _) =>
+                    ActivitySamplingResult.AllData
+            };
+            ActivitySource.AddActivityListener(listener);
+
+            using Meter meter = TelemetryExtensions.CreateMeter(telemetry);
+            ActivitySource source = telemetry.GetActivitySource();
+            using Activity activity = telemetry.StartActivity();
+
+            Assert.That(meter.Name, Is.EqualTo(expectedSourceName));
+            Assert.That(source.Name, Is.EqualTo(expectedSourceName));
+            Assert.That(activity, Is.Not.Null);
+            Assert.That(activity!.Source.Name, Is.EqualTo(expectedSourceName));
         }
 
         private sealed class TestTelemetryContext : TelemetryContextBase
@@ -96,21 +129,57 @@ namespace Opc.Ua.Types.Tests.Diagnostics
             }
         }
 
-        private sealed class LegacyTelemetryContext : ITelemetryContext, System.IDisposable
+        private sealed class AssemblyTelemetryContext : ITelemetryContext, System.IDisposable
         {
             public Microsoft.Extensions.Logging.ILoggerFactory LoggerFactory =>
                 NullLoggerFactory.Instance;
 
-            public ActivitySource ActivitySource { get; } = new("Legacy");
+            public ActivitySource ActivitySource { get; } = new("Default");
 
             public Meter CreateMeter()
             {
-                return new Meter("Legacy");
+                return new Meter("Default");
+            }
+
+            public Meter CreateMeter(System.Reflection.Assembly assembly)
+            {
+                return new Meter(assembly.FullName!);
+            }
+
+            public ActivitySource GetActivitySource(System.Reflection.Assembly assembly)
+            {
+                return m_activitySource ??= new ActivitySource(assembly.FullName!);
             }
 
             public void Dispose()
             {
                 ActivitySource.Dispose();
+                m_activitySource?.Dispose();
+            }
+
+            private ActivitySource m_activitySource;
+        }
+
+        private sealed class NullTelemetryContext : ITelemetryContext
+        {
+            public Microsoft.Extensions.Logging.ILoggerFactory LoggerFactory =>
+                NullLoggerFactory.Instance;
+
+            public ActivitySource ActivitySource => null!;
+
+            public Meter CreateMeter()
+            {
+                return null!;
+            }
+
+            public Meter CreateMeter(System.Reflection.Assembly assembly)
+            {
+                return null!;
+            }
+
+            public ActivitySource GetActivitySource(System.Reflection.Assembly assembly)
+            {
+                return null!;
             }
         }
     }

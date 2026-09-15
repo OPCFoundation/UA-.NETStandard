@@ -106,10 +106,7 @@ namespace Opc.Ua
             {
                 assembly = typeof(TelemetryExtensions).Assembly;
             }
-            ITelemetryContext context = telemetry ?? Default;
-            return context is IAssemblyTelemetryContext assemblyContext
-                ? assemblyContext.CreateMeter(assembly)
-                : context.CreateMeter();
+            return telemetry?.CreateMeter(assembly) ?? Default.CreateMeter(assembly);
         }
 
         /// <summary>
@@ -130,10 +127,7 @@ namespace Opc.Ua
             {
                 assembly = typeof(TelemetryExtensions).Assembly;
             }
-            ITelemetryContext context = telemetry ?? Default;
-            return context is IAssemblyTelemetryContext assemblyContext
-                ? assemblyContext.GetActivitySource(assembly)
-                : context.ActivitySource;
+            return telemetry?.GetActivitySource(assembly) ?? Default.GetActivitySource(assembly);
         }
 
         /// <summary>
@@ -157,10 +151,8 @@ namespace Opc.Ua
             {
                 assembly = typeof(TelemetryExtensions).Assembly;
             }
-            ITelemetryContext context = telemetry ?? Default;
-            ActivitySource activitySource = context is IAssemblyTelemetryContext assemblyContext
-                ? assemblyContext.GetActivitySource(assembly)
-                : context.ActivitySource;
+            ActivitySource activitySource =
+                telemetry?.GetActivitySource(assembly) ?? Default.GetActivitySource(assembly);
             return activitySource.StartActivity(name, kind);
         }
 

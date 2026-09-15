@@ -31,16 +31,16 @@ public interface ITelemetryContext
     // Creates a new Meter for recording metrics (caller disposes).
     Meter CreateMeter();
 
+    // Creates a Meter for a specific assembly (caller disposes).
+    Meter CreateMeter(Assembly assembly);
+
     // Factory used to create typed ILogger instances.
     ILoggerFactory LoggerFactory { get; }
 
     // Shared ActivitySource representing the current assembly/component.
     ActivitySource ActivitySource { get; }
-}
 
-public interface IAssemblyTelemetryContext
-{
-    Meter CreateMeter(Assembly assembly);
+    // Gets the shared ActivitySource for a specific assembly.
     ActivitySource GetActivitySource(Assembly assembly);
 }
 ```
@@ -72,13 +72,11 @@ public static class TelemetryExtensions
 }
 ```
 
-**Always use the extension methods**. The metric and tracing extensions
-capture the component assembly at the call site, and all extensions
-provide a default context when the supplied `ITelemetryContext` is
-`null`. They use `IAssemblyTelemetryContext` when available and preserve
-the fixed sources returned by existing `ITelemetryContext`
-implementations otherwise. In debug builds, the fallback also reports a
-debug check so missing telemetry is caught early.
+The metric and tracing members on `ITelemetryContext` identify the
+component assembly at the call site. The extension methods provide the
+same behavior when the supplied `ITelemetryContext` may be `null`, using
+the default context when necessary. In debug builds, the fallback also
+reports a debug check so missing telemetry is caught early.
 
 ### Obtaining a telemetry context
 
@@ -126,8 +124,9 @@ right place to materialize the context.
 
 ### Using the telemetry context
 
-Always use the extension methods to obtain loggers, meters, and
-activities. The returned instance is guaranteed to be non-null.
+Use the context directly when it is non-null. Use the extension methods
+when a context may be null; the returned instance is guaranteed to be
+non-null.
 
 ```csharp
 // Obtain telemetry context
@@ -348,11 +347,10 @@ needing a full OpenTelemetry pipeline.
 
 The stack creates one `Meter` per assembly that records measurements.
 The meter's **name is the assembly name** of the component that
-created it (via `TelemetryExtensions.CreateMeter()` capturing
-`Assembly.GetCallingAssembly()` and passing it to the context). Most
-tooling matches with wildcards, so subscribe with
-`AddMeter("Opc.Ua.Core*", "Opc.Ua.Client*")` to pick up everything the
-stack emits today.
+created it (via `ITelemetryContext.CreateMeter()` &rarr;
+`Assembly.GetCallingAssembly().FullName`). Most tooling matches with
+wildcards, so subscribe with `AddMeter("Opc.Ua.Core*", "Opc.Ua.Client*")`
+to pick up everything the stack emits today.
 
 The instruments below are the complete current inventory. Tag values
 are documented next to the tag key.

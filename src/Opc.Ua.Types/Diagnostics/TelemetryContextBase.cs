@@ -40,7 +40,7 @@ namespace Opc.Ua
     /// <summary>
     /// Base telemetry context implementation
     /// </summary>
-    public class TelemetryContextBase : IAssemblyTelemetryContext
+    public class TelemetryContextBase : ITelemetryContext
     {
         /// <inheritdoc/>
         public ILoggerFactory LoggerFactory { get; }

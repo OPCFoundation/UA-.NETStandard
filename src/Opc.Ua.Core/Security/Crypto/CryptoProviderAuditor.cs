@@ -87,7 +87,7 @@ namespace Opc.Ua
             m_logger = telemetry.CreateLogger<CryptoProviderAuditor>();
             m_policy = policy;
             m_policies = policies ?? SecurityPolicies.Default;
-            m_meter = TelemetryExtensions.CreateMeter(telemetry);
+            m_meter = telemetry.CreateMeter();
 
             m_meter.CreateObservableGauge(
                 "opc.ua.crypto.providers",

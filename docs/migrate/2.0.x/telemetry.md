@@ -123,9 +123,8 @@ explicit telemetry context**.
   `ITelemetryContext Telemetry { get; }`.
 - `ITransportBindingFactory<T>.Create(...)` now takes
   `ITelemetryContext`.
-- `IAssemblyTelemetryContext` is an optional extension for contexts that
-  create distinct meters and activity sources per component assembly.
-  Existing `ITelemetryContext` implementations remain compatible.
+- `ITelemetryContext` gains `CreateMeter(Assembly)` and
+  `GetActivitySource(Assembly)` for component-specific telemetry.
 
 ### System context
 
