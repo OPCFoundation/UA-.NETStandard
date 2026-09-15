@@ -199,6 +199,68 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
+        public async Task AddNodeAsync_DuplicateBrowseNameUnderParentWithManyChildren_ReturnsBadBrowseNameDuplicatedAsync()
+        {
+            // The CTT (Node Management Delete Node Err-002.js) adds thousands of nodes
+            // below one parent; the duplicate check must stay correct for large parents.
+            using Harness h = CreateHarness(allowNodeManagement: true);
+            ushort ns = h.Manager.NamespaceIndexes[0];
+            NodeId parentId = await h.AddObjectAsync("Parent").ConfigureAwait(false);
+
+            NodeId renamedId = default;
+            for (int ii = 0; ii < 500; ii++)
+            {
+                (ServiceResult result, NodeId added) = await h.Manager
+                    .AddNodeAsync(h.OperationContext, new AddNodesItem
+                    {
+                        ParentNodeId = parentId,
+                        ReferenceTypeId = ReferenceTypeIds.Organizes,
+                        BrowseName = new QualifiedName("Child" + ii, ns),
+                        NodeClass = NodeClass.Variable
+                    }).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(result), Is.True, $"child {ii}: {result}");
+                if (ii == 42)
+                {
+                    renamedId = added;
+                }
+            }
+
+            (ServiceResult duplicate, NodeId duplicateId) = await h.Manager
+                .AddNodeAsync(h.OperationContext, new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    BrowseName = new QualifiedName("Child250", ns),
+                    NodeClass = NodeClass.Variable
+                }).ConfigureAwait(false);
+            Assert.That(duplicate.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
+            Assert.That(duplicateId.IsNull, Is.True);
+
+            // a renamed child frees its old browse name and takes the new one.
+            h.Manager.PredefinedNodes[renamedId].BrowseName = new QualifiedName("Renamed", ns);
+
+            (ServiceResult freed, _) = await h.Manager
+                .AddNodeAsync(h.OperationContext, new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    BrowseName = new QualifiedName("Child42", ns),
+                    NodeClass = NodeClass.Variable
+                }).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(freed), Is.True, $"expected Good result; got {freed}");
+
+            (ServiceResult taken, _) = await h.Manager
+                .AddNodeAsync(h.OperationContext, new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    BrowseName = new QualifiedName("Renamed", ns),
+                    NodeClass = NodeClass.Variable
+                }).ConfigureAwait(false);
+            Assert.That(taken.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
+        }
+
+        [Test]
         public async Task AddNodeAsync_AllocatesNewNodeIdWhenRequestedIsNullAsync()
         {
             using Harness h = CreateHarness(allowNodeManagement: true);
