@@ -111,19 +111,64 @@ namespace Opc.Ua.WotCon.Tests
             }
             finally
             {
-                m_session?.Dispose();
-                m_coordinator?.Dispose();
-                m_registry?.Dispose();
-                m_server?.Dispose();
-                if (m_serverFixture is not null)
+                try
                 {
-                    await m_serverFixture.StopAsync().ConfigureAwait(false);
+                    m_session?.Dispose();
                 }
-                m_clientFixture?.Dispose();
-                m_store?.Dispose();
-                if (m_root is not null && Directory.Exists(m_root))
+                finally
                 {
-                    Directory.Delete(m_root, recursive: true);
+                    try
+                    {
+                        m_coordinator?.Dispose();
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            m_registry?.Dispose();
+                        }
+                        finally
+                        {
+                            try
+                            {
+                                m_server?.Dispose();
+                            }
+                            finally
+                            {
+                                try
+                                {
+                                    if (m_serverFixture is not null)
+                                    {
+                                        await m_serverFixture.StopAsync().ConfigureAwait(false);
+                                    }
+                                }
+                                finally
+                                {
+                                    try
+                                    {
+                                        if (m_clientFixture is not null)
+                                        {
+                                            await m_clientFixture.DisposeAsync().ConfigureAwait(false);
+                                        }
+                                    }
+                                    finally
+                                    {
+                                        try
+                                        {
+                                            m_store?.Dispose();
+                                        }
+                                        finally
+                                        {
+                                            if (m_root is not null && Directory.Exists(m_root))
+                                            {
+                                                Directory.Delete(m_root, recursive: true);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
