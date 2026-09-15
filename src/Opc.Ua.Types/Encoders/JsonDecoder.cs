@@ -36,6 +36,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Types;
@@ -1103,7 +1104,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get boolean from element
         /// </summary>
-        private static bool TryGetBooleanFromElement(JsonElement element, out bool value)
+        private bool TryGetBooleanFromElement(JsonElement element, out bool value)
         {
             switch (element.ValueKind)
             {
@@ -1122,7 +1123,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get boolean values from element
         /// </summary>
-        private static bool TryGetBooleanArrayFromElement(
+        private bool TryGetBooleanArrayFromElement(
             JsonElement element,
             out ArrayOf<bool> values)
         {
@@ -1154,7 +1155,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get byte from element
         /// </summary>
-        private static bool TryGetByteFromElement(
+        private bool TryGetByteFromElement(
             JsonElement element,
             out byte value)
         {
@@ -1174,7 +1175,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get byte values from element
         /// </summary>
-        private static bool TryGetByteArrayFromElement(
+        private bool TryGetByteArrayFromElement(
             JsonElement element,
             out ArrayOf<byte> values)
         {
@@ -1186,6 +1187,9 @@ namespace Opc.Ua
                 case JsonValueKind.String:
                     if (element.TryGetBytesFromBase64(out byte[]? base64))
                     {
+                        // TryGetArrayElements is the choke point for
+                        // MaxArrayLength, and this branch never goes through it.
+                        CheckArrayLength(base64.Length);
                         values = base64;
                         return true;
                     }
@@ -1221,7 +1225,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get byte string from element
         /// </summary>
-        private static bool TryGetByteStringFromElement(
+        private bool TryGetByteStringFromElement(
             JsonElement element,
             out ByteString value)
         {
@@ -1236,6 +1240,7 @@ namespace Opc.Ua
                         value = default;
                         return false;
                     }
+                    CheckByteStringLength(result.Length);
                     value = ByteString.From(result);
                     return true;
                 case JsonValueKind.Array:
@@ -1246,6 +1251,9 @@ namespace Opc.Ua
                         value = default;
                         return false;
                     }
+                    // The array spelling of a byte string still has to honour
+                    // MaxByteStringLength, like the base64 spelling above.
+                    CheckByteStringLength(array.Count);
                     value = ByteString.From(array.Span);
                     return true;
                 default:
@@ -1257,7 +1265,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get byte string values from element
         /// </summary>
-        private static bool TryGetByteStringArrayFromElement(
+        private bool TryGetByteStringArrayFromElement(
             JsonElement element,
             out ArrayOf<ByteString> values)
         {
@@ -1414,7 +1422,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get date time from json element
         /// </summary>
-        private static bool TryGetDateTimeFromElement(
+        private bool TryGetDateTimeFromElement(
             JsonElement element,
             out DateTimeUtc value)
         {
@@ -1435,7 +1443,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get date time values from element
         /// </summary>
-        private static bool TryGetDateTimeArrayFromElement(
+        private bool TryGetDateTimeArrayFromElement(
             JsonElement element,
             out ArrayOf<DateTimeUtc> values)
         {
@@ -1479,7 +1487,7 @@ namespace Opc.Ua
                     value = default;
                     return true;
                 case JsonValueKind.Object:
-                    if (depth >= DiagnosticInfo.MaxInnerDepth)
+                    if (depth > DiagnosticInfo.MaxInnerDepth)
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingLimitsExceeded,
@@ -1595,7 +1603,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get double from element
         /// </summary>
-        private static bool TryGetDoubleFromElement(JsonElement element, out double value)
+        private bool TryGetDoubleFromElement(JsonElement element, out double value)
         {
             switch (element.ValueKind)
             {
@@ -1618,7 +1626,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get double values from element
         /// </summary>
-        private static bool TryGetDoubleArrayFromElement(JsonElement element,
+        private bool TryGetDoubleArrayFromElement(JsonElement element,
             out ArrayOf<double> values)
         {
             if (TryGetArrayElements(element, out ArrayOf<JsonElement> elements))
@@ -1648,7 +1656,7 @@ namespace Opc.Ua
         /// Get enumeration from element
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        private static bool TryGetEnumerationFromElement<T>(JsonElement element, out T value)
+        private bool TryGetEnumerationFromElement<T>(JsonElement element, out T value)
             where T : struct, Enum
         {
             switch (element.ValueKind)
@@ -1698,7 +1706,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get enumeration from element
         /// </summary>
-        private static bool TryGetEnumerationFromElement(JsonElement element, out EnumValue value)
+        private bool TryGetEnumerationFromElement(JsonElement element, out EnumValue value)
         {
             switch (element.ValueKind)
             {
@@ -1712,10 +1720,15 @@ namespace Opc.Ua
                         value = default;
                         return false;
                     }
+                    // The symbolic name below is kept verbatim from the wire, so
+                    // it is bounded by MaxStringLength like any other string.
+                    CheckStringLength(text);
                     // Verbose encoding
                     // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.4.1.2
                     int split = text.LastIndexOf('_');
-                    string? symbol = text;
+                    // Without a separator there is no symbolic name. Taking the
+                    // whole text as the symbol made a bare "5" re-encode as "5_5".
+                    string? symbol = null;
                     if (split >= 0)
                     {
                         symbol = text[..split];
@@ -1743,7 +1756,7 @@ namespace Opc.Ua
         /// Get enumeration values from element
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        private static bool TryGetEnumerationArrayFromElement<T>(
+        private bool TryGetEnumerationArrayFromElement<T>(
             JsonElement element,
             out ArrayOf<T> values) where T : struct, Enum
         {
@@ -1773,7 +1786,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get enumeration values from element
         /// </summary>
-        private static bool TryGetEnumerationArrayFromElement(
+        private bool TryGetEnumerationArrayFromElement(
             JsonElement element,
             out ArrayOf<EnumValue> values)
         {
@@ -1942,7 +1955,7 @@ namespace Opc.Ua
                                             value = new ExtensionObject(typeId, encodeable);
                                             return true;
                                         }
-                                        catch (Exception ex)
+                                        catch (Exception ex) when (!MustRethrowBodyError(ex))
                                         {
                                             m_logger.CannotDeserializeExtensionObjectBody(ex);
                                         }
@@ -1995,6 +2008,19 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Decides whether a failure while decoding an ExtensionObject body may
+        /// be swallowed in favour of keeping the raw JSON. Strict parsing must
+        /// never fall back, and an encoding limit breach must never be
+        /// downgraded into a successful decode.
+        /// </summary>
+        private bool MustRethrowBodyError(Exception ex)
+        {
+            return m_options.ParseStrict ||
+                (ex is ServiceResultException sre &&
+                    sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded);
+        }
+
         private static bool IsBodylessExtensionObject(JsonElement element)
         {
             foreach (JsonProperty property in element.EnumerateObject())
@@ -2045,7 +2071,7 @@ namespace Opc.Ua
         /// <param name="element"></param>
         /// <param name="value"></param>
         /// <returns></returns>
-        private static bool TryGetFloatFromElement(JsonElement element, out float value)
+        private bool TryGetFloatFromElement(JsonElement element, out float value)
         {
             switch (element.ValueKind)
             {
@@ -2068,7 +2094,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get float values from element
         /// </summary>
-        private static bool TryGetFloatArrayFromElement(JsonElement element,
+        private bool TryGetFloatArrayFromElement(JsonElement element,
             out ArrayOf<float> values)
         {
             if (TryGetArrayElements(element, out ArrayOf<JsonElement> elements))
@@ -2097,7 +2123,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get guid from element
         /// </summary>
-        private static bool TryGetGuidFromElement(JsonElement element, out Uuid value)
+        private bool TryGetGuidFromElement(JsonElement element, out Uuid value)
         {
             switch (element.ValueKind)
             {
@@ -2108,24 +2134,36 @@ namespace Opc.Ua
 #if NET9_0_OR_GREATER
                     ReadOnlySpan<byte> utf8Text =
                         JsonMarshal.GetRawUtf8Value(element).Trim((byte)'"');
-                    Span<char> chars = stackalloc char[78];
-                    if (System.Text.Encoding.UTF8.TryGetChars(utf8Text, chars, out int written))
+
+                    // The raw value is still JSON escaped. Only take the
+                    // allocation free path when there is nothing to unescape,
+                    // otherwise fall through to the decoded string below.
+                    if (utf8Text.IndexOf((byte)'\\') < 0)
                     {
-                        chars = chars[..written];
-                        if (Guid.TryParse(chars, out Guid guid))
+                        Span<char> chars = stackalloc char[78];
+                        if (System.Text.Encoding.UTF8.TryGetChars(
+                            utf8Text,
+                            chars,
+                            out int written))
                         {
-                            value = new Uuid(guid);
-                            return true;
-                        }
-                        Span<byte> bytes = stackalloc byte[16];
-                        if (Convert.TryFromBase64Chars(chars, bytes, out written) &&
-                            written == 16)
-                        {
-                            value = new Uuid(new Guid(bytes));
-                            return true;
+                            chars = chars[..written];
+                            if (Guid.TryParse(chars, out Guid fastGuid))
+                            {
+                                value = new Uuid(fastGuid);
+                                return true;
+                            }
+                            Span<byte> buffer = stackalloc byte[16];
+                            if (Convert.TryFromBase64Chars(chars, buffer, out written) &&
+                                written == 16)
+                            {
+                                value = new Uuid(new Guid(buffer));
+                                return true;
+                            }
+                            value = default;
+                            return false;
                         }
                     }
-#else
+#endif
                     if (Guid.TryParse(element.GetString(), out Guid guid))
                     {
                         value = new Uuid(guid);
@@ -2137,7 +2175,6 @@ namespace Opc.Ua
                         value = new Uuid(new Guid(bytes));
                         return true;
                     }
-#endif
                     value = default;
                     return false;
                 default:
@@ -2149,7 +2186,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get guid values from element
         /// </summary>
-        private static bool TryGetGuidArrayFromElement(
+        private bool TryGetGuidArrayFromElement(
             JsonElement element,
             out ArrayOf<Uuid> values)
         {
@@ -2179,7 +2216,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get signed short from element
         /// </summary>
-        private static bool TryGetInt16FromElement(JsonElement element, out short value)
+        private bool TryGetInt16FromElement(JsonElement element, out short value)
         {
             switch (element.ValueKind)
             {
@@ -2198,7 +2235,7 @@ namespace Opc.Ua
         /// Get short values from element
         /// </summary>
         /// <returns></returns>
-        private static bool TryGetInt16ArrayFromElement(
+        private bool TryGetInt16ArrayFromElement(
             JsonElement element,
             out ArrayOf<short> values)
         {
@@ -2228,7 +2265,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get signed integer from element
         /// </summary>
-        private static bool TryGetInt32FromElement(JsonElement element, out int value)
+        private bool TryGetInt32FromElement(JsonElement element, out int value)
         {
             switch (element.ValueKind)
             {
@@ -2246,7 +2283,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get integer values from element
         /// </summary>
-        private static bool TryGetInt32ArrayFromElement(
+        private bool TryGetInt32ArrayFromElement(
             JsonElement element,
             out ArrayOf<int> values)
         {
@@ -2372,7 +2409,11 @@ namespace Opc.Ua
                         m_stack.Pop();
                     }
                 case JsonValueKind.String:
-                    value = LocalizedText.From(element.GetString()!);
+                    // The shorthand spelling has to honour MaxStringLength too,
+                    // the object form above does so via TryGetStringFromElement.
+                    string? shorthand = element.GetString();
+                    CheckStringLength(shorthand);
+                    value = LocalizedText.From(shorthand!);
                     return true;
                 default:
                     value = LocalizedText.Null;
@@ -2547,7 +2588,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get signed byte from element
         /// </summary>
-        private static bool TryGetSByteFromElement(JsonElement element, out sbyte value)
+        private bool TryGetSByteFromElement(JsonElement element, out sbyte value)
         {
             switch (element.ValueKind)
             {
@@ -2565,7 +2606,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get sbyte values from element
         /// </summary>
-        private static bool TryGetSByteArrayFromElement(
+        private bool TryGetSByteArrayFromElement(
             JsonElement element,
             out ArrayOf<sbyte> values)
         {
@@ -2580,6 +2621,9 @@ namespace Opc.Ua
                         values = default;
                         return false;
                     }
+                    // TryGetArrayElements is the choke point for MaxArrayLength,
+                    // and this branch never goes through it.
+                    CheckArrayLength(bytes.Length);
                     values = MemoryMarshal.Cast<byte, sbyte>(bytes).ToArray();
                     return true;
                 case JsonValueKind.Array:
@@ -2677,7 +2721,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get string from element
         /// </summary>
-        private static bool TryGetStringFromElement(JsonElement element, out string? value)
+        private bool TryGetStringFromElement(JsonElement element, out string? value)
         {
             switch (element.ValueKind)
             {
@@ -2686,6 +2730,7 @@ namespace Opc.Ua
                     return true;
                 case JsonValueKind.String:
                     value = element.GetString();
+                    CheckStringLength(value);
                     return true;
                 default:
                     value = default;
@@ -2699,7 +2744,7 @@ namespace Opc.Ua
         /// <param name="element"></param>
         /// <param name="values"></param>
         /// <returns></returns>
-        private static bool TryGetStringArrayFromElement(JsonElement element,
+        private bool TryGetStringArrayFromElement(JsonElement element,
             out ArrayOf<string?> values)
         {
             if (TryGetArrayElements(element, out ArrayOf<JsonElement> elements))
@@ -2765,6 +2810,10 @@ namespace Opc.Ua
                                     if (TryGetByteStringFromElement(uaBody, out ByteString bytes))
                                     {
                                         using var decoder = new BinaryDecoder(bytes.ToArray(), Context);
+                                        decoder.InheritDecodingState(
+                                            m_namespaceMappings,
+                                            m_serverMappings,
+                                            0);
                                         value = decoder.ReadEncodeable<T>(null, typeId);
                                         return true;
                                     }
@@ -2778,6 +2827,10 @@ namespace Opc.Ua
                                             break;
                                         }
                                         using var decoder = new XmlDecoder(xmlElement, Context);
+                                        decoder.InheritDecodingState(
+                                            m_namespaceMappings,
+                                            m_serverMappings,
+                                            0);
                                         decoder.PushNamespace(xmlElement.NamespaceURI);
                                         value = decoder.ReadEncodeable<T>(xmlElement.LocalName, typeId);
                                         decoder.PopNamespace();
@@ -2790,11 +2843,17 @@ namespace Opc.Ua
                                         typeId,
                                         out IEncodeableType? activator))
                                     {
-                                        value = (T)activator.CreateInstance() ??
+                                        if (activator.CreateInstance() is not T instance)
+                                        {
+                                            // The type id comes from the wire and
+                                            // need not name a T at all.
                                             throw ServiceResultException.Create(
                                                 StatusCodes.BadDecodingError,
-                                                "Type does not support IEncodeable interface: '{0}'",
-                                                typeId);
+                                                "Type '{0}' is not a {1}.",
+                                                typeId,
+                                                typeof(T).Name);
+                                        }
+                                        value = instance;
 
                                         if (!m_options.ParseStrict)
                                         {
@@ -2896,7 +2955,16 @@ namespace Opc.Ua
                     encodeableTypeId);
             }
 
-            value = (T)activator.CreateInstance();
+            if (activator.CreateInstance() is not T instance)
+            {
+                // The type id comes from the wire and need not name a T at all.
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Type '{0}' is not a {1}.",
+                    encodeableTypeId,
+                    typeof(T).Name);
+            }
+            value = instance;
             return TryGetEncodeableFromElement(value, element);
         }
 
@@ -3093,7 +3161,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get unsigned short from element
         /// </summary>
-        private static bool TryGetUInt16FromElement(JsonElement element, out ushort value)
+        private bool TryGetUInt16FromElement(JsonElement element, out ushort value)
         {
             switch (element.ValueKind)
             {
@@ -3111,7 +3179,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get unsigned short values from element
         /// </summary>
-        private static bool TryGetUInt16ArrayFromElement(JsonElement element, out ArrayOf<ushort> values)
+        private bool TryGetUInt16ArrayFromElement(JsonElement element, out ArrayOf<ushort> values)
         {
             if (TryGetArrayElements(element, out ArrayOf<JsonElement> elements))
             {
@@ -3139,7 +3207,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get unsigned integer from element
         /// </summary>
-        private static bool TryGetUInt32FromElement(JsonElement element, out uint value)
+        private bool TryGetUInt32FromElement(JsonElement element, out uint value)
         {
             switch (element.ValueKind)
             {
@@ -3157,7 +3225,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get unsigned int values from element
         /// </summary>
-        private static bool TryGetUInt32ArrayFromElement(JsonElement element, out ArrayOf<uint> values)
+        private bool TryGetUInt32ArrayFromElement(JsonElement element, out ArrayOf<uint> values)
         {
             if (TryGetArrayElements(element, out ArrayOf<JsonElement> elements))
             {
@@ -3626,6 +3694,15 @@ namespace Opc.Ua
             }
             else
             {
+                if (element.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined &&
+                    dimensionElement.ValueKind == JsonValueKind.Undefined)
+                {
+                    // An omitted or null matrix field is a null variant. The
+                    // dimension check below would otherwise reject it outright.
+                    value = default;
+                    return true;
+                }
+
                 if (readRawValue)
                 {
                     // If reading raw value, then the eleemnt we are reading is encoded
@@ -3646,22 +3723,25 @@ namespace Opc.Ua
                     m_stack.Push(parent);
                 }
 
-                // Read dimension array. A multi-dimensional Variant must carry
-                // Dimensions with at least two entries, each greater than zero
-                // (Part 6 5.2.2.16); the product-versus-length consistency is
-                // enforced by MatrixOf<T> in the switch below. Reject an absent,
-                // too-short, zero or negative dimension here so an empty matrix
-                // (which would otherwise satisfy the product check) is rejected.
-                if (!TryGetInt32ArrayFromElement(
-                    dimensionElement,
-                    out ArrayOf<int> dims) ||
-                    !MatrixOf.IsValidMatrix(dims.Span))
-                {
-                    value = default;
-                    return false;
-                }
                 try
                 {
+                    // Read dimension array. A multi-dimensional Variant must carry
+                    // Dimensions with at least two entries, each greater than zero
+                    // (Part 6 5.2.2.16); the product-versus-length consistency is
+                    // enforced by MatrixOf<T> in the switch below. Reject an absent,
+                    // too-short, zero or negative dimension here so an empty matrix
+                    // (which would otherwise satisfy the product check) is rejected.
+                    // This sits inside the try so the pushed stack entry is popped
+                    // again by the finally below.
+                    if (!TryGetInt32ArrayFromElement(
+                        dimensionElement,
+                        out ArrayOf<int> dims) ||
+                        !MatrixOf.IsValidMatrix(dims.Span))
+                    {
+                        value = default;
+                        return false;
+                    }
+
                     switch (typeInfo.BuiltInType)
                     {
                         case BuiltInType.Null:
@@ -3877,7 +3957,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get xml element from json element
         /// </summary>
-        private static bool TryGetXmlElementFromElement(
+        private bool TryGetXmlElementFromElement(
             JsonElement element,
             out XmlElement value)
         {
@@ -3893,7 +3973,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get xml element values from element
         /// </summary>
-        private static bool TryGetXmlElementArrayFromElement(
+        private bool TryGetXmlElementArrayFromElement(
             JsonElement element,
             out ArrayOf<XmlElement> values)
         {
@@ -3936,27 +4016,41 @@ namespace Opc.Ua
                     value = default;
                     return true;
                 case JsonValueKind.Object:
+                    fieldName = default;
+
+                    // An absent SwitchField must stay "not present" (-1): reading
+                    // it as selector 0 both indexed switches[-1] and made the
+                    // name based Verbose fallback below unreachable.
                     long index = -1;
-                    if (TryGetUInt32FromElement(
-                        GetPropertyElement(JsonProperties.SwitchField),
-                        out uint switchFieldIndex))
+                    JsonElement switchFieldElement =
+                        GetPropertyElement(JsonProperties.SwitchField);
+                    if (switchFieldElement.ValueKind == JsonValueKind.Number &&
+                        switchFieldElement.TryGetUInt32(out uint switchFieldIndex))
                     {
                         index = switchFieldIndex;
                     }
 
-                    fieldName = default;
                     if (switches == null)
                     {
+                        // No field names to resolve against, but the selector
+                        // itself must still be reported when it was written.
+                        value = index < 0 ? 0 : (uint)index;
+                        return true;
+                    }
+                    if (index == 0)
+                    {
+                        // Selector zero selects no field at all.
                         value = 0;
                         return true;
                     }
-                    if (index >= switches.Count)
+                    if (index > switches.Count)
                     {
+                        // Unknown selector - report it and let the caller reject it.
                         value = (uint)index;
                         return true;
                     }
 
-                    if (index >= 0)
+                    if (index > 0)
                     {
                         // Switch field index found, resolve it
                         JsonElement valueElement = GetPropertyElement("Value");
@@ -4152,7 +4246,7 @@ namespace Opc.Ua
         /// <param name="element"></param>
         /// <param name="values"></param>
         /// <returns></returns>
-        private static bool TryGetArrayElements(
+        private bool TryGetArrayElements(
             JsonElement element,
             out ArrayOf<JsonElement> values)
         {
@@ -4195,12 +4289,55 @@ namespace Opc.Ua
                             }
                         }
                     }
+                    CheckArrayLength(result.Count);
                     values = result;
                     return true;
                 default:
                     values = default;
                     return false;
             }
+        }
+
+        /// <summary>
+        /// The JSON decoder used to enforce no payload limits at all. Zero means
+        /// unlimited, matching every other codec.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckArrayLength(int length)
+        {
+            if (Context.MaxArrayLength > 0 && length > Context.MaxArrayLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxArrayLength {0} < {1}",
+                    Context.MaxArrayLength,
+                    length);
+            }
+        }
+
+        /// <summary>
+        /// Checks a decoded byte string against MaxByteStringLength.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckByteStringLength(int length)
+        {
+            if (Context.MaxByteStringLength > 0 && length > Context.MaxByteStringLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxByteStringLength {0} < {1}",
+                    Context.MaxByteStringLength,
+                    length);
+            }
+        }
+
+        /// <summary>
+        /// Checks a decoded string against MaxStringLength.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckStringLength(string? value)
+        {
+            EncodingLimits.CheckStringLength(Context.MaxStringLength, value);
         }
 
         /// <summary>

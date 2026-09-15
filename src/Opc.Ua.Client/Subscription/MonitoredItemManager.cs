@@ -88,6 +88,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             try
             {
+                // Nothing will ever apply the queued triggering operations
+                // again, so complete their awaiters instead of leaving
+                // SetTriggeringAsync callers hanging forever.
+                FailPendingTriggeringOperations(StatusCodes.BadSubscriptionIdInvalid);
+
                 foreach (MonitoredItem? monitoredItem in m_monitoredItems.Values.ToList())
                 {
                     await monitoredItem.DisposeAsync().ConfigureAwait(false);
@@ -99,6 +104,21 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 m_monitoredItemsByName.Clear();
                 m_pendingByTriggeringName.Clear();
                 m_pendingTriggeringCount = 0;
+            }
+        }
+
+        /// <summary>
+        /// Completes every queued triggering operation with
+        /// <paramref name="status"/>. Used when the subscription can no longer
+        /// apply them (dispose), so awaiting callers observe a result rather
+        /// than waiting forever.
+        /// </summary>
+        /// <param name="status">The status reported to the awaiters.</param>
+        internal void FailPendingTriggeringOperations(StatusCode status)
+        {
+            while (m_triggeringOps.TryDequeue(out TriggeringOperation? op))
+            {
+                FailOperation(op, op.TriggeringItem, status);
             }
         }
 
@@ -549,13 +569,21 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                             await itemsToDelete[index].DisposeAsync().ConfigureAwait(false);
                             continue;
                         }
-                        m_deletedItems.Add(itemsToDelete[index]); // Retry this
+                        // Retry this. m_deletedItems is guarded by the manager
+                        // lock everywhere else, so take it here too.
                         // TODO: Give up after a while
+                        lock (m_monitoredItemsLock)
+                        {
+                            m_deletedItems.Add(itemsToDelete[index]);
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    m_deletedItems.AddRange(itemsToDelete);
+                    lock (m_monitoredItemsLock)
+                    {
+                        m_deletedItems.AddRange(itemsToDelete);
+                    }
                     m_logger.FailedDeleteMonitoredItems(ex);
                 }
             }
@@ -669,6 +697,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         {
             get
             {
+                // A triggering operation that was re-queued (e.g. after
+                // BadSubscriptionIdInvalid) is pending work too: without it the
+                // subscription stops scheduling apply passes and the caller
+                // awaiting SetTriggeringAsync never completes.
+                if (!m_triggeringOps.IsEmpty)
+                {
+                    return true;
+                }
+
                 lock (m_monitoredItemsLock)
                 {
                     if (m_deletedItems.Count != 0)

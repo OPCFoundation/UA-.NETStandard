@@ -260,9 +260,15 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(AggregateBits.Calculated | AggregateBits.MultipleValues));
         }
 
+        /// <summary>
+        /// Part 13 §5.4.3.36 and §5.4.2.2: the start bound is taken at the early time of the
+        /// interval in both directions. A forward interval [2 s, 8 s) excludes the raw value at
+        /// 8 s; a backward interval (2 s, 8 s] includes the raw value at 8 s and excludes the
+        /// value after it.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void WorstQuality2IncludesRequestStartAndExcludesRequestEnd(bool reverse)
+        public void WorstQuality2IncludesEarlyStartBoundAndExcludesOpenIntervalEdge(bool reverse)
         {
             var baseTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
             DateTimeUtc startTime = baseTime.AddMilliseconds(reverse ? 8000 : 2000);
@@ -272,15 +278,19 @@ namespace Opc.Ua.Server.Tests
                 [
                     new DataValue(
                         Variant.From(1),
-                        StatusCodes.BadOutOfRange,
-                        baseTime.AddMilliseconds(2000)),
+                        StatusCodes.UncertainLastUsableValue,
+                        baseTime),
                     new DataValue(
                         Variant.From(2),
                         StatusCodes.Good,
                         baseTime.AddMilliseconds(4000)),
                     new DataValue(
                         Variant.From(3),
-                        StatusCodes.UncertainLastUsableValue,
+                        StatusCodes.Good,
+                        baseTime.AddMilliseconds(8000)),
+                    new DataValue(
+                        Variant.From(4),
+                        StatusCodes.BadSensorFailure,
                         baseTime.AddMilliseconds(10000))
                 ]
                 :
@@ -327,7 +337,11 @@ namespace Opc.Ua.Server.Tests
                 5000);
             DateTimeUtc startTime = reverse ? lateTime : earlyTime;
             DateTimeUtc endTime = reverse ? earlyTime : lateTime;
-            StatusCode expected = reverse ? StatusCodes.BadSensorFailure : StatusCodes.BadOutOfRange;
+
+            // Part 13 §5.4.2.2: a backward interval is evaluated like the forward one, so the
+            // chronologically first worst value (the interior BadOutOfRange) is reported in
+            // both directions. Backward includes the late BadSensorFailure as a second Bad value.
+            StatusCode expected = StatusCodes.BadOutOfRange;
 
             DataValue result = ComputeAggregate(
                 ObjectIds.AggregateFunction_WorstQuality2, values, startTime, endTime, 10000);

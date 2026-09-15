@@ -75,6 +75,12 @@ namespace Opc.Ua.Client
         private readonly AsyncManualResetEvent m_closed = new(false);
 
         /// <summary>
+        /// True inside the worker loop and everything it calls, notably the
+        /// synchronously raised <see cref="StateChanged"/> handlers.
+        /// </summary>
+        private readonly AsyncLocal<bool> m_inWorkerFlow = new();
+
+        /// <summary>
         /// Set once the current connect cycle has settled, i.e. the machine
         /// either reached <see cref="ConnectionState.Connected"/> or gave up
         /// (<see cref="ConnectionState.Disconnected"/> after a failed failover,
@@ -153,6 +159,13 @@ namespace Opc.Ua.Client
             m_maxTotalReconnectTime = maxTotalReconnectTime
                 ?? ReconnectPolicy.DefaultMaxTotalReconnectTime;
         }
+
+        /// <summary>
+        /// How long <see cref="DisposeAsync"/> waits for the clean session
+        /// close to complete before it cancels the worker. Set to
+        /// <see cref="TimeSpan.Zero"/> to tear down immediately.
+        /// </summary>
+        public TimeSpan CloseGracePeriod { get; set; } = TimeSpan.FromSeconds(10);
 
         /// <summary>
         /// Current connection state.
@@ -318,6 +331,43 @@ namespace Opc.Ua.Client
             }
 
             RequestClose();
+            m_trigger.Set();
+
+            if (m_inWorkerFlow.Value)
+            {
+                // Disposed from a StateChanged handler (or work it spawned):
+                // the worker is the caller, so waiting for the close or for
+                // the worker would wait for this very call to return. Abort
+                // the worker and return; once the handler returns it winds
+                // down and its finally releases the waiters. The two token
+                // sources hold no timer or wait handle, so on this path
+                // they are simply left to the GC rather than disposed out from
+                // under the exiting worker.
+                await m_cts.CancelAsync().ConfigureAwait(false);
+                m_trigger.Set();
+                GC.SuppressFinalize(this);
+                return;
+            }
+
+            // Give the worker a bounded chance to run the clean close (which
+            // sends CloseSession on the wire) before the token that aborts it
+            // is cancelled. Without this the close is almost always torn down
+            // before it ever reaches the channel.
+            if (m_worker != null && CloseGracePeriod > TimeSpan.Zero)
+            {
+                using CancellationTokenSource grace = m_timeProvider
+                    .CreateCancellationTokenSource(CloseGracePeriod);
+                try
+                {
+                    await m_closed.WaitAsync(grace.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    m_logger.ConnectionStateMachineErrorDuringSessionClose(
+                        new TimeoutException(
+                            "Timed out waiting for the session close to complete."));
+                }
+            }
 
             await m_cts.CancelAsync().ConfigureAwait(false);
             m_trigger.Set();
@@ -334,6 +384,16 @@ namespace Opc.Ua.Client
                 }
             }
 
+            CompleteDispose();
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Final teardown once the worker can no longer touch the token
+        /// sources.
+        /// </summary>
+        private void CompleteDispose()
+        {
             m_cts.Dispose();
             m_closeRequested.Dispose();
 
@@ -341,8 +401,6 @@ namespace Opc.Ua.Client
             // close or connect wait does not outlive the machine.
             m_settled.Set();
             m_closed.Set();
-
-            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -377,6 +435,10 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task WorkerLoopAsync(CancellationToken ct)
         {
+            // Flows into every StateChanged handler the loop raises, so
+            // DisposeAsync can tell when it is being called by its own worker.
+            m_inWorkerFlow.Value = true;
+
             m_logger.ConnectionStateMachineWorkerStarted();
 
             try

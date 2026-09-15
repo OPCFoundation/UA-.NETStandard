@@ -71,10 +71,13 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 throw new ArgumentNullException(nameof(session));
             }
+#pragma warning disable CA2000 // ownership of the resolver transfers to the type system, which disposes it
             return new ComplexTypeSystem(
                 new NodeCacheResolver(session, m_telemetry),
                 new ComplexTypeBuilderFactory(),
-                m_telemetry);
+                m_telemetry,
+                ownsResolver: true);
+#pragma warning restore CA2000
         }
 
         private readonly ITelemetryContext m_telemetry;

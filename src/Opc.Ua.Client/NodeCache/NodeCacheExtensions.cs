@@ -240,7 +240,10 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             var current = ExpandedNodeId.ToNodeId(nodeId, cache.NamespaceUris);
-            while (!current.IsNull)
+            // A cyclic subtype relation reported by the server would otherwise
+            // spin here forever.
+            var visited = new HashSet<NodeId>();
+            while (!current.IsNull && visited.Add(current))
             {
                 current = await cache.FindSuperTypeAsync(current, ct).ConfigureAwait(false);
             }
@@ -263,9 +266,12 @@ namespace Opc.Ua
             foreach (QualifiedName browseName in browsePath.ToList())
             {
                 found = null;
+                // Guards the climb below against a server whose HasSubtype
+                // chain loops back on itself; such a chain never reaches Null.
+                var visited = new HashSet<NodeId>();
                 while (true)
                 {
-                    if (nodeId.IsNull)
+                    if (nodeId.IsNull || !visited.Add(nodeId))
                     {
                         return null;
                     }
@@ -281,8 +287,10 @@ namespace Opc.Ua
                     {
                         if (target.BrowseName == browseName)
                         {
-                            nodeId = ExpandedNodeId.ToNodeId(target.NodeId, cache.NamespaceUris);
-                            if (!nodeId.IsNull)
+                            NodeId targetId = ExpandedNodeId.ToNodeId(
+                                target.NodeId,
+                                cache.NamespaceUris);
+                            if (!targetId.IsNull)
                             {
                                 found = target;
                             }
@@ -311,7 +319,10 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             NodeId typeId = datatypeId;
-            while (!typeId.IsNull)
+            // A cyclic subtype relation reported by the server would otherwise
+            // spin here forever.
+            var visited = new HashSet<NodeId>();
+            while (!typeId.IsNull && visited.Add(typeId))
             {
                 if (typeId.NamespaceIndex == 0 && typeId.TryGetValue(out uint numericId))
                 {

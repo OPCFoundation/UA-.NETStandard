@@ -140,11 +140,23 @@ namespace Opc.Ua
                     indexes[array.Rank - row - 1] =
                         element / multiplier % dimensions[row];
                 }
-                values[element] = (T)
-                    (array.GetValue(indexes)
-                        ?? throw new ArgumentException(
+                object? item = array.GetValue(indexes);
+                if (item is null)
+                {
+                    // Reference types (and nullable value types) legitimately
+                    // carry unset entries, only value types cannot be null.
+                    if (default(T) is not null)
+                    {
+                        throw new ArgumentException(
                             "array contains null",
-                            nameof(array)));
+                            nameof(array));
+                    }
+                    values[element] = default!;
+                }
+                else
+                {
+                    values[element] = (T)item;
+                }
             }
             m_memory = values;
             m_dimensions =

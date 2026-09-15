@@ -162,7 +162,17 @@ namespace Opc.Ua
             {
                 store.Open(OpenFlags.ReadWrite);
                 using X509Certificate2 x509ForCheck = X509CertificateLoader.LoadCertificate(certificate.RawData);
-                if (!store.Certificates.Contains(x509ForCheck))
+
+                // store.Certificates materialises a fresh handle per entry and
+                // nothing else releases them.
+                X509Certificate2Collection existing = store.Certificates;
+                bool alreadyPresent = existing.Contains(x509ForCheck);
+                foreach (X509Certificate2 present in existing)
+                {
+                    present.Dispose();
+                }
+
+                if (!alreadyPresent)
                 {
                     if (certificate.HasPrivateKey && !NoPrivateKeys)
                     {
@@ -241,9 +251,14 @@ namespace Opc.Ua
 
                 foreach (X509Certificate2 certificate in store.Certificates)
                 {
-                    if (certificate.Thumbprint == thumbprint)
+                    // Each element is a fresh handle on the platform store's
+                    // certificate context; nothing else releases them.
+                    using (certificate)
                     {
-                        store.Remove(certificate);
+                        if (certificate.Thumbprint == thumbprint)
+                        {
+                            store.Remove(certificate);
+                        }
                     }
                 }
             }
@@ -265,9 +280,17 @@ namespace Opc.Ua
             {
                 if (certificate.Thumbprint == thumbprint)
                 {
+                    // Certificate.From takes ownership of the handle; Add takes
+                    // its own reference, so the local one is released here.
                     var cert = Certificate.From(certificate);
                     collection.Add(cert);
                     cert.Dispose();
+                }
+                else
+                {
+                    // Nothing took ownership of this handle on the platform
+                    // store's certificate context, so release it here.
+                    certificate.Dispose();
                 }
             }
 
@@ -303,7 +326,19 @@ namespace Opc.Ua
         {
             if (!SupportsCRLs)
             {
-                throw new ServiceResultException(StatusCodes.BadNotSupported);
+                // Reported, not thrown: a thrown ServiceResultException surfaces
+                // as an unsuppressible BadCertificateInvalid and fails every
+                // CA-issued certificate on the platforms without CRL support.
+                //
+                // And reported as unknown rather than unsupported. The status
+                // really is unknown - there is no list to consult - and this is
+                // what the Windows branch below and a directory store without a
+                // CRL both already return. The validator discards
+                // BadNotSupported outright, which would make revocation fail
+                // open even for an operator who set RejectUnknownRevocationStatus;
+                // BadCertificateRevocationUnknown is suppressible and lets that
+                // policy decide (OPC 10000-4 6.1.3, Find Revocation List).
+                return StatusCodes.BadCertificateRevocationUnknown;
             }
 
             if (issuer == null)

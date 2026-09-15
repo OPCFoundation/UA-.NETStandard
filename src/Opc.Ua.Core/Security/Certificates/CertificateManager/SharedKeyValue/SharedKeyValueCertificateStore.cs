@@ -186,9 +186,13 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificates));
             }
 
-            // A negative maximum keeps no rejected history.
-            if (maxCertificates < 0)
+            // A maximum of zero or less keeps no rejected history: nothing new
+            // is written, and whatever is already stored is discarded. Same rule
+            // as the directory store, which is what the CertificateManager's
+            // MaxRejectedCertificates contract is written against.
+            if (maxCertificates <= 0)
             {
+                await TrimRejectedAsync(0, ct).ConfigureAwait(false);
                 return;
             }
 
@@ -199,13 +203,9 @@ namespace Opc.Ua
                     .ConfigureAwait(false);
             }
 
-            // A zero maximum is unlimited; otherwise trim the oldest by the
-            // stored insertion timestamp (best-effort; the rejected list is
-            // advisory and not security-critical).
-            if (maxCertificates > 0)
-            {
-                await TrimRejectedAsync(maxCertificates, ct).ConfigureAwait(false);
-            }
+            // Trim the oldest by the stored insertion timestamp (best-effort;
+            // the rejected list is advisory and not security-critical).
+            await TrimRejectedAsync(maxCertificates, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
