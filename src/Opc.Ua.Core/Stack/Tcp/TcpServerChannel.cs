@@ -396,6 +396,11 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> messageChunk,
             CancellationToken ct)
         {
+            if (TcpMessageType.IsType(messageType, TcpMessageType.Stream))
+            {
+                return ProcessDataChannelMessage(messageType, messageChunk, true);
+            }
+
             PendingRequestDispatch? pending = null;
             bool ownsBuffer;
 
@@ -1130,10 +1135,11 @@ namespace Opc.Ua.Bindings
                     ClientCertificate,
                     new ArraySegment<byte>(buffer, 0, buffer.Length),
                     !renew ? m_oscRequestSignature : null,
-                    out _);
+                    out _,
+                    out SendGateTicket sendTicket);
 
                 // write the message to the server.
-                BeginWriteMessage(chunksToSend, null);
+                BeginWriteMessage(chunksToSend, null, sendTicket);
                 chunksToSend = null;
             }
             catch (Exception e)
@@ -1196,14 +1202,15 @@ namespace Opc.Ua.Bindings
                 ClientCertificate,
                 new ArraySegment<byte>(buffer, 0, buffer.Length),
                 !renew ? m_oscRequestSignature : null,
-                out byte[] signature);
+                out byte[] signature,
+                out SendGateTicket sendTicket);
 
             if (!renew)
             {
                 ChannelThumbprint = signature;
             }
 
-            SendOpenSecureChannelChunks(chunksToSend);
+            SendOpenSecureChannelChunks(chunksToSend, sendTicket);
         }
 
         /// <summary>
@@ -1252,19 +1259,21 @@ namespace Opc.Ua.Bindings
                 ChannelThumbprint = written.Signature;
             }
 
-            SendOpenSecureChannelChunks(written.Chunks);
+            SendOpenSecureChannelChunks(written.Chunks, TakeSendTicket());
         }
 
         /// <summary>
         /// Writes the chunks of an OpenSecureChannel response to the client.
         /// </summary>
-        private void SendOpenSecureChannelChunks(BufferCollection chunksToSend)
+        private void SendOpenSecureChannelChunks(
+            BufferCollection chunksToSend,
+            SendGateTicket sendTicket)
         {
             // write the response to the client.
             BufferCollection? chunksToRelease = chunksToSend;
             try
             {
-                BeginWriteMessage(chunksToSend, null);
+                BeginWriteMessage(chunksToSend, null, sendTicket);
                 chunksToRelease = null;
             }
             finally
@@ -1676,6 +1685,7 @@ namespace Opc.Ua.Bindings
 
                 m_eventLogger.CoreSendResponse((int)ChannelId, (int)requestId);
                 BufferCollection? buffers = null;
+                SendGateTicket sendTicket;
 
                 try
                 {
@@ -1687,7 +1697,8 @@ namespace Opc.Ua.Bindings
                         CurrentToken!,
                         response,
                         false,
-                        out bool limitsExceeded);
+                        out bool limitsExceeded,
+                        out sendTicket);
                 }
                 catch (Exception e)
                 {
@@ -1705,7 +1716,7 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
-                    BeginWriteMessage(buffers, null);
+                    BeginWriteMessage(buffers, null, sendTicket);
                     buffers = null!;
                 }
                 catch (Exception)

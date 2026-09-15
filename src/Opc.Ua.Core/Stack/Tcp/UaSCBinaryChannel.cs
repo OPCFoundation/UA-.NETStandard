@@ -306,7 +306,10 @@ namespace Opc.Ua.Bindings
                 // accepted immediately and any in flight are cancelled.
                 m_backgroundWork.Dispose();
 
+                NotifyChannelClosed();
+
                 Interlocked.Exchange(ref m_receiveLoop, null)?.Cancel();
+                FaultSendGate();
                 IUaSCByteTransport? transport = Interlocked.Exchange(ref m_transport, null);
                 transport?.Close();
                 DiscardTokens();
@@ -448,6 +451,17 @@ namespace Opc.Ua.Bindings
                 ? newSeqNumber > kMaxValueLegacyTrue
                 : newSeqNumber > kMaxValueLegacyFalse;
 
+            // Every symmetric chunk - MSG, OPN, CLO and STR alike - draws from
+            // this one sequence space, and reusing a number under one TokenId
+            // reuses the AEAD nonce derived from it. Service traffic is
+            // accounted for by observing this counter rather than by calling
+            // into the budget on each send, but observation alone is passive:
+            // a channel carrying only Service traffic would never learn that
+            // it is close to exhaustion until a data channel asked. This hook
+            // pushes the transition so the client can renew ahead of the
+            // lifetime timer.
+            OnSequenceNumberIssued();
+
             // LegacySequenceNumbers are TRUE for non ECC profiles
             // https://reference.opcfoundation.org/Core/Part6/v105/docs/6.7.2.4
             if (isLegacy)
@@ -472,6 +486,152 @@ namespace Opc.Ua.Bindings
             Interlocked.Exchange(ref m_localSequenceNumber, retVal);
 
             return retVal;
+        }
+
+        /// <summary>
+        /// Takes a send-order ticket for a secured message.
+        /// </summary>
+        protected SendGateTicket TakeSendTicket()
+        {
+            var completion = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            lock (m_sendGateLock)
+            {
+                if (m_sendGateClosed)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConnectionClosed,
+                        "The transport was closed by the remote application.");
+                }
+
+                var ticket = new SendGateTicket(++m_nextSendTicket, m_sendGateTail, completion);
+                m_sendGateTail = completion.Task;
+                m_sendGateTickets.Add(ticket);
+                return ticket;
+            }
+        }
+
+        /// <summary>
+        /// Waits until every earlier secured chunk has been handed to the transport.
+        /// </summary>
+        protected async ValueTask AwaitSendTurnAsync(SendGateTicket ticket, CancellationToken ct)
+        {
+            try
+            {
+                await WaitForSendPredecessorAsync(ticket.Predecessor, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                AbandonSendTicket(ticket);
+                throw;
+            }
+
+            lock (m_sendGateLock)
+            {
+                if (m_sendGateClosed)
+                {
+                    CompleteSendTicket(ticket);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConnectionClosed,
+                        "The transport was closed by the remote application.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Releases the send-order ticket so the next secured chunk may proceed.
+        /// </summary>
+        protected void ReleaseSendTicket(SendGateTicket ticket)
+        {
+            lock (m_sendGateLock)
+            {
+                CompleteSendTicket(ticket);
+            }
+        }
+
+        private void FaultSendGate()
+        {
+            lock (m_sendGateLock)
+            {
+                if (m_sendGateClosed)
+                {
+                    return;
+                }
+
+                m_sendGateClosed = true;
+
+                foreach (SendGateTicket ticket in new List<SendGateTicket>(m_sendGateTickets))
+                {
+                    CompleteSendTicket(ticket);
+                }
+            }
+        }
+
+        private void CompleteSendTicket(SendGateTicket ticket)
+        {
+            if (ticket.TryComplete())
+            {
+                m_sendGateTickets.Remove(ticket);
+            }
+        }
+
+        private void AbandonSendTicket(SendGateTicket ticket)
+        {
+            if (ticket.Predecessor.IsCompleted)
+            {
+                ReleaseSendTicket(ticket);
+                return;
+            }
+
+            _ = CompleteAbandonedSendTicketAsync(ticket);
+        }
+
+        private async Task CompleteAbandonedSendTicketAsync(SendGateTicket ticket)
+        {
+            try
+            {
+                await ticket.Predecessor.ConfigureAwait(false);
+            }
+            finally
+            {
+                ReleaseSendTicket(ticket);
+            }
+        }
+
+        private static async Task WaitForSendPredecessorAsync(Task predecessor, CancellationToken ct)
+        {
+            if (!ct.CanBeCanceled || predecessor.IsCompleted)
+            {
+                await predecessor.ConfigureAwait(false);
+                return;
+            }
+
+            var cancellation = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            using (ct.Register(
+                state => ((TaskCompletionSource<bool>)state!).TrySetResult(true),
+                cancellation))
+            {
+                Task completed = await Task.WhenAny(predecessor, cancellation.Task)
+                    .ConfigureAwait(false);
+                if (completed != predecessor)
+                {
+                    throw new OperationCanceledException(ct);
+                }
+            }
+
+            await predecessor.ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Called for every symmetric SequenceNumber issued on this channel.
+        /// Overridden where the channel can act on the budget by renewing the
+        /// SecurityToken early.
+        /// </summary>
+        protected virtual void OnSequenceNumberIssued()
+        {
         }
 
         /// <summary>
@@ -809,6 +969,11 @@ namespace Opc.Ua.Bindings
         protected virtual void OnTransportError(ServiceResult result)
         {
             HandleSocketError(result);
+
+            if (ServiceResult.IsBad(result))
+            {
+                FaultSendGate();
+            }
         }
 
         /// <summary>
@@ -1096,13 +1261,15 @@ namespace Opc.Ua.Bindings
         /// asynchronously and reports its result via
         /// <see cref="HandleWriteComplete"/>.
         /// </summary>
-        protected void BeginWriteMessage(BufferCollection buffers, object? state)
+        protected void BeginWriteMessage(BufferCollection buffers, object? state, SendGateTicket sendTicket)
         {
             Interlocked.Increment(ref m_activeWriteRequests);
 
             IUaSCByteTransport? transport = m_transport;
             if (transport == null)
             {
+                ReleaseSendTicket(sendTicket);
+
                 // The caller can hold the channel gate. Report asynchronously
                 // because client write completion enters the same non-reentrant gate.
                 ReportWriteComplete(
@@ -1115,9 +1282,7 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            // Queued rather than started inline, for the reason given in
-            // BeginWriteMessage(ArraySegment{byte}, object).
-            QueueWrite(() => WriteBuffersAsync(transport, buffers, state));
+            _ = WriteBuffersAsync(transport, buffers, state, sendTicket);
         }
 
         /// <summary>
@@ -1273,12 +1438,16 @@ namespace Opc.Ua.Bindings
         private async Task WriteBuffersAsync(
             IUaSCByteTransport transport,
             BufferCollection buffers,
-            object? state)
+            object? state,
+            SendGateTicket sendTicket)
         {
             ServiceResult result = ServiceResult.Good;
             int sent = buffers.TotalSize;
+            bool sendTurnAcquired = false;
             try
             {
+                await AwaitSendTurnAsync(sendTicket, CancellationToken.None).ConfigureAwait(false);
+                sendTurnAcquired = true;
                 await transport.SendChunkAsync(buffers, CancellationToken.None).ConfigureAwait(false);
             }
             catch (ServiceResultException sre)
@@ -1296,6 +1465,11 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
+                if (sendTurnAcquired)
+                {
+                    ReleaseSendTicket(sendTicket);
+                }
+
                 ReportWriteComplete(buffers, state, sent, result);
             }
         }
@@ -1345,6 +1519,11 @@ namespace Opc.Ua.Bindings
 
             buffers?.Release(BufferManager, "WriteOperation");
             Interlocked.Decrement(ref m_activeWriteRequests);
+
+            if (ServiceResult.IsBad(result))
+            {
+                FaultSendGate();
+            }
         }
 
         /// <summary>
@@ -1611,6 +1790,40 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Represents one secured send's place in the per-channel FIFO send gate.
+        /// </summary>
+        protected sealed class SendGateTicket
+        {
+            internal SendGateTicket(
+                long number,
+                Task predecessor,
+                TaskCompletionSource<bool> completion)
+            {
+                Number = number;
+                Predecessor = predecessor;
+                m_completion = completion;
+            }
+
+            internal long Number { get; }
+
+            internal Task Predecessor { get; }
+
+            internal bool TryComplete()
+            {
+                if (Interlocked.Exchange(ref m_completed, 1) != 0)
+                {
+                    return false;
+                }
+
+                m_completion.TrySetResult(true);
+                return true;
+            }
+
+            private readonly TaskCompletionSource<bool> m_completion;
+            private int m_completed;
+        }
+
+        /// <summary>
         /// Calculate the chunk count which can be used for messages based on buffer size.
         /// </summary>
         /// <param name="messageSize">The message size to be used.</param>
@@ -1676,12 +1889,14 @@ namespace Opc.Ua.Bindings
         private int m_state;
         private int m_activeWriteRequests;
         private readonly Lock m_writeChainLock = new();
+        private readonly Lock m_sendGateLock = new();
         private Task m_writeChain = Task.CompletedTask;
         private long m_lastActiveTimestamp;
         private readonly string m_contextId;
         private readonly ILogger m_logger;
         private long m_sequenceNumber;
         private long m_localSequenceNumber;
+        private long m_nextSendTicket;
         private uint m_remoteSequenceNumber;
         private bool m_sequenceRollover;
         private bool m_firstReceivedSequenceNumber = true;
@@ -1705,6 +1920,9 @@ namespace Opc.Ua.Bindings
         private IUaSCByteTransport? m_transport;
         private readonly BackgroundTaskScope m_backgroundWork;
         private Task? m_receiveLoopTask;
+        private Task m_sendGateTail = Task.CompletedTask;
+        private readonly HashSet<SendGateTicket> m_sendGateTickets = [];
+        private bool m_sendGateClosed;
 
         /// <summary>
         /// The receive loop currently installed, or <c>null</c> when none is.

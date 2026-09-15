@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- net8.0 is supported by opting into preview features: System.Net.Quic
+         carries [RequiresPreviewFeatures] there, so this assembly enables them
+         and a net8.0 consumer does the same in its own project. net9.0 and
+         net10.0 need no opt-in. A UA.slnx build pinned to one TFM via
+         CustomTestTarget builds the rest of the stack for that TFM alone, so
+         the pin is followed here too - keeping the other legs would leave them
+         referencing a stack that was never built for them (NU1201). Pins this
+         project cannot host at all are no-ops through RestrictForLegacyTfm. -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' or '$(CustomTestTarget)' == 'net9.0' or '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(LibCoreTargetFrameworks)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <AssemblyName>$(AssemblyPrefix).Bindings.Quic</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua.Bindings.Quic</PackageId>
+    <RootNamespace>Opc.Ua.Bindings</RootNamespace>
+    <Description>Experimental OPC UA QUIC Binding Library. Implements the opc.quic transport of the OPC UA Data Channels errata. Identifiers are provisional.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+    <Nullable>enable</Nullable>
+    <!-- System.Net.Quic is available only where msquic is present.
+         Availability is checked at run time through
+         QuicConnection.IsSupported rather than at compile time. -->
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <!-- System.Net.Quic carries [RequiresPreviewFeatures] on net8.0 only. -->
+    <EnablePreviewFeatures Condition="'$(TargetFramework)' == 'net8.0'">true</EnablePreviewFeatures>
+    <GenerateRequiresPreviewFeaturesAttribute Condition="'$(TargetFramework)' == 'net8.0'">true</GenerateRequiresPreviewFeaturesAttribute>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Core.DataChannels.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+  </ItemGroup>
+  <Target Name="GetPackagingOutputs" />
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

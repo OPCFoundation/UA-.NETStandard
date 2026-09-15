@@ -79,6 +79,12 @@
     <PackageVersion Include="System.CommandLine" Version="2.0.11" />
     <PackageVersion Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.7.37220.1" />
     <PackageVersion Include="Moq" Version="4.20.72" />
+    <!--
+      NAudio (MIT) is referenced only by samples/Core/ConsoleDataChannelAudio,
+      to play the streamed audio. Nothing under src/ depends on it. Playback in
+      2.x is Windows-only, so the sample writes a .wav on other platforms.
+    -->
+    <PackageVersion Include="NAudio" Version="2.3.0" />
     <PackageVersion Include="TUnit" Version="1.65.68" />
     <PackageVersion Include="Nerdbank.GitVersioning" Version="3.10.94" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />

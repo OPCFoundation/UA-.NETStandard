@@ -659,6 +659,65 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(await facade.CancelAsync(null, 1, ct).ConfigureAwait(false), Is.SameAs(cancel));
         }
 
+        /// <summary>
+        /// The data channel Services delegate to the current session like every
+        /// other Service on the facade. A redundant client that silently dropped
+        /// them would leave a channel opened against a session the caller can no
+        /// longer reach after a failover.
+        /// </summary>
+        [Test]
+        public async Task LeaderDataChannelServiceCallsDelegateToCurrentSessionAsync()
+        {
+            var session = new Mock<ISession>();
+            RedundantClientSession facade = CreateLeaderFacade(session);
+            CancellationToken ct = CancellationToken.None;
+
+            var opened = new OpenDataChannelResponse();
+            var modified = new ModifyDataChannelResponse();
+            var closed = new CloseDataChannelResponse();
+
+            // Scoped opt-in: the Services carry [Experimental("DataChannels")],
+            // and the facade's delegation obligation applies to them regardless.
+#pragma warning disable DataChannels
+            session.Setup(s => s.OpenDataChannelAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ulong>(),
+                    It.IsAny<DataChannelParametersDataType>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<OpenDataChannelResponse>(opened));
+            session.Setup(s => s.ModifyDataChannelAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<DataChannelParametersDataType>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ModifyDataChannelResponse>(modified));
+            session.Setup(s => s.CloseDataChannelAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<StatusCode>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<CloseDataChannelResponse>(closed));
+
+            Assert.Multiple(async () =>
+            {
+                Assert.That(
+                    await facade.OpenDataChannelAsync(null, new NodeId(1u), 0, 0, null, ct)
+                        .ConfigureAwait(false),
+                    Is.SameAs(opened));
+                Assert.That(
+                    await facade.ModifyDataChannelAsync(null, 1, null, ct).ConfigureAwait(false),
+                    Is.SameAs(modified));
+                Assert.That(
+                    await facade.CloseDataChannelAsync(null, 1, StatusCodes.Good, false, ct)
+                        .ConfigureAwait(false),
+                    Is.SameAs(closed));
+            });
+#pragma warning restore DataChannels
+        }
+
         [Test]
         public async Task LeaderConvenienceMethodsDelegateToCurrentSessionAsync()
         {

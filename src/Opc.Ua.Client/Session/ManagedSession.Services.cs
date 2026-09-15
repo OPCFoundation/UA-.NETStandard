@@ -27,8 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Client
 {
@@ -602,6 +604,69 @@ namespace Opc.Ua.Client
                 return await InnerSession.CancelAsync(
                     requestHeader,
                     requestHandle,
+                    ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        [Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
+        public async ValueTask<OpenDataChannelResponse> OpenDataChannelAsync(
+            RequestHeader? requestHeader,
+            NodeId sourceNodeId,
+            uint offerId,
+            ulong transportChannelId,
+            DataChannelParametersDataType? requestedParameters,
+            CancellationToken ct)
+        {
+            using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
+            {
+                return await InnerSession.OpenDataChannelAsync(
+                    requestHeader,
+                    sourceNodeId,
+                    offerId,
+                    transportChannelId,
+                    requestedParameters,
+                    ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        [Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
+        public async ValueTask<ModifyDataChannelResponse> ModifyDataChannelAsync(
+            RequestHeader? requestHeader,
+            uint channelId,
+            DataChannelParametersDataType? requestedParameters,
+            CancellationToken ct)
+        {
+            using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
+            {
+                return await InnerSession.ModifyDataChannelAsync(
+                    requestHeader,
+                    channelId,
+                    requestedParameters,
+                    ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        [Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
+        public async ValueTask<CloseDataChannelResponse> CloseDataChannelAsync(
+            RequestHeader? requestHeader,
+            uint channelId,
+            StatusCode reason,
+            bool deleteQueued,
+            CancellationToken ct)
+        {
+            using (await m_serviceLock.ReaderLockAsync(ct).ConfigureAwait(false))
+            {
+                return await InnerSession.CloseDataChannelAsync(
+                    requestHeader,
+                    channelId,
+                    reason,
+                    deleteQueued,
                     ct).ConfigureAwait(false);
             }
         }

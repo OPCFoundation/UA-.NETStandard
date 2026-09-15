@@ -149,7 +149,19 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public TransportChannelFeatures SupportedFeatures =>
-            m_channel?.Transport?.Features ?? TransportChannelFeatures.None;
+            (m_channel?.Transport?.Features ?? TransportChannelFeatures.None) |
+            TransportChannelFeatures.MessageExtensions;
+
+        /// <summary>
+        /// The SecureChannel behind this transport channel, or <c>null</c>
+        /// while it is not connected.
+        /// </summary>
+        /// <remarks>
+        /// Exposed so a message extension can attach itself to the channel a
+        /// Client is already using. It is the channel, not this wrapper, that
+        /// carries the MessageType an extension owns.
+        /// </remarks>
+        public UaSCUaBinaryClientChannel? SecureChannel => m_channel;
 
         /// <inheritdoc/>
         public EndpointDescription EndpointDescription
