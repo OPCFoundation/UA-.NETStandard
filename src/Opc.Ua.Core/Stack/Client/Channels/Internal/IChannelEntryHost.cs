@@ -52,7 +52,10 @@ namespace Opc.Ua
             ChannelEntry entry,
             ClientChannelManager.ChannelCloseReason reason);
 
-        (Certificate? Certificate, CertificateCollection? Chain, long Version) SnapshotClientCertificate();
+        /// <summary>
+        /// Acquires a caller-owned snapshot of the current client certificate, chain, and configuration version.
+        /// </summary>
+        ClientChannelCertificateSnapshot SnapshotClientCertificate();
 
         ValueTask<ITransportChannel> CreateChannelAsync(
             ConfiguredEndpoint endpoint,

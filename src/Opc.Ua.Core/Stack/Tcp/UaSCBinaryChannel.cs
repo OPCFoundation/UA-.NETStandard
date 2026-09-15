@@ -306,8 +306,7 @@ namespace Opc.Ua.Bindings
                 // accepted immediately and any in flight are cancelled.
                 m_backgroundWork.Dispose();
 
-                Interlocked.Exchange(ref m_receiveLoop, null)?.Cancel();
-                IUaSCByteTransport? transport = Interlocked.Exchange(ref m_transport, null);
+                IUaSCByteTransport? transport = DetachTransport();
                 transport?.Close();
                 DiscardTokens();
 
@@ -329,7 +328,6 @@ namespace Opc.Ua.Bindings
                     partialChunks = m_partialMessageChunks;
                     m_partialMessageChunks = null;
                 }
-
                 partialChunks?.Release(BufferManager, "Dispose");
 
                 ServerCertificateChain?.Dispose();
@@ -585,7 +583,7 @@ namespace Opc.Ua.Bindings
                     m_partialMessageChunks.Release(BufferManager, "SaveIntermediateChunk");
                 }
 
-                if (!chunkOrSizeLimitsExceeded && requestId != 0)
+                if (!chunkOrSizeLimitsExceeded && requestId != 0 && chunk.Array != null)
                 {
                     m_partialRequestId = requestId;
                     m_partialMessageChunks.Add(chunk);
@@ -735,6 +733,10 @@ namespace Opc.Ua.Bindings
                     BufferManager.ReturnBuffer(message.GetArray(), "OnChunkReceived");
                 }
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                BufferManager.ReturnBuffer(message.Array, "OnChunkReceived");
+            }
             catch (Exception e)
             {
                 HandleMessageProcessingError(
@@ -812,6 +814,20 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Reports a receive failure only if its transport and cancellation lifetime still belong to this channel.
+        /// </summary>
+        private protected virtual void OnTransportError(
+            IUaSCByteTransport transport,
+            ServiceResult result,
+            CancellationToken ct)
+        {
+            if (!ct.IsCancellationRequested && ReferenceEquals(Transport, transport))
+            {
+                OnTransportError(result);
+            }
+        }
+
+        /// <summary>
         /// Handles a socket error.
         /// </summary>
         protected virtual void HandleSocketError(ServiceResult result)
@@ -831,7 +847,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Sets up the receive-loop state (CTS, task, running flag) and
+        /// Installs the transport and its cancellation lifetime together and
         /// runs the supplied <paramref name="loopBody"/> on a background
         /// task. Used by <see cref="StartReceiveLoop"/> for the default
         /// long-running loop and by derived classes (e.g.
@@ -845,112 +861,46 @@ namespace Opc.Ua.Bindings
         protected void StartReceiveLoopWithBody(
             Func<IUaSCByteTransport, CancellationToken, Task> loopBody)
         {
-            IUaSCByteTransport? transport = m_transport;
-            if (transport == null)
+            ReceiveLoop? previous;
+            lock (m_receiveLoopLock)
             {
-                return;
-            }
-
-            // Idempotent per transport. A loop already running on this transport
-            // is left alone, but one still running on a transport the channel has
-            // since replaced (a reconnect binds a new socket to an existing
-            // channel) is superseded - otherwise the channel would never read
-            // from the socket it just adopted.
-            //
-            // The whole state is one object swapped atomically, so a second
-            // caller can never observe a half-installed loop (the new transport
-            // paired with the previous token) and start a competing reader on the
-            // same socket.
-            var epoch = new ReceiveLoopEpoch(transport);
-            ReceiveLoopEpoch? previous;
-
-            while (true)
-            {
-                previous = Volatile.Read(ref m_receiveLoop);
-
-                if (previous != null && ReferenceEquals(previous.Transport, transport))
+                IUaSCByteTransport? transport = Transport;
+                if (transport == null ||
+                    (m_receiveLoop is { IsCompleted: false } current &&
+                        ReferenceEquals(current.Transport, transport)))
                 {
                     return;
                 }
-
-                if (ReferenceEquals(
-                    Interlocked.CompareExchange(ref m_receiveLoop, epoch, previous),
-                    previous))
+                previous = m_receiveLoop;
+                var loop = new ReceiveLoop(transport);
+                m_receiveLoop = loop;
+                if (!m_backgroundWork.Run(
+                    nameof(StartReceiveLoop),
+                    async shutdown =>
+                    {
+                        using CancellationTokenRegistration registration = shutdown.Register(loop.Cancel);
+                        try
+                        {
+                            await loopBody(transport, loop.Token).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            lock (m_receiveLoopLock)
+                            {
+                                if (ReferenceEquals(m_receiveLoop, loop))
+                                {
+                                    m_receiveLoop = null;
+                                }
+                            }
+                            loop.Complete();
+                        }
+                    }))
                 {
-                    break;
+                    m_receiveLoop = null;
+                    loop.Complete();
                 }
             }
-
-            // Cancel the loop this one replaces. Not awaited: the caller may be
-            // running on that very loop (a reconnect is dispatched from it), so
-            // it ends as soon as it observes the cancellation.
             previous?.Cancel();
-
-            // The transport was read before the epoch went in, so a detach could
-            // have run in between and this epoch would now be reading a socket
-            // the channel has given up - one the listener may have closed, or
-            // handed to the channel that adopted it.
-            //
-            // DetachTransport clears the transport before it retires the loop,
-            // so the two orderings are both covered: a detach that got as far as
-            // the transport is seen here, and a later one retires this epoch and
-            // cancels it before the body reads anything.
-            if (!ReferenceEquals(Volatile.Read(ref m_transport), transport))
-            {
-                Interlocked.CompareExchange(ref m_receiveLoop, null, epoch);
-                epoch.Cancel();
-                return;
-            }
-
-            CancellationToken ct = epoch.Token;
-            m_receiveLoopTask = Task.Run(
-                async () =>
-                {
-                    try
-                    {
-                        await loopBody(transport, ct).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        // Retire only if still current; a superseded loop must not
-                        // clear the epoch the loop that replaced it installed.
-                        Interlocked.CompareExchange(ref m_receiveLoop, null, epoch);
-                    }
-                },
-                ct);
-        }
-
-        /// <summary>
-        /// One run of the receive loop: the transport it reads from and the
-        /// source that stops it. Installed and retired as a unit so the two can
-        /// never be observed out of step.
-        /// </summary>
-        /// <remarks>
-        /// The token source is deliberately never disposed. It carries no timer
-        /// and no linked registration, so it holds nothing a garbage collection
-        /// will not reclaim - and disposing it would race every other path that
-        /// cancels a loop, turning a teardown into an
-        /// <see cref="ObjectDisposedException"/>.
-        /// </remarks>
-#pragma warning disable CA1001 // m_cts is intentionally not disposed; see the remarks above.
-        private sealed class ReceiveLoopEpoch
-#pragma warning restore CA1001
-        {
-            public ReceiveLoopEpoch(IUaSCByteTransport transport)
-            {
-                Transport = transport;
-            }
-
-            public IUaSCByteTransport Transport { get; }
-
-            public CancellationToken Token => m_cts.Token;
-
-            public void Cancel()
-            {
-                m_cts.Cancel();
-            }
-
-            private readonly CancellationTokenSource m_cts = new();
         }
 
         /// <summary>
@@ -966,13 +916,7 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         protected internal IUaSCByteTransport? DetachTransport()
         {
-            IUaSCByteTransport? transport = Interlocked.Exchange(ref m_transport, null);
-
-            // Retire the loop as well as cancelling it, so a later
-            // StartReceiveLoop on a reattached transport is not mistaken for a
-            // loop that is already serving it.
-            Interlocked.Exchange(ref m_receiveLoop, null)?.Cancel();
-            return transport;
+            return DetachTransport(out _);
         }
 
         /// <summary>
@@ -989,31 +933,45 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         internal async ValueTask<IUaSCByteTransport?> DetachTransportAsync()
         {
-            IUaSCByteTransport? transport = Interlocked.Exchange(ref m_transport, null);
-
-            Interlocked.Exchange(ref m_receiveLoop, null)?.Cancel();
-
-            Task? loop = m_receiveLoopTask;
+            IUaSCByteTransport? transport = DetachTransport(out ReceiveLoop? loop);
             if (loop != null)
             {
-                try
-                {
-                    await loop.ConfigureAwait(false);
-                }
-                catch
-                {
-                    // The loop's exit path catches its own exceptions; any escapes
-                    // here are last-resort and must not block the handoff.
-                }
-                m_receiveLoopTask = null;
+                await loop.Completion.ConfigureAwait(false);
             }
 
             return transport;
         }
 
+        /// <summary>
+        /// Detaches the transport and cancels its receive loop without waiting for that loop to finish.
+        /// </summary>
+        internal IUaSCByteTransport? DetachTransportForHandoff()
+        {
+            return DetachTransport(out _);
+        }
+
+        /// <summary>
+        /// Removes the transport and its receive-loop registration together, then requests loop cancellation.
+        /// </summary>
+        private IUaSCByteTransport? DetachTransport(out ReceiveLoop? loop)
+        {
+            IUaSCByteTransport? transport;
+            lock (m_receiveLoopLock)
+            {
+                transport = Interlocked.Exchange(ref m_transport, null);
+                loop = m_receiveLoop;
+                m_receiveLoop = null;
+            }
+            loop?.Dispose();
+            return transport;
+        }
+
+        /// <summary>
+        /// Receives and dispatches chunks while the transport remains current, reporting receive and dispatch failures.
+        /// </summary>
         private async Task RunReceiveLoopAsync(IUaSCByteTransport transport, CancellationToken ct)
         {
-            while (!ct.IsCancellationRequested)
+            while (!ct.IsCancellationRequested && ReferenceEquals(Transport, transport))
             {
                 ArraySegment<byte> chunk;
                 try
@@ -1026,15 +984,21 @@ namespace Opc.Ua.Bindings
                 }
                 catch (ServiceResultException sre)
                 {
-                    OnTransportError(sre.Result);
+                    OnTransportError(transport, sre.Result, ct);
                     return;
                 }
                 catch (Exception ex)
                 {
-                    OnTransportError(ServiceResult.Create(
+                    OnTransportError(transport, ServiceResult.Create(
                         ex,
                         StatusCodes.BadTcpInternalError,
-                        ex.Message));
+                        ex.Message), ct);
+                    return;
+                }
+
+                if (ct.IsCancellationRequested || !ReferenceEquals(Transport, transport))
+                {
+                    BufferManager.ReturnBuffer(chunk.Array, nameof(RunReceiveLoopAsync));
                     return;
                 }
 
@@ -1052,10 +1016,10 @@ namespace Opc.Ua.Bindings
                     // task this runs on is fire-and-forget, so an escaping
                     // exception would otherwise stop the channel receiving with no
                     // report at all, and the peer would simply time out.
-                    OnTransportError(ServiceResult.Create(
+                    OnTransportError(transport, ServiceResult.Create(
                         ex,
                         StatusCodes.BadTcpInternalError,
-                        "An error occurred dispatching a received message."));
+                        "An error occurred dispatching a received message."), ct);
                     return;
                 }
             }
@@ -1487,8 +1451,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected internal IUaSCByteTransport? Transport
         {
-            get => m_transport;
-            set => m_transport = value;
+            get => Volatile.Read(ref m_transport);
+            set => Volatile.Write(ref m_transport, value);
         }
 
         /// <summary>
@@ -1704,14 +1668,128 @@ namespace Opc.Ua.Bindings
 
         private IUaSCByteTransport? m_transport;
         private readonly BackgroundTaskScope m_backgroundWork;
-        private Task? m_receiveLoopTask;
 
         /// <summary>
-        /// The receive loop currently installed, or <c>null</c> when none is.
-        /// Swapped atomically so the transport a loop reads from and the source
-        /// that stops it are always seen together.
+        /// Coordinates cancellation and completion of one receive loop without disposing an active cancellation source.
         /// </summary>
-        private ReceiveLoopEpoch? m_receiveLoop;
+        private sealed class ReceiveLoop : IDisposable
+        {
+            /// <summary>
+            /// Associates a transport with a stable cancellation token and completion signal.
+            /// </summary>
+            public ReceiveLoop(IUaSCByteTransport transport)
+            {
+                Transport = transport;
+                Token = m_cancellation.Token;
+            }
+
+            /// <summary>
+            /// Gets the transport exclusively read by this receive-loop instance.
+            /// </summary>
+            public IUaSCByteTransport Transport { get; }
+
+            /// <summary>
+            /// Gets the token captured before the loop's cancellation source can be disposed.
+            /// </summary>
+            public CancellationToken Token { get; }
+
+            /// <summary>
+            /// Gets the signal that the receive-loop body has finished.
+            /// </summary>
+            public Task Completion => m_completion.Task;
+
+            /// <summary>
+            /// Gets whether the receive-loop body has reported completion.
+            /// </summary>
+            public bool IsCompleted => m_completion.Task.IsCompleted;
+
+            /// <summary>
+            /// Requests cancellation while keeping the source alive through any reentrant completion callback.
+            /// </summary>
+            public void Cancel()
+            {
+                lock (m_lock)
+                {
+                    if (m_finished)
+                    {
+                        return;
+                    }
+                    m_cancelling++;
+                    try
+                    {
+                        m_cancellation.Cancel();
+                    }
+                    finally
+                    {
+                        m_cancelling--;
+                        if (m_finished && m_cancelling == 0)
+                        {
+                            m_cancellation.Dispose();
+                        }
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Requests loop cancellation; source disposal is deferred until completion is safe.
+            /// </summary>
+            public void Dispose()
+            {
+                Cancel();
+            }
+
+            /// <summary>
+            /// Marks the loop finished and releases the cancellation source when no cancellation call is active.
+            /// </summary>
+            public void Complete()
+            {
+                lock (m_lock)
+                {
+                    m_finished = true;
+                    if (m_cancelling == 0)
+                    {
+                        m_cancellation.Dispose();
+                    }
+                }
+                m_completion.TrySetResult(true);
+            }
+
+            /// <summary>
+            /// Serializes cancellation-source disposal with cancellation and loop completion.
+            /// </summary>
+            private readonly Lock m_lock = new();
+
+            /// <summary>
+            /// Cancels pending receives for this loop without affecting a replacement loop.
+            /// </summary>
+            private readonly CancellationTokenSource m_cancellation = new();
+
+            /// <summary>
+            /// Signals that the receive-loop body no longer owns any pending receive work.
+            /// </summary>
+            private readonly TaskCompletionSource<bool> m_completion =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Records that completion has begun, preventing further cancellation requests.
+            /// </summary>
+            private bool m_finished;
+
+            /// <summary>
+            /// Counts active cancellation calls whose callbacks may reenter completion.
+            /// </summary>
+            private int m_cancelling;
+        }
+
+        /// <summary>
+        /// Serializes transport replacement with receive-loop registration and detachment.
+        /// </summary>
+        private readonly Lock m_receiveLoopLock = new();
+
+        /// <summary>
+        /// Holds the receive-loop lifetime associated with the currently attached transport.
+        /// </summary>
+        private ReceiveLoop? m_receiveLoop;
 
         private volatile TcpChannelStateEventHandler? m_stateChanged;
         private const uint kMaxValueLegacyTrue = TcpMessageLimits.MinSequenceNumber;

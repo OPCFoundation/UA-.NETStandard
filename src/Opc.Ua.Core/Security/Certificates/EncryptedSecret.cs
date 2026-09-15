@@ -53,6 +53,26 @@ namespace Opc.Ua
             Nonce? senderNonce,
             ICertificateValidatorEx? validator = null,
             bool doNotEncodeSenderCertificate = false)
+            : this(
+                context, securityPolicyUri, senderIssuerCertificates, receiverCertificate, receiverNonce,
+                senderCertificate, senderNonce, validator, doNotEncodeSenderCertificate, null)
+        {
+        }
+
+        /// <summary>
+        /// Configures secret processing with the negotiated policy and an optional symmetric-decryption implementation.
+        /// </summary>
+        internal EncryptedSecret(
+            IServiceMessageContext context,
+            string securityPolicyUri,
+            CertificateCollection? senderIssuerCertificates,
+            Certificate receiverCertificate,
+            Nonce? receiverNonce,
+            Certificate? senderCertificate,
+            Nonce? senderNonce,
+            ICertificateValidatorEx? validator,
+            bool doNotEncodeSenderCertificate,
+            Func<ArraySegment<byte>, SecurityPolicyInfo, byte[], byte[], ArraySegment<byte>>? decrypt)
         {
             SenderCertificate = senderCertificate;
             SenderIssuerCertificates = senderIssuerCertificates;
@@ -66,6 +86,8 @@ namespace Opc.Ua
                     $"Cannot resolve SecurityPolicy '{securityPolicyUri}'.",
                     nameof(securityPolicyUri));
             Context = context;
+            m_decrypt = decrypt ?? ((data, policy, key, iv) =>
+                CryptoUtils.SymmetricDecryptAndVerify(data, policy, key, iv));
         }
 
         /// <summary>
@@ -178,42 +200,37 @@ namespace Opc.Ua
             encryptingKey = new byte[encryptingKeySize];
             iv = new byte[blockSize];
 
-            byte[] secret = localNonce.GenerateSecret(remoteNonce, null) ??
-                throw new InvalidOperationException("Failed to generate secret.");
+            byte[]? secret = null;
             byte[]? keyData = null;
-
-            // The scope starts at the shared secret, not at the copy below: the
-            // derivation in between can throw, and neither of these leaves this
-            // method. The secret is the worse of the two to leave behind - it
-            // derives the keys for every message of the exchange, not just this
-            // one.
+            bool created = false;
             try
             {
+                secret = localNonce.GenerateSecret(remoteNonce, null) ??
+                    throw new InvalidOperationException("Failed to generate secret.");
                 byte[] keyLength = BitConverter.GetBytes((ushort)(encryptingKeySize + blockSize));
-
                 byte[] salt = Utils.Append(
                     keyLength,
                     s_secretLabel,
                     forDecryption ? remoteNonce.Data : localNonce.Data,
                     forDecryption ? localNonce.Data : remoteNonce.Data);
-
                 keyData = localNonce.DeriveKeyData(
                     secret,
                     salt,
                     securityPolicy.KeyDerivationAlgorithm,
                     encryptingKeySize + blockSize);
-
                 Buffer.BlockCopy(keyData, 0, encryptingKey, 0, encryptingKey.Length);
                 Buffer.BlockCopy(keyData, encryptingKeySize, iv, 0, iv.Length);
+                created = true;
             }
             finally
             {
-                if (keyData != null)
+                ZeroMemory(secret);
+                ZeroMemory(keyData);
+                if (!created)
                 {
-                    CryptoUtils.ZeroMemory(keyData);
+                    ZeroMemory(encryptingKey);
+                    ZeroMemory(iv);
                 }
-
-                CryptoUtils.ZeroMemory(secret);
             }
         }
 
@@ -1240,6 +1257,9 @@ namespace Opc.Ua
             return DecryptVerifiedEcc(dataToDecrypt, expectedNonce);
         }
 
+        /// <summary>
+        /// Decrypts a verified ECC payload, validates its nonce and padding, and clears temporary secret material.
+        /// </summary>
         private byte[] DecryptVerifiedEcc(ArraySegment<byte> dataToDecrypt, byte[] expectedNonce)
         {
             if (ReceiverNonce == null || SenderNonce == null)
@@ -1247,35 +1267,24 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadArgumentsMissing, "Receiver and sender nonces are required for ECC decryption.");
             }
 
-            CreateKeysForEcc(
-                SecurityPolicy,
-                ReceiverNonce!,
-                SenderNonce!,
-                true,
-                out byte[] encryptingKey,
-                out byte[] iv);
-
+            byte[]? encryptingKey = null;
+            byte[]? iv = null;
+            ByteString actualNonce = default;
+            ByteString key = default;
             try
             {
-                ArraySegment<byte> plainText = CryptoUtils.SymmetricDecryptAndVerify(
-                    dataToDecrypt,
-                    SecurityPolicy,
-                    encryptingKey,
-                    iv);
-
-
+                CreateKeysForEcc(SecurityPolicy, ReceiverNonce, SenderNonce, true, out encryptingKey, out iv);
+                ArraySegment<byte> plainText = m_decrypt(dataToDecrypt, SecurityPolicy, encryptingKey, iv);
                 using var decoder = new BinaryDecoder(
                     plainText.GetArray(),
                     plainText.Offset + dataToDecrypt.Offset,
                     plainText.Count - dataToDecrypt.Offset,
                     Context);
-
-                ByteString actualNonce = decoder.ReadByteString(null);
+                actualNonce = decoder.ReadByteString(null);
 
                 if (expectedNonce != null && expectedNonce.Length > 0)
                 {
                     int notvalid = expectedNonce.Length == actualNonce.Length ? 0 : 1;
-
                     for (int ii = 0; ii < expectedNonce.Length && ii < actualNonce.Length; ii++)
                     {
                         notvalid |= expectedNonce[ii] ^ actualNonce.Span[ii];
@@ -1287,11 +1296,10 @@ namespace Opc.Ua
                     }
                 }
 
-                ByteString key = decoder.ReadByteString(null);
+                key = decoder.ReadByteString(null);
                 byte paddingCount = decoder.ReadByte(null);
 
                 int error = 0;
-
                 for (int ii = 0; ii < paddingCount; ii++)
                 {
                     byte padding = decoder.ReadByte(null);
@@ -1309,25 +1317,13 @@ namespace Opc.Ua
             }
             finally
             {
-                // The decryption writes the secret in place, over the buffer the
-                // caller handed in, and only the extracted key is copied out - so
-                // without this the plain text lives on in that buffer.
-                //
-                // The region is taken from dataToDecrypt, not from the returned
-                // segment: SymmetricDecryptAndVerify decrypts first and verifies
-                // afterwards, so on a signature or padding failure it throws with
-                // the plain text already written and nothing returned. That is
-                // precisely the path this has to cover.
-                if (dataToDecrypt.Array != null)
-                {
-                    CryptoUtils.ZeroMemory(
-                        dataToDecrypt.Array.AsSpan(
-                            dataToDecrypt.Offset,
-                            dataToDecrypt.Count));
-                }
-
-                CryptoUtils.ZeroMemory(encryptingKey);
-                CryptoUtils.ZeroMemory(iv);
+                ZeroMemory(encryptingKey);
+                ZeroMemory(iv);
+                ClearDecodedBytes(actualNonce);
+                ClearDecodedBytes(key);
+                // Decryption can fail after overwriting the input, without
+                // returning a plaintext segment. Clear the original payload.
+                CryptoUtils.ZeroMemory(dataToDecrypt.AsSpan());
             }
         }
 
@@ -1350,6 +1346,28 @@ namespace Opc.Ua
             return sha1.ComputeHash(data);
 #endif
 #pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
+        }
+
+        /// <summary>
+        /// Performs authenticated symmetric decryption using the derived key and initialization vector.
+        /// </summary>
+        private readonly Func<ArraySegment<byte>, SecurityPolicyInfo, byte[], byte[], ArraySegment<byte>> m_decrypt;
+
+        /// <summary>
+        /// Erases the exclusively owned backing array of a byte string allocated while decoding a secret.
+        /// </summary>
+        private static void ClearDecodedBytes(ByteString value)
+        {
+            if (value.IsEmpty)
+            {
+                return;
+            }
+            // BinaryDecoder allocates these byte strings; no caller owns or shares their backing arrays.
+            if (!System.Runtime.InteropServices.MemoryMarshal.TryGetArray(value.Memory, out ArraySegment<byte> bytes))
+            {
+                throw new InvalidOperationException("Decoded secret bytes must have an owned array buffer.");
+            }
+            CryptoUtils.ZeroMemory(bytes.AsSpan());
         }
 
         private static void ZeroMemory(byte[]? buffer)

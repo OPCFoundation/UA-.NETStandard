@@ -236,6 +236,29 @@ services.AddOpcUa()
 Production deployments should register an `IKeyCredentialStore` backed by
 a durable secret store before calling `WithKeyCredentialPush()`.
 
+`GetEncryptingKey` returns an application certificate from the server's active
+certificate registry. `UpdateCredential` decrypts a UA Binary
+`RsaEncryptedSecret` before passing the usable secret to `IKeyCredentialStore`.
+It verifies the declared policy, certificate thumbprint, envelope, signature
+and timestamp; invalid input never reaches the store. Both methods require
+the SecurityAdmin role and an encrypted SecureChannel.
+
+The push binding accepts `Basic256Sha256`, `Aes128_Sha256_RsaOaep` and
+`Aes256_Sha256_RsaPss`. Restrict or reorder these through
+`KeyCredentialPushOptions.AllowedSecurityPolicyUris`; the first entry is the
+default for `GetEncryptingKey`. ECC/RSA-DH policies are explicitly rejected
+with `BadSecurityPolicyRejected`: this binding does not provide the required
+ephemeral-key exchange. Omitting the policy **and** certificate thumbprint
+retains the standard clear-secret-over-encrypted-channel mode. Supplying a
+policy never causes ciphertext to be stored as if it were a plaintext secret.
+
+For direct construction, the original constructor remains available and
+`ConfigurationNodeManager.BindKeyCredentialPushAsync` supplies the server's
+registry. A standalone caller can instead pass an `ICertificateRegistry`
+and `ISecurityPolicyRegistry` to the additional constructor. Temporary decode
+buffers are cleared; the credential record handed to a custom store remains
+valid if that store retains it.
+
 ## Experimental KeyCredential Issued-Token Bridge
 
 > **WARNING — EXPERIMENTAL**: `KeyCredentialBridgeAuthenticator` is a

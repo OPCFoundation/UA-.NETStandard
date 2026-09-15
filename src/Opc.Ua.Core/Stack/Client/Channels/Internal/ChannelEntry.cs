@@ -129,18 +129,38 @@ namespace Opc.Ua
         /// </summary>
         internal long ReconnectGeneration => Interlocked.Read(ref m_reconnectGeneration);
 
+        /// <summary>
+        /// Gets the currently installed transport without transferring its ownership from this entry.
+        /// </summary>
         public ITransportChannel? Underlying
         {
             get
             {
                 lock (m_lock)
                 {
-                    return m_underlying;
+                    return m_underlying?.Channel;
                 }
             }
         }
 
         public event Action<IManagedTransportChannel, ChannelStateChange>? StateChanged;
+
+        /// <summary>
+        /// Acquires an independent snapshot of the certificate material actually installed on this entry's transport.
+        /// </summary>
+        internal ClientChannelCertificateSnapshot SnapshotClientCertificate()
+        {
+            lock (m_lock)
+            {
+                OwnedTransport transport = m_underlying ?? throw new ServiceResultException(
+                    StatusCodes.BadSecureChannelClosed,
+                    "The managed transport is closed.");
+                return new ClientChannelCertificateSnapshot(
+                    transport.Certificates.Certificate,
+                    transport.Certificates.Chain,
+                    m_clientCertificateVersion);
+            }
+        }
 
         /// <summary>
         /// Open the initial transport channel. Called once per
@@ -156,7 +176,7 @@ namespace Opc.Ua
 
             try
             {
-                ITransportChannel channel = await CreateTransportChannelAsync(
+                OwnedTransport channel = await CreateTransportChannelAsync(
                     clientCertificate, clientCertificateChain, ct)
                     .ConfigureAwait(false);
                 bool entryClosed;
@@ -545,12 +565,15 @@ namespace Opc.Ua
         internal bool ReconnectStoppedByRetryPolicy
             => Volatile.Read(ref m_reconnectStoppedByRetryPolicy) != 0;
 
+        /// <summary>
+        /// Consumes a pending retry-delay hint when the current transport supports server-provided backoff.
+        /// </summary>
         private TimeSpan? ConsumeServerRetryAfterHint()
         {
             ITransportChannel? underlying;
             lock (m_lock)
             {
-                underlying = m_underlying;
+                underlying = m_underlying?.Channel;
             }
 
             return underlying is IServerRetryAfterHintProvider provider
@@ -702,11 +725,14 @@ namespace Opc.Ua
 #endif
         }
 
+        /// <summary>
+        /// Closes the entry, fails readiness waiters, and releases its transport, certificate handles, and metrics.
+        /// </summary>
         private async Task TearDownAsync(
             ChannelCloseReason reason,
             bool onlyIfUnused = false)
         {
-            ITransportChannel? underlying;
+            OwnedTransport? underlying;
             bool activeMetricRecorded;
             lock (m_lock)
             {
@@ -740,22 +766,7 @@ namespace Opc.Ua
 
             if (underlying != null)
             {
-                try
-                {
-                    await underlying.CloseAsync(default).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    OwnerManager.Logger?.ChannelEntryLog0(ex);
-                }
-                try
-                {
-                    OwnerManager.CloseChannel(underlying);
-                }
-                catch (Exception ex)
-                {
-                    OwnerManager.Logger?.ChannelEntryLog1(ex);
-                }
+                await CloseTransportBestEffortAsync(underlying).ConfigureAwait(false);
                 OwnerManager.OnEntryClosed(this, reason);
             }
 
@@ -767,6 +778,10 @@ namespace Opc.Ua
             OwnerManager.RemoveEntryIfPresent(Key, this);
         }
 
+        /// <summary>
+        /// Reconnects the transport and its participants within the retry policy while rejecting superseded
+        /// certificates.
+        /// </summary>
         private async Task RunReconnectCycleAsync(
             TaskCompletionSource<bool> tcs)
         {
@@ -914,6 +929,16 @@ namespace Opc.Ua
                         continue;
                     }
 
+                    if (!HasCurrentClientCertificate())
+                    {
+                        var error = ServiceResult.Create(
+                            StatusCodes.BadSecureChannelClosed,
+                            "Client certificate changed during transport reconnect.");
+                        OwnerManager.OnEntryReconnectFailed(this, attempt, kReconnectOutcomeTransientFailure, error);
+                        // Rotation supersedes successful work without consuming a failed-attempt retry.
+                        continue;
+                    }
+
                     TransitionTo(
                         ChannelState.TransportConnectedSessionReactivating,
                         error: null,
@@ -957,13 +982,18 @@ namespace Opc.Ua
                         return;
                     }
 
-                    if (outcome.AnyTransient)
+                    if (outcome.AnyTransient || !HasCurrentClientCertificate())
                     {
                         var error = ServiceResult.Create(
                             StatusCodes.BadSecureChannelClosed,
-                            "Participant signaled transient channel reconnect failure.");
+                            outcome.AnyTransient
+                                ? "Participant signaled transient channel reconnect failure."
+                                : "Client certificate changed during session reactivation.");
                         OwnerManager.OnEntryReconnectFailed(this, attempt, kReconnectOutcomeTransientFailure, error);
-                        attempt++;
+                        if (outcome.AnyTransient)
+                        {
+                            attempt++;
+                        }
                         continue;
                     }
 
@@ -1012,25 +1042,27 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Reconnects a reusable transport or replaces it when the current certificate configuration has changed.
+        /// </summary>
         private async Task EnsureTransportConnectedAsync(CancellationToken ct)
         {
-            (Certificate? clientCert, CertificateCollection? clientChain, long certVersion) =
-                OwnerManager.SnapshotClientCertificate();
-            ITransportChannel? underlying;
+            using ClientChannelCertificateSnapshot certificates = OwnerManager.SnapshotClientCertificate();
+            OwnedTransport? underlying;
             bool certificateChanged;
             lock (m_lock)
             {
                 underlying = m_underlying;
-                certificateChanged = m_clientCertificateVersion != certVersion;
+                certificateChanged = m_clientCertificateVersion != certificates.Version;
             }
 
             if (!certificateChanged &&
                 underlying != null &&
-                (underlying.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+                (underlying.Channel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
             {
                 try
                 {
-                    await underlying.ReconnectAsync(ReverseConnection, ct).ConfigureAwait(false);
+                    await underlying.Channel.ReconnectAsync(ReverseConnection, ct).ConfigureAwait(false);
                     MarkOpened();
                     return;
                 }
@@ -1044,10 +1076,10 @@ namespace Opc.Ua
                 }
             }
 
-            ITransportChannel fresh = await CreateTransportChannelAsync(
-                clientCert, clientChain, ct).ConfigureAwait(false);
+            OwnedTransport fresh = await CreateTransportChannelAsync(
+                certificates.Certificate, certificates.Chain, ct).ConfigureAwait(false);
 
-            ITransportChannel? old;
+            OwnedTransport? old;
             bool entryClosed;
             lock (m_lock)
             {
@@ -1060,7 +1092,7 @@ namespace Opc.Ua
                 {
                     old = m_underlying;
                     m_underlying = fresh;
-                    m_clientCertificateVersion = certVersion;
+                    m_clientCertificateVersion = certificates.Version;
                 }
             }
             if (entryClosed)
@@ -1078,11 +1110,27 @@ namespace Opc.Ua
             }
         }
 
-        private async ValueTask CloseTransportBestEffortAsync(ITransportChannel channel)
+        /// <summary>
+        /// Determines whether the installed transport still uses the manager's current certificate version.
+        /// </summary>
+        private bool HasCurrentClientCertificate()
         {
+            using ClientChannelCertificateSnapshot current = OwnerManager.SnapshotClientCertificate();
+            lock (m_lock)
+            {
+                return m_clientCertificateVersion == current.Version;
+            }
+        }
+
+        /// <summary>
+        /// Attempts both transport close paths and releases retained certificate material even if either close fails.
+        /// </summary>
+        private async ValueTask CloseTransportBestEffortAsync(OwnedTransport transport)
+        {
+            using ClientChannelCertificateSnapshot certificates = transport.Certificates;
             try
             {
-                await channel.CloseAsync(default).ConfigureAwait(false);
+                await transport.Channel.CloseAsync(default).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -1090,7 +1138,7 @@ namespace Opc.Ua
             }
             try
             {
-                OwnerManager.CloseChannel(channel);
+                OwnerManager.CloseChannel(transport.Channel);
             }
             catch (Exception ex)
             {
@@ -1150,20 +1198,43 @@ namespace Opc.Ua
         }
 #endif
 
-        private async Task<ITransportChannel> CreateTransportChannelAsync(
+        /// <summary>
+        /// Opens a transport with independently retained certificate handles and cleans up ownership on failure.
+        /// </summary>
+        private async Task<OwnedTransport> CreateTransportChannelAsync(
             Certificate? clientCertificate,
             CertificateCollection? clientCertificateChain,
             CancellationToken ct)
         {
-            ITransportChannel channel = await OwnerManager.CreateChannelAsync(
-                Endpoint,
-                clientCertificate,
-                clientCertificateChain,
-                ReverseConnection,
-                ct).ConfigureAwait(false);
-            MarkOpened();
-            OwnerManager.OnEntryOpened(this);
-            return channel;
+            ClientChannelCertificateSnapshot? certificates = new(
+                clientCertificate, clientCertificateChain, version: 0);
+            OwnedTransport? transport = null;
+            try
+            {
+                ITransportChannel channel = await OwnerManager.CreateChannelAsync(
+                    Endpoint,
+                    certificates.Certificate,
+                    certificates.Chain,
+                    ReverseConnection,
+                    ct).ConfigureAwait(false);
+                transport = new OwnedTransport(channel, certificates);
+                certificates = null;
+                MarkOpened();
+                OwnerManager.OnEntryOpened(this);
+                return transport;
+            }
+            catch
+            {
+                if (transport != null)
+                {
+                    await CloseTransportBestEffortAsync(transport).ConfigureAwait(false);
+                }
+                throw;
+            }
+            finally
+            {
+                certificates?.Dispose();
+            }
         }
 
         private void MarkOpened()
@@ -1174,6 +1245,9 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Reactivates a snapshot of active lease participants and aggregates their timeout and failure outcomes.
+        /// </summary>
         private async Task<AggregatedReactivationOutcome> NotifyParticipantsAsync(
             int attempt, CancellationToken ct)
         {
@@ -1204,7 +1278,9 @@ namespace Opc.Ua
                         }
 
                         ObserveFaultedParticipantTask(reconnectTask);
-                        return await reconnectTask.WaitAsync(participantTimeout, ct).ConfigureAwait(false);
+                        return await reconnectTask
+                            .WaitAsync(participantTimeout, OwnerManager.TimeProvider, ct)
+                            .ConfigureAwait(false);
                     }
                     catch (TimeoutException)
                     {
@@ -1480,7 +1556,31 @@ namespace Opc.Ua
         private ServiceResult? m_lastError;
         private ChannelState m_state = ChannelState.Disconnected;
         private bool m_closing;
-        private ITransportChannel? m_underlying;
+
+        /// <summary>
+        /// Couples a transport with the certificate references that must remain alive until it closes.
+        /// </summary>
+        /// <param name="channel">The transport whose lifetime is managed by the entry.</param>
+        /// <param name="certificates">The certificate snapshot retained for that transport.</param>
+        private sealed class OwnedTransport(
+            ITransportChannel channel,
+            ClientChannelCertificateSnapshot certificates)
+        {
+            /// <summary>
+            /// Gets the transport opened with the retained certificate snapshot.
+            /// </summary>
+            public ITransportChannel Channel { get; } = channel;
+
+            /// <summary>
+            /// Gets the certificate references released after the transport is closed.
+            /// </summary>
+            public ClientChannelCertificateSnapshot Certificates { get; } = certificates;
+        }
+
+        /// <summary>
+        /// Holds the installed transport and its certificate ownership until replacement or entry teardown.
+        /// </summary>
+        private OwnedTransport? m_underlying;
         private long m_reconnectGeneration;
         private long m_clientCertificateVersion;
         private TaskCompletionSource<bool> m_readyGate;

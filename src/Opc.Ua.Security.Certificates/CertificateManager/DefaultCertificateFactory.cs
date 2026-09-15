@@ -116,6 +116,17 @@ namespace Opc.Ua.Security.Certificates
             Certificate certificate,
             IReadOnlyList<string>? domainNames = null)
         {
+            return CreateSigningRequest(certificate, certificate.SubjectName, domainNames);
+        }
+
+        /// <summary>
+        /// Creates a signing request using the existing key and an explicit subject.
+        /// </summary>
+        internal static byte[] CreateSigningRequest(
+            Certificate certificate,
+            X500DistinguishedName subjectName,
+            IReadOnlyList<string>? domainNames)
+        {
             if (!certificate.HasPrivateKey)
             {
                 throw new NotSupportedException(
@@ -124,27 +135,23 @@ namespace Opc.Ua.Security.Certificates
 
             bool isECDsa = X509PfxUtils.IsECDsaSignature(certificate);
             CertificateRequest request;
+            using RSA? rsaPublicKey = !isECDsa ? certificate.GetRSAPublicKey() : null;
+            using ECDsa? ecDsaPublicKey = isECDsa ? certificate.GetECDsaPublicKey() : null;
 
             if (!isECDsa)
             {
-                RSA rsaPublicKey = certificate.GetRSAPublicKey()
-                    ?? throw new NotSupportedException(
-                        "The certificate does not contain an RSA public key.");
                 request = new CertificateRequest(
-                    certificate.SubjectName,
-                    rsaPublicKey,
+                    subjectName,
+                    rsaPublicKey ?? throw new NotSupportedException("The certificate does not contain an RSA public key."),
                     Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value ??
                         throw new CryptographicException("Signature algorithm OID value is null.")),
                     RSASignaturePadding.Pkcs1);
             }
             else
             {
-                ECDsa ecDsaPublicKey = certificate.GetECDsaPublicKey()
-                    ?? throw new NotSupportedException(
-                        "The certificate does not contain an ECDsa public key.");
                 request = new CertificateRequest(
-                    certificate.SubjectName,
-                    ecDsaPublicKey,
+                    subjectName,
+                    ecDsaPublicKey ?? throw new NotSupportedException("The certificate does not contain an ECDsa public key."),
                     Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value ??
                         throw new CryptographicException("Signature algorithm OID value is null.")));
             }

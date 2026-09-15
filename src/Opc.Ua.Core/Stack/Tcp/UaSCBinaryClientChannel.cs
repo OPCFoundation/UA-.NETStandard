@@ -759,14 +759,14 @@ namespace Opc.Ua.Bindings
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
-                    SaveIntermediateChunk(requestId, messageBody, false, gateHeld: true);
                     bodyOwned = false;
+                    SaveIntermediateChunk(requestId, messageBody, false, gateHeld: true);
                     return false;
                 }
 
                 // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody, false, gateHeld: true);
                 bodyOwned = false;
+                chunksToProcess = GetSavedChunks(requestId, messageBody, false, gateHeld: true);
 
                 // read message body.
 
@@ -891,6 +891,27 @@ namespace Opc.Ua.Bindings
         protected override void HandleSocketError(ServiceResult result)
         {
             ForceReconnect(result);
+        }
+
+        /// <summary>
+        /// Starts reconnect only for failures from the currently attached, uncancelled transport.
+        /// </summary>
+        private protected override void OnTransportError(
+            IUaSCByteTransport transport,
+            ServiceResult result,
+            CancellationToken ct)
+        {
+            if (ct.IsCancellationRequested || !ReferenceEquals(Transport, transport))
+            {
+                return;
+            }
+            using (Gate.Enter())
+            {
+                if (!ct.IsCancellationRequested && ReferenceEquals(Transport, transport))
+                {
+                    ForceReconnectCore(result);
+                }
+            }
         }
 
         /// <summary>
@@ -1816,27 +1837,23 @@ namespace Opc.Ua.Bindings
             }
 
             // check if operation is still available.
-            if (!m_requests.TryGetValue(requestId, out WriteOperation? operation))
+            m_requests.TryGetValue(requestId, out WriteOperation? operation);
+
+            // check for replay attacks.
+            if (!VerifySequenceNumber(sequenceNumber, "ProcessResponseMessage"))
+            {
+                m_logger.InvalidResponseSequence(ChannelId, sequenceNumber);
+                var error = new ServiceResult(StatusCodes.BadSecurityChecksFailed);
+                operation?.Fault(true, error);
+                ForceReconnect(error);
+                return false;
+            }
+            if (operation == null)
             {
                 return false;
             }
 
             BufferCollection? chunksToProcess = null;
-
-            // Check for replay attacks. Handled the same way as a failed security
-            // check above: throwing here would only reach the receive loop's
-            // catch-all, which logs the error and moves on, leaving the pending
-            // operation to hang until it times out on a channel that is still
-            // open and still trusting the peer's sequence numbers.
-            if (!VerifySequenceNumber(sequenceNumber, "ProcessResponseMessage"))
-            {
-                ForceReconnect(
-                    ServiceResult.Create(
-                        StatusCodes.BadSequenceNumberInvalid,
-                        "Invalid sequence number in response."));
-                return false;
-            }
-
             try
             {
                 // check for an abort.
@@ -2144,6 +2161,13 @@ namespace Opc.Ua.Bindings
         public static partial void UaSCClientLog36(
             this ILogger logger,
             global::System.Exception? exception);
+
+        /// <summary>
+        /// Reports a response sequence number rejected by the secure-channel sequence checks.
+        /// </summary>
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 37, Level = LogLevel.Error,
+            Message = "ChannelId {ChannelId}: BadSequenceNumberInvalid in response (sequence {SequenceNumber}).")]
+        public static partial void InvalidResponseSequence(this ILogger logger, uint channelId, uint sequenceNumber);
     }
 
 }

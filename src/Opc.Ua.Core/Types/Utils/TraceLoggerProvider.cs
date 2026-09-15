@@ -168,21 +168,14 @@ namespace Opc.Ua
                 // no op.
             }
 
+            /// <summary>
+            /// Enables non-None levels when an event listener or configured trace output can receive messages.
+            /// </summary>
             public bool IsEnabled(LogLevel logLevel)
             {
-                // Log() writes when either the trace mask or a Tracing handler
-                // lets the message through, so both have to be considered here.
-                // Reporting only the handler makes every source-generated log
-                // call short-circuit, and nothing reaches the trace file when no
-                // handler is subscribed - the usual case.
-                //
-                // The event id is not available at this point, and a core event
-                // id carries its own category bits rather than following from
-                // the level, so deriving a mask from the level alone would
-                // report a configured category disabled and the call would never
-                // reach Log(). This therefore answers "something is configured"
-                // and leaves the exact, event-specific filtering to Log().
-                return Tracing.IsEnabled() || m_provider.TraceMask != 0;
+                // The event ID owns category filtering; the level alone cannot decide it.
+                return logLevel != LogLevel.None &&
+                    (Tracing.IsEnabled() || m_provider.HasEnabledTraceOutput());
             }
 
             public void Log<TState>(
@@ -201,6 +194,33 @@ namespace Opc.Ua
             }
 
             private readonly TraceLoggerProvider m_provider;
+        }
+
+        /// <summary>
+        /// Checks whether the trace mask and output settings permit file output or the debug-build fallback.
+        /// </summary>
+        private bool HasEnabledTraceOutput()
+        {
+            if (TraceMask == Utils.TraceMasks.None)
+            {
+                return false;
+            }
+            lock (m_traceFileLock)
+            {
+                if (m_traceOutput == (int)Utils.TraceOutput.Off)
+                {
+                    return false;
+                }
+                if (!string.IsNullOrEmpty(m_traceFileName))
+                {
+                    return true;
+                }
+#if DEBUG
+                return m_traceOutput == (int)Utils.TraceOutput.DebugAndFile;
+#else
+                return false;
+#endif
+            }
         }
 
         /// <summary>

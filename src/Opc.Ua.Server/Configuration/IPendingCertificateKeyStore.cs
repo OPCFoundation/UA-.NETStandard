@@ -101,6 +101,33 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// Supports validated, atomic consumption and failure compensation for pending signing keys.
+    /// </summary>
+    public interface IMatchingPendingCertificateKeyStore : IPendingCertificateKeyStore
+    {
+        /// <summary>
+        /// Consumes the pending key only if it matches the supplied certificate.
+        /// A mismatch leaves the pending key untouched. The caller owns the returned handle.
+        /// </summary>
+        /// <remarks>
+        /// The supplied upload must already have been validated for the scope's certificate type and usage.
+        /// </remarks>
+        ValueTask<Certificate?> TryTakeMatchingAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificate,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Restores a consumed key after staging fails, only if its scope is still empty.
+        /// Returns false rather than replacing a newer signing request. The caller retains the input handle.
+        /// </summary>
+        ValueTask<bool> TryRestoreAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificateWithPrivateKey,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// Identifies the scope of a pending regenerated private key and
     /// carries the collaborators an <see cref="IPendingCertificateKeyStore"/>
     /// needs to persist it securely.

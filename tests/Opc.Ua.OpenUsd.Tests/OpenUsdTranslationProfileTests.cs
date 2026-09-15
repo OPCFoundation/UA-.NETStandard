@@ -47,6 +47,9 @@ namespace Opc.Ua.OpenUsd.Tests
     [Parallelizable]
     public sealed class OpenUsdTranslationProfileTests
     {
+        /// <summary>
+        /// Verifies structured Cartesian coordinates produce the exact three-axis translation vector.
+        /// </summary>
         [Test]
         public void StructuredCartesianCoordinatesAreAccepted()
         {
@@ -68,7 +71,8 @@ namespace Opc.Ua.OpenUsd.Tests
             Assert.That(converted.IsNull, Is.False,
                 "A structured 3D coordinate is the source shape the translation profile is " +
                 "defined for; leaving it unresolved would stop any prim following it.");
-            Assert.That(converted.ToString(), Does.Contain("1.5"));
+            Assert.That(converted.TryGetValue(out ArrayOf<double> coordinates), Is.True);
+            Assert.That(coordinates.ToArray(), Is.EqualTo(new[] { 1.5, -2.5, 3.5 }));
         }
 
         [Test]

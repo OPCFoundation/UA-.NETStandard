@@ -179,8 +179,6 @@ namespace Opc.Ua
             Interlocked.Exchange(ref m_active, 1);
         }
 
-        // ---- ITransportChannel forwarding ----
-
         /// <inheritdoc/>
         public TransportChannelFeatures SupportedFeatures
             => Entry.Underlying?.SupportedFeatures ?? TransportChannelFeatures.None;

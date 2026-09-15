@@ -29,7 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server.Fluent
 {
@@ -44,30 +44,31 @@ namespace Opc.Ua.Server.Fluent
     /// <para>
     /// State IDs are derived from <c>CurrentState.Id.Value</c> — a
     /// <see cref="NodeId"/> whose numeric identifier is the internal
-    /// state ID assigned by the subclass's state table. Captured in
-    /// the pre-transition coordinator (for <c>from</c>) and re-read in
-    /// the post-transition coordinator (for <c>to</c>).
+    /// state ID assigned by the subclass's state table. Each transition
+    /// receives its own immutable source and destination snapshots.
     /// </para>
     /// <para>
-    /// Threading: state-machine transitions are inherently sequential
-    /// per machine; the captured <c>fromStateId</c> field is safe
-    /// because only one transition can be in flight at any time on a
-    /// given <see cref="FiniteStateMachineState"/> instance.
+    /// Nested transition callbacks cannot overwrite another invocation's
+    /// source or destination state.
     /// </para>
     /// </remarks>
     internal sealed class StateMachineBuilder<TState> : IStateMachineBuilder<TState>
         where TState : FiniteStateMachineState
     {
+        /// <summary>
+        /// Composes fluent transition callbacks with the machine's existing callbacks and resolves timing services.
+        /// </summary>
         public StateMachineBuilder(INodeBuilder<TState> nodeBuilder)
         {
             m_nodeBuilder = nodeBuilder ?? throw new ArgumentNullException(nameof(nodeBuilder));
             StateMachine = nodeBuilder.Node;
 
-            m_existingBefore = StateMachine.OnBeforeTransition;
-            m_existingAfter = StateMachine.OnAfterTransition;
-
-            StateMachine.OnBeforeTransition = CoordinatorBefore;
-            StateMachine.OnAfterTransition = CoordinatorAfter;
+            m_existingCallbacks = StateMachine.TransitionCallbackFactory;
+            StateMachine.TransitionCallbackFactory = CreateCallbacks;
+            ISystemContext context = nodeBuilder.Builder.Context;
+            m_timeProvider = ((context as ServerSystemContext)?.Server as ITimeProviderProvider)?.TimeProvider
+                ?? TimeProvider.System;
+            m_logger = context.Telemetry.CreateLogger<StateMachineBuilder<TState>>();
         }
 
         public TState StateMachine { get; }
@@ -277,26 +278,42 @@ namespace Opc.Ua.Server.Fluent
             return this;
         }
 
-        // ──────────────────────────────────────────────────────────────────
-        // Composed coordinators
-        // ──────────────────────────────────────────────────────────────────
+        /// <summary>
+        /// Captures stable source and destination states for one invocation's composed transition callbacks.
+        /// </summary>
+        private (StateMachineTransitionHandler? Before, StateMachineTransitionHandler? After) CreateCallbacks(
+            uint from,
+            uint to,
+            StateMachineTransitionHandler? before,
+            StateMachineTransitionHandler? after)
+        {
+            if (m_existingCallbacks != null)
+            {
+                (before, after) = m_existingCallbacks(from, to, before, after);
+            }
+            return (
+                (context, machine, transition, cause, inputs, outputs) =>
+                    CoordinatorBefore(context, machine, transition, cause, inputs, outputs, from, before),
+                (context, machine, transition, cause, inputs, outputs) =>
+                    CoordinatorAfter(context, machine, transition, cause, inputs, outputs, from, to, after));
+        }
 
+        /// <summary>
+        /// Runs the existing pre-transition handler and fluent guards against the captured source state.
+        /// </summary>
         private ServiceResult CoordinatorBefore(
             ISystemContext context,
             StateMachineState machine,
             uint transitionId,
             uint causeId,
             ArrayOf<Variant> inputArguments,
-            List<Variant>? outputArguments)
+            List<Variant>? outputArguments,
+            uint fromStateId,
+            StateMachineTransitionHandler? existingBefore)
         {
-            // Capture from-state-id BEFORE any handler runs so guards
-            // (existing + fluent) can be checked against a stable value.
-            uint fromStateId = ReadCurrentStateId();
-            m_pendingFromStateId = fromStateId;
-
-            if (m_existingBefore != null)
+            if (existingBefore != null)
             {
-                ServiceResult existingResult = m_existingBefore(
+                ServiceResult existingResult = existingBefore(
                     context, machine, transitionId, causeId,
                     inputArguments, outputArguments);
                 if (ServiceResult.IsBad(existingResult))
@@ -325,20 +342,27 @@ namespace Opc.Ua.Server.Fluent
             return ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Runs post-transition observers with captured states and arms timers only for the current state revision.
+        /// </summary>
         private ServiceResult CoordinatorAfter(
             ISystemContext context,
             StateMachineState machine,
             uint transitionId,
             uint causeId,
             ArrayOf<Variant> inputArguments,
-            List<Variant>? outputArguments)
+            List<Variant>? outputArguments,
+            uint fromStateId,
+            uint toStateId,
+            StateMachineTransitionHandler? existingAfter)
         {
+            long revision = StateMachine.StateRevision;
             ServiceResult existingResult = ServiceResult.Good;
-            if (m_existingAfter != null)
+            if (existingAfter != null)
             {
                 try
                 {
-                    existingResult = m_existingAfter(
+                    existingResult = existingAfter(
                         context, machine, transitionId, causeId,
                         inputArguments, outputArguments);
                 }
@@ -348,17 +372,14 @@ namespace Opc.Ua.Server.Fluent
                 }
             }
 
-            uint fromStateId = m_pendingFromStateId;
-            m_pendingFromStateId = 0;
-            uint toStateId = ReadCurrentStateId();
-
             // Track the entered-state timestamp for timed transitions
             // before firing user callbacks so handlers see a coherent
             // arming state.
-            if (m_timedTransitions.Count > 0)
+            if (m_timedTransitions.Count > 0 && StateMachine.StateRevision == revision)
             {
-                m_currentStateEnteredAt = Stopwatch.GetTimestamp();
+                m_currentStateEnteredAt = m_timeProvider.GetTimestamp();
                 m_currentStateForTimer = toStateId;
+                m_currentStateRevision = revision;
             }
 
             if (fromStateId != 0 &&
@@ -395,20 +416,26 @@ namespace Opc.Ua.Server.Fluent
             return existingResult;
         }
 
+        /// <summary>
+        /// Fires an elapsed timed cause only while its observed state revision remains current.
+        /// </summary>
         private void OnSimulationTick(ISystemContext context, TimeSpan elapsed)
         {
             // No-op on the first tick after registration if we have not
             // observed any state entry yet.
-            if (m_currentStateForTimer == 0)
+            if (m_currentStateForTimer == 0 || m_currentStateRevision != StateMachine.StateRevision)
             {
                 m_currentStateForTimer = ReadCurrentStateId();
-                m_currentStateEnteredAt = Stopwatch.GetTimestamp();
+                m_currentStateEnteredAt = m_timeProvider.GetTimestamp();
+                m_currentStateRevision = StateMachine.StateRevision;
+                m_lastTimedRejection = null;
                 return;
             }
 
             uint stateId = m_currentStateForTimer;
+            long revision = m_currentStateRevision;
             long enteredAt = m_currentStateEnteredAt;
-            double elapsedSinceEnter = StopwatchElapsedSeconds(enteredAt);
+            double elapsedSinceEnter = m_timeProvider.GetElapsedTime(enteredAt).TotalSeconds;
 
             for (int i = 0; i < m_timedTransitions.Count; i++)
             {
@@ -429,29 +456,26 @@ namespace Opc.Ua.Server.Fluent
                     continue;
                 }
 
-                try
+                ServiceResult result = StateMachine.TryTimedTransition(
+                    context, t.FromStateId, revision, transitionId: 0, t.CauseId, static () => true);
+                if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadInvalidState)
                 {
-                    StateMachine.DoCause(
-                        context,
-                        causeMethod: null!,
-                        t.CauseId,
-                        inputArguments: default,
-                        outputArguments: []);
+                    var rejection = (t.FromStateId, revision, result.StatusCode);
+                    if (m_lastTimedRejection != rejection)
+                    {
+                        m_lastTimedRejection = rejection;
+                        m_logger.FluentTimedTransitionRejected(t.FromStateId, result);
+                    }
                 }
-                catch
+                else
                 {
-                    // Swallow per simulation-tick exception contract;
-                    // the registry's exception handling logs.
+                    m_lastTimedRejection = null;
                 }
                 // After firing, the entered-at field has been refreshed
                 // in CoordinatorAfter via the state transition.
                 break;
             }
         }
-
-        // ──────────────────────────────────────────────────────────────────
-        // Helpers
-        // ──────────────────────────────────────────────────────────────────
 
         private uint ReadCurrentStateId()
         {
@@ -477,6 +501,9 @@ namespace Opc.Ua.Server.Fluent
             return builder.Node;
         }
 
+        /// <summary>
+        /// Invokes state-entry or state-exit observers while logging failures without aborting the transition.
+        /// </summary>
         private void FireListSafely(
             List<Action<ISystemContext, TState>> list,
             ISystemContext context)
@@ -487,23 +514,29 @@ namespace Opc.Ua.Server.Fluent
                 {
                     list[i](context, StateMachine);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Observer callbacks must not abort the transition.
+                    m_logger.FluentStateObserverFailed(ex);
                 }
             }
         }
 
-        private static double StopwatchElapsedSeconds(long startTimestamp)
-        {
-            long now = Stopwatch.GetTimestamp();
-            long ticks = now - startTimestamp;
-            return ticks / (double)Stopwatch.Frequency;
-        }
-
         private readonly INodeBuilder<TState> m_nodeBuilder;
-        private readonly StateMachineTransitionHandler? m_existingBefore;
-        private readonly StateMachineTransitionHandler? m_existingAfter;
+
+        /// <summary>
+        /// Preserves the callback factory installed before fluent transition coordination.
+        /// </summary>
+        private readonly StateMachineTransitionCallbackFactory? m_existingCallbacks;
+
+        /// <summary>
+        /// Measures elapsed time for timed causes.
+        /// </summary>
+        private readonly TimeProvider m_timeProvider;
+
+        /// <summary>
+        /// Reports timed-cause rejections and observer failures.
+        /// </summary>
+        private readonly ILogger m_logger;
 
         private readonly Dictionary<uint, List<Action<ISystemContext, TState>>> m_onEnter
             = [];
@@ -518,9 +551,18 @@ namespace Opc.Ua.Server.Fluent
             = [];
 
         private readonly List<TimedTransition> m_timedTransitions = [];
-        private uint m_pendingFromStateId;
+
+        /// <summary>
+        /// Identifies the state entry for which the current timer was armed.
+        /// </summary>
+        private long m_currentStateRevision;
         private uint m_currentStateForTimer;
         private long m_currentStateEnteredAt;
+
+        /// <summary>
+        /// Suppresses repeated reports of the same timed-cause rejection within one state revision.
+        /// </summary>
+        private (uint StateId, long Revision, StatusCode Status)? m_lastTimedRejection;
         private bool m_simulationRegistered;
 
         private static readonly TimeSpan s_timedTransitionTickInterval =
@@ -539,5 +581,25 @@ namespace Opc.Ua.Server.Fluent
             public TimeSpan Timeout { get; }
             public uint CauseId { get; }
         }
+    }
+
+    /// <summary>
+    /// Records fluent state-machine timing and lifecycle observer failures.
+    /// </summary>
+    internal static partial class StateMachineBuilderLog
+    {
+        /// <summary>
+        /// Reports a timed cause rejected while its source state remains current.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.FluentStateMachineBuilder, Level = LogLevel.Warning,
+            Message = "Timed cause from state {StateId} was rejected: {Result}.")]
+        public static partial void FluentTimedTransitionRejected(this ILogger logger, uint stateId, ServiceResult result);
+
+        /// <summary>
+        /// Reports a state-entry or state-exit observer exception.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.FluentStateMachineBuilder + 1, Level = LogLevel.Error,
+            Message = "State-machine lifecycle observer failed.")]
+        public static partial void FluentStateObserverFailed(this ILogger logger, Exception exception);
     }
 }

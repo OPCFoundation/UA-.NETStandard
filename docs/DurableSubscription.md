@@ -33,6 +33,7 @@ Extend the ServerConfiguration
 
 ## Known limitations and issues
 
+- The Quickstarts queues return `false` from `Dequeue` while a batch is still being persisted or cannot be restored within the bounded wait. The queued item count is retained for a later attempt; completion of a failed restore does not mean that the batch data is resident. Restored batch files are deleted after their readers are closed.
 - Subscriptions are only persistet on a gracefuls shutdown. If the server crashes or needs to be shut down forcefully all `Subscriptions` / `MonitoredItems` are lost.
 - The Quickstarts durable-subscription store uses a versioned format and rejects files written by the previous unsafe format. User-name passwords are removed before persistence, and issued-token subscriptions are not persisted because their bearer token is the identity.
 - **Breaking change**: The Interfaces for INodeManager & IMonitoredItem were extended to support durable subscriptions.

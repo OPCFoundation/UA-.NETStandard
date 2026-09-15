@@ -44,6 +44,9 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class SentMessageQueueTests
     {
+        /// <summary>
+        /// Verifies that restoration preserves sequence state and dequeues an independent copy of the queued message.
+        /// </summary>
         [Test]
         public void CreateRestoredPreservesQueueStateAndDequeuesExistingMessages()
         {
@@ -71,7 +74,8 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(queue.NextSequenceNumber, Is.EqualTo(42u));
                 Assert.That(queue.LastSentMessage, Is.EqualTo(2));
-                Assert.That(result, Is.SameAs(messages[1]));
+                Assert.That(result, Is.Not.SameAs(messages[1]));
+                Assert.That(result!.IsEqual(messages[1]), Is.True);
                 Assert.That(availableSequenceNumbers, Has.Count.EqualTo(2));
                 Assert.That(moreNotifications, Is.False);
             });

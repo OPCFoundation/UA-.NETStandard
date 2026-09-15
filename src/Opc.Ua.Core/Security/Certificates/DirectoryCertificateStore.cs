@@ -340,11 +340,8 @@ namespace Opc.Ua
 
                 foreach (Certificate certificate in certificates)
                 {
-                    // Limit the number of certificates added per call. A maximum
-                    // of zero or less keeps no history at all, so this stops
-                    // before the first one - and the trim below then discards
-                    // whatever the store already held.
-                    if (entries >= maxCertificates)
+                    // Limit the number of certificates added per call; zero is unlimited.
+                    if (maxCertificates != 0 && entries >= maxCertificates)
                     {
                         break;
                     }
@@ -381,13 +378,12 @@ namespace Opc.Ua
                     entries++;
                 }
 
-                // Keep the newest maxCertificates entries and discard the rest;
-                // with a maximum of zero or less that discards everything.
+                // Preserve unlimited history at zero and the existing negative-cap pruning contract.
                 entries = 0;
                 foreach (Entry entry in m_certificates.Values
                     .OrderByDescending(e => e.LastWriteTimeUtc))
                 {
-                    if (++entries > maxCertificates)
+                    if (maxCertificates != 0 && ++entries > maxCertificates)
                     {
                         m_certificates.Remove(entry.Certificate.Thumbprint);
                         deleteEntryList.Add(entry);
@@ -463,46 +459,44 @@ namespace Opc.Ua
                                         kPemExtension,
                                         StringComparison.OrdinalIgnoreCase))
                                 {
-                                    if (PEMWriter.TryRemovePublicKeyFromPEM(
-                                            entry.Certificate.Thumbprint,
-                                            File.ReadAllBytes(entry.CertificateFile.FullName),
-                                            out byte[]? newContent) &&
-                                        newContent != null)
+                                    byte[] contents = File.ReadAllBytes(entry.CertificateFile.FullName);
+                                    byte[]? newContent = null;
+                                    try
                                     {
-                                        // FileMode.Create, not OpenOrCreate: the
-                                        // rewritten PEM is shorter than the one
-                                        // it replaces, and without truncating,
-                                        // the tail of the removed certificate
-                                        // stays in the file and parses again.
-                                        var writer = new BinaryWriter(
-                                            entry.CertificateFile
-                                                .Open(FileMode.Create, FileAccess.Write));
-                                        try
+                                        if (PEMWriter.TryRemovePublicKeyFromPEM(
+                                                entry.Certificate.Thumbprint, contents, out newContent) &&
+                                            newContent != null)
                                         {
-                                            writer.Write(newContent);
+                                            using CertificateCollection remaining = CertificateCollection.From(
+                                                PEMReader.ImportPublicKeysFromPEM(newContent));
+                                            if (remaining.Count == 0)
+                                            {
+                                                entry.CertificateFile.Delete();
+                                                if (entry.PrivateKeyFile != null &&
+                                                    entry.PrivateKeyFile.Exists)
+                                                {
+                                                    entry.PrivateKeyFile.Delete();
+                                                }
+                                            }
+                                            else
+                                            {
+                                                await ReplacePemFileAsync(
+                                                    entry.CertificateFile.FullName, newContent, ct).ConfigureAwait(false);
+                                            }
                                         }
-                                        finally
-                                        {
-                                            writer.Flush();
-                                            writer.Dispose();
-                                        }
-                                        if (PEMReader.ImportPublicKeysFromPEM(newContent)
-                                            .Count == 0)
+                                        else
                                         {
                                             entry.CertificateFile.Delete();
-                                            if (entry.PrivateKeyFile != null &&
-                                                entry.PrivateKeyFile.Exists)
-                                            {
-                                                entry.PrivateKeyFile.Delete();
-                                            }
                                         }
                                         found = true;
                                     }
-                                    // if no valid PEM content is found, delete the certificate file
-                                    else
+                                    finally
                                     {
-                                        entry.CertificateFile.Delete();
-                                        found = true;
+                                        CryptoUtils.ZeroMemory(contents);
+                                        if (newContent != null)
+                                        {
+                                            CryptoUtils.ZeroMemory(newContent);
+                                        }
                                     }
                                 }
                                 // no PEM file, just delete the certificate file
@@ -1576,6 +1570,35 @@ namespace Opc.Ua
             m_privateKeySubdir?.Refresh();
 
             return fileInfo;
+        }
+
+        /// <summary>
+        /// Writes replacement PEM contents to a temporary file and atomically replaces the existing file.
+        /// </summary>
+        private static async Task ReplacePemFileAsync(string fileName, byte[] contents, CancellationToken ct)
+        {
+            string temporaryFile = fileName + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                using (var stream = new FileStream(temporaryFile, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                    await stream.WriteAsync(contents.AsMemory(), ct).ConfigureAwait(false);
+#else
+                    await stream.WriteAsync(contents, 0, contents.Length, ct).ConfigureAwait(false);
+#endif
+                    await stream.FlushAsync(ct).ConfigureAwait(false);
+                }
+                ct.ThrowIfCancellationRequested();
+                File.Replace(temporaryFile, fileName, null);
+            }
+            finally
+            {
+                if (File.Exists(temporaryFile))
+                {
+                    File.Delete(temporaryFile);
+                }
+            }
         }
 
         private class Entry

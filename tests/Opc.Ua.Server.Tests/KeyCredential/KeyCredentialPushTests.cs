@@ -44,6 +44,9 @@ namespace Opc.Ua.Server.Tests.KeyCredential
     {
         private static readonly ITelemetryContext s_telemetry = NUnitTelemetryContext.Create();
 
+        /// <summary>
+        /// Verifies that updating a credential stores its plaintext secret and deleting the credential removes it.
+        /// </summary>
         [Test]
         public async Task UpdateCredentialThenDeleteCredentialUpdatesStore()
         {
@@ -62,8 +65,8 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                     credentialNode.NodeId,
                     "credential-1",
                     ByteString.From(secret),
-                    "thumbprint",
-                    SecurityPolicies.Basic256Sha256,
+                    string.Empty,
+                    string.Empty,
                     CancellationToken.None)
                 .ConfigureAwait(false);
 

@@ -1,0 +1,494 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using Moq;
+using NUnit.Framework;
+using Opc.Ua.Server.FileSystem;
+using Opc.Ua.Server.Tests.NodeManager;
+using Opc.Ua.Tests;
+
+namespace Opc.Ua.Server.Tests.FileSystem
+{
+    /// <summary>
+    /// Verifies mount-root protection and canonical path validation before file-system provider mutations.
+    /// </summary>
+    [TestFixture]
+    [Category("FileSystem")]
+    public sealed class FileSystemMountRegressionTests
+    {
+        /// <summary>
+        /// Verifies that alternative root identifiers cannot delete, move, or copy the mounted root.
+        /// </summary>
+        [Test]
+        public async Task AlternateRootIdsCannotDeleteMoveOrCopyMountAsync(
+            [Values("delete", "move", "copy")] string operation,
+            [Values("0:", "1:", "2:", "0:/", "0:\\", "0://")] string identifier)
+        {
+            Mock<IFileSystemProvider> provider = CreateProvider();
+            using FileSystemNodeManager manager = CreateManager(provider.Object);
+            var root = CreateRoot(manager);
+            var source = new NodeId(identifier, manager.NamespaceIndex);
+
+            ServiceResult result = await MutateAsync(root, manager.SystemContext, source, operation)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode.Code, Is.EqualTo(operation == "delete"
+                    ? StatusCodes.BadUserAccessDenied
+                    : StatusCodes.BadInvalidArgument));
+                VerifyNoMutation(provider);
+            });
+        }
+
+        /// <summary>
+        /// Verifies that noncanonical source paths are rejected before reaching any provider mutation.
+        /// </summary>
+        [Test]
+        public async Task NonCanonicalObjectPathsCannotDeleteMoveOrCopyAsync(
+            [Values("delete", "move", "copy")] string operation,
+            [ValueSource(nameof(s_nonCanonicalProviderPaths))] string providerPath,
+            [Values(false, true)] bool isDirectory)
+        {
+            Mock<IFileSystemProvider> provider = CreateProvider();
+            using FileSystemNodeManager manager = CreateManager(provider.Object);
+            var root = CreateRoot(manager);
+            NodeId source = isDirectory
+                ? FileSystemNodeId.BuildDirectory(providerPath, manager.NamespaceIndex)
+                : FileSystemNodeId.BuildFile(providerPath, manager.NamespaceIndex);
+
+            ServiceResult result = await MutateAsync(root, manager.SystemContext, source, operation)
+                .ConfigureAwait(false);
+
+            StatusCode expectedStatus = operation != "delete"
+                ? StatusCodes.BadInvalidArgument
+                : providerPath is "/" or "\\" or "//" or "\\\\" or "/\\/"
+                    ? StatusCodes.BadUserAccessDenied
+                    : StatusCodes.BadInvalidState;
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(expectedStatus));
+                VerifyNoMutation(provider);
+            });
+        }
+
+        /// <summary>
+        /// Verifies that noncanonical destination paths reject moves and copies without returning a new node.
+        /// </summary>
+        [Test]
+        public async Task NonCanonicalMoveOrCopyTargetsDoNotInvokeProviderAsync(
+            [Values(false, true)] bool createCopy,
+            [ValueSource(nameof(s_invalidNonRootPaths))] string providerPath)
+        {
+            Mock<IFileSystemProvider> provider = CreateProvider();
+            using FileSystemNodeManager manager = CreateManager(provider.Object);
+            var root = CreateRoot(manager);
+            NodeId source = FileSystemNodeId.BuildFile("sub/keep.txt", manager.NamespaceIndex);
+            NodeId target = FileSystemNodeId.BuildDirectory(providerPath, manager.NamespaceIndex);
+
+            MoveOrCopyMethodStateResult result = await root.MoveOrCopy!.OnCallAsync!(
+                manager.SystemContext, root.MoveOrCopy, root.NodeId, source, target,
+                createCopy, "renamed.txt", CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(result.NewNodeId.IsNull, Is.True);
+                VerifyNoMutation(provider);
+            });
+        }
+
+        /// <summary>
+        /// Verifies that valid nested paths, including unusual legal names, reach the provider unchanged.
+        /// </summary>
+        [Test]
+        public async Task OrdinaryNestedProviderPathsRemainUnchangedAsync(
+            [Values("delete", "move", "copy")] string operation,
+            [Values("sub/keep.txt", "sub/.hidden", "sub/name..txt", "sub/.../file",
+                "data dir/nested file.txt", "sub/a&b?c.txt")] string providerPath,
+            [Values(false, true)] bool isDirectory)
+        {
+            Mock<IFileSystemProvider> provider = CreateProvider();
+            using FileSystemNodeManager manager = CreateManager(provider.Object);
+            var root = CreateRoot(manager);
+            NodeId source = isDirectory
+                ? FileSystemNodeId.BuildDirectory(providerPath, manager.NamespaceIndex)
+                : FileSystemNodeId.BuildFile(providerPath, manager.NamespaceIndex);
+            const string TargetPath = "destination/nested/renamed.txt";
+
+            if (operation == "delete")
+            {
+                ServiceResult result = await MutateAsync(root, manager.SystemContext, source, operation)
+                    .ConfigureAwait(false);
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+            else
+            {
+                NodeId target = FileSystemNodeId.BuildDirectory("destination/nested", manager.NamespaceIndex);
+                MoveOrCopyMethodStateResult result = await root.MoveOrCopy!.OnCallAsync!(
+                    manager.SystemContext, root.MoveOrCopy, root.NodeId, source, target,
+                    operation == "copy", "renamed.txt", CancellationToken.None).ConfigureAwait(false);
+                NodeId expectedId = isDirectory
+                    ? FileSystemNodeId.BuildDirectory(TargetPath, manager.NamespaceIndex)
+                    : FileSystemNodeId.BuildFile(TargetPath, manager.NamespaceIndex);
+                Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(result.NewNodeId, Is.EqualTo(expectedId));
+            }
+            VerifySingleMutation(provider, operation, providerPath, TargetPath);
+        }
+
+        /// <summary>
+        /// Verifies that empty or separator-only destinations resolve to the mount root without a path prefix.
+        /// </summary>
+        [Test]
+        public async Task SeparatorOnlyTargetsResolveToCanonicalMountRootAsync(
+            [Values(false, true)] bool createCopy,
+            [Values("", "/", "\\", "//", "\\\\", "/\\/")] string providerPath,
+            [Values(FileSystemNodeId.Root, FileSystemNodeId.Directory)] int rootType)
+        {
+            Mock<IFileSystemProvider> provider = CreateProvider();
+            using FileSystemNodeManager manager = CreateManager(provider.Object);
+            var root = CreateRoot(manager);
+            NodeId source = FileSystemNodeId.BuildFile("sub/keep.txt", manager.NamespaceIndex);
+            NodeId target = new FileSystemNodeId(rootType, providerPath, manager.NamespaceIndex).ToNodeId();
+
+            MoveOrCopyMethodStateResult result = await root.MoveOrCopy!.OnCallAsync!(
+                manager.SystemContext, root.MoveOrCopy, root.NodeId, source, target,
+                createCopy, "renamed.txt", CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.NewNodeId,
+                Is.EqualTo(FileSystemNodeId.BuildFile("renamed.txt", manager.NamespaceIndex)));
+            VerifySingleMutation(provider, createCopy ? "copy" : "move", "sub/keep.txt", "renamed.txt");
+        }
+
+        /// <summary>
+        /// Verifies that invalid type prefixes, method identifiers, and foreign namespaces cannot mutate provider
+        /// entries.
+        /// </summary>
+        [Test]
+        public async Task InvalidObjectIdsCannotDeleteMoveOrCopyAsync(
+            [Values("delete", "move", "copy")] string operation,
+            [Values("3:keep.txt", "4294967298:keep.txt", "2147483648:keep.txt",
+                "0:keep.txt", "2:keep.txt?Open", "2:keep.txt?")] string identifier,
+            [Values(false, true)] bool foreignNamespace)
+        {
+            Mock<IFileSystemProvider> provider = CreateProvider();
+            using FileSystemNodeManager manager = CreateManager(provider.Object);
+            var root = CreateRoot(manager);
+            var source = new NodeId(identifier,
+                foreignNamespace ? (ushort)(manager.NamespaceIndex + 1) : manager.NamespaceIndex);
+
+            ServiceResult result = await MutateAsync(root, manager.SystemContext, source, operation)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode.Code, Is.EqualTo(operation == "delete"
+                    ? StatusCodes.BadInvalidState
+                    : StatusCodes.BadInvalidArgument));
+                VerifyNoMutation(provider);
+            });
+        }
+
+        /// <summary>
+        /// Verifies that a valid-looking path in another namespace cannot alias a mounted file.
+        /// </summary>
+        [Test]
+        public async Task ForeignNamespaceCannotAliasAValidFileAsync(
+            [Values("delete", "move", "copy")] string operation)
+        {
+            Mock<IFileSystemProvider> provider = CreateProvider();
+            using FileSystemNodeManager manager = CreateManager(provider.Object);
+            var root = CreateRoot(manager);
+            NodeId source = FileSystemNodeId.BuildFile("keep.txt", (ushort)(manager.NamespaceIndex + 1));
+
+            ServiceResult result = await MutateAsync(root, manager.SystemContext, source, operation)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsBad(result), Is.True);
+                VerifyNoMutation(provider);
+            });
+        }
+
+        /// <summary>
+        /// Verifies that invalid destination node kinds or namespaces reject moves and copies before provider access.
+        /// </summary>
+        [Test]
+        public async Task InvalidMoveOrCopyTargetDoesNotInvokeProviderAsync(
+            [Values(false, true)] bool createCopy,
+            [Values("3:target", "2:target", "1:target?CreateFile", "0:target")] string identifier,
+            [Values(false, true)] bool foreignNamespace)
+        {
+            Mock<IFileSystemProvider> provider = CreateProvider();
+            using FileSystemNodeManager manager = CreateManager(provider.Object);
+            var root = CreateRoot(manager);
+            NodeId source = FileSystemNodeId.BuildFile("keep.txt", manager.NamespaceIndex);
+            var target = new NodeId(identifier,
+                foreignNamespace ? (ushort)(manager.NamespaceIndex + 1) : manager.NamespaceIndex);
+
+            MoveOrCopyMethodStateResult result = await root.MoveOrCopy!.OnCallAsync!(
+                manager.SystemContext, root.MoveOrCopy, root.NodeId, source, target,
+                createCopy, "renamed.txt", CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                VerifyNoMutation(provider);
+            });
+        }
+
+        /// <summary>
+        /// Verifies that parsing rejects unsupported node kinds and numeric prefixes that overflow the type range.
+        /// </summary>
+        [TestCase("3:")]
+        [TestCase("2147483648:")]
+        [TestCase("4294967296:")]
+        [TestCase("4294967297:")]
+        [TestCase("4294967298:")]
+        [TestCase("999999999999999999999999999999999999:")]
+        public void ParserRejectsUnsupportedAndOverflowingTypes(string identifier)
+        {
+            Assert.That(FileSystemNodeId.TryParse(new NodeId(identifier, 2), out _), Is.False);
+        }
+
+        /// <summary>
+        /// Verifies that physical-provider root aliases are rejected while existing files and directories remain
+        /// intact.
+        /// </summary>
+        [Test]
+        public async Task PhysicalProviderRejectsRootMutationsBeforeTouchingContentsAsync(
+            [Values("delete", "move", "copy")] string operation,
+            [Values("", "/", ".", "child/..")] string source)
+        {
+            string root = Path.Combine(Path.GetTempPath(), "fs-root-regression-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path.Combine(root, "child"));
+            string sentinel = Path.Combine(root, "keep.txt");
+            await WriteTextAsync(sentinel, "unchanged").ConfigureAwait(false);
+            var provider = new PhysicalFileSystemProvider(root, "RootRegression");
+            try
+            {
+                // An existing target also keeps the unfixed recursive copy bounded.
+                Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+                {
+                    switch (operation)
+                    {
+                        case "delete":
+                            await provider.DeleteAsync(source, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case "move":
+                            await provider.MoveAsync(source, "keep.txt", CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        default:
+                            await provider.CopyAsync(source, "keep.txt", CancellationToken.None).ConfigureAwait(false);
+                            break;
+                    }
+                });
+                Assert.That(await ReadTextAsync(sentinel).ConfigureAwait(false), Is.EqualTo("unchanged"));
+                Assert.That(Directory.Exists(Path.Combine(root, "child")), Is.True);
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                {
+                    Directory.Delete(root, recursive: true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies that protecting the mount root still permits deleting, moving, and copying ordinary child files.
+        /// </summary>
+        [Test]
+        public async Task OrdinaryChildMutationsRemainSupportedAsync(
+            [Values("delete", "move", "copy")] string operation)
+        {
+            string rootPath = Path.Combine(Path.GetTempPath(), "fs-child-regression-" + Guid.NewGuid().ToString("N"));
+            var provider = new PhysicalFileSystemProvider(rootPath, "ChildRegression");
+            try
+            {
+                await WriteTextAsync(Path.Combine(rootPath, "keep.txt"), "payload").ConfigureAwait(false);
+                using FileSystemNodeManager manager = CreateManager(provider);
+                var root = CreateRoot(manager);
+                NodeId source = FileSystemNodeId.BuildFile("keep.txt", manager.NamespaceIndex);
+
+                ServiceResult result = await MutateAsync(root, manager.SystemContext, source, operation)
+                    .ConfigureAwait(false);
+
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(File.Exists(Path.Combine(rootPath, "keep.txt")), Is.EqualTo(operation == "copy"));
+                if (operation != "delete")
+                {
+                    Assert.That(await ReadTextAsync(Path.Combine(rootPath, "renamed.txt"))
+                        .ConfigureAwait(false), Is.EqualTo("payload"));
+                }
+            }
+            finally
+            {
+                Directory.Delete(rootPath, recursive: true);
+            }
+        }
+
+        /// <summary>
+        /// Writes a sentinel payload used to detect unintended provider mutations.
+        /// </summary>
+        private static async Task WriteTextAsync(string path, string value)
+        {
+            using var writer = new StreamWriter(path);
+            await writer.WriteAsync(value).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Reads a sentinel or copied payload to verify preserved file contents.
+        /// </summary>
+        private static async Task<string> ReadTextAsync(string path)
+        {
+            using var reader = new StreamReader(path);
+            return await reader.ReadToEndAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Creates a writable provider mock whose mutation calls can be checked for admission and exact paths.
+        /// </summary>
+        private static Mock<IFileSystemProvider> CreateProvider()
+        {
+            var provider = new Mock<IFileSystemProvider>();
+            provider.SetupGet(p => p.MountName).Returns("MountRegression");
+            provider.SetupGet(p => p.IsWritable).Returns(true);
+            provider.Setup(p => p.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            provider.Setup(p => p.MoveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            provider.Setup(p => p.CopyAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            return provider;
+        }
+
+        /// <summary>
+        /// Creates a file-system manager over the supplied provider and deterministic server mock.
+        /// </summary>
+        private static FileSystemNodeManager CreateManager(IFileSystemProvider provider)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out _);
+            server.SetupGet(s => s.Telemetry).Returns(NUnitTelemetryContext.Create());
+            return new FileSystemNodeManager(server.Object, new ApplicationConfiguration(), provider);
+        }
+
+        /// <summary>
+        /// Creates the mounted root node exposing file-system mutation methods.
+        /// </summary>
+        private static DirectoryObjectState CreateRoot(FileSystemNodeManager manager)
+        {
+            return new DirectoryObjectState(manager.SystemContext,
+                FileSystemNodeId.BuildRoot(manager.NamespaceIndex), string.Empty, "Root", isRoot: true);
+        }
+
+        /// <summary>
+        /// Invokes deletion or a move or copy into the root through the mounted directory methods.
+        /// </summary>
+        private static async ValueTask<ServiceResult> MutateAsync(
+            DirectoryObjectState root,
+            ISystemContext context,
+            NodeId source,
+            string operation)
+        {
+            if (operation == "delete")
+            {
+                DeleteFileMethodStateResult deleted = await root.DeleteFileSystemObject!.OnCallAsync!(
+                    context, root.DeleteFileSystemObject, root.NodeId, source, CancellationToken.None)
+                    .ConfigureAwait(false);
+                return deleted.ServiceResult;
+            }
+
+            MoveOrCopyMethodStateResult moved = await root.MoveOrCopy!.OnCallAsync!(
+                context, root.MoveOrCopy, root.NodeId, source, root.NodeId,
+                operation == "copy", "renamed.txt", CancellationToken.None).ConfigureAwait(false);
+            return moved.ServiceResult;
+        }
+
+        /// <summary>
+        /// Verifies that no delete, move, or copy request reached the provider.
+        /// </summary>
+        private static void VerifyNoMutation(Mock<IFileSystemProvider> provider)
+        {
+            provider.Verify(p => p.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            provider.Verify(p => p.MoveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+            provider.Verify(p => p.CopyAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that only the selected mutation occurred once with the expected source and destination paths.
+        /// </summary>
+        private static void VerifySingleMutation(
+            Mock<IFileSystemProvider> provider,
+            string operation,
+            string source,
+            string target)
+        {
+            provider.Verify(p => p.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                Times.Exactly(operation == "delete" ? 1 : 0));
+            provider.Verify(p => p.MoveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                Times.Exactly(operation == "move" ? 1 : 0));
+            provider.Verify(p => p.CopyAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                Times.Exactly(operation == "copy" ? 1 : 0));
+            provider.Verify(p => p.DeleteAsync(source, It.IsAny<CancellationToken>()),
+                Times.Exactly(operation == "delete" ? 1 : 0));
+            provider.Verify(p => p.MoveAsync(source, target, It.IsAny<CancellationToken>()),
+                Times.Exactly(operation == "move" ? 1 : 0));
+            provider.Verify(p => p.CopyAsync(source, target, It.IsAny<CancellationToken>()),
+                Times.Exactly(operation == "copy" ? 1 : 0));
+        }
+
+        /// <summary>
+        /// Supplies nonroot paths containing traversal, noncanonical separators, or invalid path components.
+        /// </summary>
+        private static readonly string[] s_invalidNonRootPaths =
+        [
+            ".", "..", "sub/..", "sub\\..", "sub/../", "sub\\..\\", "../sub", "sub/../leaf", "sub\\..\\leaf",
+            "sub//leaf", "sub\\\\leaf", "sub/./leaf", "sub\\.\\leaf", "/sub", "sub/", "\\sub", "sub\\leaf",
+            "C:/sub", "C:\\sub", "sub/stream:name", " ", "sub/ /leaf"
+        ];
+
+        /// <summary>
+        /// Combines root aliases and invalid nonroot paths for source-path admission tests.
+        /// </summary>
+        private static readonly string[] s_nonCanonicalProviderPaths =
+        [
+            "/", "\\", "//", "\\\\", "/\\/", .. s_invalidNonRootPaths
+        ];
+    }
+}

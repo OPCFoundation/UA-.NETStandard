@@ -536,25 +536,26 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
-        /// A negative retention limit means the same as zero - keep no rejected
-        /// history - so the stores only ever see zero or a positive cap, no
-        /// matter which of the two ways the limit was configured.
+        /// Constructor and setter preserve the configured limit, including
+        /// unlimited history at zero and disabled new storage at negative values.
         /// </summary>
         [TestCase(-1)]
         [TestCase(-100)]
-        public void MaxRejectedCertificatesNormalisesNegativeValues(int configured)
+        [TestCase(0)]
+        [TestCase(5)]
+        public void MaxRejectedCertificatesPreservesConfiguredLimits(int configured)
         {
             using var fromSetter = new CertificateManager(m_telemetry)
             {
                 MaxRejectedCertificates = configured
             };
-            Assert.That(fromSetter.MaxRejectedCertificates, Is.Zero);
+            Assert.That(fromSetter.MaxRejectedCertificates, Is.EqualTo(configured));
 
             using var fromConstructor = new CertificateManager(
                 m_telemetry,
                 storeProviders: null,
                 maxRejectedCertificates: configured);
-            Assert.That(fromConstructor.MaxRejectedCertificates, Is.Zero);
+            Assert.That(fromConstructor.MaxRejectedCertificates, Is.EqualTo(configured));
         }
 
         private static SecurityConfiguration SecurityConfigurationFor(string trustedPath)

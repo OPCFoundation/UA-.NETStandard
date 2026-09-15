@@ -745,13 +745,11 @@ namespace Opc.Ua
             {
                 throw new ArgumentNullException(nameof(nonce));
             }
-
             if (!TryGetGroupModulus(nonce.Length, out BigInteger p))
             {
                 throw new ArgumentException(
                     "Invalid nonce data provided", nameof(nonce));
             }
-
             var dh = new RSADiffieHellman();
 
             byte[] bytes = new byte[nonce.Length + 1];
@@ -837,7 +835,6 @@ namespace Opc.Ua
             {
                 throw new ArgumentNullException(nameof(remoteKey));
             }
-
             if (m_privateKey.IsZero)
             {
                 throw new InvalidOperationException("Private key not available.");

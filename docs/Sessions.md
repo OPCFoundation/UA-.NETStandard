@@ -37,6 +37,15 @@ A `Session` is bound to:
 - A `ConfiguredEndpoint` (URL, security mode, security policy URI).
 - An `ITransportChannel` created against that endpoint.
 
+On secured endpoints, `CreateSession` validates the client certificate
+chain independently of the supplied `ApplicationUri`, then requires that
+URI to match the certificate. UA-TCP and UA Secure Conversation over
+WebSockets also require the session certificate's leaf to match the
+channel certificate; supplying the same leaf with an issuer chain is
+allowed. HTTPS may use a distinct, separately validated TLS certificate,
+as specified by Part 4 §6.1.8. A `SecurityPolicyUri` of `None` ignores the
+optional client application certificate.
+
 Lifecycle transitions on a `Session` are explicit and synchronous-looking
 from the caller's perspective:
 
@@ -496,6 +505,8 @@ transitions the channel to `Faulted`. The `IChannelReconnectPolicy` default
 interface member remains `Timeout.InfiniteTimeSpan` for custom-policy
 backward compatibility, and older TFMs can opt in with `IParticipantTimeoutPolicy`.
 The policy is configurable on the `ClientChannelManager` constructor.
+Participant deadlines use the manager's injected `TimeProvider`, including on
+.NET Framework, so they follow the same clock as reconnect backoff and retry budgets.
 
 ### HTTPS resilience vs channel-mgr reconnect
 
@@ -1086,6 +1097,40 @@ Pick the entry point that best matches your call site:
   drivers, or wrap a `ManagedSession` with `SessionReconnectHandler`.**
   Don't. The reconnect drivers race, and `SessionReconnectHandler` will
   throw `NotSupportedException` to enforce this.
+
+## Server session lifecycle
+
+Channel and security-policy association failures are rejected before
+authentication-failure accounting. Requests from another channel cannot
+lock out the application owning an unactivated session; genuine invalid
+signatures and identity credentials still count toward that application's
+lockout threshold.
+
+Certificate user tokens require proof of possession when their token policy
+requires signing, even on a `None` SecureChannel. A missing, empty or incorrect
+user-token signature is rejected with `BadUserSignatureInvalid`, as specified
+by OPC UA Part 4, 5.7.3.3. Only a policy without signing accepts an absent signature.
+
+Closed sessions do not accept browse continuation points. A pending
+continuation remains caller-owned until its mirror write and local
+admission succeed. If the session closes during persistence, the late
+mirror entry is removed and `BadSessionClosed` is returned without
+transferring or disposing the caller's resource twice.
+
+Replacing or resetting a session's ephemeral user-token key retires the
+previous key. A key already borrowed by credential decryption remains
+valid until the final decrypt operation returns or fails, then its
+cryptographic resources are released.
+
+Reloading configured reverse connections removes a snapshot of the
+configured entries while preserving dynamically added connections,
+including on .NET Framework.
+
+Discovery registration runs as tracked, cancellable work. Server stop
+cancels and drains an in-flight registration before releasing server
+resources. Consumed or stopped timer callbacks cannot schedule another
+attempt or replace a newer timer; active registrations retain their
+configured success interval and bounded failure backoff.
 
 ## See also
 

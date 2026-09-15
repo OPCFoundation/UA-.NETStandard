@@ -198,8 +198,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(secondId.IsNull, Is.True);
         }
 
+        /// <summary>
+        /// Verifies indexed browse-name reuse after renaming cannot overwrite the existing node's identifier.
+        /// </summary>
         [Test]
-        public async Task AddNodeAsync_DuplicateBrowseNameUnderParentWithManyChildren_ReturnsBadBrowseNameDuplicatedAsync()
+        public async Task IndexedBrowseNameReusePreservesExistingNodeIdentityAsync()
         {
             // The CTT (Node Management Delete Node Err-002.js) adds thousands of nodes
             // below one parent; the duplicate check must stay correct for large parents.
@@ -237,9 +240,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(duplicateId.IsNull, Is.True);
 
             // a renamed child frees its old browse name and takes the new one.
-            h.Manager.PredefinedNodes[renamedId].BrowseName = new QualifiedName("Renamed", ns);
+            NodeState renamedNode = h.Manager.PredefinedNodes[renamedId];
+            renamedNode.BrowseName = new QualifiedName("Renamed", ns);
+            int countBefore = h.Manager.PredefinedNodes.Count;
 
-            (ServiceResult freed, _) = await h.Manager
+            (ServiceResult collision, NodeId collisionId) = await h.Manager
+                .AddNodeAsync(h.OperationContext, new AddNodesItem
+                {
+                    ParentNodeId = parentId,
+                    ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    RequestedNewNodeId = renamedId,
+                    BrowseName = new QualifiedName("Child42", ns),
+                    NodeClass = NodeClass.Variable
+                }).ConfigureAwait(false);
+            Assert.That(collision.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
+            Assert.That(collisionId.IsNull, Is.True);
+            Assert.That(h.Manager.PredefinedNodes, Has.Count.EqualTo(countBefore));
+            Assert.That(h.Manager.PredefinedNodes[renamedId], Is.SameAs(renamedNode));
+            Assert.That(renamedNode.BrowseName, Is.EqualTo(new QualifiedName("Renamed", ns)));
+
+            // Renaming frees the BrowseName; automatic allocation must not reuse the still-owned NodeId.
+            (ServiceResult freed, NodeId freedId) = await h.Manager
                 .AddNodeAsync(h.OperationContext, new AddNodesItem
                 {
                     ParentNodeId = parentId,
@@ -248,6 +269,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     NodeClass = NodeClass.Variable
                 }).ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(freed), Is.True, $"expected Good result; got {freed}");
+            Assert.That(freedId.IsNull, Is.False);
+            Assert.That(freedId.NamespaceIndex, Is.EqualTo(ns));
+            Assert.That(freedId, Is.Not.EqualTo(renamedId));
+            Assert.That(h.Manager.PredefinedNodes[renamedId], Is.SameAs(renamedNode));
+            Assert.That(h.Manager.PredefinedNodes, Has.Count.EqualTo(countBefore + 1));
 
             (ServiceResult taken, _) = await h.Manager
                 .AddNodeAsync(h.OperationContext, new AddNodesItem
