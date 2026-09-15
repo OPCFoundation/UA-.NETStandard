@@ -46,7 +46,12 @@ running the CTT is in [ctt-testing.md](ctt-testing.md).
 | C4 | Aggregates: DurationInState status thresholds | — | Not filed |
 | C5 | Aggregates: durations truncated to whole milliseconds | — | Not filed |
 | C6 | Aggregates: DurationGood/PercentGood first region | — | Not filed |
-| C7–C24, C32–C36 | Other unfiled script defects | — | Not filed |
+| C7–C18 | Other unfiled script defects | — | Not filed |
+| C19–C31 | GDS Application Directory / Query Applications script defects | — | Not filed |
+| C32–C36 | Monitored Item, Node Management and Security script defects | — | Not filed |
+| C37 | Session Base: secure test cases send CreateSession with the `opc.wss` EndpointUrl | — | Not filed |
+| C38 | Subscription Durable `012.js`: denied diagnostics Browse and missing braces | — | Not filed |
+| C39–C44 | Alarms and Conditions script defects | — | Not filed |
 
 Mantis states were last checked on 2026-09-13.
 
@@ -294,12 +299,6 @@ The Part 4 editors clarified that every distinct UserTokenPolicy configuration n
 unique PolicyId, including across endpoints. `015.js` already checks that, so this is **not** a
 CTT defect. A server must not reuse a PolicyId for differently configured token policies.
 
-The reference server complies: `ServerBase.GetUserTokenPolicies` numbers every distinct
-(TokenType, SecurityPolicyUri, IssuedTokenType, IssuerEndpointUrl) combination once (on 2026-09-14:
-`1`–`3` with an empty SecurityPolicyUri on the Sign/SignAndEncrypt endpoints, `4`–`6` on the None
-endpoint). `015.js` still fails, because the CU's own `initialize.js` makes the CTT rewrite the cached
-endpoints before `015.js` compares them (C36).
-
 ### 18. Durable Subscription `008.js` misspells `MoreNotifications`
 
 **Mantis:** [11259](https://mantis.opcfoundation.org/view.php?id=11259), resolved / fixed.
@@ -308,6 +307,10 @@ endpoints before `015.js` compares them (C36).
 
 Line 101 uses `MoreNotifcations`, so the drain loop never runs, and lines 105–108 lack braces, which
 makes `result = false` unconditional.
+
+Scripts 1.05.513 still contain both defects. Against the reference server the test case passes
+anyway (2026-09-14): all of its data changes fit into one Publish response, and `Test.Execute`
+reports from `addError`, not from the return value.
 
 ### 19. Subscription Minimum 02 `020.js` accepts unrelated audit events
 
@@ -477,13 +480,6 @@ The test creates 19 matrix monitored items with IndexRange `1,1,…` and reports
 (about `-8.19E+24`, `-1.03E+33`), adding one does not change the value. **Fix:** initialize the
 index, report missing ClientHandles, and write a representably different value.
 
-Confirmed on 2026-09-14 with `addLog` in a project copy: the missing item is
-`Multi-Dimensional-Arrays/Float` (`Scalar_Static_Arrays2D_Float`). Its element [1,1] was seeded as
-`-1.03179664E+33`; the incremented full-matrix write succeeds (Good) but leaves that element unchanged,
-so the server correctly sends no DataChange for IndexRange `1,1`. The other 18 items each received one
-notification. The server does not drop a notification. The reference server now seeds that element with
-`-1031.79664`, so `042.js` passes; the script defect remains for other servers.
-
 ### C10. Alarm `Test_002.js` evaluates Retain from the main branch only
 
 Retain is derived from the main event's Active/Acked/Confirmed fields. Part 9 §5.5.2 requires
@@ -501,8 +497,7 @@ The global `ReadHelper` runs synchronously inside the alarm callback and fails c
 
 `collector.AddMessage(testCase, category, conditionId, reason)` drops `reason`. The result is empty
 `Error: ns=...` entries that hide which check failed. **Fix:** combine `conditionId` and `reason`
-into the third argument. With the reason logged, the failing check is the event `Time` comparison
-against `GetCallTime()`, which is broken (C19).
+into the third argument.
 
 ### C13. Base Info Currency `004.js` drops the CurrencyUnit Exponent
 
@@ -568,114 +563,196 @@ from a server value, and appears for every condition type. Not yet pinpointed. *
 fall back from a specific locale (`en-US`) to its base language (`en`) when looking up the
 recommended texts.
 
-### C19. A & C `AlarmCollector.GetCallTime()` returns an unset time, so Comment skips every alarm type
+### C19. GDS Application Directory `060.js`, `067.js`, `069.js` register an ApplicationUri that is not a URI
 
-- **Helper:** `library/AlarmsAndConditions/AlarmCollector.js`, lines 1839–1842
-  (`return new UaDateTime( callHelper.ServerTimeOfCall )`)
-- **Tests:** A & C Comment `Test_001.js`–`Test_004.js` (skip); A & C Enable `Test_002.js` (fails, C12)
-- **Result:** *"0 tests passed 1 tests skipped (retry count 3)"* for every alarm type
+- **Tests:** `maintree/GDS/GDS Application Directory/Test Cases/060.js` and `067.js` line 15
+  (`urn:OPCFoundation:ServerApplicationWith%WildcardCharacter`), `069.js` line 15
+  (`urn:OPCFoundation:ServerApplicationWith\BackslashCharacter`)
+- **Error:** *"Call.Results[0].StatusCode incorrect. Received: BadInvalidArgument. Expected: Good"*, then
+  *"Failed to register a temporary application record …"*
 
-`CallHelper.ServerTimeOfCall` is never assigned, so the call time is `0001-01-01T00:00:00Z`.
-Comment `Test_001.js` line 86 accepts the comment event only if
-`CommentTime.msecsTo( eventTime ) >= 0`; the 32-bit millisecond difference from year 1 is negative
-(about −838,500,000 on 2026-09-14), so every comment event is treated as unrelated and
-`RestartSkipped` (lines 2313–2335) gives up after three retries. Logged values from one run: call
-at `00:25:54.805Z`, response timestamp `00:25:54.816Z`, comment event `Time` `00:25:54.811Z` carrying
-the expected comment text, `CommentTime` `0001-01-01T00:00:00Z`. Enable `Test_002.js` lines 291 and
-301 fail the same way ("Unexpected event time, differs by ..."). Acknowledge and Confirm call the
-same helper but short-circuit the comparison (`IgnoreEventByCallTime` returns false, lines
-2356–2358), so they are unaffected. **Fix:** set `ServerTimeOfCall` from the Call response (and
-compare it with a tolerance, because the condition event is created before the response is sent),
-or use the request time corrected by the device time differential.
+The patterns under test (`[%]`, `%\%%`, `%\\%`) are never sent. RegisterApplication rejects the
+temporary record: a raw `%` that is not followed by two hex digits and a `\` are not allowed in a URI
+(RFC 3986 §2.1, §3.3), and OPC 10000-12 §6.5.6 returns `Bad_InvalidArgument` when *"one of the
+fields of the application record is not valid"* (§6.5.4 treats *"not a valid URI"* the same way).
+Query Applications `011.js`/`018.js` avoid this by putting the `%` into the ApplicationName.
+**Fix:** use a valid URI (the percent-encoded `…With%25WildcardCharacter` still contains a literal
+`%`), or test `%` and `\` through the ApplicationName filter of QueryServers. `060.js` also has the
+defect of C20.
 
-### C20. A & C Limit/Level CUs create their filter subscriptions on a session that has timed out
+### C20. GDS `[_]` / `[%]` patterns are evaluated as "contains"
 
-- **Tests:** A & C Exclusive Limit, Exclusive Level, Non-Exclusive Limit and Non-Exclusive Level
-  (all use `maintree/Alarms and Conditions/A and C Base/Limit/Test Cases/`), `Test_003.js`–`Test_006.js`
-- **Helper:** `library/AlarmsAndConditions/ConformanceHelpers/limithelper.js`, lines 72–79
-- **Error:** 5× *"CreateSubscription.Response.ResponseHeader.ServiceResult is Bad: BadSessionIdInvalid"*
-  in `initialize.js`, then each test case runs to the maximum test time (3 × Alarm Cycle Time)
+- **Tests:** GDS Application Directory `065.js` line 10 (`[_]`), `060.js` line 10 (`[%]`); GDS Query
+  Applications `011.js` line 10 (`[%]`), `016.js` line 10 (`[_]`)
+- **Error:** *"Did not receive the expected list of servers"* / *"Received unexpected array length for
+  OutputArgument 'applications'"*, *"Expected <2> but got <0>"*
 
-`initialize.js` connects the CU session (line 23) and creates the collector (line 37). When the
-collector starts the alarm thread, `InitialEventCapture` waits one full Alarm Cycle Time on the alarm
-thread's own session (`AlarmCollector.js` lines 305–319) while the CU session sends nothing.
-`LimitHelper` (line 47) then creates its five filter subscriptions on that CU session. With the
-default Alarm Cycle Time (60 s) and `/Server Test/Session/RequestedSessionTimeout` (60000 ms) the
-server has already closed the session as required by Part 4 §5.7.2. The four filter test cases
-find empty buffers and each waits 180 s, so every CU takes about 14 minutes when it is the first
-A&C CU in the CTT process (in a whole-group run only the first A&C CU pays the capture, and the
-Limit CUs take about 100 s). `Test_005.js` line 22 also sets `TestName = "Test_003"`. **Fix:** create
-the `LimitHelper` before the initial capture, keep the CU session alive during the capture, or use
-the alarm thread session for the filter subscriptions.
+The scripts expect every record whose ApplicationUri/ApplicationName *contains* `_` or `%`
+(`cab:other_foundation:ClientAndServer`, *"… with % wildcard character"*). A Like pattern matches the
+whole string: OPC 10000-4 §7.7.3 gives *"5[%] would match '5%'"*, and `main%` only matches strings
+that start with `main`. `[_]` therefore only matches the one-character string `_`, and the GDS
+correctly returns no record. **Fix:** use `%[_]%` and `%[%]%` (or `%\_%` and `%\%%`, which
+`068.js`, `018.js` and `019.js` already test).
 
-### C21. A & C Alarm `Test_002.js` always runs to the maximum test time
+### C21. GDS `%[^f-h]%` / `%[^w-y]%` patterns are evaluated as "contains none of"
 
-- **Test:** `maintree/Alarms and Conditions/A and C Alarm/Test Cases/Test_002.js`, line 38;
-  `initialize.js`, lines 15–36
+- **Tests:** GDS Application Directory `074.js` line 11 (`%[^f-h]%`); GDS Query Applications `025.js`
+  line 11 (`%[^w-y]%`)
+- **Error (with a spec-conformant matcher):** *"Expected <3> but got <5>"* / *"Expected <3> but got <4>"*
 
-`CanRunTest` returns false for AcknowledgeableConditionType events (`CanRunAlarmCondition`, line 22–23)
-and `Test_002.js` returns without touching a counter or calling `AddIgnoreSkips`. The collector picks
-one condition per alarm type that sent an event (`AlarmCollector.GetConditionIdsToTest`), so a server
-that exposes an AcknowledgeableCondition instance keeps a condition in `TestConditionIds` that never
-gets a result, and `IsTestComplete` only ends the test at 3 × Alarm Cycle Time (180 s by default).
-Line 22 also compares with `Identifier.ConditionId` where `Identifier.ConditionType` is meant.
-**Fix:** increment `TestsSkipped` (or set IgnoreSkip) for types that `CanRunTest` rejects.
+The scripts expect the pattern to exclude `cab:other_foundation:ClientAndServer` (contains `f` and
+`h`) and *"Example_Vendor - ClientAndServer"* (contains `x`). Per OPC 10000-4 §7.7.3, `[^f-h]` matches
+**one** character that is not in the list, and the surrounding `%` match anything, so the pattern
+matches every string that has at least one character outside `f`–`h`, which is every registered
+record. No Like pattern can express "contains none of these characters". Both tests passed before
+2026-09-14 only because the GDS matcher (`ApplicationsDatabaseBase.SkipToNext`) special-cased `[^`.
+**Fix:** test the negated list at a fixed position (`073.js`/`024.js` already do with `%[^q-s]`) and
+drop these cases, or expect all records.
 
-### C22. A & C Enable `Test_003.js` depends on all alarm types going active within cycle/10
+### C22. `callQueryServers()` dereferences the output arguments of a failed call
 
-- **Test:** `maintree/Alarms and Conditions/A and C Enable/Test Cases/Test_003.js`, lines 64–68, 89,
-  129–132, 201–215, 233–237
+- **Tests:** GDS Application Directory `079.js` step 2 (`ServerCapabilities = [ "NA", "DA", "AC" ]`) and
+  `078.js` (`%[a^j-l]%`, since the server rejects the invalid pattern); `078.js` lines 19–20
+- **Helper:** `library/GDS/MethodCalls.js`, lines 279–286
+- **Error:** *"Result of expression 'servers' [null] is not an object"* (TypeError, line 286), which aborts the test
 
-A condition gets a test case only for an active event seen while `RefreshState` is still `Unknown`
-(line 89). The first disable sets the ConditionRefresh time to Alarm Cycle Time / 10 later (6 s by
-default, lines 64 and 129–132); after the refresh (line 207) no new test cases are created. A
-server whose alarm types go active at different times therefore leaves some types without a result
-and the test runs to 3 × Alarm Cycle Time. Against the reference server before its boolean and
-analog alarm sources were aligned this happened in 6 of 7 runs; the conditions it disabled are only
-re-enabled when the RefreshEnd event arrives (line 237). **Fix:** keep accepting first active events
-until the refresh is started for all non-ignored types, or mark types without an active event as
-skipped when the refresh is issued.
+The server returns the expected `BadInvalidArgument` (NA *"cannot be used in combination with any
+other capability"*, Part 12 Annex D; an invalid Like pattern for `078.js`) with an empty
+`OutputArguments` array. The helper's
+`isDefined( OutputArguments[0] ) && isDefined( OutputArguments[1] )` guard does not detect the
+empty array, and `toExtensionObjectArray()` of the empty variant returns null. `callQueryApplications()`
+in the same file checks `applications.isEmpty()` first. With the helper fixed, `078.js` still aborts at
+line 20 (*"Result of expression 'queryServersResult.Servers' [undefined] is not an object"*): it reads
+`Servers` after the expected Bad result, and its condition is inverted
+(`if( Assert.Equal( 0, … ) ) TC_Variables.Result = false;` fails the test when no record is returned).
+**Fix:** only read the output arguments when
+`Results[0].StatusCode.isGood()`, and check `isEmpty()` before `toExtensionObjectArray()`.
 
-### C23. A & C Enable `Err_004.js` reacts to its own events and can stop the alarm thread's event delivery
+### C23. GDS Application Directory `018.js` selects `ActionTimestamp` instead of `ActionTimeStamp`
 
-- **Test:** `maintree/Alarms and Conditions/A and C Enable/Test Cases/Err_004.js`, lines 25–40
+- **Test:** `maintree/GDS/GDS Application Directory/Test Cases/initialize.js` line 44
+  (`ApplicationRegistrationChangedAuditEventType_Fields`), used by `018.js`
+- **Error:** *"AuditEventType.ActionTimestamp should contain a valid timestamp that is somewhat current.
+  Received: '0001-01-01T00:00:00Z'"*
 
-For *every* event of a condition the test calls Disable, Disable and Enable on the alarm thread
-session without keeping per-condition state. Each Disable/Enable raises a new condition event, which
-triggers the same three calls again: runs recorded up to 364 passes per alarm type and 868 events in
-15 s. In 7 of 17 Enable runs against the reference server the CTT alarm thread returned **no events
-at all** for the rest of the CU, six times right after such a burst and once already from
-`Test_003.js` on; every test case after that ran to 3 × Alarm Cycle Time.
-Evidence collected with `addLog` counters in a project copy and the server log:
+The AuditEventType property's BrowseName is `ActionTimeStamp` (OPC 10000-5 §6.4.3), so the select
+clause built from `"ActionTimestamp"` resolves to nothing and the event field is null. The
+validator in `library/ClassBased/Events.js` line 78 also reads `args.ActionTimestamp`; the CTT's own
+`library/__regressionTesting/_Events.js` passes `ActionTimeStamp`. In other runs
+the same test instead reports *"Did not receive an ApplicationRegistrationChangedAuditEventType
+event"*: the monitored item is created with QueueSize 1, and the server kept only the newest audit
+event (server side, fixed by [#4480](https://github.com/OPCFoundation/UA-.NETStandard/pull/4480)).
+With both names corrected and a larger queue in a copy of the scripts, the event is received, it
+carries a current ActionTimeStamp (for example `2026-09-14T11:12:58.148Z`), and SourceNode,
+SourceName, MethodId and InputArguments verify. The validator then aborts at `Events.js` line 85
+(*"'this.ActionTimestamp.isNull' [undefined] is not a function"*) because it calls `isNull()` on the
+event field Variant instead of a `UaDateTime`. The other audit tests of the CU (`011.js`, `028.js`) use
+the same QueueSize 1 subscription and miss their event in some runs. **Fix:** use `"ActionTimeStamp"`
+in the field list and in `Events.js`, convert the field with `toDateTime()`, and create the audit
+monitored items with a queue size above 1.
 
-- the alarm thread subscription stayed alive, and its data monitored items on the same subscription
-  kept delivering values (AnalogSource about one per second) while both event items on it stayed empty;
-- `GetBuffer` never failed (status true, zero events);
-- the server kept reporting condition events at the normal rate and deleted the subscription only at
-  the end, with no unacknowledged messages;
-- an in-process client that replays the pattern (same subscription parameters, a Server event item
-  plus a ConditionId `InList` item, Disable/Disable/Enable for every received event) pushed about
-  100,000 events through in 20 s three times and kept receiving events afterwards.
+### C24. GDS Application Directory `019.js` step 3 batch RegisterApplication never reaches the server
 
-The server side could not be shown to drop the notifications; a network capture of the CTT session
-is needed to settle it. **Fix:** handle each condition once (`TestCaseMap`), like the other Enable
-test cases, which removes the burst.
+- **Test:** `maintree/GDS/GDS Application Directory/Test Cases/019.js`, line 53
+- **Error:** *"Call the ErrorCode in the Error Message received doesn't match the expectation. Expected:
+  Good but received: BadNotFound"*, then *"Step 3: Failed to register all ApplicationRecords in one call"*
 
-### C24. A & C CertificateExpiration blocks a `--hidden` run on a modal dialog
+`BadNotFound` is the CTT client's own status for `session.call()`. With `-l` logging, the server log
+shows no `OnRegisterApplication` entry and no *"Service Fault Occurred"* for this request. The next
+entries are the four individual registrations of the script's fallback path. The same four records
+registered in one Call request succeed with four Good results (`GdsApplicationDirectoryTests.
+RegisterApplicationBatchedInOneCallRequestAsync`). **Fix:** CTT client: find out why the Call request
+with four `ApplicationRecordDataType` ExtensionObjects fails before it is sent.
 
-- **Test:** `maintree/Alarms and Conditions/A and C CertificateExpiration/Test Cases/initialize.js`,
-  lines 135–149
+### C25. GDS Application Directory `010.js` dereferences the ApplicationId of a rejected registration
 
-`initialize.js` opens a synchronous Yes/No message box (*"Is is possible to adjust the clock on the
-server without a restart"*) before any test runs, and the test cases open further OK dialogs asking
-the operator to change the server clock. In a `--close --hidden` run the dialog window
-*"Certificate Expiration Operation"* is still created and waits for input, so the CTT never exits.
-The CU needs an operator (and a server whose clock can be moved past a certificate's expiration
-limit). **Fix:** skip dialogs in hidden/automated runs, or add a project setting that answers them.
+- **Test:** `maintree/GDS/GDS Application Directory/Test Cases/010.js`, line 37
+- **Error:** *"Result of expression 'registerApplicationResult.ApplicationId' [undefined] is not an object"*
 
-The following entries start at C32 because
-[#4481](https://github.com/OPCFoundation/UA-.NETStandard/pull/4481) (GDS) numbers its own entries C19–C31.
-Those overlap C19–C24 above; renumber whichever register merges second.
+RegisterApplication of an already registered ApplicationUri correctly returns `Bad_EntryExists`
+(OPC 10000-12 §6.5.6) with no output arguments, so `callRegisterApplication()` does not set
+`ApplicationId`, and line 37 calls `.clone()` on undefined before checking the StatusCode.
+**Fix:** clone only when `isDefined( registerApplicationResult.ApplicationId )`.
+
+### C26. GDS Application Directory `012.js` / `032.js` require ServerCapabilities for a Server
+
+- **Tests:** `012.js` step 5 (line 66, RegisterApplication), `032.js` line 52 (UpdateApplication)
+- **Error:** *"Call.Results[0].StatusCode incorrect. Received: Good. Expected: BadInvalidArgument"*
+
+The scripts expect `Bad_InvalidArgument` when a Server record has an empty ServerCapabilities array.
+OPC 10000-12 §6.5.5 (Table 7) and §6.5.6/§6.5.7 define no such requirement: the only ServerCapabilities
+rules are the RCP and NA rules for Clients and ClientAndServer, and Annex D describes `NA` as *"No
+capability information is available"* without making it mandatory. **Fix:** accept Good or
+`Bad_InvalidArgument`, or ask for a Part 12 clarification that Servers shall register `NA`.
+
+### C27. GDS Application Directory `027.js` changes a Server with a DiscoveryUrl into a Client
+
+- **Test:** `maintree/GDS/GDS Application Directory/Test Cases/027.js`, line 39
+  (`UaVariant.Increment` of the embedded server's ApplicationType)
+- **Error:** *"Call.Results[0].StatusCode incorrect. Received: BadInvalidArgument. Expected: Good"*,
+  *"Step 1: UpdateApplication call was not successful on iteration #0"*
+
+The updated record is a Client with DiscoveryUrl `opc.tcp://…:4842` and ServerCapabilities `NA`. A
+Client may only register DiscoveryUrls for reverse connect: *"all DiscoveryUrls shall begin with the
+rcp+ prefix"* and ServerCapabilities *"shall include RCP"* (OPC 10000-12 §6.5.5), and OPC 10000-4 §7.2
+requires an empty discoveryUrls list for a CLIENT. UpdateApplication returns `Bad_InvalidArgument` for
+an invalid field (§6.5.7). **Fix:** when changing the type to Client, clear the DiscoveryUrls (or
+change the type to ClientAndServer), or expect `Bad_InvalidArgument`.
+
+### C28. GDS Application Directory `029.js`, `038.js`, `039.js` expect `BadInvalidArgument` for unknown ApplicationIds
+
+- **Tests:** `029.js` line 16 (UpdateApplication with an empty record, ApplicationId null),
+  `038.js` line 15 (GetApplication with a null NodeId), `039.js` line 18 (GetApplication with
+  `Settings.Advanced.NodeIds.Invalid.NodeId1`)
+- **Error:** *"Call.Results[0].StatusCode incorrect. Received: BadNotFound. Expected: BadInvalidArgument"*
+
+The only result code OPC 10000-12 defines for an ApplicationId problem is `Bad_NotFound` *"The
+ApplicationId is not known to the GDS"* (§6.5.7 UpdateApplication, §6.5.9 GetApplication);
+`Bad_InvalidArgument` is not listed for GetApplication at all. A null or foreign NodeId is not known to
+the GDS. **Fix:** expect `Bad_NotFound` (accept `Bad_InvalidArgument` as well for `029.js`, whose record
+fields are also invalid).
+
+### C29. GDS Application Directory `005.js` expects `BadInvalidArgument` for a string above MaxStringLength
+
+- **Test:** `maintree/GDS/GDS Application Directory/Test Cases/005.js`, lines 20, 31, 37
+- **Error:** *"Call.Results[0].StatusCode incorrect. Received: Good. Expected: BadInvalidArgument"* (second call)
+
+The script builds the ApplicationUri from `String.fromCharCode( Math.floor( Math.random() * 256 ) )`,
+first with MaxStringLength (1,048,576) characters and then 10 % more, and expects Good and then
+`Bad_InvalidArgument`. Both calls returned Good with an empty result. A string above the server's
+`MaxStringLength` cannot be decoded: `BinaryDecoder.ReadString` rejects it with
+`Bad_EncodingLimitsExceeded` (limit from the transport quotas, `TcpTransportListener`), so the request
+never reaches FindApplications. A copy of the script that uses printable characters (`urn:` + letters)
+confirms this: the first call returns Good, and the second call gets a ServiceFault
+`Bad_EncodingLimitsExceeded` (server log *"MaxStringLength 1048576 < 1153434"*). So the original random
+string does not reach the server as generated; a likely cause is its `\0` and non-ASCII code points.
+**Fix:** use printable ASCII characters, and expect the ServiceFault `Bad_EncodingLimitsExceeded` for
+the oversized call.
+### C30. GDS Query Applications `036.js` expects `rcp+` URLs the test never registered
+
+- **Test:** `maintree/GDS/GDS Query Applications/Test Cases/036.js`, lines 23–28; records from
+  `initialize.js`
+- **Error:** *"Received DiscoveryUrl 'opc.tcp://ClientAndServer:12345' does not start with 'rcp+' prefix"*
+  (and `:12346`)
+
+The only registered application with the `RCP` capability is `cab:other_foundation:ClientAndServer`,
+whose DiscoveryUrls are the plain `opc.tcp://ClientAndServer:12345/12346`. QueryApplications copies the
+record's DiscoveryUrls unchanged (OPC 10000-12 §6.5.10 Table 13). For ClientAndServer, only *"DiscoveryUrls
+that support reverse connect have the rcp+ prefix"* (§6.5.5), and *"DiscoveryUrls without the prefix are
+used for forward connections"* (§4.4.3). **Fix:** register the RCP client or ClientAndServer with
+`rcp+opc.tcp://…` URLs, and check only that each returned record has at least one `rcp+` URL.
+
+### C31. GDS Query Applications `038.js` treats applicationType 3 as invalid
+
+- **Test:** `maintree/GDS/GDS Query Applications/Test Cases/038.js`, lines 17 and 48 (step 5)
+- **Error:** *"Call.Results[0].StatusCode incorrect. Received: Good. Expected: BadInvalidArgument"*
+
+Step 6 (`applicationType = 0xFFFFFFFF`) already returns `Bad_InvalidArgument`; only step 5 fails.
+QueryApplications' ApplicationType is *"A mask indicating what types of applications are returned. The
+mask values are: 0x1 - Servers; 0x2 - Clients; If the mask is 0 then all applications are returned"*
+(OPC 10000-12 §6.5.10). `3` is `Servers | Clients`, a valid mask, and the server returns all records.
+The script's expectation (*"no records"*) matches neither reading. **Fix:** expect Good with all
+records for `3`, and use a value with an undefined bit (for example `4`) for the invalid case.
 
 ### C32. Monitor Basic `038.js` judges a RevisedSamplingInterval of 0 against a project setting
 
@@ -755,6 +832,154 @@ SecurityPolicyUri means "use the endpoint's policy" (Part 4 §7.41), so the serv
 equal in effect. Separately, `015.js` line 20 indexes `foundTokens[i]` with the endpoint index. **Fix:**
 set the SecurityPolicyUri on the returned clone only, and index `foundTokens` with the token position.
 
+### C37. Session Base secure test cases send CreateSession with the `opc.wss` EndpointUrl
+
+- **Tests:** `maintree/Session Services/Session Base/Test Cases/Err-002.js`, `Err-005.js` and
+  `Err-022.js`, line 14 (`Test.Session.Execute( { EndpointUrl: epSecureEncrypt.EndpointUrl } )`)
+- **Helpers:** `maintree/Session Services/Session Base/Test Cases/initialize.js`, lines 27–37;
+  `library/ClassBased/UaH.js`, line 64 (`HostnameFromUrl`)
+- **Error:** *"Expected CreateSession.Response.ServerCertificate to contain valid information."*, with the
+  warning *"UaPkiCertificate.IsValid(...) for Endpoint=opc.wss://…/Quickstarts/ReferenceServer/ Expected
+  hostname in EndpointUrl ('') to match the Endpoint in the Server's Certificate"*
+
+`initialize.js` skips endpoints whose URL starts with `http` and keeps the **last** SignAndEncrypt
+endpoint in `epSecureEncrypt`. The reference server lists its `opc.wss` endpoints after the
+`opc.tcp` ones, so the scripts open a UA TCP SecureChannel and then send that channel's CreateSession
+with the `opc.wss://` EndpointUrl. The server accepts the request and returns its certificate.
+`CreateSession.js` line 183 then checks the certificate against the request's EndpointUrl through
+`UaPkiCertificate.IsValid`, and `HostnameFromUrl` only matches `opc.tcp` and `http(s)` URLs
+(`^(?:opc.tcp|http)(?:s)?\://([^/]+):`). The host name is therefore empty and the certificate
+check fails. The server certificate contains the machine's host name, and Session Base `004.js`
+validates the same certificate successfully over `opc.tcp`. Related to C16 (WebSocket transport
+profiles) and to C35 of #4486 (Security User Anonymous `initialize.js` also selects the `opc.wss` endpoint).
+**Fix:** select `epSecureEncrypt` by `TransportProfileUri`
+(`http://opcfoundation.org/UA-Profile/Transport/uatcp-uasc-uabinary`) or by the scheme of the channel
+the test opens, and let `HostnameFromUrl` accept any `scheme://host:port` URL (`opc.wss`, `opc.https`).
+
+### C38. Subscription Durable `012.js` does not handle a denied diagnostics Browse
+
+- **Test:** `maintree/Subscription Services/Subscription Durable/Test Cases/012.js`, lines 23–37
+- **Errors:** *"Browse.Results[0].StatusCode is: BadUserAccessDenied"* (line 23), then
+  *"Read.Response.ResponseHeader.ServiceResult is Bad: BadNothingToDo"* (line 30)
+
+Step 3 reads `Server.ServerDiagnostics.EnabledFlag` and, when it is TRUE, browses
+`SubscriptionDiagnosticsArray` to find the durable subscription's `MaxLifetimeCount`. The CU session
+uses the CTT's default SecurityMode None channel. The reference server only lets a SecurityAdmin over
+SignAndEncrypt see server-wide subscription diagnostics (`DiagnosticsNodeManager.OnReadUserRolePermissions`
+/ `HasApplicationSecureAdminAccess`), because they reveal other clients' subscriptions, so Browse
+returns `Bad_UserAccessDenied`, a valid operation result (Part 4 §7.38.2). The script ignores the Browse
+status and reads an empty node list, which the server correctly rejects with `Bad_NothingToDo`
+(Part 4 §5.10.2). Line 37 has the same missing-braces pattern as issue 18
+(`if( … ) addError( … ); result = false;`), and `diagsObject` is undefined when no entry matches.
+Steps 4–6 (lifetime honoured after SetSubscriptionDurable, reset by ModifySubscription) pass.
+**Fix:** check `BrowseHelper.Response.Results[0].StatusCode` and skip Step 3 with a message when it is
+Bad or has no references, add braces on line 37, and guard `diagsObject`.
+
+### C39. A & C `AlarmCollector.GetCallTime()` returns an unset time, so Comment skips every alarm type
+
+- **Helper:** `library/AlarmsAndConditions/AlarmCollector.js`, lines 1839–1842
+  (`return new UaDateTime( callHelper.ServerTimeOfCall )`)
+- **Tests:** A & C Comment `Test_001.js`–`Test_004.js` (skip); A & C Enable `Test_002.js` (fails, C12)
+- **Result:** *"0 tests passed 1 tests skipped (retry count 3)"* for every alarm type
+
+`CallHelper.ServerTimeOfCall` is never assigned, so the call time is `0001-01-01T00:00:00Z`.
+Comment `Test_001.js` line 86 accepts the comment event only if
+`CommentTime.msecsTo( eventTime ) >= 0`; the 32-bit millisecond difference from year 1 is negative
+(about −838,500,000 on 2026-09-14), so every comment event is treated as unrelated and
+`RestartSkipped` (lines 2313–2335) gives up after three retries. Logged values from one run: call
+at `00:25:54.805Z`, response timestamp `00:25:54.816Z`, comment event `Time` `00:25:54.811Z` carrying
+the expected comment text, `CommentTime` `0001-01-01T00:00:00Z`. Enable `Test_002.js` lines 291 and
+301 fail the same way ("Unexpected event time, differs by ..."). Acknowledge and Confirm call the
+same helper but short-circuit the comparison (`IgnoreEventByCallTime` returns false, lines
+2356–2358), so they are unaffected. **Fix:** set `ServerTimeOfCall` from the Call response (and
+compare it with a tolerance, because the condition event is created before the response is sent),
+or use the request time corrected by the device time differential.
+
+### C40. A & C Limit/Level CUs create their filter subscriptions on a session that has timed out
+
+- **Tests:** A & C Exclusive Limit, Exclusive Level, Non-Exclusive Limit and Non-Exclusive Level
+  (all use `maintree/Alarms and Conditions/A and C Base/Limit/Test Cases/`), `Test_003.js`–`Test_006.js`
+- **Helper:** `library/AlarmsAndConditions/ConformanceHelpers/limithelper.js`, lines 72–79
+- **Error:** 5× *"CreateSubscription.Response.ResponseHeader.ServiceResult is Bad: BadSessionIdInvalid"*
+  in `initialize.js`, then each test case runs to the maximum test time (3 × Alarm Cycle Time)
+
+`initialize.js` connects the CU session (line 23) and creates the collector (line 37). When the
+collector starts the alarm thread, `InitialEventCapture` waits one full Alarm Cycle Time on the alarm
+thread's own session (`AlarmCollector.js` lines 305–319) while the CU session sends nothing.
+`LimitHelper` (line 47) then creates its five filter subscriptions on that CU session. With the
+default Alarm Cycle Time (60 s) and `/Server Test/Session/RequestedSessionTimeout` (60000 ms) the
+server has already closed the session as required by Part 4 §5.7.2. The four filter test cases
+find empty buffers and each waits 180 s, so every CU takes about 14 minutes when it is the first
+A&C CU in the CTT process (in a whole-group run only the first A&C CU pays the capture, and the
+Limit CUs take about 100 s). `Test_005.js` line 22 also sets `TestName = "Test_003"`. **Fix:** create
+the `LimitHelper` before the initial capture, keep the CU session alive during the capture, or use
+the alarm thread session for the filter subscriptions.
+
+### C41. A & C Alarm `Test_002.js` always runs to the maximum test time
+
+- **Test:** `maintree/Alarms and Conditions/A and C Alarm/Test Cases/Test_002.js`, line 38;
+  `initialize.js`, lines 15–36
+
+`CanRunTest` returns false for AcknowledgeableConditionType events (`CanRunAlarmCondition`, line 22–23)
+and `Test_002.js` returns without touching a counter or calling `AddIgnoreSkips`. The collector picks
+one condition per alarm type that sent an event (`AlarmCollector.GetConditionIdsToTest`), so a server
+that exposes an AcknowledgeableCondition instance keeps a condition in `TestConditionIds` that never
+gets a result, and `IsTestComplete` only ends the test at 3 × Alarm Cycle Time (180 s by default).
+Line 22 also compares with `Identifier.ConditionId` where `Identifier.ConditionType` is meant.
+**Fix:** increment `TestsSkipped` (or set IgnoreSkip) for types that `CanRunTest` rejects.
+
+### C42. A & C Enable `Test_003.js` depends on all alarm types going active within cycle/10
+
+- **Test:** `maintree/Alarms and Conditions/A and C Enable/Test Cases/Test_003.js`, lines 64–68, 89,
+  129–132, 201–215, 233–237
+
+A condition gets a test case only for an active event seen while `RefreshState` is still `Unknown`
+(line 89). The first disable sets the ConditionRefresh time to Alarm Cycle Time / 10 later (6 s by
+default, lines 64 and 129–132); after the refresh (line 207) no new test cases are created. A
+server whose alarm types go active at different times therefore leaves some types without a result
+and the test runs to 3 × Alarm Cycle Time. Against the reference server before its boolean and
+analog alarm sources were aligned this happened in 6 of 7 runs; the conditions it disabled are only
+re-enabled when the RefreshEnd event arrives (line 237). **Fix:** keep accepting first active events
+until the refresh is started for all non-ignored types, or mark types without an active event as
+skipped when the refresh is issued.
+
+### C43. A & C Enable `Err_004.js` reacts to its own events and can stop the alarm thread's event delivery
+
+- **Test:** `maintree/Alarms and Conditions/A and C Enable/Test Cases/Err_004.js`, lines 25–40
+
+For *every* event of a condition the test calls Disable, Disable and Enable on the alarm thread
+session without keeping per-condition state. Each Disable/Enable raises a new condition event, which
+triggers the same three calls again: runs recorded up to 364 passes per alarm type and 868 events in
+15 s. In 7 of 17 Enable runs against the reference server the CTT alarm thread returned **no events
+at all** for the rest of the CU, six times right after such a burst and once already from
+`Test_003.js` on; every test case after that ran to 3 × Alarm Cycle Time.
+Evidence collected with `addLog` counters in a project copy and the server log:
+
+- the alarm thread subscription stayed alive, and its data monitored items on the same subscription
+  kept delivering values (AnalogSource about one per second) while both event items on it stayed empty;
+- `GetBuffer` never failed (status true, zero events);
+- the server kept reporting condition events at the normal rate and deleted the subscription only at
+  the end, with no unacknowledged messages;
+- an in-process client that replays the pattern (same subscription parameters, a Server event item
+  plus a ConditionId `InList` item, Disable/Disable/Enable for every received event) pushed about
+  100,000 events through in 20 s three times and kept receiving events afterwards.
+
+The server side could not be shown to drop the notifications; a network capture of the CTT session
+is needed to settle it. **Fix:** handle each condition once (`TestCaseMap`), like the other Enable
+test cases, which removes the burst.
+
+### C44. A & C CertificateExpiration blocks a `--hidden` run on a modal dialog
+
+- **Test:** `maintree/Alarms and Conditions/A and C CertificateExpiration/Test Cases/initialize.js`,
+  lines 135–149
+
+`initialize.js` opens a synchronous Yes/No message box (*"Is is possible to adjust the clock on the
+server without a restart"*) before any test runs, and the test cases open further OK dialogs asking
+the operator to change the server clock. In a `--close --hidden` run the dialog window
+*"Certificate Expiration Operation"* is still created and waits for input, so the CTT never exits.
+The CU needs an operator (and a server whose clock can be moved past a certificate's expiration
+limit). **Fix:** skip dialogs in hidden/automated runs, or add a project setting that answers them.
+
 ## Needs clarification
 
 ### U1. NumberOfTransitions with TreatUncertainAsBad=true
@@ -821,26 +1046,46 @@ it is classified as a server or CTT issue.
   subscriptions was ever refreshed. Fixed: the check is now keyed by subscription and monitored item
   (`AlarmsAndConditionsRefreshTests.ConditionRefresh*OfDifferentSubscriptionsInOneCallSucceedsAsync`).
 - **A & C Comment skips 5 of 11 test cases.** CTT defect: `Test_001.js`–`Test_004.js` compare the
-  comment event time with an unset call time (C19); the server delivers the comment event with the
+  comment event time with an unset call time (C39); the server delivers the comment event with the
   expected text. The fifth skip is `Err_006.js` (*"Unable to find event that does not support
   comments"*), a coverage gap rather than a failure.
 - **Slow A & C units (resolved).** See [ctt-testing.md](ctt-testing.md#6-alarms-and-conditions) for the
   timing breakdown and the recommended run. Limit/Level CUs are slow only when they run first in a CTT
-  process (C20); CertificateExpiration hangs on a modal dialog (C24); Alarm `Test_002.js` always and
-  Enable `Test_003.js` often ran to 3 × Alarm Cycle Time (C21, C22), and Enable intermittently stops receiving events
-  after `Err_004.js` bursts (C23). The reference server's boolean
+  process (C40); CertificateExpiration hangs on a modal dialog (C44); Alarm `Test_002.js` always and
+  Enable `Test_003.js` often ran to 3 × Alarm Cycle Time (C41, C42), and Enable intermittently stops receiving events
+  after `Err_004.js` bursts (C43). The reference server's boolean
   and analog alarm sources now change state on the same simulation tick, which makes Enable
   `Test_003.js` pass deterministically.
-- **GDS QueryServers / QueryApplications Like filters.** Against the GDS node manager in CTT mode
-  (`src/Opc.Ua.Gds.Server`, `ApplicationsDatabaseBase.IsMatchPattern`):
-  - Application Directory `066.js`, `068.js`, `071.js`, `073.js`, `075.js` and Query Applications
-    `011.js`–`024.js` return the wrong number of records for patterns such as `%_erver%` and `[%]`.
-  - `067.js`/`069.js`: patterns containing an escaped `%` or `\` are rejected with
-    `BadInvalidArgument` instead of Good.
-  - `078.js` (`%[a^j-l]%`, an invalid `^` position) and Query Applications `038.js`
-    (applicationType = max UInt32) are accepted with Good instead of `BadInvalidArgument`.
-  - `036.js`: a registered reverse-connect client's DiscoveryUrl does not start with `rcp+`.
-  - `079.js` then aborts in `library/GDS/MethodCalls.js:286` on a null `servers` result.
+- **GDS (triaged 2026-09-14).** The 60 GDS errors are classified below. Server defects fixed:
+  - Like filters of QueryServers/QueryApplications (`ApplicationsDatabaseBase.Match`, now the shared
+    `Opc.Ua.LikePattern`, OPC 10000-4 §7.7.3). The old tokenizer returned no records or all records
+    for `%_erver%`, `%e_`, `%\_%`, `%\%%`, `%[q-s]`, `%[^q-s]` and `%_ompliance%`, and accepted the
+    malformed `%[a^j-l]%`. Fixes Application Directory `062.js`, `066.js`, `068.js`, `071.js`,
+    `073.js` and Query Applications `013.js`, `017.js`–`019.js`, `022.js`, `024.js`. `078.js` now
+    gets the expected `BadInvalidArgument` but then aborts in the CTT helper (C22).
+  - QueryServers RecordIds (`LinqApplicationsDatabase.QueryServers`). The application id was used as
+    the RecordId of every DiscoveryUrl record, so `StartingRecordId` paging skipped the remaining
+    DiscoveryUrls of an application (§6.5.11 Table 15 returns one record per DiscoveryUrl). Fixes
+    Application Directory `045.js`, `075.js`.
+  - FindApplications with an empty ApplicationUri returned every application (§6.5.4: array size 0 or
+    1, `Bad_InvalidArgument` for an invalid URI). Fixes Application Directory `004.js`. Other strings
+    that are not a registered ApplicationUri still return an empty array, which `003.js` (up to
+    MaxStringLength `X` characters) expects.
+
+  CTT GDS rerun with the fixes: 47 errors (baseline 60); 48 in a later run where `028.js` missed its
+  audit event (C23). `074.js` and Query Applications `025.js` newly fail as described in C21. A run
+  against a copy of the scripts with the recommended fixes of C19, C20, C22, C23, C25 and C29 applied
+  leaves 41 errors: `010.js`, `060.js`, `065.js`, `067.js`, `078.js`, `079.js` and Query Applications
+  `011.js`, `016.js` then pass, `018.js` receives a correct audit event, and `005.js` shows the expected
+  `Bad_EncodingLimitsExceeded` ServiceFault. That fault carries RequestHandle 0 (Part 4 §7.33: the
+  requestHandle *should* be echoed even for invalid requests), a transport-level observation outside
+  the GDS. CTT defects: C19–C31. Not applicable to this server: GDS AliasName
+  Discovery `001.js`, `002.js`,
+  `004.js` (see *CTT project configuration notes*). Application Directory `018.js` also needs the
+  event queue size fix of [#4480](https://github.com/OPCFoundation/UA-.NETStandard/pull/4480) (C23).
+  Spec conflict, server unchanged: §6.5.10/§6.5.11 say QueryApplications/QueryServers *"shall not
+  return records with a ServerCapabilities that includes NA"*, but the CTT registers its reference
+  Servers with `NA` and expects them in the results (for example `066.js`, `079.js` step 1).
 - **GDS AliasName Discovery.** `001.js` finds AliasName instances in the TagVariables (`i=23479`) and
   Topics (`i=23488`) folders although no server is registered yet. `002.js`/`004.js`: the aliases and
   custom categories of a registered server are not replicated to the GDS.
@@ -869,6 +1114,30 @@ it is classified as a server or CTT issue.
   revocation list. `TcpServerChannel` masked only `BadCertificateRevoked`; it now also masks
   `BadCertificateIssuerRevoked`, `BadCertificateRevocationUnknown` and `BadCertificateIssuerRevocationUnknown`
   (the CreateSession path already did).
+- **Session Services stopped accepting sessions after a session timeout (fixed 2026-09-14).** Session
+  Base `002.js` lets a session time out and calls ActivateSession on it. `SessionManager.ActivateSessionAsync`
+  found the expired session while holding the session-manager `SemaphoreSlim` and closed it through
+  `IServerInternal.CloseSessionAsync`, which ends in `SessionManager.CloseSessionAsync` waiting for the same
+  non-reentrant semaphore. The activation never returned (the CTT reported *"Good"* after its 20 s
+  timeout), and every later CreateSession timed out with `BadTimeout`: 19 Session Base test cases, all of
+  Session Change User and the `initialize.js` of Session Cancel and Session Multiple failed. The session is
+  now closed after the lock is released and ActivateSession returns `Bad_SessionClosed`
+  (`SessionManagerExpiryTests`). The session monitor only checks sessions every `MinSessionTimeout` ms, so an
+  activation shortly after the timeout usually reaches the expired session before the monitor does.
+- **Subscription Durable `004.js` received a keep-alive after TransferSubscriptions (fixed 2026-09-14).**
+  The test disconnects with DeleteSubscriptions=FALSE, waits 10 s, reconnects, transfers the durable
+  subscription and expects the first Publish to return the values buffered meanwhile
+  (*"Didn't receive the data from the transferred subscription"*, line 78; passed in a CU run, failed in a
+  group run). While a subscription is abandoned the publish timer keeps counting its keep-alive but only
+  moves ready monitored items to the publish list when a Session owns it (`Subscription.PublishTimerExpired`,
+  `Session != null`). After the transfer the first Publish found the keep-alive due and nothing to
+  publish, and returned an empty keep-alive although notifications were available (Part 4 §5.14.1.1). The
+  data only came one Publish later. `InnerPublish` now collects ready items before it sends a keep-alive
+  (`SubscriptionTests.FirstPublishAfterTransferOfAbandonedSubscriptionReturnsQueuedDataAsync`).
+- **CloseSession latency.** Subscription Basic `Err-011.js` and Subscription Publish Basic `cleanup.js` warn
+  that CloseSession responses arrive 600–700 ms after the request (tolerance 100 ms). Closing a session with
+  and without a subscription on the in-process `ReferenceServer` takes 0–19 ms, so the time is not spent in
+  `SessionManager`/`SubscriptionManager.SessionClosingAsync`; not investigated further (warning only).
 
 ## CTT project configuration notes
 
@@ -903,10 +1172,27 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
 - **Auditing.** Auditing Connections `002.js`, `003.js`, `008.js`, `010.js`, `014.js` skip when no other
   test case in the same run produces the audit event they look for. Run the Auditing group together
   with the service groups whose actions it audits.
-- **GDS AliasName Discovery.** `005.js`–`015.js` need two or three AliasName sources configured
+- **GDS target server.** Application Directory and Query Applications exercise the same code
+  (`ApplicationsNodeManager` + `LinqApplicationsDatabase` from `src/Opc.Ua.Gds.Server`) on the
+  reference server in `--ctt` mode and on a dedicated GDS, so either target gives the same results.
+  The reference server keeps its GDS database in memory (empty `DatabaseStorePath`), so every server
+  start begins with an empty directory; a GDS with a JSON database (`DatabaseStorePath` set, as in the
+  `opc.tcp://localhost:58810/GlobalDiscoveryServer` sample GDS project) keeps records of aborted
+  earlier runs and changes the record counts every test expects. Delete that file before each run.
+  Run the four GDS CUs in one run: the test cases within a CU depend on the records registered by
+  its `initialize.js` and earlier test cases (`012.js` and `019.js` unregister and re-register them).
+- **GDS AliasName Discovery.** Not applicable: this CU belongs to the *GDS AliasName Server Facet*
+  (OPC 10000-17 Annex C.2: aggregate the AliasNames of registered Servers into TagVariables/Topics
+  and add their ServerUri to ServerArray), which `Opc.Ua.Gds.Server` does not implement, so `002.js`
+  and `004.js` fail on any GDS built from it. `001.js` additionally fails only against the reference
+  server: it expects empty TagVariables (`i=23479`) and Topics (`i=23488`) folders on a GDS without
+  registrations, but the reference server is itself an AliasName Server and exposes its own aliases
+  there (`Devices.Heater_Power`, `TIC101_PV`, `ServerEvents`, …). Deselect the CU until the facet is
+  implemented. `005.js`–`015.js` also need two or three AliasName sources configured
   (`/Server Test/GDS/AliasName Discovery/AliasName Source N URL`).
-- **Monitor Value Change V2 `020.js`** needs **every** element of the configured ByteString array to be at
-  least four bytes long (C33). The reference server's sample value satisfies that since 2026-09-14.
+- **GDS LDS-ME Connectivity.** `initialize.js` skips the CU unless QueryApplications with
+  `ServerCapabilities = ["LDS"]` returns a record: register an LDS/LDS-ME with the GDS first. The
+  reference server does not include an LDS.
 - **Node Management client NodeIds.** Leave `/Server Test/NodeIds/NodeManagement/RequestedNodeId` disabled.
   When enabled, scripts 1.05.513 request NodeIds in namespace 1 regardless of `RequestedNodeId_Namespace`
   (C34), and six Add Node test cases fail with `BadNodeIdRejected`. `Err-008.js` therefore keeps failing
@@ -915,7 +1201,7 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
   Monitor Events `002.js`/`003.js`, Monitor Queueing `013.js`/`014.js`, and the Monitor Complex Event Filter
   and Monitor QueueSize_ServerMax CUs are *Not Implemented* (manual or test-lab) in scripts 1.05.513. So are
   Node Management Add Ref and Delete Ref.
-- **Security groups need the CTT PKI, not `-a`.** See [ctt-testing.md](ctt-testing.md#8-security-groups).
+- **Security groups need the CTT PKI, not `-a`.** See [ctt-testing.md](ctt-testing.md#9-security-groups).
   With `-a` every negative certificate test fails spuriously.
 - **Security General coverage.** In scripts 1.05.513, 50 of the 53 CUs contain only *Not Implemented* test
   cases (Push/Pull Model, No Application Authentication, Security Administration, Certificate Administration, Default ApplicationInstance
@@ -934,6 +1220,8 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
   and the server answers unknown credentials with `BadUserAccessDenied`; the reference server has no user
   that authenticates but is denied access. Security Invalid user token, the Kerberos, JWT, Authority Profile
   and Token Unencrypted CUs, and X509 `003.js`/`012.js`, are *Not Implemented*.
+- **Monitor Value Change V2 `020.js`** needs **every** element of the configured ByteString array to be at
+  least four bytes long (C33). The reference server's sample value satisfies that since 2026-09-14.
 - **Alarms and Conditions coverage.** The single-case CUs (ConditionClasses, Condition Sub-Classes,
   Suppression by Operator, Silencing, OutOfService, On-Off Delay, Re-Alarming, First in Group Alarm,
   Audible Sound, Discrepancy, Trip, A&E Wrapper Mapping, Dialog) contain only manual
@@ -947,7 +1235,20 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
   sets the initial event capture (1 ×), the maximum time of every collector test case (3 ×) and the
   Enable `Test_003.js` refresh delay (1/10). Keep it below
   `/Server Test/Session/RequestedSessionTimeout` (ms) when a Limit/Level CU can be the first A&C CU of a
-  run (C20).
+  run (C40).
+- **Subscription Publish Min 05 `003.js`** creates 5 subscriptions in each of half the
+  `/Server Test/Capabilities/Max Supported Sessions` sessions (75 → 38 sessions, 190 subscriptions). With
+  `/Server Test/Capabilities/Max Supported Subscriptions` = 100 (the server's `MaxSubscriptionCount` in
+  `Ctt.ReferenceServer.Config.xml`) it warns *"Not enough subscriptions for all sessions. Reducing session
+  amount to 20"* and still passes. The warning is informational; raising both limits to 200 removes it.
+- **Session and Subscription coverage.** Manual (*Not Implemented*) test cases: Subscription Basic `072.js`,
+  `073.js`; Subscription Multiple `001.js`–`003.js`; Subscription Publish Basic `005.js`–`007.js`, `Err-001.js`;
+  Subscription PublishRequest Queue Overflow `001.js`, `002.js`; Subscription Durable `013.js`. Subscription
+  Durable StorageLevel High/Medium/Small and Subscription Retransmission Queue contain only
+  `NoTestCaseDefined.js`. Skipped by the scripts: Subscription Basic `067.js` (under Working Group review),
+  Subscription Durable `006.js` (server restart) and `009.js` (events), Subscription Transfer `Err-010.js`
+  (no script), Session Base `Err-009.js` (the CTT has no Kerberos token) and `Err-023.js` (the server offers
+  SecurityPolicy None, correct for `--ctt`).
 - **Historical Access coverage.** Every Historical Access CU except *Read Raw* contains only
   `NoTestCaseDefined.js` in scripts 1.05.513. Insert/Replace/Update/Delete (values and events),
   Annotations, ServerTimestamp, Modified, Time Instance and Structured Data are not tested.

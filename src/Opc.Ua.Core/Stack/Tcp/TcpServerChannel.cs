@@ -382,7 +382,8 @@ namespace Opc.Ua.Bindings
                         ServiceResult.Create(
                             e,
                             StatusCodes.BadTcpInternalError,
-                            "Unexpected error processing request."));
+                            "Unexpected error processing request."),
+                        request.RequestHeader?.RequestHandle ?? 0);
                 }
             }
         }
@@ -994,7 +995,8 @@ namespace Opc.Ua.Bindings
                     ServiceResult.Create(
                         e,
                         StatusCodes.BadTcpInternalError,
-                        "Unexpected error processing OpenSecureChannel request."));
+                        "Unexpected error processing OpenSecureChannel request."),
+                    request?.RequestHeader?.RequestHandle ?? ReadRequestHandle(chunksToProcess));
 
                 CompleteReverseHello(e);
                 return false;
@@ -1062,6 +1064,23 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SendServiceFault(uint requestId, bool renew, ServiceResult fault)
         {
+            SendServiceFault(requestId, renew, fault, requestHandle: 0);
+        }
+
+        /// <summary>
+        /// Sends a fault response secured with the asymmetric keys.
+        /// </summary>
+        /// <param name="requestId">The request id of the failed request.</param>
+        /// <param name="renew">Whether the fault answers a renew request.</param>
+        /// <param name="fault">The fault to report.</param>
+        /// <param name="requestHandle">The RequestHandle of the failed request, echoed in
+        /// the ResponseHeader as OPC 10000-4 §7.33 recommends; 0 if it is unknown.</param>
+        protected void SendServiceFault(
+            uint requestId,
+            bool renew,
+            ServiceResult fault,
+            uint requestHandle)
+        {
             m_logger.TcpServerLog7(ChannelId, requestId, fault.StatusCode);
 
             BufferCollection? chunksToSend = null;
@@ -1072,6 +1091,8 @@ namespace Opc.Ua.Bindings
                 var response = new ServiceFault();
 
                 response.ResponseHeader.ServiceResult = fault.Code;
+                response.ResponseHeader.RequestHandle = requestHandle;
+                response.ResponseHeader.Timestamp = DateTime.UtcNow;
 
                 var stringTable = new StringTable();
 
@@ -1503,7 +1524,8 @@ namespace Opc.Ua.Bindings
                             requestId,
                             ServiceResult.Create(
                                 StatusCodes.BadSecurityPolicyRejected,
-                                "Discovery Channel message size exceeded."));
+                                "Discovery Channel message size exceeded."),
+                            ReadRequestHandle(chunksToProcess));
                         ChannelClosed();
                     }
 
@@ -1541,7 +1563,8 @@ namespace Opc.Ua.Bindings
                         requestId,
                         ServiceResult.Create(
                             StatusCodes.BadStructureMissing,
-                            "Could not parse request body."));
+                            "Could not parse request body."),
+                        ReadRequestHandle(chunksToProcess));
                     return true;
                 }
 
@@ -1554,7 +1577,8 @@ namespace Opc.Ua.Bindings
                         requestId,
                         ServiceResult.Create(
                             StatusCodes.BadSecurityPolicyRejected,
-                            "Channel can only be used for discovery."));
+                            "Channel can only be used for discovery."),
+                        request.RequestHeader?.RequestHandle ?? 0);
                     return true;
                 }
 
@@ -1577,19 +1601,40 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 m_logger.TcpServerLog16(e);
+
+                // A request the decoder rejected (for example a string above
+                // MaxStringLength) still starts with a readable RequestHeader.
                 SendServiceFault(
                     token,
                     requestId,
                     ServiceResult.Create(
                         e,
                         StatusCodes.BadTcpInternalError,
-                        "Unexpected error processing request."));
+                        "Unexpected error processing request."),
+                    ReadRequestHandle(chunksToProcess));
                 return true;
             }
             finally
             {
                 chunksToProcess?.Release(BufferManager, "ProcessRequestMessage");
             }
+        }
+
+        /// <summary>
+        /// Reads the RequestHandle of a request message that could not be
+        /// processed, for the ServiceFault that reports it.
+        /// </summary>
+        /// <param name="chunks">The chunks of the request message, if assembled.</param>
+        /// <returns>The RequestHandle, or 0 if it cannot be read.</returns>
+        private uint ReadRequestHandle(BufferCollection? chunks)
+        {
+            if (chunks == null)
+            {
+                return 0;
+            }
+
+            using var stream = new ArraySegmentStream(chunks);
+            return RequestHandleReader.FromBinary(stream);
         }
 
         /// <summary>
@@ -1644,7 +1689,8 @@ namespace Opc.Ua.Bindings
                         ServiceResult.Create(
                             e,
                             StatusCodes.BadEncodingError,
-                            "Could not encode outgoing message."));
+                            "Could not encode outgoing message."),
+                        response.ResponseHeader?.RequestHandle ?? 0);
 
                     return;
                 }
@@ -1737,13 +1783,17 @@ namespace Opc.Ua.Bindings
                 typeId != ObjectIds.FindServersRequest_Encoding_DefaultBinary &&
                 typeId != ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultBinary)
             {
+                // The body is only the first chunk, but a RequestHeader starts
+                // every request; read it before the body changes hands.
+                uint requestHandle = RequestHandleReader.FromBinary(messageBody);
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
                 SendServiceFault(
                     token,
                     requestId,
                     ServiceResult.Create(
                         StatusCodes.BadSecurityPolicyRejected,
-                        "Channel can only be used for discovery."));
+                        "Channel can only be used for discovery."),
+                    requestHandle);
                 return false;
             }
             return true;
