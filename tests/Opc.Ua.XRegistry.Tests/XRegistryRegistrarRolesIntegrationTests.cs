@@ -29,12 +29,15 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using NUnit.Framework.Interfaces;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server;
@@ -945,13 +948,14 @@ namespace Opc.Ua.XRegistry.Tests
         [TestCase(true)]
         public async Task NativeInitialVersionTimestampsUseOneInstantAsync(bool idempotentFirst)
         {
+            using var output = new StringWriter(m_testOutput, CultureInfo.CurrentCulture);
             var native = new NativeFixture();
             await using (native.ConfigureAwait(false))
             {
                 using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
                 CancellationToken ct = timeout.Token;
                 await native.StartAsync(ct).ConfigureAwait(false);
-                TestContext.Out.WriteLine(
+                output.WriteLine(
                     $"Runtime: {Environment.Version}; ServerGC: {System.Runtime.GCSettings.IsServerGC}");
                 NodeId groupId = await native.Client.GetRegistry(native.Client.RegistryNodeId)
                     .CreateGroupAsync("schemas", ct).ConfigureAwait(false);
@@ -1047,7 +1051,7 @@ namespace Opc.Ua.XRegistry.Tests
 
                 foreach (ResourceSnapshot version in initialVersions)
                 {
-                    TestContext.Out.WriteLine(
+                    output.WriteLine(
                         $"{version.ResourceId}/{version.VersionId}: " +
                         $"CreatedAt={version.CreatedAt.Value}; ModifiedAt={version.ModifiedAt.Value}");
                 }
@@ -1061,6 +1065,17 @@ namespace Opc.Ua.XRegistry.Tests
                     }
                 });
             }
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            if (m_testOutput.Length != 0 &&
+                TestContext.CurrentContext.Result.Outcome.Status != TestStatus.Passed)
+            {
+                TestContext.Out.Write(m_testOutput.ToString());
+            }
+            m_testOutput.Clear();
         }
 
         private static async Task CommitChunksAsync(
@@ -2111,6 +2126,7 @@ namespace Opc.Ua.XRegistry.Tests
             }
         }
 
+        private readonly StringBuilder m_testOutput = new();
         private const string kLogicalXid = "/groups/schemas/resources/pump";
         private const string kEventSourceUrl = "https://registry.example.test";
         private const int kOperationTimeout = 10000;

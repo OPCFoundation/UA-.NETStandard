@@ -29,12 +29,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using NUnit.Framework.Interfaces;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.TestFramework;
@@ -71,6 +73,7 @@ namespace Opc.Ua.WotCon.Tests
         [SetUp]
         public async Task SetUpAsync()
         {
+            m_testOutput.Clear();
             m_telemetry = NUnitTelemetryContext.Create();
             m_pkiRoot = Path.Combine(
                 Path.GetTempPath(),
@@ -133,31 +136,45 @@ namespace Opc.Ua.WotCon.Tests
             // coordinator.RemoveAllAsync → LifecycleWotProjectionHost.RemoveAsync per
             // projection) and WotRegistryProjection.Dispose (clears group entries,
             // disposes the refresh gate).
+            bool completed = false;
             try
             {
-                if (m_session != null)
+                try
                 {
-                    await m_session.CloseAsync().ConfigureAwait(false);
+                    if (m_session != null)
+                    {
+                        await m_session.CloseAsync().ConfigureAwait(false);
+                    }
                 }
+                finally
+                {
+                    m_session?.Dispose();
+                    m_coordinator?.Dispose();
+                    m_registry?.Dispose();
+                    m_server?.Dispose();
+
+                    if (m_serverFixture != null)
+                    {
+                        await m_serverFixture.StopAsync().ConfigureAwait(false);
+                    }
+
+                    m_clientFixture?.Dispose();
+
+                    if (!string.IsNullOrEmpty(m_pkiRoot) && Directory.Exists(m_pkiRoot))
+                    {
+                        Directory.Delete(m_pkiRoot, recursive: true);
+                    }
+                }
+                completed = true;
             }
             finally
             {
-                m_session?.Dispose();
-                m_coordinator?.Dispose();
-                m_registry?.Dispose();
-                m_server?.Dispose();
-
-                if (m_serverFixture != null)
+                if (m_testOutput.Length != 0 &&
+                    (!completed || TestContext.CurrentContext.Result.Outcome.Status != TestStatus.Passed))
                 {
-                    await m_serverFixture.StopAsync().ConfigureAwait(false);
+                    TestContext.Out.Write(m_testOutput.ToString());
                 }
-
-                m_clientFixture?.Dispose();
-
-                if (!string.IsNullOrEmpty(m_pkiRoot) && Directory.Exists(m_pkiRoot))
-                {
-                    Directory.Delete(m_pkiRoot, recursive: true);
-                }
+                m_testOutput.Clear();
             }
         }
 
@@ -531,6 +548,7 @@ namespace Opc.Ua.WotCon.Tests
         [TestCase(true)]
         public async Task LogicalOldReadClosePreservesCurrentDefaultFilePropertiesAsync(bool currentReaderOpen)
         {
+            using var output = new StringWriter(m_testOutput, CultureInfo.CurrentCulture);
             using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
             CancellationToken ct = timeout.Token;
             using var secureFixture = new ClientFixture(false, false, m_telemetry);
@@ -546,7 +564,7 @@ namespace Opc.Ua.WotCon.Tests
                         Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
                     Assert.That(session.SessionId, Is.Not.EqualTo(m_session.SessionId));
                 });
-                TestContext.Out.WriteLine(
+                output.WriteLine(
                     $"Runtime: {Environment.Version}; ServerGC: {System.Runtime.GCSettings.IsServerGC}");
                 WotRegistryClient client = await WotRegistryClient.ForServerAsync(session, m_telemetry, ct)
                     .ConfigureAwait(false);
@@ -632,7 +650,7 @@ namespace Opc.Ua.WotCon.Tests
                     currentHandle = 0;
                     NativeFileView closed = await ReadFileViewAsync(session, logical.ResourceNodeId, ct)
                         .ConfigureAwait(false);
-                    TestContext.Out.WriteLine(
+                    output.WriteLine(
                         $"OldClose: currentReaderOpen={currentReaderOpen}; " +
                         $"Size={before.Size}->{after.Size}; OpenCount={before.OpenCount}->{after.OpenCount}");
                     Assert.Multiple(() =>
@@ -2532,6 +2550,7 @@ namespace Opc.Ua.WotCon.Tests
             DateTimeUtc CreatedAt,
             DateTimeUtc ModifiedAt);
 
+        private readonly StringBuilder m_testOutput = new();
         private string m_pkiRoot = null!;
         private ServerFixture<ReferenceServer> m_serverFixture = null!;
         private ClientFixture m_clientFixture = null!;
