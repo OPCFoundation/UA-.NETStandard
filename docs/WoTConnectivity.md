@@ -1112,6 +1112,10 @@ filters are disjunctive. A definite matching type or filter is not defeated by
 an unrelated unresolved alternative. If the remaining evidence cannot determine
 membership, resolution reports `ProjectionSelectorInvalid`, rather than
 guessing a match or returning a successful partial view.
+First-selection precedence is applied in the same deterministic total order
+before evaluating later bulk candidates. An uncertain candidate cannot
+invalidate an already selected name; uncertainty that could still determine
+the winner remains an error.
 
 Present controls are validated before source acquisition, including in nested
 projections. `uav:sourceDigest`, `uav:routing`, and `uav:namePrefix` must have their

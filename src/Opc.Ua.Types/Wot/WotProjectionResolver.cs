@@ -817,10 +817,7 @@ namespace Opc.Ua.Wot
             foreach ((WotAffordanceKind kind, string name, JsonElement definition)
                 in EnumerateAffordances(source.Document))
             {
-                if (MatchesSource(source, kind, name, definition, selection, diagnostics))
-                {
-                    candidates.Add((kind, name, definition));
-                }
+                candidates.Add((kind, name, definition));
             }
 
             // Section 12.4: within one source and group, by affordance kind,
@@ -847,13 +844,18 @@ namespace Opc.Ua.Wot
             foreach ((WotAffordanceKind kind, string name, JsonElement definition) in candidates)
             {
                 string viewName = ApplyPrefix(source.Source, name);
+                if (!selection.IsClaimed(kind, viewName) &&
+                    !MatchesSource(source, kind, name, definition, selection, diagnostics))
+                {
+                    continue;
+                }
                 if (!selection.Claim(kind, viewName))
                 {
                     AddWarning(
                         diagnostics,
                         WotDiagnosticCode.ProjectionSelectionDropped,
-                        $"The bulk selection '{viewName}' was already made; the " +
-                        "later selection is dropped.",
+                        $"The name '{viewName}' was already selected; the " +
+                        "later bulk candidate is dropped.",
                         source.Source.Href);
                     continue;
                 }
@@ -2492,6 +2494,11 @@ namespace Opc.Ua.Wot
             public bool Claim(WotAffordanceKind kind, string name)
             {
                 return Taken(kind).Add(name);
+            }
+
+            public bool IsClaimed(WotAffordanceKind kind, string name)
+            {
+                return Taken(kind).Contains(name);
             }
 
             public ResolvedAffordance Add(
