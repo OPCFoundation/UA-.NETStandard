@@ -205,19 +205,30 @@ namespace Opc.Ua.Robotics.Server
         }
 
         /// <summary>
-        /// Asynchronously disposes the execution hosts owned by this node manager.
+        /// Waits for every execution host and base node-manager cleanup to complete.
         /// </summary>
+        /// <remarks>
+        /// A host's bounded shutdown timeout may defer its cleanup, but does not complete this
+        /// node-manager operation. Concurrent calls join the same result, including cleanup
+        /// started by synchronous disposal.
+        /// </remarks>
         public override async ValueTask DisposeAsync()
         {
-            ArrayOf<IntentControllerHost> deferredHosts = await DisposeHostsAsync().ConfigureAwait(false);
-            if (deferredHosts.Count == 0)
+            if (Interlocked.CompareExchange(ref m_disposalStarted, 1, 0) == 0)
             {
-                DisposeBase(disposing: true);
-                await base.DisposeAsync().ConfigureAwait(false);
-                GC.SuppressFinalize(this);
-                return;
+                try
+                {
+                    ArrayOf<IntentControllerHost> deferredHosts = await DisposeHostsAsync().ConfigureAwait(false);
+                    await DisposeBaseWhenHostsCompleteAsync(deferredHosts).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_hostDisposalCompleted.TrySetException(ex);
+                    m_logger.NodeManagerDisposalFailed(ex);
+                }
             }
-            _ = DisposeBaseWhenHostsCompleteAsync(deferredHosts);
+            await m_hostDisposalCompleted.Task.ConfigureAwait(false);
+            await base.DisposeAsync().ConfigureAwait(false);
             GC.SuppressFinalize(this);
         }
 
@@ -258,17 +269,30 @@ namespace Opc.Ua.Robotics.Server
             Justification = DeferredBaseDisposeJustification)]
         protected override void Dispose(bool disposing)
         {
-            if (disposing)
+            if (!disposing)
+            {
+                DisposeBase(disposing: false);
+                return;
+            }
+            if (Interlocked.CompareExchange(ref m_disposalStarted, 1, 0) != 0)
+            {
+                return;
+            }
+            try
             {
                 ArrayOf<IntentControllerHost> deferredHosts = DisposeHosts();
-                if (deferredHosts.Count != 0)
+                if (deferredHosts.Count == 0)
                 {
-                    // Base disposal is completed by the continuation once every deferred host has released resources.
-                    _ = DisposeBaseWhenHostsCompleteAsync(deferredHosts);
-                    return;
+                    DisposeBase(disposing: true);
                 }
+                // Asynchronous callers join the published completion without blocking this compatibility entry point.
+                _ = DisposeBaseWhenHostsCompleteAsync(deferredHosts);
             }
-            DisposeBase(disposing);
+            catch (Exception ex)
+            {
+                m_hostDisposalCompleted.TrySetException(ex);
+                throw;
+            }
         }
 
         internal void RegisterIntentControllerHost(IntentControllerHost host)
@@ -430,16 +454,24 @@ namespace Opc.Ua.Robotics.Server
         }
 
         /// <summary>
-        /// Defers base node-manager disposal until every outstanding controller host has released its resources.
+        /// Drains deferred hosts and starts base cleanup, publishing completion or a logged failure to every disposer.
         /// </summary>
         private async Task DisposeBaseWhenHostsCompleteAsync(ArrayOf<IntentControllerHost> deferredHosts)
         {
-            while (!AllResourcesDisposed(deferredHosts))
+            try
             {
-                await Task.Delay(50).ConfigureAwait(false);
+                while (!AllResourcesDisposed(deferredHosts))
+                {
+                    await Task.Delay(50).ConfigureAwait(false);
+                }
+                DisposeBase(disposing: true);
+                m_hostDisposalCompleted.TrySetResult(true);
             }
-            DisposeBase(disposing: true);
-            await base.DisposeAsync().ConfigureAwait(false);
+            catch (Exception ex)
+            {
+                m_hostDisposalCompleted.TrySetException(ex);
+                m_logger.NodeManagerDisposalFailed(ex);
+            }
         }
 
         private static bool AllResourcesDisposed(ArrayOf<IntentControllerHost> hosts)
@@ -619,10 +651,25 @@ namespace Opc.Ua.Robotics.Server
         private readonly HashSet<IntentControllerHost> m_startedHosts = [];
         private const string DeferredBaseDisposeJustification =
             "Deferred host shutdown must postpone base teardown; TODO: remove when CA2215 models async handoff.";
+
+        /// <summary>
+        /// Completes when all deferred hosts are drained and base cleanup has been initiated.
+        /// </summary>
+        private readonly TaskCompletionSource<bool> m_hostDisposalCompleted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>
+        /// Claims host-list detachment and cleanup once across synchronous and asynchronous entry points.
+        /// </summary>
+        private int m_disposalStarted;
+
         private int m_baseDisposeStarted;
         private RobotIntentRootState? m_root;
     }
 
+    /// <summary>
+    /// Source-generated diagnostics for Robot Intent node-manager startup and cleanup.
+    /// </summary>
     internal static partial class RobotIntentNodeManagerLog
     {
         [LoggerMessage(
@@ -630,5 +677,14 @@ namespace Opc.Ua.Robotics.Server
             Level = LogLevel.Information,
             Message = "Robot Intent node manager loaded the Robot Intent model.")]
         public static partial void NodeManagerReady(this ILogger logger);
+
+        /// <summary>
+        /// Reports a disposal failure retained for asynchronous callers, including deferred synchronous cleanup.
+        /// </summary>
+        [LoggerMessage(
+            EventId = RobotIntentServerEventIds.NodeManagerDisposalFailed,
+            Level = LogLevel.Error,
+            Message = "Robot Intent node-manager cleanup failed.")]
+        public static partial void NodeManagerDisposalFailed(this ILogger logger, Exception exception);
     }
 }
