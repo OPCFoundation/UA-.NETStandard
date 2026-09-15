@@ -126,8 +126,23 @@ namespace Alarms
 
         protected virtual void SetNextInterval()
         {
-            m_nextTime = DateTime.Now;
-            m_nextTime = m_nextTime.AddMilliseconds(m_interval);
+            m_nextTime = GetNextIntervalBoundary(DateTime.Now, m_interval);
+        }
+
+        /// <summary>
+        /// Returns the next whole multiple of <paramref name="interval"/> after
+        /// <paramref name="now"/>.
+        /// </summary>
+        /// <remarks>
+        /// Scheduling on shared boundaries instead of "now + interval" keeps controllers with
+        /// the same interval in the same simulation pass. Relative scheduling lets each
+        /// controller drift by the timer resolution, so the boolean and analog alarms ended up
+        /// reporting a simulation tick (and a publish) apart.
+        /// </remarks>
+        protected static DateTime GetNextIntervalBoundary(DateTime now, int interval)
+        {
+            long intervalTicks = interval * TimeSpan.TicksPerMillisecond;
+            return new DateTime(((now.Ticks / intervalTicks) + 1) * intervalTicks, now.Kind);
         }
 
         public void ManualWrite(object value)
@@ -199,11 +214,11 @@ namespace Alarms
             ref int intValue,
             ref bool boolValue)
         {
-            int incrementValue = 5;
-            if (m_isBoolean)
-            {
-                incrementValue = 10;
-            }
+            // Boolean and analog sources step alike, so every alarm condition changes
+            // state on the same simulation tick. A client that waits for an event from
+            // each alarm type (CTT A and C Enable Test_003) then sees all of them in one
+            // notification instead of on two unrelated periods.
+            const int incrementValue = 5;
             if (m_increment)
             {
                 m_value += incrementValue;
@@ -235,7 +250,7 @@ namespace Alarms
         public bool IsBooleanActive()
         {
             bool isActive = false;
-            if (m_value is >= AlarmDefines.BOOL_HIGH_ALARM or <= AlarmDefines.BOOL_LOW_ALARM)
+            if (m_value is >= AlarmDefines.HIGH_ALARM or <= AlarmDefines.LOW_ALARM)
             {
                 isActive = true;
             }

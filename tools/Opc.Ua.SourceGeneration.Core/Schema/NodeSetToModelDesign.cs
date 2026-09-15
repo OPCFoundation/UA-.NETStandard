@@ -1605,7 +1605,6 @@ namespace Opc.Ua.Schema.Model
             var references = new List<Reference>();
 
             if (existing.References != null)
-
             {
                 references.AddRange(existing.References);
             }
@@ -1617,7 +1616,6 @@ namespace Opc.Ua.Schema.Model
                     NodeDesign referenceType = FindNode<NodeDesign>(referenceTypeId);
 
                     if (referenceType == null)
-
                     {
                         continue;
                     }
@@ -1625,7 +1623,6 @@ namespace Opc.Ua.Schema.Model
                     NodeDesign target = FindNode<NodeDesign>(targetId);
 
                     if (target == null)
-
                     {
                         continue;
                     }
@@ -1636,58 +1633,39 @@ namespace Opc.Ua.Schema.Model
                         continue;
                     }
 
-                    if ((ii.IsForward &&
+                    bool explicitReference = (ii.IsForward &&
                             referenceTypeId == ReferenceTypeIds.Organizes &&
                             target is ViewDesign) ||
                         targetId.NamespaceIndex != nodeId.NamespaceIndex ||
-                        IsTypeOf(referenceTypeId, ReferenceTypeIds.NonHierarchicalReferences))
+                        IsTypeOf(referenceTypeId, ReferenceTypeIds.NonHierarchicalReferences);
+                    if (!explicitReference)
                     {
-                        references.Add(new Reference
+                        if (ii.IsForward &&
+                            !IsTypeOf(referenceTypeId, ReferenceTypeIds.HierarchicalReferences))
                         {
-                            ReferenceType = referenceType.SymbolicId,
-                            IsInverse = !ii.IsForward,
-                            TargetId = target.SymbolicId,
-                            TargetNode = target,
-                            SourceNode = existing
-                        });
-
-                        continue;
-                    }
-
-                    // A forward same-namespace hierarchical reference is already
-                    // expressed by the parent/child relationship the importer
-                    // builds, so it is not kept as an explicit reference.
-                    // (Keeping the ones whose target is not modelled as a child
-                    // was tried and regressed the OpenUsd/Robotics address space,
-                    // which then fails to start - see the audit note on this.)
-                    if (!ii.IsForward)
-                    {
-                        bool found = false;
-
-                        if (target.Children?.Items != null)
-                        {
-                            foreach (InstanceDesign child in target.Children.Items)
-                            {
-                                if (existing.SymbolicId == child.SymbolicId)
-                                {
-                                    found = true;
-                                    break;
-                                }
-                            }
+                            continue;
                         }
 
-                        if (!found)
+                        // Ownership represents only the selected reference type, not
+                        // every hierarchical link between these nodes.
+                        NodeDesign parent = ii.IsForward ? existing : target;
+                        NodeDesign child = ii.IsForward ? target : existing;
+                        if (child is InstanceDesign instance &&
+                            instance.Parent == parent &&
+                            instance.ReferenceType == referenceType.SymbolicId)
                         {
-                            references.Add(new Reference
-                            {
-                                ReferenceType = referenceType.SymbolicId,
-                                IsInverse = !ii.IsForward,
-                                TargetId = target.SymbolicId,
-                                TargetNode = target,
-                                SourceNode = existing
-                            });
+                            continue;
                         }
                     }
+
+                    references.Add(new Reference
+                    {
+                        ReferenceType = referenceType.SymbolicId,
+                        IsInverse = !ii.IsForward,
+                        TargetId = target.SymbolicId,
+                        TargetNode = target,
+                        SourceNode = existing
+                    });
                 }
             }
 

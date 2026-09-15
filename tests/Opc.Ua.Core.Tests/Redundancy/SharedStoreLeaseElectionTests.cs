@@ -593,7 +593,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
 
             Assert.That(await a.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
 
-            Assert.That(observed, Is.EqualTo(new[] { true, false }));
+            Assert.That(observed, Is.EqualTo(s_acquireThenLoss));
             Assert.That(a.IsLeader, Is.False);
             Assert.That(b.IsLeader, Is.True);
         }
