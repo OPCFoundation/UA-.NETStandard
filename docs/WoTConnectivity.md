@@ -898,7 +898,10 @@ The stable `WoTRegistryNodeManager` materializes the registry snapshot as a brow
   separate operations; writing an existing exact Version does not silently
   create another one. A rejected v2 activation can leave v1 active while v2
   remains the selected default: new logical reads return v2, while an old v1
-  handle still reads v1.
+  handle still reads v1. Closing that old handle releases its v1 reader without
+  replacing the logical FileType view: `Size`, `OpenCount` and the other file
+  properties continue to describe the current default, including any v2 readers
+  that remain open.
 * Retention and restart use the existing WoT service and FileStore contracts,
   not new generic registrar options. At a retention limit of two, active,
   default, independently desired and incoming Versions must fit; a commit or

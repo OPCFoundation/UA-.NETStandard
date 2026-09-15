@@ -655,6 +655,9 @@ namespace Opc.Ua.XRegistry.Server
                         bool firstVersion = !m_resourceMeta.TryGetValue(
                             logicalKey,
                             out ResourceMetaState? meta);
+                        ImmutableArray<string> previousDefaultAttributes = m_eventsEnabled
+                            ? DefaultVersionAttributeNamesLocked(DefaultVersionFileLocked(logicalKey))
+                            : [];
                         ResourceState resource = await CreateResourceNodeAsync(
                             group, resourceId, assigned).ConfigureAwait(false);
                         if (firstVersion)
@@ -689,7 +692,8 @@ namespace Opc.Ua.XRegistry.Server
                         changes = BuildResourceCreatedChangesLocked(
                             group,
                             resource,
-                            firstVersion);
+                            firstVersion,
+                            previousDefaultAttributes);
                     }
                 }
 
@@ -827,8 +831,9 @@ namespace Opc.Ua.XRegistry.Server
             SetValue(resource.VersionId, versionId);
             SetValue(resource.Xid, xid);
             SetValue(resource.Epoch, 1u);
-            SetValue(resource.CreatedAt, DateTimeUtc.Now);
-            SetValue(resource.ModifiedAt, DateTimeUtc.Now);
+            DateTimeUtc now = DateTimeUtc.Now;
+            SetValue(resource.CreatedAt, now);
+            SetValue(resource.ModifiedAt, now);
             if (m_eventsEnabled)
             {
                 resource.EventNotifier = EventNotifiers.SubscribeToEvents;
@@ -882,6 +887,9 @@ namespace Opc.Ua.XRegistry.Server
 
                 logicalKey = new ResourceIdentityKey(key.GroupNodeId, key.ResourceId);
                 ResourceState logical = m_logicalResources[logicalKey];
+                ImmutableArray<string> previousDefaultAttributes = m_eventsEnabled
+                    ? DefaultVersionAttributeNamesLocked(DefaultVersionFileLocked(logicalKey))
+                    : [];
                 if (!await RemoveResourceLockedAsync(resource).ConfigureAwait(false))
                 {
                     // A concurrent Delete already removed it; nothing left to do and nothing to
@@ -894,7 +902,8 @@ namespace Opc.Ua.XRegistry.Server
                     key,
                     resource,
                     logicalKey,
-                    logical).ConfigureAwait(false);
+                    logical,
+                    previousDefaultAttributes).ConfigureAwait(false);
             }
 
             await NotifyResourceMetaAsync(logicalKey).ConfigureAwait(false);
@@ -2249,7 +2258,8 @@ namespace Opc.Ua.XRegistry.Server
         private List<XRegistryEventChange>? BuildResourceCreatedChangesLocked(
             GroupState group,
             ResourceState resource,
-            bool firstVersion)
+            bool firstVersion,
+            ImmutableArray<string> previousDefaultAttributes)
         {
             uint groupEpoch = firstVersion
                 ? BumpEntity(group.Epoch, group.ModifiedAt)
@@ -2300,7 +2310,7 @@ namespace Opc.Ua.XRegistry.Server
                         logical.NodeId,
                         epoch,
                         metaEpoch,
-                        VersionCollectionChanged()),
+                        VersionCollectionChanged(previousDefaultAttributes, resource)),
                     logical));
             }
             return changes;
@@ -2396,7 +2406,8 @@ namespace Opc.Ua.XRegistry.Server
             ResourceKey deletedKey,
             ResourceState deleted,
             ResourceIdentityKey logicalKey,
-            ResourceState logical)
+            ResourceState logical,
+            ImmutableArray<string> previousDefaultAttributes)
         {
             var remaining = m_resources
                 .Where(entry =>
@@ -2445,8 +2456,9 @@ namespace Opc.Ua.XRegistry.Server
             }
             meta.Epoch++;
             meta.ModifiedAt = DateTimeUtc.Now;
-            if (!m_defaultVersions.TryGetValue(logicalKey, out string? defaultVersion) ||
-                string.Equals(defaultVersion, deletedKey.VersionId, StringComparison.Ordinal))
+            bool defaultChanged = !m_defaultVersions.TryGetValue(logicalKey, out string? defaultVersion) ||
+                string.Equals(defaultVersion, deletedKey.VersionId, StringComparison.Ordinal);
+            if (defaultChanged)
             {
                 defaultVersion = remaining
                     .OrderBy(entry => entry.Key.VersionId, StringComparer.Ordinal)
@@ -2476,7 +2488,7 @@ namespace Opc.Ua.XRegistry.Server
                         logical.NodeId,
                         current.Value.Epoch?.Value,
                         meta.Epoch,
-                        VersionCollectionChanged()),
+                        VersionCollectionChanged(previousDefaultAttributes, defaultChanged ? current.Value : null)),
                     logical)
             ];
         }
@@ -2623,15 +2635,54 @@ namespace Opc.Ua.XRegistry.Server
             ];
         }
 
-        private ImmutableArray<string> VersionCollectionChanged()
+        private ImmutableArray<string> VersionCollectionChanged(
+            ImmutableArray<string> previousDefaultAttributes,
+            ResourceState? newDefault)
         {
-            return
+            List<string> changed =
             [
                 "meta.epoch",
                 "meta.modifiedat",
                 "versions",
                 "versionscount"
             ];
+            if (newDefault is not null)
+            {
+                changed.Add("meta.defaultversionid");
+                changed.AddRange(previousDefaultAttributes);
+                changed.AddRange(DefaultVersionAttributeNamesLocked(newDefault));
+            }
+            return [.. changed.Distinct(StringComparer.Ordinal)];
+        }
+
+        private ImmutableArray<string> DefaultVersionAttributeNamesLocked(ResourceState? version)
+        {
+            if (version is null)
+            {
+                return [];
+            }
+            List<string> names = ["versionid", "epoch", "createdat", "modifiedat"];
+            if (version.Format?.Value is not null)
+            {
+                names.Add("format");
+            }
+            if (version.ContentType?.Value is not null)
+            {
+                names.Add("contenttype");
+            }
+            var children = new List<BaseInstanceState>();
+            version.Labels?.GetChildren(SystemContext, children);
+            if (children.OfType<PropertyState<string>>().Any(property =>
+                m_dynamicAttributes.TryGetValue(property.NodeId, out PropertyState<string>? registered) &&
+                ReferenceEquals(property, registered)))
+            {
+                names.Add("labels");
+            }
+            if (TryGetResourceKeyLocked(version, out ResourceKey key) && m_versionContentKeys.ContainsKey(key))
+            {
+                names.Add(m_resourceDocumentAttributeName);
+            }
+            return [.. names];
         }
 
         private string RegistrySubject()

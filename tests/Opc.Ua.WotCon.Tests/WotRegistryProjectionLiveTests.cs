@@ -45,6 +45,7 @@ using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Tests.Materialization;
 using Opc.Ua.XRegistry;
+using Opc.Ua.XRegistry.Client;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.WotCon.Tests
@@ -523,6 +524,148 @@ namespace Opc.Ua.WotCon.Tests
                 {
                     await logical.Proxy.CloseAsync(newHandle, cleanup.Token).ConfigureAwait(false);
                 }
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LogicalOldReadClosePreservesCurrentDefaultFilePropertiesAsync(bool currentReaderOpen)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+            CancellationToken ct = timeout.Token;
+            using var secureFixture = new ClientFixture(false, false, m_telemetry);
+            await secureFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            using ISession session = await secureFixture.ConnectAsync(
+                new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}"),
+                SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+            try
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(session.ConfiguredEndpoint.Description.SecurityMode,
+                        Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+                    Assert.That(session.SessionId, Is.Not.EqualTo(m_session.SessionId));
+                });
+                TestContext.Out.WriteLine(
+                    $"Runtime: {Environment.Version}; ServerGC: {System.Runtime.GCSettings.IsServerGC}");
+                WotRegistryClient client = await WotRegistryClient.ForServerAsync(session, m_telemetry, ct)
+                    .ConfigureAwait(false);
+                WotRegistryGroupClient group = await client.CreateDocumentGroupAsync(
+                    WoTDocumentKindEnum.ThingDescription, "urn:review:catalog", ct).ConfigureAwait(false);
+                WotRegistryResourceAllocation first = await group.CreateDocumentResourceAsync(
+                    "urn:review:pump", "v1", false, ct).ConfigureAwait(false);
+                ByteString oldDocument = PinnedCloseDocument("first");
+                ByteString currentDocument = PinnedCloseDocument("a-deliberately-longer-second-version-document");
+                Assert.Multiple(() =>
+                {
+                    Assert.That(oldDocument.Length, Is.EqualTo(167));
+                    Assert.That(currentDocument.Length, Is.EqualTo(207));
+                });
+                await first.Version.Proxy.UploadAsync(oldDocument, ct: ct).ConfigureAwait(false);
+                WotRegistryResourceClient logical = first.LogicalResource;
+                await WaitForFileViewAsync(session, logical.ResourceNodeId, "v1", 167, ct).ConfigureAwait(false);
+                uint oldHandle = await logical.Proxy.OpenAsync(1, ct).ConfigureAwait(false);
+                uint currentHandle = 0;
+                try
+                {
+                    WotRegistryResourceAllocation second = await group.CreateDocumentResourceAsync(
+                        "urn:review:pump", "v2", false, ct).ConfigureAwait(false);
+                    await second.Version.Proxy.UploadAsync(currentDocument, ct: ct).ConfigureAwait(false);
+                    await logical.SetDefaultVersionAsync("v2", 0, ct).ConfigureAwait(false);
+                    await WaitForFileViewAsync(session, logical.ResourceNodeId, "v2", 207, ct).ConfigureAwait(false);
+                    if (currentReaderOpen)
+                    {
+                        currentHandle = await logical.Proxy.OpenAsync(1, ct).ConfigureAwait(false);
+                    }
+
+                    NativeFileView before = await ReadFileViewAsync(session, logical.ResourceNodeId, ct)
+                        .ConfigureAwait(false);
+                    NativeFileView oldBefore = await ReadFileViewAsync(session, first.Version.ResourceNodeId, ct)
+                        .ConfigureAwait(false);
+                    ushort xNs = session.NamespaceUris.GetIndexOrAppend(XRegistryWellKnown.XRegistryNamespaceUri);
+                    ArrayOf<DataValue> metaBefore = await ReadNativePropertiesAsync(
+                        session, logical.ResourceNodeId, [new QualifiedName("MetaEpoch", xNs)], ct)
+                        .ConfigureAwait(false);
+                    Assert.That(metaBefore[0].WrappedValue.TryGetValue(out uint metaEpoch), Is.True);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(before.VersionId, Is.EqualTo("v2"));
+                        Assert.That(before.Size, Is.EqualTo(207ul));
+                        Assert.That(before.OpenCount, Is.EqualTo(currentReaderOpen ? (ushort)1 : (ushort)0));
+                        Assert.That(oldBefore.VersionId, Is.EqualTo("v1"));
+                        Assert.That(oldBefore.Size, Is.EqualTo(167ul));
+                        Assert.That(oldBefore.OpenCount, Is.EqualTo((ushort)1));
+                        Assert.That(metaEpoch, Is.GreaterThan(0u));
+                    });
+
+                    var foreign = new ResourceTypeClient(m_session, logical.ResourceNodeId, m_telemetry);
+                    await Assert.ThatAsync(
+                        async () => await foreign.CloseAsync(oldHandle, ct).ConfigureAwait(false),
+                        Throws.TypeOf<ServiceResultException>()
+                            .With.Property(nameof(ServiceResultException.StatusCode))
+                            .EqualTo(StatusCodes.BadUserAccessDenied)).ConfigureAwait(false);
+                    ByteString oldBytes = await logical.Proxy.ReadAsync(oldHandle, int.MaxValue, ct)
+                        .ConfigureAwait(false);
+                    ulong oldPosition = await logical.Proxy.GetPositionAsync(oldHandle, ct).ConfigureAwait(false);
+                    uint closedOldHandle = oldHandle;
+                    await logical.Proxy.CloseAsync(oldHandle, ct).ConfigureAwait(false);
+                    oldHandle = 0;
+
+                    NativeFileView after = await ReadFileViewAsync(session, logical.ResourceNodeId, ct)
+                        .ConfigureAwait(false);
+                    NativeFileView oldAfter = await ReadFileViewAsync(session, first.Version.ResourceNodeId, ct)
+                        .ConfigureAwait(false);
+                    ArrayOf<DataValue> metaAfter = await ReadNativePropertiesAsync(
+                        session, logical.ResourceNodeId, [new QualifiedName("MetaEpoch", xNs)], ct)
+                        .ConfigureAwait(false);
+                    Assert.That(metaAfter[0].WrappedValue.TryGetValue(out uint currentMetaEpoch), Is.True);
+                    if (currentHandle == 0)
+                    {
+                        currentHandle = await logical.Proxy.OpenAsync(1, ct).ConfigureAwait(false);
+                    }
+                    ByteString currentBytes = await logical.Proxy.ReadAsync(currentHandle, int.MaxValue, ct)
+                        .ConfigureAwait(false);
+                    ulong currentPosition = await logical.Proxy.GetPositionAsync(currentHandle, ct)
+                        .ConfigureAwait(false);
+                    Assert.That(currentHandle, Is.Not.EqualTo(closedOldHandle));
+                    await logical.Proxy.CloseAsync(currentHandle, ct).ConfigureAwait(false);
+                    currentHandle = 0;
+                    NativeFileView closed = await ReadFileViewAsync(session, logical.ResourceNodeId, ct)
+                        .ConfigureAwait(false);
+                    TestContext.Out.WriteLine(
+                        $"OldClose: currentReaderOpen={currentReaderOpen}; " +
+                        $"Size={before.Size}->{after.Size}; OpenCount={before.OpenCount}->{after.OpenCount}");
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(oldBytes, Is.EqualTo(oldDocument));
+                        Assert.That(currentBytes, Is.EqualTo(currentDocument));
+                        Assert.That(oldPosition, Is.EqualTo(167ul));
+                        Assert.That(currentPosition, Is.EqualTo(207ul));
+                        Assert.That(currentMetaEpoch, Is.EqualTo(metaEpoch));
+                        Assert.That(oldAfter, Is.EqualTo(oldBefore with { OpenCount = 0 }));
+                        Assert.That(after, Is.EqualTo(before),
+                            "Observe the default view immediately after old Close, before another Open can repair it.");
+                        Assert.That(closed, Is.EqualTo(before with { OpenCount = 0 }));
+                    });
+                }
+                finally
+                {
+                    using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    if (oldHandle != 0)
+                    {
+                        await logical.Proxy.CloseAsync(oldHandle, cleanup.Token).ConfigureAwait(false);
+                    }
+                    if (currentHandle != 0)
+                    {
+                        await logical.Proxy.CloseAsync(currentHandle, cleanup.Token).ConfigureAwait(false);
+                    }
+                }
+            }
+            finally
+            {
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                StatusCode status = await session.CloseAsync(10000, true, cleanup.Token).ConfigureAwait(false);
+                Assert.That(status, Is.EqualTo(StatusCodes.Good));
             }
         }
 
@@ -2204,6 +2347,110 @@ namespace Opc.Ua.WotCon.Tests
                 response.Results[0].Targets[0].TargetId, m_session.NamespaceUris);
         }
 
+        private static ByteString PinnedCloseDocument(string title)
+        {
+            return ByteString.From(Encoding.UTF8.GetBytes(
+                "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",\"id\":\"urn:review:pump\"," +
+                "\"title\":\"" + title + "\",\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
+                "\"security\":[\"nosec_sc\"]}"));
+        }
+
+        private static async Task WaitForFileViewAsync(
+            ISession session,
+            NodeId resourceId,
+            string versionId,
+            ulong size,
+            CancellationToken ct)
+        {
+            await Assert.ThatAsync(async () =>
+            {
+                NativeFileView view = await ReadFileViewAsync(session, resourceId, ct).ConfigureAwait(false);
+                return (view.VersionId, view.Size);
+            }, Is.EqualTo((versionId, size)).After(5000, 10)).ConfigureAwait(false);
+        }
+
+        private static async Task<NativeFileView> ReadFileViewAsync(
+            ISession session,
+            NodeId resourceId,
+            CancellationToken ct)
+        {
+            ushort xNs = session.NamespaceUris.GetIndexOrAppend(XRegistryWellKnown.XRegistryNamespaceUri);
+            ArrayOf<DataValue> values = await ReadNativePropertiesAsync(
+                session,
+                resourceId,
+                [
+                    new QualifiedName("Size"),
+                    new QualifiedName("OpenCount"),
+                    new QualifiedName("Writable"),
+                    new QualifiedName("UserWritable"),
+                    new QualifiedName("VersionId", xNs),
+                    new QualifiedName("Epoch", xNs),
+                    new QualifiedName("CreatedAt", xNs),
+                    new QualifiedName("ModifiedAt", xNs)
+                ],
+                ct).ConfigureAwait(false);
+            Assert.That(values[0].WrappedValue.TryGetValue(out ulong size), Is.True);
+            Assert.That(values[1].WrappedValue.TryGetValue(out ushort openCount), Is.True);
+            Assert.That(values[2].WrappedValue.TryGetValue(out bool writable), Is.True);
+            Assert.That(values[3].WrappedValue.TryGetValue(out bool userWritable), Is.True);
+            Assert.That(values[4].WrappedValue.TryGetValue(out string versionId), Is.True);
+            Assert.That(values[5].WrappedValue.TryGetValue(out uint epoch), Is.True);
+            Assert.That(values[6].WrappedValue.TryGetValue(out DateTimeUtc createdAt), Is.True);
+            Assert.That(values[7].WrappedValue.TryGetValue(out DateTimeUtc modifiedAt), Is.True);
+            return new NativeFileView(
+                size, openCount, writable, userWritable, versionId, epoch, createdAt, modifiedAt);
+        }
+
+        private static async Task<ArrayOf<DataValue>> ReadNativePropertiesAsync(
+            ISession session,
+            NodeId resourceId,
+            ArrayOf<QualifiedName> names,
+            CancellationToken ct)
+        {
+            TranslateBrowsePathsToNodeIdsResponse paths = await session.TranslateBrowsePathsToNodeIdsAsync(
+                null,
+                names.ConvertAll(name => new BrowsePath
+                {
+                    StartingNode = resourceId,
+                    RelativePath = new RelativePath
+                    {
+                        Elements =
+                        [
+                            new RelativePathElement
+                            {
+                                ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty,
+                                IncludeSubtypes = true,
+                                TargetName = name
+                            }
+                        ]
+                    }
+                }),
+                ct).ConfigureAwait(false);
+            Assert.That(paths.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(paths.Results.Count, Is.EqualTo(names.Count));
+            var nodes = new List<ReadValueId>();
+            foreach (BrowsePathResult result in paths.Results)
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(result.Targets.Count, Is.EqualTo(1));
+                Assert.That(result.Targets[0].RemainingPathIndex, Is.EqualTo(uint.MaxValue));
+                nodes.Add(new ReadValueId
+                {
+                    NodeId = ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, session.NamespaceUris),
+                    AttributeId = Attributes.Value
+                });
+            }
+            ReadResponse response = await session.ReadAsync(
+                null, 0, TimestampsToReturn.Neither, [.. nodes], ct).ConfigureAwait(false);
+            Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(response.Results.Count, Is.EqualTo(names.Count));
+            foreach (DataValue value in response.Results)
+            {
+                Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+            return response.Results;
+        }
+
         private async ValueTask WaitForPublishedDefaultAsync(WotRegistryResourceClient logical, string expected)
         {
             NodeId versionId = await BrowseForChildNodeIdAsync(
@@ -2274,6 +2521,16 @@ namespace Opc.Ua.WotCon.Tests
             }
             return result;
         }
+
+        private sealed record NativeFileView(
+            ulong Size,
+            ushort OpenCount,
+            bool Writable,
+            bool UserWritable,
+            string VersionId,
+            uint Epoch,
+            DateTimeUtc CreatedAt,
+            DateTimeUtc ModifiedAt);
 
         private string m_pkiRoot = null!;
         private ServerFixture<ReferenceServer> m_serverFixture = null!;

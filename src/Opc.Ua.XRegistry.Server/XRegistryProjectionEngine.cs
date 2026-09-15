@@ -1191,9 +1191,22 @@ namespace Opc.Ua.XRegistry.Server
                             .ConfigureAwait(false);
                         logical.PinnedHandles.TryRemove(fileHandle, out _);
 
-                        // Mirror the pinned Version's FileType Properties (OpenCount,
-                        // Size after a commit, ...) onto the logical Resource promptly.
-                        MirrorFileTypeProperties(node, pinned.VersionNode);
+                        // Close consumes the old pin, but the logical view still belongs
+                        // to the current default. Serialize selection with reconciliation.
+                        await m_gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                        try
+                        {
+                            string? selected = node.VersionId?.Value;
+                            if (selected is not null &&
+                                logical.Versions.TryGetValue(selected, out ResourceEntry? current))
+                            {
+                                MirrorFileTypeProperties(node, current.Node);
+                            }
+                        }
+                        finally
+                        {
+                            m_gate.Release();
+                        }
                         node.ClearChangeMasks(m_context.SystemContext, includeChildren: true);
                         return new CloseMethodStateResult { ServiceResult = result };
                     });
@@ -3058,8 +3071,7 @@ namespace Opc.Ua.XRegistry.Server
         /// <summary>
         /// A file handle pinned by the logical Resource's file forwarding: the
         /// underlying forwarder/handle pair on the exact Version that was the
-        /// resolved default at Open time, that Version's node (used to mirror
-        /// FileType Properties back onto the logical Resource after Open/Close),
+        /// resolved default at Open time, that Version's node (used for Session cleanup),
         /// and the session that opened it (so a different session's Close cannot
         /// remove this pin before the underlying manager gets a chance to reject
         /// it — see <see cref="SessionIdOf"/>).
@@ -3110,7 +3122,7 @@ namespace Opc.Ua.XRegistry.Server
             /// Tracks file handles opened via the logical Resource's <c>Open</c>
             /// method, keyed by an engine-allocated synthetic handle unique within
             /// this logical Resource. Each entry pins the exact Version file-manager
-            /// (and its node, for FileType Property mirroring) that was the resolved
+            /// (and its node, for Session cleanup) that was the resolved
             /// default at <c>Open</c> time. A synthetic handle is required because
             /// every Version's own file manager allocates its underlying handles
             /// independently starting from 1, so two different Versions opened

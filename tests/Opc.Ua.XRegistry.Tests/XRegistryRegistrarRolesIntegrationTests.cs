@@ -807,6 +807,262 @@ namespace Opc.Ua.XRegistry.Tests
             }
         }
 
+        [Test]
+        public async Task NativeDefaultSwitchEventsDescribeDelegatedVersionAttributesAsync()
+        {
+            var native = new NativeFixture();
+            await using (native.ConfigureAwait(false))
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+                CancellationToken ct = timeout.Token;
+                await native.StartAsync(ct).ConfigureAwait(false);
+                NodeId groupId = await native.Client.GetRegistry(native.Client.RegistryNodeId)
+                    .CreateGroupAsync("schemas", ct).ConfigureAwait(false);
+                GroupTypeClient group = native.Client.GetGroup(groupId);
+                (NodeId firstId, _, _) = await group.CreateResourceAsync("pump", "v1", false, ct)
+                    .ConfigureAwait(false);
+                ByteString document = ByteString.From(1, 2, 3, 4, 5);
+                await CommitDocumentAsync(native.Client.GetResource(firstId), document, ct).ConfigureAwait(false);
+                ResourceRoles roles = await BrowseRolesAsync(native, groupId, ct).ConfigureAwait(false);
+                NodeId labelsId = await ReadLabelsIdAsync(native, firstId, "Labels", ct).ConfigureAwait(false);
+                var labels = new AttributesTypeClient(native.Session, labelsId, native.Telemetry);
+                await labels.AddAttributeAsync("owner", "old-default", 0, ct).ConfigureAwait(false);
+                ResourceSnapshot first = await ReadResourceSnapshotAsync(native, firstId, ct).ConfigureAwait(false);
+                ResourceSnapshot logicalBefore = await ReadResourceSnapshotAsync(native, roles.LogicalId, ct)
+                    .ConfigureAwait(false);
+                MetaSnapshot metaBefore = await ReadMetaSnapshotAsync(native, roles.LogicalId, ct)
+                    .ConfigureAwait(false);
+                ArrayOf<DataValue> originalFormat = await native.ReadPropertiesAsync(
+                    roles.LogicalId, [native.Name("Format"), native.Name("ContentType")], ct).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(first.Epoch, Is.EqualTo(3u));
+                    Assert.That(first.Size, Is.EqualTo(5ul));
+                    Assert.That(logicalBefore.VersionId, Is.EqualTo("v1"));
+                    Assert.That(metaBefore.Epoch, Is.EqualTo(1u));
+                    Assert.That(DecodeString(originalFormat[0]), Is.EqualTo("avro"));
+                    Assert.That(DecodeString(originalFormat[1]), Is.Null);
+                });
+                foreach (NodeId id in new[] { first.LabelsId, logicalBefore.LabelsId })
+                {
+                    ArrayOf<DataValue> values = await native.ReadPropertiesAsync(id, [native.Name("owner")], ct)
+                        .ConfigureAwait(false);
+                    Assert.That(DecodeString(values[0]), Is.EqualTo("old-default"));
+                }
+
+                var updates = new NativeUpdates(native);
+                await using (updates.ConfigureAwait(false))
+                {
+                    await updates.StartAsync(ct).ConfigureAwait(false);
+                    (NodeId secondId, _, _) = await group.CreateResourceAsync("pump", "v2", false, ct)
+                        .ConfigureAwait(false);
+                    ResourceSnapshot second = await ReadResourceSnapshotAsync(native, secondId, ct)
+                        .ConfigureAwait(false);
+                    ResourceSnapshot logicalSelected = await ReadResourceSnapshotAsync(native, roles.LogicalId, ct)
+                        .ConfigureAwait(false);
+                    MetaSnapshot metaSelected = await ReadMetaSnapshotAsync(native, roles.LogicalId, ct)
+                        .ConfigureAwait(false);
+                    AssertDefaultProjection(logicalSelected, second);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(second.VersionId, Is.EqualTo("v2"));
+                        Assert.That(second.Epoch, Is.EqualTo(1u));
+                        Assert.That(second.Size, Is.Zero);
+                        Assert.That(logicalSelected.LabelsId, Is.EqualTo(logicalBefore.LabelsId));
+                        Assert.That(metaSelected.Epoch, Is.EqualTo(metaBefore.Epoch + 1));
+                        Assert.That(metaSelected.CreatedAt, Is.EqualTo(metaBefore.CreatedAt));
+                        Assert.That(metaSelected.LabelsId, Is.EqualTo(metaBefore.LabelsId));
+                    });
+                    await AssertEmptyLabelsAsync(native, logicalSelected.LabelsId, ct).ConfigureAwait(false);
+                    ArrayOf<DataValue> selectedFormat = await native.ReadPropertiesAsync(
+                        roles.LogicalId, [native.Name("Format"), native.Name("ContentType")], ct).ConfigureAwait(false);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(DecodeString(selectedFormat[0]), Is.Null);
+                        Assert.That(DecodeString(selectedFormat[1]), Is.Null);
+                    });
+                    ResourceUpdatedEventTypeRecord creation = await updates.WaitForMetaAsync(metaSelected.Epoch, ct)
+                        .ConfigureAwait(false);
+                    (NodeId selectedId, string assignedId, uint handle, bool created) = await group
+                        .GetOrCreateResourceAsync("pump", string.Empty, false, ct).ConfigureAwait(false);
+                    MetaSnapshot metaAfterLookup = await ReadMetaSnapshotAsync(native, roles.LogicalId, ct)
+                        .ConfigureAwait(false);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(selectedId, Is.EqualTo(secondId));
+                        Assert.That(assignedId, Is.EqualTo("v2"));
+                        Assert.That(handle, Is.Zero);
+                        Assert.That(created, Is.False);
+                        Assert.That(metaAfterLookup, Is.EqualTo(metaSelected));
+                    });
+
+                    await native.Client.GetResource(secondId).DeleteAsync(second.Epoch, ct).ConfigureAwait(false);
+                    ResourceUpdatedEventTypeRecord deletion = await updates.WaitForMetaAsync(
+                        metaBefore.Epoch + 2, ct).ConfigureAwait(false);
+                    ResourceSnapshot survivor = await ReadResourceSnapshotAsync(native, firstId, ct)
+                        .ConfigureAwait(false);
+                    ResourceSnapshot logicalRestored = await ReadResourceSnapshotAsync(native, roles.LogicalId, ct)
+                        .ConfigureAwait(false);
+                    MetaSnapshot metaRestored = await ReadMetaSnapshotAsync(native, roles.LogicalId, ct)
+                        .ConfigureAwait(false);
+                    AssertDefaultProjection(logicalRestored, first);
+                    ArrayOf<DataValue> restoredLabel = await native.ReadPropertiesAsync(
+                        logicalRestored.LabelsId, [native.Name("owner")], ct).ConfigureAwait(false);
+                    ArrayOf<DataValue> restoredFormat = await native.ReadPropertiesAsync(
+                        roles.LogicalId, [native.Name("Format")], ct).ConfigureAwait(false);
+                    await AssertDocumentAsync(native, roles.LogicalId, document, ct).ConfigureAwait(false);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(survivor, Is.EqualTo(first));
+                        Assert.That(DecodeString(restoredLabel[0]), Is.EqualTo("old-default"));
+                        Assert.That(DecodeString(restoredFormat[0]), Is.EqualTo("avro"));
+                        Assert.That(metaRestored.Epoch, Is.EqualTo(metaBefore.Epoch + 2));
+                        Assert.That(metaRestored.CreatedAt, Is.EqualTo(metaBefore.CreatedAt));
+                        Assert.That(metaRestored.LabelsId, Is.EqualTo(metaBefore.LabelsId));
+                        Assert.That(updates.ResourceUpdates.Count, Is.EqualTo(2),
+                            "Default deletion is an ordered barrier after the no-op lookup.");
+                        Assert.That(updates.VersionUpdates, Is.Empty);
+                        Assert.That(updates.ResourceUpdates.ToList().Select(evt => evt.MetaEpoch),
+                            Is.EqualTo(new[] { metaBefore.Epoch + 1, metaBefore.Epoch + 2 }));
+                        Assert.That(creation.Epoch, Is.EqualTo(1u));
+                        Assert.That(deletion.Epoch, Is.EqualTo(3u));
+                        Assert.That(deletion.Time, Is.GreaterThanOrEqualTo(creation.Time!.Value));
+                        foreach (ResourceUpdatedEventTypeRecord evt in new[] { creation, deletion })
+                        {
+                            Assert.That(evt.SourceNode, Is.EqualTo(roles.LogicalId));
+                            Assert.That(evt.SourceUrl, Is.EqualTo(kEventSourceUrl));
+                            Assert.That(evt.Subject, Is.EqualTo(kLogicalXid));
+                            Assert.That(evt.EventType, Is.EqualTo(new NodeId(63018u, native.NamespaceIndex)));
+                            Assert.That(evt.Time, Is.GreaterThan(DateTime.MinValue));
+                            Assert.That(evt.Changed, Is.EqualTo(s_defaultSwitchChanged));
+                        }
+                    });
+                }
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NativeInitialVersionTimestampsUseOneInstantAsync(bool idempotentFirst)
+        {
+            var native = new NativeFixture();
+            await using (native.ConfigureAwait(false))
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+                CancellationToken ct = timeout.Token;
+                await native.StartAsync(ct).ConfigureAwait(false);
+                TestContext.Out.WriteLine(
+                    $"Runtime: {Environment.Version}; ServerGC: {System.Runtime.GCSettings.IsServerGC}");
+                NodeId groupId = await native.Client.GetRegistry(native.Client.RegistryNodeId)
+                    .CreateGroupAsync("schemas", ct).ConfigureAwait(false);
+                GroupTypeClient group = native.Client.GetGroup(groupId);
+                var initialVersions = new List<ResourceSnapshot>();
+                for (int index = 0; index < 3; index++)
+                {
+                    string resourceId = $"clock{index}";
+                    NodeId firstId;
+                    if (idempotentFirst)
+                    {
+                        (NodeId exactId, string assignedId, uint handle, bool created) = await group
+                            .GetOrCreateResourceAsync(resourceId, string.Empty, false, ct).ConfigureAwait(false);
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(exactId.IsNull, Is.False);
+                            Assert.That(assignedId, Is.Not.Empty);
+                            Assert.That(handle, Is.Zero);
+                            Assert.That(created, Is.True);
+                        });
+                        firstId = exactId;
+                    }
+                    else
+                    {
+                        (NodeId exactId, string assignedId, uint handle) = await group
+                            .CreateResourceAsync(resourceId, "v1", false, ct).ConfigureAwait(false);
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(exactId.IsNull, Is.False);
+                            Assert.That(assignedId, Is.EqualTo("v1"));
+                            Assert.That(handle, Is.Zero);
+                        });
+                        firstId = exactId;
+                    }
+
+                    ArrayOf<ReferenceDescription> resources = await native.BrowseAsync(
+                        groupId, UaReferenceTypeIds.Organizes, NodeClass.Object, ct).ConfigureAwait(false);
+                    NodeId logicalId = native.LocalNodeId(FindReference(resources, native.Name(resourceId)).NodeId);
+                    ResourceSnapshot first = await ReadResourceSnapshotAsync(native, firstId, ct)
+                        .ConfigureAwait(false);
+                    initialVersions.Add(first);
+                    ResourceSnapshot logicalFirst = await ReadResourceSnapshotAsync(native, logicalId, ct)
+                        .ConfigureAwait(false);
+                    MetaSnapshot metaFirst = await ReadMetaSnapshotAsync(native, logicalId, ct).ConfigureAwait(false);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(logicalId, Is.Not.EqualTo(firstId));
+                        Assert.That(logicalFirst.CreatedAt, Is.EqualTo(first.CreatedAt));
+                        Assert.That(logicalFirst.ModifiedAt, Is.EqualTo(first.ModifiedAt));
+                        Assert.That(metaFirst.Epoch, Is.EqualTo(1u));
+                        Assert.That(metaFirst.ModifiedAt, Is.EqualTo(metaFirst.CreatedAt));
+                    });
+
+                    (NodeId secondId, string secondAssignedId, uint secondHandle) = await group
+                        .CreateResourceAsync(resourceId, "v2", false, ct).ConfigureAwait(false);
+                    ResourceSnapshot second = await ReadResourceSnapshotAsync(native, secondId, ct)
+                        .ConfigureAwait(false);
+                    initialVersions.Add(second);
+                    ResourceSnapshot firstAfter = await ReadResourceSnapshotAsync(native, firstId, ct)
+                        .ConfigureAwait(false);
+                    ResourceSnapshot logicalSecond = await ReadResourceSnapshotAsync(native, logicalId, ct)
+                        .ConfigureAwait(false);
+                    MetaSnapshot metaSecond = await ReadMetaSnapshotAsync(native, logicalId, ct)
+                        .ConfigureAwait(false);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(secondId, Is.Not.EqualTo(firstId));
+                        Assert.That(secondAssignedId, Is.EqualTo("v2"));
+                        Assert.That(secondHandle, Is.Zero);
+                        Assert.That(firstAfter, Is.EqualTo(first));
+                        Assert.That(logicalSecond.CreatedAt, Is.EqualTo(second.CreatedAt));
+                        Assert.That(logicalSecond.ModifiedAt, Is.EqualTo(second.ModifiedAt));
+                        Assert.That(metaSecond.CreatedAt, Is.EqualTo(metaFirst.CreatedAt));
+                        Assert.That(metaSecond.Epoch, Is.EqualTo(metaFirst.Epoch + 1));
+                    });
+
+                    (NodeId selectedId, string selectedVersion, uint selectedHandle, bool wasCreated) = await group
+                        .GetOrCreateResourceAsync(resourceId, string.Empty, false, ct).ConfigureAwait(false);
+                    ResourceSnapshot secondAfter = await ReadResourceSnapshotAsync(native, secondId, ct)
+                        .ConfigureAwait(false);
+                    MetaSnapshot metaAfterLookup = await ReadMetaSnapshotAsync(native, logicalId, ct)
+                        .ConfigureAwait(false);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(selectedId, Is.EqualTo(secondId));
+                        Assert.That(selectedVersion, Is.EqualTo("v2"));
+                        Assert.That(selectedHandle, Is.Zero);
+                        Assert.That(wasCreated, Is.False);
+                        Assert.That(secondAfter, Is.EqualTo(second));
+                        Assert.That(metaAfterLookup, Is.EqualTo(metaSecond));
+                    });
+                }
+
+                foreach (ResourceSnapshot version in initialVersions)
+                {
+                    TestContext.Out.WriteLine(
+                        $"{version.ResourceId}/{version.VersionId}: " +
+                        $"CreatedAt={version.CreatedAt.Value}; ModifiedAt={version.ModifiedAt.Value}");
+                }
+                Assert.Multiple(() =>
+                {
+                    foreach (ResourceSnapshot version in initialVersions)
+                    {
+                        Assert.That(version.Epoch, Is.EqualTo(1u));
+                        Assert.That(version.ModifiedAt, Is.EqualTo(version.CreatedAt),
+                            $"{version.ResourceId}/{version.VersionId} must start at one exact commit instant.");
+                    }
+                });
+            }
+        }
+
         private static async Task CommitChunksAsync(
             ResourceTypeClient resource,
             ByteString document,
@@ -1340,43 +1596,17 @@ namespace Opc.Ua.XRegistry.Tests
                 while (!m_resourceUpdates.Any(evt => evt.Epoch == epoch) ||
                     !m_versionUpdates.Any(evt => evt.Epoch == epoch))
                 {
-                    PublishResponse response = await native.Session.PublishAsync(null, m_acknowledgements, ct)
-                        .ConfigureAwait(false);
-                    Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
-                    Assert.That(response.SubscriptionId, Is.EqualTo(m_subscriptionId));
-                    foreach (StatusCode result in response.Results)
-                    {
-                        Assert.That(result, Is.EqualTo(StatusCodes.Good));
-                    }
-                    m_acknowledgements = response.AvailableSequenceNumbers.ConvertAll(sequence =>
-                        new SubscriptionAcknowledgement
-                        {
-                            SubscriptionId = m_subscriptionId,
-                            SequenceNumber = sequence
-                        });
-                    foreach (ExtensionObject notification in response.NotificationMessage.NotificationData)
-                    {
-                        Assert.That(notification.TryGetValue(out EventNotificationList? events), Is.True);
-                        foreach (EventFieldList evt in events!.Events)
-                        {
-                            if (evt.ClientHandle == 1)
-                            {
-                                ResourceUpdatedEventTypeRecord? decoded =
-                                    ResourceUpdatedEventTypeRecord.Decoder.Decode(evt.EventFields.Span.ToArray());
-                                Assert.That(decoded, Is.Not.Null);
-                                m_resourceUpdates.Add(decoded!);
-                            }
-                            else
-                            {
-                                Assert.That(evt.ClientHandle, Is.EqualTo(2u));
-                                VersionUpdatedEventTypeRecord? decoded =
-                                    VersionUpdatedEventTypeRecord.Decoder.Decode(evt.EventFields.Span.ToArray());
-                                Assert.That(decoded, Is.Not.Null);
-                                m_versionUpdates.Add(decoded!);
-                            }
-                        }
-                    }
+                    await PublishAsync(ct).ConfigureAwait(false);
                 }
+            }
+
+            public async Task<ResourceUpdatedEventTypeRecord> WaitForMetaAsync(uint metaEpoch, CancellationToken ct)
+            {
+                while (!m_resourceUpdates.Any(evt => evt.MetaEpoch == metaEpoch))
+                {
+                    await PublishAsync(ct).ConfigureAwait(false);
+                }
+                return m_resourceUpdates.Single(evt => evt.MetaEpoch == metaEpoch);
             }
 
             public async ValueTask DisposeAsync()
@@ -1389,6 +1619,46 @@ namespace Opc.Ua.XRegistry.Tests
                     Assert.That(deleted.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
                     Assert.That(deleted.Results.Count, Is.EqualTo(1));
                     Assert.That(deleted.Results[0], Is.EqualTo(StatusCodes.Good));
+                }
+            }
+
+            private async Task PublishAsync(CancellationToken ct)
+            {
+                PublishResponse response = await native.Session.PublishAsync(null, m_acknowledgements, ct)
+                    .ConfigureAwait(false);
+                Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+                Assert.That(response.SubscriptionId, Is.EqualTo(m_subscriptionId));
+                foreach (StatusCode result in response.Results)
+                {
+                    Assert.That(result, Is.EqualTo(StatusCodes.Good));
+                }
+                m_acknowledgements = response.AvailableSequenceNumbers.ConvertAll(sequence =>
+                    new SubscriptionAcknowledgement
+                    {
+                        SubscriptionId = m_subscriptionId,
+                        SequenceNumber = sequence
+                    });
+                foreach (ExtensionObject notification in response.NotificationMessage.NotificationData)
+                {
+                    Assert.That(notification.TryGetValue(out EventNotificationList? events), Is.True);
+                    foreach (EventFieldList evt in events!.Events)
+                    {
+                        if (evt.ClientHandle == 1)
+                        {
+                            ResourceUpdatedEventTypeRecord? decoded =
+                                ResourceUpdatedEventTypeRecord.Decoder.Decode(evt.EventFields.Span.ToArray());
+                            Assert.That(decoded, Is.Not.Null);
+                            m_resourceUpdates.Add(decoded!);
+                        }
+                        else
+                        {
+                            Assert.That(evt.ClientHandle, Is.EqualTo(2u));
+                            VersionUpdatedEventTypeRecord? decoded =
+                                VersionUpdatedEventTypeRecord.Decoder.Decode(evt.EventFields.Span.ToArray());
+                            Assert.That(decoded, Is.Not.Null);
+                            m_versionUpdates.Add(decoded!);
+                        }
+                    }
                 }
             }
 
@@ -1845,5 +2115,10 @@ namespace Opc.Ua.XRegistry.Tests
         private const string kEventSourceUrl = "https://registry.example.test";
         private const int kOperationTimeout = 10000;
         private static readonly string[] s_documentChanged = ["epoch", "modifiedat", "resource"];
+        private static readonly string[] s_defaultSwitchChanged =
+        [
+            "createdat", "epoch", "format", "labels", "meta.defaultversionid", "meta.epoch",
+            "meta.modifiedat", "modifiedat", "resource", "versionid", "versions", "versionscount"
+        ];
     }
 }

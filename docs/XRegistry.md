@@ -129,6 +129,10 @@ or label changes advance only that Version's owned state; if it is the default, 
 updated too. Byte-identical accepted writes followed by Close and identical label additions leave
 owned epochs/timestamps unchanged and emit no mutation events.
 
+Each new Version starts at `Epoch = 1` with `CreatedAt` and `ModifiedAt` set to the same captured
+instant, including first-Version creation through an empty GetOrCreate. Resource Meta has its own
+initial timestamp pair; adding a Version preserves the timestamps of existing Versions.
+
 New logical Opens resolve the default under the registrar's existing file gate. The existing handle
 entry pins both the exact Version and the caller's file identity, so a later default change cannot
 redirect its reads, cursor, writes or Close. Logical and direct access share the same Session checks,
@@ -429,6 +433,13 @@ type-and-subject changes are merged; `Changed` names are ordinally sorted and de
 deleted/created/updated precedence is applied per subject. Initial projection is a silent baseline,
 and failed, stale, idempotent, clean-close and no-op interactions emit nothing. Recursive deletion
 reports version leaves before resources, groups and their surviving parent update.
+
+When creating or deleting a Version selects another default for a surviving Resource,
+`ResourceUpdated.Changed` includes `meta.defaultversionid` and every non-null delegated attribute
+from either the old or new default, as well as the membership and Meta changes. This includes
+Version timestamps, labels, format/content type and the configured document attribute when present.
+Selection alone does not emit `VersionUpdated`. Deleting a non-default Version names only
+membership and Meta changes in the Resource update.
 
 The registration manager registers its registry root with the node manager's root-notifier API.
 Consequently a MonitoredItem on `ObjectIds.Server` receives descendant group, Resource, and Version
