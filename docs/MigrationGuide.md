@@ -51,24 +51,6 @@ Looking for the broader narrative (non-prescriptive overview of what
 changed in a release)? See
 [What's New in 2.0](WhatsNewIn2.0.md).
 
-## Custom NodeManager host readiness
-
-The optional `INodeManagerReadinessParticipant` separates address-space creation
-from initialization that requires a running server or dependent runtime
-registrations. `StandardServer` and `INodeManagerLifecycle` invoke and await it
-automatically, including managers supplied through factories and DI.
-
-A custom host that only calls `CreateAddressSpaceAsync` or
-`MasterNodeManager.StartupAsync` must now invoke readiness after initializing
-the remaining server subsystems. In particular, the WoT registry's persisted
-materialization happens in this phase, not during address-space creation.
-Failed materialization or cancellation is reported to the startup caller.
-A failed runtime Add may already have committed its parent registration; do not
-assume that it rolled back.
-
-See [Awaited NodeManager readiness](NodeManagerReadiness.md) for invocation,
-generation ownership, cleanup, and post-commit error handling.
-
 ## Migrating Robotics and Vision MCP requests
 
 The Robotics and Vision MCP tool names remain stable, but their request schemas

@@ -27,10 +27,11 @@ callback without introducing a synchronous wait.
 | Runtime `AddAsync` | After the new generation is committed and registered | Add awaits readiness before returning its handle |
 | Normal, shadow, or immediate reload | After the replacement is committed and the applicable retired-generation completion work has run | Reload awaits replacement readiness before returning its next-generation handle |
 
-Initial startup captures the initial manager set before invoking participants.
-A dependent manager added by a callback receives readiness through its own Add
-operation, not a second pass over an expanding initial set. Static initial
-managers participate even though they are not removable lifecycle registrations.
+Initial startup captures the initial manager set before opening Running
+admission. A runtime manager added during the Running-state transition or by a
+readiness callback receives readiness through its own Add operation, not a
+second pass over an expanding initial set. Static initial managers participate
+even though they are not removable lifecycle registrations.
 
 Preparation and publication remain staged by the existing host. Readiness is
 **after** the client-visible commit, not another preparation transaction: the
@@ -125,9 +126,9 @@ server-readiness signal. Capture the initial set before invoking callbacks:
 ArrayOf<IAsyncNodeManager> initialManagers = [.. master.AsyncNodeManagers];
 
 // Initialize the remaining server subsystems and enable runtime lifecycle operations.
-foreach (IAsyncNodeManager manager in initialManagers)
+for (int ii = 0; ii < initialManagers.Count; ii++)
 {
-    if (manager is INodeManagerReadinessParticipant participant)
+    if (initialManagers[ii] is INodeManagerReadinessParticipant participant)
     {
         await participant.OnServerReadyAsync(cancellationToken).ConfigureAwait(false);
     }

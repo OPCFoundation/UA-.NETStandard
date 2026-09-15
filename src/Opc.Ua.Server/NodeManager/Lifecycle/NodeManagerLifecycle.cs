@@ -150,14 +150,13 @@ namespace Opc.Ua.Server
         }
 
         internal async ValueTask CompleteStartupAsync(
-            IServerInternal server,
+            ArrayOf<IAsyncNodeManager> initialManagers,
             CancellationToken ct = default)
         {
             using OperationLifetime operation = EnterLifecycleOperation();
-            IAsyncNodeManager[] initialManagers = [.. server.NodeManager.AsyncNodeManagers];
-            foreach (IAsyncNodeManager nodeManager in initialManagers)
+            for (int ii = 0; ii < initialManagers.Count; ii++)
             {
-                if (nodeManager is INodeManagerReadinessParticipant participant)
+                if (initialManagers[ii] is INodeManagerReadinessParticipant participant)
                 {
                     ct.ThrowIfCancellationRequested();
                     await participant.OnServerReadyAsync(ct).ConfigureAwait(false);

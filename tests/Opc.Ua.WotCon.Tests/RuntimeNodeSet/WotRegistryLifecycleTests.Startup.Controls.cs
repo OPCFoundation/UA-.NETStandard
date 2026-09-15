@@ -433,7 +433,6 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 
         private async Task<ReferenceServer> StartStoredInitialServerAsync(
             bool dependencyInjection,
-            IWotProjectionBindingRuntimeFactory? runtime = null,
             IAsyncNodeManagerFactory? afterRegistry = null,
             CancellationToken cancellationToken = default)
         {
@@ -446,7 +445,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 var server = new StartupTokenReferenceServer(telemetry, cancellationToken);
                 m_server = server;
                 m_initialStartupHost = new DeadlineProjectionHost(
-                    new LifecycleWotProjectionHost(server.NodeManagerLifecycle, runtime));
+                    new LifecycleWotProjectionHost(server.NodeManagerLifecycle));
                 m_coordinator = new WotMaterializationCoordinator(
                     m_registry, m_initialStartupHost, documentConverter: new SensorConverter());
                 if (dependencyInjection)

@@ -3894,13 +3894,14 @@ namespace Opc.Ua.Server
                 m_semaphoreSlim.Release();
             }
 
-            // set the server status as running.
+            // Capture initial ownership before Running admits runtime registrations.
+            ArrayOf<IAsyncNodeManager> initialManagers = [.. m_serverInternal.NodeManager.AsyncNodeManagers];
             SetServerState(ServerState.Running);
 
             try
             {
                 await ((NodeManagerLifecycle)NodeManagerLifecycle)
-                    .CompleteStartupAsync(m_serverInternal, cancellationToken)
+                    .CompleteStartupAsync(initialManagers, cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
