@@ -2348,11 +2348,10 @@ namespace Opc.Ua.Wot
                     {
                         writer.WritePropertyName(member.Key);
                         WriteNode(writer, member.Value,
-                            literal: !indexMap && ((member.Key != "@context" &&
-                                WotDocument.IsSemanticBoundary(member.Key)) ||
-                                WotNodeSetConverter.IsLiteralSchemaMember(member.Key)),
-                            indexMap: !indexMap && (WotNodeSetConverter.IsSchemaDeclarationMap(member.Key) ||
-                                member.Key == "securityDefinitions"));
+                            literal: !indexMap && IsLiteralMember(member.Key),
+                            indexMap: !indexMap &&
+                                (WotNodeSetConverter.IsSchemaDeclarationMap(member.Key) ||
+                                    member.Key == "securityDefinitions"));
                     }
                     writer.WriteEndObject();
                     break;

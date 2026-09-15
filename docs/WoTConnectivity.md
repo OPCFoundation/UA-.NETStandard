@@ -1251,6 +1251,11 @@ received representation agrees exactly. Different opaque values are not merged.
 Semantic objects still require unique keys, and an unknown term does not
 automatically establish an opaque boundary.
 
+Native round trips also preserve the owner context of literal members directly
+on a DataType definition. Namespaced opaque keys retain their source meaning
+without changing the projection root's context or the regenerated native
+DataType identity.
+
 Definition discovery distinguishes declaration-map names from annotation
 predicates. Literal `const`, `default`, `enum` and `examples` values cannot
 declare a DataType or provide a local definition target; fields with those

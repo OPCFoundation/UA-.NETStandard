@@ -570,8 +570,13 @@ unmapped residue alongside the regenerated native facts. Their residue pointers
 use the generated definition order located through the resolved native DataType
 identity, not the authored collection index. Their original JSON bytes remain
 unchanged through projection and native round trips; mapped definition members
-are not copied into residue. Standard context references already emitted by the
-generator are not restored over its complete context array.
+are not copied into residue. A preserved definition context keeps namespaced
+opaque keys bound to their original owner without replacing the root context.
+Generated DataType names use their namespace-URI form when that local context
+is restored, so a reset or prefix rebinding cannot change the native identity.
+Generated localized-text overrides remain effective within the restored scope.
+Standard context references already emitted by the generator are not restored
+over its complete root context array.
 
 **Known gap.** An inferred definition's own DataSchema terms
 (`uav:fieldOrder`, `properties`, `required`, `oneOf`) still travel as residue
