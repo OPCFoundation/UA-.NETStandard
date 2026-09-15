@@ -415,7 +415,13 @@ namespace Opc.Ua.Schema.Types
 
             ValidateBaseType(complexType, parentType.BaseType, fields);
 
-            for (int ii = 0; ii < parentType.Field!.Length; ii++)
+            // A base type without any field is legal, so Field can be null.
+            if (parentType.Field == null)
+            {
+                return;
+            }
+
+            for (int ii = 0; ii < parentType.Field.Length; ii++)
             {
                 fields.Add(parentType.Field[ii].Name!, parentType.Field[ii]);
             }

@@ -168,6 +168,272 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(output, Does.Contain("public const uint IdleToReady = 101u;"));
         }
 
+        /// <summary>
+        /// Regression: the state / transition NodeId constants alias the
+        /// <c>Objects</c> constants NodeIdGenerator emits, and those are
+        /// <c>string</c> for a node with a string identifier. Emitting them as
+        /// <c>const uint</c> regardless made every vendor model that uses string
+        /// NodeIds and has a FiniteStateMachineType subtype fail with CS0029.
+        /// </summary>
+        [Test]
+        public void Emit_ModelWithStringNodeIds_EmitsStringIdConstants()
+        {
+            const string testNamespaceUri = "http://test.org/UA/";
+            const string uaNamespaceUri = "http://opcfoundation.org/UA/";
+
+            var finiteStateMachineType = new ObjectTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("FiniteStateMachineType", uaNamespaceUri)
+            };
+            var machineType = new ObjectTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("TestStateMachineType", testNamespaceUri),
+                SymbolicName = new XmlQualifiedName("TestStateMachineType", testNamespaceUri),
+                BrowseName = "TestStateMachineType",
+                BaseTypeNode = finiteStateMachineType,
+                Children = new ListOfChildren
+                {
+                    Items =
+                    [
+                        CreateState("Idle", 1),
+                        CreateTransition("IdleToReady", 101)
+                    ]
+                },
+                HasChildren = true
+            };
+
+            // The flattened nodes the Objects constants are emitted from. These
+            // carry a string identifier, so their constants are const string.
+            var idleNode = new ObjectDesign
+            {
+                SymbolicId = new XmlQualifiedName(
+                    "TestStateMachineType_Idle", testNamespaceUri),
+                SymbolicName = new XmlQualifiedName("Idle", testNamespaceUri),
+                BrowseName = "Idle",
+                StringId = "TestStateMachineType_Idle"
+            };
+            var transitionNode = new ObjectDesign
+            {
+                SymbolicId = new XmlQualifiedName(
+                    "TestStateMachineType_IdleToReady", testNamespaceUri),
+                SymbolicName = new XmlQualifiedName("IdleToReady", testNamespaceUri),
+                BrowseName = "IdleToReady",
+                StringId = "TestStateMachineType_IdleToReady"
+            };
+
+            var targetNamespace = new Namespace
+            {
+                Value = testNamespaceUri,
+                Prefix = "Test",
+                Name = "TestNamespace"
+            };
+
+            var mockModelDesign = new Mock<IModelDesign>();
+            mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            mockModelDesign
+                .Setup(m => m.GetNodeDesigns())
+                .Returns([machineType, idleNode, transitionNode]);
+            mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+
+            using var fileSystem = new VirtualFileSystem();
+            var mockTelemetry = new Mock<ITelemetryContext>();
+            var context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = mockModelDesign.Object,
+                Telemetry = mockTelemetry.Object,
+                Options = new GeneratorOptions()
+            };
+
+            var generator = new StateMachineIdsGenerator(context);
+            var resources = generator.Emit().ToList();
+
+            Assert.That(resources, Is.Not.Empty);
+            string output = Encoding.UTF8.GetString(fileSystem.Get(
+                System.IO.Path.Combine("out", "Test.StateMachineIds.g.cs")));
+
+            Assert.That(
+                output,
+                Does.Contain(
+                    "public const string Idle = global::Test.Objects.TestStateMachineType_Idle;"),
+                "a string identified state must alias a const string");
+            Assert.That(
+                output,
+                Does.Contain(
+                    "public const string IdleToReady = " +
+                    "global::Test.Objects.TestStateMachineType_IdleToReady;"),
+                "a string identified transition must alias a const string");
+            Assert.That(
+                output,
+                Does.Not.Contain(
+                    "public const uint Idle = global::Test.Objects."),
+                "the uint alias would not compile against a const string");
+
+            // The StateNumber / TransitionNumber values stay uint - they are
+            // property values, not identifiers.
+            Assert.That(output, Does.Contain("public const uint Idle = 1u;"));
+        }
+
+        /// <summary>
+        /// Regression: the string/uint lookup was built from the top-level node
+        /// list, but a state or transition of a FiniteStateMachineType exists
+        /// only as an entry in its owner's instance hierarchy - which is where
+        /// NodeIdGenerator emits its Objects constant from. The lookup could
+        /// therefore never match and every alias fell back to uint, so the
+        /// CS0029 this was meant to fix survived on every real model.
+        /// </summary>
+        [Test]
+        public void Emit_StringNodeIdsReachableOnlyViaHierarchy_EmitsStringIdConstants()
+        {
+            const string testNamespaceUri = "http://test.org/UA/";
+            const string uaNamespaceUri = "http://opcfoundation.org/UA/";
+
+            var finiteStateMachineType = new ObjectTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("FiniteStateMachineType", uaNamespaceUri)
+            };
+
+            // The hierarchy entry NodeIdGenerator emits the Objects constant
+            // from. It carries a string identifier, so the constant is a string.
+            var idleInstance = new ObjectDesign
+            {
+                SymbolicId = new XmlQualifiedName(
+                    "TestStateMachineType_Idle", testNamespaceUri),
+                SymbolicName = new XmlQualifiedName("Idle", testNamespaceUri),
+                BrowseName = "Idle",
+                StringId = "TestStateMachineType_Idle"
+            };
+
+            var machineType = new ObjectTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("TestStateMachineType", testNamespaceUri),
+                SymbolicName = new XmlQualifiedName("TestStateMachineType", testNamespaceUri),
+                BrowseName = "TestStateMachineType",
+                BaseTypeNode = finiteStateMachineType,
+                Children = new ListOfChildren { Items = [CreateState("Idle", 1)] },
+                HasChildren = true,
+                Hierarchy = new Hierarchy()
+            };
+            machineType.Hierarchy.Nodes["Idle"] = new HierarchyNode
+            {
+                RelativePath = "Idle",
+                Instance = idleInstance
+            };
+
+            var targetNamespace = new Namespace
+            {
+                Value = testNamespaceUri,
+                Prefix = "Test",
+                Name = "TestNamespace"
+            };
+
+            var mockModelDesign = new Mock<IModelDesign>();
+            mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            // Only the type is a top-level node - exactly what the real
+            // GetNodeDesigns() returns.
+            mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([machineType]);
+            mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+
+            using var fileSystem = new VirtualFileSystem();
+            var mockTelemetry = new Mock<ITelemetryContext>();
+            var context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = mockModelDesign.Object,
+                Telemetry = mockTelemetry.Object,
+                Options = new GeneratorOptions()
+            };
+
+            var resources = new StateMachineIdsGenerator(context).Emit().ToList();
+            Assert.That(resources, Is.Not.Empty);
+
+            string output = Encoding.UTF8.GetString(fileSystem.Get(
+                System.IO.Path.Combine("out", "Test.StateMachineIds.g.cs")));
+
+            Assert.That(
+                output,
+                Does.Contain(
+                    "public const string Idle = global::Test.Objects.TestStateMachineType_Idle;"),
+                "the constant type has to follow the hierarchy node's identifier");
+            Assert.That(
+                output,
+                Does.Not.Contain("public const uint Idle = global::Test.Objects."),
+                "the uint alias would not compile against a const string");
+        }
+
+        /// <summary>
+        /// A model with numeric identifiers keeps the uint alias.
+        /// </summary>
+        [Test]
+        public void Emit_ModelWithNumericNodeIds_EmitsUIntIdConstants()
+        {
+            const string testNamespaceUri = "http://test.org/UA/";
+            const string uaNamespaceUri = "http://opcfoundation.org/UA/";
+
+            var finiteStateMachineType = new ObjectTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("FiniteStateMachineType", uaNamespaceUri)
+            };
+            var machineType = new ObjectTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("TestStateMachineType", testNamespaceUri),
+                SymbolicName = new XmlQualifiedName("TestStateMachineType", testNamespaceUri),
+                BrowseName = "TestStateMachineType",
+                BaseTypeNode = finiteStateMachineType,
+                Children = new ListOfChildren
+                {
+                    Items = [CreateState("Idle", 1)]
+                },
+                HasChildren = true
+            };
+            var idleNode = new ObjectDesign
+            {
+                SymbolicId = new XmlQualifiedName(
+                    "TestStateMachineType_Idle", testNamespaceUri),
+                SymbolicName = new XmlQualifiedName("Idle", testNamespaceUri),
+                BrowseName = "Idle",
+                NumericId = 5001,
+                NumericIdSpecified = true
+            };
+
+            var targetNamespace = new Namespace
+            {
+                Value = testNamespaceUri,
+                Prefix = "Test",
+                Name = "TestNamespace"
+            };
+
+            var mockModelDesign = new Mock<IModelDesign>();
+            mockModelDesign.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            mockModelDesign
+                .Setup(m => m.GetNodeDesigns())
+                .Returns([machineType, idleNode]);
+            mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+
+            using var fileSystem = new VirtualFileSystem();
+            var mockTelemetry = new Mock<ITelemetryContext>();
+            var context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = mockModelDesign.Object,
+                Telemetry = mockTelemetry.Object,
+                Options = new GeneratorOptions()
+            };
+
+            string output = Encoding.UTF8.GetString(
+                new StateMachineIdsGenerator(context).Emit().ToList() is { Count: > 0 }
+                    ? fileSystem.Get(System.IO.Path.Combine("out", "Test.StateMachineIds.g.cs"))
+                    : []);
+
+            Assert.That(
+                output,
+                Does.Contain(
+                    "public const uint Idle = global::Test.Objects.TestStateMachineType_Idle;"));
+        }
+
         private static ObjectDesign CreateState(string name, uint number)
         {
             return CreateStateMachineChild(name, "StateType", "StateNumber", number);

@@ -46,13 +46,13 @@ namespace Opc.Ua.Client.ComplexTypes
             /// </summary>
             /// <param name="session">The client session to load custom types for.</param>
             /// <param name="telemetry">The telemetry context.</param>
+            /// <returns>A type system that owns its resolver; dispose it when
+            /// no more types are loaded through it.</returns>
             public static ComplexTypeSystem Create(
                 ISession session,
                 ITelemetryContext telemetry)
             {
-                return new ComplexTypeSystem(
-                    new NodeCacheResolver(session, telemetry),
-                    telemetry);
+                return ComplexTypeSystem.Create(session, new DefaultComplexTypeFactory(), telemetry);
             }
 
             /// <summary>
@@ -62,15 +62,20 @@ namespace Opc.Ua.Client.ComplexTypes
             /// <param name="session">The client session to load custom types for.</param>
             /// <param name="complexTypeBuilderFactory">The type builder factory to use.</param>
             /// <param name="telemetry">The telemetry context.</param>
+            /// <returns>A type system that owns its resolver; dispose it when
+            /// no more types are loaded through it.</returns>
             public static ComplexTypeSystem Create(
                 ISession session,
                 IComplexTypeFactory complexTypeBuilderFactory,
                 ITelemetryContext telemetry)
             {
+#pragma warning disable CA2000 // ownership of the resolver transfers to the type system, which disposes it
                 return new ComplexTypeSystem(
                     new NodeCacheResolver(session, telemetry),
                     complexTypeBuilderFactory,
-                    telemetry);
+                    telemetry,
+                    ownsResolver: true);
+#pragma warning restore CA2000
             }
         }
     }

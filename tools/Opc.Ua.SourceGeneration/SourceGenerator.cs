@@ -387,6 +387,9 @@ namespace Opc.Ua.SourceGeneration
                 20 => BrowseNameUnsafe,
                 _ => logLevel switch
                 {
+                    // Critical is reported as enabled by the generator's logger,
+                    // so it has to map to a diagnostic or the message is dropped.
+                    LogLevel.Critical => GenericError,
                     LogLevel.Error => GenericError,
                     LogLevel.Warning => GenericWarning,
                     _ => null
