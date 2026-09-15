@@ -1264,8 +1264,9 @@ it is classified as a server or CTT issue.
   channel was gone after about 51 s of silence; `BadInvalidState` is the CTT's result for a channel the server
   already closed. Part 4 §5.6.2.1: *"Each SecureChannel exists until it is explicitly closed or until the last
   token has expired and the overlap period has elapsed"*; the Server shall close the oldest unused Session-less
-  SecureChannel *before reaching the maximum number* of SecureChannels (here 1000). With `ChannelLifetime` =
-  120000 in `Ctt.ReferenceServer.Config.xml` (no code change) `007.js` passes with the same 41 s step 3.
+  SecureChannel *before reaching the maximum number* of SecureChannels (here 1000). `Ctt.ReferenceServer.Config.xml`
+  now sets `ChannelLifetime` to 120000; with it `007.js` and `005.js` pass (2026-09-15, same 41 s step 3, only the
+  C50 warnings remain). The default server configurations keep 30000.
   **Fix direction:** do not close an open channel for inactivity while its current SecurityToken (plus the 25 %
   overlap) is still valid, and keep the oldest-unused eviction for admission at MaxChannelCount; an idle
   timeout for channels that never completed OpenSecureChannel can stay.

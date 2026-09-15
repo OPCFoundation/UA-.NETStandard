@@ -513,9 +513,9 @@ runs of 2026-09-13/14, except
 - Auditing: 0 errors (C14 was the event queue size bug, fixed by #4480).
 - A & C Confirm `Test_001.js` can fail for all alarm types depending on the alarm phase (C10).
 - Newly covered: UAFX (no FX model), PubSub Publisher UADP (no PubSub publisher) and Security None /
-  Basic256Sha256 `007.js`/`005.js` (fail on origin/master too: the server closes idle SecureChannels after 30 s of
-  silence although their token is valid for 60 s, and the CTT needs 41 s for the step because of C50; see
-  ctt-issues.md, open server findings).
+  Basic256Sha256 `007.js`/`005.js`. Those two failed (also on origin/master) because the server closed idle
+  SecureChannels after 30 s of silence while the CTT needed 41 s for the step (C50); they pass since
+  `Ctt.ReferenceServer.Config.xml` sets `ChannelLifetime` to 120000 (see ctt-issues.md, open server findings).
 
 ## Pitfalls
 
