@@ -357,11 +357,13 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Synchronous dispose. Begins lease teardown asynchronously on
-        /// a thread-pool thread and returns immediately. Callers that
-        /// need to observe teardown completion or surface failures MUST
-        /// use <see cref="CloseAsync(CancellationToken)"/>. The
-        /// synchronous path exists only for compatibility with the
+        /// Synchronous dispose. Releases the lease before returning, so it
+        /// no longer counts against the shared channel, and begins the
+        /// teardown of a channel left unused asynchronously on a
+        /// thread-pool thread. Callers that need to observe teardown
+        /// completion or surface failures MUST use
+        /// <see cref="CloseAsync(CancellationToken)"/>. The synchronous
+        /// path exists only for compatibility with the
         /// <see cref="IDisposable"/> contract and the legacy
         /// <c>using</c> statement, and never blocks on network I/O —
         /// blocking would deadlock callers running under a synchronization
@@ -369,21 +371,20 @@ namespace Opc.Ua
         /// </summary>
         public void Dispose()
         {
-            // Sync Dispose is best-effort. Mark the lease released
-            // immediately (preventing any further SendRequestAsync /
-            // ReconnectAsync calls), then push the actual network I/O
-            // onto the thread pool. This decouples the synchronous
-            // caller from the TCP FIN handshake — see
-            // ChannelEntry.TearDownAsync — and avoids deadlocking
+            // Mark the lease released immediately (preventing any further
+            // SendRequestAsync / ReconnectAsync calls) and drop it from the
+            // entry's refcount right away: a session failover disposes its
+            // old lease and reports completion right after, and must not
+            // leave the lease counted until a background task gets to it.
+            // Only the network I/O goes onto the thread pool, which
+            // decouples the synchronous caller from the TCP FIN handshake —
+            // see ChannelEntry.TearDownAsync — and avoids deadlocking
             // callers running under a synchronization context.
             if (Interlocked.Exchange(ref m_active, 0) == 0)
             {
                 return;
             }
-            ChannelEntry entry = Entry;
-            entry.OwnerManager.BackgroundWork.Run(
-                nameof(ChannelEntry.ReleaseLeaseAsync),
-                async _ => await entry.ReleaseLeaseAsync(this).ConfigureAwait(false));
+            Entry.ReleaseLease(this);
         }
 
         private async ValueTask DisposeAsyncCore()

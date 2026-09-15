@@ -369,16 +369,46 @@ namespace Opc.Ua
         /// </summary>
         public async ValueTask ReleaseLeaseAsync(ManagedTransportChannelLease lease)
         {
-            bool teardown = false;
-            ChannelCloseReason reason = ChannelCloseReason.LeaseReleased;
+            if (DetachLease(lease, out ChannelCloseReason reason))
+            {
+                await TearDownAsync(reason, onlyIfUnused: true).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Release a lease without blocking the caller: the lease stops
+        /// counting against the channel before this returns, and only the
+        /// teardown of an unused channel, which does network I/O and raises
+        /// state change events, runs in the background.
+        /// </summary>
+        public void ReleaseLease(ManagedTransportChannelLease lease)
+        {
+            if (DetachLease(lease, out ChannelCloseReason reason))
+            {
+                OwnerManager.BackgroundWork.Run(
+                    nameof(TearDownAsync),
+                    async _ => await TearDownAsync(reason, onlyIfUnused: true).ConfigureAwait(false));
+            }
+        }
+
+        /// <summary>
+        /// Removes the lease from the entry and reports whether the channel
+        /// became unused and has to be torn down.
+        /// </summary>
+        private bool DetachLease(
+            ManagedTransportChannelLease lease,
+            out ChannelCloseReason reason)
+        {
+            bool teardown;
             int refCount;
             int participantCount;
             string participantId;
+            reason = ChannelCloseReason.LeaseReleased;
             lock (m_lock)
             {
                 if (!m_leases.Remove(lease))
                 {
-                    return;
+                    return false;
                 }
                 m_refcount--;
                 refCount = m_refcount;
@@ -392,10 +422,7 @@ namespace Opc.Ua
             }
 
             OwnerManager.OnEntryParticipantDetached(this, participantId, refCount, participantCount);
-            if (teardown)
-            {
-                await TearDownAsync(reason).ConfigureAwait(false);
-            }
+            return teardown;
         }
 
         /// <summary>
@@ -653,13 +680,23 @@ namespace Opc.Ua
 #endif
         }
 
-        private async Task TearDownAsync(ChannelCloseReason reason)
+        private async Task TearDownAsync(
+            ChannelCloseReason reason,
+            bool onlyIfUnused = false)
         {
             ITransportChannel? underlying;
             bool activeMetricRecorded;
             lock (m_lock)
             {
                 if (m_state == ChannelState.Closed)
+                {
+                    return;
+                }
+
+                // A lease release decides to tear down in an earlier lock
+                // region: a lease acquired or an operation started since then
+                // keeps the channel.
+                if (onlyIfUnused && (m_refcount != 0 || m_operationRef != 0))
                 {
                     return;
                 }

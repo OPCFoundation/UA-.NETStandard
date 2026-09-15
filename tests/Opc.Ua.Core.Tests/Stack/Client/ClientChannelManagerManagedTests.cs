@@ -416,6 +416,51 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
+        public async Task SyncDisposeReleasesLeaseRefcountBeforeReturningAsync()
+        {
+            (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) = CreateMockedSut();
+            try
+            {
+                ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
+                var pinned = new TestParticipant("pinned", endpoint);
+                IManagedTransportChannel pinnedLease = await sut.GetAsync(pinned, default)
+                    .ConfigureAwait(false);
+
+                // A session failover swaps its lease with a synchronous Dispose and
+                // reports the failover complete right after, so the released lease
+                // must stop counting against the shared channel before Dispose
+                // returns rather than once a background task gets scheduled.
+                for (int i = 0; i < 50; i++)
+                {
+                    var swapped = new TestParticipant("swapped" + i, endpoint);
+                    IManagedTransportChannel swappedLease = await sut.GetAsync(swapped, default)
+                        .ConfigureAwait(false);
+                    Assert.That(GetDiagnostic(sut, pinnedLease.Key).Refcount, Is.EqualTo(2));
+
+                    swappedLease.Dispose();
+
+                    ManagedChannelDiagnostic diagnostic = GetDiagnostic(sut, pinnedLease.Key);
+                    Assert.That(diagnostic.Refcount, Is.EqualTo(1), $"iteration {i}");
+                    Assert.That(diagnostic.ParticipantCount, Is.EqualTo(1), $"iteration {i}");
+                    Assert.That(diagnostic.State, Is.EqualTo(ChannelState.Ready), $"iteration {i}");
+                }
+
+                chMock.Verify(c => c.CloseAsync(It.IsAny<CancellationToken>()), Times.Never);
+
+                // The last lease still tears the channel down, off the caller's thread.
+                pinnedLease.Dispose();
+                await WaitForMockInvocationAsync(
+                    () => chMock.Verify(c => c.CloseAsync(It.IsAny<CancellationToken>()), Times.Once))
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
+
+        [Test]
         public async Task DiscoveryClientCreateAsyncSharesSessionChannelAndReleasesLeaseAsync()
         {
             (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) = CreateMockedSut();
@@ -1540,6 +1585,13 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             object? value = property!.GetValue(target);
             Assert.That(value, Is.Not.Null, $"Expected property {propertyName} to return a value.");
             return value!;
+        }
+
+        private static ManagedChannelDiagnostic GetDiagnostic(
+            ClientChannelManager sut,
+            ManagedChannelKey key)
+        {
+            return sut.GetChannelDiagnostics().Single(d => d.Key == key);
         }
 
         private static void AssertChannelDiagnostic(
