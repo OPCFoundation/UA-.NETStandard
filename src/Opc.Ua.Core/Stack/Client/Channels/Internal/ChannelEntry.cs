@@ -100,6 +100,26 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Whether the entry is closed, faulted, or being torn down. A
+        /// teardown clears the underlying channel before the state reaches
+        /// <see cref="ChannelState.Closed"/>, so the state alone does not
+        /// tell whether the entry can still hand out leases.
+        /// </summary>
+        public bool IsClosing
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return IsClosingLocked;
+                }
+            }
+        }
+
+        private bool IsClosingLocked
+            => m_closing || m_state is ChannelState.Closed or ChannelState.Faulted;
+
+        /// <summary>
         /// Monotonic counter incremented each time the entry enters
         /// <see cref="ChannelState.TransportReconnecting"/>. Callers capture
         /// it before sending a request and compare afterwards to tell a
@@ -164,7 +184,7 @@ namespace Opc.Ua
                 bool recordActiveMetric;
                 lock (m_lock)
                 {
-                    entryClosed = m_state is ChannelState.Closed or ChannelState.Faulted;
+                    entryClosed = IsClosingLocked;
                     channelInstalled = !entryClosed && m_underlying == null;
                     if (channelInstalled)
                     {
@@ -254,7 +274,7 @@ namespace Opc.Ua
             string participantId;
             lock (m_lock)
             {
-                if (m_state is ChannelState.Closed or ChannelState.Faulted)
+                if (IsClosingLocked)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecureChannelClosed,
@@ -297,7 +317,7 @@ namespace Opc.Ua
             bool attached = false;
             lock (m_lock)
             {
-                if (m_state is ChannelState.Closed or ChannelState.Faulted)
+                if (IsClosingLocked)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecureChannelClosed,
@@ -389,16 +409,46 @@ namespace Opc.Ua
         /// </summary>
         public async ValueTask ReleaseLeaseAsync(ManagedTransportChannelLease lease)
         {
-            bool teardown = false;
-            ChannelCloseReason reason = ChannelCloseReason.LeaseReleased;
+            if (DetachLease(lease, out ChannelCloseReason reason))
+            {
+                await TearDownAsync(reason, onlyIfUnused: true).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Release a lease without blocking the caller: the lease stops
+        /// counting against the channel before this returns, and only the
+        /// teardown of an unused channel, which does network I/O and raises
+        /// state change events, runs in the background.
+        /// </summary>
+        public void ReleaseLease(ManagedTransportChannelLease lease)
+        {
+            if (DetachLease(lease, out ChannelCloseReason reason))
+            {
+                OwnerManager.BackgroundWork.Run(
+                    nameof(TearDownAsync),
+                    async _ => await TearDownAsync(reason, onlyIfUnused: true).ConfigureAwait(false));
+            }
+        }
+
+        /// <summary>
+        /// Removes the lease from the entry and reports whether the channel
+        /// became unused and has to be torn down.
+        /// </summary>
+        private bool DetachLease(
+            ManagedTransportChannelLease lease,
+            out ChannelCloseReason reason)
+        {
+            bool teardown;
             int refCount;
             int participantCount;
             string participantId;
+            reason = ChannelCloseReason.LeaseReleased;
             lock (m_lock)
             {
                 if (!m_leases.Remove(lease))
                 {
-                    return;
+                    return false;
                 }
                 m_refcount--;
                 refCount = m_refcount;
@@ -412,10 +462,7 @@ namespace Opc.Ua
             }
 
             OwnerManager.OnEntryParticipantDetached(this, participantId, refCount, participantCount);
-            if (teardown)
-            {
-                await TearDownAsync(reason).ConfigureAwait(false);
-            }
+            return teardown;
         }
 
         /// <summary>
@@ -451,7 +498,7 @@ namespace Opc.Ua
             bool starter;
             lock (m_lock)
             {
-                if (m_state is ChannelState.Closed or ChannelState.Faulted)
+                if (IsClosingLocked)
                 {
                     return Task.FromException<bool>(
                         ServiceResultException.Create(
@@ -585,16 +632,18 @@ namespace Opc.Ua
             TaskCompletionSource<bool> gate;
             lock (m_lock)
             {
-                if (m_state == ChannelState.Ready)
-                {
-                    return Task.CompletedTask;
-                }
-                if (m_state is ChannelState.Closed or ChannelState.Faulted)
+                // A teardown in progress still reports Ready until it reaches
+                // Closed, so the closing check has to come first.
+                if (IsClosingLocked)
                 {
                     return Task.FromException(
                         ServiceResultException.Create(
                             StatusCodes.BadSecureChannelClosed,
                             "Channel is {0}.", m_state));
+                }
+                if (m_state == ChannelState.Ready)
+                {
+                    return Task.CompletedTask;
                 }
                 gate = m_readyGate;
             }
@@ -679,7 +728,9 @@ namespace Opc.Ua
         /// <summary>
         /// Closes the entry, fails readiness waiters, and releases its transport, certificate handles, and metrics.
         /// </summary>
-        private async Task TearDownAsync(ChannelCloseReason reason)
+        private async Task TearDownAsync(
+            ChannelCloseReason reason,
+            bool onlyIfUnused = false)
         {
             OwnedTransport? underlying;
             bool activeMetricRecorded;
@@ -689,6 +740,19 @@ namespace Opc.Ua
                 {
                     return;
                 }
+
+                // A lease release decides to tear down in an earlier lock
+                // region: a lease acquired or an operation started since then
+                // keeps the channel.
+                if (onlyIfUnused && (m_refcount != 0 || m_operationRef != 0))
+                {
+                    return;
+                }
+
+                // Reserve the teardown before the underlying channel is
+                // cleared: leases and reconnects are refused from here on,
+                // not only once the state reaches Closed below.
+                m_closing = true;
                 underlying = m_underlying;
                 m_underlying = null;
                 activeMetricRecorded = m_activeMetricRecorded;
@@ -1019,7 +1083,7 @@ namespace Opc.Ua
             bool entryClosed;
             lock (m_lock)
             {
-                entryClosed = m_state is ChannelState.Closed or ChannelState.Faulted;
+                entryClosed = IsClosingLocked;
                 if (entryClosed)
                 {
                     old = null;
@@ -1491,6 +1555,7 @@ namespace Opc.Ua
         private int m_lastReconnectAttempt;
         private ServiceResult? m_lastError;
         private ChannelState m_state = ChannelState.Disconnected;
+        private bool m_closing;
 
         /// <summary>
         /// Couples a transport with the certificate references that must remain alive until it closes.
