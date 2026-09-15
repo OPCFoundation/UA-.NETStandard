@@ -1,0 +1,170 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Opc.Ua.WotCon.Server.Registry
+{
+    public sealed partial class WotRegistryService
+    {
+        /// <inheritdoc/>
+        public async ValueTask<IWotRegistryVersionLease> AcquireVersionLeaseAsync(
+            string groupId,
+            string resourceId,
+            WotResourceVersion version,
+            CancellationToken cancellationToken = default)
+        {
+            _ = version ?? throw new ArgumentNullException(nameof(version));
+            groupId = ResolveAssignedGroupId(groupId);
+            resourceId = ResolveAssignedResourceId(groupId, resourceId);
+            await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                EnsureMutationAllowed();
+                WotResourceVersion? current = m_snapshot.FindResource(groupId, resourceId)?
+                    .FindVersion(version.VersionId);
+                if (current is null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown, "The Version no longer exists.");
+                }
+                if (current.IncarnationId != version.IncarnationId)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState, "The Version incarnation changed.");
+                }
+                return AcquireVersionLease(current);
+            }
+            finally
+            {
+                m_mutex.Release();
+            }
+        }
+
+        private async ValueTask PrepareVersionLeaseAsync(
+            WotResource resource,
+            WotResourceVersion version,
+            Func<WotResource, WotResourceVersion, IWotRegistryVersionLease, CancellationToken, ValueTask> prepare,
+            CancellationToken cancellationToken)
+        {
+            VersionLease? lease = AcquireVersionLease(version);
+            try
+            {
+                await prepare(resource, version, lease, cancellationToken).ConfigureAwait(false);
+                lease = null;
+            }
+            finally
+            {
+                lease?.Dispose();
+            }
+        }
+
+        private VersionLease AcquireVersionLease(WotResourceVersion version)
+        {
+            while (true)
+            {
+                if (m_versionLeases.TryGetValue(version.IncarnationId, out VersionLeaseCount? existing))
+                {
+                    if (existing.TryAcquire())
+                    {
+                        return new VersionLease(this, version, existing);
+                    }
+                    RemoveReleasedLease(version.IncarnationId, existing);
+                }
+                var created = new VersionLeaseCount();
+                if (m_versionLeases.TryAdd(version.IncarnationId, created))
+                {
+                    return new VersionLease(this, version, created);
+                }
+            }
+        }
+
+        private bool IsVersionLeased(WotResourceVersion version)
+        {
+            return m_versionLeases.TryGetValue(version.IncarnationId, out VersionLeaseCount? leases) &&
+                leases.Count > 0;
+        }
+
+        private void RemoveReleasedLease(Guid incarnation, VersionLeaseCount leases)
+        {
+            ((ICollection<KeyValuePair<Guid, VersionLeaseCount>>)m_versionLeases)
+                .Remove(new KeyValuePair<Guid, VersionLeaseCount>(incarnation, leases));
+        }
+
+        private sealed class VersionLease(
+            WotRegistryService owner,
+            WotResourceVersion version,
+            VersionLeaseCount leases) : IWotRegistryVersionLease
+        {
+            public WotResourceVersion Version { get; } = version;
+
+            public void Dispose()
+            {
+                VersionLeaseCount? released = Interlocked.Exchange(ref m_leases, null);
+                if (released is not null && released.Release() == 0)
+                {
+                    owner.RemoveReleasedLease(Version.IncarnationId, released);
+                }
+            }
+
+            private VersionLeaseCount? m_leases = leases;
+        }
+
+        private sealed class VersionLeaseCount
+        {
+            public int Count => Volatile.Read(ref m_count);
+
+            public bool TryAcquire()
+            {
+                int count = Count;
+                while (count > 0)
+                {
+                    int observed = Interlocked.CompareExchange(ref m_count, checked(count + 1), count);
+                    if (observed == count)
+                    {
+                        return true;
+                    }
+                    count = observed;
+                }
+                return false;
+            }
+
+            public int Release()
+            {
+                return Interlocked.Decrement(ref m_count);
+            }
+
+            private int m_count = 1;
+        }
+
+        private readonly ConcurrentDictionary<Guid, VersionLeaseCount> m_versionLeases = new();
+    }
+}

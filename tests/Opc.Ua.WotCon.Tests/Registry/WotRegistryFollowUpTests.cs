@@ -41,7 +41,7 @@ using Opc.Ua.XRegistry.Server;
 namespace Opc.Ua.WotCon.Tests.Registry
 {
     [TestFixture]
-    public sealed class WotRegistryFollowUpTests
+    public sealed partial class WotRegistryFollowUpTests
     {
         [Test]
         public async Task EmptyCreationReusesPendingAndExplicitConflictIsRejected()

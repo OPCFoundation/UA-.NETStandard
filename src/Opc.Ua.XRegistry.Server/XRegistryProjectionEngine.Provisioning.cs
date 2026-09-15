@@ -50,6 +50,21 @@ namespace Opc.Ua.XRegistry.Server
     }
 
     /// <summary>
+    /// Optional preserving-write preparation using provider-owned state carried by the resource.
+    /// This lets an atomic owner transfer its reservation without reacquiring the owner operation.
+    /// </summary>
+    public interface IXRegistryPreparedResourceFile : IXRegistryProjectedPreservingResourceFile
+    {
+        /// <summary>
+        /// Prepares a preserving writer against the supplied candidate or existing resource.
+        /// </summary>
+        ValueTask<(ServiceResult Status, uint FileHandle)> OpenPreservingWriteAsync(
+            IXRegistryProjectionResource resource,
+            ISystemContext context,
+            CancellationToken cancellationToken);
+    }
+
+    /// <summary>
     /// An unpublished or existing exact-Version file reservation owned by the projection engine.
     /// Disposal abandons the clean reservation unless the caller transfers it after durable commit.
     /// </summary>
@@ -184,8 +199,10 @@ namespace Opc.Ua.XRegistry.Server
                         throw new ServiceResultException(
                             StatusCodes.BadNotSupported, "The file provider cannot prepare a preserving write.");
                     }
-                    (ServiceResult status, uint handle) = await file.OpenPreservingWriteAsync(
-                        context, cancellationToken).ConfigureAwait(false);
+                    (ServiceResult status, uint handle) = file is IXRegistryPreparedResourceFile prepared
+                        ? await prepared.OpenPreservingWriteAsync(resource, context, cancellationToken)
+                            .ConfigureAwait(false)
+                        : await file.OpenPreservingWriteAsync(context, cancellationToken).ConfigureAwait(false);
                     if (ServiceResult.IsBad(status))
                     {
                         throw new ServiceResultException(status);

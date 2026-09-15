@@ -325,7 +325,10 @@ namespace Opc.Ua.WotCon.Server
                     bytes,
                     baseline,
                     baselineIncarnation,
-                    token));
+                    token),
+                acquireVersionLease: m_registry is IWotRegistryVersionLeaseProvider leases
+                    ? (snapshot, token) => leases.AcquireVersionLeaseAsync(groupId, resourceId, snapshot, token)
+                    : null);
         }
 
         private async ValueTask<ServiceResult> OnValidateAsync(
@@ -1195,14 +1198,17 @@ namespace Opc.Ua.WotCon.Server
             IXRegistryProjectionResourceMeta,
             IResourceAdapter
         {
-            public ResourceAdapter(WotResource resource, WotResourceVersion version)
+            public ResourceAdapter(
+                WotResource resource, WotResourceVersion version, IWotRegistryVersionLease? preparedLease = null)
             {
                 Resource = resource;
                 Version = version;
+                PreparedLease = preparedLease;
             }
 
             public WotResource Resource { get; }
             public WotResourceVersion Version { get; }
+            public IWotRegistryVersionLease? PreparedLease { get; }
             public bool IsConcreteVersion => true;
             public string GroupId => Resource.GroupId;
             public string ResourceId => Resource.ResourceId;
@@ -1266,9 +1272,9 @@ namespace Opc.Ua.WotCon.Server
 
         private sealed class ResourceFileAdapter :
             IXRegistryProjectedResourceFile,
-            IXRegistryProjectedPreservingResourceFile,
-            IXRegistryProjectedContentlessResourceFile,
-            IXRegistryProjectedResourceFileHandleForwarder,
+            IXRegistryPreparedResourceFile,
+            IXRegistryAsyncProjectedContentlessResourceFile,
+            IXRegistryAsyncProjectedResourceFileHandleForwarder,
             IXRegistryProjectedResourceSessionDiscard
         {
             public ResourceFileAdapter(
@@ -1299,6 +1305,15 @@ namespace Opc.Ua.WotCon.Server
                 return m_file.OpenPreservingWriteAsync(context, cancellationToken);
             }
 
+            public ValueTask<(ServiceResult Status, uint FileHandle)> OpenPreservingWriteAsync(
+                IXRegistryProjectionResource resource,
+                ISystemContext context,
+                CancellationToken cancellationToken)
+            {
+                return m_file.OpenPreservingWriteAsync(
+                    context, cancellationToken, (resource as ResourceAdapter)?.PreparedLease);
+            }
+
             public ServiceResult TryOpenContentlessWriteHandle(
                 ISystemContext context,
                 out uint fileHandle)
@@ -1307,6 +1322,13 @@ namespace Opc.Ua.WotCon.Server
                     ? sessionContext.SessionId.GetValueOrDefault()
                     : NodeId.Null;
                 return m_file.TryOpenContentlessWriteHandle(sessionId, out fileHandle);
+            }
+
+            public ValueTask<OpenMethodStateResult> OpenContentlessWriteAsync(
+                ISystemContext context,
+                CancellationToken cancellationToken)
+            {
+                return m_file.OpenContentlessWriteAsync(context, cancellationToken);
             }
 
             public void ApplyResource(IXRegistryProjectionResource resource)
@@ -1336,6 +1358,15 @@ namespace Opc.Ua.WotCon.Server
             {
                 return ((IXRegistryProjectedResourceFileHandleForwarder)m_file)
                     .ForwardOpen(context, method, objectId, mode, ref fileHandle);
+            }
+
+            ValueTask<OpenMethodStateResult>
+                IXRegistryAsyncProjectedResourceFileHandleForwarder.ForwardOpenAsync(
+                ISystemContext context, MethodState method, NodeId objectId,
+                byte mode, CancellationToken cancellationToken)
+            {
+                return ((IXRegistryAsyncProjectedResourceFileHandleForwarder)m_file)
+                    .ForwardOpenAsync(context, method, objectId, mode, cancellationToken);
             }
 
             ValueTask<ServiceResult> IXRegistryProjectedResourceFileHandleForwarder.ForwardCloseAsync(

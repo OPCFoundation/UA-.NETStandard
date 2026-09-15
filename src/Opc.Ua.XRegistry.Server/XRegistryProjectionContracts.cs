@@ -251,6 +251,24 @@ namespace Opc.Ua.XRegistry.Server
     }
 
     /// <summary>
+    /// Optional asynchronous Open for file providers that acquire owner-managed Version leases.
+    /// Subsequent operations use the same handle table as the synchronous forwarding capability.
+    /// </summary>
+    public interface IXRegistryAsyncProjectedResourceFileHandleForwarder :
+        IXRegistryProjectedResourceFileHandleForwarder
+    {
+        /// <summary>
+        /// Opens and fully initializes a handle before it is returned to the caller.
+        /// </summary>
+        ValueTask<OpenMethodStateResult> ForwardOpenAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            byte mode,
+            CancellationToken cancellationToken);
+    }
+
+    /// <summary>
     /// Optional additive capability for projections that can atomically claim
     /// an existing content-less resource for its first write.
     /// </summary>
@@ -264,6 +282,19 @@ namespace Opc.Ua.XRegistry.Server
         ServiceResult TryOpenContentlessWriteHandle(
             ISystemContext context,
             out uint fileHandle);
+    }
+
+    /// <summary>
+    /// Optional asynchronous contentless-Version claim for providers with owner-managed leases.
+    /// </summary>
+    public interface IXRegistryAsyncProjectedContentlessResourceFile : IXRegistryProjectedContentlessResourceFile
+    {
+        /// <summary>
+        /// Reserves a writer only while the exact Version is contentless, including after owner acquisition.
+        /// </summary>
+        ValueTask<OpenMethodStateResult> OpenContentlessWriteAsync(
+            ISystemContext context,
+            CancellationToken cancellationToken);
     }
 
     /// <summary>

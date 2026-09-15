@@ -163,7 +163,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             string sourceId,
             string versionId,
             bool getOrCreate,
-            Func<WotResource, WotResourceVersion, CancellationToken, ValueTask>? beforeCommit,
+            Func<WotResource, WotResourceVersion, IWotRegistryVersionLease, CancellationToken, ValueTask>? beforeCommit,
             CancellationToken cancellationToken)
         {
             EnsureDocumentKind(kind);
@@ -269,7 +269,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             string versionId,
             bool getOrCreate,
             bool useTypedSemantics,
-            Func<WotResource, WotResourceVersion, CancellationToken, ValueTask>? beforeCommit,
+            Func<WotResource, WotResourceVersion, IWotRegistryVersionLease, CancellationToken, ValueTask>? beforeCommit,
             CancellationToken cancellationToken)
         {
             EnsureGroupKind(group, kind);

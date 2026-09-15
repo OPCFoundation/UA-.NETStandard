@@ -61,6 +61,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         IWotDeletePolicyRegistryService,
         IWotVersionedRegistryService,
         IWotTypedRegistryService,
+        IWotRegistryVersionLeaseProvider,
         IDisposable
     {
         /// <summary>
@@ -373,7 +374,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             bool getOrCreate,
             bool useTypedSemantics,
             string? sourceId,
-            Func<WotResource, WotResourceVersion, CancellationToken, ValueTask>? beforeCommit,
+            Func<WotResource, WotResourceVersion, IWotRegistryVersionLease, CancellationToken, ValueTask>? beforeCommit,
             CancellationToken cancellationToken)
         {
             WotRegistrySnapshot snapshot = m_snapshot;
@@ -401,7 +402,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
                 if (beforeCommit is not null)
                 {
-                    await beforeCommit(existing!, resolved, cancellationToken).ConfigureAwait(false);
+                    await PrepareVersionLeaseAsync(existing!, resolved, beforeCommit, cancellationToken)
+                        .ConfigureAwait(false);
                     cancellationToken.ThrowIfCancellationRequested();
                 }
                 return new VersionCreateResult(existing, resolved, false);
@@ -474,7 +476,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
             if (beforeCommit is not null)
             {
-                await beforeCommit(resource, version, cancellationToken).ConfigureAwait(false);
+                await PrepareVersionLeaseAsync(resource, version, beforeCommit, cancellationToken)
+                    .ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
             }
             long generation = snapshot.Generation + 1;
@@ -2475,7 +2478,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 new WotRegistryChangedEventArgs(previous, current, changed, projectionOnly));
         }
 
-        private static bool TryTrim(
+        private bool TryTrim(
             ImmutableArray<WotResourceVersion> versions,
             int max,
             IEnumerable<string?> protectedVersionIds,
@@ -2496,6 +2499,13 @@ namespace Opc.Ua.WotCon.Server.Registry
                 versions
                     .Where(version => version.HasContent)
                     .Select(version => version.VersionId));
+            foreach (WotResourceVersion version in versions)
+            {
+                if (version.HasContent && IsVersionLeased(version))
+                {
+                    protectedIds.Add(version.VersionId);
+                }
+            }
             if (protectedIds.Count > max)
             {
                 trimmed = default;
@@ -2524,7 +2534,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             return true;
         }
 
-        private static bool CanRetainIncomingCommittedVersion(
+        private bool CanRetainIncomingCommittedVersion(
             WotResource resource,
             int max,
             string incomingVersionId)
@@ -2542,7 +2552,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     .Select(id => id!),
                 StringComparer.Ordinal);
             int protectedCommittedCount = resource.Versions.Count(version =>
-                version.HasContent && protectedIds.Contains(version.VersionId));
+                version.HasContent && (protectedIds.Contains(version.VersionId) || IsVersionLeased(version)));
             return protectedCommittedCount + 1 <= max;
         }
 

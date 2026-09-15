@@ -463,6 +463,13 @@ immutable generation. `IXRegistryVersionedProjectionStrategy` is additive and le
 explicit/server-assigned Version ids, materialize stable per-Version NodeIds, and separate Version
 labels from Resource Meta without breaking existing strategies.
 
+Providers that need an asynchronous owner acquisition can opt into
+`IXRegistryAsyncProjectedResourceFileHandleForwarder`,
+`IXRegistryAsyncProjectedContentlessResourceFile` and `IXRegistryPreparedResourceFile`.
+The existing file and logical pin tables still own the handles; synchronous providers
+retain their existing paths. The stock [WoT Version lease provider](WotRegistryVersionLeases.md)
+uses these capabilities without adding retention or activation options to the generic registrar.
+
 ## Server-side usage
 
 Configure the node managers through `XRegistryServerOptions` and add them to the server's node

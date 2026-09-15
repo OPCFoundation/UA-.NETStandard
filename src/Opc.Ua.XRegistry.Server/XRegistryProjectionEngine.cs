@@ -1141,6 +1141,9 @@ namespace Opc.Ua.XRegistry.Server
                         return result;
                     });
 
+            node.Open?.OnCallAsync = (context, method, objectId, mode, ct) =>
+                OpenLogicalResourceAsync(logical, context, method, objectId, mode, ct);
+
             node.Close?.OnCallAsync = new CloseMethodStateMethodAsyncCallHandler(
                     async (context, method, objectId,
                            fileHandle, ct) =>
@@ -1267,6 +1270,99 @@ namespace Opc.Ua.XRegistry.Server
                         return pinned.Forwarder.ForwardSetPosition(
                             context, method, objectId, pinned.UnderlyingHandle, position);
                     });
+        }
+
+        private async ValueTask<OpenMethodStateResult> OpenLogicalResourceAsync(
+            LogicalResourceEntry logical,
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            byte mode,
+            CancellationToken cancellationToken)
+        {
+            IXRegistryAsyncProjectedResourceFileHandleForwarder? forwarder = null;
+            ResourceState? versionNode = null;
+            uint handle = 0;
+            PinnedFileHandle pending = default;
+            await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                lock (m_fileHandlesGate)
+                {
+                    if (IsSessionClosing(context))
+                    {
+                        return new OpenMethodStateResult { ServiceResult = StatusCodes.BadSessionClosed };
+                    }
+                    string? versionId = logical.LogicalNode.VersionId?.Value;
+                    if (versionId is not null &&
+                        logical.Versions.TryGetValue(versionId, out ResourceEntry? version) &&
+                        version.File is IXRegistryAsyncProjectedResourceFileHandleForwarder asynchronous)
+                    {
+                        forwarder = asynchronous;
+                        versionNode = version.Node;
+                        handle = logical.AllocatePinnedHandle();
+                        pending = new PinnedFileHandle(forwarder, versionNode, 0, SessionIdOf(context));
+                        logical.PinnedHandles[handle] = pending;
+                    }
+                }
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+            if (forwarder is null)
+            {
+                uint legacyHandle = 0;
+                ServiceResult legacy = logical.LogicalNode.Open!.OnCall!(
+                    context, method, objectId, mode, ref legacyHandle);
+                return new OpenMethodStateResult { ServiceResult = legacy, FileHandle = legacyHandle };
+            }
+            uint underlying = 0;
+            bool returned = false;
+            try
+            {
+                OpenMethodStateResult opened = await forwarder.ForwardOpenAsync(
+                    context, method, objectId, mode, cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(opened.ServiceResult))
+                {
+                    return opened;
+                }
+                underlying = opened.FileHandle;
+                cancellationToken.ThrowIfCancellationRequested();
+                lock (m_fileHandlesGate)
+                {
+                    if (IsSessionClosing(context) ||
+                        !logical.PinnedHandles.TryUpdate(
+                            handle,
+                            new PinnedFileHandle(forwarder, versionNode!, underlying, SessionIdOf(context)),
+                            pending))
+                    {
+                        return new OpenMethodStateResult { ServiceResult = StatusCodes.BadSessionClosed };
+                    }
+                    string? current = logical.LogicalNode.VersionId?.Value;
+                    if (current is not null && logical.Versions.TryGetValue(current, out ResourceEntry? selected))
+                    {
+                        MirrorFileTypeProperties(logical.LogicalNode, selected.Node);
+                    }
+                }
+                await logical.LogicalNode.ClearChangeMasksAsync(
+                    m_context.SystemContext, includeChildren: true, cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+                returned = true;
+                return new OpenMethodStateResult { ServiceResult = ServiceResult.Good, FileHandle = handle };
+            }
+            finally
+            {
+                if (!returned)
+                {
+                    logical.PinnedHandles.TryRemove(handle, out _);
+                    if (underlying != 0)
+                    {
+                        await forwarder.ForwardCloseAsync(
+                            context, method, objectId, underlying, CancellationToken.None).ConfigureAwait(false);
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -1723,6 +1819,10 @@ namespace Opc.Ua.XRegistry.Server
             List<Variant> output,
             CancellationToken ct)
         {
+            ResourceEntry? entry = null;
+            IXRegistryAsyncProjectedContentlessResourceFile? asynchronous = null;
+            uint fileHandle = 0;
+            ServiceResult open = ServiceResult.Good;
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -1730,7 +1830,6 @@ namespace Opc.Ua.XRegistry.Server
                 {
                     return (true, StatusCodes.BadSessionClosed);
                 }
-                ResourceEntry? entry = null;
                 if (m_versionedStrategy is not null)
                 {
                     if (m_groups.TryGetValue(groupId, out GroupEntry? grp) &&
@@ -1754,32 +1853,38 @@ namespace Opc.Ua.XRegistry.Server
                     return (false, ServiceResult.Good);
                 }
 
-                ServiceResult open = contentlessFile.TryOpenContentlessWriteHandle(
-                    context,
-                    out uint fileHandle);
-                if (ServiceResult.IsBad(open))
+                if (contentlessFile is IXRegistryAsyncProjectedContentlessResourceFile asyncFile)
                 {
-                    if (open.StatusCode == StatusCodes.BadInvalidState)
-                    {
-                        return (
-                            true,
-                            ServiceResult.Create(
-                                StatusCodes.BadNodeIdExists,
-                                $"Resource '{resourceId}' already contains document content."));
-                    }
-                    return (true, open);
+                    asynchronous = asyncFile;
                 }
-
-                output.Clear();
-                output.Add(new Variant(entry.Node.NodeId));
-                output.Add(new Variant(entry.VersionId));
-                output.Add(new Variant(fileHandle));
-                return (true, ServiceResult.Good);
+                else
+                {
+                    open = contentlessFile.TryOpenContentlessWriteHandle(context, out fileHandle);
+                }
             }
             finally
             {
                 m_gate.Release();
             }
+            if (asynchronous is not null)
+            {
+                OpenMethodStateResult opened = await asynchronous.OpenContentlessWriteAsync(context, ct)
+                    .ConfigureAwait(false);
+                open = opened.ServiceResult;
+                fileHandle = opened.FileHandle;
+            }
+            if (ServiceResult.IsBad(open))
+            {
+                return open.StatusCode == StatusCodes.BadInvalidState
+                    ? (true, ServiceResult.Create(
+                        StatusCodes.BadNodeIdExists, $"Resource '{resourceId}' already contains document content."))
+                    : (true, open);
+            }
+            output.Clear();
+            output.Add(new Variant(entry!.Node.NodeId));
+            output.Add(new Variant(entry.VersionId));
+            output.Add(new Variant(fileHandle));
+            return (true, ServiceResult.Good);
         }
 
         private async ValueTask<ServiceResult> OnGetOrCreateResourceAsync(
@@ -1839,6 +1944,7 @@ namespace Opc.Ua.XRegistry.Server
                 : ResourceNodeId(groupId, resourceId, versionId);
 
             uint fileHandle = 0;
+            ResourceEntry? asynchronous = null;
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -1865,10 +1971,17 @@ namespace Opc.Ua.XRegistry.Server
                     }
                     if (entry?.File is not null)
                     {
-                        ServiceResult open = entry.File.TryOpenWriteHandle(context, out fileHandle);
-                        if (ServiceResult.IsBad(open))
+                        if (entry.File is IXRegistryAsyncProjectedResourceFileHandleForwarder)
                         {
-                            return open;
+                            asynchronous = entry;
+                        }
+                        else
+                        {
+                            ServiceResult open = entry.File.TryOpenWriteHandle(context, out fileHandle);
+                            if (ServiceResult.IsBad(open))
+                            {
+                                return open;
+                            }
                         }
                     }
                 }
@@ -1876,6 +1989,23 @@ namespace Opc.Ua.XRegistry.Server
             finally
             {
                 m_gate.Release();
+            }
+            if (asynchronous?.File is IXRegistryAsyncProjectedResourceFileHandleForwarder forwarder)
+            {
+                OpenMethodStateResult opened = await forwarder.ForwardOpenAsync(
+                    context, asynchronous.Node.Open!, nodeId, 6, ct).ConfigureAwait(false);
+                if (ServiceResult.IsBad(opened.ServiceResult))
+                {
+                    return opened.ServiceResult;
+                }
+                fileHandle = opened.FileHandle;
+                if (IsSessionClosing(context))
+                {
+                    await forwarder.ForwardCloseAsync(
+                        context, asynchronous.Node.Close!, nodeId, fileHandle, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    return StatusCodes.BadSessionClosed;
+                }
             }
 
             output.Clear();

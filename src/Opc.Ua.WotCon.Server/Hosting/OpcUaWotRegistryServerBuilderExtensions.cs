@@ -169,6 +169,10 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp.GetRequiredService<IWotRegistryService>() as IWotTypedRegistryService ??
                 throw new InvalidOperationException("The registered registry does not support typed provisioning."));
 
+            services.TryAddSingleton(sp =>
+                sp.GetRequiredService<IWotRegistryService>() as IWotRegistryVersionLeaseProvider ??
+                throw new InvalidOperationException("The registered registry does not support Version leases."));
+
             services.TryAddSingleton<IWotProjectionHost>(sp =>
                 new LifecycleWotProjectionHost(
                     sp.GetRequiredService<INodeManagerLifecycle>(),

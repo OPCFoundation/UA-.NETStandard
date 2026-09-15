@@ -76,7 +76,7 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// </remarks>
     internal sealed class WotResourceFileManager :
         IDisposable,
-        XRegistry.Server.IXRegistryProjectedResourceFileHandleForwarder
+        XRegistry.Server.IXRegistryAsyncProjectedResourceFileHandleForwarder
     {
         public WotResourceFileManager(
             FileState file,
@@ -147,7 +147,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 NodeId,
                 CancellationToken,
                 ValueTask<WotResourceCommitResult>> onCommit,
-            bool validateVersionIncarnation = true)
+            bool validateVersionIncarnation = true,
+            Func<WotResourceVersion, CancellationToken, ValueTask<IWotRegistryVersionLease>>?
+                acquireVersionLease = null)
         {
             m_file = file ?? throw new ArgumentNullException(nameof(file));
             m_maxHandles = maxOpenHandles;
@@ -156,6 +158,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             m_readContent = readContent ?? throw new ArgumentNullException(nameof(readContent));
             m_onCommit = onCommit ?? throw new ArgumentNullException(nameof(onCommit));
             m_validateVersionIncarnation = validateVersionIncarnation;
+            m_acquireVersionLease = acquireVersionLease;
 
             m_file.Writable?.Value = true;
             m_file.UserWritable?.Value = true;
@@ -163,6 +166,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             m_file.MaxByteStringLength?.Value = (uint)maxDocumentSize;
 
             m_file.Open?.OnCall = new OpenMethodStateMethodCallHandler(OnOpen);
+            m_file.Open?.OnCallAsync = new OpenMethodStateMethodAsyncCallHandler(OnOpenAsync);
             m_file.Close?.OnCallAsync = new CloseMethodStateMethodAsyncCallHandler(OnCloseAsync);
             m_file.Read?.OnCallAsync = new ReadMethodStateMethodAsyncCallHandler(OnReadAsync);
             m_file.Write?.OnCall = new WriteMethodStateMethodCallHandler(OnWrite);
@@ -192,6 +196,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             lock (m_handlesLock)
             {
+                m_currentVersion = version;
                 CurrentVersionIncarnation = version?.IncarnationId;
                 CurrentContentKey = version?.DigestHex ?? string.Empty;
                 CurrentContentLength = version?.ContentLength ?? 0;
@@ -231,6 +236,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         public ServiceResult TryOpenWriteHandle(NodeId sessionId, out uint fileHandle)
         {
+            if (m_acquireVersionLease is not null)
+            {
+                fileHandle = 0;
+                return StatusCodes.BadNotSupported;
+            }
             lock (m_handlesLock)
             {
                 return TryOpenWriteHandleLocked(sessionId, out fileHandle);
@@ -239,25 +249,27 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         public async ValueTask<(ServiceResult Status, uint FileHandle)> OpenPreservingWriteAsync(
             ISystemContext context,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            IWotRegistryVersionLease? preparedLease = null)
         {
-            ServiceResult access = m_authorizeWrite(context, "OpenWrite");
-            if (ServiceResult.IsBad(access))
+            OpenMethodStateResult opened = await OpenHandleAsync(
+                context, WriteEraseMode, cancellationToken, preparedLease).ConfigureAwait(false);
+            if (ServiceResult.IsBad(opened.ServiceResult))
             {
-                return (access, 0);
+                return (opened.ServiceResult, 0);
             }
-            uint fileHandle;
+            uint fileHandle = opened.FileHandle;
             Handle handle;
             long length;
             lock (m_handlesLock)
             {
-                ServiceResult status = TryOpenWriteHandleLocked(SessionIdOf(context), out fileHandle);
-                if (ServiceResult.IsBad(status))
+                if (!m_handles.TryGetValue(fileHandle, out Handle? current))
                 {
-                    return (status, 0);
+                    return (StatusCodes.BadSessionClosed, 0);
                 }
-                handle = m_handles[fileHandle];
-                length = CurrentContentLength;
+                handle = current;
+                handle.Ready = false;
+                length = handle.BaselineLength;
             }
             bool initialized = false;
             try
@@ -302,6 +314,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         return (StatusCodes.BadSessionClosed, 0);
                     }
                     handle.Position = 0;
+                    handle.Ready = true;
                     initialized = true;
                 }
                 return (ServiceResult.Good, fileHandle);
@@ -332,6 +345,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             NodeId sessionId,
             out uint fileHandle)
         {
+            if (m_acquireVersionLease is not null)
+            {
+                fileHandle = 0;
+                return StatusCodes.BadNotSupported;
+            }
             lock (m_handlesLock)
             {
                 if (!string.IsNullOrEmpty(CurrentContentKey) || m_writingHandle != 0)
@@ -343,6 +361,13 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
                 return TryOpenWriteHandleLocked(sessionId, out fileHandle);
             }
+        }
+
+        public ValueTask<OpenMethodStateResult> OpenContentlessWriteAsync(
+            ISystemContext context,
+            CancellationToken cancellationToken)
+        {
+            return OpenHandleAsync(context, WriteEraseMode, cancellationToken, contentlessOnly: true);
         }
 
         /// <summary>
@@ -382,6 +407,14 @@ namespace Opc.Ua.WotCon.Server.Registry
             byte mode, ref uint fileHandle)
         {
             return OnOpen(context, method, objectId, mode, ref fileHandle);
+        }
+
+        ValueTask<OpenMethodStateResult>
+            XRegistry.Server.IXRegistryAsyncProjectedResourceFileHandleForwarder.ForwardOpenAsync(
+            ISystemContext context, MethodState method, NodeId objectId,
+            byte mode, CancellationToken cancellationToken)
+        {
+            return OnOpenAsync(context, method, objectId, mode, cancellationToken);
         }
 
         async ValueTask<ServiceResult>
@@ -431,6 +464,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             lock (m_handlesLock)
             {
+                m_disposed = true;
                 foreach (Handle handle in m_handles.Values)
                 {
                     handle.Dispose();
@@ -453,6 +487,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             out uint fileHandle)
         {
             fileHandle = 0;
+            if (m_disposed && m_acquireVersionLease is not null)
+            {
+                return StatusCodes.BadNodeIdUnknown;
+            }
             if (m_handles.Count >= m_maxHandles)
             {
                 return StatusCodes.BadTooManyOperations;
@@ -478,6 +516,18 @@ namespace Opc.Ua.WotCon.Server.Registry
         private ServiceResult OnOpen(
             ISystemContext context, MethodState method, NodeId objectId, byte mode, ref uint fileHandle)
         {
+            if (context is SessionSystemContext
+                {
+                    OperationContext: Ua.Server.OperationContext { Session.IsClosing: true }
+                })
+            {
+                return StatusCodes.BadSessionClosed;
+            }
+            if (m_acquireVersionLease is not null)
+            {
+                return ServiceResult.Create(StatusCodes.BadNotSupported,
+                    "The Version lease requires asynchronous Open.");
+            }
             if (mode is not ReadMode and not WriteEraseMode)
             {
                 return ServiceResult.Create(StatusCodes.BadNotSupported,
@@ -494,6 +544,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             NodeId sessionId = SessionIdOf(context);
             lock (m_handlesLock)
             {
+                if (m_disposed && m_acquireVersionLease is not null)
+                {
+                    return StatusCodes.BadNodeIdUnknown;
+                }
                 if (context is SessionSystemContext
                     {
                         OperationContext: Ua.Server.OperationContext { Session.IsClosing: true }
@@ -520,6 +574,159 @@ namespace Opc.Ua.WotCon.Server.Registry
                 m_file.OpenCount?.Value = (ushort)m_handles.Count;
             }
             return ServiceResult.Good;
+        }
+
+        private ValueTask<OpenMethodStateResult> OnOpenAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            byte mode,
+            CancellationToken cancellationToken)
+        {
+            return OpenHandleAsync(context, mode, cancellationToken);
+        }
+
+        private async ValueTask<OpenMethodStateResult> OpenHandleAsync(
+            ISystemContext context,
+            byte mode,
+            CancellationToken cancellationToken,
+            IWotRegistryVersionLease? preparedLease = null,
+            bool contentlessOnly = false)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (m_acquireVersionLease is null && preparedLease is null)
+            {
+                uint opened = 0;
+                ServiceResult status;
+                if (contentlessOnly)
+                {
+                    status = m_authorizeWrite(context, "OpenWrite");
+                    if (ServiceResult.IsGood(status))
+                    {
+                        status = TryOpenContentlessWriteHandle(SessionIdOf(context), out opened);
+                    }
+                }
+                else
+                {
+                    status = OnOpen(context, m_file.Open!, m_file.NodeId, mode, ref opened);
+                }
+                return new OpenMethodStateResult { ServiceResult = status, FileHandle = opened };
+            }
+            if (mode is not ReadMode and not WriteEraseMode)
+            {
+                return new OpenMethodStateResult { ServiceResult = StatusCodes.BadNotSupported };
+            }
+            bool writing = mode == WriteEraseMode;
+            if (writing)
+            {
+                ServiceResult access = m_authorizeWrite(context, "OpenWrite");
+                if (ServiceResult.IsBad(access))
+                {
+                    return new OpenMethodStateResult { ServiceResult = access };
+                }
+            }
+
+            uint fileHandle;
+            Handle pending;
+            WotResourceVersion version;
+            NodeId sessionId = SessionIdOf(context);
+            lock (m_handlesLock)
+            {
+                WotResourceVersion? expected = preparedLease?.Version ?? m_currentVersion;
+                if (m_disposed || expected is null)
+                {
+                    return new OpenMethodStateResult { ServiceResult = StatusCodes.BadNodeIdUnknown };
+                }
+                if (context is SessionSystemContext
+                    {
+                        OperationContext: Ua.Server.OperationContext { Session.IsClosing: true }
+                    })
+                {
+                    return new OpenMethodStateResult { ServiceResult = StatusCodes.BadSessionClosed };
+                }
+                if (m_handles.Count >= m_maxHandles)
+                {
+                    return new OpenMethodStateResult { ServiceResult = StatusCodes.BadTooManyOperations };
+                }
+                if (writing && (m_writingHandle != 0 || m_handles.Count > 0))
+                {
+                    return new OpenMethodStateResult { ServiceResult = StatusCodes.BadNotWritable };
+                }
+                if (!writing && m_writingHandle != 0)
+                {
+                    return new OpenMethodStateResult { ServiceResult = StatusCodes.BadNotReadable };
+                }
+                if (contentlessOnly && expected.HasContent)
+                {
+                    return new OpenMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
+                }
+                version = expected;
+                pending = writing
+                    ? Handle.OpenWrite(sessionId, string.Empty, 0, version.IncarnationId)
+                    : Handle.OpenRead(sessionId, string.Empty, 0);
+                pending.Ready = false;
+                fileHandle = ++m_nextHandle;
+                m_handles.Add(fileHandle, pending);
+                if (writing)
+                {
+                    m_writingHandle = fileHandle;
+                }
+                m_file.OpenCount?.Value = (ushort)m_handles.Count;
+            }
+            IWotRegistryVersionLease? lease = preparedLease;
+            bool published = false;
+            try
+            {
+                lease ??= await m_acquireVersionLease!(version, cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (contentlessOnly && lease.Version.HasContent)
+                {
+                    return new OpenMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
+                }
+                lock (m_handlesLock)
+                {
+                    if (m_disposed ||
+                        !m_handles.TryGetValue(fileHandle, out Handle? current) ||
+                        !ReferenceEquals(current, pending) ||
+                        context is SessionSystemContext
+                        {
+                            OperationContext: Ua.Server.OperationContext { Session.IsClosing: true }
+                        })
+                    {
+                        return new OpenMethodStateResult { ServiceResult = StatusCodes.BadSessionClosed };
+                    }
+                    m_handles[fileHandle] = writing
+                        ? Handle.OpenWrite(
+                            sessionId, lease.Version.DigestHex, lease.Version.ContentLength,
+                            lease.Version.IncarnationId, lease)
+                        : Handle.OpenRead(sessionId, lease.Version.DigestHex, lease.Version.ContentLength, lease);
+                    lease = null;
+                    pending.Dispose();
+                    published = true;
+                }
+                return new OpenMethodStateResult { ServiceResult = ServiceResult.Good, FileHandle = fileHandle };
+            }
+            finally
+            {
+                lease?.Dispose();
+                if (!published)
+                {
+                    lock (m_handlesLock)
+                    {
+                        if (m_handles.TryGetValue(fileHandle, out Handle? current) &&
+                            ReferenceEquals(current, pending))
+                        {
+                            m_handles.Remove(fileHandle);
+                            if (m_writingHandle == fileHandle)
+                            {
+                                m_writingHandle = 0;
+                            }
+                            pending.Dispose();
+                            m_file.OpenCount?.Value = (ushort)m_handles.Count;
+                        }
+                    }
+                }
+            }
         }
 
         private async ValueTask<CloseMethodStateResult> OnCloseAsync(
@@ -818,6 +1025,12 @@ namespace Opc.Ua.WotCon.Server.Registry
                     StatusCodes.BadUserAccessDenied, "File handle is owned by another session.");
                 return false;
             }
+            if (!located.Ready)
+            {
+                handle = null!;
+                error = ServiceResult.Create(StatusCodes.BadInvalidState, "The file handle is still opening.");
+                return false;
+            }
             handle = located;
             error = ServiceResult.Good;
             return true;
@@ -862,7 +1075,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 string storeKey,
                 long length,
                 string baselineContentKey,
-                Guid? baselineVersionIncarnation)
+                Guid? baselineVersionIncarnation,
+                IWotRegistryVersionLease? lease = null)
             {
                 SessionId = sessionId;
                 Stream = stream;
@@ -871,6 +1085,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 m_length = length;
                 BaselineContentKey = baselineContentKey;
                 BaselineVersionIncarnation = baselineVersionIncarnation;
+                m_lease = lease;
             }
 
             public NodeId SessionId { get; }
@@ -880,8 +1095,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             public string BaselineContentKey { get; }
             public Guid? BaselineVersionIncarnation { get; }
             public bool HasAcceptedWrite { get; set; }
+            public bool Ready { get; set; } = true;
             public long PositionRevision { get; set; }
             public long Length => Writing ? Stream.Length : m_length;
+            public long BaselineLength => m_length;
 
             public long Position
             {
@@ -899,7 +1116,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
             }
 
-            public static Handle OpenRead(NodeId sessionId, string storeKey, long length)
+            public static Handle OpenRead(
+                NodeId sessionId, string storeKey, long length, IWotRegistryVersionLease? lease = null)
             {
                 return new(
                     sessionId,
@@ -908,14 +1126,16 @@ namespace Opc.Ua.WotCon.Server.Registry
                     storeKey,
                     length,
                     storeKey,
-                    baselineVersionIncarnation: null);
+                    baselineVersionIncarnation: null,
+                    lease);
             }
 
             public static Handle OpenWrite(
                 NodeId sessionId,
                 string baselineContentKey,
                 long baselineLength,
-                Guid? baselineVersionIncarnation)
+                Guid? baselineVersionIncarnation,
+                IWotRegistryVersionLease? lease = null)
             {
                 return new(
                     sessionId,
@@ -924,7 +1144,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                     string.Empty,
                     baselineLength,
                     baselineContentKey,
-                    baselineVersionIncarnation);
+                    baselineVersionIncarnation,
+                    lease);
             }
 
             public async ValueTask<ReadMethodStateResult> ReadAsync(
@@ -959,6 +1180,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                         if (m_disposed && m_activeReads == 0)
                         {
                             m_readGate.Dispose();
+                            m_lease?.Dispose();
+                            m_lease = null;
                         }
                     }
                 }
@@ -977,6 +1200,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                     if (m_activeReads == 0)
                     {
                         m_readGate.Dispose();
+                        m_lease?.Dispose();
+                        m_lease = null;
                     }
                 }
             }
@@ -987,6 +1212,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             private int m_activeReads;
             private bool m_disposed;
             private long m_position;
+            private IWotRegistryVersionLease? m_lease;
         }
 
         public const byte ReadMode = 1;
@@ -1007,10 +1233,14 @@ namespace Opc.Ua.WotCon.Server.Registry
             ValueTask<WotResourceCommitResult>> m_onCommit;
 
         private readonly bool m_validateVersionIncarnation;
+        private readonly Func<WotResourceVersion, CancellationToken, ValueTask<IWotRegistryVersionLease>>?
+            m_acquireVersionLease;
         private readonly Lock m_handlesLock = new();
         private readonly Dictionary<uint, Handle> m_handles = [];
         private uint m_nextHandle;
         private uint m_writingHandle;
+        private WotResourceVersion? m_currentVersion;
+        private bool m_disposed;
         private static readonly Lock s_inlineContentLock = new();
         private static readonly Dictionary<string, ByteString> s_inlineContent = new(StringComparer.Ordinal);
     }

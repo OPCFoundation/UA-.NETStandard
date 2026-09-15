@@ -68,7 +68,7 @@ namespace Opc.Ua.WotCon.Tests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [NonParallelizable]
-    public sealed class WotRegistryProjectionLiveTests
+    public sealed partial class WotRegistryProjectionLiveTests
     {
         [SetUp]
         public async Task SetUpAsync()
@@ -828,18 +828,16 @@ namespace Opc.Ua.WotCon.Tests
                 ? await group.OpenResourceAsync(AssignedResourceId("late-open")).ConfigureAwait(false)
                 : version;
             FileState file = m_nodeManager.FindPredefinedNode<FileState>(resource.ResourceNodeId)!;
-            OpenMethodStateMethodCallHandler original = file.Open!.OnCall!;
+            OpenMethodStateMethodAsyncCallHandler original = file.Open!.OnCallAsync!;
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             file.Open.OnCall = null;
             file.Open.OnCallAsync = async (context, method, objectId, mode, ct) =>
             {
                 entered.TrySetResult(true);
-                // The original synchronous provider has no cancellation token.
+                // Complete the delayed Open after discard, independent of caller cancellation.
                 await release.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None).ConfigureAwait(false);
-                uint handle = 0;
-                ServiceResult result = original(context, method, objectId, mode, ref handle);
-                return new OpenMethodStateResult { ServiceResult = result, FileHandle = handle };
+                return await original(context, method, objectId, mode, CancellationToken.None).ConfigureAwait(false);
             };
 
             Task<uint> opening = resource.Proxy.OpenAsync(1).AsTask();

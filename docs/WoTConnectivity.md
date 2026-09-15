@@ -908,8 +908,13 @@ The stable `WoTRegistryNodeManager` materializes the registry snapshot as a brow
   allocation that cannot retain them is rejected. Pending allocation does not
   evict committed content, and pending Close applies retention atomically.
   Schema-5 persistence retains the applicable selections and pending state.
-  File pins and reader/writer exclusion remain Session-scoped; this change
-  does not introduce a separate provider-wide retention-lease API.
+  The stock service's optional `IWotRegistryVersionLeaseProvider` also protects
+  an otherwise unselected Version while any file lease remains. Exact/logical
+  read and write handles share this owner protection; Close, cancellation and
+  Session abandonment release only the corresponding leases. Typed creation
+  transfers its owner-issued lease into the existing prepared file reservation.
+  Older providers do not implicitly acquire this guarantee. See
+  [Version leases](WotRegistryVersionLeases.md) for direct/DI use and lifetime limits.
 * Every browseable registry/group/resource node also carries the inherited
   optional `Labels` (`AttributesType`) container. Each label is persisted as
   an ordinally-ordered key/value pair on the owning `WotRegistrySnapshot` /

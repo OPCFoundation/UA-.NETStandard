@@ -248,11 +248,12 @@ namespace Opc.Ua.WotCon.Server
             public async ValueTask PrepareAsync(
                 WotResource resource,
                 WotResourceVersion version,
+                IWotRegistryVersionLease lease,
                 CancellationToken cancellationToken)
             {
                 await m_projection.m_engine.ReconcileProjectionAsync(cancellationToken).ConfigureAwait(false);
                 m_reservation = await m_projection.m_engine.ReserveResourceWriteAsync(
-                    new ResourceAdapter(resource, version), m_context, cancellationToken).ConfigureAwait(false);
+                    new ResourceAdapter(resource, version, lease), m_context, cancellationToken).ConfigureAwait(false);
                 m_sessionClosedRegistration = m_reservation.SessionClosedToken
                     .Register(m_transactionCancellation.Cancel);
             }

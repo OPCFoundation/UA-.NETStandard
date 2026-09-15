@@ -49,7 +49,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
     [TestFixture]
     [Category("WotCon")]
     [Parallelizable(ParallelScope.All)]
-    public sealed class WotResourceFileManagerTests
+    public sealed partial class WotResourceFileManagerTests
     {
         private const byte ModeRead = WotResourceFileManager.ReadMode;
         private const byte ModeWriteErase = WotResourceFileManager.WriteEraseMode;
@@ -1395,7 +1395,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     CancellationToken,
                     ValueTask<WotResourceCommitResult>>? onVersionCommit = null,
                 Func<string, long, int, CancellationToken, ValueTask<ByteString>>? readContent = null,
-                NodeId sessionId = default)
+                NodeId sessionId = default,
+                Func<WotResourceVersion, CancellationToken, ValueTask<IWotRegistryVersionLease>>?
+                    acquireVersionLease = null)
             {
                 Context = new SessionSystemContext(null!)
                 {
@@ -1410,7 +1412,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     parent: null!,
                     browseName: new QualifiedName("ResourceFile", 1));
 
-                if (onVersionCommit is not null)
+                if (onVersionCommit is not null || acquireVersionLease is not null)
                 {
                     Manager = new WotResourceFileManager(
                         File,
@@ -1418,7 +1420,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                         maxDocumentSize,
                         authorizeWrite ?? ((_, _) => ServiceResult.Good),
                         readContent ?? ReadEmptyAsync,
-                        onVersionCommit);
+                        onVersionCommit ?? ((_, _, _, _, _) => new ValueTask<WotResourceCommitResult>(
+                            new WotResourceCommitResult(ServiceResult.Good, null))),
+                        acquireVersionLease: acquireVersionLease);
                 }
                 else if (readContent is not null)
                 {
