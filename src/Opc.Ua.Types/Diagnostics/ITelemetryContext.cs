@@ -29,6 +29,7 @@
 
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using System.Reflection;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
@@ -39,11 +40,12 @@ namespace Opc.Ua
     public interface ITelemetryContext
     {
         /// <summary>
-        /// Create the meter instance to create and record metrics.
+        /// Create the meter instance for the specified assembly.
         /// The caller is responsible to dispose the meter instance
         /// returned.
         /// </summary>
-        Meter CreateMeter();
+        /// <param name="assembly">The component assembly producing the metrics.</param>
+        Meter CreateMeter(Assembly assembly);
 
         /// <summary>
         /// Access the logger factory to create logger objects.
@@ -51,10 +53,11 @@ namespace Opc.Ua
         ILoggerFactory LoggerFactory { get; }
 
         /// <summary>
-        /// Get a activity source for the current assembly.
+        /// Get an activity source for the specified assembly.
         /// Do not dispose the activity source returned as it is
         /// held as part of the telemetry context.
         /// </summary>
-        ActivitySource ActivitySource { get; }
+        /// <param name="assembly">The component assembly producing the activities.</param>
+        ActivitySource GetActivitySource(Assembly assembly);
     }
 }

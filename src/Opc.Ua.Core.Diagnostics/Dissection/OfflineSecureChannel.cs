@@ -408,6 +408,16 @@ namespace Opc.Ua.Pcap.Dissection
                 return new System.Diagnostics.Metrics.Meter(
                     "Opc.Ua.Core.Diagnostics.OfflineSecureChannel");
             }
+
+            public System.Diagnostics.Metrics.Meter CreateMeter(System.Reflection.Assembly assembly)
+            {
+                return CreateMeter();
+            }
+
+            public System.Diagnostics.ActivitySource GetActivitySource(System.Reflection.Assembly assembly)
+            {
+                return ActivitySource;
+            }
         }
     }
 }

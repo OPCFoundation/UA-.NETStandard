@@ -602,6 +602,16 @@ namespace Opc.Ua.Pcap.Replay
                 return new Meter("Opc.Ua.Core.Diagnostics.MockClientReplay");
             }
 
+            public Meter CreateMeter(System.Reflection.Assembly assembly)
+            {
+                return CreateMeter();
+            }
+
+            public ActivitySource GetActivitySource(System.Reflection.Assembly assembly)
+            {
+                return ActivitySource;
+            }
+
             private NoopTelemetryContext()
             {
             }

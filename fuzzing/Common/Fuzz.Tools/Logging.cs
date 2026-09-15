@@ -80,7 +80,19 @@ namespace Opc.Ua.Fuzzing
         }
 
         /// <inheritdoc/>
+        public Meter CreateMeter(System.Reflection.Assembly assembly)
+        {
+            return CreateMeter();
+        }
+
+        /// <inheritdoc/>
         public ActivitySource ActivitySource { get; }
+
+        /// <inheritdoc/>
+        public ActivitySource GetActivitySource(System.Reflection.Assembly assembly)
+        {
+            return ActivitySource;
+        }
 
         /// <inheritdoc/>
         public void Dispose()
