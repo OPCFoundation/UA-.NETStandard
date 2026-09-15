@@ -279,7 +279,7 @@ namespace Opc.Ua
                     // faults the original transport error is surfaced.
                     attempt++;
                     ChannelState state = entry.State;
-                    if (state is ChannelState.Closed or ChannelState.Faulted)
+                    if (entry.IsClosing)
                     {
                         // The entry is already terminal (e.g. the reconnect
                         // policy / budget was exhausted by a concurrent cycle).

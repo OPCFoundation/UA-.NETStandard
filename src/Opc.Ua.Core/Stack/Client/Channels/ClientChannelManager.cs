@@ -803,7 +803,7 @@ namespace Opc.Ua
             CancellationToken ct)
         {
             ChannelEntry entry = lease.Entry;
-            if (entry.State is ChannelState.Closed or ChannelState.Faulted)
+            if (entry.IsClosing)
             {
                 entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
             }
@@ -869,7 +869,7 @@ namespace Opc.Ua
             return !ct.IsCancellationRequested &&
                 !entry.ReconnectStoppedByRetryPolicy &&
                 sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
-                entry.State is ChannelState.Closed or ChannelState.Faulted;
+                entry.IsClosing;
         }
 
         private async ValueTask<ChannelEntry> SwapFaultedEntryAsync(
@@ -879,7 +879,7 @@ namespace Opc.Ua
             ThrowIfDisposed();
 
             ChannelEntry original = lease.Entry;
-            if (original.State is not (ChannelState.Closed or ChannelState.Faulted))
+            if (!original.IsClosing)
             {
                 return original;
             }
@@ -889,7 +889,7 @@ namespace Opc.Ua
             await DelaySwapAsync(delay, ct).ConfigureAwait(false);
 
             original = lease.Entry;
-            if (original.State is not (ChannelState.Closed or ChannelState.Faulted))
+            if (!original.IsClosing)
             {
                 return original;
             }
@@ -902,7 +902,7 @@ namespace Opc.Ua
             lock (m_entries)
             {
                 if (m_entries.TryGetValue(lease.Key, out ChannelEntry? existing) &&
-                    existing.State is not (ChannelState.Closed or ChannelState.Faulted))
+                    !existing.IsClosing)
                 {
                     fresh = existing;
                 }
@@ -1004,50 +1004,59 @@ namespace Opc.Ua
             var key = ManagedChannelKey.FromEndpoint(
                 endpoint, clientCert, reverseConnection);
 
-            ChannelEntry entry;
-            bool created = false;
-            lock (m_entries)
+            while (true)
             {
-                bool found = m_entries.TryGetValue(key, out ChannelEntry? existing);
-                if (!found ||
-                    existing!.State is ChannelState.Closed or ChannelState.Faulted)
+                ChannelEntry entry;
+                bool created = false;
+                lock (m_entries)
                 {
-                    if (!found)
+                    bool found = m_entries.TryGetValue(key, out ChannelEntry? existing);
+                    if (!found ||
+                        existing!.IsClosing)
                     {
-                        ThrowIfMaxChannelsReached();
+                        if (!found)
+                        {
+                            ThrowIfMaxChannelsReached();
+                        }
+
+                        existing = new ChannelEntry(this, key, endpoint, reverseConnection);
+                        m_entries[key] = existing;
+                        created = true;
                     }
-
-                    existing = new ChannelEntry(this, key, endpoint, reverseConnection);
-                    m_entries[key] = existing;
-                    created = true;
+                    entry = existing;
                 }
-                entry = existing;
-            }
 
-            ManagedTransportChannelLease lease;
-            try
-            {
-                if (created)
+                try
                 {
-                    await entry.OpenInitialAsync(clientCert, clientChain, clientCertificateVersion, ct)
-                        .ConfigureAwait(false);
-                }
-                lease = entry.AcquireLease(participantFactory);
-            }
-            catch
-            {
-                if (created)
-                {
-                    lock (m_entries)
+                    if (created)
                     {
-                        m_entries.Remove(key);
+                        await entry.OpenInitialAsync(clientCert, clientChain, clientCertificateVersion, ct)
+                            .ConfigureAwait(false);
                     }
-                    await entry.DisposeAsync().ConfigureAwait(false);
+                    return entry.AcquireLease(participantFactory);
                 }
-                throw;
+                catch (ServiceResultException sre) when (
+                    !created &&
+                    sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
+                    entry.IsClosing)
+                {
+                    // The last lease on the shared entry was released and its
+                    // teardown began after the lookup: the next lookup replaces
+                    // the closing entry with a fresh one.
+                }
+                catch
+                {
+                    if (created)
+                    {
+                        lock (m_entries)
+                        {
+                            m_entries.Remove(key);
+                        }
+                        await entry.DisposeAsync().ConfigureAwait(false);
+                    }
+                    throw;
+                }
             }
-
-            return lease;
         }
 
         private void ThrowIfMaxChannelsReached()

@@ -461,6 +461,84 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
+        public async Task GetAsyncRightAfterLastLeaseDisposeNeverReturnsClosedLeaseAsync()
+        {
+            (ClientChannelManager sut, Certificate serverCert, _) = CreateMockedSut();
+            try
+            {
+                ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
+                IManagedTransportChannel lease = await sut.GetAsync(
+                    new TestParticipant("p0", endpoint), default).ConfigureAwait(false);
+
+                // Releasing the last lease schedules the teardown in the
+                // background; a lease acquired before it runs must either keep
+                // the channel or land on a fresh entry, never on one the
+                // pending teardown closes afterwards.
+                for (int i = 1; i <= 50; i++)
+                {
+                    lease.Dispose();
+                    lease = await sut.GetAsync(
+                        new TestParticipant("p" + i, endpoint), default).ConfigureAwait(false);
+
+                    await Task.Delay(5).ConfigureAwait(false);
+
+                    Assert.That(lease.State, Is.EqualTo(ChannelState.Ready), $"iteration {i}");
+                    Assert.That(
+                        GetInternalPropertyValue(GetLeaseEntry(lease), "IsClosing"),
+                        Is.False,
+                        $"iteration {i}");
+                }
+
+                lease.Dispose();
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task GetAsyncReplacesEntryWhoseTeardownIsReservedAsync()
+        {
+            (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) = CreateMockedSut();
+            try
+            {
+                ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
+                IManagedTransportChannel first = await sut.GetAsync(
+                    new TestParticipant("first", endpoint), default).ConfigureAwait(false);
+                object closingEntry = GetLeaseEntry(first);
+
+                // A teardown reserves the entry before it clears the transport
+                // and before the state reaches Closed.
+                SetPrivateField(closingEntry, "m_closing", true);
+                Assert.That(GetEntryState(closingEntry), Is.EqualTo(ChannelState.Ready));
+
+                IManagedTransportChannel second = await sut.GetAsync(
+                    new TestParticipant("second", endpoint), default).ConfigureAwait(false);
+
+                object freshEntry = GetLeaseEntry(second);
+                Assert.That(freshEntry, Is.Not.SameAs(closingEntry));
+                Assert.That(GetEntryState(freshEntry), Is.EqualTo(ChannelState.Ready));
+                Assert.That(GetInternalIntProperty(freshEntry, "RefCount"), Is.EqualTo(1));
+                Assert.That(GetInternalIntProperty(closingEntry, "RefCount"), Is.EqualTo(1));
+                chMock.Verify(c => c.OpenAsync(
+                        It.IsAny<Uri>(),
+                        It.IsAny<TransportChannelSettings>(),
+                        It.IsAny<CancellationToken>()),
+                    Times.Exactly(2));
+
+                second.Dispose();
+                first.Dispose();
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
+
+        [Test]
         public async Task DiscoveryClientCreateAsyncSharesSessionChannelAndReleasesLeaseAsync()
         {
             (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) = CreateMockedSut();
@@ -1585,6 +1663,15 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             object? value = property!.GetValue(target);
             Assert.That(value, Is.Not.Null, $"Expected property {propertyName} to return a value.");
             return value!;
+        }
+
+        private static void SetPrivateField(object target, string fieldName, object value)
+        {
+            FieldInfo? field = target.GetType().GetField(
+                fieldName,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected field {fieldName} on {target.GetType()}.");
+            field!.SetValue(target, value);
         }
 
         private static ManagedChannelDiagnostic GetDiagnostic(
