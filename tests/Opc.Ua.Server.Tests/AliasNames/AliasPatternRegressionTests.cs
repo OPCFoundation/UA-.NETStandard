@@ -72,6 +72,8 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [TestCase("[^]")]
         [TestCase("[!]")]
         [TestCase("[z-a]")]
+        [TestCase("[a^b]")]
+        [TestCase("[a-^]")]
         public async Task InvalidPatternIsRejectedEvenWhenTheAliasStoreIsEmptyAsync(string pattern)
         {
             var categoryId = new NodeId("pattern-category", 1);
@@ -99,7 +101,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         {
             FieldInfo budget = typeof(AliasNameWildcardMatcher).GetField(
                 "s_matchTimeout", BindingFlags.Static | BindingFlags.NonPublic);
-            Assert.That(budget, Is.Not.Null, "Do not execute an unbounded adversarial regular expression.");
+            Assert.That(budget, Is.Not.Null, "Do not execute an unbounded adversarial wildcard match.");
             Assert.That((TimeSpan)budget.GetValue(null), Is.EqualTo(TimeSpan.FromMilliseconds(100)));
             string target = new('a', 256);
             string pattern = string.Concat(System.Linq.Enumerable.Repeat("%a", 32)) + "%b";
@@ -113,6 +115,25 @@ namespace Opc.Ua.Server.Tests.AliasNames
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
             }
             Assert.That(timer.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
+        }
+
+        /// <summary>
+        /// Verifies the shared matcher retains the alias deadline and maps expiry to the existing service error.
+        /// </summary>
+        [Test]
+        public void SharedPatternTimeoutRemainsAnAliasServiceError()
+        {
+            string text = "%" + new string('a', 16384) + "b";
+            LikePattern pattern = AliasNameWildcardMatcher.CreatePattern(text);
+            var elapsed = Stopwatch.StartNew();
+
+            ServiceResultException error = Assert.Throws<ServiceResultException>(() =>
+                AliasNameWildcardMatcher.Matches(new string('a', 65536), pattern));
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+            Assert.That(error.InnerException, Is.TypeOf<TimeoutException>());
+            Assert.That(elapsed.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
+            Assert.That(AliasNameWildcardMatcher.Matches(new string('a', 16384) + "b", pattern), Is.True);
         }
     }
 }

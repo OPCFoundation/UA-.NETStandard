@@ -518,10 +518,9 @@ namespace Opc.Ua.Server
 
                 if (sessionExpired)
                 {
-                    m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Timeout");
-                    // Coordinated close re-enters this manager and must not run under its global gate.
-                    await m_server.CloseSessionAsync(null!, session.Id, false, CancellationToken.None)
-                        .ConfigureAwait(false);
+                    // Close re-enters this manager, so it must run outside the global gate.
+                    // The shared timeout claim also prevents duplicate audit and diagnostic updates.
+                    await CloseTimedOutSessionAsync(session).ConfigureAwait(false);
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
 
@@ -1501,6 +1500,39 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Counts, audits and closes a session whose timeout has elapsed. Only the first
+        /// caller for a session does so; ActivateSession and the session monitor can both
+        /// observe the same expiry before the session is removed.
+        /// </summary>
+        private async ValueTask CloseTimedOutSessionAsync(ISession session)
+        {
+            SessionActivationState state = m_sessionActivationStates.GetValue(
+                session,
+                _ => new SessionActivationState(
+                    default,
+                    SecurityPolicies.None,
+                    MessageSecurityMode.None));
+            if (!state.TryClaimTimeout())
+            {
+                return;
+            }
+
+            // update diagnostics.
+            m_server.UpdateServerDiagnostics(diagnostics =>
+            {
+                diagnostics.SessionTimeoutCount++;
+            });
+
+            // raise audit event for session closed because of timeout
+            m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Timeout");
+
+            // Deliberately not cancellable: a close already under way must finish so the
+            // session is torn down cleanly even when shutdown has cancelled the monitor loop.
+            await m_server.CloseSessionAsync(null!, session.Id, false, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Periodically checks if the sessions have timed out.
         /// </summary>
         private async ValueTask MonitorSessionsAsync(
@@ -1519,20 +1551,7 @@ namespace Opc.Ua.Server
                         ISession session = sessionKeyValue.Value;
                         if (session.HasExpired)
                         {
-                            // update diagnostics.
-                            m_server.UpdateServerDiagnostics(diagnostics =>
-                            {
-                                diagnostics.SessionTimeoutCount++;
-                            });
-
-                            // raise audit event for session closed because of timeout
-                            m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Timeout");
-
-                            // Deliberately not cancellable: a close already under way
-                            // must finish so the session is torn down cleanly even when
-                            // shutdown has cancelled the monitor loop.
-                            await m_server.CloseSessionAsync(null!, session.Id, false, CancellationToken.None)
-                                .ConfigureAwait(false);
+                            await CloseTimedOutSessionAsync(session).ConfigureAwait(false);
                         }
                         // if a session had no activity for the last m_minSessionTimeout milliseconds, send a keep alive event.
                         else if (m_timeProvider.GetTimestampMilliseconds() - session.LastContactTickCount > m_minSessionTimeout)
@@ -1654,6 +1673,16 @@ namespace Opc.Ua.Server
             public bool RequiresNewChannelChecks { get; set; }
 
             public long ActivationSequence { get; set; }
+
+            /// <summary>
+            /// Claims the timeout of the session; returns <c>true</c> for the first caller only.
+            /// </summary>
+            public bool TryClaimTimeout()
+            {
+                return Interlocked.Exchange(ref m_timeoutClaimed, 1) == 0;
+            }
+
+            private int m_timeoutClaimed;
         }
 
         /// <inheritdoc/>

@@ -297,7 +297,7 @@ namespace Opc.Ua.Server.AliasNames
         {
             if (!string.IsNullOrEmpty(pattern))
             {
-                _ = AliasNameWildcardMatcher.CreateRegex(pattern);
+                _ = AliasNameWildcardMatcher.CreatePattern(pattern);
             }
         }
 

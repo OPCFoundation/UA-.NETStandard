@@ -30,10 +30,11 @@ side) and **`Opc.Ua.Client`** (client side). The implementation covers:
 
 ## Server side — `Opc.Ua.Server.AliasNames`
 
-Search patterns use OPC UA Like syntax with case-sensitive whole-string
+Search patterns use the shared `LikePattern` parser and matcher, with case-sensitive whole-string
 matching. Backslashes escape literal characters inside and outside
 character sets; `[^...]` negates a set (`[!...]` remains accepted for
-compatibility). Wildcards match line breaks. Invalid sets return
+compatibility). Wildcards match line breaks. Trailing escapes, malformed sets,
+descending ranges, and unescaped `^` outside the start of a set return
 `BadInvalidArgument` from both FindAlias variants even with an empty
 store. Matching each alias name has a 100 ms time limit; exceeding it returns
 `BadTimeout`. The server also checks for request cancellation before matching

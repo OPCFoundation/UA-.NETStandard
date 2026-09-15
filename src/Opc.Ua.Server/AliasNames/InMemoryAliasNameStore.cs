@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Text.RegularExpressions;
 
 namespace Opc.Ua.Server.AliasNames
 {
@@ -169,7 +168,7 @@ namespace Opc.Ua.Server.AliasNames
             {
                 return result;
             }
-            Regex pattern = AliasNameWildcardMatcher.CreateRegex(aliasNameSearchPattern);
+            LikePattern pattern = AliasNameWildcardMatcher.CreatePattern(aliasNameSearchPattern);
             if (!m_categories.TryGetValue(categoryId, out CategoryEntry? root))
             {
                 return result;
@@ -213,7 +212,7 @@ namespace Opc.Ua.Server.AliasNames
             {
                 return result;
             }
-            Regex pattern = AliasNameWildcardMatcher.CreateRegex(aliasNameSearchPattern);
+            LikePattern pattern = AliasNameWildcardMatcher.CreatePattern(aliasNameSearchPattern);
             if (!m_categories.TryGetValue(categoryId, out CategoryEntry? root))
             {
                 return result;
@@ -502,7 +501,7 @@ namespace Opc.Ua.Server.AliasNames
         /// </summary>
         private void CollectMatches(
             CategoryEntry category,
-            Regex pattern,
+            LikePattern pattern,
             NodeId referenceTypeFilter,
             ITypeTable typeTree,
             bool verbose,

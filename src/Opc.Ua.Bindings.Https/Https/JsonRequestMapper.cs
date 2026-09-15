@@ -31,6 +31,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
@@ -93,6 +94,39 @@ namespace Opc.Ua.Bindings
             byte[] payload = await ReadAllBoundedAsync(body, context.MaxMessageSize, ct)
                 .ConfigureAwait(false);
 
+            return DecodeRequest(payload, context);
+        }
+
+        /// <summary>
+        /// Creates the ServiceFault for a JSON request that could not be decoded
+        /// or processed. The RequestHandle is read from the payload, so the fault
+        /// echoes it as OPC 10000-4 §7.33 recommends.
+        /// </summary>
+        /// <param name="logger">The logger for the fault.</param>
+        /// <param name="payload">The UTF-8 encoded request, if it was read.</param>
+        /// <param name="exception">The error to report.</param>
+        /// <returns>The fault response.</returns>
+        internal static ServiceFault CreateFault(ILogger logger, byte[]? payload, Exception exception)
+        {
+            return EndpointBase.CreateFault(
+                logger,
+                null,
+                exception,
+                payload == null ? 0 : RequestHandleReader.FromJson(payload));
+        }
+
+        /// <summary>
+        /// Decodes a single OPC UA service request from a JSON message payload.
+        /// </summary>
+        /// <param name="payload">The UTF-8 encoded message.</param>
+        /// <param name="context">The encoding context.</param>
+        /// <returns>The decoded service request.</returns>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadDecodingError"/> if the payload
+        /// is malformed or not a recognized OPC UA JSON service request.
+        /// </exception>
+        internal static IServiceRequest DecodeRequest(byte[] payload, IServiceMessageContext context)
+        {
             try
             {
                 return JsonDecoder.DecodeMessage<IServiceRequest>(payload, context);
