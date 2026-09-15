@@ -499,6 +499,45 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
+        public async Task DeferredTeardownKeepsEntryThatGainedLeaseAsync()
+        {
+            (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) = CreateMockedSut();
+            try
+            {
+                ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
+                IManagedTransportChannel lease = await sut.GetAsync(
+                    new TestParticipant("late", endpoint), default).ConfigureAwait(false);
+                object entry = GetLeaseEntry(lease);
+
+                // The teardown a lease release scheduled runs after another
+                // lease attached: it must leave the entry alone.
+                MethodInfo? tearDown = entry.GetType().GetMethod(
+                    "TearDownAsync",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(tearDown, Is.Not.Null);
+                await ((Task)tearDown!.Invoke(
+                    entry,
+                    [ClientChannelManager.ChannelCloseReason.LeaseReleased, true])!)
+                    .ConfigureAwait(false);
+
+                Assert.That(GetEntryState(entry), Is.EqualTo(ChannelState.Ready));
+                Assert.That(GetInternalPropertyValue(entry, "IsClosing"), Is.False);
+                Assert.That(GetInternalIntProperty(entry, "RefCount"), Is.EqualTo(1));
+                chMock.Verify(c => c.CloseAsync(It.IsAny<CancellationToken>()), Times.Never);
+
+                lease.Dispose();
+                await WaitForMockInvocationAsync(
+                    () => chMock.Verify(c => c.CloseAsync(It.IsAny<CancellationToken>()), Times.Once))
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
+
+        [Test]
         public async Task GetAsyncReplacesEntryWhoseTeardownIsReservedAsync()
         {
             (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) = CreateMockedSut();
