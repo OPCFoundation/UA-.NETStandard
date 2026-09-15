@@ -514,6 +514,15 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 SetPrivateField(closingEntry, "m_closing", true);
                 Assert.That(GetEntryState(closingEntry), Is.EqualTo(ChannelState.Ready));
 
+                // The readiness gate must not let a caller through on the stale
+                // Ready state of an entry that is being torn down.
+                var ready = (Task)closingEntry.GetType()
+                    .GetMethod("WaitForReadyAsync", [typeof(CancellationToken)])!
+                    .Invoke(closingEntry, [CancellationToken.None])!;
+                ServiceResultException? notReady = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await ready.ConfigureAwait(false));
+                Assert.That(notReady!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
+
                 IManagedTransportChannel second = await sut.GetAsync(
                     new TestParticipant("second", endpoint), default).ConfigureAwait(false);
 

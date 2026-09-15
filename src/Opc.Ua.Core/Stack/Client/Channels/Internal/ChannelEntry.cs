@@ -609,16 +609,18 @@ namespace Opc.Ua
             TaskCompletionSource<bool> gate;
             lock (m_lock)
             {
-                if (m_state == ChannelState.Ready)
-                {
-                    return Task.CompletedTask;
-                }
+                // A teardown in progress still reports Ready until it reaches
+                // Closed, so the closing check has to come first.
                 if (IsClosingLocked)
                 {
                     return Task.FromException(
                         ServiceResultException.Create(
                             StatusCodes.BadSecureChannelClosed,
                             "Channel is {0}.", m_state));
+                }
+                if (m_state == ChannelState.Ready)
+                {
+                    return Task.CompletedTask;
                 }
                 gate = m_readyGate;
             }

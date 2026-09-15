@@ -901,6 +901,9 @@ namespace Opc.Ua
             bool created = false;
             lock (m_entries)
             {
+                // The swap back-off above can outlast a concurrent DisposeAsync.
+                ThrowIfDisposed();
+
                 if (m_entries.TryGetValue(lease.Key, out ChannelEntry? existing) &&
                     !existing.IsClosing)
                 {
@@ -1010,6 +1013,11 @@ namespace Opc.Ua
                 bool created = false;
                 lock (m_entries)
                 {
+                    // Checked under the registry lock on every pass: DisposeAsync
+                    // flags disposal before it snapshots and clears the registry
+                    // under this lock, so a retry cannot add an entry it misses.
+                    ThrowIfDisposed();
+
                     bool found = m_entries.TryGetValue(key, out ChannelEntry? existing);
                     if (!found ||
                         existing!.IsClosing)
