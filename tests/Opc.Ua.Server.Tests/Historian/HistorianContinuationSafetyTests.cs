@@ -64,6 +64,9 @@ namespace Opc.Ua.Server.Tests.Historian
             BaseDataVariableState node = CreateVariable(nodeId);
             var provider = new Mock<IHistorianProvider>();
             provider
+                .Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+            provider
                 .Setup(p => p.GetCapabilitiesAsync(
                     nodeId,
                     It.IsAny<CancellationToken>()))
@@ -161,6 +164,9 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId("modified-retry", 1);
             BaseDataVariableState node = CreateVariable(nodeId);
             var provider = new Mock<IHistorianProvider>();
+            provider
+                .Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
             provider
                 .Setup(p => p.GetCapabilitiesAsync(
                     nodeId,

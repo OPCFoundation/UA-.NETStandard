@@ -52,6 +52,7 @@ running the CTT is in [ctt-testing.md](ctt-testing.md).
 | C37 | Session Base: secure test cases send CreateSession with the `opc.wss` EndpointUrl | — | Not filed |
 | C38 | Subscription Durable `012.js`: denied diagnostics Browse and missing braces | — | Not filed |
 | C39–C44 | Alarms and Conditions script defects | — | Not filed |
+| C45–C47 | Reference server coverage script defects (#4479) | — | Not filed |
 
 Mantis states were last checked on 2026-09-13.
 
@@ -755,6 +756,44 @@ mask values are: 0x1 - Servers; 0x2 - Clients; If the mask is 0 then all applica
 The script's expectation (*"no records"*) matches neither reading. **Fix:** expect Good with all
 records for `3`, and use a value with an undefined bit (for example `4`) for the invalid case.
 
+### C45. Historical Access Read Raw `Err-025.js` expects `BadNotSupported`
+
+- **Test:** `maintree/Historical Access/Historical Access Read Raw/Test Cases/Err-025.js`, line 32
+- **Error:** *"Results[ 0].StatusCode did not match expected results. Received: BadHistoryOperationUnsupported"*
+
+The script reads raw history of a Static Scalar node with `Historizing = FALSE` and the HistoryRead
+access-level bit and accepts only `BadNotSupported`. Part 4 §5.11.3.4 (Table 52) defines
+`Bad_HistoryOperationUnsupported` for *"The requested history operation is not supported for the
+requested node"* and does not list `Bad_NotSupported`. The reference server returns
+`Bad_HistoryOperationUnsupported` for `ns=2;s=Scalar_Static_NonHistorizing_Boolean`. Historical Access
+Delete Value `dat-005.js`, `dat-Err-001.js` and `Err-004.js` already accept both codes. **Fix:** accept
+`BadHistoryOperationUnsupported` as well.
+
+### C46. Address Space Atomicity `001.js` only sees the first 10000 variables
+
+- **Test:** `maintree/Address Space Model/Address Space Atomicity/Test Cases/001.js`, lines 10 and 42
+- **Skip:** *"No node found that have the NonatomicRead or NonatomicWrite flag in the AccessLevelEx attribute set"*
+
+`001.js` calls `FindObjectsOfType(BaseVariableType, MaxNodesToReturn: 10000)` on the CTT cache. The result
+is sorted by the NodeId string (`i=10020`, `i=104`, …, `ns=10;…`, `ns=2;…`) and cut at 10000 entries. On
+the reference server the 5000 `ns=2;s=Scalar_Simulation_Mass_*`/`Scalar_Static_Mass_*` variables fill the
+list before any `ns=2;s=Scalar_Static_*` variable, so `Scalar_Static_NonatomicReadWrite` is never read.
+Line 42 tests `value >> 8 & 3 !== 0`, which evaluates as `(value >> 8) & (3 !== 0)` and detects only
+NonatomicRead. `/Advanced/Test Tool/Address Space Model/UaNodesToIgnore` is no workaround: entries match
+as substrings, so `ns=2;s=Scalar_Static_Mass` also drops `ns=2;s=Scalar` and its subtree. The reference
+server therefore also exposes `ns=2;s=AccessRights_AccessAll_NonatomicReadWrite`, which sorts before the
+mass variables. **Fix:** filter by AccessLevelEx before limiting the result (or page through all
+variables), test `((value >> 8) & 3) !== 0`, and match UaNodesToIgnore entries by NodeId.
+
+### C47. View Basic 2 `015.js` compares browse results by position
+
+- **Helper:** `library/ServiceBased/ViewServiceSet/Browse.js`, `AssertArrayContainsReferences` (line 387)
+
+`015.js` compares the references of a Browse filtered by ReferenceType with the matching references of an
+unfiltered Browse, index by index (*"Expected reference does not match browsed reference"*). Part 4 §5.9.2
+does not define an order for the returned references. The reference server now returns filtered references
+in the order of an unfiltered Browse, so the case passes. **Fix:** compare the reference sets without regard
+to order, as `AssertNodeReferencesInListNotOrdered` does.
 ### C32. Monitor Basic `038.js` judges a RevisedSamplingInterval of 0 against a project setting
 
 - **Test:** `maintree/Monitored Item Services/Monitor Basic/Test Cases/038.js`, lines 7 and 15–21
@@ -1159,11 +1198,21 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
   using start data"*) or throws (*"GetRequestEntry failed due to incorrect test configuration"*). The
   reference server seeds a deterministic pattern on every history node: index mod 10 = 7 is
   `BadDataUnavailable`, index mod 10 = 9 is `UncertainSubstituteValue`, the rest Good.
-- **Historical Access Read Raw `Err-025.js`** is skipped unless a Static Scalar node with
-  Historizing=FALSE and HistoryRead access is configured.
-- **Historical Access `Err-012.js`** needs a historizing node that denies HistoryRead to the test
-  identity; a non-historizing node yields `BadHistoryOperationUnsupported` instead of
-  `BadUserAccessDenied`.
+- **Reference server settings for #4479.** `samples/UAReferenceServer.ctt.xml` sets:
+  - `/Server Test/NodeIds/Static/All Profiles/Scalar/Bool` = `ns=2;s=Scalar_Static_NonHistorizing_Boolean`.
+    Historical Access Read Raw `Err-025.js` and Delete Value `dat-Err-001.js`/`Err-004.js` take the first
+    Static Scalar node as the non-historizing node. The HA Profile and Aggregate Boolean settings stay on
+    `Scalar_Static_Boolean`.
+  - `/Server Test/NodeIds/References/Has References of a ReferenceType and SubType` = `i=2253`. The Server
+    object has `HasComponent` and `HasAddIn` references. `References_HasReferenceTypeAndSubType` loses its
+    hierarchical references in the source generator
+    ([#4484](https://github.com/OPCFoundation/UA-.NETStandard/issues/4484)).
+  - `/Server Test/NodeIds/NodeClasses/Object` = `i=2253`, so View Basic 2 `018.js` also sees Method
+    references and covers every NodeClass.
+- **Base Info Diagnostics `018-1.js`–`018-3.js`** write `Server.ServerDiagnostics.EnabledFlag`, which the
+  reference server allows only for the SecurityAdmin or ConfigureAdmin role over SignAndEncrypt (the
+  project's `sysadmin` user). `018-1.js` warns *"Session diagnostics not available"* for the session it
+  creates while diagnostics are disabled; that is expected.
 - **Node Management Add Node `002.js`** adds a Variable with every enabled
   `/Server Test/NodeIds/NodeManagement/SupportedReferences` entry. Enable only hierarchical
   references valid for a Variable target (typically `Organizes`, `HasProperty`, `HasComponent`).

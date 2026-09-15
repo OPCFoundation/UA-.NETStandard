@@ -1323,14 +1323,17 @@ namespace Opc.Ua.Server
             serverObject.ServerArray!.OnSimpleReadValue = OnReadServerArray;
             serverObject.ServerArray.MinimumSamplingInterval = 1000;
 
-            // dynamic change of enabledFlag is disabled to pass CTT
-            serverObject.ServerDiagnostics!.EnabledFlag!.AccessLevel = AccessLevels.CurrentRead;
+            // the diagnostics collection can be enabled and disabled by an administrator
+            // (Part 5 §6.3.3); the user access level grants the write access.
+            serverObject.ServerDiagnostics!.EnabledFlag!.AccessLevel = AccessLevels.CurrentReadOrWrite;
             serverObject.ServerDiagnostics.EnabledFlag.UserAccessLevel = AccessLevels
-                .CurrentRead;
+                .CurrentReadOrWrite;
+            serverObject.ServerDiagnostics.EnabledFlag.OnReadUserAccessLevel
+                = OnReadDiagnosticsEnabledFlagUserAccessLevel;
             serverObject.ServerDiagnostics.EnabledFlag.OnSimpleReadValue
                 = OnReadDiagnosticsEnabledFlag;
-            serverObject.ServerDiagnostics.EnabledFlag.OnSimpleWriteValue
-                = OnWriteDiagnosticsEnabledFlag;
+            serverObject.ServerDiagnostics.EnabledFlag.OnSimpleWriteValueAsync
+                = OnWriteDiagnosticsEnabledFlagAsync;
             serverObject.ServerDiagnostics.EnabledFlag.MinimumSamplingInterval = 1000;
 
             // initialize status.
@@ -1528,16 +1531,56 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Sets the Diagnostics.EnabledFlag
         /// </summary>
-        private ServiceResult OnWriteDiagnosticsEnabledFlag(
+        private async ValueTask<AttributeWriteResult> OnWriteDiagnosticsEnabledFlagAsync(
             ISystemContext context,
             NodeState node,
-            ref Variant value)
+            Variant value,
+            CancellationToken cancellationToken)
         {
-            bool enabled = (bool)value;
-            DiagnosticsNodeManager.SetDiagnosticsEnabledAsync(DefaultSystemContext, enabled)
-                .AsTask().GetAwaiter().GetResult();
+            if (!value.TryGetValue(out bool enabled))
+            {
+                return new AttributeWriteResult(StatusCodes.BadTypeMismatch);
+            }
+
+            await DiagnosticsNodeManager.SetDiagnosticsEnabledAsync(
+                DefaultSystemContext,
+                enabled,
+                cancellationToken).ConfigureAwait(false);
+
+            return new AttributeWriteResult(ServiceResult.Good);
+        }
+
+        /// <summary>
+        /// Grants write access to Diagnostics.EnabledFlag only to a user with the
+        /// SecurityAdmin or ConfigureAdmin role on an encrypted channel.
+        /// </summary>
+        private static ServiceResult OnReadDiagnosticsEnabledFlagUserAccessLevel(
+            ISystemContext context,
+            NodeState node,
+            ref byte value)
+        {
+            if (!HasDiagnosticsAdminAccess(context))
+            {
+                value &= unchecked((byte)~AccessLevels.CurrentWrite);
+            }
 
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Returns true if the session of the context may change the diagnostics settings.
+        /// </summary>
+        private static bool HasDiagnosticsAdminAccess(ISystemContext context)
+        {
+            if (context is not SessionSystemContext { OperationContext: OperationContext operationContext } session ||
+                operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
+            {
+                return false;
+            }
+
+            ArrayOf<NodeId> roles = session.UserIdentity?.GrantedRoleIds ?? default;
+            return roles.Contains(ObjectIds.WellKnownRole_SecurityAdmin) ||
+                roles.Contains(ObjectIds.WellKnownRole_ConfigureAdmin);
         }
 
         /// <summary>

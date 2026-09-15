@@ -106,6 +106,7 @@
     <DisplayName Locale="en">Scalar_Static</DisplayName>
     <References>
       <Reference ReferenceType="Organizes">ns=1;s=Scalar_Static_Boolean</Reference>
+      <Reference ReferenceType="Organizes">ns=1;s=Scalar_Static_NonHistorizing_Boolean</Reference>
       <Reference ReferenceType="Organizes">ns=1;s=Scalar_Static_Byte</Reference>
       <Reference ReferenceType="Organizes">ns=1;s=Scalar_Static_ByteString</Reference>
       <Reference ReferenceType="Organizes">ns=1;s=Scalar_Static_DateTime</Reference>
@@ -244,6 +245,15 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=Scalar_Static_Boolean_HA Configuration</Reference>
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;s=Scalar_Static_NonHistorizing_Boolean" BrowseName="1:Scalar_Static_NonHistorizing_Boolean" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static" DataType="Boolean" AccessLevel="7">
+    <DisplayName Locale="en">NonHistorizing Boolean</DisplayName>
+    <Description>Boolean that advertises HistoryRead access but is not historized</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static</Reference>
+    </References>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">true</Boolean></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=Scalar_Static_Byte" BrowseName="1:Scalar_Static_Byte" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static" DataType="Byte" AccessLevel="15" Historizing="true">
     <DisplayName Locale="en">Byte</DisplayName>
@@ -3483,7 +3493,7 @@ yRVVVIn3ThM3CEwjfuC1b9wIWw==</ByteString><ByteString>j/+pNhuBfK5jy+8NQ0ktkE4b8VG
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Boolean" BrowseName="1:Scalar_Static_Arrays2D_Boolean" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Boolean" ValueRank="2" ArrayDimensions="3,3" AccessLevel="15" Historizing="true">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Boolean" BrowseName="1:Scalar_Static_Arrays2D_Boolean" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Boolean" ValueRank="2" ArrayDimensions="5,5" AccessLevel="15" Historizing="true">
     <DisplayName Locale="en">Boolean</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -3491,7 +3501,7 @@ yRVVVIn3ThM3CEwjfuC1b9wIWw==</ByteString><ByteString>j/+pNhuBfK5jy+8NQ0ktkE4b8VG
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><Boolean>false</Boolean><Boolean>true</Boolean><Boolean>true</Boolean><Boolean>false</Boolean><Boolean>false</Boolean><Boolean>true</Boolean><Boolean>true</Boolean><Boolean>false</Boolean><Boolean>false</Boolean></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><Boolean>true</Boolean><Boolean>false</Boolean><Boolean>true</Boolean><Boolean>false</Boolean><Boolean>true</Boolean><Boolean>false</Boolean><Boolean>true</Boolean><Boolean>false</Boolean><Boolean>true</Boolean><Boolean>false</Boolean><Boolean>true</Boolean><Boolean>false</Boolean><Boolean>true</Boolean><Boolean>false</Boolean><Boolean>true</Boolean><Boolean>false</Boolean><Boolean>true</Boolean><Boolean>false</Boolean><Boolean>true</Boolean><Boolean>false</Boolean><Boolean>true</Boolean><Boolean>false</Boolean><Boolean>true</Boolean><Boolean>false</Boolean><Boolean>true</Boolean></Elements></Matrix></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Scalar_Static_Arrays2D_Boolean_HA Configuration" BrowseName="HA Configuration" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D_Boolean">
     <DisplayName>HA Configuration</DisplayName>
@@ -3580,7 +3590,7 @@ yRVVVIn3ThM3CEwjfuC1b9wIWw==</ByteString><ByteString>j/+pNhuBfK5jy+8NQ0ktkE4b8VG
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Byte" BrowseName="1:Scalar_Static_Arrays2D_Byte" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Byte" ValueRank="2" ArrayDimensions="3,3" AccessLevel="15" Historizing="true">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Byte" BrowseName="1:Scalar_Static_Arrays2D_Byte" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Byte" ValueRank="2" ArrayDimensions="5,5" AccessLevel="15" Historizing="true">
     <DisplayName Locale="en">Byte</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -3588,7 +3598,7 @@ yRVVVIn3ThM3CEwjfuC1b9wIWw==</ByteString><ByteString>j/+pNhuBfK5jy+8NQ0ktkE4b8VG
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><Byte>194</Byte><Byte>55</Byte><Byte>127</Byte><Byte>254</Byte><Byte>131</Byte><Byte>96</Byte><Byte>75</Byte><Byte>128</Byte><Byte>176</Byte></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><Byte>0</Byte><Byte>1</Byte><Byte>2</Byte><Byte>3</Byte><Byte>4</Byte><Byte>5</Byte><Byte>6</Byte><Byte>7</Byte><Byte>8</Byte><Byte>9</Byte><Byte>10</Byte><Byte>11</Byte><Byte>12</Byte><Byte>13</Byte><Byte>14</Byte><Byte>15</Byte><Byte>16</Byte><Byte>17</Byte><Byte>18</Byte><Byte>19</Byte><Byte>20</Byte><Byte>21</Byte><Byte>22</Byte><Byte>23</Byte><Byte>24</Byte></Elements></Matrix></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Scalar_Static_Arrays2D_Byte_HA Configuration" BrowseName="HA Configuration" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D_Byte">
     <DisplayName>HA Configuration</DisplayName>
@@ -3677,7 +3687,7 @@ yRVVVIn3ThM3CEwjfuC1b9wIWw==</ByteString><ByteString>j/+pNhuBfK5jy+8NQ0ktkE4b8VG
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_ByteString" BrowseName="1:Scalar_Static_Arrays2D_ByteString" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="ByteString" ValueRank="2" ArrayDimensions="3,3" AccessLevel="15" Historizing="true">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_ByteString" BrowseName="1:Scalar_Static_Arrays2D_ByteString" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="ByteString" ValueRank="2" ArrayDimensions="5,5" AccessLevel="15" Historizing="true">
     <DisplayName Locale="en">ByteString</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -3685,11 +3695,7 @@ yRVVVIn3ThM3CEwjfuC1b9wIWw==</ByteString><ByteString>j/+pNhuBfK5jy+8NQ0ktkE4b8VG
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><ByteString>w9JnAYvgoPCpJHJmuXz3VFLffXgbMzizBUIY22vmKbFHFcibYSVAPj35zKu1dz7NznLvRw==</ByteString><ByteString>jJCas/xIx8WFw/rBH6S0W/Msnz46ImaN/o4DSwz49uI8Y4g4Aa0p93Z4dAmw81eaGXN+wqg2qWop
-DbVtRXy4jMwYhLsbew==</ByteString><ByteString>AqfIwa1d3Ao2aTGZejM6BroeDvP3vLL5v+c9mG+cfp4ZOMAAbee8zDGqNttLHhKY3n4B/WxmTkb0
-zgLF</ByteString><ByteString>m5rqk4BBczmY0mFCwk2F1q6g1aS58JqBMbLpeQuf5fas7A6c8bie0CSk5S6cKqMBwR4fYfB7iqsA
-aGHNWPot</ByteString><ByteString>apbVPunl9gIFgBUKa+UHD+e37X+DBjFhY5uIVtF3KXbsQTGTzsPYOSlf6/p1oJSDWr5wQg==</ByteString><ByteString>aWRldNpNXKAwjVaeHSq0c0Ek37RWJBs27MIHBfsSBg==</ByteString><ByteString>c9fNLlnoi9yJLl2k14Jqz+d9TGOLI0VILocXRVekHoZvZ6pS5kTnPFTXzPW9khVAnDUUlbqDqlCR
-hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteString><ByteString>bA9R6OXmXaVnhE1x/6p09vpC+mRf+JtkVIcLSbJ/</ByteString></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><ByteString>AAECA6o=</ByteString><ByteString>AQIDBKo=</ByteString><ByteString>AgMEBao=</ByteString><ByteString>AwQFBqo=</ByteString><ByteString>BAUGB6o=</ByteString><ByteString>BQYHCKo=</ByteString><ByteString>BgcICao=</ByteString><ByteString>BwgJCqo=</ByteString><ByteString>CAkKC6o=</ByteString><ByteString>CQoLDKo=</ByteString><ByteString>CgsMDao=</ByteString><ByteString>CwwNDqo=</ByteString><ByteString>DA0OD6o=</ByteString><ByteString>DQ4PEKo=</ByteString><ByteString>Dg8QEao=</ByteString><ByteString>DxAREqo=</ByteString><ByteString>EBESE6o=</ByteString><ByteString>ERITFKo=</ByteString><ByteString>EhMUFao=</ByteString><ByteString>ExQVFqo=</ByteString><ByteString>FBUWF6o=</ByteString><ByteString>FRYXGKo=</ByteString><ByteString>FhcYGao=</ByteString><ByteString>FxgZGqo=</ByteString><ByteString>GBkaG6o=</ByteString></Elements></Matrix></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Scalar_Static_Arrays2D_ByteString_HA Configuration" BrowseName="HA Configuration" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D_ByteString">
     <DisplayName>HA Configuration</DisplayName>
@@ -3778,7 +3784,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_DateTime" BrowseName="1:Scalar_Static_Arrays2D_DateTime" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="DateTime" ValueRank="2" ArrayDimensions="3,3" AccessLevel="15" Historizing="true">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_DateTime" BrowseName="1:Scalar_Static_Arrays2D_DateTime" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="DateTime" ValueRank="2" ArrayDimensions="5,5" AccessLevel="15" Historizing="true">
     <DisplayName Locale="en">DateTime</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -3786,7 +3792,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><DateTime>1900-05-20T03:48:54.4057438Z</DateTime><DateTime>2083-11-02T13:46:41.3583466Z</DateTime><DateTime>2064-05-29T07:41:21.1685587Z</DateTime><DateTime>2023-02-27T02:26:19.6792927Z</DateTime><DateTime>1913-04-09T14:08:18.5355635Z</DateTime><DateTime>2046-03-03T14:10:37.7682931Z</DateTime><DateTime>2038-12-17T11:11:40.4437511Z</DateTime><DateTime>2073-08-27T00:23:36.4414757Z</DateTime><DateTime>1952-01-03T00:29:11.1951102Z</DateTime></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><DateTime>2024-01-01T00:00:00Z</DateTime><DateTime>2024-01-01T01:00:00Z</DateTime><DateTime>2024-01-01T02:00:00Z</DateTime><DateTime>2024-01-01T03:00:00Z</DateTime><DateTime>2024-01-01T04:00:00Z</DateTime><DateTime>2024-01-01T05:00:00Z</DateTime><DateTime>2024-01-01T06:00:00Z</DateTime><DateTime>2024-01-01T07:00:00Z</DateTime><DateTime>2024-01-01T08:00:00Z</DateTime><DateTime>2024-01-01T09:00:00Z</DateTime><DateTime>2024-01-01T10:00:00Z</DateTime><DateTime>2024-01-01T11:00:00Z</DateTime><DateTime>2024-01-01T12:00:00Z</DateTime><DateTime>2024-01-01T13:00:00Z</DateTime><DateTime>2024-01-01T14:00:00Z</DateTime><DateTime>2024-01-01T15:00:00Z</DateTime><DateTime>2024-01-01T16:00:00Z</DateTime><DateTime>2024-01-01T17:00:00Z</DateTime><DateTime>2024-01-01T18:00:00Z</DateTime><DateTime>2024-01-01T19:00:00Z</DateTime><DateTime>2024-01-01T20:00:00Z</DateTime><DateTime>2024-01-01T21:00:00Z</DateTime><DateTime>2024-01-01T22:00:00Z</DateTime><DateTime>2024-01-01T23:00:00Z</DateTime><DateTime>2024-01-02T00:00:00Z</DateTime></Elements></Matrix></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Scalar_Static_Arrays2D_DateTime_HA Configuration" BrowseName="HA Configuration" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D_DateTime">
     <DisplayName>HA Configuration</DisplayName>
@@ -3875,7 +3881,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Double" BrowseName="1:Scalar_Static_Arrays2D_Double" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Double" ValueRank="2" ArrayDimensions="3,3" AccessLevel="15" Historizing="true">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Double" BrowseName="1:Scalar_Static_Arrays2D_Double" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Double" ValueRank="2" ArrayDimensions="5,5" AccessLevel="15" Historizing="true">
     <DisplayName Locale="en">Double</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -3883,7 +3889,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><Double>-4163574.25</Double><Double>-1.307050535778533E-33</Double><Double>-1.4585230784152432E-15</Double><Double>-2.765169226996806E+29</Double><Double>-8.18689791005623E+24</Double><Double>-7.5230167649758245E-37</Double><Double>-141.2003936767578</Double><Double>-126080098304</Double><Double>1.2544443436020138E-19</Double></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><Double>0</Double><Double>2.25</Double><Double>4.5</Double><Double>6.75</Double><Double>9</Double><Double>11.25</Double><Double>13.5</Double><Double>15.75</Double><Double>18</Double><Double>20.25</Double><Double>22.5</Double><Double>24.75</Double><Double>27</Double><Double>29.25</Double><Double>31.5</Double><Double>33.75</Double><Double>36</Double><Double>38.25</Double><Double>40.5</Double><Double>42.75</Double><Double>45</Double><Double>47.25</Double><Double>49.5</Double><Double>51.75</Double><Double>54</Double></Elements></Matrix></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Scalar_Static_Arrays2D_Double_HA Configuration" BrowseName="HA Configuration" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D_Double">
     <DisplayName>HA Configuration</DisplayName>
@@ -3972,16 +3978,16 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Duration" BrowseName="1:Scalar_Static_Arrays2D_Duration" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="i=290" ValueRank="2" ArrayDimensions="3,3" AccessLevel="3">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Duration" BrowseName="1:Scalar_Static_Arrays2D_Duration" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="i=290" ValueRank="2" ArrayDimensions="5,5" AccessLevel="3">
     <DisplayName Locale="en">Duration</DisplayName>
     <Description>Default Description</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><Double>5.4959477588389234E+25</Double><Double>-2.8639277770794E-26</Double><Double>-53451722697211900</Double><Double>-6.505378591992471E-34</Double><Double>4.75767215444464E+35</Double><Double>1.9097629662103203E-29</Double><Double>-4.4112893593565585E-36</Double><Double>-1761499545600</Double><Double>-1.1539777619471313E+33</Double></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><Double>0</Double><Double>250</Double><Double>500</Double><Double>750</Double><Double>1000</Double><Double>1250</Double><Double>1500</Double><Double>1750</Double><Double>2000</Double><Double>2250</Double><Double>2500</Double><Double>2750</Double><Double>3000</Double><Double>3250</Double><Double>3500</Double><Double>3750</Double><Double>4000</Double><Double>4250</Double><Double>4500</Double><Double>4750</Double><Double>5000</Double><Double>5250</Double><Double>5500</Double><Double>5750</Double><Double>6000</Double></Elements></Matrix></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Float" BrowseName="1:Scalar_Static_Arrays2D_Float" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Float" ValueRank="2" ArrayDimensions="3,3" AccessLevel="15" Historizing="true">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Float" BrowseName="1:Scalar_Static_Arrays2D_Float" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Float" ValueRank="2" ArrayDimensions="5,5" AccessLevel="15" Historizing="true">
     <DisplayName Locale="en">Float</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -3989,7 +3995,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><Float>-2.6017395E-21</Float><Float>4.077882E+29</Float><Float>-167.45996</Float><Float>-6.6404967E+15</Float><Float>-1031.79664</Float><Float>-0.0006184253</Float><Float>-1.4010664E-11</Float><Float>7.4780676E+14</Float><Float>1.6609839</Float></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><Float>0</Float><Float>1.5</Float><Float>3</Float><Float>4.5</Float><Float>6</Float><Float>7.5</Float><Float>9</Float><Float>10.5</Float><Float>12</Float><Float>13.5</Float><Float>15</Float><Float>16.5</Float><Float>18</Float><Float>19.5</Float><Float>21</Float><Float>22.5</Float><Float>24</Float><Float>25.5</Float><Float>27</Float><Float>28.5</Float><Float>30</Float><Float>31.5</Float><Float>33</Float><Float>34.5</Float><Float>36</Float></Elements></Matrix></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Scalar_Static_Arrays2D_Float_HA Configuration" BrowseName="HA Configuration" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D_Float">
     <DisplayName>HA Configuration</DisplayName>
@@ -4078,16 +4084,16 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Guid" BrowseName="1:Scalar_Static_Arrays2D_Guid" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Guid" ValueRank="2" ArrayDimensions="3,3" AccessLevel="3">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Guid" BrowseName="1:Scalar_Static_Arrays2D_Guid" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Guid" ValueRank="2" ArrayDimensions="5,5" AccessLevel="3">
     <DisplayName Locale="en">Guid</DisplayName>
     <Description>Default Description</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><Guid><String>8ad1d667-9bfc-2f93-e177-7a494ebfe633</String></Guid><Guid><String>451826ea-79fe-c302-f191-645c55cfa70c</String></Guid><Guid><String>984cfb77-aebd-4bd8-9535-46ccba6b7149</String></Guid><Guid><String>eb26aeb1-5c68-c6ce-0b0a-2fd38ca7d23d</String></Guid><Guid><String>f9e7ea47-772c-fa3f-6944-bcf73626f213</String></Guid><Guid><String>d9e5f91e-9f0e-d17d-b2a3-a977098d738f</String></Guid><Guid><String>93628623-3684-f0e6-ff18-12cfd4e43cbf</String></Guid><Guid><String>af57d889-4b39-2869-7ad3-96825fb64868</String></Guid><Guid><String>34b16c02-c399-e8ff-0f87-6b02ddbf6cb8</String></Guid></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><Guid><String>51a7e000-0000-4000-8000-000000000001</String></Guid><Guid><String>51a7e001-0000-4000-8000-000000000002</String></Guid><Guid><String>51a7e002-0000-4000-8000-000000000003</String></Guid><Guid><String>51a7e003-0000-4000-8000-000000000004</String></Guid><Guid><String>51a7e004-0000-4000-8000-000000000005</String></Guid><Guid><String>51a7e005-0000-4000-8000-000000000006</String></Guid><Guid><String>51a7e006-0000-4000-8000-000000000007</String></Guid><Guid><String>51a7e007-0000-4000-8000-000000000008</String></Guid><Guid><String>51a7e008-0000-4000-8000-000000000009</String></Guid><Guid><String>51a7e009-0000-4000-8000-00000000000a</String></Guid><Guid><String>51a7e00a-0000-4000-8000-00000000000b</String></Guid><Guid><String>51a7e00b-0000-4000-8000-00000000000c</String></Guid><Guid><String>51a7e00c-0000-4000-8000-00000000000d</String></Guid><Guid><String>51a7e00d-0000-4000-8000-00000000000e</String></Guid><Guid><String>51a7e00e-0000-4000-8000-00000000000f</String></Guid><Guid><String>51a7e00f-0000-4000-8000-000000000010</String></Guid><Guid><String>51a7e010-0000-4000-8000-000000000011</String></Guid><Guid><String>51a7e011-0000-4000-8000-000000000012</String></Guid><Guid><String>51a7e012-0000-4000-8000-000000000013</String></Guid><Guid><String>51a7e013-0000-4000-8000-000000000014</String></Guid><Guid><String>51a7e014-0000-4000-8000-000000000015</String></Guid><Guid><String>51a7e015-0000-4000-8000-000000000016</String></Guid><Guid><String>51a7e016-0000-4000-8000-000000000017</String></Guid><Guid><String>51a7e017-0000-4000-8000-000000000018</String></Guid><Guid><String>51a7e018-0000-4000-8000-000000000019</String></Guid></Elements></Matrix></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Int16" BrowseName="1:Scalar_Static_Arrays2D_Int16" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Int16" ValueRank="2" ArrayDimensions="3,3" AccessLevel="15" Historizing="true">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Int16" BrowseName="1:Scalar_Static_Arrays2D_Int16" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Int16" ValueRank="2" ArrayDimensions="5,5" AccessLevel="15" Historizing="true">
     <DisplayName Locale="en">Int16</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -4095,7 +4101,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><Int16>23689</Int16><Int16>-22462</Int16><Int16>-24522</Int16><Int16>-30518</Int16><Int16>5728</Int16><Int16>21794</Int16><Int16>-9894</Int16><Int16>-11246</Int16><Int16>2431</Int16></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><Int16>-1200</Int16><Int16>-1100</Int16><Int16>-1000</Int16><Int16>-900</Int16><Int16>-800</Int16><Int16>-700</Int16><Int16>-600</Int16><Int16>-500</Int16><Int16>-400</Int16><Int16>-300</Int16><Int16>-200</Int16><Int16>-100</Int16><Int16>0</Int16><Int16>100</Int16><Int16>200</Int16><Int16>300</Int16><Int16>400</Int16><Int16>500</Int16><Int16>600</Int16><Int16>700</Int16><Int16>800</Int16><Int16>900</Int16><Int16>1000</Int16><Int16>1100</Int16><Int16>1200</Int16></Elements></Matrix></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Scalar_Static_Arrays2D_Int16_HA Configuration" BrowseName="HA Configuration" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D_Int16">
     <DisplayName>HA Configuration</DisplayName>
@@ -4184,7 +4190,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Int32" BrowseName="1:Scalar_Static_Arrays2D_Int32" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Int32" ValueRank="2" ArrayDimensions="3,3" AccessLevel="15" Historizing="true">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Int32" BrowseName="1:Scalar_Static_Arrays2D_Int32" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Int32" ValueRank="2" ArrayDimensions="5,5" AccessLevel="15" Historizing="true">
     <DisplayName Locale="en">Int32</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -4192,7 +4198,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><Int32>711190369</Int32><Int32>210929767</Int32><Int32>390604002</Int32><Int32>657679630</Int32><Int32>779687663</Int32><Int32>848837208</Int32><Int32>1168345129</Int32><Int32>203917566</Int32><Int32>942587037</Int32></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><Int32>-12000</Int32><Int32>-11000</Int32><Int32>-10000</Int32><Int32>-9000</Int32><Int32>-8000</Int32><Int32>-7000</Int32><Int32>-6000</Int32><Int32>-5000</Int32><Int32>-4000</Int32><Int32>-3000</Int32><Int32>-2000</Int32><Int32>-1000</Int32><Int32>0</Int32><Int32>1000</Int32><Int32>2000</Int32><Int32>3000</Int32><Int32>4000</Int32><Int32>5000</Int32><Int32>6000</Int32><Int32>7000</Int32><Int32>8000</Int32><Int32>9000</Int32><Int32>10000</Int32><Int32>11000</Int32><Int32>12000</Int32></Elements></Matrix></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Scalar_Static_Arrays2D_Int32_HA Configuration" BrowseName="HA Configuration" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D_Int32">
     <DisplayName>HA Configuration</DisplayName>
@@ -4281,7 +4287,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Int64" BrowseName="1:Scalar_Static_Arrays2D_Int64" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Int64" ValueRank="2" ArrayDimensions="3,3" AccessLevel="15" Historizing="true">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Int64" BrowseName="1:Scalar_Static_Arrays2D_Int64" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Int64" ValueRank="2" ArrayDimensions="5,5" AccessLevel="15" Historizing="true">
     <DisplayName Locale="en">Int64</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -4289,7 +4295,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><Int64>1694251407397014058</Int64><Int64>2697791070452894136</Int64><Int64>-8857253727550239333</Int64><Int64>2688205075397394617</Int64><Int64>6169872443195108996</Int64><Int64>-8476725879909010337</Int64><Int64>-3940324642046046665</Int64><Int64>-1452823118782087494</Int64><Int64>-5336672116810947452</Int64></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><Int64>-1200000</Int64><Int64>-1100000</Int64><Int64>-1000000</Int64><Int64>-900000</Int64><Int64>-800000</Int64><Int64>-700000</Int64><Int64>-600000</Int64><Int64>-500000</Int64><Int64>-400000</Int64><Int64>-300000</Int64><Int64>-200000</Int64><Int64>-100000</Int64><Int64>0</Int64><Int64>100000</Int64><Int64>200000</Int64><Int64>300000</Int64><Int64>400000</Int64><Int64>500000</Int64><Int64>600000</Int64><Int64>700000</Int64><Int64>800000</Int64><Int64>900000</Int64><Int64>1000000</Int64><Int64>1100000</Int64><Int64>1200000</Int64></Elements></Matrix></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Scalar_Static_Arrays2D_Int64_HA Configuration" BrowseName="HA Configuration" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D_Int64">
     <DisplayName>HA Configuration</DisplayName>
@@ -4378,7 +4384,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Integer" BrowseName="1:Scalar_Static_Arrays2D_Integer" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Integer" ValueRank="2" ArrayDimensions="3,3" AccessLevel="3">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Integer" BrowseName="1:Scalar_Static_Arrays2D_Integer" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Integer" ValueRank="2" ArrayDimensions="5,5" AccessLevel="3">
     <DisplayName Locale="en">Integer</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -4386,34 +4392,34 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_LocaleId" BrowseName="1:Scalar_Static_Arrays2D_LocaleId" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="i=295" ValueRank="2" ArrayDimensions="3,3" AccessLevel="3">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_LocaleId" BrowseName="1:Scalar_Static_Arrays2D_LocaleId" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="i=295" ValueRank="2" ArrayDimensions="5,5" AccessLevel="3">
     <DisplayName Locale="en">LocaleId</DisplayName>
     <Description>Default Description</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><String>Cat} Green Black{ Lime. Banana Mango</String><String>Πορφυρός Χοίρος Μπανάνα* Αγελάδα Φράουλα Φράουλα&gt; Κόκκινος Κόκκινος</String><String>백색* 딸기 바나나/ 자주색 뱀 파인애플} 개 말@ 파란 원숭이 석회! 쥐 용&lt; 포도 딸기_</String><String>Αγελάδα[ Αγελάδα? Ασπρος Αρουραίος Δράκος, Κίτρινος Βακκίνιο^ Πρόβατα/ Αγελάδα[ Μάγκο# Δράκος,</String><String>Корова Пурпурово@</String><String>いちご~ ドラゴン ドラゴン` ラット# 青い ヘビ^ ドラゴン 猫{ 赤い@ ヒツジ</String><String>Пурпурово? Бело Дракон{ Кот` Пурпурово. Известка Крыса,</String><String>犬] ヘビ# 猿 ヘビ- 黒 ドラゴン ヘビ, レモン) 白い@ 紫色 ブタ バナナ$ ラット 猿 ドラゴン&amp; マンゴ[ 黄色 石灰 黄色$</String><String>Erdbeere Katze Ananas Weiß Blaubeere Schlange Rot] Pfirsich Schaf Drache[ Weiß Affe Grün! Hund Mango</String></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><String>en-US</String><String>de-DE</String><String>fr-FR</String><String>es-ES</String><String>it-IT</String><String>ja-JP</String><String>zh-CN</String><String>ru-RU</String><String>ko-KR</String><String>pt-BR</String><String>en-US</String><String>de-DE</String><String>fr-FR</String><String>es-ES</String><String>it-IT</String><String>ja-JP</String><String>zh-CN</String><String>ru-RU</String><String>ko-KR</String><String>pt-BR</String><String>en-US</String><String>de-DE</String><String>fr-FR</String><String>es-ES</String><String>it-IT</String></Elements></Matrix></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_LocalizedText" BrowseName="1:Scalar_Static_Arrays2D_LocalizedText" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="LocalizedText" ValueRank="2" ArrayDimensions="3,3" AccessLevel="3" MinimumSamplingInterval="1000">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_LocalizedText" BrowseName="1:Scalar_Static_Arrays2D_LocalizedText" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="LocalizedText" ValueRank="2" ArrayDimensions="5,5" AccessLevel="3" MinimumSamplingInterval="1000">
     <DisplayName Locale="en">LocalizedText</DisplayName>
     <Description>Default Description</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><LocalizedText><Locale>ru</Locale><Text>Кот` Крыса Дракон Лимон_ Крыса+ Лимон) Красно^ Зеленыйцвет= Голубо?</Text></LocalizedText><LocalizedText><Locale>ru</Locale><Text>Дракон&gt; Корова Виноградина] Корова[ Лошадь* Красно Свинья+ Обезьяна</Text></LocalizedText><LocalizedText><Locale>de-DE</Locale><Text>Mango/ Banane Rot? Kuh Blaubeere</Text></LocalizedText><LocalizedText><Locale>de-DE</Locale><Text>Grün&gt;</Text></LocalizedText><LocalizedText><Locale>es-ES</Locale><Text>Negro( Limón/ Elefante Melocotón Oveja}</Text></LocalizedText><LocalizedText><Locale>el</Locale><Text>Πορφυρός</Text></LocalizedText><LocalizedText><Locale>el</Locale><Text>Πίθηκος Σταφύλι Πίθηκος&gt; Σταφύλι Ροδάκινο$ Ελέφαντας, Σκυλί&amp; Κόκκινος' Ασπρος_ Πορφυρός=</Text></LocalizedText><LocalizedText><Locale>jp</Locale><Text>黄色 ブドウ} ラット ブドウ モモ いちご$ マンゴ 犬? 緑@ バナナ~ 青い 犬. レモン: 青い_ パイナップル レモン 赤い&amp; ブドウ" 紫色! パイナップル ヒツジ. ブルーベリー いちご</Text></LocalizedText><LocalizedText><Locale>ru</Locale><Text>Собака Виноградина Пурпурово Бело Обезьяна Голубика Собака Змейка`</Text></LocalizedText></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><LocalizedText><Locale>en</Locale><Text>Text 0</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 1</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 2</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 3</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 4</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 5</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 6</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 7</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 8</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 9</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 10</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 11</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 12</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 13</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 14</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 15</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 16</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 17</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 18</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 19</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 20</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 21</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 22</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 23</Text></LocalizedText><LocalizedText><Locale>en</Locale><Text>Text 24</Text></LocalizedText></Elements></Matrix></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_NodeId" BrowseName="1:Scalar_Static_Arrays2D_NodeId" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="NodeId" ValueRank="2" ArrayDimensions="3,3" AccessLevel="3">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_NodeId" BrowseName="1:Scalar_Static_Arrays2D_NodeId" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="NodeId" ValueRank="2" ArrayDimensions="5,5" AccessLevel="3">
     <DisplayName Locale="en">NodeId</DisplayName>
     <Description>Default Description</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><NodeId><Identifier>b=aSsPiIcLbR1x8GfNN8E3/TZ5/790EDR0zfoD1+QFw9s=</Identifier></NodeId><NodeId><Identifier>i=338762520</Identifier></NodeId><NodeId><Identifier>b=zP4VevquEHzTOWuzWfabuo0HlTlsLYyZl84f4QVkZ8xs/mh1t4AJKNOI8KHH7Jkhf3aH</Identifier></NodeId><NodeId><Identifier>b=n3F74iuPLnZu0p9HWo4=</Identifier></NodeId><NodeId><Identifier>s=Лимон</Identifier></NodeId><NodeId><Identifier>g=fd34aad2-8e61-d8dd-709d-59c8043c9ddd</Identifier></NodeId><NodeId><Identifier>i=2770915201</Identifier></NodeId><NodeId><Identifier>b=e5HvacFihqk39pHM6JH6L6kBxSHGbiDTwNG7HKkF9WoHGmFGgDSXZn6SZucI2Crv1fn7Pc04rAxxHKnwpmkAMgAmxM0v</Identifier></NodeId><NodeId><Identifier>i=883121769</Identifier></NodeId></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><NodeId><Identifier>i=2253</Identifier></NodeId><NodeId><Identifier>i=2254</Identifier></NodeId><NodeId><Identifier>i=2255</Identifier></NodeId><NodeId><Identifier>i=2256</Identifier></NodeId><NodeId><Identifier>i=2257</Identifier></NodeId><NodeId><Identifier>i=2258</Identifier></NodeId><NodeId><Identifier>i=2259</Identifier></NodeId><NodeId><Identifier>i=2260</Identifier></NodeId><NodeId><Identifier>i=2261</Identifier></NodeId><NodeId><Identifier>i=2262</Identifier></NodeId><NodeId><Identifier>i=2263</Identifier></NodeId><NodeId><Identifier>i=2264</Identifier></NodeId><NodeId><Identifier>i=2265</Identifier></NodeId><NodeId><Identifier>i=2266</Identifier></NodeId><NodeId><Identifier>i=2267</Identifier></NodeId><NodeId><Identifier>i=2268</Identifier></NodeId><NodeId><Identifier>i=2269</Identifier></NodeId><NodeId><Identifier>i=2270</Identifier></NodeId><NodeId><Identifier>i=2271</Identifier></NodeId><NodeId><Identifier>i=2272</Identifier></NodeId><NodeId><Identifier>i=2273</Identifier></NodeId><NodeId><Identifier>i=2274</Identifier></NodeId><NodeId><Identifier>i=2275</Identifier></NodeId><NodeId><Identifier>i=2276</Identifier></NodeId><NodeId><Identifier>i=2277</Identifier></NodeId></Elements></Matrix></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Number" BrowseName="1:Scalar_Static_Arrays2D_Number" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Number" ValueRank="2" ArrayDimensions="3,3" AccessLevel="3">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Number" BrowseName="1:Scalar_Static_Arrays2D_Number" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="Number" ValueRank="2" ArrayDimensions="5,5" AccessLevel="3">
     <DisplayName Locale="en">Number</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -4421,16 +4427,16 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_QualifiedName" BrowseName="1:Scalar_Static_Arrays2D_QualifiedName" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="QualifiedName" ValueRank="2" ArrayDimensions="3,3" AccessLevel="3">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_QualifiedName" BrowseName="1:Scalar_Static_Arrays2D_QualifiedName" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="QualifiedName" ValueRank="2" ArrayDimensions="5,5" AccessLevel="3">
     <DisplayName Locale="en">QualifiedName</DisplayName>
     <Description>Default Description</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Ананас</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>ヘビヒツジ</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Strawberry</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Δράκος</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>猫</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>狗绵羊</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Μπανάνα</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>ドラゴン</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Pfirsich</Name></QualifiedName></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name0</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name1</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name2</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name3</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name4</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name5</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name6</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name7</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name8</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name9</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name10</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name11</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name12</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name13</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name14</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name15</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name16</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name17</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name18</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name19</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name20</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name21</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name22</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name23</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Name24</Name></QualifiedName></Elements></Matrix></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_SByte" BrowseName="1:Scalar_Static_Arrays2D_SByte" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="SByte" ValueRank="2" ArrayDimensions="3,3" AccessLevel="15" Historizing="true">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_SByte" BrowseName="1:Scalar_Static_Arrays2D_SByte" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="SByte" ValueRank="2" ArrayDimensions="5,5" AccessLevel="15" Historizing="true">
     <DisplayName Locale="en">SByte</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -4438,7 +4444,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><SByte>94</SByte><SByte>38</SByte><SByte>79</SByte><SByte>-72</SByte><SByte>-90</SByte><SByte>-6</SByte><SByte>-28</SByte><SByte>-32</SByte><SByte>-122</SByte></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><SByte>-12</SByte><SByte>-11</SByte><SByte>-10</SByte><SByte>-9</SByte><SByte>-8</SByte><SByte>-7</SByte><SByte>-6</SByte><SByte>-5</SByte><SByte>-4</SByte><SByte>-3</SByte><SByte>-2</SByte><SByte>-1</SByte><SByte>0</SByte><SByte>1</SByte><SByte>2</SByte><SByte>3</SByte><SByte>4</SByte><SByte>5</SByte><SByte>6</SByte><SByte>7</SByte><SByte>8</SByte><SByte>9</SByte><SByte>10</SByte><SByte>11</SByte><SByte>12</SByte></Elements></Matrix></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Scalar_Static_Arrays2D_SByte_HA Configuration" BrowseName="HA Configuration" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D_SByte">
     <DisplayName>HA Configuration</DisplayName>
@@ -4527,7 +4533,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_String" BrowseName="1:Scalar_Static_Arrays2D_String" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="String" ValueRank="2" ArrayDimensions="3,3" AccessLevel="15" Historizing="true">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_String" BrowseName="1:Scalar_Static_Arrays2D_String" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="String" ValueRank="2" ArrayDimensions="5,5" AccessLevel="15" Historizing="true">
     <DisplayName Locale="en">String</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -4535,7 +4541,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><String>Sheep%</String><String>Манго Обезьяна:</String><String>Elephant</String><String>Erdbeere Hund= Schwarz Mango Erdbeere</String><String>Mango Kuh. Weintraube</String><String>Cat Elephant Horse? White$ Banana$ Lime= Monkey&amp; Blueberry! Horse Horse# Mango Monkey Sheep" Banana</String><String>Rot Hund; Banane Drache# Gelb Blau&gt; Blaubeere; Ratte&lt; Weiß Limette</String><String>Желтыйцвет</String><String>Zitrone~ Erdbeere. Banane Schlange Limette' Ratte! Schwarz^ Kuh Schwein" Schwarz' Schaf Schwarz+</String></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><String>String 0</String><String>String 1</String><String>String 2</String><String>String 3</String><String>String 4</String><String>String 5</String><String>String 6</String><String>String 7</String><String>String 8</String><String>String 9</String><String>String 10</String><String>String 11</String><String>String 12</String><String>String 13</String><String>String 14</String><String>String 15</String><String>String 16</String><String>String 17</String><String>String 18</String><String>String 19</String><String>String 20</String><String>String 21</String><String>String 22</String><String>String 23</String><String>String 24</String></Elements></Matrix></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Scalar_Static_Arrays2D_String_HA Configuration" BrowseName="HA Configuration" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D_String">
     <DisplayName>HA Configuration</DisplayName>
@@ -4624,7 +4630,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_UInt16" BrowseName="1:Scalar_Static_Arrays2D_UInt16" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="UInt16" ValueRank="2" ArrayDimensions="3,3" AccessLevel="15" Historizing="true">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_UInt16" BrowseName="1:Scalar_Static_Arrays2D_UInt16" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="UInt16" ValueRank="2" ArrayDimensions="5,5" AccessLevel="15" Historizing="true">
     <DisplayName Locale="en">UInt16</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -4632,7 +4638,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><UInt16>15913</UInt16><UInt16>63997</UInt16><UInt16>13456</UInt16><UInt16>54530</UInt16><UInt16>7375</UInt16><UInt16>2740</UInt16><UInt16>15217</UInt16><UInt16>17497</UInt16><UInt16>1265</UInt16></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><UInt16>0</UInt16><UInt16>100</UInt16><UInt16>200</UInt16><UInt16>300</UInt16><UInt16>400</UInt16><UInt16>500</UInt16><UInt16>600</UInt16><UInt16>700</UInt16><UInt16>800</UInt16><UInt16>900</UInt16><UInt16>1000</UInt16><UInt16>1100</UInt16><UInt16>1200</UInt16><UInt16>1300</UInt16><UInt16>1400</UInt16><UInt16>1500</UInt16><UInt16>1600</UInt16><UInt16>1700</UInt16><UInt16>1800</UInt16><UInt16>1900</UInt16><UInt16>2000</UInt16><UInt16>2100</UInt16><UInt16>2200</UInt16><UInt16>2300</UInt16><UInt16>2400</UInt16></Elements></Matrix></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Scalar_Static_Arrays2D_UInt16_HA Configuration" BrowseName="HA Configuration" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D_UInt16">
     <DisplayName>HA Configuration</DisplayName>
@@ -4721,7 +4727,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_UInt32" BrowseName="1:Scalar_Static_Arrays2D_UInt32" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="UInt32" ValueRank="2" ArrayDimensions="3,3" AccessLevel="15" Historizing="true">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_UInt32" BrowseName="1:Scalar_Static_Arrays2D_UInt32" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="UInt32" ValueRank="2" ArrayDimensions="5,5" AccessLevel="15" Historizing="true">
     <DisplayName Locale="en">UInt32</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -4729,7 +4735,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><UInt32>232553009</UInt32><UInt32>3298416824</UInt32><UInt32>1341039751</UInt32><UInt32>1101998410</UInt32><UInt32>810523782</UInt32><UInt32>2765374006</UInt32><UInt32>2194672267</UInt32><UInt32>1537791992</UInt32><UInt32>2765560615</UInt32></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><UInt32>0</UInt32><UInt32>1000</UInt32><UInt32>2000</UInt32><UInt32>3000</UInt32><UInt32>4000</UInt32><UInt32>5000</UInt32><UInt32>6000</UInt32><UInt32>7000</UInt32><UInt32>8000</UInt32><UInt32>9000</UInt32><UInt32>10000</UInt32><UInt32>11000</UInt32><UInt32>12000</UInt32><UInt32>13000</UInt32><UInt32>14000</UInt32><UInt32>15000</UInt32><UInt32>16000</UInt32><UInt32>17000</UInt32><UInt32>18000</UInt32><UInt32>19000</UInt32><UInt32>20000</UInt32><UInt32>21000</UInt32><UInt32>22000</UInt32><UInt32>23000</UInt32><UInt32>24000</UInt32></Elements></Matrix></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Scalar_Static_Arrays2D_UInt32_HA Configuration" BrowseName="HA Configuration" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D_UInt32">
     <DisplayName>HA Configuration</DisplayName>
@@ -4818,7 +4824,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_UInt64" BrowseName="1:Scalar_Static_Arrays2D_UInt64" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="UInt64" ValueRank="2" ArrayDimensions="3,3" AccessLevel="15" Historizing="true">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_UInt64" BrowseName="1:Scalar_Static_Arrays2D_UInt64" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="UInt64" ValueRank="2" ArrayDimensions="5,5" AccessLevel="15" Historizing="true">
     <DisplayName Locale="en">UInt64</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -4826,7 +4832,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><UInt64>10789860884498826790</UInt64><UInt64>249115355961332956</UInt64><UInt64>8302152180190423125</UInt64><UInt64>14878110608864135763</UInt64><UInt64>11952964409973090259</UInt64><UInt64>9306164722628832205</UInt64><UInt64>7622865136702345785</UInt64><UInt64>11608389995782435484</UInt64><UInt64>7682233807194960031</UInt64></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><UInt64>0</UInt64><UInt64>100000</UInt64><UInt64>200000</UInt64><UInt64>300000</UInt64><UInt64>400000</UInt64><UInt64>500000</UInt64><UInt64>600000</UInt64><UInt64>700000</UInt64><UInt64>800000</UInt64><UInt64>900000</UInt64><UInt64>1000000</UInt64><UInt64>1100000</UInt64><UInt64>1200000</UInt64><UInt64>1300000</UInt64><UInt64>1400000</UInt64><UInt64>1500000</UInt64><UInt64>1600000</UInt64><UInt64>1700000</UInt64><UInt64>1800000</UInt64><UInt64>1900000</UInt64><UInt64>2000000</UInt64><UInt64>2100000</UInt64><UInt64>2200000</UInt64><UInt64>2300000</UInt64><UInt64>2400000</UInt64></Elements></Matrix></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Scalar_Static_Arrays2D_UInt64_HA Configuration" BrowseName="HA Configuration" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D_UInt64">
     <DisplayName>HA Configuration</DisplayName>
@@ -4915,7 +4921,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_UInteger" BrowseName="1:Scalar_Static_Arrays2D_UInteger" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="UInteger" ValueRank="2" ArrayDimensions="3,3" AccessLevel="3">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_UInteger" BrowseName="1:Scalar_Static_Arrays2D_UInteger" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="UInteger" ValueRank="2" ArrayDimensions="5,5" AccessLevel="3">
     <DisplayName Locale="en">UInteger</DisplayName>
     <Description>Default Description</Description>
     <References>
@@ -4923,39 +4929,32 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_UtcTime" BrowseName="1:Scalar_Static_Arrays2D_UtcTime" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="i=294" ValueRank="2" ArrayDimensions="3,3" AccessLevel="3">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_UtcTime" BrowseName="1:Scalar_Static_Arrays2D_UtcTime" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="i=294" ValueRank="2" ArrayDimensions="5,5" AccessLevel="3">
     <DisplayName Locale="en">UtcTime</DisplayName>
     <Description>Default Description</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><DateTime>1916-11-21T19:58:11.0293762Z</DateTime><DateTime>2064-04-15T14:34:34.0754239Z</DateTime><DateTime>2047-08-18T07:31:06.1722972Z</DateTime><DateTime>2058-03-13T01:50:40.9183564Z</DateTime><DateTime>2006-12-23T03:34:04.9057158Z</DateTime><DateTime>2056-02-27T04:57:11.3988774Z</DateTime><DateTime>2025-12-12T07:17:04.9721198Z</DateTime><DateTime>1951-01-04T05:05:01.4150404Z</DateTime><DateTime>2094-02-07T14:20:51.9636701Z</DateTime></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><DateTime>2024-06-01T00:00:00Z</DateTime><DateTime>2024-06-01T00:01:00Z</DateTime><DateTime>2024-06-01T00:02:00Z</DateTime><DateTime>2024-06-01T00:03:00Z</DateTime><DateTime>2024-06-01T00:04:00Z</DateTime><DateTime>2024-06-01T00:05:00Z</DateTime><DateTime>2024-06-01T00:06:00Z</DateTime><DateTime>2024-06-01T00:07:00Z</DateTime><DateTime>2024-06-01T00:08:00Z</DateTime><DateTime>2024-06-01T00:09:00Z</DateTime><DateTime>2024-06-01T00:10:00Z</DateTime><DateTime>2024-06-01T00:11:00Z</DateTime><DateTime>2024-06-01T00:12:00Z</DateTime><DateTime>2024-06-01T00:13:00Z</DateTime><DateTime>2024-06-01T00:14:00Z</DateTime><DateTime>2024-06-01T00:15:00Z</DateTime><DateTime>2024-06-01T00:16:00Z</DateTime><DateTime>2024-06-01T00:17:00Z</DateTime><DateTime>2024-06-01T00:18:00Z</DateTime><DateTime>2024-06-01T00:19:00Z</DateTime><DateTime>2024-06-01T00:20:00Z</DateTime><DateTime>2024-06-01T00:21:00Z</DateTime><DateTime>2024-06-01T00:22:00Z</DateTime><DateTime>2024-06-01T00:23:00Z</DateTime><DateTime>2024-06-01T00:24:00Z</DateTime></Elements></Matrix></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Variant" BrowseName="1:Scalar_Static_Arrays2D_Variant" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" ValueRank="2" ArrayDimensions="3,3" AccessLevel="3">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_Variant" BrowseName="1:Scalar_Static_Arrays2D_Variant" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" ValueRank="2" ArrayDimensions="5,5" AccessLevel="3">
     <DisplayName Locale="en">Variant</DisplayName>
     <Description>Default Description</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><Variant><Value><ListOfQualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Schwarz</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>バナナ</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Blaubeere</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Piña</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Cerdo</Name></QualifiedName><QualifiedName><NamespaceIndex>0</NamespaceIndex><Name>Виноградина</Name></QualifiedName></ListOfQualifiedName></Value></Variant><Variant><Value><Double>65536864026624</Double></Value></Variant><Variant><Value><Double>-1.0343300989119252E+35</Double></Value></Variant><Variant><Value><ListOfByteString><ByteString>mCBTh0M0yY7WTA==</ByteString><ByteString>HlYmaSFSK4qAGJUCAXi6GGkV5joLH2a+Afiyzle8I6zUi4Gj3jnOZFdgzO4CHlEPiBxf</ByteString><ByteString>7xHF/+9nZyigXTPD9egtdfcWOi9GguOrU3i74w==</ByteString><ByteString>o0U7Xam9w8aBtHbRpcT6LAj4GvDcF3HhLzJtLhmrdqyEgf0X+GZLK2qudmLDXqC96H9Kf6HzyozT
-WS13UJWs1j7JTSTH4jSire6GLaEPHtGSr0WaYQ==</ByteString><ByteString>C5C3cUSfOdTb1QKfI/kQfPYGS6fSsm2c6sM6W+ShTxF0R768bFWelGnYErArAeskwBW4P0+5JFgj
-G4aAZN3vOoXwK9w7VA+gZ7Y++aC8cenXFprO6BDCuyI=</ByteString><ByteString>mFHPHTCL6NgrOtYP6WwGF9eZeyq4Z6mcqE1DIFF0Lm+51bu+0UqFshDIkDYTyC0uyNE4KUD4rTCn
-MnTjSMeGtgxmVROwR0WME8gZ8NdzieAgFFh/PAQvwSeLFp7V</ByteString><ByteString>aUlB2Sqtcxl9gIurFXfevVk0</ByteString><ByteString>lMIzbwZ6BzaT6yUxp7dxXtCu/UjbbAaW1/OQ77fjajHi9EHfNtk6XyJ23y1YT+T0pBkNDlzrzSe8
-nJcT6hh/sIHzTrJ1kij2dJ0mZY0=</ByteString><ByteString>PogPm0ud1VvV9yYZIplBJ3QK9y6sZAAxfxHxFpq+xGia414PA0/N4domHleMW2+P</ByteString><ByteString>TCkcbl4s2YfdGzmsvsEWMr5/PjoyIyU8FVSGRqmlI6JiYU2VqPo8t4WIJTOUNBxkByXN2zBUgikD
-31gKpZPdOPeXSlxzgYnEQ4a1qf3xqOE3IT6D10hxDd8kkcmhMRLy</ByteString><ByteString>7Tv86b/xhZsJmKmf2SsRNnfShFRZYK8lPX1P78AiEXTD/hC1q/d4MLnnza/HbgX5gJIqX46dUIyM
-16xBopXb54Y129oaW4t/Wg==</ByteString><ByteString>m3GS/17OeFVvLfey5iWtgynUSjaNIwzmKZKSKt4kB6oFOgLe+ox53slMJq3v1E+2LJcytjUjxXdl
-rNbLO012SiZNrasiz4mdW2xtQfxe9lVD3P1H8lF1</ByteString><ByteString></ByteString><ByteString>inlNta2ie9Xbh6Imo5NdDZRaybWEewe2gYhfUC9X1dfLN5dWO+euyfFrINZT</ByteString></ListOfByteString></Value></Variant><Variant><Value><Int32>1505471560</Int32></Value></Variant><Variant><Value><StatusCode><Code>2152202240</Code></StatusCode></Value></Variant><Variant><Value><ListOfUInt32><UInt32>2540769263</UInt32><UInt32>725820467</UInt32><UInt32>3417473958</UInt32><UInt32>133917531</UInt32><UInt32>4289506770</UInt32><UInt32>811211204</UInt32><UInt32>384324450</UInt32><UInt32>3757766320</UInt32><UInt32>2286395180</UInt32><UInt32>2310251748</UInt32><UInt32>2630206854</UInt32></ListOfUInt32></Value></Variant><Variant><Value><NodeId><Identifier>g=b067984c-ab49-d667-b540-34e03c2c7bb0</Identifier></NodeId></Value></Variant><Variant><Value><ListOfNodeId><NodeId><Identifier>b=Iy35I3n+U70L2oCzyRiOSZWAN3DSo3DTTFlKFRNR6RYQ2HQ5tiYyaYP3NFlfiGJjIT89HoWzoH+9JdYfsz6quvFqo/GjVJJuTs3t224WdMP35/PTE8uRXTf1</Identifier></NodeId><NodeId><Identifier>b=ErVETXpo9OVxv8ysz9C3xcUQprESKMxK1qYm2UW5rdcCHTwXqI3zrX/ehScnJkT72phy5NY=</Identifier></NodeId><NodeId><Identifier>i=1996155369</Identifier></NodeId><NodeId><Identifier>g=12b8a01b-aaf4-93b1-9f1c-371cf83234a2</Identifier></NodeId><NodeId><Identifier>i=4264190384</Identifier></NodeId><NodeId><Identifier>i=3743547848</Identifier></NodeId><NodeId><Identifier>g=6b1f17ae-3e63-15cd-327b-93673a7b3ac8</Identifier></NodeId><NodeId><Identifier>i=3611575818</Identifier></NodeId><NodeId><Identifier>b=HPJxSfOI0UFwbiD9jc711Y/wNM7DxDEMACR11Qzq1lGsU0ZLXMs/88Emyg0ZylDeFHG05pGkU1jBZEjOEvw0hg==</Identifier></NodeId><NodeId><Identifier>s=Gelb</Identifier></NodeId><NodeId><Identifier>g=0c41b1c4-fa9d-f224-36d3-96c19b35efbf</Identifier></NodeId><NodeId><Identifier>b=iviCcOHF8UN1SnkWV2r48DVQmLZenHES+3s6mVE=</Identifier></NodeId><NodeId><Identifier>g=1f993949-4180-6041-46ac-b6aea8bcbc3f</Identifier></NodeId><NodeId><Identifier>g=6e6fba45-8f49-86ed-7075-658a57f2cd3a</Identifier></NodeId><NodeId><Identifier>s=Банан</Identifier></NodeId><NodeId><Identifier>s=White</Identifier></NodeId><NodeId><Identifier>s=Персик</Identifier></NodeId><NodeId><Identifier>b=C+2g2u8JMvnRy/q7VcThbYzfgQw=</Identifier></NodeId><NodeId><Identifier>s=Gato</Identifier></NodeId><NodeId><Identifier>i=907722239</Identifier></NodeId><NodeId><Identifier>i=2598364768</Identifier></NodeId><NodeId><Identifier>g=dc7e18b4-f528-b496-e20d-5bc95ebbd7cc</Identifier></NodeId><NodeId><Identifier>i=565165344</Identifier></NodeId><NodeId><Identifier>i=349279415</Identifier></NodeId><NodeId><Identifier>s=말양들쭉</Identifier></NodeId><NodeId><Identifier>i=2240388538</Identifier></NodeId><NodeId><Identifier>i=3629146610</Identifier></NodeId><NodeId><Identifier>g=7ab77193-3e97-e593-4225-932482bf040b</Identifier></NodeId><NodeId xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" /><NodeId><Identifier>b=uYqWOCMcQNpmvGNEYWxKWJ+zOA5plQllA80A5ti9a37scrgs418ad6RovtfAPV2YwTDzubbTtiSBMDRWGw==</Identifier></NodeId><NodeId><Identifier>s=黒ドラゴン</Identifier></NodeId><NodeId><Identifier>i=2571072797</Identifier></NodeId><NodeId><Identifier>s=Μάγκο</Identifier></NodeId><NodeId><Identifier>g=a824686f-b1c9-18c8-bb94-abb22ac45c4a</Identifier></NodeId><NodeId><Identifier>b=3OVu5KO6tCD1abVMT4tv5rM1WN+fGz8zIHLCFNRkIJvCrMngAYSB7hWR068GR1snu92oFA415cCmO8Mx9w==</Identifier></NodeId><NodeId><Identifier>i=2300201360</Identifier></NodeId><NodeId><Identifier>s=Elefant</Identifier></NodeId><NodeId><Identifier>s=Cow</Identifier></NodeId><NodeId><Identifier>s=Oveja</Identifier></NodeId><NodeId><Identifier>s=Dragón</Identifier></NodeId><NodeId><Identifier>g=c0c63909-f650-4675-4266-ecbdb9642cf8</Identifier></NodeId><NodeId><Identifier>b=a9h3Fg7rGltGU9Q9jfzbuVUebmRzVMcGKUAbXTcs/0Gs6SHukSK31TWaL/JtKF/A3avX2Qv7LxcQcOzOz7wk</Identifier></NodeId><NodeId><Identifier>g=daa39092-27ed-6732-992e-d924d49800e0</Identifier></NodeId><NodeId><Identifier>b=VSU2sLkK3iA26AV5dRWe2pi75vCEpHJyzFbyO9jr7XU8mcQvXN/q0A4G/H6TtWM=</Identifier></NodeId><NodeId><Identifier>s=Овцы</Identifier></NodeId><NodeId><Identifier>i=3300044807</Identifier></NodeId><NodeId><Identifier>i=1246274071</Identifier></NodeId><NodeId><Identifier>s=Овцы</Identifier></NodeId><NodeId><Identifier>i=3776368824</Identifier></NodeId><NodeId><Identifier>g=f316dff4-05e3-831a-c701-ad91147c98fb</Identifier></NodeId><NodeId><Identifier>s=Αγελάδα</Identifier></NodeId><NodeId><Identifier>b=hr7HQLBUXq2JB77kzW80nC7HM4+OSjzy5bxJXXS/9nHcnWwlPdrScqIACAw=</Identifier></NodeId><NodeId><Identifier>g=d084172d-ea8f-734f-ea3c-81d55af30b00</Identifier></NodeId><NodeId><Identifier>g=30084d11-0e03-545e-f4c0-ec8e42303432</Identifier></NodeId><NodeId><Identifier>s=绵羊芒果</Identifier></NodeId><NodeId><Identifier>s=포도</Identifier></NodeId><NodeId><Identifier>g=c7a267de-fb3d-aa71-fd13-75713af58f87</Identifier></NodeId><NodeId><Identifier>b=oShk2SeTmgQroH3TavbUFllKxgQ0w4eRHmMz9BaS4VU2UsZXeY57NKL2RQqAQAt6Zd82PJb0</Identifier></NodeId><NodeId><Identifier>s=Пурпурово</Identifier></NodeId><NodeId><Identifier>b=7pi+J50XL32cys+SYj59fBDeWLmON1ykv0E16LWm07fU/QitS1ij80roQ2ttBJLeYSTC3GumFrY7Gmhb4kfH9fYXvWU1zzG4OmRupvPxNruuVg==</Identifier></NodeId><NodeId><Identifier>g=2d4cf7e3-51e6-3171-ef47-1103204d7456</Identifier></NodeId><NodeId><Identifier>b=kfMKoQY4cMJK462ti782Ev/KkH7jXgDI81I=</Identifier></NodeId><NodeId><Identifier>s=복숭아</Identifier></NodeId><NodeId><Identifier>g=d89ef6ad-4555-75f4-8e27-4d429a8644ea</Identifier></NodeId><NodeId><Identifier>s=Affe</Identifier></NodeId><NodeId><Identifier>b=Qq20zuoczQM4LN3JlzqphA==</Identifier></NodeId><NodeId><Identifier>i=2243049044</Identifier></NodeId><NodeId><Identifier>s=Слон</Identifier></NodeId><NodeId><Identifier>s=菠萝猫</Identifier></NodeId><NodeId><Identifier>s=Собака</Identifier></NodeId><NodeId><Identifier>g=6d094a59-7ba8-0052-cb06-1aa570fb40bc</Identifier></NodeId><NodeId><Identifier>g=c6b04da8-7aae-f55a-05ec-a301f3747de2</Identifier></NodeId><NodeId><Identifier>i=2854480764</Identifier></NodeId><NodeId><Identifier>s=암소</Identifier></NodeId><NodeId><Identifier>s=Δράκος</Identifier></NodeId><NodeId><Identifier>i=2478980478</Identifier></NodeId><NodeId><Identifier>i=1702212370</Identifier></NodeId><NodeId><Identifier>g=8e28a513-d81e-683f-c4fd-04448a61d62e</Identifier></NodeId><NodeId><Identifier>g=49adc982-3ff6-4920-cced-d97035e40e70</Identifier></NodeId><NodeId><Identifier>b=6amSmuvlgTl9CDm45DU445Idyq/pbtQLUo9Uxx81GSfYK5SU8C/BY3QFokCTNPQ=</Identifier></NodeId><NodeId><Identifier>i=1850964993</Identifier></NodeId><NodeId><Identifier>s=Amarillo</Identifier></NodeId><NodeId><Identifier>i=1192868241</Identifier></NodeId><NodeId><Identifier>b=uaCj8mJbZzvjy5N4HpoZyh65xriKEBrAaehl0brrW1KBVDuZWQ4Z+AcSNq9ADSnBeO/7jShYVaiG4ol69ZWA93BB98lef3AQoM6xd9pqgFu/</Identifier></NodeId></ListOfNodeId></Value></Variant></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><Variant><Value><Int32>0</Int32></Value></Variant><Variant><Value><Int32>10</Int32></Value></Variant><Variant><Value><Int32>20</Int32></Value></Variant><Variant><Value><Int32>30</Int32></Value></Variant><Variant><Value><Int32>40</Int32></Value></Variant><Variant><Value><Int32>50</Int32></Value></Variant><Variant><Value><Int32>60</Int32></Value></Variant><Variant><Value><Int32>70</Int32></Value></Variant><Variant><Value><Int32>80</Int32></Value></Variant><Variant><Value><Int32>90</Int32></Value></Variant><Variant><Value><Int32>100</Int32></Value></Variant><Variant><Value><Int32>110</Int32></Value></Variant><Variant><Value><Int32>120</Int32></Value></Variant><Variant><Value><Int32>130</Int32></Value></Variant><Variant><Value><Int32>140</Int32></Value></Variant><Variant><Value><Int32>150</Int32></Value></Variant><Variant><Value><Int32>160</Int32></Value></Variant><Variant><Value><Int32>170</Int32></Value></Variant><Variant><Value><Int32>180</Int32></Value></Variant><Variant><Value><Int32>190</Int32></Value></Variant><Variant><Value><Int32>200</Int32></Value></Variant><Variant><Value><Int32>210</Int32></Value></Variant><Variant><Value><Int32>220</Int32></Value></Variant><Variant><Value><Int32>230</Int32></Value></Variant><Variant><Value><Int32>240</Int32></Value></Variant></Elements></Matrix></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_XmlElement" BrowseName="1:Scalar_Static_Arrays2D_XmlElement" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="XmlElement" ValueRank="2" ArrayDimensions="3,3" AccessLevel="3" MinimumSamplingInterval="1000">
+  <UAVariable NodeId="ns=1;s=Scalar_Static_Arrays2D_XmlElement" BrowseName="1:Scalar_Static_Arrays2D_XmlElement" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D" DataType="XmlElement" ValueRank="2" ArrayDimensions="5,5" AccessLevel="3" MinimumSamplingInterval="1000">
     <DisplayName Locale="en">XmlElement</DisplayName>
     <Description>Default Description</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><XmlElement><n0:Peach Yellow="红色" Cow="母牛" Monkey="石灰" xmlns:n0="http://Blue"><n0:Dog>白色; 猫_ 香蕉` 蓝莓 马 白色# 白色{ 黑色&amp;</n0:Dog><n0:Snake>紫色 柠檬- 柠檬 绿色 柠檬 石灰' 桃子 马 蛇] 黄色 芒果[ 猪 菠萝^ 猪, 龙 蛇{ 葡萄* 香蕉 桃子; 蓝莓 菠萝. 绿色</n0:Snake><n0:Banana>猴子&gt; 黑色&amp; 黑色] 蓝莓; 大象 大象? 草莓 红色~ 大象- 石灰 大象 蓝莓, 猴子 龙" 白色~ 猫 猫. 黄色 猫# 猫 狗$ 蛇` 葡萄^ 白色_ 黑色&lt; 紫色~ 葡萄 桃子 鼠 绿色</n0:Banana><n0:Dragon>蓝色 菠萝} 蓝莓 石灰 龙+ 大象! 鼠 柠檬 紫色@ 母牛 芒果( 大象- 猪 香蕉&gt; 黄色 鼠: 猪 绿色 蓝色* 白色} 蓝莓 母牛 菠萝 桃子 红色, 蓝莓 猪 黑色</n0:Dragon><n0:Elephant>桃子 桃子 猴子 猪" 白色? 桃子 柠檬) 猪{ 石灰 绿色 鼠 葡萄? 蛇 芒果! 芒果" 绿色 绵羊} 芒果# 香蕉@</n0:Elephant><n0:Cat>马 蓝色 绵羊 香蕉- 桃子&lt;</n0:Cat><n0:Lime>蓝莓 大象 大象$ 龙} 菠萝~ 猪. 桃子 鼠! 石灰-</n0:Lime></n0:Peach></XmlElement><XmlElement><n0:Ασπρος Φίδι="Caballo" Σταφύλι="Lima" Βακκίνιο="Oveja" Πράσινος="Elefante" Μάγκο="Cerdo" xmlns:n0="http://Αλογο" /></XmlElement><XmlElement><n0:Желтыйцвет Зеленыйцвет="Snake" xmlns:n0="http://Персик"><n0:Известка>Rat% Black@ Sheep? Rat Purple~ Lemon~ Blue Pig$ Pig Blue( Sheep Elephant Green# Lemon=</n0:Известка><n0:Желтыйцвет>Red Horse( Horse Banana Green^ Sheep Strawberry@</n0:Желтыйцвет><n0:Банан>Rat Dog" Snake" Snake_ Snake' Mango Yellow~ Pig^ Cat@ Cow) Pineapple_</n0:Банан><n0:Виноградина>Cat Pig/ Yellow} Blueberry` Dragon Banana White Pineapple_ Monkey) Elephant. Peach Purple</n0:Виноградина><n0:Лошадь>Pineapple Dragon} Dragon" Pineapple Banana@ Black% Cat Peach] Monkey Elephant! Grape</n0:Лошадь><n0:Дракон>Peach Lemon Elephant Rat$ Lime? Yellow Peach- Rat Dragon. Rat Lemon Strawberry Black_ Grape Grape)</n0:Дракон><n0:Персик>Strawberry, Banana. Pineapple] Yellow Cat White Lime Black</n0:Персик></n0:Желтыйцвет></XmlElement><XmlElement><n0:Weintraube Grün="Змейка" Limette="Ананас" Schlange="Собака" Banane="Чернота" Erdbeere="Дракон" xmlns:n0="http://Ratte"><n0:Schlange>яблоко Зеленыйцвет Известка; Желтыйцвет Голубо&amp; Желтыйцвет&gt; Обезьяна&gt; Банан Слон@ Пурпурово/</n0:Schlange><n0:Kuh>Бело Слон яблоко, Собака Лимон Голубика; Ананас Кот Красно Голубо Дракон Овцы^ Известка]</n0:Kuh><n0:Lila>Пурпурово! Обезьяна Желтыйцвет. Персик Собака Корова Дракон( Слон] Корова Голубо Обезьяна Банан' Крыса/</n0:Lila><n0:Pfirsich>Банан Манго Кот! Банан* Дракон</n0:Pfirsich><n0:Blaubeere>Чернота&amp; Обезьяна Банан</n0:Blaubeere><n0:Erdbeere>Красно%</n0:Erdbeere><n0:Kuh>Собака? Обезьяна~ Кот Овцы_ Кот Обезьяна Персик Пурпурово Овцы{ Банан</n0:Kuh><n0:Pfirsich>Персик Виноградина} яблоко( Бело</n0:Pfirsich></n0:Weintraube></XmlElement><XmlElement><n0:Дракон Крыса="绵羊紫色" Манго="蓝莓" Обезьяна="绿色" Виноградина="母牛芒果" Пурпурово="桃子" Красно="马鼠黄色" xmlns:n0="http://Желтыйцвет"><n0:Ананас>菠萝 石灰% 芒果 鼠 香蕉 桃子: 母牛* 猫! 绿色&amp; 母牛 桃子 桃子 狗@ 猴子 狗&lt; 草莓= 白色*</n0:Ананас><n0:Змейка>绵羊 大象@ 龙~ 香蕉! 蓝色. 绵羊[ 猫 蓝莓 蓝色 绵羊 桃子 红色&lt; 桃子, 芒果 红色 芒果? 黑色~ 葡萄+ 黄色: 母牛: 柠檬+ 绿色 香蕉&gt; 龙 黑色 芒果</n0:Змейка><n0:Голубика>黄色 桃子 黄色+ 红色 大象? 红色' 大象{ 桃子` 芒果 黑色&gt; 柠檬 绵羊} 草莓 菠萝 红色} 鼠/</n0:Голубика><n0:Виноградина>桃子 猫' 桃子' 柠檬 黑色 柠檬_</n0:Виноградина><n0:Пурпурово>黑色 红色[ 柠檬 绿色</n0:Пурпурово><n0:Корова>绵羊&amp; 葡萄 猪 白色{ 龙? 母牛~ 石灰$ 菠萝 蛇' 母牛) 蓝色 芒果 鼠' 紫色&lt;</n0:Корова></n0:Дракон></XmlElement><XmlElement><n0:포도 돼지="Γάτα" 들쭉="Αγελάδα" 파인애플="Ροδάκινο" xmlns:n0="http://코끼리"><n0:황색>Πρόβατα Μάγκο$ Πίθηκος Βακκίνιο</n0:황색><n0:딸기>Κίτρινος^ Μπλε- Ροδάκινο Πορφυρός?</n0:딸기><n0:고양이>Ροδάκινο[ Μάγκο Φίδι Πράσινος" Ασβέστης Ανανάς[ Πορφυρός% Βακκίνιο Κόκκινος&lt; Πορφυρός! Φράουλα Αλογο</n0:고양이><n0:들쭉>Βακκίνιο- Γάτα? Ασβέστης Φράουλα Ασπρος Μάγκο Γάτα Δράκος Γάτα= Γάτα Αρουραίος Αλογο Πρόβατα" Μαύρος</n0:들쭉><n0:황색뱀>Λεμόνι,</n0:황색뱀></n0:포도></XmlElement><XmlElement><n0:Pig Blue="Pferd" Monkey="Grün" Blueberry="Lila" xmlns:n0="http://Red"><n0:Mango>Mango) Pfirsich- Katze Erdbeere Blaubeere} Mango_ Pferd</n0:Mango><n0:Yellow>Drache^ Weiß Pfirsich= Blau? Pferd Erdbeere/ Weintraube Mango; Pferd:</n0:Yellow><n0:Sheep>Lila Schlange` Schlange( Erdbeere</n0:Sheep><n0:Sheep>Schlange[ Rot Weintraube</n0:Sheep><n0:Pig>Hund% Schwein^ Limette&lt; Zitrone$ Zitrone_ Kuh{</n0:Pig><n0:Dragon>Pfirsich# Affe Banane Pfirsich[ Drache&gt; Zitrone; Limette@ Schaf&lt; Katze Schwein! Affe$ Hund:</n0:Dragon><n0:Red>Banane&gt; Ananas* Pfirsich/ Mango Rot` Schwein{</n0:Red><n0:Mango>Erdbeere^ Weiß Pfirsich- Drache Zitrone Schaf</n0:Mango><n0:Blue>Elefant%</n0:Blue><n0:Strawberry>Rot Ratte Lila Erdbeere</n0:Strawberry></n0:Pig></XmlElement><XmlElement><n0:バナナ ブタヒツジ="Hund" xmlns:n0="http://マンゴ"><n0:黒>Mango Lila&amp; Banane/ Kuh_ Pfirsich Weintraube/ Blaubeere/ Schlange} Schlange&gt;</n0:黒></n0:バナナ></XmlElement><XmlElement><n0:백색 들쭉="Ανανάς" xmlns:n0="http://포도"><n0:개>Πρόβατα Γάτα] Μπλε Μπανάνα, Αρουραίος Αγελάδα# Ασπρος Πορφυρός Γάτα Φράουλα? Αγελάδα' Μπλε'</n0:개><n0:복숭아>Φίδι Χοίρος&gt; Αρουραίος</n0:복숭아><n0:코끼리>Μπλε" Σκυλί@ Σκυλί Αγελάδα Σταφύλι? Ασπρος! Μπανάνα~ Ροδάκινο+ Κίτρινος</n0:코끼리><n0:말녹색>Λεμόνι# Αγελάδα Πράσινος* Μπανάνα/ Ροδάκινο Χοίρος% Ασβέστης</n0:말녹색></n0:백색></XmlElement></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>5</Int32><Int32>5</Int32></Dimensions><Elements><XmlElement><n0:Item Index="0" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 0</n0:Item></XmlElement><XmlElement><n0:Item Index="1" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 1</n0:Item></XmlElement><XmlElement><n0:Item Index="2" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 2</n0:Item></XmlElement><XmlElement><n0:Item Index="3" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 3</n0:Item></XmlElement><XmlElement><n0:Item Index="4" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 4</n0:Item></XmlElement><XmlElement><n0:Item Index="5" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 5</n0:Item></XmlElement><XmlElement><n0:Item Index="6" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 6</n0:Item></XmlElement><XmlElement><n0:Item Index="7" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 7</n0:Item></XmlElement><XmlElement><n0:Item Index="8" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 8</n0:Item></XmlElement><XmlElement><n0:Item Index="9" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 9</n0:Item></XmlElement><XmlElement><n0:Item Index="10" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 10</n0:Item></XmlElement><XmlElement><n0:Item Index="11" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 11</n0:Item></XmlElement><XmlElement><n0:Item Index="12" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 12</n0:Item></XmlElement><XmlElement><n0:Item Index="13" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 13</n0:Item></XmlElement><XmlElement><n0:Item Index="14" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 14</n0:Item></XmlElement><XmlElement><n0:Item Index="15" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 15</n0:Item></XmlElement><XmlElement><n0:Item Index="16" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 16</n0:Item></XmlElement><XmlElement><n0:Item Index="17" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 17</n0:Item></XmlElement><XmlElement><n0:Item Index="18" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 18</n0:Item></XmlElement><XmlElement><n0:Item Index="19" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 19</n0:Item></XmlElement><XmlElement><n0:Item Index="20" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 20</n0:Item></XmlElement><XmlElement><n0:Item Index="21" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 21</n0:Item></XmlElement><XmlElement><n0:Item Index="22" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 22</n0:Item></XmlElement><XmlElement><n0:Item Index="23" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 23</n0:Item></XmlElement><XmlElement><n0:Item Index="24" xmlns:n0="http://opcfoundation.org/Quickstarts/ReferenceServer">Value 24</n0:Item></XmlElement></Elements></Matrix></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Scalar_Static_ArrayDynamic" BrowseName="1:Scalar_Static_ArrayDynamic" ParentNodeId="ns=1;s=Scalar_Static">
     <DisplayName Locale="en">ArrayDynamic</DisplayName>
@@ -57465,7 +57464,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_AnalogType_Float</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=885</Identifier></TypeId><Body><Range><Low>0</Low><High>0</High></Range></Body></ExtensionObject></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=885</Identifier></TypeId><Body><Range><Low>0</Low><High>100</High></Range></Body></ExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_AnalogType_DataAccess_AnalogType_Float_EngineeringUnits" BrowseName="EngineeringUnits" ParentNodeId="ns=1;s=DataAccess_AnalogType_Float" DataType="i=887" AccessLevel="3">
     <DisplayName>EngineeringUnits</DisplayName>
@@ -58697,7 +58696,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_ArrayItemType_YArray</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=12081</Identifier></TypeId><Body><AxisInformation><EngineeringUnits><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>0</UnitId><DisplayName><Text>s</Text></DisplayName><Description><Text>seconds</Text></Description></EngineeringUnits><EURange><Low>0</Low><High>100</High></EURange><Title><Locale>en</Locale><Text>X Axis</Text></Title><AxisSteps /></AxisInformation></Body></ExtensionObject></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=12081</Identifier></TypeId><Body><AxisInformation><EngineeringUnits><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>5457219</UnitId><DisplayName><Text>s</Text></DisplayName><Description><Text>second [unit of time]</Text></Description></EngineeringUnits><EURange><Low>0</Low><High>100</High></EURange><Title><Locale>en</Locale><Text>X Axis</Text></Title><AxisSteps /></AxisInformation></Body></ExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_ArrayItemType_DataAccess_ArrayItemType_YArray_EURange" BrowseName="EURange" ParentNodeId="ns=1;s=DataAccess_ArrayItemType_YArray" DataType="i=884" AccessLevel="3">
     <DisplayName>EURange</DisplayName>
@@ -58713,7 +58712,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_ArrayItemType_YArray</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=888</Identifier></TypeId><Body><EUInformation><UnitId>0</UnitId></EUInformation></Body></ExtensionObject></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=888</Identifier></TypeId><Body><EUInformation><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>12890</UnitId><DisplayName><Text>mV</Text></DisplayName><Description><Text>millivolt</Text></Description></EUInformation></Body></ExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_ArrayItemType_DataAccess_ArrayItemType_YArray_Title" BrowseName="Title" ParentNodeId="ns=1;s=DataAccess_ArrayItemType_YArray" DataType="LocalizedText">
     <DisplayName>Title</DisplayName>
@@ -58749,7 +58748,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_ArrayItemType_XYArray</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=12081</Identifier></TypeId><Body><AxisInformation><EngineeringUnits><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>0</UnitId><DisplayName><Text>s</Text></DisplayName><Description><Text>seconds</Text></Description></EngineeringUnits><EURange><Low>0</Low><High>100</High></EURange><Title><Locale>en</Locale><Text>X Axis</Text></Title><AxisSteps /></AxisInformation></Body></ExtensionObject></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=12081</Identifier></TypeId><Body><AxisInformation><EngineeringUnits><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>5457219</UnitId><DisplayName><Text>s</Text></DisplayName><Description><Text>second [unit of time]</Text></Description></EngineeringUnits><EURange><Low>0</Low><High>100</High></EURange><Title><Locale>en</Locale><Text>X Axis</Text></Title><AxisSteps /></AxisInformation></Body></ExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_ArrayItemType_DataAccess_ArrayItemType_XYArray_EURange" BrowseName="EURange" ParentNodeId="ns=1;s=DataAccess_ArrayItemType_XYArray" DataType="i=884" AccessLevel="3">
     <DisplayName>EURange</DisplayName>
@@ -58765,7 +58764,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_ArrayItemType_XYArray</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=888</Identifier></TypeId><Body><EUInformation><UnitId>0</UnitId></EUInformation></Body></ExtensionObject></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=888</Identifier></TypeId><Body><EUInformation><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>12890</UnitId><DisplayName><Text>mV</Text></DisplayName><Description><Text>millivolt</Text></Description></EUInformation></Body></ExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_ArrayItemType_DataAccess_ArrayItemType_XYArray_Title" BrowseName="Title" ParentNodeId="ns=1;s=DataAccess_ArrayItemType_XYArray" DataType="LocalizedText">
     <DisplayName>Title</DisplayName>
@@ -58802,7 +58801,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_ArrayItemType_Image</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=12081</Identifier></TypeId><Body><AxisInformation><EngineeringUnits><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>0</UnitId><DisplayName><Text>s</Text></DisplayName><Description><Text>seconds</Text></Description></EngineeringUnits><EURange><Low>0</Low><High>100</High></EURange><Title><Locale>en</Locale><Text>X Axis</Text></Title><AxisSteps /></AxisInformation></Body></ExtensionObject></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=12081</Identifier></TypeId><Body><AxisInformation><EngineeringUnits><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>5457219</UnitId><DisplayName><Text>s</Text></DisplayName><Description><Text>second [unit of time]</Text></Description></EngineeringUnits><EURange><Low>0</Low><High>100</High></EURange><Title><Locale>en</Locale><Text>X Axis</Text></Title><AxisSteps /></AxisInformation></Body></ExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_ArrayItemType_DataAccess_ArrayItemType_Image_YAxisDefinition" BrowseName="YAxisDefinition" ParentNodeId="ns=1;s=DataAccess_ArrayItemType_Image" DataType="i=12079" AccessLevel="3">
     <DisplayName>YAxisDefinition</DisplayName>
@@ -58810,7 +58809,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_ArrayItemType_Image</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=12081</Identifier></TypeId><Body><AxisInformation><EngineeringUnits><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>0</UnitId><DisplayName><Text>s</Text></DisplayName><Description><Text>seconds</Text></Description></EngineeringUnits><EURange><Low>0</Low><High>100</High></EURange><Title><Locale>en</Locale><Text>Y Axis</Text></Title><AxisSteps /></AxisInformation></Body></ExtensionObject></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=12081</Identifier></TypeId><Body><AxisInformation><EngineeringUnits><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>5457219</UnitId><DisplayName><Text>s</Text></DisplayName><Description><Text>second [unit of time]</Text></Description></EngineeringUnits><EURange><Low>0</Low><High>100</High></EURange><Title><Locale>en</Locale><Text>Y Axis</Text></Title><AxisSteps /></AxisInformation></Body></ExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_ArrayItemType_DataAccess_ArrayItemType_Image_EURange" BrowseName="EURange" ParentNodeId="ns=1;s=DataAccess_ArrayItemType_Image" DataType="i=884" AccessLevel="3">
     <DisplayName>EURange</DisplayName>
@@ -58826,7 +58825,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_ArrayItemType_Image</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=888</Identifier></TypeId><Body><EUInformation><UnitId>0</UnitId></EUInformation></Body></ExtensionObject></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=888</Identifier></TypeId><Body><EUInformation><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>12890</UnitId><DisplayName><Text>mV</Text></DisplayName><Description><Text>millivolt</Text></Description></EUInformation></Body></ExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_ArrayItemType_DataAccess_ArrayItemType_Image_Title" BrowseName="Title" ParentNodeId="ns=1;s=DataAccess_ArrayItemType_Image" DataType="LocalizedText">
     <DisplayName>Title</DisplayName>
@@ -58864,7 +58863,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_ArrayItemType_Cube</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=12081</Identifier></TypeId><Body><AxisInformation><EngineeringUnits><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>0</UnitId><DisplayName><Text>s</Text></DisplayName><Description><Text>seconds</Text></Description></EngineeringUnits><EURange><Low>0</Low><High>100</High></EURange><Title><Locale>en</Locale><Text>X Axis</Text></Title><AxisSteps /></AxisInformation></Body></ExtensionObject></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=12081</Identifier></TypeId><Body><AxisInformation><EngineeringUnits><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>5457219</UnitId><DisplayName><Text>s</Text></DisplayName><Description><Text>second [unit of time]</Text></Description></EngineeringUnits><EURange><Low>0</Low><High>100</High></EURange><Title><Locale>en</Locale><Text>X Axis</Text></Title><AxisSteps /></AxisInformation></Body></ExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_ArrayItemType_DataAccess_ArrayItemType_Cube_YAxisDefinition" BrowseName="YAxisDefinition" ParentNodeId="ns=1;s=DataAccess_ArrayItemType_Cube" DataType="i=12079" AccessLevel="3">
     <DisplayName>YAxisDefinition</DisplayName>
@@ -58872,7 +58871,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_ArrayItemType_Cube</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=12081</Identifier></TypeId><Body><AxisInformation><EngineeringUnits><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>0</UnitId><DisplayName><Text>s</Text></DisplayName><Description><Text>seconds</Text></Description></EngineeringUnits><EURange><Low>0</Low><High>100</High></EURange><Title><Locale>en</Locale><Text>Y Axis</Text></Title><AxisSteps /></AxisInformation></Body></ExtensionObject></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=12081</Identifier></TypeId><Body><AxisInformation><EngineeringUnits><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>5457219</UnitId><DisplayName><Text>s</Text></DisplayName><Description><Text>second [unit of time]</Text></Description></EngineeringUnits><EURange><Low>0</Low><High>100</High></EURange><Title><Locale>en</Locale><Text>Y Axis</Text></Title><AxisSteps /></AxisInformation></Body></ExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_ArrayItemType_DataAccess_ArrayItemType_Cube_ZAxisDefinition" BrowseName="ZAxisDefinition" ParentNodeId="ns=1;s=DataAccess_ArrayItemType_Cube" DataType="i=12079" AccessLevel="3">
     <DisplayName>ZAxisDefinition</DisplayName>
@@ -58880,7 +58879,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_ArrayItemType_Cube</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=12081</Identifier></TypeId><Body><AxisInformation><EngineeringUnits><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>0</UnitId><DisplayName><Text>s</Text></DisplayName><Description><Text>seconds</Text></Description></EngineeringUnits><EURange><Low>0</Low><High>100</High></EURange><Title><Locale>en</Locale><Text>Z Axis</Text></Title><AxisSteps /></AxisInformation></Body></ExtensionObject></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=12081</Identifier></TypeId><Body><AxisInformation><EngineeringUnits><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>5457219</UnitId><DisplayName><Text>s</Text></DisplayName><Description><Text>second [unit of time]</Text></Description></EngineeringUnits><EURange><Low>0</Low><High>100</High></EURange><Title><Locale>en</Locale><Text>Z Axis</Text></Title><AxisSteps /></AxisInformation></Body></ExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_ArrayItemType_DataAccess_ArrayItemType_Cube_EURange" BrowseName="EURange" ParentNodeId="ns=1;s=DataAccess_ArrayItemType_Cube" DataType="i=884" AccessLevel="3">
     <DisplayName>EURange</DisplayName>
@@ -58896,7 +58895,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_ArrayItemType_Cube</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=888</Identifier></TypeId><Body><EUInformation><UnitId>0</UnitId></EUInformation></Body></ExtensionObject></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=888</Identifier></TypeId><Body><EUInformation><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>12890</UnitId><DisplayName><Text>mV</Text></DisplayName><Description><Text>millivolt</Text></Description></EUInformation></Body></ExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_ArrayItemType_DataAccess_ArrayItemType_Cube_Title" BrowseName="Title" ParentNodeId="ns=1;s=DataAccess_ArrayItemType_Cube" DataType="LocalizedText">
     <DisplayName>Title</DisplayName>
@@ -58932,7 +58931,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_ArrayItemType_NDimension</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=12081</Identifier></TypeId><Body><AxisInformation><EngineeringUnits><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>0</UnitId><DisplayName><Text>s</Text></DisplayName><Description><Text>seconds</Text></Description></EngineeringUnits><EURange><Low>0</Low><High>100</High></EURange><Title><Locale>en</Locale><Text>X Axis</Text></Title><AxisSteps /></AxisInformation></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=12081</Identifier></TypeId><Body><AxisInformation><EngineeringUnits><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>0</UnitId><DisplayName><Text>s</Text></DisplayName><Description><Text>seconds</Text></Description></EngineeringUnits><EURange><Low>0</Low><High>100</High></EURange><Title><Locale>en</Locale><Text>Y Axis</Text></Title><AxisSteps /></AxisInformation></Body></ExtensionObject></ListOfExtensionObject></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=12081</Identifier></TypeId><Body><AxisInformation><EngineeringUnits><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>5457219</UnitId><DisplayName><Text>s</Text></DisplayName><Description><Text>second [unit of time]</Text></Description></EngineeringUnits><EURange><Low>0</Low><High>100</High></EURange><Title><Locale>en</Locale><Text>X Axis</Text></Title><AxisSteps /></AxisInformation></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=12081</Identifier></TypeId><Body><AxisInformation><EngineeringUnits><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>5457219</UnitId><DisplayName><Text>s</Text></DisplayName><Description><Text>second [unit of time]</Text></Description></EngineeringUnits><EURange><Low>0</Low><High>100</High></EURange><Title><Locale>en</Locale><Text>Y Axis</Text></Title><AxisSteps /></AxisInformation></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_ArrayItemType_DataAccess_ArrayItemType_NDimension_EURange" BrowseName="EURange" ParentNodeId="ns=1;s=DataAccess_ArrayItemType_NDimension" DataType="i=884" AccessLevel="3">
     <DisplayName>EURange</DisplayName>
@@ -58948,7 +58947,7 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;s=DataAccess_ArrayItemType_NDimension</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=888</Identifier></TypeId><Body><EUInformation><UnitId>0</UnitId></EUInformation></Body></ExtensionObject></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><TypeId><Identifier>i=888</Identifier></TypeId><Body><EUInformation><NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri><UnitId>12890</UnitId><DisplayName><Text>mV</Text></DisplayName><Description><Text>millivolt</Text></Description></EUInformation></Body></ExtensionObject></Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;s=DataAccess_ArrayItemType_DataAccess_ArrayItemType_NDimension_Title" BrowseName="Title" ParentNodeId="ns=1;s=DataAccess_ArrayItemType_NDimension" DataType="LocalizedText">
     <DisplayName>Title</DisplayName>
@@ -59227,10 +59226,20 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
       <Reference ReferenceType="Organizes">ns=1;s=AccessRights_AccessAll_RW_NotUser</Reference>
       <Reference ReferenceType="Organizes">ns=1;s=AccessRights_AccessAll_RO_User1_RW</Reference>
       <Reference ReferenceType="Organizes">ns=1;s=AccessRights_AccessAll_RO_Group1_RW</Reference>
+      <Reference ReferenceType="Organizes">ns=1;s=AccessRights_AccessAll_NonatomicReadWrite</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=AccessRights</Reference>
     </References>
   </UAObject>
+  <UAVariable NodeId="ns=1;s=AccessRights_AccessAll_NonatomicReadWrite" BrowseName="1:AccessRights_AccessAll_NonatomicReadWrite" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=AccessRights_AccessAll" DataType="Int32" AccessLevel="3">
+    <DisplayName Locale="en">NonatomicReadWrite</DisplayName>
+    <Description>Read/write variable whose AccessLevelEx advertises NonatomicRead and NonatomicWrite</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=AccessRights_AccessAll</Reference>
+    </References>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Int32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">0</Int32></Value>
+  </UAVariable>
   <UAVariable NodeId="ns=1;s=AccessRights_AccessAll_RO" BrowseName="1:AccessRights_AccessAll_RO" WriteMask="96" UserWriteMask="96" ParentNodeId="ns=1;s=AccessRights_AccessAll" DataType="Int16" AccessLevel="5" Historizing="true">
     <DisplayName Locale="en">RO</DisplayName>
     <Description>Default Description</Description>
@@ -60043,6 +60052,8 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
   <UAMethod NodeId="ns=1;s=Methods_Void" BrowseName="1:Methods_Void" ParentNodeId="ns=1;s=Methods">
     <DisplayName Locale="en">Void</DisplayName>
     <References>
+      <Reference ReferenceType="HasCause">ns=1;s=Methods_Add</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;s=Methods_Multiply</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=1;s=Methods</Reference>
     </References>
   </UAMethod>
@@ -60579,6 +60590,8 @@ ucclQekzV2XU/r54d++wA0fvXZkJ9Kqh7A93bFFRYA==</ByteString></Value>
   <UAView NodeId="ns=1;s=Views_Operations" BrowseName="1:Operations" ParentNodeId="ns=1;s=Views" ContainsNoLoops="true">
     <DisplayName Locale="en">Operations</DisplayName>
     <References>
+      <Reference ReferenceType="HasCause">ns=1;s=Views_Engineering</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;s=Views_Engineering</Reference>
       <Reference ReferenceType="Organizes">ns=1;s=Scalar_Static_Mass</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">i=87</Reference>
     </References>

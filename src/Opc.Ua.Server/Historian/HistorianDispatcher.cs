@@ -98,6 +98,19 @@ namespace Opc.Ua.Server.Historian
         }
 
         /// <summary>
+        /// Returns whether the provider historizes the node. A variable that the provider
+        /// does not historize has no history to read, so the read operations report
+        /// Bad_HistoryOperationUnsupported (Part 4 §5.11.3.4) instead of an empty result.
+        /// </summary>
+        private static ValueTask<bool> IsHistorizedAsync(
+            IHistorianProvider provider,
+            NodeState node,
+            CancellationToken cancellationToken)
+        {
+            return provider.IsHistorizingAsync(node.NodeId, cancellationToken);
+        }
+
+        /// <summary>
         /// Dispatches a single raw / modified history read against a
         /// historizing variable. Updates <paramref name="result"/> and
         /// returns the status code that should be assigned to the caller's
@@ -156,6 +169,12 @@ namespace Opc.Ua.Server.Historian
                     result.StatusCode = StatusCodes.BadContinuationPointInvalid;
                     result.ContinuationPoint = ByteString.Empty;
                     return ServiceResult.Good;
+                }
+
+                if (claim == null &&
+                    !await IsHistorizedAsync(provider, node, cancellationToken).ConfigureAwait(false))
+                {
+                    return StatusCodes.BadHistoryOperationUnsupported;
                 }
 
                 HistorianNodeCapabilities capabilities = await provider
@@ -679,6 +698,11 @@ namespace Opc.Ua.Server.Historian
                 claim?.Retire();
                 return StatusCodes.BadHistoryOperationUnsupported;
             }
+            if (claim == null &&
+                !await IsHistorizedAsync(provider, node, cancellationToken).ConfigureAwait(false))
+            {
+                return StatusCodes.BadHistoryOperationUnsupported;
+            }
             HistorianNodeCapabilities capabilities = await provider
                 .GetCapabilitiesAsync(node.NodeId, cancellationToken)
                 .ConfigureAwait(false);
@@ -1181,6 +1205,10 @@ namespace Opc.Ua.Server.Historian
             }
             if (provider is not IHistorianAtTimeProvider and
                 not IHistorianDataProvider)
+            {
+                return StatusCodes.BadHistoryOperationUnsupported;
+            }
+            if (!await IsHistorizedAsync(provider, node, cancellationToken).ConfigureAwait(false))
             {
                 return StatusCodes.BadHistoryOperationUnsupported;
             }

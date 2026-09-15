@@ -477,8 +477,24 @@ namespace Opc.Ua
                 return hits;
             }
 
-            // find the references.
-            Find(entry, isInverse, hits);
+            // find the references; several matches are returned in insertion order.
+            int count = entry.Count(isInverse);
+            if (count <= 1)
+            {
+                Find(entry, isInverse, hits);
+                return hits;
+            }
+
+            for (LinkedListNode<KeyValuePair<IReference, T>>? node = m_list.First;
+                node != null && hits.Count < count;
+                node = node.Next)
+            {
+                IReference reference = node.Value.Key;
+                if (reference.IsInverse == isInverse && reference.ReferenceTypeId == referenceTypeId)
+                {
+                    hits.Add(reference);
+                }
+            }
 
             return hits;
         }
@@ -506,11 +522,38 @@ namespace Opc.Ua
                 return hits;
             }
 
+            int count = 0;
             foreach (KeyValuePair<NodeId, ReferenceTypeEntry> entry in m_references)
             {
                 if (typeTree.IsTypeOf(entry.Key, referenceTypeId))
                 {
-                    Find(entry.Value, isInverse, hits);
+                    count += entry.Value.Count(isInverse);
+                }
+            }
+
+            if (count == 1)
+            {
+                foreach (KeyValuePair<NodeId, ReferenceTypeEntry> entry in m_references)
+                {
+                    if (entry.Value.Count(isInverse) > 0 && typeTree.IsTypeOf(entry.Key, referenceTypeId))
+                    {
+                        Find(entry.Value, isInverse, hits);
+                        break;
+                    }
+                }
+                return hits;
+            }
+
+            // several matches are returned in insertion order.
+            for (LinkedListNode<KeyValuePair<IReference, T>>? node = m_list.First;
+                node != null && hits.Count < count;
+                node = node.Next)
+            {
+                IReference reference = node.Value.Key;
+                if (reference.IsInverse == isInverse &&
+                    typeTree.IsTypeOf(reference.ReferenceTypeId, referenceTypeId))
+                {
+                    hits.Add(reference);
                 }
             }
 
@@ -869,6 +912,16 @@ namespace Opc.Ua
         /// </summary>
         private class ReferenceTypeEntry
         {
+            /// <summary>
+            /// Returns the number of references in one direction.
+            /// </summary>
+            public int Count(bool isInverse)
+            {
+                return isInverse
+                    ? (InverseTargets?.Count ?? 0) + (InverseExternalTargets?.Count ?? 0)
+                    : (ForwardTargets?.Count ?? 0) + (ForwardExternalTargets?.Count ?? 0);
+            }
+
             public NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>? ForwardTargets { get; set; }
             public Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>>? ForwardExternalTargets { get; set; }
             public NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>? InverseTargets { get; set; }

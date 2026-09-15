@@ -374,6 +374,9 @@ namespace Opc.Ua.Server.Tests.Historian
             BaseDataVariableState node = CreateVariable(nodeId);
             var provider = new Mock<IHistorianProvider>();
             provider
+                .Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+            provider
                 .Setup(value => value.GetCapabilitiesAsync(
                     nodeId,
                     It.IsAny<CancellationToken>()))
@@ -436,6 +439,9 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId("continued-node", 1);
             BaseDataVariableState node = CreateVariable(nodeId);
             var provider = new Mock<IHistorianProvider>();
+            provider
+                .Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
             provider
                 .Setup(value => value.GetCapabilitiesAsync(
                     nodeId,
@@ -526,6 +532,9 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId("continued-capability-node", 1);
             BaseDataVariableState node = CreateVariable(nodeId);
             var provider = new Mock<IHistorianProvider>();
+            provider
+                .Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
             provider
                 .SetupSequence(value => value.GetCapabilitiesAsync(
                     nodeId,
@@ -1257,6 +1266,9 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId("at-time-count", 1);
             BaseDataVariableState node = CreateVariable(nodeId);
             var provider = new Mock<IHistorianProvider>();
+            provider
+                .Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
             provider
                 .Setup(value => value.GetCapabilitiesAsync(
                     nodeId,
