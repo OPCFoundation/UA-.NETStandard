@@ -126,7 +126,9 @@ right place to materialize the context.
 
 Use the context directly when it is non-null. Use the extension methods
 when a context may be null; the returned instance is guaranteed to be
-non-null.
+non-null. Because `ITelemetryContext.CreateMeter()` shadows its extension,
+invoke the nullable meter fallback explicitly as
+`TelemetryExtensions.CreateMeter(telemetry)`.
 
 ```csharp
 // Obtain telemetry context
@@ -290,12 +292,12 @@ looks like:
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("opc-ua-client"))
     .WithTracing(t => t
-        .AddSource("Opc.Ua.Core")             // names used by stack ActivitySources
-        .AddSource("Opc.Ua.Client.Session")
+        .AddSource("Opc.Ua.Core*")            // assembly-qualified source names
+        .AddSource("Opc.Ua.Client*")
         .AddOtlpExporter())
     .WithMetrics(m => m
-        .AddMeter("Opc.Ua.Client.*")          // wildcard match for stack meters
-        .AddMeter("Opc.Ua.Server.*")
+        .AddMeter("Opc.Ua.Client*")            // assembly-qualified meter names
+        .AddMeter("Opc.Ua.Server*")
         .AddOtlpExporter());
 ```
 
