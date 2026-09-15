@@ -1924,7 +1924,7 @@ namespace Opc.Ua.Wot
             writer.WriteEndArray();
         }
 
-        private static UADataType[] CollectDataTypeNodes(UANodeSet nodeSet)
+        internal static UADataType[] CollectDataTypeNodes(UANodeSet nodeSet)
         {
             if (nodeSet.Items is null)
             {

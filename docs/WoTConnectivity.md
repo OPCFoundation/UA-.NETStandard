@@ -1241,6 +1241,16 @@ metadata remains literal. Distinct graph nodes cannot claim one native
 DataType identity. Malformed definition containers and reference shapes fail
 explicitly rather than disappearing during carriage.
 
+Known opaque members and literal `const`, `default`, `enum` and `examples`
+values retain their received JSON representation during projection, including
+duplicate literal keys, member order, whitespace, numeric spellings and string
+escapes. They are not materialized as mutable unique-key dictionaries or
+searched for semantic references. Comparison for definition reuse is separate
+from output preservation; an incomparable literal can be reused only when its
+received representation agrees exactly. Different opaque values are not merged.
+Semantic objects still require unique keys, and an unknown term does not
+automatically establish an opaque boundary.
+
 Definition discovery distinguishes declaration-map names from annotation
 predicates. Literal `const`, `default`, `enum` and `examples` values cannot
 declare a DataType or provide a local definition target; fields with those

@@ -565,6 +565,14 @@ from either and real companion models write it from the Object. An alias is
 resolved rather than emitted, since a name like `DataType="Structure"` means
 nothing outside the document that defines it.
 
+Opaque and literal members directly on a DataType definition are preserved as
+unmapped residue alongside the regenerated native facts. Their residue pointers
+use the generated definition order located through the resolved native DataType
+identity, not the authored collection index. Their original JSON bytes remain
+unchanged through projection and native round trips; mapped definition members
+are not copied into residue. Standard context references already emitted by the
+generator are not restored over its complete context array.
+
 **Known gap.** An inferred definition's own DataSchema terms
 (`uav:fieldOrder`, `properties`, `required`, `oneOf`) still travel as residue
 rather than being re-derived from the definition, so a document that relies on

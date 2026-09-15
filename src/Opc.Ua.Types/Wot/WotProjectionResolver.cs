@@ -1097,7 +1097,8 @@ namespace Opc.Ua.Wot
                     // is carried and absolutized instead.
                     continue;
                 }
-                target[member.Name] = CloneNode(member.Value);
+                target[member.Name] = IsLiteralMember(member.Name)
+                    ? CloneLiteral(member.Value) : CloneNode(member.Value);
                 if (member.Name is "title" or "description" &&
                     !CarryAnnotationLocale(
                         target, selection, annotations, member.Name, source, sourceDefinition, diagnostics))
@@ -1327,9 +1328,15 @@ namespace Opc.Ua.Wot
                         var schemas = new JsonObject();
                         foreach (JsonProperty schema in member.Value.EnumerateObject())
                         {
-                            schemas[schema.Name] = CloneNode(schema.Value);
+                            JsonNode? schemaValue = CloneNode(schema.Value);
+                            PreserveLiteralValues(schemaValue, projectionDocument, schema.Value);
+                            schemas[schema.Name] = schemaValue;
                         }
                         root["schemaDefinitions"] = schemas;
+                        break;
+                    case "uriVariables":
+                        // The variable closure reconciles duplicate declarations before copying their owned schemas.
+                        root[member.Name] = CloneNode(member.Value);
                         break;
                     case "uav:projects":
                     case "uav:projectionKind":
@@ -1339,7 +1346,11 @@ namespace Opc.Ua.Wot
                     case "securityDefinitions":
                         break;
                     default:
-                        root[member.Name] = CloneNode(member.Value);
+                        JsonNode? cloned = IsLiteralMember(member.Name)
+                            ? CloneLiteral(member.Value) : CloneNode(member.Value);
+                        PreserveLiteralValues(cloned, projectionDocument, member.Value,
+                            projectionDocument.IsContextIndexMap(member.Name, projectionDocument.RootElement));
+                        root[member.Name] = cloned;
                         break;
                 }
             }
@@ -1847,7 +1858,7 @@ namespace Opc.Ua.Wot
                 }
                 if (!present)
                 {
-                    array.Add(resultType);
+                    array.Add(JsonValue.Create(resultType));
                 }
             }
             return array;
@@ -2254,24 +2265,31 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Clones a node by round-tripping it through its serialised form.
+        /// Clones a node without losing its immutable raw-value leaves.
         /// </summary>
-        /// <remarks>
-        /// Written with <see cref="WriteNode"/> rather than
-        /// <c>JsonNode.ToJsonString()</c>, which serialises a CLR-backed value
-        /// through the default <see cref="JsonSerializerOptions"/>. Those
-        /// options carry no type resolver in a Native AOT application, so
-        /// cloning a node holding a plain string throws there while working in
-        /// a reflection-enabled test host.
-        /// </remarks>
         private static JsonNode? CloneNode(JsonNode node)
         {
-            using var buffer = new MemoryStream();
-            using (var writer = new Utf8JsonWriter(buffer))
+            if (node is JsonObject value)
             {
-                WriteNode(writer, node);
+                var copy = new JsonObject();
+                foreach (KeyValuePair<string, JsonNode?> member in value)
+                {
+                    copy[member.Key] = member.Value is null ? null : CloneNode(member.Value);
+                }
+                return copy;
             }
-            return JsonNode.Parse(buffer.ToArray());
+            if (node is JsonArray array)
+            {
+                var copy = new JsonArray();
+                foreach (JsonNode? item in array)
+                {
+                    copy.Add(item is null ? null : CloneNode(item));
+                }
+                return copy;
+            }
+            return node is JsonValue scalar && scalar.TryGetValue(out PreservedLiteral literal)
+                ? CloneLiteral(literal.Value)
+                : node.DeepClone();
         }
 
         private static JsonObject CloneObject(JsonElement element)
@@ -2310,8 +2328,15 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Writes one node of a projection tree without reflection.
         /// </summary>
-        private static void WriteNode(Utf8JsonWriter writer, JsonNode? node)
+        private static void WriteNode(
+            Utf8JsonWriter writer, JsonNode? node, bool literal = false, bool indexMap = false)
         {
+            if (literal && node is not null)
+            {
+                // Parsed literal nodes retain duplicate members without materializing a unique-key dictionary.
+                node.WriteTo(writer);
+                return;
+            }
             switch (node)
             {
                 case null:
@@ -2322,7 +2347,12 @@ namespace Opc.Ua.Wot
                     foreach (KeyValuePair<string, JsonNode?> member in o)
                     {
                         writer.WritePropertyName(member.Key);
-                        WriteNode(writer, member.Value);
+                        WriteNode(writer, member.Value,
+                            literal: !indexMap && ((member.Key != "@context" &&
+                                WotDocument.IsSemanticBoundary(member.Key)) ||
+                                WotNodeSetConverter.IsLiteralSchemaMember(member.Key)),
+                            indexMap: !indexMap && (WotNodeSetConverter.IsSchemaDeclarationMap(member.Key) ||
+                                member.Key == "securityDefinitions"));
                     }
                     writer.WriteEndObject();
                     break;
@@ -2347,7 +2377,12 @@ namespace Opc.Ua.Wot
         /// <exception cref="NotSupportedException"></exception>
         private static void WriteValue(Utf8JsonWriter writer, JsonValue value)
         {
-            if (value.TryGetValue(out JsonElement element))
+            if (value.TryGetValue(out PreservedLiteral literal))
+            {
+                // The complete result is parsed afterward to enforce combined size and nesting limits.
+                writer.WriteRawValue(literal.Value.GetRawText(), skipInputValidation: true);
+            }
+            else if (value.TryGetValue(out JsonElement element))
             {
                 element.WriteTo(writer);
             }
