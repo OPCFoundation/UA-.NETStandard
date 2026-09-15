@@ -1278,7 +1278,7 @@ namespace Opc.Ua.XRegistry.Server
         /// <summary>
         /// Mirrors the selected Version's inherited FileType Properties onto its logical Resource.
         /// </summary>
-        private static void MirrorFileTypeProperties(ResourceState target, ResourceState source)
+        internal static void MirrorFileTypeProperties(ResourceState target, ResourceState source)
         {
             if (source.Size is not null)
             {

@@ -275,7 +275,7 @@ namespace Opc.Ua.XRegistry.Tests
             ResourceState first = await CreateCommittedResourceAsync(manager, "a").ConfigureAwait(false);
             ResourceState second = await CreateCommittedResourceAsync(manager, "b", ByteString.From([5, 6, 7, 8]))
                 .ConfigureAwait(false);
-            var group = (GroupState)first.Parent!;
+            GroupState group = GroupOf(first);
             var originalNodes = new List<NodeState>();
             CollectNodes(group, manager.SystemContext, originalNodes);
             NodeState fastPath = manager.Find(new NodeId(
@@ -321,7 +321,7 @@ namespace Opc.Ua.XRegistry.Tests
                 .ConfigureAwait(false);
             ResourceState resource = await CreateCommittedResourceAsync(manager).ConfigureAwait(false);
             string storeKey = resource.NodeId.ToString();
-            var group = (GroupState)resource.Parent!;
+            GroupState group = GroupOf(resource);
             bool fail = true;
             store.Setup(s => s.DeleteAsync(storeKey, It.IsAny<CancellationToken>()))
                 .Returns((string key, CancellationToken ct) => fail
@@ -358,7 +358,7 @@ namespace Opc.Ua.XRegistry.Tests
             ResourceState deleted = await CreateCommittedResourceAsync(manager, "a").ConfigureAwait(false);
             ResourceState target = await CreateCommittedResourceAsync(manager, "b", ByteString.From([5, 6, 7, 8]))
                 .ConfigureAwait(false);
-            var group = (GroupState)target.Parent!;
+            GroupState group = GroupOf(target);
             uint handle = 0;
             if (operation == "close")
             {
@@ -427,7 +427,7 @@ namespace Opc.Ua.XRegistry.Tests
             ResourceState first = await CreateCommittedResourceAsync(manager, "a").ConfigureAwait(false);
             ResourceState second = await CreateCommittedResourceAsync(manager, "b", ByteString.From([5, 6, 7, 8]))
                 .ConfigureAwait(false);
-            var group = (GroupState)first.Parent!;
+            GroupState group = GroupOf(first);
             NodeState firstFastPath = manager.Find(new NodeId(
                 ByteString.From([1, 2, 3, 4]), first.NodeId.NamespaceIndex))!;
             NodeState secondFastPath = manager.Find(new NodeId(
@@ -461,7 +461,7 @@ namespace Opc.Ua.XRegistry.Tests
             using XRegistryRegistrationNodeManager manager = await CreateRegistrationAsync(new InMemoryResourceStore())
                 .ConfigureAwait(false);
             ResourceState resource = await CreateCommittedResourceAsync(manager).ConfigureAwait(false);
-            var group = (GroupState)resource.Parent!;
+            GroupState group = GroupOf(resource);
             NodeState changedNode = duringCreation ? group : resource.OpenCount!;
             changedNode.OnStateChangedAsync = (_, _, _, _) =>
                 throw new InvalidOperationException("Injected notification failure.");
@@ -906,6 +906,16 @@ namespace Opc.Ua.XRegistry.Tests
             {
                 CollectNodes(child, context, nodes);
             }
+        }
+
+        private static GroupState GroupOf(ResourceState version)
+        {
+            Assert.That(version.Parent, Is.TypeOf<ResourceVersionsState>());
+            var versions = (ResourceVersionsState)version.Parent!;
+            Assert.That(versions.Parent, Is.TypeOf<ResourceState>());
+            var logical = (ResourceState)versions.Parent!;
+            Assert.That(logical.Parent, Is.TypeOf<GroupState>());
+            return (GroupState)logical.Parent!;
         }
 
         private static RegistryState RegistryOf(XRegistryRegistrationNodeManager manager)

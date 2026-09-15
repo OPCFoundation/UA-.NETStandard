@@ -297,10 +297,9 @@ namespace Opc.Ua.WotCon.Client
         }
 
         /// <summary>
-        /// Calls <c>Delete</c> on the resource node. When the node is the current
-        /// default Version mapped from the logical Resource, this deletes the
-        /// Resource and all Versions using the Resource Meta epoch. Otherwise,
-        /// it deletes only this Version using the Version epoch.
+        /// Calls <c>Delete</c> on the addressed role. A logical Resource uses its
+        /// Meta epoch and removes its Versions. An exact Version uses its own
+        /// epoch and deletes only that Version, including when it is the default.
         /// </summary>
         public ValueTask DeleteAsync(uint expectedEpoch, CancellationToken ct = default)
         {

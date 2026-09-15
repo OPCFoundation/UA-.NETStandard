@@ -859,9 +859,10 @@ OPC 10101 target mapping is authored on property affordances, not forms. `uav:ma
 The stable `WoTRegistryNodeManager` materializes the registry snapshot as a browseable object tree and wires the inherited xRegistry / registry Methods:
 
 * For every service group a `ThingDescriptionGroupType` or
-  `ThingModelGroupType` object is created beneath `WoTRegistry`, and for
-  every resource its `ThingDescriptionFileType` / `ThingModelFileType`
-  document node is created beneath the group. NodeIds are stable and
+  `ThingModelGroupType` object is created beneath `WoTRegistry`. Each group
+  organizes stable logical `ThingDescriptionFileType` / `ThingModelFileType`
+  Resources. A logical Resource owns a typed `ResourceVersionsType` container
+  whose children are distinct exact Version document nodes. NodeIds are stable and
   deterministic, derived from the registry Xid (for example
   `WoTRegistry/groups/{groupId}/resources/{resourceId}`). The projection is
   reconciled on every registry `Changed` event — including projection-only
@@ -871,23 +872,41 @@ The stable `WoTRegistryNodeManager` materializes the registry snapshot as a brow
   description/timestamps/format/content type, desired/default/active
   version, enabled/load state, validation outcome, content digest,
   materialized-node count, the materialized `RootNodeId`, and selected
-  bindings). `HasNotifier` references chain `WoTRegistry` → group → resource
-  → `Server`, and resource lifecycle failure events are sourced at the
-  specific resource node (the registry object remains the source for the
+  bindings). Resource Meta owns membership/default selection, Meta labels and
+  Meta epochs/timestamps; each Version owns its bytes, Version labels, epoch,
+  timestamps and validation result. Logical non-Meta fields and new file Opens
+  select the default, not the active or desired Version. `HasNotifier` references
+  chain Server -> WoTRegistry -> group -> logical Resource -> exact Version.
+  Resource lifecycle events use the logical node and Version events use the
+  exact node (the registry object remains the source for the
   refresh-completed summary event).
 * The xRegistry `CreateGroup` / `GetOrCreateGroup` (on `WoTRegistry`),
   `CreateResource` / `GetOrCreateResource` / `Delete` (on a group) and the
   document `Delete`, `Validate`, `SetEnabled` and `SetDefaultVersion` (on a
   resource) Methods are wired to the registry service, enforcing
   `ExpectedEpoch` optimistic concurrency and the management access policy.
+  Logical Delete uses MetaEpoch and removes the Resource; exact Version Delete
+  uses that Version's Epoch even when the Version is currently default or has
+  the same id as its Resource. Domain lifecycle policy still applies.
   Registry mutations require a `SignAndEncrypt` SecureChannel; deployments
   may separately permit read-only registry access over `SecurityMode.None`.
 * The inherited FileType (`Open` / `Read` / `Write` / `Close` /
   `GetPosition` / `SetPosition`) transfers the document body with
-  per-session handles, a single exclusive writer and bounds. Closing a
-  write handle commits the buffer as a new version; a document that fails
-  validation is still stored as an invalid version so the bytes are never
-  lost and the previous active projection is retained.
+  per-session handles, a single exclusive writer and bounds. A logical handle
+  remains pinned to the exact Version selected at Open, including its cursor
+  and writer reservation. Creating a Version and committing its bytes are
+  separate operations; writing an existing exact Version does not silently
+  create another one. A rejected v2 activation can leave v1 active while v2
+  remains the selected default: new logical reads return v2, while an old v1
+  handle still reads v1.
+* Retention and restart use the existing WoT service and FileStore contracts,
+  not new generic registrar options. At a retention limit of two, active,
+  default, independently desired and incoming Versions must fit; a commit or
+  allocation that cannot retain them is rejected. Pending allocation does not
+  evict committed content, and pending Close applies retention atomically.
+  Schema-5 persistence retains the applicable selections and pending state.
+  File pins and reader/writer exclusion remain Session-scoped; this change
+  does not introduce a separate provider-wide retention-lease API.
 * Every browseable registry/group/resource node also carries the inherited
   optional `Labels` (`AttributesType`) container. Each label is persisted as
   an ordinally-ordered key/value pair on the owning `WotRegistrySnapshot` /
@@ -896,8 +915,8 @@ The stable `WoTRegistryNodeManager` materializes the registry snapshot as a brow
   `WoTRegistry/groups/{groupId}/labels/{key}`) and a safe, collision-checked
   BrowseName. The container's `AddAttribute(Key, Value, ExpectedEpoch)` and
   `RemoveAttribute(Key, ExpectedEpoch)` Methods enforce the management access
-  policy, optimistic-concurrency `ExpectedEpoch` (the group/resource's own
-  epoch; the registry singleton has no separate epoch so its Labels compare
+  policy, optimistic-concurrency `ExpectedEpoch` (Group Epoch, Version Epoch,
+  or logical Resource MetaEpoch according to the addressed owner; the registry Labels compare
   against the snapshot `Generation`), the configured
   `WotRegistryPersistenceBounds` (`MaxLabelsPerEntity`,
   `MaxLabelKeyLength`, `MaxLabelValueLength`) and reject invalid/control/BIDI/
@@ -911,10 +930,11 @@ The stable `WoTRegistryNodeManager` materializes the registry snapshot as a brow
   restart and file-store reload (persisted alongside their owning
   group/resource, and — for the registry-level set — in a small
   `registry.json`) and remain visible after every projection reconciliation.
-  Version-level labels are stored on the immutable `WotResourceVersion`
-  model for API completeness but are not materialized as a separate
-  AddressSpace node, since the xRegistry model does not define a
-  `VersionType.Labels` container (only Registry/Group/Resource expose one).
+  Version-level labels are stored on the immutable `WotResourceVersion` and
+  materialized beneath each exact Version's `Labels` container. The logical
+  `Labels` view follows the default Version; `MetaLabels` is independently
+  Resource-owned. Identical bytes/labels leave owned epochs and timestamps
+  unchanged. See [xRegistry roles and default views](XRegistry.md#resource-meta-and-default-version-views).
 
 ### 11.8 Binding-vocabulary alignment (NodeSet2 ↔ WoT)
 
@@ -1030,7 +1050,7 @@ not by copying the source document. The readable surface tracks the current
 * `CreateDocumentGroupAsync(kind, catalogUri)` / `GetOrCreateDocumentGroupAsync` use the generated typed Methods. Group-specific typed resource entrypoints accept exact ThingId/ModelId; `CreateDocumentResourceAsync` / `GetOrCreateDocumentResourceAsync` select the receiver's typed Method. Every typed call verifies its namespace-qualified receiver, complete scalar argument layout and Executable/UserExecutable attributes. There is no generic fallback.
 * The older `CreateThingDescriptionGroupAsync` / `CreateThingModelGroupAsync` conveniences and their GetOrCreate counterparts retain the inherited generic signatures and therefore require the corresponding explicit server binding for a new group. They discover the returned type and read the actual assigned GroupId instead of treating the supplied alias as an allocation.
 * `WotRegistryGroupClient.CreateResourceAsync` / `GetOrCreateResourceAsync` call the group's `CreateResource` / `GetOrCreateResource` Methods and return a `WotRegistryResourceClient` plus the server-assigned version id.
-* `WotRegistryResourceClient.UploadNewVersionAsync(ByteString | Stream, …)` uploads a new document version through the inherited `FileType` `Open(Write|EraseExisting)` → `Write` → `Close` primitives (the same `FileTypeClientExtensions` used elsewhere in this package); closing the write handle commits the buffer as a new resource version. `DownloadAsync` reads the active/default version back through the shared xRegistry `ResourceTypeClientExtensions.ReadDocumentAsync` helper — a WoT document resource *is* an xRegistry `ResourceType`, so the shared helper applies directly to the generated proxy — and `DownloadToAsync` streams it into a caller-owned `Stream`. `ValidateAsync`, `SetEnabledAsync`, `SetDefaultVersionAsync` and `DeleteAsync` call the matching document Methods.
+* `WotRegistryResourceClient.UploadNewVersionAsync(ByteString | Stream, …)` allocates a new document Version and uploads through the inherited `FileType` `Open(Write|EraseExisting)` -> `Write` -> `Close` primitives (the same `FileTypeClientExtensions` used elsewhere in this package). `DownloadAsync` reads the addressed exact Version, or the selected default when addressed through a logical Resource, using the shared xRegistry document helper; it does not prefer the active Version. `DownloadToAsync` streams into a caller-owned `Stream`. `ValidateAsync`, `SetEnabledAsync`, `SetDefaultVersionAsync` and `DeleteAsync` call the matching document Methods.
 * `WotRegistryClient.RefreshAsync` / `RefreshAllAsync` call the generated `Refresh` Method and return a typed `WotRegistryRefreshResult` (`Summary`, `Results`, `NewGeneration`, `HasFailures`, `EnsureSuccess()`).
 * `WotRegistryClient.LoadDocumentsAsync` loads a caller-supplied `ArrayOf<WotRegistryDocument>` (an immutable `Kind`/`GroupId`/`ResourceId`/`Content` (`ByteString`)/`VersionId` descriptor), get-or-creating each target group/resource and uploading its content, then optionally calls `RefreshAllAsync` — one workflow. Thing Models are always processed before Thing Descriptions (preserving the caller's relative order within each kind) so referenced models are materialised before the descriptions that depend on them. A mutation failure or a group/document kind mismatch aborts immediately (`ServiceResultException`); a refresh failure is *not* thrown — it is surfaced on the returned `WotRegistryBulkLoadResult.Refresh` for the caller to inspect, since a partial refresh outcome is legitimate application data.
 

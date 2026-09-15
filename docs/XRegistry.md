@@ -76,17 +76,22 @@ has happened.
 ### Registration lifecycle and auto-bootstrap
 
 The registry serves the model's own Methods. A registry root (`RegistryType`) is materialized from
-the compiled model, and groups and resource versions are created beneath it at runtime:
+the compiled model. Each Group organizes stable logical Resources; each logical Resource has a
+typed `ResourceVersionsType` container that organizes its exact Version files (`ResourceType`).
+The logical Resource is also a `ResourceType`, but is not one of its own Versions.
 
 1. **`RegistryType.CreateGroup(GroupId)`** returns the new group's NodeId; `GetOrCreateGroup`
    is the idempotent form and also reports `Created`.
 2. **`GroupType.CreateResource(ResourceId, VersionId, RequestFileOpen)`** creates a resource
    version and returns `(ResourceNodeId, AssignedVersionId, FileHandle)`. An empty `VersionId`
-   lets the server assign the next one; `GetOrCreateResource` additionally reports `Created`.
-   A non-empty `VersionId` is preserved exactly and must be 1-128 characters: the first
+   lets the server assign the next one. `GetOrCreateResource` additionally reports `Created`;
+   an explicit id returns or creates that exact Version, while an empty id returns the existing
+   Resource's selected default, or creates its first assigned Version if absent. Both return the
+   **exact Version NodeId**, not the logical Resource NodeId.
+   The WoT domain additionally validates a non-empty `VersionId` as 1-128 characters: the first
    character is an ASCII letter, digit, or `_`, and subsequent characters may additionally use
    `-`, `.`, `~`, `:`, or `@`. Lookup is case-sensitive, while sibling Version ids must be unique
-   without regard to case. A Resource may have one contentless pending Version while an upload is
+   without regard to case. In that domain, a Resource may have one contentless pending Version while an upload is
    open. Allocating it never evicts committed content; retention is applied atomically when the
    upload closes, and a close that cannot preserve active/default/desired Versions is rejected.
    An empty Version id reuses that pending Version after an abort or restart; requesting a
@@ -99,14 +104,60 @@ the compiled model, and groups and resource versions are created beneath it at r
    increments that Version's `Epoch`, updates its `ModifiedAt`, and publishes or updates the
    reference-counted Opaque fast-path node. Clean, aborted, rejected, empty, and byte-identical
    closes perform no store rewrite and change no metadata.
-5. **`Delete(ExpectedEpoch)`** on a resource or a group removes it. The epoch is an
-   optimistic-concurrency check: a caller holding a stale epoch is rejected with
-   `Bad_InvalidState` rather than deleting a newer version. Passing `0` disables the check, which
-   is how a caller deliberately forces the operation without having read the entity first.
+5. **`Delete(ExpectedEpoch)`** on an exact Version uses its `Epoch` and deletes only that Version,
+   even when it is the default or its VersionId equals the ResourceId. Logical Resource Delete
+   uses `MetaEpoch` and removes its Versions; Group Delete uses the Group's `Epoch`.
+   The last Version's removal also removes its generic logical Resource. Domain lifecycle
+   policies may further restrict deletion. A stale nonzero guard returns `Bad_InvalidState`;
+   passing `0` deliberately disables the guard.
 
 Registration commits Resource and Version structural identity before the create Method returns.
 When `RequestFileOpen` is true, a later dirty `Close` is a separate mutation; it updates the Version
 but does not repeat the create operation or its events.
+
+### Resource Meta and default-Version views
+
+| Role | Owned state |
+| --- | --- |
+| Logical Resource Meta | Version membership, default selection, `MetaLabels`, `MetaEpoch`, `MetaCreatedAt`, `MetaModifiedAt` |
+| Exact Version | Document bytes, `Labels`, `Epoch`, `CreatedAt`, `ModifiedAt`, format/content metadata, and domain validation metadata |
+| Logical non-Meta view | Delegates to the selected **default** Version; it does not choose the active or desired Version |
+
+Meta fields on generic exact-Version nodes remain synchronized compatibility views, not independent
+owners. A default-only selection change advances Meta, not either Version's epoch. Version content
+or label changes advance only that Version's owned state; if it is the default, the logical view is
+updated too. Byte-identical accepted writes followed by Close and identical label additions leave
+owned epochs/timestamps unchanged and emit no mutation events.
+
+New logical Opens resolve the default under the registrar's existing file gate. The existing handle
+entry pins both the exact Version and the caller's file identity, so a later default change cannot
+redirect its reads, cursor, writes or Close. Logical and direct access share the same Session checks,
+writer reservations and content store. Closing an old pin does not replace the current default view.
+
+For the generic registrar, newly created Versions become the default; GetOrCreate of an existing
+explicit Version does not change the default. WoT preserves its own selection policy and exposes
+`SetDefaultVersion` separately. Generic options do **not** define active/desired selection,
+per-resource retention or metadata reload. Persisting bytes through `IXRegistryResourceStore` alone
+does not restore the generic address-space metadata after restart. Use the existing
+[WoT registry service and persistence](WoTConnectivity.md#112-registry-service-and-persistence)
+for those domain contracts; this registrar does not invent a retention-lease or reload API.
+
+**Browse compatibility:** clients that previously searched for flattened `resource:version` Group
+children must browse the logical Resource, then its typed `Versions` container. Existing numeric
+method/type IDs and argument layouts are unchanged. Structural Xids remain independent of content
+keys, and equal bytes share only the content fast path, never entity nodes.
+
+For example, the generated proxies return exact Versions while preserving an existing default:
+
+```csharp
+GroupTypeClient group = client.GetGroup(groupNodeId);
+(NodeId v7, _, _) = await group.CreateResourceAsync("pump", "v7", false, ct).ConfigureAwait(false);
+(NodeId v8, _, _) = await group.CreateResourceAsync("pump", "v8", false, ct).ConfigureAwait(false);
+(NodeId selected, string versionId, uint handle, bool created) =
+    await group.GetOrCreateResourceAsync("pump", string.Empty, false, ct).ConfigureAwait(false);
+// selected == v8, versionId == "v8", handle == 0, created == false.
+// v7 and v8 are distinct children of pump's Versions container.
+```
 
 ### Source-derived identifier allocation
 
@@ -140,7 +191,7 @@ committed generation.
 
 ### File open modes
 
-The handle returned by `CreateResource` / `GetOrCreateResource` is opened with **EraseExisting**
+The generic registrar's handle returned by `CreateResource` / `GetOrCreateResource` uses **EraseExisting**
 semantics — a newly created version starts empty. `GetOrCreateResource` returns a write handle for an
 *existing* version too, so a caller can replace its document in the same call; a caller that only
 wanted to look the version up closes that handle without writing, which releases it and leaves the
@@ -155,11 +206,13 @@ Read = 1, Write = 2, EraseExisting = 4, Append = 8):
 | `Write \| EraseExisting` | Replace the document wholesale. |
 | `Write \| Append` | Start from the stored bytes with the cursor at the end. |
 | `Write` | Start from the stored bytes with the cursor at 0 — writes replace only the range they cover and **do not** truncate the remainder. |
+| `Read \| Write` | Share one cursor over the staged bytes, starting from committed content. |
 
-A mode requesting neither read nor write, both together, or `EraseExisting`/`Append` without `Write`
+A mode requesting neither read nor write, reserved mode bits, or `EraseExisting` without `Write`
 is rejected with `Bad_InvalidArgument`. Each Version permits one writer; a second write open fails
 with `Bad_NotWritable`, and a read open while that writer is active fails with `Bad_NotReadable`.
-A handle is valid only on the resource *and* the session that opened it, and a session's handles are
+Existing readers also exclude a writer, including across logical/direct aliases. A handle is valid
+only on the file object *and* the Session that opened it, and a Session's handles are
 released when it closes. `EraseExisting` stages an empty buffer but does not mutate the committed
 file until a dirty `Close`.
 
@@ -328,14 +381,16 @@ digest may still be used by the remote NodeId or a local cache, but it never rep
 `RegistryType`, `GroupType` and each Version `ResourceType` expose a `Labels` Object of type
 `AttributesType`. Version label Methods use that Version's `Epoch`, increment it, update Version
 `ModifiedAt`, and emit `VersionUpdated` when events are enabled. Resource Meta is distinct:
-`MetaEpoch`, `MetaLabels`, `MetaCreatedAt`, and `MetaModifiedAt` are synchronized across the
-Resource's Version files. Meta label Methods use `MetaEpoch`, update only Resource Meta, and emit
+`MetaEpoch`, `MetaLabels`, `MetaCreatedAt`, and `MetaModifiedAt` are owned by the logical Resource
+and mirrored on its generic Version files. The logical `Labels` container forwards mutations to
+the default Version using that Version's epoch. Meta label Methods use `MetaEpoch`, update only Resource Meta, and emit
 `ResourceUpdated`. Adding or removing a Version advances Resource Meta; modifying Version bytes or
-Version labels does not.
+Version labels does not. Repeating an identical label is a no-op; removing a missing label returns
+`Bad_NotFound` without moving owned state or emitting a mutation event.
 
 ### Native xRegistry events
 
-The xRegistry 0.5.0 model includes `XRegistryEventType` and the 19 concrete registry, model,
+The xRegistry 0.7.0 companion model includes `XRegistryEventType` and the 19 concrete registry, model,
 capabilities, group, resource and version event types. The model source generator emits the typed
 `*EventState`, `*EventTypeRecord` and `EventFilters.Build(...)` surfaces directly from the NodeSet.
 Applications subscribe with the standard OPC UA event APIs; there is no separate xRegistry
@@ -361,9 +416,9 @@ the changed entity xid. The generic stack leaves `CorrelationId` absent because 
 do not return a corresponding correlation value.
 
 `SourceNode` identifies the native AddressSpace source rather than the registry URL. A version event
-uses that version's `ResourceType` file. A resource event uses the committed default-version file,
-including the new default after a switch; consequently `ResourceCreated` and the first
-`VersionCreated` share the first/default file. Registry, model, modelsource, and capabilities events
+uses that Version's exact `ResourceType` file. A Resource event uses the stable logical Resource,
+including after default changes; `ResourceCreated` and `VersionCreated` therefore have distinct
+sources. Registry, model, modelsource, and capabilities events
 always use the registry root. A deleted event retains the removed source's former `SourceNode` and
 `SourceName`, but is reported through the nearest surviving notifier so subscriptions continue to
 receive it.

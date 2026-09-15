@@ -229,6 +229,58 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
+        public async Task ClosingPendingVersionAtLimitTwoProtectsDistinctDesiredVersionAsync()
+        {
+            var bounds = new WotRegistryPersistenceBounds { MaxVersionsPerResource = 2 };
+            var store = new RecordingRegistryStore();
+            string pendingVersionId;
+            using (var service = new WotRegistryService(store, bounds))
+            {
+                await CreateCommittedVersionsAsync(service, "desired-two", "v1", "v2").ConfigureAwait(false);
+                await SetActiveVersionAsync(service, "desired-two", "v1").ConfigureAwait(false);
+                (WotResource Resource, WotResourceVersion Version)? created = await service.TryCreateVersionAsync(
+                    WotRegistryGroups.ThingDescriptions,
+                    "desired-two",
+                    "v3",
+                    WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
+                Assert.That(created, Is.Not.Null);
+                pendingVersionId = created!.Value.Version.VersionId;
+                WotRegistrySnapshot snapshot = service.Current;
+                WotResource resource = snapshot.FindResource(
+                    WotRegistryGroups.ThingDescriptions, "desired-two")!;
+                store.SetSnapshot(ReplaceResource(snapshot, resource.With(desiredVersionId: "v2")));
+            }
+
+            using var reloaded = new WotRegistryService(store, bounds);
+            await reloaded.InitializeAsync().ConfigureAwait(false);
+            WotRegistrySnapshot before = reloaded.Current;
+            store.BlobStore.ResetWriteCount();
+            WotRegistryMutationResult result = await reloaded.UpsertResourceAsync(
+                Request(
+                    "desired-two",
+                    TestMaterialization.Td("urn:desired-two", "third"),
+                    pendingVersionId,
+                    setAsDefault: false,
+                    expectedDigestHex: string.Empty)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
+                Assert.That(reloaded.Current, Is.SameAs(before));
+                Assert.That(store.BlobStore.WriteCount, Is.Zero);
+                WotResource resource = reloaded.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions, "desired-two")!;
+                Assert.That(resource.ActiveVersionId, Is.EqualTo("v1"));
+                Assert.That(resource.DefaultVersionId, Is.EqualTo("v1"));
+                Assert.That(resource.DesiredVersionId, Is.EqualTo("v2"));
+                Assert.That(resource.Versions.Count(version => version.HasContent), Is.EqualTo(2));
+                Assert.That(resource.FindVersion("v1"), Is.Not.Null);
+                Assert.That(resource.FindVersion("v2"), Is.Not.Null);
+                Assert.That(resource.FindVersion(pendingVersionId)!.HasContent, Is.False);
+            });
+        }
+
+        [Test]
         public async Task ClosingPendingVersionProtectsDesiredVersion()
         {
             var bounds = new WotRegistryPersistenceBounds { MaxVersionsPerResource = 3 };

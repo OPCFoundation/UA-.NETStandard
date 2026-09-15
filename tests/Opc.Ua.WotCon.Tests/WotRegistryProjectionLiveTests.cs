@@ -73,7 +73,7 @@ namespace Opc.Ua.WotCon.Tests
             m_telemetry = NUnitTelemetryContext.Create();
             m_pkiRoot = Path.Combine(
                 Path.GetTempPath(),
-                nameof(WotRegistryProjectionLiveTests),
+                "ua-rg-wot",
                 Guid.NewGuid().ToString("N"));
 
             m_serverFixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
@@ -433,6 +433,95 @@ namespace Opc.Ua.WotCon.Tests
                 if (second != 0)
                 {
                     await logical.Proxy.CloseAsync(second).ConfigureAwait(false);
+                }
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ActiveVersionDoesNotRedirectLogicalDefaultOrPinnedReadsAsync(bool rejectDefault)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+            CancellationToken ct = timeout.Token;
+            m_registry.Bounds.MaxVersionsPerResource = 2;
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client.CreateThingDescriptionGroupAsync(ct: ct)
+                .ConfigureAwait(false);
+            (WotRegistryResourceClient first, _) = await group.CreateResourceAsync("bad-doc", "v1", ct: ct)
+                .ConfigureAwait(false);
+            byte[] firstDocument = TestMaterialization.Td("urn:bad-doc", "active-first");
+            await first.Proxy.UploadAsync(ByteString.From(firstDocument), ct: ct).ConfigureAwait(false);
+            await first.SetEnabledAsync(true, 0, ct).ConfigureAwait(false);
+            WotRegistryRefreshResult activated = await client.RefreshAllAsync(requestId: "roles-active-v1", ct: ct)
+                .ConfigureAwait(false);
+            Assert.That(activated.HasFailures, Is.False);
+            Assert.That(FindResource(WotRegistryGroups.ThingDescriptions, "bad-doc")!.ActiveVersionId,
+                Is.EqualTo("v1"));
+            WotRegistryResourceClient logical = await group.OpenResourceAsync(AssignedResourceId("bad-doc"), ct)
+                .ConfigureAwait(false);
+            await WaitForPublishedDefaultAsync(logical, "v1").ConfigureAwait(false);
+            uint oldHandle = await logical.Proxy.OpenAsync(1, ct).ConfigureAwait(false);
+            uint newHandle = 0;
+            try
+            {
+                (WotRegistryResourceClient second, _) = await group.CreateResourceAsync("bad-doc", "v2", ct: ct)
+                    .ConfigureAwait(false);
+                byte[] secondDocument = TestMaterialization.Td("urn:bad-doc", "selected-second");
+                await second.Proxy.UploadAsync(ByteString.From(secondDocument), ct: ct).ConfigureAwait(false);
+                WotResource beforeSelection = FindResource(WotRegistryGroups.ThingDescriptions, "bad-doc")!;
+                await second.SetDefaultVersionAsync("v2", checked((uint)beforeSelection.MetaEpoch), ct)
+                    .ConfigureAwait(false);
+                WotResource afterSelection = FindResource(WotRegistryGroups.ThingDescriptions, "bad-doc")!;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(afterSelection.DefaultVersionId, Is.EqualTo("v2"));
+                    Assert.That(afterSelection.ActiveVersionId, Is.EqualTo("v1"));
+                    Assert.That(afterSelection.MetaEpoch, Is.EqualTo(beforeSelection.MetaEpoch + 1));
+                    Assert.That(afterSelection.FindVersion("v1")!.Epoch,
+                        Is.EqualTo(beforeSelection.FindVersion("v1")!.Epoch));
+                    Assert.That(afterSelection.FindVersion("v2")!.Epoch,
+                        Is.EqualTo(beforeSelection.FindVersion("v2")!.Epoch));
+                });
+                if (rejectDefault)
+                {
+                    m_converter.MarkInvalid(AssignedResourceId("bad-doc"));
+                    WotRegistryRefreshResult rejected = await client
+                        .RefreshAllAsync(requestId: "roles-rejected-v2", ct: ct).ConfigureAwait(false);
+                    Assert.That(rejected.HasFailures, Is.True);
+                }
+                await WaitForPublishedDefaultAsync(logical, "v2").ConfigureAwait(false);
+                WotResource selected = FindResource(WotRegistryGroups.ThingDescriptions, "bad-doc")!;
+                Assert.That(selected.ActiveVersionId, Is.EqualTo("v1"));
+                Assert.That(selected.DefaultVersionId, Is.EqualTo("v2"));
+                newHandle = await logical.Proxy.OpenAsync(1, ct).ConfigureAwait(false);
+
+                WotRegistrySnapshot beforeRejectedAllocation = m_registry.Current;
+                await Assert.ThatAsync(async () =>
+                {
+                    _ = await group.CreateResourceAsync("bad-doc", "v3", ct: ct).ConfigureAwait(false);
+                }, Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadTooManyOperations)).ConfigureAwait(false);
+                Assert.That(m_registry.Current, Is.SameAs(beforeRejectedAllocation));
+                Assert.That(selected.Versions, Has.Length.EqualTo(2));
+                ByteString oldContent = await logical.Proxy.ReadAsync(oldHandle, int.MaxValue, ct)
+                    .ConfigureAwait(false);
+                ByteString newContent = await logical.Proxy.ReadAsync(newHandle, int.MaxValue, ct)
+                    .ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(oldHandle, Is.Not.EqualTo(newHandle));
+                    Assert.That(oldContent, Is.EqualTo(ByteString.From(firstDocument)));
+                    Assert.That(newContent, Is.EqualTo(ByteString.From(secondDocument)));
+                });
+            }
+            finally
+            {
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await logical.Proxy.CloseAsync(oldHandle, cleanup.Token).ConfigureAwait(false);
+                if (newHandle != 0)
+                {
+                    await logical.Proxy.CloseAsync(newHandle, cleanup.Token).ConfigureAwait(false);
                 }
             }
         }

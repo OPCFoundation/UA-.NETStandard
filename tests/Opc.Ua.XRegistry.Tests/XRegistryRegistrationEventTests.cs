@@ -40,7 +40,7 @@ namespace Opc.Ua.XRegistry.Tests
 {
     [TestFixture]
     [Category("XRegistry")]
-    public sealed class XRegistryRegistrationEventTests
+    public sealed partial class XRegistryRegistrationEventTests
     {
         [Test]
         public async Task RecursiveGroupDeleteReportsLeavesBeforeContainersAsync()
@@ -83,6 +83,7 @@ namespace Opc.Ua.XRegistry.Tests
                 CancellationToken.None).ConfigureAwait(false);
             var v1 = (ResourceState)manager.Find(first.ResourceNodeId)!;
             var v2 = (ResourceState)manager.Find(second.ResourceNodeId)!;
+            ResourceState logical = LogicalResourceOf(v1);
             bool deletedNodeReported = false;
             v1.OnReportEvent += (_, _, _) => deletedNodeReported = true;
             v2.OnReportEvent += (_, _, _) => deletedNodeReported = true;
@@ -109,7 +110,7 @@ namespace Opc.Ua.XRegistry.Tests
                     .Select(evt => evt.SourceNode!.Value).ToArray(),
                     Is.EquivalentTo([v1.NodeId, v2.NodeId]));
                 Assert.That(events.OfType<ResourceDeletedEventState>().Single().SourceNode!.Value,
-                    Is.EqualTo(v2.NodeId));
+                    Is.EqualTo(logical.NodeId));
                 Assert.That(events.OfType<GroupDeletedEventState>().Single().SourceNode!.Value,
                     Is.EqualTo(group.NodeId));
                 Assert.That(deletedNodeReported, Is.False);
@@ -175,6 +176,7 @@ namespace Opc.Ua.XRegistry.Tests
                 false,
                 CancellationToken.None).ConfigureAwait(false);
             var v1 = (ResourceState)manager.Find(first.ResourceNodeId)!;
+            ResourceState logical = LogicalResourceOf(v1);
             Assert.Multiple(() =>
             {
                 Assert.That(events.Select(evt => evt.GetType()), Is.EquivalentTo(
@@ -188,7 +190,7 @@ namespace Opc.Ua.XRegistry.Tests
                     events.Select(evt => evt.Time!.Value).Distinct().ToArray(),
                     Has.Length.EqualTo(1));
                 Assert.That(events.OfType<ResourceCreatedEventState>().Single().SourceNode!.Value,
-                    Is.EqualTo(v1.NodeId));
+                    Is.EqualTo(logical.NodeId));
                 Assert.That(events.OfType<VersionCreatedEventState>().Single().SourceNode!.Value,
                     Is.EqualTo(v1.NodeId));
             });
@@ -228,7 +230,7 @@ namespace Opc.Ua.XRegistry.Tests
                 Assert.That(v1.MetaEpoch!.Value, Is.EqualTo(2u));
                 Assert.That(v2.MetaEpoch!.Value, Is.EqualTo(2u));
                 Assert.That(events.OfType<ResourceUpdatedEventState>().Single().SourceNode!.Value,
-                    Is.EqualTo(v2.NodeId));
+                    Is.EqualTo(logical.NodeId));
                 Assert.That(events.OfType<VersionCreatedEventState>().Single().SourceNode!.Value,
                     Is.EqualTo(v2.NodeId));
             });
@@ -261,7 +263,7 @@ namespace Opc.Ua.XRegistry.Tests
                 Assert.That(versionUpdated.CorrelationId, Is.Null);
                 Assert.That(versionUpdated.SourceNode!.Value, Is.EqualTo(v2.NodeId));
                 Assert.That(events.OfType<ResourceUpdatedEventState>().Single().SourceNode!.Value,
-                    Is.EqualTo(v2.NodeId));
+                    Is.EqualTo(logical.NodeId));
             });
             events.Clear();
 
@@ -285,6 +287,10 @@ namespace Opc.Ua.XRegistry.Tests
             bool v2ReportedDeletedVersion = false;
             v2.OnReportEvent += (_, _, target) =>
                 v2ReportedDeletedVersion |= target is VersionDeletedEventState;
+            bool logicalReportedDeletedVersion = false;
+            logical.OnReportEvent += (_, _, target) =>
+                logicalReportedDeletedVersion |= target is VersionDeletedEventState;
+            string? deletedVersionSourceName = v1.DisplayName.Text;
             DeleteMethodStateResult deletedOne = await manager.OnDeleteResourceAsync(v1, 1)
                 .ConfigureAwait(false);
             Assert.Multiple(() =>
@@ -299,10 +305,11 @@ namespace Opc.Ua.XRegistry.Tests
                 VersionDeletedEventState deletedVersion =
                     events.OfType<VersionDeletedEventState>().Single();
                 Assert.That(deletedVersion.SourceNode!.Value, Is.EqualTo(v1.NodeId));
-                Assert.That(deletedVersion.SourceName!.Value, Is.EqualTo(v1.DisplayName.Text));
+                Assert.That(deletedVersion.SourceName!.Value, Is.EqualTo(deletedVersionSourceName));
                 Assert.That(events.OfType<ResourceUpdatedEventState>().Single().SourceNode!.Value,
-                    Is.EqualTo(v2.NodeId));
-                Assert.That(v2ReportedDeletedVersion, Is.True);
+                    Is.EqualTo(logical.NodeId));
+                Assert.That(v2ReportedDeletedVersion, Is.False);
+                Assert.That(logicalReportedDeletedVersion, Is.True);
             });
             events.Clear();
 
@@ -329,7 +336,7 @@ namespace Opc.Ua.XRegistry.Tests
                 Assert.That(events.OfType<VersionDeletedEventState>().Single().SourceNode!.Value,
                     Is.EqualTo(v2.NodeId));
                 Assert.That(events.OfType<ResourceDeletedEventState>().Single().SourceNode!.Value,
-                    Is.EqualTo(v2.NodeId));
+                    Is.EqualTo(logical.NodeId));
                 Assert.That(events.OfType<GroupUpdatedEventState>().Single().SourceNode!.Value,
                     Is.EqualTo(group.NodeId));
             });
@@ -453,6 +460,7 @@ namespace Opc.Ua.XRegistry.Tests
                 CancellationToken.None).ConfigureAwait(false);
             var v1 = (ResourceState)manager.Find(first.ResourceNodeId)!;
             var v2 = (ResourceState)manager.Find(second.ResourceNodeId)!;
+            ResourceState logical = LogicalResourceOf(v1);
             DateTimeUtc metaCreatedAt = v1.MetaCreatedAt!.Value;
             uint metaEpoch = v1.MetaEpoch!.Value;
             events.Clear();
@@ -531,7 +539,7 @@ namespace Opc.Ua.XRegistry.Tests
                 Assert.That(v2.Epoch!.Value, Is.EqualTo(1u));
                 ResourceUpdatedEventState resourceUpdated =
                     events.OfType<ResourceUpdatedEventState>().Single();
-                Assert.That(resourceUpdated.SourceNode!.Value, Is.EqualTo(v2.NodeId));
+                Assert.That(resourceUpdated.SourceNode!.Value, Is.EqualTo(logical.NodeId));
                 Assert.That(
                     resourceUpdated.Changed!.Value,
                     Is.EqualTo(s_metaChanged));
