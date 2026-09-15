@@ -416,6 +416,177 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
+        public async Task SyncDisposeReleasesLeaseRefcountBeforeReturningAsync()
+        {
+            (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) = CreateMockedSut();
+            try
+            {
+                ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
+                var pinned = new TestParticipant("pinned", endpoint);
+                IManagedTransportChannel pinnedLease = await sut.GetAsync(pinned, default)
+                    .ConfigureAwait(false);
+
+                // A session failover swaps its lease with a synchronous Dispose and
+                // reports the failover complete right after, so the released lease
+                // must stop counting against the shared channel before Dispose
+                // returns rather than once a background task gets scheduled.
+                for (int i = 0; i < 50; i++)
+                {
+                    var swapped = new TestParticipant("swapped" + i, endpoint);
+                    IManagedTransportChannel swappedLease = await sut.GetAsync(swapped, default)
+                        .ConfigureAwait(false);
+                    Assert.That(GetDiagnostic(sut, pinnedLease.Key).Refcount, Is.EqualTo(2));
+
+                    swappedLease.Dispose();
+
+                    ManagedChannelDiagnostic diagnostic = GetDiagnostic(sut, pinnedLease.Key);
+                    Assert.That(diagnostic.Refcount, Is.EqualTo(1), $"iteration {i}");
+                    Assert.That(diagnostic.ParticipantCount, Is.EqualTo(1), $"iteration {i}");
+                    Assert.That(diagnostic.State, Is.EqualTo(ChannelState.Ready), $"iteration {i}");
+                }
+
+                chMock.Verify(c => c.CloseAsync(It.IsAny<CancellationToken>()), Times.Never);
+
+                // The last lease still tears the channel down, off the caller's thread.
+                pinnedLease.Dispose();
+                await WaitForMockInvocationAsync(
+                    () => chMock.Verify(c => c.CloseAsync(It.IsAny<CancellationToken>()), Times.Once))
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task GetAsyncRightAfterLastLeaseDisposeNeverReturnsClosedLeaseAsync()
+        {
+            (ClientChannelManager sut, Certificate serverCert, _) = CreateMockedSut();
+            try
+            {
+                ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
+                IManagedTransportChannel lease = await sut.GetAsync(
+                    new TestParticipant("p0", endpoint), default).ConfigureAwait(false);
+
+                // Releasing the last lease schedules the teardown in the
+                // background; a lease acquired before it runs must either keep
+                // the channel or land on a fresh entry, never on one the
+                // pending teardown closes afterwards.
+                for (int i = 1; i <= 50; i++)
+                {
+                    lease.Dispose();
+                    lease = await sut.GetAsync(
+                        new TestParticipant("p" + i, endpoint), default).ConfigureAwait(false);
+
+                    await Task.Delay(5).ConfigureAwait(false);
+
+                    Assert.That(lease.State, Is.EqualTo(ChannelState.Ready), $"iteration {i}");
+                    Assert.That(
+                        GetInternalPropertyValue(GetLeaseEntry(lease), "IsClosing"),
+                        Is.False,
+                        $"iteration {i}");
+                }
+
+                lease.Dispose();
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task DeferredTeardownKeepsEntryThatGainedLeaseAsync()
+        {
+            (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) = CreateMockedSut();
+            try
+            {
+                ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
+                IManagedTransportChannel lease = await sut.GetAsync(
+                    new TestParticipant("late", endpoint), default).ConfigureAwait(false);
+                object entry = GetLeaseEntry(lease);
+
+                // The teardown a lease release scheduled runs after another
+                // lease attached: it must leave the entry alone.
+                MethodInfo? tearDown = entry.GetType().GetMethod(
+                    "TearDownAsync",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(tearDown, Is.Not.Null);
+                await ((Task)tearDown!.Invoke(
+                    entry,
+                    [ClientChannelManager.ChannelCloseReason.LeaseReleased, true])!)
+                    .ConfigureAwait(false);
+
+                Assert.That(GetEntryState(entry), Is.EqualTo(ChannelState.Ready));
+                Assert.That(GetInternalPropertyValue(entry, "IsClosing"), Is.False);
+                Assert.That(GetInternalIntProperty(entry, "RefCount"), Is.EqualTo(1));
+                chMock.Verify(c => c.CloseAsync(It.IsAny<CancellationToken>()), Times.Never);
+
+                lease.Dispose();
+                await WaitForMockInvocationAsync(
+                    () => chMock.Verify(c => c.CloseAsync(It.IsAny<CancellationToken>()), Times.Once))
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task GetAsyncReplacesEntryWhoseTeardownIsReservedAsync()
+        {
+            (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) = CreateMockedSut();
+            try
+            {
+                ConfiguredEndpoint endpoint = GetTestEndpoint(serverCert);
+                IManagedTransportChannel first = await sut.GetAsync(
+                    new TestParticipant("first", endpoint), default).ConfigureAwait(false);
+                object closingEntry = GetLeaseEntry(first);
+
+                // A teardown reserves the entry before it clears the transport
+                // and before the state reaches Closed.
+                SetPrivateField(closingEntry, "m_closing", true);
+                Assert.That(GetEntryState(closingEntry), Is.EqualTo(ChannelState.Ready));
+
+                // The readiness gate must not let a caller through on the stale
+                // Ready state of an entry that is being torn down.
+                var ready = (Task)closingEntry.GetType()
+                    .GetMethod("WaitForReadyAsync", [typeof(CancellationToken)])!
+                    .Invoke(closingEntry, [CancellationToken.None])!;
+                ServiceResultException? notReady = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await ready.ConfigureAwait(false));
+                Assert.That(notReady!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
+
+                IManagedTransportChannel second = await sut.GetAsync(
+                    new TestParticipant("second", endpoint), default).ConfigureAwait(false);
+
+                object freshEntry = GetLeaseEntry(second);
+                Assert.That(freshEntry, Is.Not.SameAs(closingEntry));
+                Assert.That(GetEntryState(freshEntry), Is.EqualTo(ChannelState.Ready));
+                Assert.That(GetInternalIntProperty(freshEntry, "RefCount"), Is.EqualTo(1));
+                Assert.That(GetInternalIntProperty(closingEntry, "RefCount"), Is.EqualTo(1));
+                chMock.Verify(c => c.OpenAsync(
+                        It.IsAny<Uri>(),
+                        It.IsAny<TransportChannelSettings>(),
+                        It.IsAny<CancellationToken>()),
+                    Times.Exactly(2));
+
+                second.Dispose();
+                first.Dispose();
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+                serverCert.Dispose();
+            }
+        }
+
+        [Test]
         public async Task DiscoveryClientCreateAsyncSharesSessionChannelAndReleasesLeaseAsync()
         {
             (ClientChannelManager sut, Certificate serverCert, Mock<IChannel> chMock) = CreateMockedSut();
@@ -1540,6 +1711,22 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             object? value = property!.GetValue(target);
             Assert.That(value, Is.Not.Null, $"Expected property {propertyName} to return a value.");
             return value!;
+        }
+
+        private static void SetPrivateField(object target, string fieldName, object value)
+        {
+            FieldInfo? field = target.GetType().GetField(
+                fieldName,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Expected field {fieldName} on {target.GetType()}.");
+            field!.SetValue(target, value);
+        }
+
+        private static ManagedChannelDiagnostic GetDiagnostic(
+            ClientChannelManager sut,
+            ManagedChannelKey key)
+        {
+            return sut.GetChannelDiagnostics().Single(d => d.Key == key);
         }
 
         private static void AssertChannelDiagnostic(
