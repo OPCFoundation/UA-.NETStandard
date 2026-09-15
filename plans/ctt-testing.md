@@ -41,7 +41,8 @@ cd samples\Reference\ConsoleReferenceServer\bin\Release\net10.0
   (`Ctt.ReferenceServer.Config.xml`), and `ApplyCTTModeAsync` starts the CTT alarms and
   other presets. Always use it; without it many CUs fail for configuration reasons.
 - `-a` auto-accepts the CTT client certificate. Without it, the first session is
-  rejected unless the CTT cert is in the server's trusted store.
+  rejected unless the CTT cert is in the server's trusted store. Do not use `-a` for the security
+  groups (section 8).
 - `-c` logs to the console. Redirect to a file so you can correlate server errors with
   CTT timestamps. `-l`/`-f` also write an app log file.
 - The server is ready when it prints `Server started (... ms)`; allow about 10 s. Run it
@@ -370,6 +371,106 @@ With the server fixes of 2026-09-14:
   `Err-011.js` (always) and Publish Basic `cleanup.js` (sometimes).
 - **Session Services:** errors only in Session Base `Err-002.js`, `Err-005.js` and `Err-022.js` (C37).
   Skips: `Err-009.js` (no Kerberos in the CTT) and `Err-023.js` (the server offers SecurityPolicy None).
+
+## 8. Monitored Item and Node Management Services
+
+Both groups run with the normal recipe (`--ctt -a -c`), one CTT process per group and a fresh server.
+
+| Group | CUs / test cases | Duration (2026-09-14) |
+| --- | --- | --- |
+| Monitored Item Services | 14 / 208 | 9:45 |
+| Node Management Services | 4 / 15 | 0:30 |
+
+- Several Monitored Item test cases compare the request and response timestamps against
+  `/Server Test/Time Tolerance` (100 ms). Do not build or run tests in parallel with the group; a busy
+  machine turns into *"… Timestamp shows a delay in excess of …"* warnings.
+- Leave `/Server Test/NodeIds/NodeManagement/RequestedNodeId` disabled ([ctt-issues.md](ctt-issues.md) C34).
+- Delete Node `Err-002.js` adds 15,000 variables below one folder; it is the regression test for AddNodes
+  below a parent with many children.
+
+Expected results with the fixes of 2026-09-14: Monitor Basic `039.js` fails (C17) and `038.js` warns (C32);
+Node Management Add Node `Err-008.js` fails (issue 9). Everything else passes or is *Not Implemented*, except
+one or two sporadic *"Timestamp shows a delay"* warnings that move between Monitored Item test cases from run
+to run ([ctt-issues.md](ctt-issues.md), open server findings).
+
+## 9. Security groups
+
+*Security General* and *Security User Token* test that the server **rejects** untrusted, expired,
+revoked and otherwise invalid client and user certificates. Never run them against a server started
+with `-a`: auto-accept makes every negative certificate test fail. Run the server with its normal
+trust checks and trust the CTT's test PKI instead.
+
+### Certificate and trust setup
+
+The CTT project ships the PKI the scripts expect in `<ProjectDir>\PKI\copyToServer` (created with
+`<CttDir>\create_ctt_pki.bat`; `rename_copyToServer_certs.bat` only prefixes the file names with a
+date). It mirrors a server's directory stores:
+
+| CTT folder | Reference server store (`Ctt.ReferenceServer.Config.xml`) |
+| --- | --- |
+| `ApplicationInstance_PKI\trusted\certs`, `\crl` | `TrustedPeerCertificates` (`pki/trusted`) |
+| `ApplicationInstance_PKI\issuers\certs`, `\crl` | `TrustedIssuerCertificates` (`pki/issuer`) |
+| `X509UserIdentity_PKI\trusted\certs`, `\crl` | `TrustedUserCertificates` (`pki/trustedUser`) |
+| `X509UserIdentity_PKI\issuers\certs`, `\crl` | `UserIssuerCertificates` (`pki/issuerUser`) |
+
+The CTT connects with `ctt_appT` by default (`CreateSession.js`), which is in the trusted folder, so no
+`-a` is needed for the positive tests. The folders deliberately also contain certificates that must be
+rejected at connect time (for example `ctt_appTE` expired, `ctt_appTV` not yet valid, `ctt_appTSincorrect`
+bad signature) and CRLs that revoke the `...R` certificates. Copy them as they are.
+
+Keep that PKI away from the server's default stores under `%LocalAppData%\OPC Foundation\pki`: other
+runs (and `-a`) add certificates there, and the Push Model test cases change the trust lists and the
+server certificate. Recommended layout:
+
+1. Create `<LogDir>\secpki\{own,trusted,issuer,trustedUser,issuerUser,rejected}` with `certs`/`crl`
+   (`own` needs `certs` and `private`).
+2. Copy the server's current application certificate and key (`pki\own\certs` and `pki\own\private`,
+   `Quickstart Reference Server*`) into `secpki\own`, so the CTT keeps trusting the server certificate it
+   already knows. Copy the four `copyToServer` folders as in the table above.
+3. Keep a pristine copy (`secpki.orig`) and restore it (`robocopy secpki.orig secpki /MIR`) before every
+   part: Push Model and Security Certificate Administration test cases write to the stores.
+4. Copy `samples\Reference\ConsoleReferenceServer\bin\Release\net10.0` to `<LogDir>\srv-sec` and replace
+   `%LocalApplicationData%/OPC Foundation/pki` with the `secpki` path in its
+   `Ctt.ReferenceServer.Config.xml` (six store paths). Leave `AutoAcceptUntrustedCertificates` false.
+5. Start `<LogDir>\srv-sec\ConsoleReferenceServer.exe --ctt -c` (no `-a`).
+
+### Server and project settings
+
+- User names: `/Server Test/Session/LoginNameGranted1` = `sysadmin`/`demo` and `LoginNameGranted2` =
+  `user2`/`password1` exist in `ReferenceServer.cs`. `LoginNameAccessDenied` (`username`/`password`) does
+  not exist; see [ctt-issues.md](ctt-issues.md) for what that means for Security User Name Password 2
+  `012.js`.
+- `Ctt.ReferenceServer.Config.xml` sets `MaxFailedAuthenticationAttempts` to 0. The user token CUs send
+  many rejected tokens from the same client certificate; with the default lockout every later
+  ActivateSession fails with `BadUserAccessDenied`. Security Invalid user token `001.js`/`002.js` test that
+  lockout and therefore need a run with the default value.
+- The CTT config enables Basic256Sha256 Sign and SignAndEncrypt plus None, and Anonymous, UserName and
+  X509 user tokens on every endpoint.
+
+### Splitting the groups
+
+Run *Security User Token* (14 CUs, 66 test cases) as one part and split *Security General* (53 CUs, 314
+test cases) into Certificate Validation, certificate management (Push/Pull Model, Certificate
+Administration, Default ApplicationInstance Certificate, Security Administration), Role and User
+Management, and the rest. Restore the PKI and restart the server before every part. With scripts 1.05.513
+most of *Security General* is *Not Implemented*, so every part finishes in under 30 seconds.
+
+Wait for the server's `Server started` line, not only for the listening port: the port opens before startup
+completes, and a CTT that connects too early gets `BadServerHalted` from GetEndpoints and records no test case
+at all for the part.
+
+### Expected results
+
+With the fixes of 2026-09-14 and the setup above:
+
+| Part | Result |
+| --- | --- |
+| Security Certificate Validation | 23 pass, 24 *Not Implemented*; skips `004.js` (CTT cannot send an empty certificate), `049.js`/`050.js` (no Basic128Rsa15 endpoint) |
+| Security None CreateSession ActivateSession (and 1.0) | all pass |
+| Other Security General CUs | *Not Implemented* only |
+| Security User Token | Anonymous `002.js` fails (C35), User Name Password 2 `015.js` fails (C36); skips Anonymous `003.js` and User Name Password 2 `002.js` (not applicable); X509 18 of 18 automated cases pass |
+
+Negative certificate and user token tests passing here is only meaningful without `-a`.
 
 ## Pitfalls
 

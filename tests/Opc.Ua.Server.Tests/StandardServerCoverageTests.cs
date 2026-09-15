@@ -261,7 +261,8 @@ namespace Opc.Ua.Server.Tests
                 StatusCodes.BadCertificateIssuerRevoked,
                 StatusCodes.BadCertificateRevocationUnknown,
                 StatusCodes.BadCertificateChainIncomplete,
-                StatusCodes.BadCertificateIssuerRevocationUnknown
+                StatusCodes.BadCertificateIssuerRevocationUnknown,
+                StatusCodes.BadCertificatePolicyCheckFailed
             ];
             using TestableStandardServer server = CreateServer();
 
@@ -285,6 +286,22 @@ namespace Opc.Ua.Server.Tests
                     ByteString.Empty,
                     new ServiceResult(StatusCodes.BadCertificateTimeInvalid)));
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadCertificateTimeInvalid));
+        }
+
+        [Test]
+        public void OnApplicationCertificateErrorMapsNestedRevocationErrorToSecurityChecksFailed()
+        {
+            // the certificate validator nests every failed check; an expired certificate whose
+            // issuer has no revocation list must not reveal the revocation state (Part 4 §6.1.3).
+            using TestableStandardServer server = CreateServer();
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => server.OnApplicationCertificateErrorPublic(
+                    ByteString.Empty,
+                    new ServiceResult(
+                        StatusCodes.BadCertificateTimeInvalid,
+                        new ServiceResult(StatusCodes.BadCertificateIssuerRevocationUnknown))));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadSecurityChecksFailed));
         }
 
         [Test]

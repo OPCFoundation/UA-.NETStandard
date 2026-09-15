@@ -1778,14 +1778,9 @@ namespace Opc.Ua.Server
             // NodeManager.
             if (PredefinedNodes.TryGetValue(parentNodeId, out NodeState? parentNode))
             {
-                var existingChildren = new List<BaseInstanceState>();
-                parentNode.GetChildren(systemContext, existingChildren);
-                foreach (BaseInstanceState child in existingChildren)
+                if (parentNode.FindChildWithQualifiedName(systemContext, item.BrowseName) != null)
                 {
-                    if (child.BrowseName == item.BrowseName)
-                    {
-                        return (new ServiceResult(StatusCodes.BadBrowseNameDuplicated), NodeId.Null);
-                    }
+                    return (new ServiceResult(StatusCodes.BadBrowseNameDuplicated), NodeId.Null);
                 }
                 parentNode.AddChild(instance);
             }

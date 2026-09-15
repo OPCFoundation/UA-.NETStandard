@@ -48,6 +48,7 @@ running the CTT is in [ctt-testing.md](ctt-testing.md).
 | C6 | Aggregates: DurationGood/PercentGood first region | — | Not filed |
 | C7–C18 | Other unfiled script defects | — | Not filed |
 | C19–C31 | GDS Application Directory / Query Applications script defects | — | Not filed |
+| C32–C36 | Monitored Item, Node Management and Security script defects | — | Not filed |
 | C37 | Session Base: secure test cases send CreateSession with the `opc.wss` EndpointUrl | — | Not filed |
 | C38 | Subscription Durable `012.js`: denied diagnostics Browse and missing braces | — | Not filed |
 | C39–C44 | Alarms and Conditions script defects | — | Not filed |
@@ -754,6 +755,84 @@ mask values are: 0x1 - Servers; 0x2 - Clients; If the mask is 0 then all applica
 The script's expectation (*"no records"*) matches neither reading. **Fix:** expect Good with all
 records for `3`, and use a value with an undefined bit (for example `4`) for the invalid case.
 
+### C32. Monitor Basic `038.js` judges a RevisedSamplingInterval of 0 against a project setting
+
+- **Test:** `maintree/Monitored Item Services/Monitor Basic/Test Cases/038.js`, lines 7 and 15–21
+- **Warning:** *"Expected CreateMonitoredItems.Results[0].RevisedSamplingInterval to be different than the
+  requested 0 value"*, plus a manual-verification entry
+
+The script requests SamplingInterval 0 and warns when the server returns 0, unless
+`/Server Test/Capabilities/Fastest Sampling Interval Supported` is 0. Part 4 §7.21 defines 0 as "the fastest
+practical rate", and a Variable whose MinimumSamplingInterval is 0 is monitored continuously (Part 3
+§5.6.2), so a revised interval of 0 is correct for exception-based items. The reference server's static
+scalar nodes declare MinimumSamplingInterval 0 and report changes by exception, and
+`Server.ServerCapabilities.MinSupportedSampleRate` is 0 (`SubscriptionManager.CalculateRevisedSamplingInterval`).
+The project setting is 50 because `library/Base/Objects/monitoredItem.js` line 58 uses it as the default
+sampling interval of every MonitoredItem, so setting it to 0 to silence `038.js` would change all other
+Monitored Item test cases. **Fix:** compare with the node's MinimumSamplingInterval or the server's
+`MinSupportedSampleRate` (both already read by `library/Base/serverCapabilities.js`), and accept 0 when
+either is 0.
+
+### C33. Monitor Value Change V2 `020.js` requires every ByteString element to be four bytes long
+
+- **Test:** `maintree/Monitored Item Services/Monitor Value Change V2/Test Cases/020.js`, lines 34–42
+- **Skip:** *"The byteString elements (0, 1, and 2) are too small and should be increased to 4-characters as a minimum."*
+
+The message names elements 0–2, but lines 34–38 take the minimum length of **all** elements, and
+IndexRange cases 2–4 (lines 48–50) use that minimum for the first and last three strings. A single
+short element anywhere in the array skips the test. The reference server's static
+`Scalar_Static_Arrays_ByteString` had a 1-byte and a 3-byte element at indexes 4 and 5; its sample value now
+keeps every element at least four bytes long, and the test passes. **Fix:** compute the minimum over the
+elements the index ranges select (the first and last three) and report the real requirement.
+
+### C34. Node Management `RequestedNewNodeId()` ignores `RequestedNodeId_Namespace`
+
+- **Helper:** `maintree/Node Management Services/Node Management Add Node/Test Cases/initialize.js`,
+  `CUVariables.RequestedNewNodeId` (lines 131–153)
+- **Effect:** with `/Server Test/NodeIds/NodeManagement/RequestedNodeId` enabled, every AddNodes item requests
+  `ns=1;s=stringNNN`
+
+Logged on 2026-09-14 in a project copy with `RequestedNodeId` = 2, `RequestedNodeId_IdString` = 2 and
+`RequestedNodeId_Namespace` set to 2, and again to 3: the request always carried `ns=1;s=string001`. The
+function assigns `n.NamespaceIndex` (line 136) before `n.setIdentifierString(...)` (line 140); the namespace
+index does not survive into the request. Namespace 1 is the reference server's application URI namespace, which has no node manager, so
+the server correctly answers `BadNodeIdRejected`, and Add Node `001.js`–`003.js`, `Err-003.js`, `Err-005.js`
+and `Err-008.js` fail. The same server accepts `ns=2;s=string001` (checked in-process). Client-specified
+NodeIds therefore cannot be enabled, and `Err-008.js` (issue 9) cannot test duplicates. **Fix:** set the
+identifier first and the namespace index afterwards, or build the id with
+`UaNodeId.fromString( "ns=" + ns + ";s=string" + n )`.
+
+### C35. Security User Anonymous `initialize.js` selects the `opc.wss` endpoint
+
+- **Test:** `maintree/Security User Token/Security User Anonymous/Test Cases/initialize.js`, lines 42–60;
+  `002.js`, lines 10–11
+- **Error:** *"OpenSecureChannel( MessageSecurityMode: SignAndEncrypt; RequestedSecurityPolicyUri: …Basic256Sha256 );
+  Result = BadNotSupported"*
+
+`initialize.js` skips only `http` endpoints and keeps the **last** SignAndEncrypt endpoint that allows
+Anonymous. The reference server lists its `opc.wss://…:62543` endpoint after the `opc.tcp` ones, so
+`epSecureEncrypt` is the WebSocket endpoint (logged: transport `wss-uasc-uabinary`), which the CTT client
+cannot open; `BadNotSupported` comes from the CTT. **Fix:** filter endpoints by the transports the CTT supports
+(`opc.tcp`), as `UaEndpointDescription.Find` should for WebSocket URLs too (see C16).
+
+### C36. `UaEndpointDescription.FindTokenType` rewrites the cached endpoints, so Security User Name Password 2 `015.js` reports duplicate PolicyIds
+
+- **Helper:** `library/ClassBased/UaE.js`, lines 54–56 (called from `UaEndpointDescription.Find`, line 105)
+- **Test:** `maintree/Security User Token/Security User Name Password 2/Test Cases/015.js`, line 52
+- **Error:** *"The PolicyId: 2, is used for multiple UserIdentityTokens … Difference found: SecurityUri: , and:
+  http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256"* (four times)
+
+When a UserTokenPolicy has an empty SecurityPolicyUri, `FindTokenType` assigns the endpoint's
+SecurityPolicyUri to it **in `gServerCapabilities.Endpoints`** instead of to the clone it returns. The CU's
+`initialize.js` calls `Find( { SecurityMode: SignAndEncrypt, TokenType: UserName } )`, so the UserName
+policy (`2`) of every SignAndEncrypt endpoint now shows Basic256Sha256 while the same policy on the Sign
+endpoint still shows an empty string. `015.js` compares these copies and reports a PolicyId reused for
+different configurations. Logged on 2026-09-14: the server returned `2` with an empty SecurityPolicyUri on all
+three Basic256Sha256 endpoints; only the SignAndEncrypt copies changed inside the CTT. An empty
+SecurityPolicyUri means "use the endpoint's policy" (Part 4 §7.41), so the server's policies are also
+equal in effect. Separately, `015.js` line 20 indexes `foundTokens[i]` with the endpoint index. **Fix:**
+set the SecurityPolicyUri on the returned clone only, and index `foundTokens` with the token position.
+
 ### C37. Session Base secure test cases send CreateSession with the `opc.wss` EndpointUrl
 
 - **Tests:** `maintree/Session Services/Session Base/Test Cases/Err-002.js`, `Err-005.js` and
@@ -1015,11 +1094,34 @@ it is classified as a server or CTT issue.
   Spec conflict, server unchanged: §6.5.10/§6.5.11 say QueryApplications/QueryServers *"shall not
   return records with a ServerCapabilities that includes NA"*, but the CTT registers its reference
   Servers with `NA` and expects them in the results (for example `066.js`, `079.js` step 1).
-- **RevisedSamplingInterval 0.** Monitor Basic `038.js` warns that a requested SamplingInterval of 0 is
-  returned unchanged. Part 4 says 0 means the fastest practical rate, and the revised value should
-  report that rate.
-- **AddNodes latency.** Node Management Delete Node `Err-002.js` reports AddNodes responses 300–600 ms
-  after the request (tolerance 100 ms).
+- **GDS AliasName Discovery.** `001.js` finds AliasName instances in the TagVariables (`i=23479`) and
+  Topics (`i=23488`) folders although no server is registered yet. `002.js`/`004.js`: the aliases and
+  custom categories of a registered server are not replicated to the GDS.
+- **RevisedSamplingInterval 0 (resolved, not a server defect).** Monitor Basic `038.js` warns that a
+  requested SamplingInterval of 0 is returned unchanged. The configured nodes declare MinimumSamplingInterval
+  0 and are reported by exception, so 0 is the correct revised value; the script compares with a project
+  setting instead of the server's capabilities (C32).
+- **AddNodes latency (fixed 2026-09-14).** Node Management Delete Node `Err-002.js` warned that AddNodes
+  responses arrived 400–800 ms after the request (tolerance 100 ms). The test adds 15,000 variables below
+  `ns=2;s=CTT` in batches of 5,000 (`MaxNodesPerNodeManagement`). Every added node searched all children
+  of the parent twice (BrowseName duplicate check and the NodeVersion lookup of the model change filter), so
+  the batches took 0.8, 2.1 and 4.0 s in-process. `NodeState.FindChild` now uses a BrowseName index for large
+  child lists; the batches take 141, 166 and 172 ms, the CTT logs 51–72 ms per 5,000-node AddNodes, and the
+  warning is gone.
+- **Create/DeleteMonitoredItems timestamp warnings (timing jitter, not a server defect).** Each Monitored Item
+  run shows one or two *"… Timestamp shows a delay in excess of 200ms"* warnings, on different test cases
+  every time: Monitor Value Change V2 `014.js`/`018.js` in one run, Monitor Basic `007.js`/`009.js` in the
+  next, Monitor Basic `014.js` in a third. A run with every non-Publish response above 50 ms logged
+  (`UaR.js`, `addLog`) found two of the roughly 2,000 Create/DeleteMonitoredItems calls of Monitor Basic
+  `014.js`–`016.js` (about 30 items each) above 100 ms (123 and 153 ms), and none in a Monitor Value Change V2
+  run. The CTT rounds the delay up to the next 100 ms, so 153 ms is reported as "in excess of 200ms". No
+  service or test case is consistently slow; the first run also overlapped builds of other sessions.
+- **OpenSecureChannel revocation errors (fixed 2026-09-14).** Security Certificate Validation `002.js` warned
+  that the server returned `BadCertificateIssuerRevocationUnknown`. Part 4 §6.1.3 Table 106 requires
+  `Bad_SecurityChecksFailed` to be reported for the revocation check and should be reported for a missing
+  revocation list. `TcpServerChannel` masked only `BadCertificateRevoked`; it now also masks
+  `BadCertificateIssuerRevoked`, `BadCertificateRevocationUnknown` and `BadCertificateIssuerRevocationUnknown`
+  (the CreateSession path already did).
 - **Session Services stopped accepting sessions after a session timeout (fixed 2026-09-14).** Session
   Base `002.js` lets a session time out and calls ActivateSession on it. `SessionManager.ActivateSessionAsync`
   found the expired session while holding the session-manager `SemaphoreSlim` and closed it through
@@ -1099,8 +1201,35 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
 - **GDS LDS-ME Connectivity.** `initialize.js` skips the CU unless QueryApplications with
   `ServerCapabilities = ["LDS"]` returns a record: register an LDS/LDS-ME with the GDS first. The
   reference server does not include an LDS.
-- **Monitor Value Change V2 `020.js`** needs the ByteString elements 0–2 of its configured array to be at
-  least 4 characters long.
+- **Node Management client NodeIds.** Leave `/Server Test/NodeIds/NodeManagement/RequestedNodeId` disabled.
+  When enabled, scripts 1.05.513 request NodeIds in namespace 1 regardless of `RequestedNodeId_Namespace`
+  (C34), and six Add Node test cases fail with `BadNodeIdRejected`. `Err-008.js` therefore keeps failing
+  (issue 9). The setting's default namespace value (911) is meaningless.
+- **Monitored Item Services manual test cases.** Monitor Basic `036.js`, Monitor Complex Value `001.js`–`003.js`,
+  Monitor Events `002.js`/`003.js`, Monitor Queueing `013.js`/`014.js`, and the Monitor Complex Event Filter
+  and Monitor QueueSize_ServerMax CUs are *Not Implemented* (manual or test-lab) in scripts 1.05.513. So are
+  Node Management Add Ref and Delete Ref.
+- **Security groups need the CTT PKI, not `-a`.** See [ctt-testing.md](ctt-testing.md#9-security-groups).
+  With `-a` every negative certificate test fails spuriously.
+- **Security General coverage.** In scripts 1.05.513, 50 of the 53 CUs contain only *Not Implemented* test
+  cases (Push/Pull Model, No Application Authentication, Security Administration, Certificate Administration, Default ApplicationInstance
+  Certificate, all Role and User Management CUs, TLS, Time Sync, KeyCredential, broker authentication,
+  ECC, LegacySequenceNumber, Encryption/Signing/Policy Required, SecurityPolicy Support). Automated test
+  cases exist only in Security Certificate Validation and Security None CreateSession ActivateSession
+  (and its 1.0 variant).
+- **Security Certificate Validation skips.** `004.js` skips because the CTT stack cannot send an empty
+  client certificate. `049.js`/`050.js` need a Basic128Rsa15 endpoint for their SHA-1 certificates; the
+  reference server does not offer that deprecated policy (not applicable).
+- **Security User Token coverage.** Security User Anonymous `003.js` needs a secure endpoint without the
+  Anonymous token; the CTT configuration offers Anonymous on every endpoint. Security User Name Password 2
+  `002.js` needs a UserName token policy with SecurityPolicy `#None` on an encrypted endpoint (password sent
+  unencrypted inside the channel); the reference server always encrypts passwords (not applicable).
+  `012.js` passes only because `/Server Test/Session/LoginNameAccessDenied` (`username`) is not a known user
+  and the server answers unknown credentials with `BadUserAccessDenied`; the reference server has no user
+  that authenticates but is denied access. Security Invalid user token, the Kerberos, JWT, Authority Profile
+  and Token Unencrypted CUs, and X509 `003.js`/`012.js`, are *Not Implemented*.
+- **Monitor Value Change V2 `020.js`** needs **every** element of the configured ByteString array to be at
+  least four bytes long (C33). The reference server's sample value satisfies that since 2026-09-14.
 - **Alarms and Conditions coverage.** The single-case CUs (ConditionClasses, Condition Sub-Classes,
   Suppression by Operator, Silencing, OutOfService, On-Off Delay, Re-Alarming, First in Group Alarm,
   Audible Sound, Discrepancy, Trip, A&E Wrapper Mapping, Dialog) contain only manual
