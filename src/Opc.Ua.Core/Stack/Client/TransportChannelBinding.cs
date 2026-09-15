@@ -45,7 +45,8 @@ namespace Opc.Ua
             Func<bool> valid,
             Func<IServiceRequest, Func<bool>, CancellationToken, ValueTask<IServiceResponse>> send)
         {
-            m_valid = valid;
+            m_sourceContext = source.MessageContext;
+            m_valid = () => valid() && ReferenceEquals(source.MessageContext, m_sourceContext);
             m_send = send;
             m_channelThumbprint = [.. source.ChannelThumbprint];
             m_clientCertificate = [.. source.ClientChannelCertificate];
@@ -72,7 +73,7 @@ namespace Opc.Ua
                 UserIdentityTokens = endpoint.UserIdentityTokens
             };
             EndpointConfiguration = source.EndpointConfiguration;
-            MessageContext = CopyContext(source.MessageContext);
+            MessageContext = CopyContext(m_sourceContext);
             OperationTimeout = source.OperationTimeout;
         }
 
@@ -92,7 +93,22 @@ namespace Opc.Ua
 
         public int OperationTimeout { get; set; }
 
-        internal bool IsCurrent => Volatile.Read(ref m_closed) == 0 && m_valid();
+        internal bool IsCurrent
+        {
+            get
+            {
+                if (Volatile.Read(ref m_invalidated) != 0)
+                {
+                    return false;
+                }
+                if (!m_valid())
+                {
+                    Interlocked.Exchange(ref m_invalidated, 1);
+                    return false;
+                }
+                return Volatile.Read(ref m_invalidated) == 0;
+            }
+        }
 
         public ValueTask<IServiceResponse> SendRequestAsync(IServiceRequest request, CancellationToken ct = default)
         {
@@ -119,7 +135,12 @@ namespace Opc.Ua
 
         public void Dispose()
         {
-            Interlocked.Exchange(ref m_closed, 1);
+            Interlocked.Exchange(ref m_invalidated, 1);
+        }
+
+        internal bool HasSourceContext(IServiceMessageContext context)
+        {
+            return ReferenceEquals(m_sourceContext, context);
         }
 
         internal void AddValidation(
@@ -167,8 +188,9 @@ namespace Opc.Ua
         private readonly byte[] m_channelThumbprint;
         private readonly byte[] m_clientCertificate;
         private readonly byte[] m_serverCertificate;
+        private readonly IServiceMessageContext m_sourceContext;
         private Func<bool> m_valid;
         private readonly Func<IServiceRequest, Func<bool>, CancellationToken, ValueTask<IServiceResponse>> m_send;
-        private int m_closed;
+        private int m_invalidated;
     }
 }
