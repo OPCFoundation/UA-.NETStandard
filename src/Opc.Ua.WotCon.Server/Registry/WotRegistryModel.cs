@@ -278,7 +278,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             long? epoch = null,
             ImmutableSortedDictionary<string, string>? labels = null,
             WoTValidationOutcomeDataType? validation = null,
-            bool clearValidation = false)
+            bool clearValidation = false,
+            Guid? incarnationId = null)
         {
             bool replacesDigest = !digest.IsNull;
             ByteString updatedDigest = replacesDigest ? digest : Digest;
@@ -298,7 +299,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 CreatedAt,
                 modifiedAt ?? ModifiedAt)
             {
-                IncarnationId = IncarnationId,
+                IncarnationId = incarnationId ?? IncarnationId,
                 Epoch = epoch ?? Epoch,
                 Labels = labels ?? Labels,
                 HasContent = updatedHasContent,

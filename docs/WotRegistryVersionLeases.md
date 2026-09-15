@@ -22,9 +22,25 @@ by the existing internal incarnation, not by ResourceId, VersionId or content
 digest alone. Benign metadata copies preserve the incarnation; delete/recreate
 does not. The incarnation remains internal.
 
+The same owner's `InitializeAsync` also preserves surviving incarnations when it
+rehydrates canonical state, including required recovery after an indeterminate
+commit. A validated committed snapshot reported with uncertain durability is
+reconciled before publication. Leases acquired before either operation remain
+effective, and an older owner-issued snapshot can still acquire the same surviving
+incarnation. This applies even when every selection pointer has moved elsewhere.
+
+Reconciliation uses the owner's known Resource/Version lifecycle, including the
+intended generation when recovering an indeterminate commit. It preserves loaded
+metadata and content rather than restoring an older document. Actual deletion
+removes the old incarnation from that lineage; recreating the same ResourceId,
+VersionId and bytes does not reconnect an outstanding old lease. A stale lease's
+release cannot release a replacement incarnation's leases.
+
 Lease acquisition/release changes no canonical snapshot, epoch, timestamp or event.
 Rejections retain the previous metadata and bytes. Persistence continues to use
-the existing FileStore schema; leases themselves are not persisted.
+the existing FileStore schema; leases themselves are not persisted. Reload and
+in-process identity reconciliation neither write a generation nor emit a mutation
+event. A committed-outcome exception still exposes the exact published snapshot.
 
 ## Native FileType access
 
@@ -37,6 +53,9 @@ selection changes. Multiple aliases or Sessions contribute separate leases.
 - Session abandonment discards only that Session's handles and staged writes.
 - Canceled or failed Open releases any acquired lease and unpublished reservation.
 - In-flight reads retain their lease until the operation has drained.
+- Same-owner snapshot rehydration does not invalidate an open writer's incarnation
+  guard. Its normal content-conflict check still applies; actual deletion and
+  recreation cannot let a stale handle overwrite the replacement.
 - Typed creation transfers a lease issued by the owner into the existing prepared
   file reservation before durable commit. It does not reacquire the owner operation
   from inside its preparation callback.

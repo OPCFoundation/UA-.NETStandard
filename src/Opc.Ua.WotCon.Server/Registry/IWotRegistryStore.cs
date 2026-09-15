@@ -122,7 +122,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Gets the validated snapshot that is now the primary generation.
         /// </summary>
-        public WotRegistrySnapshot CommittedSnapshot { get; }
+        public WotRegistrySnapshot CommittedSnapshot { get; internal set; }
 
         /// <summary>
         /// Gets the committed registry generation.

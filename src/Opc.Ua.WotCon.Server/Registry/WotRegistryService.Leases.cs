@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -111,6 +112,57 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             return m_versionLeases.TryGetValue(version.IncarnationId, out VersionLeaseCount? leases) &&
                 leases.Count > 0;
+        }
+
+        private static WotRegistrySnapshot RestoreVersionIncarnations(
+            WotRegistrySnapshot loaded,
+            WotRegistrySnapshot known)
+        {
+            if (ReferenceEquals(loaded, known))
+            {
+                return loaded;
+            }
+            foreach (WotResourceGroup group in loaded.Groups.Values)
+            {
+                ImmutableDictionary<string, WotResource> resources = group.Resources;
+                foreach (WotResource resource in group.Resources.Values)
+                {
+                    WotResource? previous = known.FindResource(group.GroupId, resource.ResourceId);
+                    if (previous is null ||
+                        previous.Kind != resource.Kind ||
+                        previous.MetaCreatedAt != resource.MetaCreatedAt ||
+                        !string.Equals(previous.SourceId, resource.SourceId, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+                    ImmutableArray<WotResourceVersion>.Builder? versions = null;
+                    for (int i = 0; i < resource.Versions.Length; i++)
+                    {
+                        WotResourceVersion version = resource.Versions[i];
+                        WotResourceVersion? original = previous.FindVersion(version.VersionId);
+                        if (original is not null &&
+                            original.CreatedAt == version.CreatedAt &&
+                            original.IncarnationId != version.IncarnationId)
+                        {
+                            // Restore only identities from the owner's known lifecycle.
+                            // Metadata and content updates do not create a new incarnation.
+                            versions ??= resource.Versions.ToBuilder();
+                            versions[i] = version.With(incarnationId: original.IncarnationId);
+                        }
+                    }
+                    if (versions is not null)
+                    {
+                        resources = resources.SetItem(
+                            resource.ResourceId,
+                            resource.With(versions: versions.ToImmutable()));
+                    }
+                }
+                if (!ReferenceEquals(resources, group.Resources))
+                {
+                    loaded = loaded.WithGroup(group.WithResources(resources, group.Epoch), loaded.Generation);
+                }
+            }
+            return loaded;
         }
 
         private void RemoveReleasedLease(Guid incarnation, VersionLeaseCount leases)

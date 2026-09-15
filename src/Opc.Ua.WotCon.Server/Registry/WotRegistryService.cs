@@ -111,7 +111,11 @@ namespace Opc.Ua.WotCon.Server.Registry
                 WotRegistrySnapshot loaded = await m_store
                     .LoadAsync(cancellationToken).ConfigureAwait(false);
                 WotRegistryIdentity.ValidateSnapshot(loaded);
+                loaded = RestoreVersionIncarnations(
+                    loaded,
+                    m_recoverySnapshot?.Generation == loaded.Generation ? m_recoverySnapshot : m_snapshot);
                 Volatile.Write(ref m_snapshot, loaded);
+                m_recoverySnapshot = null;
                 m_reloadRequired = false;
             }
             finally
@@ -2434,6 +2438,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
             catch (WotRegistryCommitDurabilityUncertainException exception)
             {
+                exception.CommittedSnapshot = RestoreVersionIncarnations(exception.CommittedSnapshot, intended);
                 Volatile.Write(ref m_snapshot, exception.CommittedSnapshot);
                 RaiseChanged(
                     previous,
@@ -2449,6 +2454,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
             catch (WotRegistryCommitIndeterminateException)
             {
+                m_recoverySnapshot = intended;
                 m_reloadRequired = true;
                 throw;
             }
@@ -2791,6 +2797,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         private readonly IXRegistryResourceStore m_resourceStore;
         private readonly SemaphoreSlim m_mutex = new(1, 1);
         private WotRegistrySnapshot m_snapshot;
+        private WotRegistrySnapshot? m_recoverySnapshot;
         private bool m_reloadRequired;
     }
 }
