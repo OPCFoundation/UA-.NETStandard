@@ -1406,10 +1406,9 @@ namespace Opc.Ua.Bindings
                             .GetAwaiter()
                             .GetResult();
 #pragma warning restore CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
-                        if (!validationResult.IsValid)
-                        {
-                            throw new ServiceResultException(validationResult.StatusCode);
-                        }
+                        // keep the nested validation errors: the server channel decides
+                        // from all of them which status the client may see.
+                        validationResult.ThrowIfInvalid();
                     }
                 }
 
@@ -1536,10 +1535,9 @@ namespace Opc.Ua.Bindings
                             .ValidateAsync(senderCertificateChain!, ct: ct)
                             .ConfigureAwait(false);
 
-                        if (!validationResult.IsValid)
-                        {
-                            throw new ServiceResultException(validationResult.StatusCode);
-                        }
+                        // keep the nested validation errors: the server channel decides
+                        // from all of them which status the client may see.
+                        validationResult.ThrowIfInvalid();
                     }
                 }
 

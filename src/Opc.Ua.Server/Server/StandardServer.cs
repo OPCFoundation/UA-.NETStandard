@@ -653,10 +653,8 @@ namespace Opc.Ua.Server
                                 options: null,
                                 ct: requestLifetime.CancellationToken)
                             .ConfigureAwait(false);
-                        if (!clientCertResult.IsValid)
-                        {
-                            throw new ServiceResultException(clientCertResult.StatusCode);
-                        }
+                        // Preserve nested validation failures for client-status masking and detailed audit reporting.
+                        clientCertResult.ThrowIfInvalid();
 
                         string applicationUri = clientDescription?.ApplicationUri ?? string.Empty;
                         if (string.IsNullOrEmpty(applicationUri) ||
@@ -3161,17 +3159,7 @@ namespace Opc.Ua.Server
             ServiceResult result)
         {
             // see https://reference.opcfoundation.org/Core/Part4/v105/docs/6.1.3
-            StatusCode resultCode = result.StatusCode;
-            if (resultCode == StatusCodes.BadCertificateInvalid ||
-                resultCode == StatusCodes.BadCertificateRevoked ||
-                resultCode == StatusCodes.BadCertificateUntrusted ||
-                resultCode == StatusCodes.BadCertificateIssuerRevoked ||
-                resultCode == StatusCodes.BadCertificateRevocationUnknown ||
-                resultCode == StatusCodes.BadCertificateChainIncomplete ||
-                resultCode == StatusCodes.BadCertificateIssuerRevocationUnknown)
-            {
-                resultCode = StatusCodes.BadSecurityChecksFailed;
-            }
+            StatusCode resultCode = CertificateErrorReporting.GetClientStatusCode(result);
 
             throw new ServiceResultException(new ServiceResult(resultCode, result));
         }

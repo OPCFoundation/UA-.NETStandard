@@ -48,8 +48,10 @@ running the CTT is in [ctt-testing.md](ctt-testing.md).
 | C6 | Aggregates: DurationGood/PercentGood first region | — | Not filed |
 | C7–C18 | Other unfiled script defects | — | Not filed |
 | C19–C31 | GDS Application Directory / Query Applications script defects | — | Not filed |
+| C32–C36 | Monitored Item, Node Management and Security script defects | — | Not filed |
 | C37 | Session Base: secure test cases send CreateSession with the `opc.wss` EndpointUrl | — | Not filed |
 | C38 | Subscription Durable `012.js`: denied diagnostics Browse and missing braces | — | Not filed |
+| C39–C44 | Alarms and Conditions script defects | — | Not filed |
 
 Mantis states were last checked on 2026-09-13.
 
@@ -752,6 +754,84 @@ mask values are: 0x1 - Servers; 0x2 - Clients; If the mask is 0 then all applica
 The script's expectation (*"no records"*) matches neither reading. **Fix:** expect Good with all
 records for `3`, and use a value with an undefined bit (for example `4`) for the invalid case.
 
+### C32. Monitor Basic `038.js` judges a RevisedSamplingInterval of 0 against a project setting
+
+- **Test:** `maintree/Monitored Item Services/Monitor Basic/Test Cases/038.js`, lines 7 and 15–21
+- **Warning:** *"Expected CreateMonitoredItems.Results[0].RevisedSamplingInterval to be different than the
+  requested 0 value"*, plus a manual-verification entry
+
+The script requests SamplingInterval 0 and warns when the server returns 0, unless
+`/Server Test/Capabilities/Fastest Sampling Interval Supported` is 0. Part 4 §7.21 defines 0 as "the fastest
+practical rate", and a Variable whose MinimumSamplingInterval is 0 is monitored continuously (Part 3
+§5.6.2), so a revised interval of 0 is correct for exception-based items. The reference server's static
+scalar nodes declare MinimumSamplingInterval 0 and report changes by exception, and
+`Server.ServerCapabilities.MinSupportedSampleRate` is 0 (`SubscriptionManager.CalculateRevisedSamplingInterval`).
+The project setting is 50 because `library/Base/Objects/monitoredItem.js` line 58 uses it as the default
+sampling interval of every MonitoredItem, so setting it to 0 to silence `038.js` would change all other
+Monitored Item test cases. **Fix:** compare with the node's MinimumSamplingInterval or the server's
+`MinSupportedSampleRate` (both already read by `library/Base/serverCapabilities.js`), and accept 0 when
+either is 0.
+
+### C33. Monitor Value Change V2 `020.js` requires every ByteString element to be four bytes long
+
+- **Test:** `maintree/Monitored Item Services/Monitor Value Change V2/Test Cases/020.js`, lines 34–42
+- **Skip:** *"The byteString elements (0, 1, and 2) are too small and should be increased to 4-characters as a minimum."*
+
+The message names elements 0–2, but lines 34–38 take the minimum length of **all** elements, and
+IndexRange cases 2–4 (lines 48–50) use that minimum for the first and last three strings. A single
+short element anywhere in the array skips the test. The reference server's static
+`Scalar_Static_Arrays_ByteString` had a 1-byte and a 3-byte element at indexes 4 and 5; its sample value now
+keeps every element at least four bytes long, and the test passes. **Fix:** compute the minimum over the
+elements the index ranges select (the first and last three) and report the real requirement.
+
+### C34. Node Management `RequestedNewNodeId()` ignores `RequestedNodeId_Namespace`
+
+- **Helper:** `maintree/Node Management Services/Node Management Add Node/Test Cases/initialize.js`,
+  `CUVariables.RequestedNewNodeId` (lines 131–153)
+- **Effect:** with `/Server Test/NodeIds/NodeManagement/RequestedNodeId` enabled, every AddNodes item requests
+  `ns=1;s=stringNNN`
+
+Logged on 2026-09-14 in a project copy with `RequestedNodeId` = 2, `RequestedNodeId_IdString` = 2 and
+`RequestedNodeId_Namespace` set to 2, and again to 3: the request always carried `ns=1;s=string001`. The
+function assigns `n.NamespaceIndex` (line 136) before `n.setIdentifierString(...)` (line 140); the namespace
+index does not survive into the request. Namespace 1 is the reference server's application URI namespace, which has no node manager, so
+the server correctly answers `BadNodeIdRejected`, and Add Node `001.js`–`003.js`, `Err-003.js`, `Err-005.js`
+and `Err-008.js` fail. The same server accepts `ns=2;s=string001` (checked in-process). Client-specified
+NodeIds therefore cannot be enabled, and `Err-008.js` (issue 9) cannot test duplicates. **Fix:** set the
+identifier first and the namespace index afterwards, or build the id with
+`UaNodeId.fromString( "ns=" + ns + ";s=string" + n )`.
+
+### C35. Security User Anonymous `initialize.js` selects the `opc.wss` endpoint
+
+- **Test:** `maintree/Security User Token/Security User Anonymous/Test Cases/initialize.js`, lines 42–60;
+  `002.js`, lines 10–11
+- **Error:** *"OpenSecureChannel( MessageSecurityMode: SignAndEncrypt; RequestedSecurityPolicyUri: …Basic256Sha256 );
+  Result = BadNotSupported"*
+
+`initialize.js` skips only `http` endpoints and keeps the **last** SignAndEncrypt endpoint that allows
+Anonymous. The reference server lists its `opc.wss://…:62543` endpoint after the `opc.tcp` ones, so
+`epSecureEncrypt` is the WebSocket endpoint (logged: transport `wss-uasc-uabinary`), which the CTT client
+cannot open; `BadNotSupported` comes from the CTT. **Fix:** filter endpoints by the transports the CTT supports
+(`opc.tcp`), as `UaEndpointDescription.Find` should for WebSocket URLs too (see C16).
+
+### C36. `UaEndpointDescription.FindTokenType` rewrites the cached endpoints, so Security User Name Password 2 `015.js` reports duplicate PolicyIds
+
+- **Helper:** `library/ClassBased/UaE.js`, lines 54–56 (called from `UaEndpointDescription.Find`, line 105)
+- **Test:** `maintree/Security User Token/Security User Name Password 2/Test Cases/015.js`, line 52
+- **Error:** *"The PolicyId: 2, is used for multiple UserIdentityTokens … Difference found: SecurityUri: , and:
+  http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256"* (four times)
+
+When a UserTokenPolicy has an empty SecurityPolicyUri, `FindTokenType` assigns the endpoint's
+SecurityPolicyUri to it **in `gServerCapabilities.Endpoints`** instead of to the clone it returns. The CU's
+`initialize.js` calls `Find( { SecurityMode: SignAndEncrypt, TokenType: UserName } )`, so the UserName
+policy (`2`) of every SignAndEncrypt endpoint now shows Basic256Sha256 while the same policy on the Sign
+endpoint still shows an empty string. `015.js` compares these copies and reports a PolicyId reused for
+different configurations. Logged on 2026-09-14: the server returned `2` with an empty SecurityPolicyUri on all
+three Basic256Sha256 endpoints; only the SignAndEncrypt copies changed inside the CTT. An empty
+SecurityPolicyUri means "use the endpoint's policy" (Part 4 §7.41), so the server's policies are also
+equal in effect. Separately, `015.js` line 20 indexes `foundTokens[i]` with the endpoint index. **Fix:**
+set the SecurityPolicyUri on the returned clone only, and index `foundTokens` with the token position.
+
 ### C37. Session Base secure test cases send CreateSession with the `opc.wss` EndpointUrl
 
 - **Tests:** `maintree/Session Services/Session Base/Test Cases/Err-002.js`, `Err-005.js` and
@@ -794,6 +874,111 @@ status and reads an empty node list, which the server correctly rejects with `Ba
 Steps 4–6 (lifetime honoured after SetSubscriptionDurable, reset by ModifySubscription) pass.
 **Fix:** check `BrowseHelper.Response.Results[0].StatusCode` and skip Step 3 with a message when it is
 Bad or has no references, add braces on line 37, and guard `diagsObject`.
+
+### C39. A & C `AlarmCollector.GetCallTime()` returns an unset time, so Comment skips every alarm type
+
+- **Helper:** `library/AlarmsAndConditions/AlarmCollector.js`, lines 1839–1842
+  (`return new UaDateTime( callHelper.ServerTimeOfCall )`)
+- **Tests:** A & C Comment `Test_001.js`–`Test_004.js` (skip); A & C Enable `Test_002.js` (fails, C12)
+- **Result:** *"0 tests passed 1 tests skipped (retry count 3)"* for every alarm type
+
+`CallHelper.ServerTimeOfCall` is never assigned, so the call time is `0001-01-01T00:00:00Z`.
+Comment `Test_001.js` line 86 accepts the comment event only if
+`CommentTime.msecsTo( eventTime ) >= 0`; the 32-bit millisecond difference from year 1 is negative
+(about −838,500,000 on 2026-09-14), so every comment event is treated as unrelated and
+`RestartSkipped` (lines 2313–2335) gives up after three retries. Logged values from one run: call
+at `00:25:54.805Z`, response timestamp `00:25:54.816Z`, comment event `Time` `00:25:54.811Z` carrying
+the expected comment text, `CommentTime` `0001-01-01T00:00:00Z`. Enable `Test_002.js` lines 291 and
+301 fail the same way ("Unexpected event time, differs by ..."). Acknowledge and Confirm call the
+same helper but short-circuit the comparison (`IgnoreEventByCallTime` returns false, lines
+2356–2358), so they are unaffected. **Fix:** set `ServerTimeOfCall` from the Call response (and
+compare it with a tolerance, because the condition event is created before the response is sent),
+or use the request time corrected by the device time differential.
+
+### C40. A & C Limit/Level CUs create their filter subscriptions on a session that has timed out
+
+- **Tests:** A & C Exclusive Limit, Exclusive Level, Non-Exclusive Limit and Non-Exclusive Level
+  (all use `maintree/Alarms and Conditions/A and C Base/Limit/Test Cases/`), `Test_003.js`–`Test_006.js`
+- **Helper:** `library/AlarmsAndConditions/ConformanceHelpers/limithelper.js`, lines 72–79
+- **Error:** 5× *"CreateSubscription.Response.ResponseHeader.ServiceResult is Bad: BadSessionIdInvalid"*
+  in `initialize.js`, then each test case runs to the maximum test time (3 × Alarm Cycle Time)
+
+`initialize.js` connects the CU session (line 23) and creates the collector (line 37). When the
+collector starts the alarm thread, `InitialEventCapture` waits one full Alarm Cycle Time on the alarm
+thread's own session (`AlarmCollector.js` lines 305–319) while the CU session sends nothing.
+`LimitHelper` (line 47) then creates its five filter subscriptions on that CU session. With the
+default Alarm Cycle Time (60 s) and `/Server Test/Session/RequestedSessionTimeout` (60000 ms) the
+server has already closed the session as required by Part 4 §5.7.2. The four filter test cases
+find empty buffers and each waits 180 s, so every CU takes about 14 minutes when it is the first
+A&C CU in the CTT process (in a whole-group run only the first A&C CU pays the capture, and the
+Limit CUs take about 100 s). `Test_005.js` line 22 also sets `TestName = "Test_003"`. **Fix:** create
+the `LimitHelper` before the initial capture, keep the CU session alive during the capture, or use
+the alarm thread session for the filter subscriptions.
+
+### C41. A & C Alarm `Test_002.js` always runs to the maximum test time
+
+- **Test:** `maintree/Alarms and Conditions/A and C Alarm/Test Cases/Test_002.js`, line 38;
+  `initialize.js`, lines 15–36
+
+`CanRunTest` returns false for AcknowledgeableConditionType events (`CanRunAlarmCondition`, line 22–23)
+and `Test_002.js` returns without touching a counter or calling `AddIgnoreSkips`. The collector picks
+one condition per alarm type that sent an event (`AlarmCollector.GetConditionIdsToTest`), so a server
+that exposes an AcknowledgeableCondition instance keeps a condition in `TestConditionIds` that never
+gets a result, and `IsTestComplete` only ends the test at 3 × Alarm Cycle Time (180 s by default).
+Line 22 also compares with `Identifier.ConditionId` where `Identifier.ConditionType` is meant.
+**Fix:** increment `TestsSkipped` (or set IgnoreSkip) for types that `CanRunTest` rejects.
+
+### C42. A & C Enable `Test_003.js` depends on all alarm types going active within cycle/10
+
+- **Test:** `maintree/Alarms and Conditions/A and C Enable/Test Cases/Test_003.js`, lines 64–68, 89,
+  129–132, 201–215, 233–237
+
+A condition gets a test case only for an active event seen while `RefreshState` is still `Unknown`
+(line 89). The first disable sets the ConditionRefresh time to Alarm Cycle Time / 10 later (6 s by
+default, lines 64 and 129–132); after the refresh (line 207) no new test cases are created. A
+server whose alarm types go active at different times therefore leaves some types without a result
+and the test runs to 3 × Alarm Cycle Time. Against the reference server before its boolean and
+analog alarm sources were aligned this happened in 6 of 7 runs; the conditions it disabled are only
+re-enabled when the RefreshEnd event arrives (line 237). **Fix:** keep accepting first active events
+until the refresh is started for all non-ignored types, or mark types without an active event as
+skipped when the refresh is issued.
+
+### C43. A & C Enable `Err_004.js` reacts to its own events and can stop the alarm thread's event delivery
+
+- **Test:** `maintree/Alarms and Conditions/A and C Enable/Test Cases/Err_004.js`, lines 25–40
+
+For *every* event of a condition the test calls Disable, Disable and Enable on the alarm thread
+session without keeping per-condition state. Each Disable/Enable raises a new condition event, which
+triggers the same three calls again: runs recorded up to 364 passes per alarm type and 868 events in
+15 s. In 7 of 17 Enable runs against the reference server the CTT alarm thread returned **no events
+at all** for the rest of the CU, six times right after such a burst and once already from
+`Test_003.js` on; every test case after that ran to 3 × Alarm Cycle Time.
+Evidence collected with `addLog` counters in a project copy and the server log:
+
+- the alarm thread subscription stayed alive, and its data monitored items on the same subscription
+  kept delivering values (AnalogSource about one per second) while both event items on it stayed empty;
+- `GetBuffer` never failed (status true, zero events);
+- the server kept reporting condition events at the normal rate and deleted the subscription only at
+  the end, with no unacknowledged messages;
+- an in-process client that replays the pattern (same subscription parameters, a Server event item
+  plus a ConditionId `InList` item, Disable/Disable/Enable for every received event) pushed about
+  100,000 events through in 20 s three times and kept receiving events afterwards.
+
+The server side could not be shown to drop the notifications; a network capture of the CTT session
+is needed to settle it. **Fix:** handle each condition once (`TestCaseMap`), like the other Enable
+test cases, which removes the burst.
+
+### C44. A & C CertificateExpiration blocks a `--hidden` run on a modal dialog
+
+- **Test:** `maintree/Alarms and Conditions/A and C CertificateExpiration/Test Cases/initialize.js`,
+  lines 135–149
+
+`initialize.js` opens a synchronous Yes/No message box (*"Is is possible to adjust the clock on the
+server without a restart"*) before any test runs, and the test cases open further OK dialogs asking
+the operator to change the server clock. In a `--close --hidden` run the dialog window
+*"Certificate Expiration Operation"* is still created and waits for input, so the CTT never exits.
+The CU needs an operator (and a server whose clock can be moved past a certificate's expiration
+limit). **Fix:** skip dialogs in hidden/automated runs, or add a project setting that answers them.
 
 ## Needs clarification
 
@@ -845,18 +1030,32 @@ it is classified as a server or CTT issue.
 - **Auditing Connections cannot find audit events.** `011.js`/`012.js` (ClientAuditEntryId) and
   `001.js`/`007.js`/`020.js` (AuditOpenSecureChannel/CreateSession/ActivateSession event types). See
   C14; a separate root-cause investigation is running.
-- **A & C Refresh `Err_004.js` invalidates the alarm subscription.** The test adds 10 event
-  subscriptions and calls ConditionRefresh five times near-simultaneously, expecting Good or
-  `BadRefreshInProgress`. The call returns `BadSubscriptionIdInvalid`. Afterwards the CTT alarm
-  subscription stays invalid, so A & C Refresh `cleanup.js` and A & C Refresh2 `initialize.js`,
-  `Test_002.js`–`Test_004.js` fail with `BadSubscriptionIdInvalid`. Check per-session subscription
-  limits and subscription handling under concurrent ConditionRefresh.
-- **A & C Comment skips 5 of 11 test cases.** For every alarm type the CTT reports *"0 tests passed
-  1 tests skipped (retry count 3)"*: the alarms did not reach the state the test needs within three
-  retries. Check the CTT-mode alarm simulation timing.
-- **Slow A & C units.** A & C Exclusive/Non-Exclusive Limit/Level (28 cases) and
-  A & C CertificateExpiration did not finish within 15 minutes each and have no results yet; Shelving
-  alone takes about 2.5 minutes, Comment about 4. Run them individually with a long timeout.
+- **A & C Refresh `Err_004.js` / `BadSubscriptionIdInvalid` cascade (investigated 2026-09-14, not
+  reproduced).** In the failing run the ten subscriptions that `Err_004.js` creates on the alarm
+  thread session, and the alarm thread subscription itself, were gone when the first
+  ConditionRefresh was sent after the script's 30 s wait (CTT subscriptions: 250 ms publishing
+  interval, lifetime count 62 = 15.5 s). That is what a subscription expiry looks like when the
+  session's publish requests stop; there is no server log from that run. Nine further runs (Refresh
+  alone, Refresh2 alone, Refresh + Refresh2 three times, one of them under build load, and four
+  whole-group runs) passed all 28 cases,
+  and an in-process client replaying the pattern (11 subscriptions, 5 Calls × 10 ConditionRefresh,
+  30 s idle, sequential publishing) kept every subscription. If it recurs, start the server with
+  `-c -l` and look for `Subscription ... EXPIRED`. The replay exposed a real server defect:
+  `AlarmNodeManager.CallAsync` (sample) answered every ConditionRefresh/ConditionRefresh2 after the
+  first in a Call with `BadRefreshInProgress`, even for other subscriptions, so only one of the ten
+  subscriptions was ever refreshed. Fixed: the check is now keyed by subscription and monitored item
+  (`AlarmsAndConditionsRefreshTests.ConditionRefresh*OfDifferentSubscriptionsInOneCallSucceedsAsync`).
+- **A & C Comment skips 5 of 11 test cases.** CTT defect: `Test_001.js`–`Test_004.js` compare the
+  comment event time with an unset call time (C39); the server delivers the comment event with the
+  expected text. The fifth skip is `Err_006.js` (*"Unable to find event that does not support
+  comments"*), a coverage gap rather than a failure.
+- **Slow A & C units (resolved).** See [ctt-testing.md](ctt-testing.md#6-alarms-and-conditions) for the
+  timing breakdown and the recommended run. Limit/Level CUs are slow only when they run first in a CTT
+  process (C40); CertificateExpiration hangs on a modal dialog (C44); Alarm `Test_002.js` always and
+  Enable `Test_003.js` often ran to 3 × Alarm Cycle Time (C41, C42), and Enable intermittently stops receiving events
+  after `Err_004.js` bursts (C43). The reference server's boolean
+  and analog alarm sources now change state on the same simulation tick, which makes Enable
+  `Test_003.js` pass deterministically.
 - **GDS (triaged 2026-09-14).** The 60 GDS errors are classified below. Server defects fixed:
   - Like filters of QueryServers/QueryApplications (`ApplicationsDatabaseBase.Match`, now the shared
     `Opc.Ua.LikePattern`, OPC 10000-4 §7.7.3). The old tokenizer returned no records or all records
@@ -887,11 +1086,34 @@ it is classified as a server or CTT issue.
   Spec conflict, server unchanged: §6.5.10/§6.5.11 say QueryApplications/QueryServers *"shall not
   return records with a ServerCapabilities that includes NA"*, but the CTT registers its reference
   Servers with `NA` and expects them in the results (for example `066.js`, `079.js` step 1).
-- **RevisedSamplingInterval 0.** Monitor Basic `038.js` warns that a requested SamplingInterval of 0 is
-  returned unchanged. Part 4 says 0 means the fastest practical rate, and the revised value should
-  report that rate.
-- **AddNodes latency.** Node Management Delete Node `Err-002.js` reports AddNodes responses 300–600 ms
-  after the request (tolerance 100 ms).
+- **GDS AliasName Discovery.** `001.js` finds AliasName instances in the TagVariables (`i=23479`) and
+  Topics (`i=23488`) folders although no server is registered yet. `002.js`/`004.js`: the aliases and
+  custom categories of a registered server are not replicated to the GDS.
+- **RevisedSamplingInterval 0 (resolved, not a server defect).** Monitor Basic `038.js` warns that a
+  requested SamplingInterval of 0 is returned unchanged. The configured nodes declare MinimumSamplingInterval
+  0 and are reported by exception, so 0 is the correct revised value; the script compares with a project
+  setting instead of the server's capabilities (C32).
+- **AddNodes latency (fixed 2026-09-14).** Node Management Delete Node `Err-002.js` warned that AddNodes
+  responses arrived 400–800 ms after the request (tolerance 100 ms). The test adds 15,000 variables below
+  `ns=2;s=CTT` in batches of 5,000 (`MaxNodesPerNodeManagement`). Every added node searched all children
+  of the parent twice (BrowseName duplicate check and the NodeVersion lookup of the model change filter), so
+  the batches took 0.8, 2.1 and 4.0 s in-process. `NodeState.FindChild` now uses a BrowseName index for large
+  child lists; the batches take 141, 166 and 172 ms, the CTT logs 51–72 ms per 5,000-node AddNodes, and the
+  warning is gone.
+- **Create/DeleteMonitoredItems timestamp warnings (timing jitter, not a server defect).** Each Monitored Item
+  run shows one or two *"… Timestamp shows a delay in excess of 200ms"* warnings, on different test cases
+  every time: Monitor Value Change V2 `014.js`/`018.js` in one run, Monitor Basic `007.js`/`009.js` in the
+  next, Monitor Basic `014.js` in a third. A run with every non-Publish response above 50 ms logged
+  (`UaR.js`, `addLog`) found two of the roughly 2,000 Create/DeleteMonitoredItems calls of Monitor Basic
+  `014.js`–`016.js` (about 30 items each) above 100 ms (123 and 153 ms), and none in a Monitor Value Change V2
+  run. The CTT rounds the delay up to the next 100 ms, so 153 ms is reported as "in excess of 200ms". No
+  service or test case is consistently slow; the first run also overlapped builds of other sessions.
+- **OpenSecureChannel revocation errors (fixed 2026-09-14).** Security Certificate Validation `002.js` warned
+  that the server returned `BadCertificateIssuerRevocationUnknown`. Part 4 §6.1.3 Table 106 requires
+  `Bad_SecurityChecksFailed` to be reported for the revocation check and should be reported for a missing
+  revocation list. `TcpServerChannel` masked only `BadCertificateRevoked`; it now also masks
+  `BadCertificateIssuerRevoked`, `BadCertificateRevocationUnknown` and `BadCertificateIssuerRevocationUnknown`
+  (the CreateSession path already did).
 - **Session Services stopped accepting sessions after a session timeout (fixed 2026-09-14).** Session
   Base `002.js` lets a session time out and calls ActivateSession on it. `SessionManager.ActivateSessionAsync`
   found the expired session while holding the session-manager `SemaphoreSlim` and closed it through
@@ -971,12 +1193,49 @@ tracked in [#4479](https://github.com/OPCFoundation/UA-.NETStandard/issues/4479)
 - **GDS LDS-ME Connectivity.** `initialize.js` skips the CU unless QueryApplications with
   `ServerCapabilities = ["LDS"]` returns a record: register an LDS/LDS-ME with the GDS first. The
   reference server does not include an LDS.
-- **Monitor Value Change V2 `020.js`** needs the ByteString elements 0–2 of its configured array to be at
-  least 4 characters long.
+- **Node Management client NodeIds.** Leave `/Server Test/NodeIds/NodeManagement/RequestedNodeId` disabled.
+  When enabled, scripts 1.05.513 request NodeIds in namespace 1 regardless of `RequestedNodeId_Namespace`
+  (C34), and six Add Node test cases fail with `BadNodeIdRejected`. `Err-008.js` therefore keeps failing
+  (issue 9). The setting's default namespace value (911) is meaningless.
+- **Monitored Item Services manual test cases.** Monitor Basic `036.js`, Monitor Complex Value `001.js`–`003.js`,
+  Monitor Events `002.js`/`003.js`, Monitor Queueing `013.js`/`014.js`, and the Monitor Complex Event Filter
+  and Monitor QueueSize_ServerMax CUs are *Not Implemented* (manual or test-lab) in scripts 1.05.513. So are
+  Node Management Add Ref and Delete Ref.
+- **Security groups need the CTT PKI, not `-a`.** See [ctt-testing.md](ctt-testing.md#9-security-groups).
+  With `-a` every negative certificate test fails spuriously.
+- **Security General coverage.** In scripts 1.05.513, 50 of the 53 CUs contain only *Not Implemented* test
+  cases (Push/Pull Model, No Application Authentication, Security Administration, Certificate Administration, Default ApplicationInstance
+  Certificate, all Role and User Management CUs, TLS, Time Sync, KeyCredential, broker authentication,
+  ECC, LegacySequenceNumber, Encryption/Signing/Policy Required, SecurityPolicy Support). Automated test
+  cases exist only in Security Certificate Validation and Security None CreateSession ActivateSession
+  (and its 1.0 variant).
+- **Security Certificate Validation skips.** `004.js` skips because the CTT stack cannot send an empty
+  client certificate. `049.js`/`050.js` need a Basic128Rsa15 endpoint for their SHA-1 certificates; the
+  reference server does not offer that deprecated policy (not applicable).
+- **Security User Token coverage.** Security User Anonymous `003.js` needs a secure endpoint without the
+  Anonymous token; the CTT configuration offers Anonymous on every endpoint. Security User Name Password 2
+  `002.js` needs a UserName token policy with SecurityPolicy `#None` on an encrypted endpoint (password sent
+  unencrypted inside the channel); the reference server always encrypts passwords (not applicable).
+  `012.js` passes only because `/Server Test/Session/LoginNameAccessDenied` (`username`) is not a known user
+  and the server answers unknown credentials with `BadUserAccessDenied`; the reference server has no user
+  that authenticates but is denied access. Security Invalid user token, the Kerberos, JWT, Authority Profile
+  and Token Unencrypted CUs, and X509 `003.js`/`012.js`, are *Not Implemented*.
+- **Monitor Value Change V2 `020.js`** needs **every** element of the configured ByteString array to be at
+  least four bytes long (C33). The reference server's sample value satisfies that since 2026-09-14.
 - **Alarms and Conditions coverage.** The single-case CUs (ConditionClasses, Condition Sub-Classes,
   Suppression by Operator, Silencing, OutOfService, On-Off Delay, Re-Alarming, First in Group Alarm,
   Audible Sound, Discrepancy, Trip, A&E Wrapper Mapping, Dialog) contain only manual
   (*Not Implemented*) test cases.
+- **A & C Shelving coverage.** `/Server Test/Alarms and Conditions/Chattering Alarms` is empty, so
+  `UseChatteringAlarms` sets IgnoreSkip on every type and `Test_003.js`–`Test_005.js`,
+  `Test_007.js`–`Test_010.js` and `Err_001.js`–`Err_003.js` finish immediately without testing
+  anything. The reference server has no alarm that stays active across transitions, so there is no
+  condition to configure there yet.
+- **A & C Alarm Cycle Time and session timeout.** `/Server Test/Alarms and Conditions/Alarm Cycle Time`
+  sets the initial event capture (1 ×), the maximum time of every collector test case (3 ×) and the
+  Enable `Test_003.js` refresh delay (1/10). Keep it below
+  `/Server Test/Session/RequestedSessionTimeout` (ms) when a Limit/Level CU can be the first A&C CU of a
+  run (C40).
 - **Subscription Publish Min 05 `003.js`** creates 5 subscriptions in each of half the
   `/Server Test/Capabilities/Max Supported Sessions` sessions (75 → 38 sessions, 190 subscriptions). With
   `/Server Test/Capabilities/Max Supported Subscriptions` = 100 (the server's `MaxSubscriptionCount` in

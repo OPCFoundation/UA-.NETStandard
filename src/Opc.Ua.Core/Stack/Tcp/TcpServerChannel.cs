@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -743,45 +744,10 @@ namespace Opc.Ua.Bindings
                 // dispose the client certificate since it will not be stored
                 clientCertificate?.Dispose();
 
-                // If the certificate structure, signature and trust list checks pass,
-                // return the other specific validation errors instead of BadSecurityChecksFailed.
-                // The certificate validation failure is thrown directly as a
-                // ServiceResultException carrying the specific status code (see
-                // UaSCBinaryChannel.Asymmetric ValidateAsync path), so inspect the caught
-                // exception itself as well as any inner exception before falling back to the
-                // generic code — otherwise BadCertificateTimeInvalid / BadCertificateUseNotAllowed
-                // (Part 4 §7.39 / Part 6 §6.7.4) would always be masked as BadSecurityChecksFailed.
-                if ((e as ServiceResultException ?? e.InnerException as ServiceResultException)
-                    is ServiceResultException innerException)
+                if (TryGetReportableCertificateError(e, out ServiceResultException? reportable))
                 {
-                    if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
-                        innerException.StatusCode == StatusCodes.BadCertificateChainIncomplete ||
-                        innerException.StatusCode == StatusCodes.BadCertificateRevoked ||
-                        innerException.StatusCode == StatusCodes.BadCertificateInvalid ||
-                        innerException.StatusCode == StatusCodes.BadCertificatePolicyCheckFailed ||
-                        (
-                            innerException.InnerResult != null &&
-                            innerException.InnerResult.StatusCode == StatusCodes
-                                .BadCertificateUntrusted))
-                    {
-                        ForceChannelFaultCore(
-                            StatusCodes.BadSecurityChecksFailed,
-                            errorSecurityChecksFailed);
-                        return false;
-                    }
-                    if (innerException.StatusCode == StatusCodes.BadCertificateTimeInvalid ||
-                        innerException.StatusCode == StatusCodes.BadCertificateIssuerTimeInvalid ||
-                        innerException.StatusCode == StatusCodes.BadCertificateHostNameInvalid ||
-                        innerException.StatusCode == StatusCodes.BadCertificateUriInvalid ||
-                        innerException.StatusCode == StatusCodes.BadCertificateUseNotAllowed ||
-                        innerException.StatusCode == StatusCodes.BadCertificateIssuerUseNotAllowed ||
-                        innerException.StatusCode == StatusCodes.BadCertificateRevocationUnknown ||
-                        innerException.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown ||
-                        innerException.StatusCode == StatusCodes.BadCertificateIssuerRevoked)
-                    {
-                        ForceChannelFaultCore(innerException, innerException.StatusCode, e.Message);
-                        return false;
-                    }
+                    ForceChannelFaultCore(reportable, reportable.StatusCode, e.Message);
+                    return false;
                 }
 
                 ForceChannelFaultCore(StatusCodes.BadSecurityChecksFailed, errorSecurityChecksFailed);
@@ -1049,6 +1015,32 @@ namespace Opc.Ua.Bindings
                 }
                 chunksToProcess?.Release(BufferManager, "ProcessOpenSecureChannelRequest");
             }
+        }
+
+        /// <summary>
+        /// Returns the certificate validation error that may be reported to the client of a
+        /// failed OpenSecureChannel request (see <see cref="CertificateErrorReporting"/>).
+        /// Every other failure is reported as Bad_SecurityChecksFailed.
+        /// </summary>
+        /// <param name="e">The exception that failed the request.</param>
+        /// <param name="reportable">The exception carrying the code to report.</param>
+        /// <returns><c>false</c> when Bad_SecurityChecksFailed must be reported.</returns>
+        internal static bool TryGetReportableCertificateError(
+            Exception e,
+            [NotNullWhen(true)] out ServiceResultException? reportable)
+        {
+            // the certificate validation failure is thrown directly or as the inner exception.
+            if ((e as ServiceResultException ?? e.InnerException as ServiceResultException)
+                    is ServiceResultException error &&
+                CertificateErrorReporting.IsReportedToClient(
+                    CertificateErrorReporting.GetClientStatusCode(error.Result)))
+            {
+                reportable = error;
+                return true;
+            }
+
+            reportable = null;
+            return false;
         }
 
         /// <inheritdoc/>
