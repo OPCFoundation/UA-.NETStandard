@@ -308,8 +308,39 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             uint messageType = BinaryPrimitives.ReadUInt32LittleEndian(captured.AsSpan(0));
             Assert.That(messageType & 0x00FFFFFFu, Is.EqualTo(TcpMessageType.Open));
             Assert.That(
-                DecodeServiceFaultStatusCode(captured),
+                DecodeServiceFault(captured).ResponseHeader.ServiceResult.Code,
                 Is.EqualTo((uint)StatusCodes.BadCertificateUntrusted));
+        }
+
+        /// <summary>
+        /// The asymmetric (OpenSecureChannel) fault echoes the RequestHandle it is
+        /// given and carries a response Timestamp (OPC 10000-4 §7.33).
+        /// </summary>
+        [Test]
+        public async Task SendServiceFaultWithRequestHandleEchoesItAsync()
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            var transport = new RecordingByteTransport();
+            using TestServerChannel channel = BuildChannel(listenerMock);
+            channel.SetTransport(transport);
+            channel.CurrentState = TcpChannelState.Opening;
+
+            channel.CallSendServiceFault(
+                requestId: 42u,
+                renew: false,
+                fault: new ServiceResult(StatusCodes.BadSecurityChecksFailed),
+                requestHandle: 99u);
+
+            Assert.That(
+                await CompletesWithinAsync(transport.FirstSendTask, 30).ConfigureAwait(false),
+                Is.True,
+                "channel never emitted the service fault message");
+            ServiceFault fault = DecodeServiceFault(transport.LastSent);
+            Assert.That(fault.ResponseHeader.ServiceResult.Code, Is.EqualTo((uint)StatusCodes.BadSecurityChecksFailed));
+            Assert.That(fault.ResponseHeader.RequestHandle, Is.EqualTo(99u));
+            Assert.That(
+                (DateTime)fault.ResponseHeader.Timestamp,
+                Is.GreaterThan(DateTime.UtcNow.AddMinutes(-1)));
         }
 
         /// <summary>
@@ -534,7 +565,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             return error.StatusCode;
         }
 
-        private uint DecodeServiceFaultStatusCode(byte[] chunk)
+        private ServiceFault DecodeServiceFault(byte[] chunk)
         {
             using var decoder = new BinaryDecoder(
                 new ArraySegment<byte>(chunk, 8, chunk.Length - 8), m_context);
@@ -544,8 +575,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             _ = decoder.ReadByteString(null); // receiver certificate thumbprint
             _ = decoder.ReadUInt32(null); // sequence number
             _ = decoder.ReadUInt32(null); // request id
-            ServiceFault fault = decoder.DecodeMessage<ServiceFault>();
-            return fault.ResponseHeader.ServiceResult.Code;
+            return decoder.DecodeMessage<ServiceFault>();
         }
 
         private static Certificate CreateSmallCertificate()
@@ -639,6 +669,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public void CallSendServiceFault(uint requestId, bool renew, ServiceResult fault)
             {
                 SendServiceFault(requestId, renew, fault);
+            }
+
+            public void CallSendServiceFault(uint requestId, bool renew, ServiceResult fault, uint requestHandle)
+            {
+                SendServiceFault(requestId, renew, fault, requestHandle);
             }
         }
 
