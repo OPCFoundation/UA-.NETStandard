@@ -4261,6 +4261,19 @@ namespace Opc.Ua.SourceGeneration
                     reference.ReferenceType,
                     !isInverse));
             }
+
+            // Inherited and declared designs can differ structurally while
+            // resolving to the same runtime reference.
+            HashSet<(string ReferenceTypeId, bool IsInverse, string TargetId)> referenceIds = [];
+            references.RemoveWhere(reference => !referenceIds.Add((
+                m_context.ModelDesign.GetNodeIdConstant(
+                    reference.ReferenceTypeId,
+                    "<ReferenceType>",
+                    kNamespaceTableContextVariable),
+                reference.IsInverse,
+                reference.TargetNode.GetNodeIdAsCode(
+                    m_context.ModelDesign.Namespaces,
+                    kNamespaceTableContextVariable))));
             return references;
         }
 
