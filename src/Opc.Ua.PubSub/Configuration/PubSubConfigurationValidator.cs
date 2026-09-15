@@ -80,6 +80,13 @@ namespace Opc.Ua.PubSub.Configuration
         public bool SuppressInsecureSecurityModeWarnings { get; init; }
 
         /// <summary>
+        /// Explicit host registrations supplying keys without an SKS endpoint.
+        /// Security group identity, message security and runtime key resolution
+        /// remain required. Portable configuration alone grants no registration.
+        /// </summary>
+        public ArrayOf<string> RegisteredSecurityGroupIds { get; init; }
+
+        /// <summary>
         /// Runs all validation rules against
         /// <paramref name="configuration"/> and returns the aggregated
         /// result. Never throws; missing or malformed sub-trees produce
@@ -614,12 +621,13 @@ namespace Opc.Ua.PubSub.Configuration
                             path,
                             SpecClauses.SecurityKeyServices));
                     }
-                    if (!hasServices)
+                    if (!hasServices && (!hasGroup || !RegisteredSecurityGroupIds.Contains(securityGroupId!)))
                     {
                         issues.Add(new PubSubConfigurationIssue(
                             PubSubConfigurationIssueSeverity.Error,
                             IssueCodes.SecurityKeyServicesMissing,
-                            $"SecurityMode '{securityMode}' requires at least one SecurityKeyService endpoint.",
+                            $"SecurityMode '{securityMode}' requires an SKS endpoint " +
+                            "or an explicitly registered key provider.",
                             path,
                             SpecClauses.SecurityKeyServices));
                     }

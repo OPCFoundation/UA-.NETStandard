@@ -4,7 +4,7 @@ The `Opc.Ua.Core.Schema` library generates schemas for OPC UA data types at runt
 
 - **XSD** for the XML encoding.
 - **BSD** (OPC Binary, Part 6) for the binary encoding.
-- **JSON Schema** (Part 6 Annex C, draft 2020-12) for the JSON encoding, in both the **compact** (reversible, BrowseName-keyed) and **verbose** flavors.
+- **JSON Schema** (draft 2020-12) for the Part 6 JSON encoding, in both the **compact** and **verbose** flavors.
 
 Schemas are built as strongly-typed object models in code — there are no embedded schema strings — so unused generation paths are trimmed away and the whole library is NativeAOT compatible. The XSD object model is the in-box `System.Xml.Schema.XmlSchema`, the BSD object model is the existing `Opc.Ua.Schema.Binary.TypeDictionary`, and the JSON object model is `System.Text.Json.Nodes.JsonObject`.
 
@@ -95,6 +95,20 @@ IDataTypeDefinitionResolver resolver = new CompositeDataTypeDefinitionResolver(
 
 Once registered, fields that reference other registered types are resolved automatically and included in the generated document.
 
+### Standard field encodings
+
+`Number` (`i=26`), `Integer` (`i=27`) and `UInteger` (`i=28`) are abstract simple
+types, not structures requiring a `DataTypeDefinition`. When used as structure
+fields, they use Variant encoding as specified by
+[OPC 10000-6, 5.1.6](https://reference.opcfoundation.org/Core/Part6/v105/docs/5.1.6).
+Their scalar and array field schemas therefore reference Variant rather than an
+unconstrained value or an ExtensionObject.
+
+`SchemaTypeInfo.GetFieldEncodingType` exposes this classification to callers that
+walk schema dependencies. It also preserves the standard primitive/alias mappings;
+custom-namespace identifiers such as `ns=1;i=26` still require their own definitions.
+It does not change the general-purpose `TypeInfo` classification.
+
 ### Namespace identity
 
 `BrowseName.NamespaceIndex` is not a mapping for the data type's NodeId namespace; the
@@ -169,6 +183,10 @@ The JSON schemas follow the Part 6 JSON encoding faithfully, matching what the s
 - `Float`/`Double` accept the special string values `Infinity`, `-Infinity` and `NaN`, so they are typed as `["number", "string"]`.
 - `ByteString` is a base64 `string`; `DateTime` is a `date-time` string; `Guid` is a `uuid` string.
 - The standard structured built-ins (`NodeId`, `Variant`, `ExtensionObject`, `DataValue`, ...) are described once per document in the `$defs` section and referenced.
+- Variant fields, including abstract numeric structure fields, use the `UaType`
+  and `Value` envelope with optional `Dimensions`. Null array entries are allowed,
+  and Compact encoding can omit a default `Value` while retaining `UaType`.
+  The deprecated `Type`/`Body` envelope is not the Compact/Verbose format.
 - Compact enums are integers (with the allowed values listed via `oneOf`); verbose enums are the `Name_Value` strings.
 
 ## PubSub schemas

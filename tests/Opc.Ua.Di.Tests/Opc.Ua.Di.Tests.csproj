@@ -62,6 +62,7 @@
     <Compile Remove="PumpHostedReferenceTests.cs" />
     <Compile Remove="PumpInstanceNodeIdRegressionTests.cs" />
     <Compile Remove="PumpNodeManagerFactoryTests.cs" />
+    <Compile Remove="SoftwareUpdateDemoTests.cs" />
     <Compile Remove="PumpTypeInstanceTests.cs" />
     <Compile Remove="PumpsNodeSetLoadingTests.cs" />
     <Compile Remove="PumpOpenUsdE2eTests.cs" />

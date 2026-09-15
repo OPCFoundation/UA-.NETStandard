@@ -287,7 +287,7 @@ namespace Opc.Ua.Schema.Json
 
             private JsonObject ElementSchema(NodeId dataType)
             {
-                BuiltInType builtInType = TypeInfo.GetBuiltInType(dataType);
+                BuiltInType builtInType = SchemaTypeInfo.GetFieldEncodingType(dataType);
                 if (builtInType != BuiltInType.Null)
                 {
                     return JsonBuiltInTypeSchemas.Create(builtInType, m_verbose, Definitions);
