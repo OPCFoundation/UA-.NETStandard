@@ -503,6 +503,161 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// A request the decoder rejects, here for a string above MaxStringLength,
+        /// is answered with a ServiceFault that echoes the RequestHandle of its
+        /// RequestHeader (OPC 10000-4 §7.33) and carries a response timestamp. The
+        /// channel used to send RequestHandle 0, which the CTT reports.
+        /// </summary>
+        [Test]
+        public async Task UndecodableRequestServiceFaultEchoesRequestHandleAsync()
+        {
+            const int maxStringLength = 64;
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool, maxStringLength: maxStringLength);
+            var transport = new GateByteTransport(expectedSendCount: 1, captureSentChunks: true);
+            channel.SetTransport(transport);
+
+            var request = new ReadRequest
+            {
+                RequestHeader = new RequestHeader
+                {
+                    AuthenticationToken = new NodeId("session", 0),
+                    Timestamp = DateTime.UtcNow,
+                    RequestHandle = 4711
+                },
+                NodesToRead =
+                [
+                    new ReadValueId
+                    {
+                        NodeId = new NodeId(new string('n', 10 * maxStringLength), 1),
+                        AttributeId = Attributes.Value
+                    }
+                ]
+            };
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var encodeContext = ServiceMessageContext.Create(telemetry);
+            encodeContext.MaxStringLength = 0;
+            byte[] body = BinaryEncoder.EncodeMessage(request, encodeContext);
+
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(
+                    TcpMessageType.Message,
+                    isFinal: true,
+                    sequenceNumber: 1,
+                    requestId: 9,
+                    body: body))
+                .ConfigureAwait(false);
+
+            ServiceFault fault = await ReadSentServiceFaultAsync(transport, expectedRequestId: 9)
+                .ConfigureAwait(false);
+            Assert.That(
+                fault.ResponseHeader.ServiceResult,
+                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(fault.ResponseHeader.RequestHandle, Is.EqualTo(4711u));
+            Assert.That(
+                (DateTime)fault.ResponseHeader.Timestamp,
+                Is.GreaterThan(DateTime.UtcNow.AddMinutes(-1)));
+        }
+
+        /// <summary>
+        /// A discovery-only channel rejects a non-discovery request from its
+        /// encoding id before decoding it; the ServiceFault still echoes the
+        /// RequestHandle, for a single-chunk request as well as for the first
+        /// chunk of a multi-chunk request.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task DiscoveryOnlyRejectionEchoesRequestHandleAsync(bool isFinal)
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            channel.MakeDiscoveryOnlyForTest();
+            var transport = new GateByteTransport(expectedSendCount: 1, captureSentChunks: true);
+            channel.SetTransport(transport);
+
+            var request = new ReadRequest
+            {
+                RequestHeader = new RequestHeader { Timestamp = DateTime.UtcNow, RequestHandle = 815 },
+                NodesToRead = [new ReadValueId { NodeId = new NodeId(1u), AttributeId = Attributes.Value }]
+            };
+            byte[] body = BinaryEncoder.EncodeMessage(
+                request,
+                ServiceMessageContext.Create(NUnitTelemetryContext.Create()));
+
+            await channel.FeedReceivedChunkAsync(
+                channel.CreateRequestChunkForTest(
+                    TcpMessageType.Message,
+                    isFinal,
+                    sequenceNumber: 1,
+                    requestId: 5,
+                    body: body))
+                .ConfigureAwait(false);
+
+            ServiceFault fault = await ReadSentServiceFaultAsync(transport, expectedRequestId: 5)
+                .ConfigureAwait(false);
+            Assert.That(
+                fault.ResponseHeader.ServiceResult,
+                Is.EqualTo((StatusCode)StatusCodes.BadSecurityPolicyRejected));
+            Assert.That(fault.ResponseHeader.RequestHandle, Is.EqualTo(815u));
+        }
+
+        /// <summary>
+        /// The symmetric <see cref="TcpListenerChannel"/> fault overload, also used
+        /// by the Kestrel TCP listener, writes the RequestHandle and a Timestamp;
+        /// the three-argument overload keeps writing 0.
+        /// </summary>
+        [TestCase(1234u)]
+        [TestCase(0u)]
+        public async Task ListenerChannelServiceFaultWritesRequestHandleAndTimestampAsync(uint requestHandle)
+        {
+            var pool = new TrackingArrayPool();
+            using TestServerChannel channel = CreateOpenChannel(pool);
+            var transport = new GateByteTransport(expectedSendCount: 1, captureSentChunks: true);
+            channel.SetTransport(transport);
+
+            if (requestHandle == 0)
+            {
+                channel.CallSymmetricSendServiceFault(3, new ServiceResult(StatusCodes.BadTimeout));
+            }
+            else
+            {
+                channel.CallSymmetricSendServiceFault(3, new ServiceResult(StatusCodes.BadTimeout), requestHandle);
+            }
+
+            ServiceFault fault = await ReadSentServiceFaultAsync(transport, expectedRequestId: 3)
+                .ConfigureAwait(false);
+            Assert.That(fault.ResponseHeader.ServiceResult, Is.EqualTo((StatusCode)StatusCodes.BadTimeout));
+            Assert.That(fault.ResponseHeader.RequestHandle, Is.EqualTo(requestHandle));
+            Assert.That(
+                (DateTime)fault.ResponseHeader.Timestamp,
+                Is.GreaterThan(DateTime.UtcNow.AddMinutes(-1)));
+        }
+
+        private static async Task<ServiceFault> ReadSentServiceFaultAsync(
+            GateByteTransport transport,
+            uint expectedRequestId)
+        {
+            Assert.That(
+                await CompletesWithinAsync(transport.FirstSendStarted, 30).ConfigureAwait(false),
+                Is.True,
+                "the channel never sent the service fault");
+            byte[] sentChunk = transport.LastSentChunk;
+            transport.Complete();
+
+            Assert.That(sentChunk, Is.Not.Null);
+            Assert.That(TcpMessageType.IsFinal(GetMessageType(sentChunk)), Is.True);
+            Assert.That(
+                BitConverter.ToUInt32(sentChunk, TcpMessageLimits.SymmetricHeaderSize + 4),
+                Is.EqualTo(expectedRequestId),
+                "request id of the fault");
+
+            int bodyOffset = TcpMessageLimits.SymmetricHeaderSize + TcpMessageLimits.SequenceHeaderSize;
+            return BinaryDecoder.DecodeMessage<ServiceFault>(
+                sentChunk.AsSpan(bodyOffset).ToArray(),
+                ServiceMessageContext.Create(NUnitTelemetryContext.Create()));
+        }
+
+        /// <summary>
         /// A chunk saved after the channel was disposed goes straight back to the
         /// pool. Disposal has already released the partial message, so a chunk
         /// queued into a fresh collection afterwards would never be released.
@@ -526,10 +681,15 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         private static TestServerChannel CreateOpenChannel(
             TrackingArrayPool pool,
-            int maxBufferSize = 64 * 1024)
+            int maxBufferSize = 64 * 1024,
+            int? maxStringLength = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.Create(telemetry);
+            if (maxStringLength.HasValue)
+            {
+                context.MaxStringLength = maxStringLength.Value;
+            }
             var quotas = new ChannelQuotas(context)
             {
                 MaxBufferSize = maxBufferSize,
@@ -752,6 +912,16 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public ValueTask FeedReceivedChunkAsync(ArraySegment<byte> chunk)
             {
                 return OnChunkReceivedAsync(chunk, CancellationToken.None);
+            }
+
+            public void CallSymmetricSendServiceFault(uint requestId, ServiceResult fault)
+            {
+                SendServiceFault(CurrentToken!, requestId, fault);
+            }
+
+            public void CallSymmetricSendServiceFault(uint requestId, ServiceResult fault, uint requestHandle)
+            {
+                SendServiceFault(CurrentToken!, requestId, fault, requestHandle);
             }
 
             protected override void OnTransportError(ServiceResult result)
