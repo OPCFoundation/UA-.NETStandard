@@ -341,15 +341,15 @@ namespace Quickstarts.ReferenceServer
                     Server.TypeTree);
             }
 
-            // The CTT requires the leading ByteString array elements to be at
-            // least four bytes long. The random generator can produce shorter
-            // values, so pad indexes 0..2 up to the minimum length.
+            // The CTT (Monitor Value Change V2 020.js) skips a ByteString array
+            // with any element shorter than four bytes. The random generator can
+            // produce shorter values, so pad every element up to the minimum length.
             if (variable.DataType == DataTypeIds.ByteString &&
                 variable.ValueRank == ValueRanks.OneDimension &&
                 value.TryGetValue(out ArrayOf<ByteString> byteStringArray))
             {
                 ByteString[] byteStrings = byteStringArray.ToArray()!;
-                for (int ii = 0; ii < 3 && ii < byteStrings.Length; ii++)
+                for (int ii = 0; ii < byteStrings.Length; ii++)
                 {
                     byteStrings[ii] = EnsureMinimumByteStringLength(byteStrings[ii], 4);
                 }

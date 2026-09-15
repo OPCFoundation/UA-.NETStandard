@@ -350,6 +350,50 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
+        public async Task OpenSecureChannelReportsTheTimeErrorOfATrustedExpiredLeafAsync()
+        {
+            // UaSCBinaryChannel throws the validation result with ThrowIfInvalid; the server
+            // channel may report a validity period error to the client (Part 4 §6.1.3).
+            string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir);
+            using CertificateCollection chain = Chain(m_expiredLeaf);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+            ServiceResultException thrown = Assert.Throws<ServiceResultException>(result.ThrowIfInvalid);
+
+            Assert.That(
+                Bindings.TcpServerChannel.TryGetReportableCertificateError(
+                    thrown, out ServiceResultException reportable),
+                Is.True,
+                thrown.Result.ToLongString());
+            Assert.That(reportable.StatusCode, Is.EqualTo(StatusCodes.BadCertificateTimeInvalid));
+        }
+
+        [Test]
+        public async Task OpenSecureChannelHidesTheTimeErrorOfAnUntrustedExpiredLeafAsync()
+        {
+            // the expired leaf is also untrusted: the validator nests the validity period error
+            // with the chain and trust list errors, which must hide it as Bad_SecurityChecksFailed.
+            CertificateValidationCore core = NewCore();
+            using CertificateCollection chain = Chain(m_expiredLeaf);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+            ServiceResultException thrown = Assert.Throws<ServiceResultException>(result.ThrowIfInvalid);
+
+            Assert.That(
+                ContainsStatusCode(result, StatusCodes.BadCertificateUntrusted) ||
+                ContainsStatusCode(result, StatusCodes.BadCertificateChainIncomplete),
+                Is.True,
+                thrown.Result.ToLongString());
+            Assert.That(
+                Bindings.TcpServerChannel.TryGetReportableCertificateError(thrown, out _),
+                Is.False,
+                thrown.Result.ToLongString());
+        }
+
+        [Test]
         public async Task ValidateAsyncNotYetValidLeafReturnsBadCertificateTimeInvalidAsync()
         {
             string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);

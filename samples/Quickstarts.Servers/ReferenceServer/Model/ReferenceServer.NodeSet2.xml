@@ -2188,7 +2188,7 @@ ItZc5gTXvvocsuTWVQcOUOqz</ByteString></Value>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays</Reference>
     </References>
       <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><ListOfByteString xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ByteString>R4Ev/w==</ByteString><ByteString>ZQAAAA==</ByteString><ByteString>UodQHbi0fX+jetJPAxnOZMdXxlG2wm33hqg85kaA7YFovRDi49HMpTyLsDYiWENnYQ==</ByteString><ByteString>ZJ/Z948aWJcPeJY4IoxR50UJ64D2iyAUKxI31S1k1IWr1YnhjsWAyIs5vC2mUo2p0HD+XnUas9h/
-xcx94oNp</ByteString><ByteString>EA==</ByteString><ByteString>Am9Y</ByteString><ByteString>I/W9zvJu2ISNBL0=</ByteString><ByteString>D5EhsWLJ+QLlCA==</ByteString><ByteString>iZXFQKdhGH7VUiT2CYxW8/hVfqxELQH7K1EMjoaGPu3tvWnYE0PmoqTooL1sK6fWcgUKj4kizVuU
+xcx94oNp</ByteString><ByteString>EAAAAA==</ByteString><ByteString>Am9YAA==</ByteString><ByteString>I/W9zvJu2ISNBL0=</ByteString><ByteString>D5EhsWLJ+QLlCA==</ByteString><ByteString>iZXFQKdhGH7VUiT2CYxW8/hVfqxELQH7K1EMjoaGPu3tvWnYE0PmoqTooL1sK6fWcgUKj4kizVuU
 yRVVVIn3ThM3CEwjfuC1b9wIWw==</ByteString><ByteString>j/+pNhuBfK5jy+8NQ0ktkE4b8VGpNCJbs/QkVCCtGnHOUTo=</ByteString></ListOfByteString></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Scalar_Static_Arrays_ByteString_HA Configuration" BrowseName="HA Configuration" ParentNodeId="ns=1;s=Scalar_Static_Arrays_ByteString">
@@ -3989,7 +3989,7 @@ hADR0EWF</ByteString><ByteString>1zRv2BjoopYPD7RWT4qcctepIZCIy+u9WcBh</ByteStrin
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;s=Scalar_Static_Arrays2D</Reference>
     </References>
-      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><Float>-2.6017395E-21</Float><Float>4.077882E+29</Float><Float>-167.45996</Float><Float>-6.6404967E+15</Float><Float>-1.03179664E+33</Float><Float>-0.0006184253</Float><Float>-1.4010664E-11</Float><Float>7.4780676E+14</Float><Float>1.6609839</Float></Elements></Matrix></Value>
+      <Value xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd"><Matrix xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><Dimensions><Int32>3</Int32><Int32>3</Int32></Dimensions><Elements><Float>-2.6017395E-21</Float><Float>4.077882E+29</Float><Float>-167.45996</Float><Float>-6.6404967E+15</Float><Float>-1031.79664</Float><Float>-0.0006184253</Float><Float>-1.4010664E-11</Float><Float>7.4780676E+14</Float><Float>1.6609839</Float></Elements></Matrix></Value>
   </UAVariable>
   <UAObject NodeId="ns=1;s=Scalar_Static_Arrays2D_Float_HA Configuration" BrowseName="HA Configuration" ParentNodeId="ns=1;s=Scalar_Static_Arrays2D_Float">
     <DisplayName>HA Configuration</DisplayName>
