@@ -249,6 +249,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     ParentNodeId = parentId,
                     ReferenceTypeId = ReferenceTypeIds.Organizes,
+                    RequestedNewNodeId = renamedId,
                     BrowseName = new QualifiedName("Child42", ns),
                     NodeClass = NodeClass.Variable
                 }).ConfigureAwait(false);
@@ -258,19 +259,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(h.Manager.PredefinedNodes[renamedId], Is.SameAs(renamedNode));
             Assert.That(renamedNode.BrowseName, Is.EqualTo(new QualifiedName("Renamed", ns)));
 
-            // Renaming frees the BrowseName, not the stable NodeId derived from that name.
-            var replacementId = new NodeId("ReusedChild42", ns);
+            // Renaming frees the BrowseName; automatic allocation must not reuse the still-owned NodeId.
             (ServiceResult freed, NodeId freedId) = await h.Manager
                 .AddNodeAsync(h.OperationContext, new AddNodesItem
                 {
                     ParentNodeId = parentId,
                     ReferenceTypeId = ReferenceTypeIds.Organizes,
-                    RequestedNewNodeId = replacementId,
                     BrowseName = new QualifiedName("Child42", ns),
                     NodeClass = NodeClass.Variable
                 }).ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(freed), Is.True, $"expected Good result; got {freed}");
-            Assert.That(freedId, Is.EqualTo(replacementId));
+            Assert.That(freedId.IsNull, Is.False);
+            Assert.That(freedId.NamespaceIndex, Is.EqualTo(ns));
             Assert.That(freedId, Is.Not.EqualTo(renamedId));
             Assert.That(h.Manager.PredefinedNodes[renamedId], Is.SameAs(renamedNode));
             Assert.That(h.Manager.PredefinedNodes, Has.Count.EqualTo(countBefore + 1));

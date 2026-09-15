@@ -2028,64 +2028,119 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (PredefinedNodes.ContainsKey(newNodeId))
+            ServiceResult reservation = ReserveAddNodesNodeId(
+                ref newNodeId,
+                item.RequestedNewNodeId.IsNull,
+                cancellationToken);
+            if (ServiceResult.IsBad(reservation))
             {
-                return (new ServiceResult(StatusCodes.BadNodeIdExists), NodeId.Null);
+                return (reservation, NodeId.Null);
             }
-            if (parentNode != null)
-            {
-                parentNode.AddChild(instance);
-            }
-            else
-            {
-                instance.AddReference(item.ReferenceTypeId, true, parentNodeId);
-            }
-
-            NodeId previousAddNodeId = m_addNodesNodeId.Value;
-            m_addNodesNodeId.Value = newNodeId;
             try
             {
-                await AddPredefinedNodeAsync(systemContext, instance, cancellationToken).ConfigureAwait(false);
-            }
-            catch (ServiceResultException ex)
-            {
-                parentNode?.RemoveChild(instance);
-                return (new ServiceResult(ex), NodeId.Null);
+                instance.NodeId = newNodeId;
+                if (parentNode != null)
+                {
+                    parentNode.AddChild(instance);
+                }
+                else
+                {
+                    instance.AddReference(item.ReferenceTypeId, true, parentNodeId);
+                }
+
+                NodeId previousAddNodeId = m_addNodesNodeId.Value;
+                m_addNodesNodeId.Value = newNodeId;
+                bool registered = false;
+                try
+                {
+                    await AddPredefinedNodeAsync(systemContext, instance, cancellationToken).ConfigureAwait(false);
+                    registered = true;
+                }
+                catch (ServiceResultException ex)
+                {
+                    return (new ServiceResult(ex), NodeId.Null);
+                }
+                finally
+                {
+                    m_addNodesNodeId.Value = previousAddNodeId;
+                    if (!registered)
+                    {
+                        parentNode?.RemoveChild(instance);
+                    }
+                }
+
+                // Publish the forward reference through the parent's owning manager, whether local or remote.
+                try
+                {
+                    var forward = new List<IReference>
+                    {
+                        new NodeStateReference(item.ReferenceTypeId, false, instance.NodeId)
+                    };
+                    await Server.NodeManager.AddReferencesAsync(
+                        parentNodeId, forward, cancellationToken).ConfigureAwait(false);
+                }
+                catch (ServiceResultException ex)
+                {
+                    return (new ServiceResult(ex), NodeId.Null);
+                }
+
+                await RefreshParentComponentCacheAsync(parentNodeId, cancellationToken).ConfigureAwait(false);
+
+                if (ModelChangeEmissionEnabled)
+                {
+                    ModelChangeAggregator.RecordNodeAdded(instance.NodeId, instance.TypeDefinitionId);
+                    ModelChangeAggregator.RecordReferenceAdded(parentNodeId);
+                    EmitModelChange(systemContext);
+                }
+
+                return (ServiceResult.Good, instance.NodeId);
             }
             finally
             {
-                m_addNodesNodeId.Value = previousAddNodeId;
+                m_addNodesReservations.TryRemove(newNodeId, out _);
             }
+        }
 
-            // Always add the forward edge from parent → child via the master so
-            // the parent's owning NodeManager records it (works whether parent
-            // is local or remote).
-            try
+        /// <summary>
+        /// Reserves an identifier before asynchronous registration, selecting a fresh counter ID
+        /// for automatic collisions.
+        /// </summary>
+        private ServiceResult ReserveAddNodesNodeId(
+            ref NodeId nodeId,
+            bool serverAssigned,
+            CancellationToken cancellationToken)
+        {
+            HashSet<NodeId>? attempted = null;
+            while (true)
             {
-                var forward = new List<IReference>
+                cancellationToken.ThrowIfCancellationRequested();
+                if (nodeId.IsNull || !IsNodeIdInNamespace(nodeId))
                 {
-                    new NodeStateReference(item.ReferenceTypeId, false, instance.NodeId)
-                };
-                await Server.NodeManager.AddReferencesAsync(
-                    parentNodeId, forward, cancellationToken).ConfigureAwait(false);
-            }
-            catch (ServiceResultException ex)
-            {
-                return (new ServiceResult(ex), NodeId.Null);
-            }
+                    return StatusCodes.BadNodeIdRejected;
+                }
+                if (!PredefinedNodes.ContainsKey(nodeId) && m_addNodesReservations.TryAdd(nodeId, 0))
+                {
+                    if (!PredefinedNodes.ContainsKey(nodeId))
+                    {
+                        return ServiceResult.Good;
+                    }
+                    m_addNodesReservations.TryRemove(nodeId, out _);
+                }
+                if (!serverAssigned)
+                {
+                    return StatusCodes.BadNodeIdExists;
+                }
 
-            // Refresh the parent's cached component view so a Browse issued
-            // after this runtime add reflects the new child.
-            await RefreshParentComponentCacheAsync(parentNodeId, cancellationToken).ConfigureAwait(false);
-
-            if (ModelChangeEmissionEnabled)
-            {
-                ModelChangeAggregator.RecordNodeAdded(instance.NodeId, instance.TypeDefinitionId);
-                ModelChangeAggregator.RecordReferenceAdded(parentNodeId);
-                EmitModelChange(systemContext);
+                nodeId = m_nodeIdFactory.NextCounterNodeId();
+                cancellationToken.ThrowIfCancellationRequested();
+                attempted ??= [];
+                if (!attempted.Add(nodeId))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "The NodeId factory repeated an occupied identifier while allocating an AddNodes identifier.");
+                }
             }
-
-            return (ServiceResult.Good, instance.NodeId);
         }
 
         /// <inheritdoc/>
@@ -9608,6 +9663,11 @@ namespace Opc.Ua.Server
         /// Carries the NodeId reserved for the current asynchronous AddNodes operation.
         /// </summary>
         private readonly AsyncLocal<NodeId> m_addNodesNodeId = new();
+
+        /// <summary>
+        /// Retains AddNodes identifiers until asynchronous registration and reference publication have finished.
+        /// </summary>
+        private readonly NodeIdDictionary<byte> m_addNodesReservations = new();
 
         private const byte kHistoryAccessMask = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
         private const int kMaxInitialHistoryPages = 100_000;

@@ -45,7 +45,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class NodeIdAdmissionRegressionTests
     {
         /// <summary>
-        /// Verifies that derived or custom identifier collisions preserve the original node and its references.
+        /// Verifies automatic allocation chooses another identifier without replacing the original
+        /// node or its references.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
@@ -66,28 +67,34 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 AddNodesItem second = manager.CreateItem(
                     customAllocator ? "Second" : "First", ReferenceTypeIds.HasComponent);
-                (ServiceResult rejected, NodeId rejectedId) =
+                (ServiceResult added, NodeId addedId) =
                     await manager.AddNodeAsync(context, second).ConfigureAwait(false);
-                Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
-                Assert.That(rejectedId.IsNull, Is.True);
+                Assert.That(added.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(addedId.IsNull, Is.False);
+                Assert.That(addedId, Is.Not.EqualTo(id));
+                Assert.That(addedId.NamespaceIndex, Is.EqualTo(id.NamespaceIndex));
                 Assert.That(manager.GetNode(id), Is.SameAs(original));
                 Assert.That(original.BrowseName, Is.EqualTo(first.BrowseName));
                 Assert.That(original.ReferenceExists(
                     ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder), Is.True);
                 Assert.That(original.ReferenceExists(
                     ReferenceTypeIds.HasComponent, true, ObjectIds.ObjectsFolder), Is.False);
+                Assert.That(manager.GetNode(addedId).BrowseName, Is.EqualTo(second.BrowseName));
+                Assert.That(manager.GetNode(addedId).ReferenceExists(
+                    ReferenceTypeIds.HasComponent, true, ObjectIds.ObjectsFolder), Is.True);
                 Mock.Get(server.Object.NodeManager).Verify(
                     value => value.AddReferencesAsync(
                         ObjectIds.ObjectsFolder, It.IsAny<IList<IReference>>(), It.IsAny<CancellationToken>()),
-                    Times.Once);
+                    Times.Exactly(2));
             }
         }
 
         /// <summary>
-        /// Verifies that concurrent AddNodes requests for one identifier register exactly one node and reference set.
+        /// Verifies automatic requests reserve distinct identifiers while explicit requests cannot share a reservation.
         /// </summary>
-        [Test]
-        public async Task ConcurrentNodeIdAdmissionHasOnlyOneWinnerAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConcurrentNodeIdAdmissionPreservesAutomaticAndExplicitIdentityAsync(bool explicitId)
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
@@ -95,29 +102,268 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using (var context = CreateContext())
             {
                 manager.ForcedId = new NodeId(101, manager.NamespaceIndexes[0]);
+                AddNodesItem firstItem = manager.CreateItem("First", ReferenceTypeIds.Organizes);
+                AddNodesItem secondItem = manager.CreateItem("Second", ReferenceTypeIds.HasComponent);
+                if (explicitId)
+                {
+                    firstItem.RequestedNewNodeId = manager.ForcedId;
+                    secondItem.RequestedNewNodeId = manager.ForcedId;
+                }
                 Task<(ServiceResult result, NodeId addedNodeId)> first = manager.AddNodeAsync(
-                    context, manager.CreateItem("First", ReferenceTypeIds.Organizes)).AsTask();
+                    context, firstItem).AsTask();
                 (ServiceResult Result, NodeId Id) firstOutcome;
+                (ServiceResult Result, NodeId Id) secondOutcome;
                 try
                 {
                     await manager.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-                    (ServiceResult winnerStatus, NodeId winnerId) = await manager.AddNodeAsync(
-                        context, manager.CreateItem("Second", ReferenceTypeIds.HasComponent)).ConfigureAwait(false);
-                    Assert.That(winnerStatus.StatusCode, Is.EqualTo(StatusCodes.Good));
-                    Assert.That(winnerId, Is.EqualTo(manager.ForcedId));
+                    secondOutcome = await manager.AddNodeAsync(context, secondItem).ConfigureAwait(false);
+                    Assert.That(secondOutcome.Result.StatusCode,
+                        Is.EqualTo(explicitId ? StatusCodes.BadNodeIdExists : StatusCodes.Good));
+                    Assert.That(secondOutcome.Id.IsNull, Is.EqualTo(explicitId));
+                    if (!explicitId)
+                    {
+                        Assert.That(secondOutcome.Id, Is.Not.EqualTo(manager.ForcedId));
+                        Assert.That(manager.GetNode(secondOutcome.Id).BrowseName.Name, Is.EqualTo("Second"));
+                    }
                 }
                 finally
                 {
                     manager.Release.TrySetResult(true);
                     firstOutcome = await first.ConfigureAwait(false);
                 }
-                Assert.That(firstOutcome.Result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
-                Assert.That(firstOutcome.Id.IsNull, Is.True);
-                Assert.That(manager.GetNode(manager.ForcedId).BrowseName.Name, Is.EqualTo("Second"));
+                Assert.That(firstOutcome.Result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(firstOutcome.Id, Is.EqualTo(manager.ForcedId));
+                Assert.That(manager.GetNode(firstOutcome.Id).BrowseName.Name, Is.EqualTo("First"));
                 Mock.Get(server.Object.NodeManager).Verify(
                     value => value.AddReferencesAsync(
                         ObjectIds.ObjectsFolder, It.IsAny<IList<IReference>>(), It.IsAny<CancellationToken>()),
-                    Times.Once);
+                    Times.Exactly(explicitId ? 1 : 2));
+            }
+        }
+
+        /// <summary>
+        /// Verifies fallback allocation skips already registered counter candidates without replacing any node.
+        /// </summary>
+        [Test]
+        public async Task AutomaticNodeIdAllocationSkipsOccupiedCounterCandidatesAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var manager = new AdmissionHooks(server.Object))
+            using (var context = CreateContext())
+            {
+                ushort ns = manager.NamespaceIndexes[0];
+                NodeId[] occupied = [new NodeId(101, ns), new NodeId(102, ns), new NodeId(103, ns)];
+                var originals = new List<NodeState>();
+                foreach (NodeId nodeId in occupied)
+                {
+                    var node = new BaseObjectState(null)
+                    {
+                        NodeId = nodeId,
+                        BrowseName = new QualifiedName(nodeId.ToString(), ns)
+                    };
+                    await manager.RegisterAsync(node).ConfigureAwait(false);
+                    originals.Add(node);
+                }
+                var available = new NodeId(104, ns);
+                IRebasableNodeIdFactory originalFactory = manager.NodeIdFactory;
+                var factory = new Mock<IRebasableNodeIdFactory>(MockBehavior.Strict);
+                factory.SetupGet(value => value.DefaultNamespaceIndex).Returns(ns);
+                factory.Setup(value => value.WithCollisionDetection(It.IsAny<bool>())).Returns(factory.Object);
+                factory.Setup(value => value.New(It.IsAny<ISystemContext>(), It.IsAny<NodeState>()))
+                    .Returns((ISystemContext systemContext, NodeState node) =>
+                        originalFactory.New(systemContext, node));
+                factory.SetupSequence(value => value.NextCounterNodeId())
+                    .Returns(occupied[0])
+                    .Returns(occupied[1])
+                    .Returns(occupied[2])
+                    .Returns(available);
+                manager.NodeIdFactory = factory.Object;
+                manager.ForcedId = occupied[0];
+
+                (ServiceResult result, NodeId addedId) = await manager.AddNodeAsync(
+                    context, manager.CreateItem("New", ReferenceTypeIds.Organizes)).ConfigureAwait(false);
+
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(addedId, Is.EqualTo(available));
+                Assert.That(manager.GetNode(addedId).BrowseName.Name, Is.EqualTo("New"));
+                for (int i = 0; i < occupied.Length; i++)
+                {
+                    Assert.That(manager.GetNode(occupied[i]), Is.SameAs(originals[i]));
+                }
+                factory.Verify(value => value.NextCounterNodeId(), Times.Exactly(4));
+            }
+        }
+
+        /// <summary>
+        /// Verifies invalid or non-progressing counter providers fail explicitly without mutating registered nodes.
+        /// </summary>
+        [TestCase("null")]
+        [TestCase("foreign")]
+        [TestCase("repeated")]
+        public async Task AutomaticNodeIdAllocationRejectsInvalidCounterOutputAsync(string output)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var manager = new AdmissionHooks(server.Object))
+            using (var context = CreateContext())
+            {
+                ushort ns = manager.NamespaceIndexes[0];
+                var occupied = new NodeId(101, ns);
+                var original = new BaseObjectState(null)
+                {
+                    NodeId = occupied,
+                    BrowseName = new QualifiedName("Original", ns)
+                };
+                await manager.RegisterAsync(original).ConfigureAwait(false);
+                var factory = new Mock<IRebasableNodeIdFactory>(MockBehavior.Strict);
+                factory.SetupGet(value => value.DefaultNamespaceIndex).Returns(ns);
+                factory.Setup(value => value.WithCollisionDetection(It.IsAny<bool>())).Returns(factory.Object);
+                factory.Setup(value => value.NextCounterNodeId()).Returns(output switch
+                {
+                    "null" => NodeId.Null,
+                    "foreign" => new NodeId(102, (ushort)(ns + 1)),
+                    _ => occupied
+                });
+                manager.NodeIdFactory = factory.Object;
+                manager.ForcedId = occupied;
+                AddNodesItem item = manager.CreateItem("New", ReferenceTypeIds.Organizes);
+
+                if (output == "repeated")
+                {
+                    ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await manager.AddNodeAsync(context, item).ConfigureAwait(false))!;
+                    Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                }
+                else
+                {
+                    (ServiceResult result, NodeId addedId) =
+                        await manager.AddNodeAsync(context, item).ConfigureAwait(false);
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdRejected));
+                    Assert.That(addedId.IsNull, Is.True);
+                }
+                Assert.That(manager.NodeCount, Is.EqualTo(1));
+                Assert.That(manager.GetNode(occupied), Is.SameAs(original));
+                factory.Verify(value => value.NextCounterNodeId(), Times.Exactly(output == "repeated" ? 2 : 1));
+                Mock.Get(server.Object.NodeManager).Verify(
+                    value => value.AddReferencesAsync(
+                        ObjectIds.ObjectsFolder, It.IsAny<IList<IReference>>(), It.IsAny<CancellationToken>()),
+                    Times.Never);
+            }
+        }
+
+        /// <summary>
+        /// Verifies failed or canceled registration releases the ID reservation and its provisional parent child.
+        /// </summary>
+        [TestCase(false, "canceled")]
+        [TestCase(true, "canceled")]
+        [TestCase(false, "service")]
+        [TestCase(true, "service")]
+        [TestCase(false, "exception")]
+        [TestCase(true, "exception")]
+        public async Task InterruptedNodeIdReservationCanBeReusedAsync(bool automatic, string outcome)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var manager = new AdmissionHooks(server.Object))
+            using (var context = CreateContext())
+            using (var cancellation = new CancellationTokenSource())
+            {
+                ushort ns = manager.NamespaceIndexes[0];
+                var parent = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId(100, ns),
+                    BrowseName = new QualifiedName("Parent", ns)
+                };
+                await manager.RegisterAsync(parent).ConfigureAwait(false);
+                manager.PauseNextRegistration = true;
+                manager.ForcedId = new NodeId(101, ns);
+                AddNodesItem item = manager.CreateItem("Child", ReferenceTypeIds.HasComponent);
+                item.ParentNodeId = parent.NodeId;
+                if (!automatic)
+                {
+                    item.RequestedNewNodeId = manager.ForcedId;
+                }
+                Task<(ServiceResult result, NodeId addedNodeId)> first =
+                    manager.AddNodeAsync(context, item, cancellation.Token).AsTask();
+                var failure = new InvalidOperationException("Controlled node registration failure.");
+                try
+                {
+                    await manager.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    if (outcome == "canceled")
+                    {
+                        cancellation.Cancel();
+                        Task completed = await Task.WhenAny(first, Task.Delay(TimeSpan.FromSeconds(5)))
+                            .ConfigureAwait(false);
+                        Assert.That(completed, Is.SameAs(first));
+                        OperationCanceledException error = null;
+                        try
+                        {
+                            await first.ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException ex)
+                        {
+                            error = ex;
+                        }
+                        Assert.That(error, Is.Not.Null);
+                        Assert.That(error.CancellationToken, Is.EqualTo(cancellation.Token));
+                    }
+                    else
+                    {
+                        manager.RegistrationFailure = outcome == "service"
+                            ? new ServiceResultException(StatusCodes.BadResourceUnavailable)
+                            : failure;
+                        manager.Release.TrySetResult(true);
+                        if (outcome == "service")
+                        {
+                            (ServiceResult result, NodeId addedId) =
+                                await first.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
+                            Assert.That(addedId.IsNull, Is.True);
+                        }
+                        else
+                        {
+                            InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                                await first.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                            Assert.That(error, Is.SameAs(failure));
+                        }
+                    }
+
+                    Assert.That(manager.NodeCount, Is.EqualTo(1));
+                    Assert.That(parent.FindChild(manager.SystemContext, item.BrowseName), Is.Null);
+                    manager.RegistrationFailure = null;
+                    item.RequestedNewNodeId = manager.ForcedId;
+                    (ServiceResult retried, NodeId retriedId) =
+                        await manager.AddNodeAsync(context, item).ConfigureAwait(false);
+
+                    Assert.That(retried.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(retriedId, Is.EqualTo(manager.ForcedId));
+                    Assert.That(parent.FindChild(manager.SystemContext, item.BrowseName),
+                        Is.SameAs(manager.GetNode(retriedId)));
+                    Mock.Get(server.Object.NodeManager).Verify(
+                        value => value.AddReferencesAsync(
+                            parent.NodeId, It.IsAny<IList<IReference>>(), It.IsAny<CancellationToken>()),
+                        Times.Once);
+                }
+                finally
+                {
+                    manager.Release.TrySetResult(true);
+                    Task completed = await Task.WhenAny(first, Task.Delay(TimeSpan.FromSeconds(5)))
+                        .ConfigureAwait(false);
+                    Assert.That(completed, Is.SameAs(first));
+                    try
+                    {
+                        await first.ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+                    {
+                        // The original cancellation has already been asserted.
+                    }
+                    catch (InvalidOperationException ex) when (ReferenceEquals(ex, failure))
+                    {
+                        // The injected registration exception has already been asserted.
+                    }
+                }
             }
         }
 
@@ -180,6 +426,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// Gets or sets whether the next predefined-node registration pauses before admission completes.
             /// </summary>
             public bool PauseNextRegistration { get; set; }
+
+            /// <summary>
+            /// Gets or sets a failure thrown after the controlled behavior-registration barrier.
+            /// </summary>
+            public Exception RegistrationFailure { get; set; }
+
+            /// <summary>
+            /// Gets the number of nodes whose registration has completed.
+            /// </summary>
+            public int NodeCount => PredefinedNodes.Count;
 
             /// <summary>
             /// Gets the signal raised when the selected registration reaches its pause.
@@ -247,6 +503,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     PauseNextRegistration = false;
                     Entered.TrySetResult(true);
                     await Release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+                if (RegistrationFailure is { } failure)
+                {
+                    throw failure;
                 }
                 return predefinedNode;
             }
