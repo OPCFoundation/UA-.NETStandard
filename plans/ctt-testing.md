@@ -514,8 +514,8 @@ runs of 2026-09-13/14, except
 - A & C Confirm `Test_001.js` can fail for all alarm types depending on the alarm phase (C10).
 - Newly covered: UAFX (no FX model), PubSub Publisher UADP (no PubSub publisher) and Security None /
   Basic256Sha256 `007.js`/`005.js`. Those two failed (also on origin/master) because the server closed idle
-  SecureChannels after 30 s of silence while the CTT needed 41 s for the step (C50); they pass since
-  `Ctt.ReferenceServer.Config.xml` sets `ChannelLifetime` to 120000 (see ctt-issues.md, open server findings).
+  SecureChannels after 30 s of silence while the CTT needed 41 s for the step (C50); they pass since the
+  inactivity cleanup keeps open channels with a valid token (see ctt-issues.md, open server findings).
 
 ## Pitfalls
 

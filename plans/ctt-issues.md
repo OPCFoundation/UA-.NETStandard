@@ -1074,7 +1074,7 @@ Calculated bit whenever the status is Uncertain because of non-Good input.
 `SessionThread` still runs on the Session, `closeSession` builds and stamps the request, stops the thread (about
 550 ms) and only then sends it. Logged on 2026-09-15 (see *CloseSession latency* below): the server received each
 request about 520 ms after its timestamp and answered within 2–5 ms; stopping the threads first made CloseSession
-take 0–7 ms. In `007.js` the extra 41 s also let the idle channels time out on the server (see the server finding
+take 0–7 ms. In `007.js` the extra 41 s also let the idle channels time out on the server before that was fixed (see the server finding
 below). **Fix:** stop the SessionThread before building the CloseSession request (or stamp the header when the
 request is sent); in `007.js` stop `sessionThreads[i]` in step 3 as the cleanup branch already does.
 
@@ -1253,23 +1253,23 @@ it is classified as a server or CTT issue.
   `sessionThreads[i].StopThread()` before `CloseSessionHelper.Execute` spent 516–619 ms in `StopThread` and then
   0–7 ms (average 1.7 ms) in CloseSession. The CTT stamps the request, waits for its SessionThread to stop and
   only then sends the request, so the delay and the warning are client artifacts (C50).
-- **Security None `007.js` / Security Basic256Sha256 `005.js` fail: the server closes an idle SecureChannel
-  before its SecurityToken expires (server finding, pre-existing).** Seen 2026-09-15 on origin/master and on the
-  merge of #4477/#4482/#4485/#4486: *"CloseSecureChannel().Result received BadInvalidState, but expected … Good"*
-  at `007.js` line 93. The test opens 74 SecureChannels with Sessions, adds five channels without Sessions 10 s
-  apart (`Min Lifetime of SecureChannel`), closes the 74 Sessions (41 s because of C50) and then expects the
-  newest idle channel to close with Good. That channel requested lifetime 0 and got a 60 s token
-  (`TcpMessageLimits.MinSecurityTokenLifeTime`), but `TcpTransportListener.DetectInactiveChannels` closes every
-  channel without traffic for longer than `TransportQuotas.ChannelLifetime` (30 s, checked every 15 s), so the
-  channel was gone after about 51 s of silence; `BadInvalidState` is the CTT's result for a channel the server
-  already closed. Part 4 §5.6.2.1: *"Each SecureChannel exists until it is explicitly closed or until the last
-  token has expired and the overlap period has elapsed"*; the Server shall close the oldest unused Session-less
-  SecureChannel *before reaching the maximum number* of SecureChannels (here 1000). `Ctt.ReferenceServer.Config.xml`
-  now sets `ChannelLifetime` to 120000; with it `007.js` and `005.js` pass (2026-09-15, same 41 s step 3, only the
-  C50 warnings remain). The default server configurations keep 30000.
-  **Fix direction:** do not close an open channel for inactivity while its current SecurityToken (plus the 25 %
-  overlap) is still valid, and keep the oldest-unused eviction for admission at MaxChannelCount; an idle
-  timeout for channels that never completed OpenSecureChannel can stay.
+- **Security None `007.js` / Security Basic256Sha256 `005.js`: the server closed an idle SecureChannel before its
+  SecurityToken expired (fixed 2026-09-15).** Seen on origin/master and on the merge of #4477/#4482/#4485/#4486:
+  *"CloseSecureChannel().Result received BadInvalidState, but expected … Good"* at `007.js` line 93. The test opens
+  74 SecureChannels with Sessions, adds five channels without Sessions 10 s apart (`Min Lifetime of SecureChannel`),
+  closes the 74 Sessions (41 s because of C50) and then expects the newest idle channel to close with Good. That
+  channel requested lifetime 0 and got a 60 s token (`TcpMessageLimits.MinSecurityTokenLifeTime`), but
+  `TcpTransportListener.DetectInactiveChannels` closed every channel without traffic for longer than
+  `TransportQuotas.ChannelLifetime` (30 s, checked every 15 s), so the channel was gone after about 51 s of silence;
+  `BadInvalidState` is the CTT's result for a channel the server already closed. Part 4 §5.6.2.1: *"Each
+  SecureChannel exists until it is explicitly closed or until the last token has expired and the overlap period
+  has elapsed"*; the Server shall close the oldest unused Session-less SecureChannel *before reaching the maximum
+  number* of SecureChannels. The inactivity cleanup now skips open channels whose current or renewed token has not
+  expired (`TcpListenerChannel.IsInactivityCleanupDue`, `TcpInactivityCleanupRegressionTests`); channels that never
+  opened, faulted channels and channels without a token keep the `ChannelLifetime` timeout, and the oldest-unused
+  eviction at MaxChannelCount is unchanged. With the default `ChannelLifetime` of 30000 both test cases pass (only
+  the C50 warnings remain). An idle open channel now stays until its token expires (at most the configured
+  `SecurityTokenLifetime`, one hour by default) instead of 30 s.
 
 ## CTT project configuration notes
 
