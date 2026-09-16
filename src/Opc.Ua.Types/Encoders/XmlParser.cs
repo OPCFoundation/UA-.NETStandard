@@ -1953,7 +1953,9 @@ namespace Opc.Ua
                     encodeableTypeId, out IEncodeableType? encodeableType)
                     ? encodeableType.XmlName
                     : TypeInfo.GetXmlName(typeof(T));
-                PushNamespace(xmlName!.Namespace);
+                PushNamespace(xmlName!.Namespace == Namespaces.OpcUa
+                    ? Namespaces.OpcUaXsd
+                    : xmlName.Namespace);
 
                 while (MoveToElement(xmlName.Name))
                 {
