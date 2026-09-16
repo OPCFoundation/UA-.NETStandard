@@ -1226,6 +1226,12 @@ materialized from the sources. The View creates **no** affordance Node, so
 the Nodes it organizes. `RootNodeId` is the View, and the document resource points
 at it through `HasWoTProjection`, navigable back through `WoTProjectionOf`.
 
+An authored portable `uav:id` identifies the View, including when its namespace
+differs from the registry namespace. Without one, the existing deterministic
+resource-relative `/View` identity is retained. A live View cannot be reassigned
+to another logical Resource, and materialization rejects an identity already
+occupied by another node owner or node role instead of replacing that node.
+
 `ViewVersion` is a deterministic function of the resolved membership alone, computed
 exactly as *WoT Binding* §12.6 specifies: each resolved member's ExpandedNodeId in the
 portable `nsu=` form, **deduplicated**, sorted ascending by Unicode code point, each

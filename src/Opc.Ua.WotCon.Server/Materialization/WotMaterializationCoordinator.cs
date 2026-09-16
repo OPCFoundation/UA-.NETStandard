@@ -1279,8 +1279,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
 
             WotViewProjectionResult build;
+            NodeId viewNodeId;
             using (document)
             {
+                viewNodeId = ComputeViewNodeId(member, document);
                 build = await builder
                     .BuildAsync(document, null, cancellationToken)
                     .ConfigureAwait(false);
@@ -1297,7 +1299,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
 
             WotViewProjectionPlan plan = build.Plan;
-            NodeId viewNodeId = ComputeViewNodeId(member);
             var request = new WotViewProjectionRequest(
                 member.Xid, member.Xid, ComputeResourceNodeId(member), viewNodeId, plan);
             WotViewProjectionHandle viewHandle = await m_viewHost
@@ -1350,8 +1351,30 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 WotConNamespaceIndex());
         }
 
-        private NodeId ComputeViewNodeId(WotResource member)
+        private NodeId ComputeViewNodeId(WotResource member, WotDocument document)
         {
+            if (document.TryGetUav("id", out JsonElement identity))
+            {
+                if (identity.ValueKind != JsonValueKind.String ||
+                    !WotPortableIdentity.IsPortableNodeId(identity.GetString()))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid, "A canonical View requires a portable authored NodeId.");
+                }
+                ExpandedNodeId authored = ExpandedNodeId.Parse(identity.GetString()!);
+                NamespaceTable namespaces = ServerNamespaceUris ??= new NamespaceTable();
+                if (!string.IsNullOrEmpty(authored.NamespaceUri))
+                {
+                    namespaces.GetIndexOrAppend(authored.NamespaceUri);
+                }
+                NodeId nodeId = ExpandedNodeId.ToNodeId(authored, namespaces);
+                if (nodeId.IsNull)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid, "A canonical View cannot have a null NodeId.");
+                }
+                return nodeId;
+            }
             return new NodeId(
                 $"WoTRegistry/groups/{member.GroupId}/resources/{member.ResourceId}/View",
                 WotConNamespaceIndex());
