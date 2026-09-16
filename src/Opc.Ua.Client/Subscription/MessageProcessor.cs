@@ -511,14 +511,13 @@ namespace Opc.Ua.Client.Subscriptions
             IReadOnlyList<uint> availableSequenceNumbers,
             CancellationToken ct)
         {
+            if (availableSequenceNumbers == null || availableSequenceNumbers.Count == 0)
+            {
+                return;
+            }
             await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                if (availableSequenceNumbers == null ||
-                    availableSequenceNumbers.Count == 0)
-                {
-                    return;
-                }
                 AvailableInRetransmissionQueue = availableSequenceNumbers;
                 uint[] ordered = SortAscendingWrapAware(availableSequenceNumbers);
                 Logger.SubscriptionRecoveringTransferredMessages(Id, ordered.Length);
