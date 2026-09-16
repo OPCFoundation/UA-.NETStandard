@@ -251,7 +251,9 @@ namespace Opc.Ua.SourceGeneration
             if (datatype.BasicDataType == BasicDataType.Enumeration &&
                 datatype.IsEnumeration)
             {
-                return DataTypeTemplates.EnumDefinition;
+                return datatype.Fields == null
+                    ? DataTypeTemplates.EnumDefinitionWithoutFields
+                    : DataTypeTemplates.EnumDefinition;
             }
             return null;
         }
@@ -275,11 +277,14 @@ namespace Opc.Ua.SourceGeneration
                 context.Template.AddReplacement(
                     Tokens.IsOptionSet,
                     dataType.IsOptionSet);
-                context.Template.AddReplacement(
-                    Tokens.ListOfFields,
-                    DataTypeTemplates.EnumField,
-                    dataType.Fields ?? [],
-                    WriteTemplate_ListOfEnumDefinitionFields);
+                if (dataType.Fields != null)
+                {
+                    context.Template.AddReplacement(
+                        Tokens.ListOfFields,
+                        DataTypeTemplates.EnumField,
+                        dataType.Fields,
+                        WriteTemplate_ListOfEnumDefinitionFields);
+                }
             }
             else
             {

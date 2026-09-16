@@ -268,6 +268,51 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(source, Does.Contain("Field31 = 0x80000000,"));
         }
 
+        [Test]
+        public void EmitEnumDefinitionWithoutFieldsPreservesNullFields()
+        {
+            const string uri = "http://test.org/UA/";
+            const string typeName = "TestEnum";
+            var enumeration = new DataTypeDesign
+            {
+                SymbolicId = new System.Xml.XmlQualifiedName(typeName, uri),
+                SymbolicName = new System.Xml.XmlQualifiedName(typeName, uri),
+                BrowseName = typeName,
+                ClassName = typeName,
+                BasicDataType = BasicDataType.Enumeration,
+                IsEnumeration = true,
+                BaseType = new System.Xml.XmlQualifiedName(
+                    "Enumeration", Types.Namespaces.OpcUa),
+                BaseTypeNode = new DataTypeDesign
+                {
+                    SymbolicId = new System.Xml.XmlQualifiedName(
+                        "Enumeration", Types.Namespaces.OpcUa),
+                    SymbolicName = new System.Xml.XmlQualifiedName(
+                        "Enumeration", Types.Namespaces.OpcUa),
+                    BasicDataType = BasicDataType.Enumeration
+                }
+            };
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([enumeration]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+
+            using var fileSystem = new VirtualFileSystem();
+            m_context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = m_mockModelDesign.Object,
+                Telemetry = m_mockTelemetry.Object,
+                Options = new GeneratorOptions()
+            };
+
+            new DataTypeGenerator(m_context).Emit();
+
+            string source = System.Text.Encoding.UTF8.GetString(
+                fileSystem.Get(Path.Combine("out", "Test.DataTypes.g.cs")));
+            Assert.That(source, Does.Contain("Fields = default"));
+            Assert.That(source, Does.Not.Contain("Fields = new global::Opc.Ua.EnumField[]"));
+        }
+
         private string EmitStructureWithOptionalFields(int count)
         {
             const string uri = "http://test.org/UA/";

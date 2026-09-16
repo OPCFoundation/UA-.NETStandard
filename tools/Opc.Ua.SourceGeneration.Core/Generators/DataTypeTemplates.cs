@@ -152,6 +152,25 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
+        /// Enum definition without fields
+        /// </summary>
+        public static readonly TemplateString EnumDefinitionWithoutFields = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// The enum definition for the {{Tokens.BrowseName}} DataType.
+            /// </summary>
+            public static global::Opc.Ua.EnumDefinition Create{{Tokens.ClassName}}(
+                global::Opc.Ua.NamespaceTable namespaceUris)
+            {
+                return new global::Opc.Ua.EnumDefinition
+                {
+                    IsOptionSet = {{Tokens.IsOptionSet}},
+                    Fields = default
+                };
+            }
+            """);
+
+        /// <summary>
         /// Enum field
         /// </summary>
         public static readonly TemplateString EnumField = TemplateString.Parse(
