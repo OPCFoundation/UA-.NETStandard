@@ -111,6 +111,14 @@ namespace Opc.Ua.WotCon.Server
         }
 
         /// <summary>
+        /// Registers a materialized asset interaction and its argument children.
+        /// </summary>
+        internal void AddAssetInteractionNode(BaseInstanceState node)
+        {
+            AddPredefinedNodeSynchronously(node);
+        }
+
+        /// <summary>
         /// Removes an EventType previously registered by
         /// <see cref="AddEventTypeNode"/>, together with the field properties
         /// registered beneath it.
