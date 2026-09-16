@@ -830,6 +830,46 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        [Test]
+        public async Task RecoverTransferredMessagesAdvancesGateWhenRepublishFailsAsync()
+        {
+            m_mockServices
+                .Setup(c => c.RepublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(
+                    StatusCodes.BadMessageNotAvailable));
+
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 24
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                // A server that dropped the messages must not fail the
+                // recovery - the gate still advances past the sequence
+                // numbers the server reported as sent.
+                await sut.RecoverTransferredMessagesAsync([7, 8], default)
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.ReceivedSequenceNumbers, Is.Empty);
+                Assert.That(sut.RepublishMessageCount, Is.EqualTo(2));
+                Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(8));
+
+                // The next message is therefore delivered without a gap walk.
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(9),
+                    [], []).ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 9).ConfigureAwait(false);
+
+                Assert.That(sut.ReceivedSequenceNumbers,
+                    Is.EqualTo(new uint[] { 9 }));
+                Assert.That(sut.MissingMessageCount, Is.Zero);
+            }
+        }
+
         private void SetupRepublish()
         {
             m_mockServices
