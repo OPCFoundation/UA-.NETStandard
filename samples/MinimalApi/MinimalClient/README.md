@@ -49,6 +49,35 @@ To connect to a different server:
 dotnet run -- "opc.tcp://localhost:62542/MinimalCalcServer"
 ```
 
+### Command-line contract
+
+```bash
+dotnet run -- --help
+dotnet run -- --auto-accept=false --insecure=false "opc.tcp://localhost:62542/MinimalCalcServer"
+```
+
+| Input | Meaning |
+|---|---|
+| `[discovery-url]` | Optional positional absolute endpoint URL; defaults to `opc.tcp://localhost:62541/MinimalBoilerServer`. |
+| `--auto-accept [true\|false]` | Accept untrusted server certificates for development; defaults to `false`. Aliases: `--autoaccept`, `-a`. |
+| `--insecure [true\|false]` | Preserve the existing opt-in to SecurityPolicy `None`, without message signing or encryption; defaults to `false`. |
+| `--help`, `-h`, `-?` | Show usage and return status 0 before host creation, discovery or PKI access. |
+
+Both `--auto-accept false` and `--auto-accept=false` are accepted; the same forms
+work for `--insecure`. Unknown options, malformed values, invalid URLs and extra
+positional URLs return nonzero and explain the error on standard error.
+
+The two security options are independent: automatic certificate acceptance does
+not select an unsecured endpoint, and `--insecure` does not enable automatic
+trust. Each enabled relaxation produces its own standard-error warning before
+connection; help and explicit-false options produce no relaxation warnings.
+Provision certificate trust for normal use rather than enabling auto-accept.
+These are sample-level choices, not changes to stack-library defaults.
+
+`--insecure` can only select an unsecured endpoint that the server actually
+offers. In particular, MinimalCalcServer continues to exclude SecurityPolicy
+`None`, including when its `--auto-accept` option is enabled.
+
 ## Example Usage
 
 The minimal client demonstrates the following operations:

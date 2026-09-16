@@ -27,6 +27,9 @@ parameters:
 - name: projectfilename
   type: string
   default: '*.Tests.csproj'
+- name: projects
+  type: string
+  default: ''
 - name: excludeprojects
   type: string
   default: 'Opc.Ua.Aot.Tests.csproj,Opc.Ua.Stress.Tests.csproj,Opc.Ua.Subscriptions.Durable.Tests.csproj,Opc.Ua.OneFuzz.Validator.Tests.csproj'
@@ -95,13 +98,18 @@ jobs:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   steps:
+  - task: UseDotNet@2
+    inputs:
+      packageType: sdk
+      version: '10.0.x'
   - task: PowerShell@2
     name: testmatrix
     displayName: Prepare Tests
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
-      arguments: -FileName ${{ parameters.projectfilename }} -ExcludeFileName "${{ parameters.excludeprojects }}" -AgentTable ${{ parameters.agents }}
+      pwsh: true
+      arguments: -FileName ${{ parameters.projectfilename }} -Files "${{ parameters.projects }}" -ExcludeFileName "${{ parameters.excludeprojects }}" -AgentTable ${{ parameters.agents }} -TestHostTfm "${{ parameters.framework }}" -LibraryTfm "${{ parameters.customtestarget }}"
 - job: testall${{ parameters.jobnamesuffix }}
   displayName: Tests (${{ parameters.framework }})
   dependsOn: testprep${{ parameters.jobnamesuffix }}
@@ -114,6 +122,7 @@ jobs:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
     CustomTestTarget: ${{ parameters.customtestarget }}
+    TestResultsDirectory: '$(Build.SourcesDirectory)/.assurance/$(System.JobId)'
     ${{ if eq( parameters.customtestarget, '' ) }}:
       DotCliCommandline: '--framework ${{ parameters.framework }}'
     ${{ else }}:
@@ -172,25 +181,22 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/set-version.ps1
-  - task: DownloadSecureFile@1
-    name: fuzzingartifacts
-    displayName: 'Download Fuzzing artifacts'
-    # Only the Opc.Ua.Encoders.Fuzz.Tests matrix entry consumes these crash-seed
-    # assets; gating the download saves a secure-file fetch + ~28k 'inflating:
-    # crash-*' log lines on every other matrix entry (observed pre-fix on mac
-    # build 14598 log 652).
-    condition: contains(variables['file'], 'Fuzz.Tests')
+  # Public jobs replay committed public inputs only. The private encoder archive
+  # requires a separately approved restricted runner/log/artifact boundary.
+  # Do not download, extract, print or re-publish it from this template.
+  - task: PowerShell@2
+    displayName: 'Prepare fresh result and public replay inventory'
     inputs:
-      secureFile: 'FuzzingArtifacts.zip'
-  - task: ExtractFiles@1
-    displayName: 'Extract Fuzzing artifacts'
-    condition: and(contains(variables['file'], 'Fuzz.Tests'), ne(variables['fuzzingartifacts.secureFilePath'], ''))
-    inputs:
-      archiveFilePatterns: '$(Agent.TempDirectory)/FuzzingArtifacts.zip'
-      destinationFolder: ./fuzzing/Opc.Ua.Encoders.Fuzz.Tests
-      cleanDestinationFolder: false
-      overwriteExistingFiles: true
-    continueOnError: true
+      pwsh: true
+      targetType: inline
+      script: |
+        $dir = '$(TestResultsDirectory)'
+        if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
+        $null = New-Item -ItemType Directory -Path $dir
+        if ('$(file)' -like '*Fuzz.Tests.csproj') {
+            & ./.azurepipelines/assurance/fuzz-inputs.ps1 -Project '$(file)' -OutputPath "$dir/public-inputs.json"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        }
   - task: DotNetCoreCLI@2
     displayName: Restore ${{ parameters.configuration }}
     inputs:
@@ -199,6 +205,8 @@ jobs:
       arguments: '${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.configuration }}
+    env:
+      OPCUA_ASSURANCE_REPLAY_PATH: '$(TestResultsDirectory)/fuzz-replay.xml'
     timeoutInMinutes: 90
     # continueOnError: a non-zero 'dotnet test' exit code no longer fails the job
     # directly - the "Evaluate test results" gate below decides pass/fail from the
@@ -243,7 +251,7 @@ jobs:
       # opcfoundation.visualstudio.com (observed on mac PR build 14614 log 737:
       # all 707 tests passed, then post-test publish errored with
       # "nodename nor servname provided, or not known" and failed the job).
-      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} ${{ variables.CoverageArgs }} ${{ variables.TestFilterArgs }} --blame-hang-timeout ${{ parameters.hangtimeout }} --blame-hang-dump-type mini --blame-crash --blame-crash-dump-type mini --logger trx --results-directory $(Agent.TempDirectory)'
+      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} ${{ variables.CoverageArgs }} ${{ variables.TestFilterArgs }} --blame-hang-timeout ${{ parameters.hangtimeout }} --blame-hang-dump-type mini --blame-crash --blame-crash-dump-type mini --logger trx --results-directory $(TestResultsDirectory)'
       publishTestResults: false
   - task: PublishTestResults@2
     displayName: 'Publish Test Results ${{ parameters.configuration }} (${{ parameters.framework }})'
@@ -251,11 +259,11 @@ jobs:
     # continueOnError so a transient publish failure (e.g. macOS hosted agent DNS
     # hiccup against opcfoundation.visualstudio.com) does not flip the job to
     # failed when the actual tests already passed.
-    condition: succeededOrFailed()
+    condition: and(succeededOrFailed(), not(contains(variables['file'], 'Fuzz.Tests')))
     continueOnError: true
     inputs:
       testResultsFormat: VSTest
-      testResultsFiles: '$(Agent.TempDirectory)/*.trx'
+      testResultsFiles: '$(TestResultsDirectory)/*.trx'
       mergeTestResults: true
       failTaskOnFailedTests: false
       testRunTitle: '${{ parameters.framework }} ${{ parameters.configuration }} - $(Agent.JobName)'
@@ -271,72 +279,51 @@ jobs:
     # conditions still see a genuine failure.
     condition: succeededOrFailed()
     inputs:
+      pwsh: true
+      targetType: filePath
+      filePath: ./.azurepipelines/assurance/results.ps1
+      arguments: -ResultsPath "$(TestResultsDirectory)" -OutputPath "$(TestResultsDirectory)/public-results.json" -Kind trx -Enforce
+  - task: PowerShell@2
+    displayName: 'Verify copied public replay inputs'
+    condition: and(succeededOrFailed(), contains(variables['file'], 'Fuzz.Tests'))
+    inputs:
+      pwsh: true
       targetType: inline
       script: |
-        $ErrorActionPreference = 'Stop'
-        $dir = "$(Agent.TempDirectory)"
-
-        function Get-CounterValue([System.Xml.XmlElement] $element, [string] $name) {
-            $raw = $element.GetAttribute($name)
-            if ([string]::IsNullOrEmpty($raw)) { return 0 }
-            return [int]$raw
+        $dir = '$(TestResultsDirectory)'
+        & ./.azurepipelines/assurance/fuzz-inputs.ps1 -Project '$(file)' `
+            -BuildOutput '$(folder)/bin/${{ parameters.configuration }}/${{ parameters.framework }}' `
+            -OutputPath "$dir/copied-inputs.json"
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $before = Get-Content "$dir/public-inputs.json" -Raw | ConvertFrom-Json
+        $after = Get-Content "$dir/copied-inputs.json" -Raw | ConvertFrom-Json
+        if ($before.inventoryDigest -ne $after.inventoryDigest) { throw 'Replay inventory changed after selection.' }
+  - task: PowerShell@2
+    displayName: 'Record sanitized assurance result'
+    condition: succeededOrFailed()
+    inputs:
+      pwsh: true
+      targetType: filePath
+      filePath: ./.azurepipelines/assurance/write-job.ps1
+      arguments: -Project "$(file)" -ResultsPath "$(TestResultsDirectory)" -OutputPath "$(TestResultsDirectory)/public/evidence.job.json" -Workflow azure-pipelines.yml -HostTfm "${{ parameters.framework }}" -LibraryTfm "${{ coalesce(parameters.customtestarget, parameters.framework) }}" -Configuration "${{ parameters.configuration }}" -Filter "${{ parameters.testfilter }}"
+  - task: PowerShell@2
+    displayName: 'Detect public assurance result'
+    condition: succeededOrFailed()
+    inputs:
+      pwsh: true
+      targetType: inline
+      script: |
+        $found = Test-Path '$(TestResultsDirectory)/public/evidence.job.json'
+        if ($found -and (Test-Path '$(TestResultsDirectory)/public-inputs.json')) {
+            Copy-Item '$(TestResultsDirectory)/public-inputs.json' '$(TestResultsDirectory)/public/public-inputs.json'
         }
-
-        $trx = @(Get-ChildItem -Path $dir -Filter *.trx -ErrorAction SilentlyContinue)
-        if ($trx.Count -eq 0) {
-            # No VSTest TRX in the results directory. This is expected for
-            # Microsoft.Testing.Platform (MTP) test projects, which do not emit a
-            # VSTest-style TRX there. For those, defer to the test host's own exit
-            # code as reflected by Agent.JobStatus: 'Succeeded' means the test step
-            # (and every prior step) exited cleanly -> pass; anything else (the
-            # continueOnError test step exited non-zero, or an earlier step failed)
-            # -> fail. This preserves the original exit-code behaviour for MTP
-            # projects while the TRX path below tolerates the VSTest macOS at-exit
-            # stall.
-            $jobStatus = $env:AGENT_JOBSTATUS
-            Write-Host "No VSTest TRX found in $dir; deferring to the test host exit (Agent.JobStatus=$jobStatus)."
-            if ($jobStatus -eq 'Succeeded') {
-                Write-Host "Test host exited cleanly; treating the run as successful."
-                exit 0
-            }
-            Write-Host "##vso[task.logissue type=error]Test host did not exit cleanly and produced no TRX results."
-            exit 1
-        }
-        $passed = 0
-        $failed = 0
-        $total = 0
-        foreach ($f in $trx) {
-            # Use XmlDocument.Load (not [xml](Get-Content ...)) so large TRX
-            # files - PubSub emits ~9400 results, several MB - parse reliably;
-            # the array-of-lines cast fails on big files ("Cannot convert value
-            # System.String[]").
-            $doc = New-Object System.Xml.XmlDocument
-            try {
-                $doc.Load($f.FullName)
-            }
-            catch {
-                Write-Host "##vso[task.logissue type=error]Could not parse TRX $($f.Name): $($_.Exception.Message)"
-                exit 1
-            }
-            foreach ($c in $doc.GetElementsByTagName('Counters')) {
-                $passed += Get-CounterValue $c 'passed'
-                $total += Get-CounterValue $c 'total'
-                $failed += (Get-CounterValue $c 'failed') + (Get-CounterValue $c 'error') +
-                    (Get-CounterValue $c 'timeout') + (Get-CounterValue $c 'aborted') +
-                    (Get-CounterValue $c 'passedButRunAborted')
-            }
-        }
-        Write-Host "Aggregated test results: total=$total, passed=$passed, failed/error/timeout/aborted=$failed (from $($trx.Count) trx file(s))."
-        if ($failed -gt 0) {
-            Write-Host "##vso[task.logissue type=error]$failed test(s) failed or the run was aborted mid-execution."
-            exit 1
-        }
-        if ($total -le 0) {
-            Write-Host "##vso[task.logissue type=error]No tests were recorded (total=0); the run did not execute."
-            exit 1
-        }
-        Write-Host "No test failures recorded across $total test(s); treating the run as successful (tolerating any non-zero test-host exit after a fully green run)."
-        exit 0
+        Write-Host "##vso[task.setvariable variable=HAS_ASSURANCE]$($found.ToString().ToLowerInvariant())"
+  - task: PublishPipelineArtifact@1
+    displayName: 'Publish sanitized assurance only'
+    condition: and(succeededOrFailed(), eq(variables['HAS_ASSURANCE'], 'true'))
+    inputs:
+      targetPath: '$(TestResultsDirectory)/public'
+      artifact: 'assurance-${{ parameters.jobnamesuffix }}-$(System.JobId)'
   # Hand the raw per-project Cobertura report to the 'Code coverage' stage
   # instead of letting a gate job re-run the whole suite with coverage enabled.
   # Re-running defeats the point of fanning the suite out across matrix jobs and
@@ -349,7 +336,7 @@ jobs:
       condition: succeededOrFailed()
       continueOnError: true
       inputs:
-        SourceFolder: '$(Agent.TempDirectory)'
+        SourceFolder: '$(TestResultsDirectory)'
         Contents: '**/*.cobertura.xml'
         TargetFolder: '$(Build.ArtifactStagingDirectory)/coverage'
         # Not flattened: the collector writes every report as 'coverage.cobertura.xml'
@@ -366,21 +353,19 @@ jobs:
           $dir = '$(Build.ArtifactStagingDirectory)/coverage'
           $found = (Test-Path $dir) -and
               @(Get-ChildItem -Path $dir -Recurse -File -Filter *.cobertura.xml -ErrorAction SilentlyContinue).Count -gt 0
+          $null = New-Item -ItemType Directory -Path $dir -Force
+          @{ schemaVersion = 1; expected = $true; present = $found; project = '$(file)' } |
+              ConvertTo-Json | Set-Content "$dir/coverage-state.json"
           Write-Host "Code coverage reports present: $found"
           Write-Host "##vso[task.setvariable variable=HAS_COVERAGE;isOutput=true]$($found.ToString().ToLowerInvariant())"
     - task: PublishPipelineArtifact@1
       displayName: 'Publish code coverage'
       # Only publish when the probe found a report; PublishPipelineArtifact@1
       # warns on an empty targetPath and would light the step up yellow.
-      condition: and(succeededOrFailed(), eq(variables['coverageProbe.HAS_COVERAGE'], 'true'))
+      condition: succeededOrFailed()
       inputs:
         targetPath: '$(Build.ArtifactStagingDirectory)/coverage'
         artifact: 'coverage-${{ parameters.jobnamesuffix }}-$(System.JobId)'
-  - task: PublishBuildArtifacts@1
-    displayName: 'Publish Fuzzing artifacts on failure'
-    condition: and(failed(), contains(variables['file'], 'Fuzz.Tests'), ne(variables['fuzzingartifacts.secureFilePath'], ''))
-    inputs:
-      PathtoPublish: '$(Agent.TempDirectory)/FuzzingArtifacts.zip'
   - task: PowerShell@2
     displayName: 'Stage macOS crash reports'
     # Apple Crash Reporter writes .crash (legacy) and .ips (JSON, macOS 12+)
@@ -392,14 +377,14 @@ jobs:
     # application crash reports that accumulate on shared agents.  Qualifying reports
     # created in the last two hours are copied into $(Agent.TempDirectory)/mac-diagnostics/
     # so the 'Stage diagnostic dumps' CopyFiles step below picks them up automatically.
-    condition: and(failed(), eq(variables['Agent.OS'], 'Darwin'))
+    condition: and(failed(), eq(variables['Agent.OS'], 'Darwin'), not(contains(variables['file'], 'Fuzz.Tests')))
     continueOnError: true
     inputs:
       targetType: inline
       pwsh: true
       script: |
         $src = [System.IO.Path]::Combine($env:HOME, 'Library', 'Logs', 'DiagnosticReports')
-        $dst = '$(Agent.TempDirectory)/mac-diagnostics'
+        $dst = '$(TestResultsDirectory)/mac-diagnostics'
         if (-not (Test-Path $src)) {
             Write-Host "No DiagnosticReports directory found at '$src'; skipping."
             exit 0
@@ -441,10 +426,10 @@ jobs:
   # warning on an empty targetPath, which we do NOT want on healthy runs.
   - task: CopyFiles@2
     displayName: 'Stage diagnostic dumps'
-    condition: succeededOrFailed()
+    condition: and(succeededOrFailed(), not(contains(variables['file'], 'Fuzz.Tests')))
     continueOnError: true
     inputs:
-      SourceFolder: '$(Agent.TempDirectory)'
+      SourceFolder: '$(TestResultsDirectory)'
       Contents: |
         **/*.dmp
         **/*.mdmp
@@ -472,7 +457,7 @@ jobs:
     # Only publish when the probe found at least one dump; otherwise
     # PublishPipelineArtifact@1 warns on an empty targetPath and the whole
     # step lights up yellow on healthy runs.
-    condition: and(succeededOrFailed(), eq(variables['dumpProbe.HAS_DUMPS'], 'true'))
+    condition: and(succeededOrFailed(), eq(variables['dumpProbe.HAS_DUMPS'], 'true'), not(contains(variables['file'], 'Fuzz.Tests')))
     inputs:
       targetPath: '$(Build.ArtifactStagingDirectory)/dumps'
       artifact: 'dumps-$(System.JobId)'

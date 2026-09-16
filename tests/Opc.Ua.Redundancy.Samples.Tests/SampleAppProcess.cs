@@ -112,6 +112,11 @@ namespace Opc.Ua.Redundancy.Samples.Tests
         public bool HasExited => m_process.HasExited;
 
         /// <summary>
+        /// Gets the exit code after the sample process has exited.
+        /// </summary>
+        public int ExitCode => m_process.ExitCode;
+
+        /// <summary>
         /// Waits until a captured output line contains the given substring, or the timeout elapses.
         /// </summary>
         /// <param name="substring">The substring to search for (ordinal, case-sensitive).</param>
@@ -329,7 +334,9 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             }
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Terminates the sample process, waits for exit, and releases its output subscriptions and process handle.
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
             Kill();

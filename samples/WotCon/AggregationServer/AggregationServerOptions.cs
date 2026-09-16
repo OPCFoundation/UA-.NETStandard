@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using Opc.Ua.Server.Hosting;
+
 namespace AggregationServer
 {
     /// <summary>
@@ -58,6 +61,30 @@ namespace AggregationServer
         /// Gets or sets the isolated PKI root shared by the server and upstream client.
         /// </summary>
         public string? PkiRoot { get; set; }
+
+        /// <summary>
+        /// Gets or sets an explicit development-only trust exception for clients and upstream servers.
+        /// Defaults to false; enabling it does not offer or select SecurityPolicy None.
+        /// </summary>
+        public bool AutoAcceptUntrustedCertificates { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether to offer an unsecured inbound endpoint and select unsecured upstream endpoints.
+        /// Defaults to false, selecting SignAndEncrypt/Basic256Sha256 upstream; certificate trust remains independent.
+        /// </summary>
+        public bool IncludeUnsecurePolicyNone { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether anonymous registry management is permitted for an isolated demonstration.
+        /// Defaults to false, requiring authenticated SecurityAdmin access over SignAndEncrypt.
+        /// This does not enable unsecured endpoints or relax certificate validation.
+        /// </summary>
+        public bool AllowAnonymousManagement { get; set; }
+
+        /// <summary>
+        /// Gets or sets registrations for deployment-specific authenticators and SecurityAdmin role mapping.
+        /// </summary>
+        public Action<IOpcUaServerBuilder>? ConfigureAuthentication { get; set; }
 
         /// <summary>
         /// Gets or sets the maximum accepted document size.

@@ -36,6 +36,10 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\..\Common\SampleCommandLine.cs" Link="SampleCommandLine.cs" />
   </ItemGroup>
   <ItemGroup>
     <!-- Share the generic executor, collision/support models, and UR-compatible

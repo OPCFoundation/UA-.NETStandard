@@ -24,6 +24,28 @@ datasheet that the server is aligned to and that
 `tests/Opc.Ua.Di.Tests/PumpDatasheetConformanceTests.cs` asserts against,
 so document and address space cannot drift apart.
 
+## Trust and startup configuration
+
+Provision and trust both application certificates before connecting. By default the
+server rejects untrusted client certificates and does not expose SecurityPolicy None.
+For isolated development, `--auto-accept` (aliases `--autoaccept`, `-a`) accepts
+untrusted client certificates with a warning on stderr. Other certificate checks and
+message security remain enabled. Omission or explicit `false` keeps trust enforcement;
+JSON/configuration cannot implicitly enable this sample flag.
+
+`--help` exits without creating a host or PKI. Unknown or malformed sample switches
+fail on stderr. `--port` accepts 1–65535 and `--pumps` accepts 1–100.
+Named options override positional `key=value` settings, then forwarded host arguments,
+then normal JSON/environment configuration; omitted options preserve those defaults.
+Forward other host switches after the sample separator, for example:
+
+```powershell
+dotnet run --project samples\DI\PumpDeviceIntegrationServer -- --auto-accept=false -- --Logging:LogLevel:Default Warning
+```
+
+The connector's own trust flag does not configure server trust; the server must trust
+the connector certificate or be explicitly started with the development opt-in.
+
 ## The simulated device
 
 | | |
@@ -441,8 +463,12 @@ docker run --rm -p 62542:62542 `
 ```
 
 The image is built and published to the GitHub Container Registry by the
-[`pump-device-integration-server-docker.yml`](../../../.github/workflows/pump-device-integration-server-docker.yml)
-workflow on every push to `master` and on manual dispatch.
+[`Docker Sample Images CI`](../../../.github/workflows/docker-image.yml)
+workflow on applicable pushes to `master` and on manual dispatch. Pull requests
+also build the image without publishing. Pump remains an independent, amd64-only
+release group at `ghcr.io/opcfoundation/pumpdeviceintegrationserver`, with
+`latest`, full-version and `sha-<short-sha>` tags. Manual dispatch selects only
+Pump; automatic release/docker branch builds select the other container group.
 
 ## What the sample demonstrates
 

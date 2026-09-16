@@ -37,14 +37,19 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
-using NUnit.Framework;
-using Opc.Ua.Client;
-using Opc.Ua.WotCon.Client;
 using AggregationClient;
 using FlatTagServer;
+using Microsoft.Extensions.DependencyInjection;
+using NUnit.Framework;
+using Opc.Ua.Client;
+using Opc.Ua.WotCon.Bindings.OpcUa;
+using Opc.Ua.WotCon.Client;
 
 namespace Opc.Ua.WotCon.Samples.Tests
 {
+    /// <summary>
+    /// Exercises real WoT sample aggregation, secured management, live generation replacement, and loader failures.
+    /// </summary>
     [TestFixture]
     [Category("WotCon")]
     [Category("Integration")]
@@ -63,6 +68,126 @@ namespace Opc.Ua.WotCon.Samples.Tests
         private const string kWotConNamespaceUri = "http://opcfoundation.org/UA/WoT-Con/";
         private const string kPumpsNamespaceUri = "http://opcfoundation.org/UA/Pumps/";
 
+        /// <summary>
+        /// Verifies that the upstream session factory selects the configured message-security mode and policy.
+        /// </summary>
+        [TestCase(true, MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256)]
+        [TestCase(false, MessageSecurityMode.None, SecurityPolicies.None)]
+        public async Task UpstreamFactorySelectsConfiguredEndpointAsync(
+            bool secure, MessageSecurityMode expectedMode, string expectedPolicy)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(40));
+            await using WotSampleEnvironment environment = await WotSampleEnvironment
+                .StartAsync(timeout.Token, secure: secure).ConfigureAwait(false);
+            OpcUaWotBindingOptions binding = environment.AggregationHost.Services
+                .GetRequiredService<OpcUaWotBindingOptions>();
+            ISession session = await binding.SessionFactory!(
+                environment.ClientOptions.SourceAEndpoint, timeout.Token).ConfigureAwait(false);
+            Assert.That(session.ConfiguredEndpoint.Description.SecurityMode,
+                Is.EqualTo(expectedMode));
+            Assert.That(session.ConfiguredEndpoint.Description.SecurityPolicyUri,
+                Is.EqualTo(expectedPolicy));
+        }
+
+        /// <summary>
+        /// Verifies that an unsupported upstream security policy is rejected instead of downgraded or retried
+        /// indefinitely.
+        /// </summary>
+        [Test]
+        public async Task UnsupportedUpstreamPolicyFailsWithoutDowngradeOrReconnectLoopAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(40));
+            await using WotSampleEnvironment environment = await WotSampleEnvironment
+                .StartAsync(timeout.Token, secure: true, aggregationSecurityNone: true).ConfigureAwait(false);
+            OpcUaWotBindingOptions binding = environment.AggregationHost.Services
+                .GetRequiredService<OpcUaWotBindingOptions>();
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await binding.SessionFactory!(
+                    environment.ClientOptions.SourceAEndpoint, timeout.Token).ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+        }
+
+        /// <summary>
+        /// Verifies that encrypted registry management accepts an administrator but denies anonymous management
+        /// requests.
+        /// </summary>
+        [Test]
+        public async Task EncryptedRegistryManagementAuthenticatesAdministratorAndRejectsAnonymousAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+            await using WotSampleEnvironment environment = await WotSampleEnvironment
+                .StartAsync(timeout.Token, secure: true).ConfigureAwait(false);
+            await using (WotClientConnection administrator = await environment.ConnectAsync(timeout.Token)
+                .ConfigureAwait(false))
+            {
+                WotRegistryRefreshResult refresh = await administrator.Registry
+                    .RefreshAllAsync(ct: timeout.Token).ConfigureAwait(false);
+                Assert.That(refresh.HasFailures, Is.False);
+                Assert.That(administrator.Session.Identity.TokenType, Is.EqualTo(UserTokenType.UserName));
+            }
+            AggregationClientOptions anonymousOptions = environment.CreateClientOptions(environment.DocumentsDirectory);
+            anonymousOptions.IdentityProvider = null;
+            await using WotClientConnection anonymous = await WotClientConnection
+                .CreateAsync(anonymousOptions, timeout.Token).ConfigureAwait(false);
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await anonymous.Registry.RefreshAllAsync(ct: timeout.Token).ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            await using OpcUaClientConnection source = await environment.ConnectSourceAAsync(timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(source.Session.ConfiguredEndpoint.Description.SecurityMode,
+                Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+            Assert.That(source.Session.Identity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
+        }
+
+        /// <summary>
+        /// Verifies that a valid username identity without the SecurityAdmin role cannot refresh the registry.
+        /// </summary>
+        [Test]
+        public async Task AuthenticatedUserWithoutSecurityAdminCannotManageRegistryAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(40));
+            await using WotSampleEnvironment environment = await WotSampleEnvironment
+                .StartAsync(timeout.Token, secure: true, grantSecurityAdmin: false).ConfigureAwait(false);
+            await using WotClientConnection connection = await environment.ConnectAsync(timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(connection.Session.Identity.TokenType, Is.EqualTo(UserTokenType.UserName));
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await connection.Registry.RefreshAllAsync(ct: timeout.Token).ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        /// <summary>
+        /// Verifies that mutually trusted peers aggregate both pumps successfully over encrypted connections.
+        /// </summary>
+        [Test]
+        public async Task ProvisionedPeersAggregateUsingEncryptedUpstreamConnectionsAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(4));
+            await using WotSampleEnvironment environment = await WotSampleEnvironment
+                .StartAsync(timeout.Token, secure: true).ConfigureAwait(false);
+            AggregationClientResult result = await AggregationClientRunner
+                .RunAsync(environment.ClientOptions, timeout.Token).ConfigureAwait(false);
+            Assert.That(result.Pumps, Has.Count.EqualTo(2));
+            Assert.That(result.LoadResult.Refresh!.HasFailures, Is.False);
+            foreach (WotPumpResult pump in result.Pumps)
+            {
+                Assert.That(pump.Values, Has.Count.EqualTo(15), pump.Name);
+                Assert.That(
+                    pump.Values.ToList().All(value => value.StatusCode == StatusCodes.Good),
+                    Is.True,
+                    pump.Name);
+            }
+            await using WotClientConnection connection = await environment.ConnectAsync(timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(connection.Session.ConfiguredEndpoint.Description.SecurityMode,
+                Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+            Assert.That(connection.Session.Identity.TokenType, Is.EqualTo(UserTokenType.UserName));
+        }
+
+        /// <summary>
+        /// Verifies pump projection and subscriptions across a mapping replacement, retaining the retired
+        /// subscription's data.
+        /// </summary>
         [Test]
         public async Task RealSamplesAggregateSubscribeAndReplaceGenerationAsync()
         {
@@ -311,6 +436,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
             AssertDataValue(afterDrain, environment.SourceBValues.BearingTemperature);
         }
 
+        /// <summary>
+        /// Verifies that projected pump groups and management actions preserve source ownership and complete alarm
+        /// attention.
+        /// </summary>
         [Test]
         public async Task RealSamplesRouteManagementAndConditionActionsToEachSourceAsync()
         {
@@ -396,6 +525,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 connection.Session, sourceA.Session, sourceB.Session, timeout.Token).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that invalid Thing Description JSON is rejected through the real document-upload path.
+        /// </summary>
         [Test]
         public async Task InvalidDocumentFailsThroughRealLoaderAsync()
         {
@@ -430,6 +562,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(failure, Is.TypeOf<ServiceResultException>());
         }
 
+        /// <summary>
+        /// Verifies that a missing manifest dependency is reported before document upload.
+        /// </summary>
         [Test]
         public async Task MissingManifestDependencyFailsBeforeUploadAsync()
         {
@@ -461,6 +596,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(failure.Message, Does.Contain("missing or cyclic dependency"));
         }
 
+        /// <summary>
+        /// Verifies that mapping a measurement to a nonexistent target node causes the real refresh to fail.
+        /// </summary>
         [Test]
         public async Task BadTargetMappingFailsRefreshAsync()
         {
@@ -484,6 +622,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(failure, Is.TypeOf<ServiceResultException>());
         }
 
+        /// <summary>
+        /// Verifies that a mapped read reports failure when its upstream source endpoint is unavailable.
+        /// </summary>
         [Test]
         public async Task UnavailableUpstreamEndpointFailsMappedReadAsync()
         {

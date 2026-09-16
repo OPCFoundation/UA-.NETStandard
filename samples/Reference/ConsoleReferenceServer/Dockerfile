@@ -1,49 +1,29 @@
-FROM mcr.microsoft.com/dotnet/aspnet AS base
-WORKDIR /app
-
-FROM mcr.microsoft.com/dotnet/sdk AS build
+# Build from the repository root; stack and generator dependencies are project references.
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:4beef5b8919dcaa2dc924233bd069257e883cc7a061e09088a97d152d6a48510 AS build
 WORKDIR /src
-
-# copy csproj and restore as distinct layers
-COPY *.* .
-COPY ["samples/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj", "samples/Reference/ConsoleReferenceServer/"]
-# The generator projects import shared MSBuild logic; restore fails with
-# "Invalid framework identifier ''" if these are not part of the restore layer.
-COPY ["tools/SourceGeneratorVariant.targets", "tools/"]
-COPY ["tools/Opc.Ua.SourceGeneration.Core/Opc.Ua.SourceGeneration.Core.csproj", "tools/Opc.Ua.SourceGeneration.Core/"]
-COPY ["tools/Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.csproj", "tools/Opc.Ua.SourceGeneration.Stack/"]
-COPY ["tools/Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.Sources.targets", "tools/Opc.Ua.SourceGeneration.Stack/"]
-COPY ["tools/Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.csproj", "tools/Opc.Ua.SourceGeneration/"]
-COPY ["tools/Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.Sources.targets", "tools/Opc.Ua.SourceGeneration/"]
-COPY ["src/Opc.Ua.Core.Types/Opc.Ua.Core.Types.csproj", "src/Opc.Ua.Core.Types/"]
-COPY ["src/Opc.Ua.Core/Opc.Ua.Core.csproj", "src/Opc.Ua.Core/"]
-COPY ["src/Opc.Ua.Core.Schema/Opc.Ua.Core.Schema.csproj", "src/Opc.Ua.Core.Schema/"]
-COPY ["src/Opc.Ua.Core.Diagnostics/Opc.Ua.Core.Diagnostics.csproj", "src/Opc.Ua.Core.Diagnostics/"]
-COPY ["src/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj", "src/Opc.Ua.Bindings.Https/"]
-COPY ["src/Opc.Ua.Types/Opc.Ua.Types.csproj", "src/Opc.Ua.Types/"]
-COPY ["src/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj", "src/Opc.Ua.Security.Certificates/"]
-COPY ["src/Opc.Ua.Client/Opc.Ua.Client.csproj", "src/Opc.Ua.Client/"]
-COPY ["src/Opc.Ua.Configuration/Opc.Ua.Configuration.csproj", "src/Opc.Ua.Configuration/"]
-COPY ["src/Opc.Ua.Server/Opc.Ua.Server.csproj", "src/Opc.Ua.Server/"]
-COPY ["samples/Quickstarts.Servers/Quickstarts.Servers.csproj", "samples/Quickstarts.Servers/"]
-COPY ["src/Opc.Ua.Gds/Opc.Ua.Gds.csproj", "src/Opc.Ua.Gds/"]
-COPY ["src/Opc.Ua.Gds.Server/Opc.Ua.Gds.Server.csproj", "src/Opc.Ua.Gds.Server/"]
 ENV DOTNET_EnableWriteXorExecute=0
-RUN dotnet restore "samples/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj" --force -p:CustomTestTarget=net10.0
 COPY . .
+ARG Version=0.0.0-local
+ARG SimpleVersion=0.0.0
+ARG FileVersion=0.0.0
+ARG InformationalVersion=0.0.0-local
+ARG SourceRevisionId
+ARG SourceRepositoryUrl=https://github.com/OPCFoundation/UA-.NETStandard
+RUN dotnet publish "samples/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj" \
+    -c Release -f net10.0 -p:PublishAot=false -p:CustomTestTarget=net10.0 \
+    -p:Dockerbuild=true -p:Version="$Version" -p:AssemblyVersion="$SimpleVersion" \
+    -p:FileVersion="$FileVersion" -p:InformationalVersion="$InformationalVersion" \
+    -p:SourceRevisionId="$SourceRevisionId" -p:RepositoryUrl="$SourceRepositoryUrl" \
+    -o /app/publish
 
-WORKDIR "/src/samples/Reference/ConsoleReferenceServer"
-ARG Version
-ARG SimpleVersion
-ARG InformationalVersion
-ENV OPTIONS="-c Release -f net10.0 -p:PublishAot=false -p:Dockerbuild=true -p:Version=${Version} -p:AssemblyVersion=${SimpleVersion} -p:FileVersion=${Version} -p:InformationalVersion=${InformationalVersion} -p:CustomTestTarget=net10.0"
-
-FROM build AS publish
-ENV DOTNET_EnableWriteXorExecute=0
-RUN dotnet publish "ConsoleReferenceServer.csproj" --no-restore ${OPTIONS} -o /app/publish
-
-FROM base AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:011bb5f30180717b1c8b65822ff2c99bcb96bc65af0164589751b83c7b4949f7 AS final
+ARG Version=0.0.0-local
+ARG SourceRevisionId
+ARG SourceRepositoryUrl=https://github.com/OPCFoundation/UA-.NETStandard
+LABEL org.opencontainers.image.version=$Version \
+      org.opencontainers.image.revision=$SourceRevisionId \
+      org.opencontainers.image.source=$SourceRepositoryUrl
 WORKDIR /app
-COPY --from=publish /app/publish .
+COPY --from=build /app/publish .
 EXPOSE 62541
 ENTRYPOINT ["dotnet", "ConsoleReferenceServer.dll"]

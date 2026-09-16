@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net10.0</TargetFrameworks>
+    <TargetFramework>net10.0</TargetFramework>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <RootNamespace>Opc.Ua.WotCon.Samples.Tests</RootNamespace>
     <Nullable>enable</Nullable>
@@ -29,5 +29,12 @@
     <ProjectReference Include="..\..\samples\WotCon\AggregationServer\AggregationServer.csproj" />
     <ProjectReference Include="..\..\samples\WotCon\AggregationClient\AggregationClient.csproj" />
     <ProjectReference Include="..\..\samples\DI\PumpDeviceIntegrationServer\PumpDeviceIntegrationServer.csproj" />
+    <ProjectReference Include="..\..\samples\Gds\OnboardingClient\OnboardingClient.csproj"
+                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\samples\Gds\OnboardingRegistrar\OnboardingRegistrar.csproj"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Opc.Ua.Redundancy.Samples.Tests\SampleAppProcess.cs" Link="SampleAppProcess.cs" />
   </ItemGroup>
 </Project>

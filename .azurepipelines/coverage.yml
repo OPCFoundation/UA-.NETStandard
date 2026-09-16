@@ -104,7 +104,9 @@ stages:
       inputs:
         buildType: current
         # Every test job of every stage publishes 'coverage-<suffix>-<jobid>'.
-        patterns: 'coverage-*/**/*.cobertura.xml'
+        patterns: |
+          coverage-*/**/*.cobertura.xml
+          coverage-*/coverage-state.json
         path: '$(Agent.TempDirectory)/coverage'
       continueOnError: true
     - task: PowerShell@2
@@ -130,6 +132,15 @@ stages:
 
           $found = $reports.Count -gt 0
           Write-Host "##vso[task.setvariable variable=HAS_REPORTS;isOutput=true]$($found.ToString().ToLowerInvariant())"
+          foreach ($artifact in $artifacts) {
+              $statePath = Join-Path $artifact.FullName 'coverage-state.json'
+              if (-not (Test-Path $statePath)) { throw 'Missing expected coverage fragment manifest.' }
+              $state = Get-Content $statePath -Raw | ConvertFrom-Json
+              $actual = @(Get-ChildItem $artifact.FullName -Recurse -File -Filter *.cobertura.xml).Count
+              if ($state.expected -ne $true -or $state.present -ne $true -or $actual -eq 0) {
+                  throw 'An applicable selected test job did not publish its coverage fragment. Coverage is incomplete.'
+              }
+          }
           if ($found) {
               exit 0
           }
@@ -144,8 +155,8 @@ stages:
           # available cheaply; the equivalent here would need the stage
           # dependency context, which is too large to serialise in an
           # expression (see the 'Tests passed' stage in azure-pipelines.yml).
-          Write-Host "##vso[task.logissue type=warning]No coverage was published by any test job; there is nothing to evaluate."
-          exit 0
+          Write-Host "##vso[task.logissue type=error]No coverage was published; coverage is incomplete, not passing. This check remains advisory."
+          exit 1
     - task: DotNetCoreCLI@2
       displayName: Install ReportGenerator tool
       condition: and(succeeded(), eq(variables['reportProbe.HAS_REPORTS'], 'true'))
@@ -282,7 +293,7 @@ stages:
         workingDirectory: '$(Build.SourcesDirectory)'
         script: |
           # Empty on anything that is not a pull request validation build, in
-          # which case check-coverage.ps1 checks the project floor only.
+          # which case coverage/check.ps1 checks the project floor only.
           $baseRef = $env:SYSTEM_PULLREQUEST_TARGETBRANCH
           if ([string]::IsNullOrWhiteSpace($baseRef)) {
               Write-Host 'Not a pull request build; the changed-lines check is skipped.'
@@ -292,7 +303,7 @@ stages:
           }
 
           $summaryPath = '$(Agent.TempDirectory)/coverage-summary.md'
-          & ./.azurepipelines/check-coverage.ps1 `
+          & ./.azurepipelines/coverage/check.ps1 `
               -CoberturaPath '$(Build.SourcesDirectory)/CodeCoverage/Cobertura.xml' `
               -ThresholdsPath '$(Build.SourcesDirectory)/coverage-thresholds.json' `
               -RepoRoot '$(Build.SourcesDirectory)' `

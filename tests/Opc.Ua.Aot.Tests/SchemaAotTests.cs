@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -45,6 +45,9 @@ namespace Opc.Ua.Aot.Tests
     /// </summary>
     public class SchemaAotTests
     {
+        /// <summary>
+        /// Verifies that dependency-injected schema generation produces parseable JSON, XSD, and BSD under AOT.
+        /// </summary>
         [Test]
         public async Task CreateSchemaForAllFormatsIsAotSafeAsync()
         {
@@ -54,6 +57,9 @@ namespace Opc.Ua.Aot.Tests
             await AssertAllFormatsAsync(provider, outer);
         }
 
+        /// <summary>
+        /// Verifies that public schema-provider constructors support every schema format without dependency injection.
+        /// </summary>
         [Test]
         public async Task DirectConstructionForAllFormatsIsAotSafeAsync()
         {
@@ -67,6 +73,9 @@ namespace Opc.Ua.Aot.Tests
             await AssertAllFormatsAsync(provider, outer);
         }
 
+        /// <summary>
+        /// Verifies that generated encodeable-factory definitions resolve the Argument type and produce JSON under AOT.
+        /// </summary>
         [Test]
         public async Task GeneratedFactoryDefinitionsAreAotSafeAsync()
         {
@@ -88,6 +97,9 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(schema!.ToSchemaString()).Contains("Argument");
         }
 
+        /// <summary>
+        /// Verifies that zero and empty identifiers remain distinct across registry, factory, and schema resolution.
+        /// </summary>
         [Test]
         public async Task EmptyIdentifiersRetainTheirKindsThroughSchemaResolversAsync()
         {

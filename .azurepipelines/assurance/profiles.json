@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "id": "opcua-release-assurance",
+  "version": "1.0.0",
+  "scope": "initial-security-focused-not-full-product-or-platform-coverage",
+  "status": "incomplete",
+  "pathBase": "repository-root",
+  "rules": {
+    "expectedJobs": "expand-profile-jobs-before-pr-path-or-matrix-filtering",
+    "selectedJobs": "record-actual-selection-not-configured-intent",
+    "completedJobs": "verified-successful-execution-with-required-counts-and-inputs",
+    "missingJobs": "unselected-skipped-cancelled-unreported-or-unverifiable-applicable-jobs",
+    "failedJobs": "verified-execution-failure-or-unmet-result-criteria",
+    "notApplicableJobs": "defined-rule-with-verified-scope-only",
+    "emptySuite": "failed-if-executed-with-zero-tests-otherwise-missing",
+    "partialResults": "incomplete",
+    "unknownCounts": "omit-counts-and-mark-missing-never-invent-zero-or-pass",
+    "frameworks": "record-host-tfm-and-actual-library-tfm-separately",
+    "restrictedResults": "public-sanitized-summary-only-no-raw-findings-or-input-identifiers"
+  },
+  "notApplicableRules": [
+    {
+      "id": "network-unsupported-tfm",
+      "appliesTo": "fuzz-network",
+      "criterion": "requested-library-tfm-outside-net8.0-net9.0-net10.0",
+      "source": "fuzzing/Opc.Ua.Network.Fuzz.Tests/Opc.Ua.Network.Fuzz.Tests.csproj",
+      "effect": "legacy-empty-shell-is-not-behavioral-test-evidence",
+      "allowedInInitialNet10Profile": false
+    },
+    {
+      "id": "aot-unsupported-tfm",
+      "appliesTo": "native-aot",
+      "criterion": "requested-host-or-library-tfm-is-not-net10.0",
+      "source": "tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj",
+      "effect": "legacy-empty-shell-is-not-native-execution",
+      "allowedInInitialNet10Profile": false
+    }
+  ],
+  "additionalReplayProjects": [
+    {
+      "project": "fuzzing/Opc.Ua.PubSub.Fuzz.Tests/Opc.Ua.PubSub.Fuzz.Tests.csproj",
+      "corpusRoot": "fuzzing/Opc.Ua.PubSub.Fuzz.Corpus",
+      "regressionRoot": "fuzzing/Opc.Ua.PubSub.Fuzz.Tests/Assets",
+      "supportedLibraryTfms": ["net8.0", "net9.0", "net10.0"],
+      "corpusBuckets": ["Testcases.Json", "Testcases.Uadp", "Testcases.Chunks"]
+    }
+  ],
+  "profiles": [
+    {
+      "id": "security-net10",
+      "status": "incomplete",
+      "configuration": "Release",
+      "host": "windows",
+      "hostTfm": "net10.0",
+      "libraryTfm": "net10.0",
+      "platform": "windows/amd64",
+      "filter": "",
+      "minimumExecutedTestsPerJob": 1,
+      "maximumFailedTestsPerJob": 0,
+      "maximumSkippedTestsPerJob": 0,
+      "requireResultDocument": true,
+      "jobs": [
+        {
+          "id": "core-security",
+          "kind": "test",
+          "project": "tests/Opc.Ua.Core.Security.Tests/Opc.Ua.Core.Security.Tests.csproj"
+        },
+        {
+          "id": "certificates-security",
+          "kind": "test",
+          "project": "tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj"
+        }
+      ]
+    },
+    {
+      "id": "fuzz-replay-net10",
+      "status": "incomplete",
+      "configuration": "Release",
+      "host": "windows",
+      "hostTfm": "net10.0",
+      "libraryTfm": "net10.0",
+      "platform": "windows/amd64",
+      "filter": "",
+      "minimumExecutedTestsPerJob": 1,
+      "maximumFailedTestsPerJob": 0,
+      "requireResultDocument": true,
+      "inputRules": {
+        "freezeBeforeSelection": true,
+        "targetManifest": "all-applicable-discovered-fuzz-targets",
+        "requireEveryTargetExecuted": true,
+        "requireGoodSeedsForEveryApplicableTarget": true,
+        "preserveCorpusBucketAndRelativePath": true,
+        "rejectSourceToOutputCollisions": true,
+        "requireAllKnownRegressionInputsReplayed": true,
+        "emptyRegressionSet": "allowed-only-with-verified-zero-count-in-frozen-inventory",
+        "emptyRegressionSetIsJobNotApplicable": false,
+        "missingSeedDirectory": "incomplete",
+        "optionalEmptyRegressionCases": "only-runner-cases-proven-to-map-to-frozen-empty-regression-set",
+        "otherSkippedTests": "incomplete",
+        "publicInputIdentity": "digest-of-reviewed-sanitized-input-manifest-not-restricted-raw-input"
+      },
+      "jobs": [
+        {
+          "id": "fuzz-encoders",
+          "kind": "fuzz-replay",
+          "project": "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Opc.Ua.Encoders.Fuzz.Tests.csproj",
+          "corpusRoot": "fuzzing/Opc.Ua.Encoders.Fuzz.Corpus",
+          "regressionRoot": "fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Assets",
+          "corpusBuckets": [
+            "Testcases.Binary", "Testcases.Json", "Testcases.Xml", "Testcases.BuiltInTypes", "Testcases.Parsers"
+          ]
+        },
+        {
+          "id": "fuzz-certificates",
+          "kind": "fuzz-replay",
+          "project": "fuzzing/Opc.Ua.Certificates.Fuzz.Tests/Opc.Ua.Certificates.Fuzz.Tests.csproj",
+          "corpusRoot": "fuzzing/Opc.Ua.Certificates.Fuzz.Corpus",
+          "regressionRoot": "fuzzing/Opc.Ua.Certificates.Fuzz.Tests/Assets",
+          "corpusBuckets": [
+            "Testcases.X509Cert", "Testcases.X509CRL", "Testcases.X509CSR", "Testcases.PEM", "Testcases.ASN1"
+          ]
+        },
+        {
+          "id": "fuzz-network",
+          "kind": "fuzz-replay",
+          "project": "fuzzing/Opc.Ua.Network.Fuzz.Tests/Opc.Ua.Network.Fuzz.Tests.csproj",
+          "corpusRoot": "fuzzing/Opc.Ua.Network.Fuzz.Corpus",
+          "regressionRoot": "fuzzing/Opc.Ua.Network.Fuzz.Tests/Assets",
+          "supportedLibraryTfms": ["net8.0", "net9.0", "net10.0"],
+          "corpusBuckets": [
+            "Testcases.Tcp", "Testcases.Chunks", "Testcases.Keys", "Testcases.Tcp.Hello",
+            "Testcases.Tcp.Ack", "Testcases.Tcp.Err", "Testcases.Tcp.Rhe", "Testcases.Tcp.AsymHdr"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "codeql-net10",
+      "status": "incomplete",
+      "configuration": "Release",
+      "host": "windows",
+      "hostTfm": "net10.0",
+      "libraryTfm": "net10.0",
+      "platform": "windows/amd64",
+      "filter": "",
+      "workflow": ".github/workflows/codeql-analysis.yml",
+      "language": "csharp",
+      "requireResultDocument": true,
+      "requireCompletedAnalysis": true,
+      "minimumAnalyzedProjects": 1,
+      "requireEvaluatedSolutionScope": true,
+      "queryIdentity": "actual-codeql-version-query-pack-and-configuration-digests",
+      "testCountsApplicable": false,
+      "zeroFindingsIsProofOfExecution": false,
+      "findingDisposition": "restricted-review-with-sanitized-unresolved-count-no-invented-clean-result",
+      "maximumUnresolvedFindings": 0,
+      "jobs": [
+        {"id": "codeql-csharp", "kind": "analysis", "project": "UA.slnx"}
+      ]
+    },
+    {
+      "id": "aot-net10",
+      "status": "incomplete",
+      "configuration": "Release",
+      "host": "windows",
+      "hostTfm": "net10.0",
+      "libraryTfm": "net10.0",
+      "platform": "windows/amd64",
+      "runtimeIdentifier": "win-x64",
+      "filter": "",
+      "workflow": ".azurepipelines/test-aot.yml",
+      "minimumExecutedTestsPerJob": 1,
+      "maximumFailedTestsPerJob": 0,
+      "maximumSkippedTestsPerJob": 0,
+      "requireResultDocument": true,
+      "requirePublishedNativeBinaryExecuted": true,
+      "managedTestOrPublishOnlyIsComplete": false,
+      "jobs": [
+        {"id": "native-aot", "kind": "native-test", "project": "tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj"}
+      ]
+    }
+  ]
+}

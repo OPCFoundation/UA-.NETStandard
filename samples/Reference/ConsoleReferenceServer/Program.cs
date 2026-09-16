@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -29,6 +29,7 @@
 
 using System;
 using System.CommandLine;
+using System.CommandLine.Parsing;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -36,16 +37,23 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Server;
 
 namespace Quickstarts.ReferenceServer
 {
     /// <summary>
-    /// The program.
+    /// Hosts the OPC UA reference server with environment defaults and explicit command-line security opt-ins.
     /// </summary>
     public static class Program
     {
+        /// <summary>
+        /// Prints application information, merges REFSERVER defaults with explicit arguments,
+        /// and invokes the reference server command.
+        /// </summary>
+        /// <param name="args">Explicit command-line arguments, which take precedence over environment defaults.</param>
+        /// <returns>The command invocation exit code.</returns>
         public static Task<int> Main(string[] args)
         {
             Console.WriteLine("{0} OPC UA Reference Server", Utils.IsRunningOnMono() ? "Mono" : ".NET Core");
@@ -57,6 +65,37 @@ namespace Quickstarts.ReferenceServer
                 Utils.GetAssemblySoftwareVersion()
             );
 
+            ParseResult parseResult = ParseArguments(args);
+            return parseResult
+                .InvokeAsync(new InvocationConfiguration(), CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Parses environment defaults and explicit command-line arguments without starting the host.
+        /// Explicit command-line values take precedence over environment defaults.
+        /// </summary>
+        public static ParseResult ParseArguments(ArrayOf<string> arguments)
+        {
+            RootCommand rootCommand = CreateCommand();
+            string[] args = [.. arguments];
+            ParseResult explicitArguments = rootCommand.Parse(args);
+            var environmentOptions = new Command("environment");
+            foreach (Option option in rootCommand.Options)
+            {
+                if (explicitArguments.GetResult(option) is not OptionResult { Implicit: false })
+                {
+                    environmentOptions.Options.Add(option);
+                }
+            }
+
+            return rootCommand.Parse(ConsoleUtils.MergeEnvironmentArgs(args, "REFSERVER", environmentOptions));
+        }
+
+        /// <summary>
+        /// Creates the reference server command without loading configuration or starting a server.
+        /// </summary>
+        public static RootCommand CreateCommand()
+        {
             // The application name and config file names
             string applicationName = Utils.IsRunningOnMono() ? "MonoReferenceServer" : "ConsoleReferenceServer";
             string configSectionName = Utils.IsRunningOnMono()
@@ -64,7 +103,16 @@ namespace Quickstarts.ReferenceServer
                 : "Quickstarts.ReferenceServer";
 
             // command line options
-            var autoAcceptOption = new Option<bool>("--autoaccept", "-a") { Description = "auto accept certificates (for testing only)" };
+            var autoAcceptOption = new Option<bool>("--autoaccept", "-a")
+            {
+                Description = "accept untrusted application certificates (isolated testing only); "
+                    + "does not accept other certificate errors or enable None endpoints"
+            };
+            var allowNoneOption = new Option<bool>("--allow-none")
+            {
+                Description = "allow SecurityPolicy None endpoints (no message security, isolated testing only); "
+                    + "false removes configured None endpoints; omitted preserves the loaded configuration"
+            };
             var consoleOption = new Option<bool>("--console", "-c") { Description = "log to console" };
             var logOption = new Option<bool>("--log", "-l") { Description = "log app output" };
             var fileOption = new Option<bool>("--file", "-f") { Description = "log to file" };
@@ -83,7 +131,9 @@ namespace Quickstarts.ReferenceServer
             var cttOption = new Option<bool>("--ctt") { Description = "CTT mode, use to preset alarms for CTT testing." };
             var provisionOption = new Option<bool>("--provision")
             {
-                Description = "start server in provisioning mode with limited namespace for certificate provisioning"
+                Description = "explicitly consent to certificate provisioning with a limited namespace and "
+                    + "acceptance of untrusted application certificates, even with --autoaccept=false; "
+                    + "isolated commissioning only; does not enable None endpoints"
             };
             var reverseConnectOption = new Option<string>("--reverseconnect", "--rc")
             {
@@ -96,6 +146,7 @@ namespace Quickstarts.ReferenceServer
                     : $"Usage: dotnet {applicationName}.dll [OPTIONS]")
             {
                 autoAcceptOption,
+                allowNoneOption,
                 consoleOption,
                 logOption,
                 fileOption,
@@ -111,7 +162,6 @@ namespace Quickstarts.ReferenceServer
 
             rootCommand.SetAction(async (parseResult, cancellationToken) =>
             {
-                bool autoAccept = parseResult.GetValue(autoAcceptOption);
                 bool logConsole = parseResult.GetValue(consoleOption);
                 bool appLog = parseResult.GetValue(logOption);
                 bool fileLog = parseResult.GetValue(fileOption);
@@ -156,7 +206,6 @@ namespace Quickstarts.ReferenceServer
                         // at its default false.
                         t => new ReferenceServer(t) { EnableFileSystemNodeManager = true })
                     {
-                        AutoAccept = autoAccept,
                         Password = password
                     };
 
@@ -189,6 +238,11 @@ namespace Quickstarts.ReferenceServer
                             .LoadAsync(applicationName, Path.Combine(shadowPath, configSectionName))
                             .ConfigureAwait(false);
                     }
+
+                    server.AutoAccept = ConfigureHost(
+                        parseResult,
+                        new ApplicationConfigurationBuilder((ApplicationInstance)server.Application),
+                        Console.Out);
 
                     // setup the logging
                     telemetry.ConfigureLogging(
@@ -226,13 +280,6 @@ namespace Quickstarts.ReferenceServer
                     {
                         Console.WriteLine("Enabling provisioning mode.");
                         Servers.Utils.EnableProvisioningMode(server.Server!);
-                        // Auto-accept is required in provisioning mode
-                        if (!autoAccept)
-                        {
-                            Console.WriteLine("Auto-accept enabled for provisioning mode.");
-                            autoAccept = true;
-                            server.AutoAccept = autoAccept;
-                        }
                     }
 
                     // enable the sampling groups if requested
@@ -313,15 +360,69 @@ namespace Quickstarts.ReferenceServer
                 }
             });
 
-            args = ConsoleUtils.MergeEnvironmentArgs(args, "REFSERVER", rootCommand);
-            ParseResult parseResult = rootCommand.Parse(args);
-            return parseResult
-                .InvokeAsync(new InvocationConfiguration(), CancellationToken.None);
+            return rootCommand;
+        }
+
+        /// <summary>
+        /// Applies explicit host options after the final configuration load, before certificate checks or startup.
+        /// </summary>
+        /// <returns>
+        /// Whether the host may accept untrusted application certificates.
+        /// </returns>
+        public static bool ConfigureHost(
+            ParseResult parseResult,
+            ApplicationConfigurationBuilder builder,
+            TextWriter output)
+        {
+            _ = parseResult ?? throw new ArgumentNullException(nameof(parseResult));
+            _ = builder ?? throw new ArgumentNullException(nameof(builder));
+            _ = output ?? throw new ArgumentNullException(nameof(output));
+
+            if (parseResult.GetValue<bool>("--allow-none"))
+            {
+                output.WriteLine(
+                    "WARNING: --allow-none enables SecurityPolicy None endpoints with no message security. "
+                    + "Use only in an isolated test environment.");
+                builder.AddUnsecurePolicyNone();
+            }
+            else if (parseResult.GetResult("--allow-none") is OptionResult { Implicit: false })
+            {
+                ServerConfiguration configuration = builder.ApplicationConfiguration.ServerConfiguration!;
+                configuration.SecurityPolicies = configuration.SecurityPolicies.ToList()
+                    .FindAll(policy => policy.SecurityMode != MessageSecurityMode.None
+                        && policy.SecurityPolicyUri != SecurityPolicies.None)
+                    .ToArrayOf();
+            }
+
+            bool provisioningMode = parseResult.GetValue<bool>("--provision");
+            bool autoAccept = parseResult.GetValue<bool>("--autoaccept");
+            if (provisioningMode)
+            {
+                output.WriteLine(
+                    "WARNING: --provision enables a limited namespace for certificate provisioning and accepts "
+                    + "untrusted application certificates, even with --autoaccept=false. "
+                    + "Use only for isolated commissioning; this does not enable None endpoints "
+                    + "or bypass other certificate errors.");
+            }
+            else if (autoAccept)
+            {
+                output.WriteLine(
+                    "WARNING: --autoaccept accepts untrusted application certificates (BadCertificateUntrusted only). "
+                    + "Use only in an isolated test environment; other certificate errors remain rejected.");
+            }
+
+            return provisioningMode || autoAccept;
         }
     }
 
+    /// <summary>
+    /// Source-generated diagnostics for reference server command-line configuration.
+    /// </summary>
     internal static partial class ProgramLog
     {
+        /// <summary>
+        /// Reports a malformed reverse-connect URL together with its parsing exception.
+        /// </summary>
         [LoggerMessage(EventId = ConsoleReferenceServerEventIds.Program + 0, Level = LogLevel.Error,
             Message = "Invalid reverse connect URL: {Url}")]
         public static partial void InvalidReverseConnectUrl(this ILogger logger, UriFormatException ex, string url);

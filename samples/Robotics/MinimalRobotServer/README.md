@@ -12,6 +12,25 @@ binding.
 It is the Robotics counterpart of `PumpDeviceIntegrationServer` and is validated
 end-to-end by `RobotOpenUsdE2eTests` (in `tests/Opc.Ua.Di.Tests`).
 
+## Trust and startup configuration
+
+Provision and trust both application certificates before connecting. The server
+rejects untrusted client certificates by default and does not expose SecurityPolicy
+None. For isolated development, `--auto-accept` (aliases `--autoaccept`, `-a`,
+`--insecure`) accepts untrusted client certificates with a warning on stderr.
+Here `--insecure` is **trust-only**: other certificate checks and message security
+remain enabled. Omission or explicit `false` keeps trust enforcement; JSON/configuration
+cannot implicitly enable this flag. A connector's trust flag does not set server trust.
+
+`--help` exits before host/PKI creation. Unknown or malformed sample switches fail
+on stderr; `--port` accepts 1–65535. Named options override positional `key=value`
+settings, then forwarded host arguments and normal JSON/environment configuration.
+Existing `Robots` settings can use positional assignments or forwarded switches:
+
+```powershell
+dotnet run --project samples\Robotics\MinimalRobotServer -- --auto-accept=false -- --Logging:LogLevel:Default Warning
+```
+
 ## What it exposes
 
 A `MotionDeviceSystem` **"RobotCell"** (prim `/Cell`) composed recursively of:

@@ -24,6 +24,8 @@
     <ProjectReference Include="..\..\..\src\Opc.Ua.Redundancy.Server\Opc.Ua.Redundancy.Server.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\..\Common\SampleCommandLine.cs" Link="SampleCommandLine.cs" />
+    <PackageReference Include="System.CommandLine" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
     <PackageReference Include="RaftCs.Transport.NanoMsg" />
