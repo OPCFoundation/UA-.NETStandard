@@ -101,10 +101,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase("m_monitoredItemSemaphore")]
         [TestCase("m_componentCacheSemaphore")]
         [TestCase("m_modifyAddressSpaceSemaphoreSlim")]
+        [TestCase("m_diagnosticsTransitionSemaphore")]
         public async Task CleanupWaitsForTheActualSemaphoreOwnerBeforeDisposingAsync(string field)
         {
             IServerInternal server = NewServer();
-            bool diagnostics = field == "m_modifyAddressSpaceSemaphoreSlim";
+            bool diagnostics = field is "m_modifyAddressSpaceSemaphoreSlim" or "m_diagnosticsTransitionSemaphore";
             AsyncCustomNodeManager manager = diagnostics
                 ? new DiagnosticsNodeManager(server, new ApplicationConfiguration { ServerConfiguration = new() })
                 : new BlockingNodeManager(server);
@@ -131,13 +132,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Verifies that diagnostics work queued before shutdown is rejected without using a disposed semaphore.
         /// </summary>
-        [Test]
-        public async Task QueuedDiagnosticsMutationCannotReleaseOrUseADisposedGateAsync()
+        [TestCase("m_modifyAddressSpaceSemaphoreSlim")]
+        [TestCase("m_diagnosticsTransitionSemaphore")]
+        public async Task QueuedDiagnosticsMutationCannotReleaseOrUseADisposedGateAsync(string field)
         {
             IServerInternal server = NewServer();
             var manager = new DiagnosticsNodeManager(server,
                 new ApplicationConfiguration { ServerConfiguration = new() });
-            SemaphoreSlim gate = ReadGate(manager, "m_modifyAddressSpaceSemaphoreSlim", true);
+            SemaphoreSlim gate = ReadGate(manager, field, true);
             await gate.WaitAsync().ConfigureAwait(false);
             var cancellation = new CancellationTokenSource();
             Task queued = manager.SetDiagnosticsEnabledAsync(

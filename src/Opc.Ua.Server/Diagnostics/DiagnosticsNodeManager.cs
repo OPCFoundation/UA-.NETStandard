@@ -172,15 +172,24 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         protected override async ValueTask DisposeAsyncCore()
         {
-            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync().ConfigureAwait(false);
+            await m_diagnosticsTransitionSemaphore.WaitAsync().ConfigureAwait(false);
             try
             {
-                m_historyCapabilities = null;
+                await m_modifyAddressSpaceSemaphoreSlim.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    m_historyCapabilities = null;
+                }
+                finally
+                {
+                    m_modifyAddressSpaceSemaphoreSlim.Release();
+                    m_modifyAddressSpaceSemaphoreSlim.Dispose();
+                }
             }
             finally
             {
-                m_modifyAddressSpaceSemaphoreSlim.Release();
-                m_modifyAddressSpaceSemaphoreSlim.Dispose();
+                m_diagnosticsTransitionSemaphore.Release();
+                m_diagnosticsTransitionSemaphore.Dispose();
             }
             await base.DisposeAsyncCore().ConfigureAwait(false);
         }
@@ -730,14 +739,42 @@ namespace Opc.Ua.Server
         public bool DiagnosticsEnabled { get; private set; }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Implements the ServerDiagnostics.EnabledFlag semantics of OPC UA Part 5 §6.3.3.
+        /// Disabling stops the collection: the static diagnostic Variables return
+        /// Bad_NotReadable and the dynamic Session and Subscription diagnostic Nodes are
+        /// removed from the AddressSpace. The Server keeps track of the live Sessions and
+        /// Subscriptions, so enabling the collection again restores their diagnostic Nodes
+        /// with the same NodeIds. Subscriptions created while the collection is disabled
+        /// get no diagnostic Nodes. The server-wide counters are cumulative and are not
+        /// reset by either transition.
+        /// </remarks>
         public async ValueTask SetDiagnosticsEnabledAsync(
             ServerSystemContext context,
             bool enabled,
             CancellationToken cancellationToken = default)
         {
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+
+            // Transitions are serialized for their whole duration, including the removal of the
+            // dynamic nodes, so that an enable cannot restore nodes that a still running disable
+            // deletes afterwards. Once started, a transition is not cancelled half way.
+            await m_diagnosticsTransitionSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await SetDiagnosticsEnabledCoreAsync(context, enabled).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_diagnosticsTransitionSemaphore.Release();
+            }
+        }
+
+        private async ValueTask SetDiagnosticsEnabledCoreAsync(ServerSystemContext context, bool enabled)
+        {
             var nodesToDelete = new List<NodeState>();
 
-            using NodeManagerOperation nodeOperation = await EnterDiagnosticsOperationAsync(cancellationToken)
+            using NodeManagerOperation nodeOperation = await EnterDiagnosticsOperationAsync(CancellationToken.None)
                 .ConfigureAwait(false);
             try
             {
@@ -746,101 +783,98 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                lock (m_diagnosticsLock)
+                ServerDiagnosticsState diagnosticsNode = FindPredefinedNode<ServerDiagnosticsState>(
+                    ObjectIds.Server_ServerDiagnostics);
+
+                SessionDiagnosticsData[] sessions;
+                SubscriptionDiagnosticsData[] subscriptions;
+                lock (m_diagnosticsCollectionLock)
                 {
-                    DiagnosticsEnabled = enabled;
-                    if (!enabled)
-                    {
-                        UpdateDiagnosticsScanTimer();
-                    }
+                    sessions = [.. m_sessions];
+                    subscriptions = [.. m_subscriptions];
                 }
 
                 if (!enabled)
                 {
-                    lock (m_diagnosticsCollectionLock)
+                    // stop scans; a scan that is already running holds the diagnostics lock, so
+                    // the flag and the Bad_NotReadable states below are applied after it.
+                    lock (m_diagnosticsLock)
                     {
-                        for (int ii = 0; ii < m_sessions.Count; ii++)
+                        DiagnosticsEnabled = false;
+                        UpdateDiagnosticsScanTimer();
+
+                        if (m_serverDiagnostics != null)
                         {
-                            nodesToDelete.Add(m_sessions[ii].Summary);
+                            m_serverDiagnostics.Value = null!;
+                            m_serverDiagnostics.Error = StatusCodes.BadNotReadable;
+                            m_serverDiagnostics.Timestamp = DateTime.UtcNow;
+                            m_serverDiagnostics.ChangesComplete(SystemContext);
                         }
 
-                        m_sessions.Clear();
-                        for (int ii = 0; ii < m_subscriptions.Count; ii++)
-                        {
-                            nodesToDelete.Add(m_subscriptions[ii].Value.Variable);
-                        }
+                        SetDiagnosticsArrayStatus(diagnosticsNode, StatusCodes.BadNotReadable);
+                    }
 
-                        m_subscriptions.Clear();
+                    // remove the dynamic nodes but keep the registrations so that the
+                    // nodes can be restored when the collection is enabled again.
+                    SessionsDiagnosticsSummaryState? sessionsSummary = FindPredefinedNode<SessionsDiagnosticsSummaryState>(
+                        ObjectIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary);
+                    for (int ii = 0; ii < sessions.Length; ii++)
+                    {
+                        SessionDiagnosticsObjectState sessionNode = sessions[ii].Summary;
+                        sessionsSummary?.RemoveReference(ReferenceTypeIds.HasComponent, false, sessionNode.NodeId);
+                        nodesToDelete.Add(sessionNode);
+                    }
+
+                    SubscriptionDiagnosticsArrayState? subscriptionArray = diagnosticsNode?.SubscriptionDiagnosticsArray;
+                    for (int ii = 0; ii < subscriptions.Length; ii++)
+                    {
+                        SubscriptionDiagnosticsState subscriptionNode = subscriptions[ii].Value.Variable;
+                        subscriptionArray?.RemoveReference(ReferenceTypeIds.HasComponent, false, subscriptionNode.NodeId);
+                        nodesToDelete.Add(subscriptionNode);
                     }
                 }
                 else
                 {
-                    // reset all diagnostics nodes.
-                    if (m_serverDiagnostics != null)
+                    // restore the dynamic nodes of the sessions and subscriptions that are
+                    // still alive before scans resume. Sessions first, the subscriptions link to them.
+                    for (int ii = 0; ii < sessions.Length; ii++)
                     {
-                        m_serverDiagnostics.Value = null!;
-                        m_serverDiagnostics.Error = StatusCodes.BadWaitingForInitialData;
-                        m_serverDiagnostics.Timestamp = DateTime.UtcNow;
-                    }
-
-                    // get the node.
-                    ServerDiagnosticsState diagnosticsNode = FindPredefinedNode<ServerDiagnosticsState>(
-                        ObjectIds.Server_ServerDiagnostics);
-
-                    // clear arrays.
-                    if (diagnosticsNode != null)
-                    {
-                        if (diagnosticsNode.SamplingIntervalDiagnosticsArray != null)
+                        SessionDiagnosticsData session = await RestoreSessionDiagnosticsAsync(
+                            sessions[ii],
+                            CancellationToken.None).ConfigureAwait(false);
+                        lock (m_diagnosticsCollectionLock)
                         {
-                            diagnosticsNode.SamplingIntervalDiagnosticsArray.Value = default;
-                            diagnosticsNode.SamplingIntervalDiagnosticsArray.StatusCode =
-                                StatusCodes.BadWaitingForInitialData;
-                            diagnosticsNode.SamplingIntervalDiagnosticsArray.Timestamp = DateTime
-                                .UtcNow;
-                        }
-
-                        if (diagnosticsNode.SubscriptionDiagnosticsArray != null)
-                        {
-                            diagnosticsNode.SubscriptionDiagnosticsArray.Value = default;
-                            diagnosticsNode.SubscriptionDiagnosticsArray.StatusCode =
-                                StatusCodes.BadWaitingForInitialData;
-                            diagnosticsNode.SubscriptionDiagnosticsArray.Timestamp = DateTime
-                                .UtcNow;
-                        }
-
-                        if (diagnosticsNode.SessionsDiagnosticsSummary != null)
-                        {
-                            diagnosticsNode!.SessionsDiagnosticsSummary!.SessionDiagnosticsArray!.Value
-                                = default;
-                            diagnosticsNode.SessionsDiagnosticsSummary.SessionDiagnosticsArray
-                                .StatusCode =
-                                StatusCodes.BadWaitingForInitialData;
-                            diagnosticsNode.SessionsDiagnosticsSummary.SessionDiagnosticsArray
-                                .Timestamp =
-                                DateTime.UtcNow;
-                        }
-
-                        if (diagnosticsNode.SessionsDiagnosticsSummary != null)
-                        {
-                            diagnosticsNode!.SessionsDiagnosticsSummary
-                                .SessionSecurityDiagnosticsArray!
-                                .Value = default;
-                            diagnosticsNode.SessionsDiagnosticsSummary
-                                .SessionSecurityDiagnosticsArray
-                                .StatusCode =
-                                StatusCodes.BadWaitingForInitialData;
-                            diagnosticsNode.SessionsDiagnosticsSummary
-                                .SessionSecurityDiagnosticsArray
-                                .Timestamp =
-                                DateTime.UtcNow;
+                            m_sessions[ii] = session;
                         }
                     }
 
-                    DoScan(true);
-                }
-                lock (m_diagnosticsLock)
-                {
-                    UpdateDiagnosticsScanTimer();
+                    for (int ii = 0; ii < subscriptions.Length; ii++)
+                    {
+                        SubscriptionDiagnosticsData subscription = await RestoreSubscriptionDiagnosticsAsync(
+                            subscriptions[ii],
+                            CancellationToken.None).ConfigureAwait(false);
+                        lock (m_diagnosticsCollectionLock)
+                        {
+                            m_subscriptions[ii] = subscription;
+                        }
+                    }
+
+                    lock (m_diagnosticsLock)
+                    {
+                        DiagnosticsEnabled = true;
+
+                        // reset all diagnostics nodes.
+                        if (m_serverDiagnostics != null)
+                        {
+                            m_serverDiagnostics.Value = null!;
+                            m_serverDiagnostics.Error = StatusCodes.BadWaitingForInitialData;
+                            m_serverDiagnostics.Timestamp = DateTime.UtcNow;
+                        }
+
+                        SetDiagnosticsArrayStatus(diagnosticsNode, StatusCodes.Good);
+                        DoScan(true);
+                        UpdateDiagnosticsScanTimer();
+                    }
                 }
             }
             finally
@@ -848,9 +882,61 @@ namespace Opc.Ua.Server
                 m_modifyAddressSpaceSemaphoreSlim.Release();
             }
 
+            // deleted outside the address space lock like DeleteSessionDiagnosticsAsync does,
+            // but still inside the transition.
             for (int ii = 0; ii < nodesToDelete.Count; ii++)
             {
-                await DeleteNodeAsync(context, nodesToDelete[ii].NodeId, cancellationToken).ConfigureAwait(false);
+                await DeleteNodeAsync(context, nodesToDelete[ii].NodeId, CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Sets the status of the static diagnostic arrays and clears their values.
+        /// </summary>
+        /// <remarks>
+        /// The session and subscription arrays are refreshed by the next scan. The
+        /// SamplingIntervalDiagnosticsArray is not collected, so it reports an empty array.
+        /// </remarks>
+        private void SetDiagnosticsArrayStatus(ServerDiagnosticsState? diagnosticsNode, StatusCode statusCode)
+        {
+            if (diagnosticsNode == null)
+            {
+                return;
+            }
+
+            bool good = StatusCode.IsGood(statusCode);
+            DateTimeUtc now = DateTimeUtc.Now;
+
+            if (diagnosticsNode.SamplingIntervalDiagnosticsArray is { } samplingIntervals)
+            {
+                samplingIntervals.Value = good ? [] : default;
+                samplingIntervals.StatusCode = statusCode;
+                samplingIntervals.Timestamp = now;
+                samplingIntervals.ClearChangeMasks(SystemContext, false);
+            }
+
+            if (diagnosticsNode.SubscriptionDiagnosticsArray is { } subscriptions)
+            {
+                subscriptions.Value = good ? [] : default;
+                subscriptions.StatusCode = statusCode;
+                subscriptions.Timestamp = now;
+                subscriptions.ClearChangeMasks(SystemContext, false);
+            }
+
+            if (diagnosticsNode.SessionsDiagnosticsSummary?.SessionDiagnosticsArray is { } sessions)
+            {
+                sessions.Value = good ? [] : default;
+                sessions.StatusCode = statusCode;
+                sessions.Timestamp = now;
+                sessions.ClearChangeMasks(SystemContext, false);
+            }
+
+            if (diagnosticsNode.SessionsDiagnosticsSummary?.SessionSecurityDiagnosticsArray is { } sessionSecurity)
+            {
+                sessionSecurity.Value = good ? [] : default;
+                sessionSecurity.StatusCode = statusCode;
+                sessionSecurity.Timestamp = now;
+                sessionSecurity.ClearChangeMasks(SystemContext, false);
             }
         }
 
@@ -947,91 +1033,52 @@ namespace Opc.Ua.Server
             {
                 tempSessionNode = new SessionDiagnosticsObjectState(null);
                 SessionDiagnosticsObjectState sessionNode = tempSessionNode;
+                QualifiedName browseName = QualifiedName.From(diagnostics.SessionName!);
 
-                // create a new instance and assign ids.
-                nodeId = await CreateNodeAsync(
-                    SystemContext,
-                    default,
-                    ReferenceTypeIds.HasComponent,
-                    QualifiedName.From(diagnostics.SessionName!),
-                    sessionNode,
-                    cancellationToken).ConfigureAwait(false);
-                tempSessionNode = null; // ownership transferred to address space
+                if (DiagnosticsEnabled)
+                {
+                    // create a new instance and assign ids.
+                    nodeId = await CreateNodeAsync(
+                        SystemContext,
+                        default,
+                        ReferenceTypeIds.HasComponent,
+                        browseName,
+                        sessionNode,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    // the session nodes are not part of the address space while the
+                    // collection is disabled; assign the ids so that the node can be
+                    // added when the collection is enabled.
+                    sessionNode.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+                    sessionNode.Create(SystemContext, default, browseName, default, true);
+                    SystemContext.AssignInstanceNodeId(sessionNode);
+                    nodeId = sessionNode.NodeId;
+                }
+                tempSessionNode = null; // ownership transferred to the session registration
 
                 diagnostics.SessionId = nodeId;
                 securityDiagnostics.SessionId = nodeId;
 
-                // check if diagnostics have been enabled.
-                if (!DiagnosticsEnabled)
-                {
-                    return nodeId;
-                }
-
-                // add reference to session summary object.
-                sessionNode.AddReference(
-                    ReferenceTypeIds.HasComponent,
-                    true,
-                    ObjectIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary);
-
-                // add reference from session summary object.
-                SessionsDiagnosticsSummaryState summary = FindPredefinedNode<SessionsDiagnosticsSummaryState>(
-                    ObjectIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary);
-
-                summary?.AddReference(ReferenceTypeIds.HasComponent, false, sessionNode.NodeId);
-
-                // Hook the OnReadUserRolePermissions callback to control which user roles can access the services on this node
-                sessionNode.OnReadUserRolePermissions = OnReadUserRolePermissions;
-
-                // initialize diagnostics node.
-                var diagnosticsNode =
-                    sessionNode.CreateChild(SystemContext, QualifiedName.From(BrowseNames.SessionDiagnostics)) as
-                    SessionDiagnosticsVariableState;
-
-                // wrap diagnostics in a thread safe object.
-                var diagnosticsValue = new SessionDiagnosticsVariableValue(
-                    diagnosticsNode!,
-                    diagnostics,
-                    m_diagnosticsLock)
-                {
-                    // must ensure the first update gets sent.
-                    Value = null!,
-                    Error = StatusCodes.BadWaitingForInitialData,
-                    CopyPolicy = VariableCopyPolicy.Never,
-                    OnBeforeRead = OnBeforeReadDiagnostics
-                };
-
-                // initialize security diagnostics node.
-                var securityDiagnosticsNode =
-                    sessionNode.CreateChild(
-                        SystemContext,
-                        QualifiedName.From(BrowseNames.SessionSecurityDiagnostics)) as
-                    SessionSecurityDiagnosticsState;
-
-                // wrap diagnostics in a thread safe object.
-                var securityDiagnosticsValue = new SessionSecurityDiagnosticsValue(
-                    securityDiagnosticsNode!,
-                    securityDiagnostics,
-                    m_diagnosticsLock)
-                {
-                    // must ensure the first update gets sent.
-                    Value = null!,
-                    Error = StatusCodes.BadWaitingForInitialData,
-                    CopyPolicy = VariableCopyPolicy.Never,
-                    OnBeforeRead = OnBeforeReadDiagnostics
-                };
-
-                // save the session.
-                var sessionData = new SessionDiagnosticsData(
+                SessionDiagnosticsData sessionData = CreateSessionDiagnosticsData(
                     sessionNode,
-                    diagnosticsValue,
+                    diagnostics,
                     updateCallback,
-                    securityDiagnosticsValue,
+                    securityDiagnostics,
                     updateSecurityCallback);
 
                 lock (m_diagnosticsCollectionLock)
                 {
                     m_sessions.Add(sessionData);
                 }
+
+                if (!DiagnosticsEnabled)
+                {
+                    return nodeId;
+                }
+
+                LinkSessionDiagnostics(sessionNode);
 
                 // Mark the diagnostics arrays dirty instead of rebuilding them
                 // synchronously here. Rebuilding on every CreateSession is O(N) in
@@ -1049,6 +1096,116 @@ namespace Opc.Ua.Server
             }
 
             return nodeId;
+        }
+
+        /// <summary>
+        /// Wraps the diagnostics of a session in the thread safe values of its node.
+        /// </summary>
+        private SessionDiagnosticsData CreateSessionDiagnosticsData(
+            SessionDiagnosticsObjectState sessionNode,
+            SessionDiagnosticsDataType diagnostics,
+            NodeValueSimpleEventHandler updateCallback,
+            SessionSecurityDiagnosticsDataType securityDiagnostics,
+            NodeValueSimpleEventHandler updateSecurityCallback)
+        {
+            // Hook the OnReadUserRolePermissions callback to control which user roles can access the services on this node
+            sessionNode.OnReadUserRolePermissions = OnReadUserRolePermissions;
+
+            // initialize diagnostics node.
+            var diagnosticsNode =
+                sessionNode.CreateChild(SystemContext, QualifiedName.From(BrowseNames.SessionDiagnostics)) as
+                SessionDiagnosticsVariableState;
+
+            // wrap diagnostics in a thread safe object.
+            var diagnosticsValue = new SessionDiagnosticsVariableValue(
+                diagnosticsNode!,
+                diagnostics,
+                m_diagnosticsLock)
+            {
+                // must ensure the first update gets sent.
+                Value = null!,
+                Error = StatusCodes.BadWaitingForInitialData,
+                CopyPolicy = VariableCopyPolicy.Never,
+                OnBeforeRead = OnBeforeReadDiagnostics
+            };
+
+            // initialize security diagnostics node.
+            var securityDiagnosticsNode =
+                sessionNode.CreateChild(
+                    SystemContext,
+                    QualifiedName.From(BrowseNames.SessionSecurityDiagnostics)) as
+                SessionSecurityDiagnosticsState;
+
+            // wrap diagnostics in a thread safe object.
+            var securityDiagnosticsValue = new SessionSecurityDiagnosticsValue(
+                securityDiagnosticsNode!,
+                securityDiagnostics,
+                m_diagnosticsLock)
+            {
+                // must ensure the first update gets sent.
+                Value = null!,
+                Error = StatusCodes.BadWaitingForInitialData,
+                CopyPolicy = VariableCopyPolicy.Never,
+                OnBeforeRead = OnBeforeReadDiagnostics
+            };
+
+            return new SessionDiagnosticsData(
+                sessionNode,
+                diagnosticsValue,
+                updateCallback,
+                securityDiagnosticsValue,
+                updateSecurityCallback,
+                diagnostics,
+                securityDiagnostics);
+        }
+
+        /// <summary>
+        /// Adds the references between a session node and the SessionsDiagnosticsSummary.
+        /// </summary>
+        private void LinkSessionDiagnostics(SessionDiagnosticsObjectState sessionNode)
+        {
+            // add reference to session summary object.
+            sessionNode.AddReference(
+                ReferenceTypeIds.HasComponent,
+                true,
+                ObjectIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary);
+
+            // add reference from session summary object.
+            SessionsDiagnosticsSummaryState summary = FindPredefinedNode<SessionsDiagnosticsSummaryState>(
+                ObjectIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary);
+
+            summary?.AddReference(ReferenceTypeIds.HasComponent, false, sessionNode.NodeId);
+        }
+
+        /// <summary>
+        /// Adds the node of a registered session to the address space again after the
+        /// diagnostics collection was enabled.
+        /// </summary>
+        /// <remarks>
+        /// Disabling the collection deletes the node and its children, so a new node is
+        /// created with the NodeId the session already uses as its identifier.
+        /// </remarks>
+        private async ValueTask<SessionDiagnosticsData> RestoreSessionDiagnosticsAsync(
+            SessionDiagnosticsData sessionData,
+            CancellationToken cancellationToken)
+        {
+            NodeId nodeId = sessionData.Summary.NodeId;
+            var sessionNode = new SessionDiagnosticsObjectState(null)
+            {
+                ReferenceTypeId = ReferenceTypeIds.HasComponent
+            };
+            sessionNode.Create(SystemContext, default, sessionData.Summary.BrowseName, default, true);
+            sessionNode.NodeId = nodeId;
+
+            await AddPredefinedNodeAsync(SystemContext, sessionNode, cancellationToken).ConfigureAwait(false);
+            LinkSessionDiagnostics(sessionNode);
+
+            return CreateSessionDiagnosticsData(
+                sessionNode,
+                sessionData.Diagnostics,
+                sessionData.UpdateCallback,
+                sessionData.SecurityDiagnostics,
+                sessionData.SecurityUpdateCallback);
         }
 
         /// <inheritdoc/>
@@ -1123,64 +1280,14 @@ namespace Opc.Ua.Server
                     cancellationToken).ConfigureAwait(false);
                 tempDiagnosticsNode = null; // ownership transferred to address space
 
-                // add reference to subscription array.
-                diagnosticsNode.AddReference(
-                    ReferenceTypeIds.HasComponent,
-                    true,
-                    VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
-
-                // wrap diagnostics in a thread safe object.
-                var diagnosticsValue = new SubscriptionDiagnosticsValue(
-                    diagnosticsNode,
-                    diagnostics,
-                    m_diagnosticsLock)
-                {
-                    CopyPolicy = VariableCopyPolicy.Never,
-                    OnBeforeRead = OnBeforeReadDiagnostics,
-
-                    // must ensure the first update gets sent.
-                    Value = null!,
-                    Error = StatusCodes.BadWaitingForInitialData
-                };
-
+                SubscriptionDiagnosticsData subscriptionData = CreateSubscriptionDiagnosticsData(
+                    diagnosticsNode, diagnostics, updateCallback);
                 lock (m_diagnosticsCollectionLock)
                 {
-                    m_subscriptions.Add(
-                        new SubscriptionDiagnosticsData(diagnosticsValue, updateCallback));
+                    m_subscriptions.Add(subscriptionData);
                 }
 
-                // add reference from subscription array.
-                SubscriptionDiagnosticsArrayState? array = FindPredefinedNode<SubscriptionDiagnosticsArrayState>(
-                    VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
-
-                array?.AddReference(ReferenceTypeIds.HasComponent, false, diagnosticsNode.NodeId);
-
-                if (!diagnostics.SessionId.IsNull)
-                {
-                    // add reference to session subscription array.
-                    diagnosticsNode.AddReference(
-                        ReferenceTypeIds.HasComponent,
-                        true,
-                        diagnostics.SessionId);
-                }
-
-                // add reference from session subscription array.
-                SessionDiagnosticsObjectState sessionNode = FindPredefinedNode<SessionDiagnosticsObjectState>(
-                    diagnostics.SessionId);
-
-                if (sessionNode != null)
-                {
-                    // add reference from subscription array.
-                    array = (SubscriptionDiagnosticsArrayState?)
-                        sessionNode.CreateChild(
-                            SystemContext,
-                            QualifiedName.From(BrowseNames.SubscriptionDiagnosticsArray))!;
-
-                    array?.AddReference(
-                        ReferenceTypeIds.HasComponent,
-                        false,
-                        diagnosticsNode.NodeId);
-                }
+                LinkSubscriptionDiagnostics(diagnosticsNode, diagnostics);
 
                 // Mark the diagnostics arrays dirty rather than rebuilding them
                 // synchronously on every CreateSubscription (O(N) per call, hence
@@ -1194,6 +1301,104 @@ namespace Opc.Ua.Server
             }
 
             return nodeId;
+        }
+
+        /// <summary>
+        /// Wraps the diagnostics of a subscription in the thread safe value of its node.
+        /// </summary>
+        private SubscriptionDiagnosticsData CreateSubscriptionDiagnosticsData(
+            SubscriptionDiagnosticsState diagnosticsNode,
+            SubscriptionDiagnosticsDataType diagnostics,
+            NodeValueSimpleEventHandler updateCallback)
+        {
+            // wrap diagnostics in a thread safe object.
+            var diagnosticsValue = new SubscriptionDiagnosticsValue(
+                diagnosticsNode,
+                diagnostics,
+                m_diagnosticsLock)
+            {
+                CopyPolicy = VariableCopyPolicy.Never,
+                OnBeforeRead = OnBeforeReadDiagnostics,
+
+                // must ensure the first update gets sent.
+                Value = null!,
+                Error = StatusCodes.BadWaitingForInitialData
+            };
+
+            return new SubscriptionDiagnosticsData(diagnosticsValue, updateCallback, diagnostics);
+        }
+
+        /// <summary>
+        /// Adds the references between a subscription node, the SubscriptionDiagnosticsArray
+        /// and the node of the session that owns the subscription.
+        /// </summary>
+        private void LinkSubscriptionDiagnostics(
+            SubscriptionDiagnosticsState diagnosticsNode,
+            SubscriptionDiagnosticsDataType diagnostics)
+        {
+            // add reference to subscription array.
+            diagnosticsNode.AddReference(
+                ReferenceTypeIds.HasComponent,
+                true,
+                VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
+
+            // add reference from subscription array.
+            SubscriptionDiagnosticsArrayState? array = FindPredefinedNode<SubscriptionDiagnosticsArrayState>(
+                VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
+
+            array?.AddReference(ReferenceTypeIds.HasComponent, false, diagnosticsNode.NodeId);
+
+            if (!diagnostics.SessionId.IsNull)
+            {
+                // add reference to session subscription array.
+                diagnosticsNode.AddReference(
+                    ReferenceTypeIds.HasComponent,
+                    true,
+                    diagnostics.SessionId);
+            }
+
+            // add reference from session subscription array.
+            SessionDiagnosticsObjectState sessionNode = FindPredefinedNode<SessionDiagnosticsObjectState>(
+                diagnostics.SessionId);
+
+            if (sessionNode != null)
+            {
+                // add reference from subscription array.
+                array = (SubscriptionDiagnosticsArrayState?)
+                    sessionNode.CreateChild(
+                        SystemContext,
+                        QualifiedName.From(BrowseNames.SubscriptionDiagnosticsArray))!;
+
+                array?.AddReference(
+                    ReferenceTypeIds.HasComponent,
+                    false,
+                    diagnosticsNode.NodeId);
+            }
+        }
+
+        /// <summary>
+        /// Adds the node of a registered subscription to the address space again after
+        /// the diagnostics collection was enabled.
+        /// </summary>
+        private async ValueTask<SubscriptionDiagnosticsData> RestoreSubscriptionDiagnosticsAsync(
+            SubscriptionDiagnosticsData subscriptionData,
+            CancellationToken cancellationToken)
+        {
+            SubscriptionDiagnosticsState previousNode = subscriptionData.Value.Variable;
+            var diagnosticsNode = new SubscriptionDiagnosticsState(null)
+            {
+                ReferenceTypeId = ReferenceTypeIds.HasComponent
+            };
+            diagnosticsNode.Create(SystemContext, default, previousNode.BrowseName, default, true);
+            diagnosticsNode.NodeId = previousNode.NodeId;
+
+            await AddPredefinedNodeAsync(SystemContext, diagnosticsNode, cancellationToken).ConfigureAwait(false);
+            LinkSubscriptionDiagnostics(diagnosticsNode, subscriptionData.Diagnostics);
+
+            return CreateSubscriptionDiagnosticsData(
+                diagnosticsNode,
+                subscriptionData.Diagnostics,
+                subscriptionData.UpdateCallback);
         }
 
         /// <inheritdoc/>
@@ -1866,7 +2071,9 @@ namespace Opc.Ua.Server
             {
                 if (!DiagnosticsEnabled)
                 {
-                    return StatusCodes.BadOutOfService;
+                    // Part 5 §6.3.3: static diagnostic nodes are not readable while the
+                    // collection is disabled.
+                    return StatusCodes.BadNotReadable;
                 }
 
                 if (!m_forceDiagnosticsScan &&
@@ -2297,13 +2504,17 @@ namespace Opc.Ua.Server
                 SessionDiagnosticsVariableValue value,
                 NodeValueSimpleEventHandler updateCallback,
                 SessionSecurityDiagnosticsValue securityValue,
-                NodeValueSimpleEventHandler securityUpdateCallback)
+                NodeValueSimpleEventHandler securityUpdateCallback,
+                SessionDiagnosticsDataType diagnostics,
+                SessionSecurityDiagnosticsDataType securityDiagnostics)
             {
                 Summary = summary;
                 Value = value;
                 UpdateCallback = updateCallback;
                 SecurityValue = securityValue;
                 SecurityUpdateCallback = securityUpdateCallback;
+                Diagnostics = diagnostics;
+                SecurityDiagnostics = securityDiagnostics;
             }
 
             public SessionDiagnosticsObjectState Summary;
@@ -2311,6 +2522,8 @@ namespace Opc.Ua.Server
             public NodeValueSimpleEventHandler UpdateCallback;
             public SessionSecurityDiagnosticsValue SecurityValue;
             public NodeValueSimpleEventHandler SecurityUpdateCallback;
+            public SessionDiagnosticsDataType Diagnostics;
+            public SessionSecurityDiagnosticsDataType SecurityDiagnostics;
         }
 
         /// <summary>
@@ -2320,14 +2533,17 @@ namespace Opc.Ua.Server
         {
             public SubscriptionDiagnosticsData(
                 SubscriptionDiagnosticsValue value,
-                NodeValueSimpleEventHandler updateCallback)
+                NodeValueSimpleEventHandler updateCallback,
+                SubscriptionDiagnosticsDataType diagnostics)
             {
                 Value = value;
                 UpdateCallback = updateCallback;
+                Diagnostics = diagnostics;
             }
 
             public SubscriptionDiagnosticsValue Value;
             public NodeValueSimpleEventHandler UpdateCallback;
+            public SubscriptionDiagnosticsDataType Diagnostics;
         }
 
         /// <summary>
@@ -2414,6 +2630,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly SemaphoreSlim m_modifyAddressSpaceSemaphoreSlim = new(1, 1);
+        private readonly SemaphoreSlim m_diagnosticsTransitionSemaphore = new(1, 1);
         private readonly Lock m_diagnosticsLock = new();
 
         /// <summary>
