@@ -89,6 +89,12 @@ seeking beyond the file clamps the position to its end.
 Closing a Session releases its still-open read and write handles without committing
 pending writes, allowing subsequent Sessions to use the file.
 
+Materialized properties, actions and argument nodes are indexed for service
+access. Replacing the description removes obsolete interaction subtrees and
+both directions of their explicit asset references. Removed property/action
+callbacks are detached, so old node objects cannot invoke the replacement
+provider through an obsolete interaction.
+
 ### Mirroring assets into the WoT xRegistry
 
 WoT Connectivity can mirror each successfully materialised asset Thing

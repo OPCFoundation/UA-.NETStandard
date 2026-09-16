@@ -571,7 +571,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
                 entry.Provider = provider;
 
-                ClearDynamicChildren(entry);
+                await ClearDynamicChildrenAsync(entry, ct).ConfigureAwait(false);
 
                 // An affordance the TD declares but this Server cannot
                 // materialise is skipped so the rest of the asset stays usable.
@@ -693,17 +693,31 @@ namespace Opc.Ua.WotCon.Server.Assets
                     skippedAffordances);
         }
 
-        private void ClearDynamicChildren(AssetEntry entry)
+        private async ValueTask ClearDynamicChildrenAsync(AssetEntry entry, CancellationToken ct)
         {
             foreach (KeyValuePair<NodeId, (BaseDataVariableState Variable, WotPropertyTag _)> kv in entry.Properties)
             {
-                entry.Asset.RemoveChild(kv.Value.Variable);
+                BaseDataVariableState variable = kv.Value.Variable;
+                variable.OnSimpleReadValueAsync = null;
+                variable.OnSimpleWriteValueAsync = null;
+                variable.StatusCode = StatusCodes.BadNodeIdUnknown;
+                entry.Asset.RemoveReference(variable.ReferenceTypeId, isInverse: false, variable.NodeId);
+                variable.RemoveReference(variable.ReferenceTypeId, isInverse: true, entry.Asset.NodeId);
+                await m_manager.DeleteNodeAsync(m_manager.SystemContext, variable.NodeId, ct).ConfigureAwait(false);
+                entry.Asset.RemoveChild(variable);
             }
             entry.Properties.Clear();
 
             foreach (KeyValuePair<NodeId, (MethodState Method, WotActionTag _)> kv in entry.Actions)
             {
-                entry.Asset.RemoveChild(kv.Value.Method);
+                MethodState method = kv.Value.Method;
+                method.OnCallMethod2Async = null;
+                method.Executable = false;
+                method.UserExecutable = false;
+                entry.Asset.RemoveReference(method.ReferenceTypeId, isInverse: false, method.NodeId);
+                method.RemoveReference(method.ReferenceTypeId, isInverse: true, entry.Asset.NodeId);
+                await m_manager.DeleteNodeAsync(m_manager.SystemContext, method.NodeId, ct).ConfigureAwait(false);
+                entry.Asset.RemoveChild(method);
             }
             entry.Actions.Clear();
 
@@ -796,6 +810,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
             }
 
+            m_manager.AddAssetInteractionNode(variable);
             entry.Properties[nodeId] = (variable, tag);
         }
 
@@ -887,6 +902,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 ct) =>
                 InvokeActionAsync(entry, tag, inputArguments, outputArguments, ct);
 
+            m_manager.AddAssetInteractionNode(method);
             entry.Actions[nodeId] = (method, tag);
         }
 
