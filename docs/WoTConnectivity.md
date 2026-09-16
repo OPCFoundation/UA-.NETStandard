@@ -1431,11 +1431,130 @@ absolute; this step does not fetch external schemas. Named
 definitions, so a host form cannot silently select a same-named source schema,
 or vice versa.
 
+Compact Binding references in `tm:ref` and `uav:externalSchema` are expanded
+through their original owner's effective context before carriage. This does not
+reinterpret JSON Schema `$ref` strings as JSON-LD vocabulary. Explicit event
+`uav:eventSelectClauses[].tm:ref` entries participate in reference relocation;
+the clause objects are not treated as DataSchemas or searched recursively.
+When an EventType definition has been carried into the result, its mapped
+document-local JSON Pointer is resolved against that actual held document
+before any provider is consulted. The existing EventType shape, cycle and
+depth checks still apply; a local pointer does not authorize external retrieval.
+An executable source-routed TD selection requires non-empty source forms.
+An abstract source-routed TM selection may retain an affordance without forms.
+A source property with an explicit `const` is a static fact, not an executable
+endpoint, and may likewise omit forms; this includes carried engineering-unit
+properties. No form is fabricated for such facts.
+Source-only dependencies carried to close `uav:unitProperty` or `uav:actsOn`
+are supporting facts, not additional executable selections. Their carriage does
+not require inventing a source endpoint. Explicit selections remain subject to
+the executable-form check, and projection-routed support still requires actual
+host forms.
+Explicit draft-plan compatibility and context-free structural projection
+fixtures retain their earlier carriage behavior. When such processing lacks
+forms, it reports that executable forms were not established; that result is
+not executable-TD admission proof. Selecting draft compatibility does not relax
+the form checks on a current plan with its declared WoT context.
+
+External acquisition is a separate, caller-configured stage of the public
+conversion interface. `WotNodeSetConverter.ToNodeSetResultAsync` already invokes
+`WotEventSelectionResolver` when a Thing resolver is supplied, and
+`WotExternalSchemaResolver` when the caller supplies that module. The same
+modules can be called directly against a resolved projection document:
+
+```csharp
+WotConversionResult<WotEventSelectionCatalog> selections =
+    await new WotEventSelectionResolver(allowedThings, options)
+        .ResolveAsync(resolvedView, resolutionContext, cancellationToken);
+
+WotConversionResult<UANodeSet> conversion =
+    await WotNodeSetConverter.ToNodeSetResultAsync(
+        resolvedView, options, allowedThings, resolutionContext, allowedNodes,
+        new WotExternalSchemaResolver(allowedSchemas), cancellationToken);
+```
+
+The direct module call and the conversion call are alternative entry points;
+applications need not resolve the same selection twice. A required EventType
+link or explicit clause must resolve before event planning. Missing definitions,
+cycles and caller policy failures are not successful event closure. Retrieved
+TD-link hops retain their retrieval location rather than adopting that TD's
+runtime endpoint `base`; the existing Thing Model document-base/scoped-base
+resolution convention is retained.
+
+A supporting `uav:externalSchema` is not a replacement DataType authority.
+No configured provider means `NotEvaluated`; no answer means `Unresolved`;
+conflicting answers are `Ambiguous`; a compared disagreement is `Incompatible`.
+The converter reports those dispositions under its existing rules and never
+changes the canonical data to fit an external schema. An HTTP-shaped identifier
+does not itself authorize retrieval. Unselected affordances, literal instance
+values, opaque metadata and generic retained schema references are not acquisition
+requests. These distinctions are Binding checks, not a generic JSON Schema
+validation engine.
+
+For bulk-selected and supporting projection-routed affordances, an application
+can supply **`IWotProjectionFormProvider`** through
+`WotNodeSetConverterOptions.ProjectionFormProvider`. Its typed
+`WotProjectionFormContext` identifies the original projection location and
+effective endpoint base, selected source location and pointer, final affordance
+name and kind, result kind, and shared resolution context. It returns an
+`ArrayOf<JsonElement>` containing the forms the host actually serves, in their
+intended order. This is an endpoint-description seam, not an endpoint publisher.
+
+Authored forms take precedence; an empty or malformed authored form declaration
+is not repaired by calling the provider. Source-routed selections never call it.
+Provider forms must be detached JSON objects. Relative hrefs use the original
+host base and become absolute; their scheme, host and port must remain in the
+host's origin. A source endpoint cannot acquire host credentials by being copied
+into the response. Security requirements and named response schemas resolve
+against host definitions, while the selected data domain and `uav:resolvedFrom`
+remain source-owned.
+
+Generated forms are held in a separate owning document until context and
+dependency carriage completes. The original plan is not mutated, and a generated
+JSON element is never treated as an authored element of that plan. Host URI
+variables, credential-variable conflicts, form contexts and response-schema
+dependencies use the existing owner-scoped closure.
+
+Each provider request and returned payload uses the shared document/byte budget.
+Generated documents also obey the configured JSON size/depth bounds. The provider
+must bound its own I/O and honor caller cancellation, including timeout tokens.
+No provider, no forms, malformed forms, or expected I/O, invalid-operation,
+timeout, JSON and format failures produce an unsuccessful result with diagnostics
+and no value. Caller cancellation propagates without a partial view; unexpected
+programming exceptions are not swallowed.
+
+Direct construction and registry hosting use the same options:
+
+```csharp
+var options = new WotNodeSetConverterOptions
+{
+    ProjectionFormProvider = applicationHostForms
+};
+var resolver = new WotProjectionResolver(sourceResolver, options);
+WotConversionResult<WotDocument> result =
+    await resolver.ResolveAsync(plan, cancellationToken: cancellationToken);
+// Inspect result.Success and result.Diagnostics before using and disposing result.Value.
+
+services.AddSingleton<IWotProjectionFormProvider>(applicationHostForms);
+services.AddOpcUa().AddWotRegistryServer();
+// Alternatively: AddWotRegistryServer(o => o.ProjectionFormProvider = applicationHostForms).
+```
+
+A provider registered in DI takes precedence over the registry option. An
+explicitly registered `WotNodeSetConverterOptions` instance retains its own
+provider. Applications remain responsible for actual endpoint availability and
+for keeping provider output stable within a materialization generation; this
+seam does not add provider-driven registry invalidation or endpoint lifecycle
+management.
+
 **Current admission boundary:** full base TD/TM JSON Schema validation is
 deliberately deferred. The Binding-specific context, ownership, local dependency
 and URI-template guards described here are not a JSON Schema validator.
-Enumerated projection-owned forms can be carried, but actual bulk host-form
-supply and required external Binding-reference integration remain incomplete.
+Actual host forms require an application provider or authored forms; no
+deployment-specific endpoint provider is supplied by the resolver. Required
+Binding-reference acquisition uses the explicit public modules described above;
+`WotProjectionResolver.ResolveAsync` alone is the origin-preserving projection
+stage, not a claim that every later consumer dependency has been acquired.
 Origin-preserving external reference carriage is not proof that the referenced
 definition was acquired or resolved. A successful document-resolution result
 alone must not be treated as admission proof for an executable TD.

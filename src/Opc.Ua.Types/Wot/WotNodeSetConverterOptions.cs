@@ -114,6 +114,12 @@ namespace Opc.Ua.Wot
     public sealed class WotNodeSetConverterOptions
     {
         /// <summary>
+        /// Gets or sets the provider of actual bulk projection-host forms.
+        /// An omitted provider does not permit source forms to be reused.
+        /// </summary>
+        public IWotProjectionFormProvider? ProjectionFormProvider { get; set; }
+
+        /// <summary>
         /// Gets or sets the preservation-envelope policy. The default uses
         /// readable mapping plus structured fallback and emits an opaque envelope
         /// only when required.

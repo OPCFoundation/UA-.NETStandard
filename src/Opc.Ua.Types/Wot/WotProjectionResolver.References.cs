@@ -119,8 +119,25 @@ namespace Opc.Ua.Wot
                     m_locations.TryAdd((false, owner.Href, member.Pointer), destination);
                     RegisterAffordanceUriVariables(member, owner, destination);
                     m_pending.Enqueue(new ReferenceCarriage(member.Value, owner, member.Pointer, destination));
+                    if (member.Kind == WotAffordanceKind.Event &&
+                        member.Value[WotEventSelectClauses.Term] is JsonArray clauses)
+                    {
+                        for (int index = 0; index < clauses.Count; index++)
+                        {
+                            if (clauses[index] is JsonObject clause)
+                            {
+                                string suffix = "/" + WotEventSelectClauses.Term +
+                                    "/" + index.ToString(CultureInfo.InvariantCulture);
+                                m_pending.Enqueue(new ReferenceCarriage(
+                                    clause, owner, member.Pointer + suffix, destination + suffix)
+                                {
+                                    EventSelectClause = true
+                                });
+                            }
+                        }
+                    }
                     ReferenceOwner formOwner = member.Source.Source.Routing == WotProjectionRouting.Projection
-                        ? m_host
+                        ? member.GeneratedFormOwner ?? m_host
                         : owner;
                     string formPointer = member.Source.Source.Routing == WotProjectionRouting.Projection
                         ? destination
@@ -158,30 +175,24 @@ namespace Opc.Ua.Wot
                     cancellationToken.ThrowIfCancellationRequested();
                     ReferenceCarriage carriage = m_pending.Dequeue();
                     RewriteReferences(carriage);
-                    RegisterChildren(carriage);
+                    if (!carriage.EventSelectClause)
+                    {
+                        RegisterChildren(carriage);
+                    }
                 }
             }
 
             private void RewriteReferences(ReferenceCarriage carriage)
             {
+                if (carriage.EventSelectClause)
+                {
+                    RewriteLocationReference(carriage, WotEventSelectClauses.TypeDefinitionReferenceTerm);
+                    return;
+                }
                 RewriteDataTypeReferences(carriage);
                 foreach (string term in s_locationReferences)
                 {
-                    if (!carriage.Value.TryGetPropertyValue(term, out JsonNode? reference))
-                    {
-                        continue;
-                    }
-                    string? text = ReadString(reference);
-                    if (string.IsNullOrEmpty(text))
-                    {
-                        Fail($"A carried {term} must be a non-empty reference.", carriage.SourcePointer + "/" + term);
-                        continue;
-                    }
-                    string? relocated = Relocate(carriage.Owner, text!);
-                    if (relocated is not null)
-                    {
-                        carriage.Value[term] = relocated;
-                    }
+                    RewriteLocationReference(carriage, term);
                 }
                 if (carriage.NamedResponse && carriage.Value.TryGetPropertyValue("schema", out JsonNode? schemaName))
                 {
@@ -199,8 +210,41 @@ namespace Opc.Ua.Wot
                 }
             }
 
-            private string? Relocate(ReferenceOwner owner, string reference)
+            private void RewriteLocationReference(ReferenceCarriage carriage, string term)
             {
+                if (!carriage.Value.TryGetPropertyValue(term, out JsonNode? reference))
+                {
+                    return;
+                }
+                string? text = ReadString(reference);
+                if (string.IsNullOrEmpty(text))
+                {
+                    Fail($"A carried {term} must be a non-empty reference.", carriage.SourcePointer + "/" + term);
+                    return;
+                }
+                string? relocated = Relocate(carriage, term, text!);
+                if (relocated is not null)
+                {
+                    carriage.Value[term] = relocated;
+                }
+            }
+
+            private string? Relocate(ReferenceCarriage carriage, string term, string reference)
+            {
+                ReferenceOwner owner = carriage.Owner;
+                if (term != "$ref" && HasScheme(reference))
+                {
+                    JsonElement original = OriginalElement(carriage);
+                    if (original.ValueKind != JsonValueKind.Object ||
+                        !TryExpandSemanticIdentity(
+                            reference, owner.Document, original, owner.Href, false, out string identity))
+                    {
+                        Fail("A carried Binding reference cannot be expanded in its original owner context.",
+                            owner.Href + "#" + carriage.SourcePointer + "/" + term);
+                        return null;
+                    }
+                    reference = identity;
+                }
                 string expanded = ResolveHref(owner.Href, reference);
                 string location = SplitDocumentPart(expanded);
                 string pointer = SplitPointer(expanded);
@@ -559,6 +603,8 @@ namespace Opc.Ua.Wot
             JsonObject Value, ReferenceOwner Owner, string SourcePointer, string Destination)
         {
             public bool NamedResponse { get; init; }
+
+            public bool EventSelectClause { get; init; }
         }
     }
 }

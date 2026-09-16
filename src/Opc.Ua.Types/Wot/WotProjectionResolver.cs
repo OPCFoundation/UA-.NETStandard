@@ -266,6 +266,41 @@ namespace Opc.Ua.Wot
                 }
 
                 CloseAffordanceDependencies(selection, diagnostics, cancellationToken);
+                if (CountErrors(diagnostics) > errorsAtEntry ||
+                    !await SupplyHostFormsAsync(
+                        projection, selection, context, openDocuments, diagnostics, cancellationToken)
+                        .ConfigureAwait(false))
+                {
+                    return null;
+                }
+                bool legacyPlan = m_options.ProjectionCompatibilityMode ==
+                    WotProjectionCompatibilityMode.DraftProjection11 &&
+                    !projectionDocument.TryGetUav("projectionKind", out _);
+                bool hasDocumentContext = projectionDocument.TryGetContext(out _);
+                foreach (ResolvedAffordance member in selection.Members)
+                {
+                    bool hostRouting = member.Source.Source.Routing == WotProjectionRouting.Projection;
+                    bool executableSource = projection.ResultKind == WotDocumentKind.ThingDescription &&
+                        !member.Supporting &&
+                        (member.Kind != WotAffordanceKind.Property || !member.Value.ContainsKey("const"));
+                    if ((hostRouting || executableSource) &&
+                        (member.Value["forms"] is not JsonArray forms || forms.Count == 0))
+                    {
+                        if (legacyPlan || (!hostRouting && !hasDocumentContext))
+                        {
+                            AddWarning(diagnostics, WotDiagnosticCode.ProjectionSourceUnresolved,
+                                "Draft or context-free structural projection processing did not establish " +
+                                "executable forms; the result is not executable-TD admission proof.",
+                                "/" + MapName(member.Kind) + "/" + EscapePointer(member.Name) + "/forms");
+                            continue;
+                        }
+                        AddError(diagnostics, WotDiagnosticCode.ProjectionSourceUnresolved,
+                            hostRouting
+                                ? "A projection-routed affordance requires actual host-supplied forms."
+                                : "An executable source-routed TD affordance requires non-empty source forms.",
+                            "/" + MapName(member.Kind) + "/" + EscapePointer(member.Name) + "/forms");
+                    }
+                }
                 if (CountErrors(diagnostics) > errorsAtEntry)
                 {
                     return null;
@@ -982,7 +1017,7 @@ namespace Opc.Ua.Wot
             }
             CarryAnchor(value, source.Document);
             CarryProvenance(value, source, definition, pointer, diagnostics);
-            return selection.Add(kind, outputName, value, source, name, definition);
+            return selection.Add(kind, outputName, value, source, name, definition, supporting: true);
         }
 
         private static void CarryProvenance(
@@ -2497,6 +2532,10 @@ namespace Opc.Ua.Wot
             public string Pointer { get; init; } = string.Empty;
 
             public JsonElement Definition { get; init; }
+
+            public bool Supporting { get; init; }
+
+            public ReferenceOwner? GeneratedFormOwner { get; set; }
         }
 
         private sealed class Selection
@@ -2537,7 +2576,7 @@ namespace Opc.Ua.Wot
 
             public ResolvedAffordance Add(
                 WotAffordanceKind kind, string name, JsonObject value,
-                ResolvedSource source, string sourceName, JsonElement definition)
+                ResolvedSource source, string sourceName, JsonElement definition, bool supporting = false)
             {
                 var member = new ResolvedAffordance
                 {
@@ -2547,7 +2586,8 @@ namespace Opc.Ua.Wot
                     Source = source,
                     SourceName = sourceName,
                     Pointer = "/" + MapName(kind) + "/" + EscapePointer(sourceName),
-                    Definition = definition
+                    Definition = definition,
+                    Supporting = supporting
                 };
                 List(kind).Add(member);
                 Members.Add(member);

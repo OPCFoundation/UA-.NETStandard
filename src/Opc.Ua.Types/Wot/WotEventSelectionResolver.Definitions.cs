@@ -461,6 +461,14 @@ namespace Opc.Ua.Wot
         {
             List<WotDiagnostic> diagnostics = scope.Diagnostics;
 
+            if (reference.StartsWith("#/", StringComparison.Ordinal) &&
+                WotEventSelectClauses.IsEventTypeReference(reference) &&
+                WotDocument.TryEvaluatePointer(document.RootElement, reference[1..], out JsonElement local) &&
+                local.ValueKind == JsonValueKind.Object)
+            {
+                return new DefinitionCandidate(document, origin, reference[1..], local);
+            }
+
             // Held documents, by logical identifier, expanded in the active
             // context of the node that wrote the reference.
             if (TryLookupHeld(
@@ -706,7 +714,9 @@ namespace Opc.Ua.Wot
                 return reference;
             }
             string basis = origin;
-            if (document.RootElement.TryGetProperty("base", out JsonElement documentBase) &&
+            // A fetched TD's endpoint base cannot replace its document location.
+            if ((origin.Length == 0 || document.Kind == WotDocumentKind.ThingModel) &&
+                document.RootElement.TryGetProperty("base", out JsonElement documentBase) &&
                 documentBase.ValueKind == JsonValueKind.String)
             {
                 basis = ResolveLocation(basis, documentBase.GetString()!);

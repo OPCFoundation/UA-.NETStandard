@@ -184,7 +184,7 @@ namespace Opc.Ua.Wot
                 ResolvedAffordance member, ReferenceOwner sourceOwner, string destination)
             {
                 bool hostForms = member.Source.Source.Routing == WotProjectionRouting.Projection;
-                ReferenceOwner owner = hostForms ? m_host : sourceOwner;
+                ReferenceOwner owner = hostForms ? member.GeneratedFormOwner ?? m_host : sourceOwner;
                 string originalPointer = hostForms ? destination : member.Pointer;
                 JsonElement original = member.Definition;
                 if (hostForms)

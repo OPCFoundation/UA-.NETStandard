@@ -196,6 +196,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     MaxResolverDocumentBytes = options.Bounds.MaxDocumentBytes,
                     DocumentSetMode = options.DocumentSetMode,
                     ProjectionCompatibilityMode = options.ProjectionCompatibilityMode,
+                    ProjectionFormProvider = sp.GetService<IWotProjectionFormProvider>() ??
+                        options.ProjectionFormProvider,
                     ValueEncodingContext = sp.GetService<IServiceMessageContext>()
                 };
                 converterOptions.Validate();

@@ -535,7 +535,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 .ConfigureAwait(false);
             var registry = new WotProtocolBinderRegistry(WotBuiltInBinders.CreateAll());
             WotBindingPlan plan = registry.Prepare(request);
-            Assert.That(plan.FullySupported, Is.True, pumpName);
+            Assert.That(plan.FullySupported, Is.True, pumpName + ": " + string.Join("; ", plan.Diagnostics));
             Assert.That(plan.CompiledForms.Count(form => form.AffordanceKind == BindingAffordanceKind.Property),
                 Is.EqualTo(4));
             Assert.That(plan.CompiledForms.Count(form => form.AffordanceKind == BindingAffordanceKind.Action),
@@ -1304,6 +1304,15 @@ namespace Opc.Ua.WotCon.Tests.Samples
         {
             get
             {
+                string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+                if (!string.IsNullOrEmpty(configured))
+                {
+                    string root = Path.GetFullPath(configured);
+                    return File.Exists(Path.Combine(root, "UA.slnx"))
+                        ? root
+                        : throw new DirectoryNotFoundException(
+                            "OPCUA_TEST_REPOSITORY_ROOT does not identify a repository containing UA.slnx.");
+                }
                 DirectoryInfo? directory = new(TestContext.CurrentContext.TestDirectory);
                 while (directory is not null &&
                     !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))

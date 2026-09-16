@@ -91,6 +91,13 @@ namespace Opc.Ua.WotCon.Server
         public WotProjectionCompatibilityMode ProjectionCompatibilityMode { get; set; }
 
         /// <summary>
+        /// Gets or sets the provider of actual projection-host forms.
+        /// A provider registered in DI takes precedence. No provider means
+        /// missing host forms fail resolution rather than borrowing source forms.
+        /// </summary>
+        public IWotProjectionFormProvider? ProjectionFormProvider { get; set; }
+
+        /// <summary>
         /// Gets or sets how a superseded projection generation is retired after
         /// a successful version switch.
         /// </summary>
