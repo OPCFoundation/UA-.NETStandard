@@ -140,6 +140,7 @@ namespace Opc.Ua.SourceGeneration
             public static global::Opc.Ua.EnumDefinition Create{{Tokens.ClassName}}(
                 global::Opc.Ua.NamespaceTable namespaceUris)
             {
+                _ = namespaceUris;
                 return new global::Opc.Ua.EnumDefinition
                 {
                     IsOptionSet = {{Tokens.IsOptionSet}},
@@ -162,6 +163,7 @@ namespace Opc.Ua.SourceGeneration
             public static global::Opc.Ua.EnumDefinition Create{{Tokens.ClassName}}(
                 global::Opc.Ua.NamespaceTable namespaceUris)
             {
+                _ = namespaceUris;
                 return new global::Opc.Ua.EnumDefinition
                 {
                     IsOptionSet = {{Tokens.IsOptionSet}},

@@ -271,46 +271,19 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void EmitEnumDefinitionWithoutFieldsPreservesNullFields()
         {
-            const string uri = "http://test.org/UA/";
-            const string typeName = "TestEnum";
-            var enumeration = new DataTypeDesign
-            {
-                SymbolicId = new System.Xml.XmlQualifiedName(typeName, uri),
-                SymbolicName = new System.Xml.XmlQualifiedName(typeName, uri),
-                BrowseName = typeName,
-                ClassName = typeName,
-                BasicDataType = BasicDataType.Enumeration,
-                IsEnumeration = true,
-                BaseType = new System.Xml.XmlQualifiedName(
-                    "Enumeration", Types.Namespaces.OpcUa),
-                BaseTypeNode = new DataTypeDesign
-                {
-                    SymbolicId = new System.Xml.XmlQualifiedName(
-                        "Enumeration", Types.Namespaces.OpcUa),
-                    SymbolicName = new System.Xml.XmlQualifiedName(
-                        "Enumeration", Types.Namespaces.OpcUa),
-                    BasicDataType = BasicDataType.Enumeration
-                }
-            };
-            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([enumeration]);
-            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+            string source = EmitEnumeration(null);
 
-            using var fileSystem = new VirtualFileSystem();
-            m_context = new GeneratorContext
-            {
-                FileSystem = fileSystem,
-                OutputFolder = "out",
-                ModelDesign = m_mockModelDesign.Object,
-                Telemetry = m_mockTelemetry.Object,
-                Options = new GeneratorOptions()
-            };
-
-            new DataTypeGenerator(m_context).Emit();
-
-            string source = System.Text.Encoding.UTF8.GetString(
-                fileSystem.Get(Path.Combine("out", "Test.DataTypes.g.cs")));
             Assert.That(source, Does.Contain("Fields = default"));
             Assert.That(source, Does.Not.Contain("Fields = new global::Opc.Ua.EnumField[]"));
+        }
+
+        [Test]
+        public void EmitEnumDefinitionWithEmptyFieldsPreservesEmptyFields()
+        {
+            string source = EmitEnumeration([]);
+
+            Assert.That(source, Does.Contain("Fields = new global::Opc.Ua.EnumField[]"));
+            Assert.That(source, Does.Not.Contain("Fields = default"));
         }
 
         private string EmitStructureWithOptionalFields(int count)
@@ -374,6 +347,49 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
             m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<Parameter>())).Returns(false);
             m_mockModelDesign.Setup(m => m.UseAllowSubtypes).Returns(true);
+
+            using var fileSystem = new VirtualFileSystem();
+            m_context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = m_mockModelDesign.Object,
+                Telemetry = m_mockTelemetry.Object,
+                Options = new GeneratorOptions()
+            };
+
+            new DataTypeGenerator(m_context).Emit();
+
+            return System.Text.Encoding.UTF8.GetString(
+                fileSystem.Get(Path.Combine("out", "Test.DataTypes.g.cs")));
+        }
+
+        private string EmitEnumeration(Parameter[] fields)
+        {
+            const string uri = "http://test.org/UA/";
+            const string typeName = "TestEnum";
+            var enumeration = new DataTypeDesign
+            {
+                SymbolicId = new System.Xml.XmlQualifiedName(typeName, uri),
+                SymbolicName = new System.Xml.XmlQualifiedName(typeName, uri),
+                BrowseName = typeName,
+                ClassName = typeName,
+                BasicDataType = BasicDataType.Enumeration,
+                IsEnumeration = true,
+                BaseType = new System.Xml.XmlQualifiedName(
+                    "Enumeration", Types.Namespaces.OpcUa),
+                BaseTypeNode = new DataTypeDesign
+                {
+                    SymbolicId = new System.Xml.XmlQualifiedName(
+                        "Enumeration", Types.Namespaces.OpcUa),
+                    SymbolicName = new System.Xml.XmlQualifiedName(
+                        "Enumeration", Types.Namespaces.OpcUa),
+                    BasicDataType = BasicDataType.Enumeration
+                },
+                Fields = fields
+            };
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([enumeration]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
 
             using var fileSystem = new VirtualFileSystem();
             m_context = new GeneratorContext
