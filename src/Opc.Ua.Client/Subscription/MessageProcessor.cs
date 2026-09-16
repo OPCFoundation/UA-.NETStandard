@@ -514,12 +514,13 @@ namespace Opc.Ua.Client.Subscriptions
             await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                AvailableInRetransmissionQueue = availableSequenceNumbers ?? [];
-                if (AvailableInRetransmissionQueue.Count == 0)
+                if (availableSequenceNumbers == null ||
+                    availableSequenceNumbers.Count == 0)
                 {
                     return;
                 }
-                uint[] ordered = SortAscendingWrapAware(AvailableInRetransmissionQueue);
+                AvailableInRetransmissionQueue = availableSequenceNumbers;
+                uint[] ordered = SortAscendingWrapAware(availableSequenceNumbers);
                 Logger.SubscriptionRecoveringTransferredMessages(Id, ordered.Length);
 
                 bool wasDispatching = m_dispatchContext.Value;
