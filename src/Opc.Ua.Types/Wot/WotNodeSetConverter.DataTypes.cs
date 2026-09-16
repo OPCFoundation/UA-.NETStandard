@@ -66,6 +66,26 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
+        /// Collects DataType nodes in the order used by the generated definition array.
+        /// </summary>
+        internal static ArrayOf<UADataType> CollectDataTypeNodes(UANodeSet nodeSet)
+        {
+            if (nodeSet.Items is null)
+            {
+                return [];
+            }
+            var dataTypes = new List<UADataType>();
+            foreach (UANode node in nodeSet.Items)
+            {
+                if (node is UADataType dataType)
+                {
+                    dataTypes.Add(dataType);
+                }
+            }
+            return dataTypes.ToArrayOf();
+        }
+
+        /// <summary>
         /// Allocates identities for the document's DataType definition closure before consumers are created.
         /// </summary>
         private static DataTypeDefinitionContext CreateDataTypeDefinitionContext(
@@ -1913,10 +1933,10 @@ namespace Opc.Ua.Wot
             string defaultLocale,
             UANode? documentOwner = null)
         {
-            UADataType[] dataTypes = documentOwner is null
+            ArrayOf<UADataType> dataTypes = documentOwner is null
                 ? CollectDataTypeNodes(nodeSet)
                 : documentOwner is UADataType owner ? [owner] : [];
-            if (dataTypes.Length == 0)
+            if (dataTypes.Count == 0)
             {
                 return;
             }
@@ -1927,23 +1947,6 @@ namespace Opc.Ua.Wot
                 WriteDataTypeDefinition(writer, dataType, nodeSet, defaultLocale);
             }
             writer.WriteEndArray();
-        }
-
-        private static UADataType[] CollectDataTypeNodes(UANodeSet nodeSet)
-        {
-            if (nodeSet.Items is null)
-            {
-                return [];
-            }
-            var dataTypes = new List<UADataType>();
-            foreach (UANode node in nodeSet.Items)
-            {
-                if (node is UADataType dataType)
-                {
-                    dataTypes.Add(dataType);
-                }
-            }
-            return [.. dataTypes];
         }
 
         private static void WriteDataTypeDefinition(

@@ -149,6 +149,7 @@ namespace Opc.Ua.Wot
         private static void CarryContext(
             JsonObject target, WotDocument document, JsonElement original, string origin)
         {
+            PreserveLiteralValues(target, document, original);
             var context = new JsonArray
             {
                 null,

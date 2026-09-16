@@ -160,7 +160,7 @@ namespace Opc.Ua.Wot
                 }
             }
 
-            private bool ValidateDefinitionMembers(JsonElement value, string pointer)
+            private bool ValidateDefinitionMembers(JsonElement value, string pointer, bool indexMap = false)
             {
                 if (value.ValueKind == JsonValueKind.Object)
                 {
@@ -173,7 +173,10 @@ namespace Opc.Ua.Wot
                             DataTypeError("A complete DataType definition contains a duplicate member.", location);
                             return false;
                         }
-                        if (!ValidateDefinitionMembers(member.Value, location))
+                        if ((indexMap || (!WotDocument.IsSemanticBoundary(member.Name) &&
+                                !WotNodeSetConverter.IsLiteralSchemaMember(member.Name))) &&
+                            !ValidateDefinitionMembers(member.Value, location,
+                                !indexMap && WotNodeSetConverter.IsSchemaDeclarationMap(member.Name)))
                         {
                             return false;
                         }
@@ -575,15 +578,23 @@ namespace Opc.Ua.Wot
                             }
                             bool localized = member.Name is "title" or "description" or "uav:fieldDescription" or
                                 "uav:enumDisplayName" or "uav:enumDescription";
-                            resolved[member.Name] = WotDocument.IsSemanticBoundary(member.Name) ||
-                                WotNodeSetConverter.IsLiteralSchemaMember(member.Name) ||
-                                localized ||
-                                member.Name is "titles" or "descriptions"
-                                ? CloneNode(member.Value)
-                                : ResolveFacts(member.Value, value, member.Name, location,
-                                    WotNodeSetConverter.IsSchemaDeclarationMap(member.Name),
-                                    member.Name == "@id" ? graphReference :
-                                        Array.IndexOf(s_dataTypeReferences, member.Name) >= 0);
+                            if (IsLiteralMember(member.Name))
+                            {
+                                string key = WotJsonCanonicalizer.TryCanonicalize(
+                                    member.Value, out string canonical, out _)
+                                    ? "canonical:" + canonical
+                                    : "raw:" + member.Value.GetRawText();
+                                resolved[member.Name] = JsonValue.Create(key);
+                            }
+                            else
+                            {
+                                resolved[member.Name] = localized || member.Name is "titles" or "descriptions"
+                                    ? CloneNode(member.Value)
+                                    : ResolveFacts(member.Value, value, member.Name, location,
+                                        WotNodeSetConverter.IsSchemaDeclarationMap(member.Name),
+                                        member.Name == "@id" ? graphReference :
+                                            Array.IndexOf(s_dataTypeReferences, member.Name) >= 0);
+                            }
                             if (localized)
                             {
                                 languages[member.Name] = JsonValue.Create(

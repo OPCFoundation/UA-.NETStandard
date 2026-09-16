@@ -1101,6 +1101,93 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(resultStr, Does.Contain("vendor:score"));
         }
 
+        [TestCase("null", s_dataTypeOwnerContext, TestName = "FromNodeSetRejectsDataTypeContextNullBeforeOwner")]
+        [TestCase(s_dataTypeOwnerContext, "null", TestName = "FromNodeSetRejectsDataTypeContextOwnerBeforeNull")]
+        [TestCase(s_dataTypeOwnerContext, /*lang=json,strict*/ """{"v":"https://other.test/"}""",
+            TestName = "FromNodeSetRejectsConflictingDataTypeOwnerContexts")]
+        public void FromNodeSetRejectsConflictingDataTypeContexts(string first, string second)
+        {
+            UANodeSet nodeSet = CreateDataTypeContextNodeSet(
+                CreateResidueMember(s_dataTypeContextPointer, first),
+                CreateResidueMember(s_dataTypeContextPointer, second));
+
+            WotConversionResult<WotDocument> result = WotNodeSetConverter.FromNodeSetResult(nodeSet);
+            using WotDocument document = result.Value;
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Any(d =>
+                d.Severity == WotDiagnosticSeverity.Error &&
+                d.Code == WotDiagnosticCode.ResidueConflict &&
+                d.Location?.JsonPointer == s_dataTypeContextPointer), Is.True);
+        }
+
+        [TestCase(0, "null", TestName = "FromNodeSetAcceptsAbsentDataTypeContext")]
+        [TestCase(1, "null", TestName = "FromNodeSetAcceptsSingleNullDataTypeContext")]
+        [TestCase(2, "null", TestName = "FromNodeSetAcceptsDuplicateNullDataTypeContexts")]
+        [TestCase(1, s_dataTypeOwnerContext, TestName = "FromNodeSetAcceptsSingleOwnerDataTypeContext")]
+        [TestCase(2, s_dataTypeOwnerContext, TestName = "FromNodeSetAcceptsDuplicateOwnerDataTypeContexts")]
+        public void FromNodeSetAcceptsAbsentOrEqualDataTypeContexts(int count, string context)
+        {
+            UANodeSet nodeSet = CreateDataTypeContextNodeSet(
+                [.. Enumerable.Range(0, count).Select(_ => CreateResidueMember(s_dataTypeContextPointer, context))]);
+            UADataType original = nodeSet.Items.OfType<UADataType>().Single();
+
+            WotConversionResult<WotDocument> result = WotNodeSetConverter.FromNodeSetResult(nodeSet);
+            using WotDocument document = result.Value;
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            Assert.That(result.Diagnostics, Is.Empty);
+            JsonElement definition = document.RootElement.GetProperty("uav:dataTypeDefinitions")[0];
+            bool present = definition.TryGetProperty("@context", out JsonElement restoredContext);
+            Assert.That(present, Is.EqualTo(count > 0));
+            if (present)
+            {
+                Assert.That(restoredContext.GetRawText(), Is.EqualTo(context));
+            }
+
+            WotConversionResult<UANodeSet> reconverted = WotNodeSetConverter.ToNodeSetResult(document);
+            Assert.That(reconverted.Success, Is.True, string.Join("; ", reconverted.Diagnostics));
+            UADataType actual = reconverted.Value.Items.OfType<UADataType>().Single();
+            Assert.That(actual.NodeId, Is.EqualTo(original.NodeId));
+            Assert.That(actual.BrowseName, Is.EqualTo(original.BrowseName));
+            Assert.That(reconverted.Value.NamespaceUris, Is.EqualTo(nodeSet.NamespaceUris));
+            Assert.That(actual.Definition.Field.Single().DataType, Is.EqualTo("i=11"));
+        }
+
+        private static UANodeSet CreateDataTypeContextNodeSet(params SysXmlElement[] members)
+        {
+            using var document = WotDocument.Parse(WotTestData.Utf8(
+                /*lang=json,strict*/ """
+                {
+                  "@context": [
+                    "https://www.w3.org/2022/wot/td/v1.1",
+                    "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+                    {"t":"urn:test:projection-types"}
+                  ],
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "title": "Device",
+                  "uav:browseName": "t:Device",
+                  "uav:id": "nsu=urn:test:projection-types;i=1",
+                  "uav:dataTypeDefinitions": [{
+                    "@id": "urn:dtd:Reading",
+                    "@type": "uav:StructureDefinition",
+                    "uav:dataTypeName": "t:Reading",
+                    "uav:dataTypeId": "nsu=urn:test:projection-types;i=3000",
+                    "uav:structureType": "Structure",
+                    "uav:fields": [{
+                      "@type": "uav:StructureField",
+                      "uav:fieldName": "Value",
+                      "uav:fieldDataTypeId": "i=11"
+                    }]
+                  }]
+                }
+                """));
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            result.Value.Extensions = [.. result.Value.Extensions ?? [], CreateResidueExtension("1.0", members)];
+            return result.Value;
+        }
+
         private static SysXmlElement CreateResidueExtension(
             string version,
             params SysXmlElement[] members)
@@ -1176,5 +1263,8 @@ namespace Opc.Ua.Types.Tests.Wot
             return string.Concat(
                 Array.ConvertAll(hash, b => b.ToString("x2", CultureInfo.InvariantCulture)));
         }
+
+        private const string s_dataTypeContextPointer = "/uav:dataTypeDefinitions/0/@context";
+        private const string s_dataTypeOwnerContext = /*lang=json,strict*/ """{"v":"https://source.test/"}""";
     }
 }
