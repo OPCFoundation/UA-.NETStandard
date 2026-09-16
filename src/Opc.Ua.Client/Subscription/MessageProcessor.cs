@@ -511,13 +511,16 @@ namespace Opc.Ua.Client.Subscriptions
             IReadOnlyList<uint> availableSequenceNumbers,
             CancellationToken ct)
         {
-            if (availableSequenceNumbers == null || availableSequenceNumbers.Count == 0)
+            if (availableSequenceNumbers.Count == 0)
             {
                 return;
             }
             await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                // TryRepublishAsync only republishes what the server reported
+                // as available, so the set has to be published before the loop
+                // runs and is cleared again once the messages are recovered.
                 AvailableInRetransmissionQueue = availableSequenceNumbers;
                 uint[] ordered = SortAscendingWrapAware(availableSequenceNumbers);
                 Logger.SubscriptionRecoveringTransferredMessages(Id, ordered.Length);
