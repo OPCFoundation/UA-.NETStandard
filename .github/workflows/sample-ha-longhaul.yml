@@ -37,7 +37,7 @@ jobs:
     timeout-minutes: 180
 
     env:
-      DOTNET_VERSION: '10.0.x'
+      DOTNET_VERSION: '10.0.401'
       TARGET_FRAMEWORK: 'net10.0'
       CONFIGURATION: 'Release'
       TESTPROJECT: './tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj'
