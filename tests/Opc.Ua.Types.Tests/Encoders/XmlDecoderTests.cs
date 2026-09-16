@@ -1868,8 +1868,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result[1].Value, Is.EqualTo(2));
         }
 
-        [Test]
-        public void ReadEncodeableArrayWithTypeIdReturnsDecodedValues()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReadEncodeableArrayWithTypeIdReturnsDecodedValues(bool useInterfaceType)
         {
             // Arrange
             ServiceMessageContext messageContext = CreateMockContext();
@@ -1889,9 +1890,12 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
-            ArrayOf<TestEncodeableWithData> result = decoder.ReadEncodeableArray<TestEncodeableWithData>(
-                "ListOfTestEncodeableWithData",
-                new ExpandedNodeId(99999, 0));
+            ArrayOf<TestEncodeableWithData> result = useInterfaceType
+                ? decoder.ReadEncodeableArray<IEncodeable>(
+                    "ListOfTestEncodeableWithData", new ExpandedNodeId(99999, 0))
+                    .ConvertAll(value => (TestEncodeableWithData)value)
+                : decoder.ReadEncodeableArray<TestEncodeableWithData>(
+                    "ListOfTestEncodeableWithData", new ExpandedNodeId(99999, 0));
 
             // Assert
             Assert.That(result.Count, Is.EqualTo(2));
