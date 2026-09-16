@@ -518,10 +518,6 @@ namespace Opc.Ua.Client.Subscriptions
             await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                // TryRepublishAsync only republishes what the server reported
-                // as available, so the set has to be published before the loop
-                // runs and is cleared again once the messages are recovered.
-                AvailableInRetransmissionQueue = availableSequenceNumbers;
                 uint[] ordered = SortAscendingWrapAware(availableSequenceNumbers);
                 Logger.SubscriptionRecoveringTransferredMessages(Id, ordered.Length);
 
@@ -531,8 +527,10 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     foreach (uint sequenceNumber in ordered)
                     {
-                        await TryRepublishAsync(sequenceNumber, sequenceNumber, ct)
+                        await TryRepublishAsync(sequenceNumber, sequenceNumber,
+                            ordered, ct)
                             .ConfigureAwait(false);
+                        ct.ThrowIfCancellationRequested();
                     }
                 }
                 finally
@@ -544,14 +542,10 @@ namespace Opc.Ua.Client.Subscriptions
                 // queued, whether or not the republish succeeded. Anything
                 // still in the queue was already sent by the server, so the
                 // next message carries a higher sequence number and must not
-                // be treated as the first message after create. The recovered
-                // entries are dropped from the available set - they have been
-                // handled and acknowledged, and the next publish response
-                // republishes the set anyway.
+                // be treated as the first message after create.
                 uint last = ordered[^1];
                 LastDataSequenceNumberProcessed = last;
                 LastSequenceNumberProcessed = last;
-                AvailableInRetransmissionQueue = [];
             }
             finally
             {
@@ -599,11 +593,24 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="curSeqNum"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        private async ValueTask TryRepublishAsync(uint missing, uint curSeqNum,
+        private ValueTask TryRepublishAsync(uint missing, uint curSeqNum,
+            CancellationToken ct)
+        {
+            return TryRepublishAsync(
+                missing,
+                curSeqNum,
+                AvailableInRetransmissionQueue,
+                ct);
+        }
+
+        private async ValueTask TryRepublishAsync(
+            uint missing,
+            uint curSeqNum,
+            IReadOnlyList<uint> availableSequenceNumbers,
             CancellationToken ct)
         {
             Interlocked.Increment(ref m_republishCount);
-            if (!AvailableInRetransmissionQueue.Contains(missing))
+            if (!availableSequenceNumbers.Contains(missing))
             {
                 Logger.SubscriptionMessageSequenceNumberSeqNumberNot(
                     Id,
@@ -636,6 +643,10 @@ namespace Opc.Ua.Client.Subscriptions
                         Id,
                         missing);
                 }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
