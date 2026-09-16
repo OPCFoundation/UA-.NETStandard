@@ -62,6 +62,8 @@ namespace Opc.Ua.Server.Tests
         private const string kClientApplicationUri =
             "urn:localhost:opcfoundation.org:ReferenceServerTests";
 
+        private static readonly int[] s_staticMatrixDimensions = [5, 5];
+
         private ITelemetryContext m_telemetry;
         private ServerFixture<ReferenceServer> m_fixture;
         private ReferenceServer m_server;
@@ -89,6 +91,12 @@ namespace Opc.Ua.Server.Tests
                 UseSamplingGroupsInReferenceNodeManager = false,
                 AutoAccept = true
             };
+            await m_fixture.LoadConfigurationAsync().ConfigureAwait(false);
+            m_fixture.Config.ServerConfiguration.UserTokenPolicies =
+            [
+                new UserTokenPolicy(UserTokenType.Anonymous),
+                new UserTokenPolicy(UserTokenType.UserName)
+            ];
             m_server = await m_fixture.StartAsync().ConfigureAwait(false);
         }
 
@@ -840,13 +848,13 @@ namespace Opc.Ua.Server.Tests
                 DataValue value = response.Results[(2 * ii) + 1];
                 Assert.That(dimensions.StatusCode, Is.EqualTo(StatusCodes.Good), suffixes[ii]);
                 Assert.That(dimensions.WrappedValue.TryGetValue(out ArrayOf<uint> arrayDimensions), Is.True, suffixes[ii]);
-                Assert.That(arrayDimensions.ToArray(), Is.EqualTo(new uint[] { 5, 5 }), suffixes[ii]);
+                Assert.That(arrayDimensions.ToArray(), Is.EqualTo(s_staticMatrixDimensions), suffixes[ii]);
                 Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good), suffixes[ii]);
                 Assert.That(value.WrappedValue.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.TwoDimensions), suffixes[ii]);
                 Assert.That(value.WrappedValue.AsBoxedObject(), Is.InstanceOf<IConvertableToMatrix>(), suffixes[ii]);
                 Matrix matrix = ((IConvertableToMatrix)value.WrappedValue.AsBoxedObject())
                     .ToMatrix(value.WrappedValue.TypeInfo.BuiltInType);
-                Assert.That(matrix.Dimensions, Is.EqualTo(new[] { 5, 5 }), suffixes[ii]);
+                Assert.That(matrix.Dimensions, Is.EqualTo(s_staticMatrixDimensions), suffixes[ii]);
             }
         }
 
@@ -3177,13 +3185,19 @@ namespace Opc.Ua.Server.Tests
             // for WellKnownRole_AuthenticatedUser; anonymous sessions cannot read it.
             var restrictedNodeId = new NodeId("AccessRights_RolePermissions_AuthenticatedUser", 2);
 
-            // Username token for user1 (AuthenticatedUser role). PolicyId "1" is the first
-            // user-token policy registered by the ReferenceServer (username with Basic256Sha256).
+            EndpointDescription endpoint = m_server.GetEndpoints().Find(e =>
+                e.TransportProfileUri == Profiles.UaTcpTransport ||
+                e.TransportProfileUri == Profiles.HttpsBinaryTransport)
+                ?? throw new AssertionException("The fixture requires a TCP or HTTPS endpoint.");
+            UserTokenPolicy userNamePolicy = endpoint.UserIdentityTokens.Find(
+                policy => policy.TokenType == UserTokenType.UserName)
+                ?? throw new AssertionException("The endpoint must advertise a Username token policy.");
+
             var usernameToken = new UserNameIdentityToken
             {
                 UserName = "user1",
                 Password = System.Text.Encoding.UTF8.GetBytes("password").ToByteString(),
-                PolicyId = "1"
+                PolicyId = userNamePolicy.PolicyId
             };
 
             // Session A: authenticate as user1.

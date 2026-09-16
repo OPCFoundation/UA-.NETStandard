@@ -747,13 +747,18 @@ namespace Opc.Ua
 
         internal ILogger? Logger { get; }
 
-        internal (Certificate? Certificate, CertificateCollection? Chain, long Version) CurrentClientCertificateSnapshot
+        /// <summary>
+        /// Gets an independently retained snapshot of the manager's current client certificate material and version.
+        /// </summary>
+        internal ClientChannelCertificateSnapshot CurrentClientCertificateSnapshot
         {
             get
             {
                 lock (m_certLock)
                 {
-                    return (m_clientCertificate, m_clientCertificateChain, m_clientCertificateVersion);
+                    ThrowIfDisposed();
+                    return new ClientChannelCertificateSnapshot(
+                        m_clientCertificate, m_clientCertificateChain, m_clientCertificateVersion);
                 }
             }
         }
@@ -872,6 +877,10 @@ namespace Opc.Ua
                 entry.IsClosing;
         }
 
+        /// <summary>
+        /// Reattaches a lease to a usable entry after reconnect backoff, opening a replacement with current
+        /// certificates.
+        /// </summary>
         private async ValueTask<ChannelEntry> SwapFaultedEntryAsync(
             ManagedTransportChannelLease lease,
             CancellationToken ct)
@@ -894,8 +903,7 @@ namespace Opc.Ua
                 return original;
             }
 
-            (Certificate? clientCert, CertificateCollection? clientChain, long clientCertificateVersion) =
-                CurrentClientCertificateSnapshot;
+            using ClientChannelCertificateSnapshot certificates = CurrentClientCertificateSnapshot;
 
             ChannelEntry fresh;
             bool created = false;
@@ -926,7 +934,8 @@ namespace Opc.Ua
             {
                 try
                 {
-                    await fresh.OpenInitialAsync(clientCert, clientChain, clientCertificateVersion, ct)
+                    await fresh.OpenInitialAsync(
+                        certificates.Certificate, certificates.Chain, certificates.Version, ct)
                         .ConfigureAwait(false);
                 }
                 catch
@@ -986,6 +995,9 @@ namespace Opc.Ua
             return TimeProvider.Delay(delay, ct);
         }
 
+        /// <summary>
+        /// Acquires a participant lease from a matching channel entry, creating it with retained certificate material.
+        /// </summary>
         private async ValueTask<IManagedTransportChannel> GetCoreAsync(
             ConfiguredEndpoint endpoint,
             Func<IManagedTransportChannel, IReconnectParticipant> participantFactory,
@@ -994,18 +1006,10 @@ namespace Opc.Ua
         {
             ThrowIfDisposed();
 
-            Certificate? clientCert;
-            CertificateCollection? clientChain;
-            long clientCertificateVersion;
-            lock (m_certLock)
-            {
-                clientCert = m_clientCertificate;
-                clientChain = m_clientCertificateChain;
-                clientCertificateVersion = m_clientCertificateVersion;
-            }
+            using ClientChannelCertificateSnapshot certificates = CurrentClientCertificateSnapshot;
 
             var key = ManagedChannelKey.FromEndpoint(
-                endpoint, clientCert, reverseConnection);
+                endpoint, certificates.Certificate, reverseConnection);
 
             while (true)
             {
@@ -1038,7 +1042,8 @@ namespace Opc.Ua
                 {
                     if (created)
                     {
-                        await entry.OpenInitialAsync(clientCert, clientChain, clientCertificateVersion, ct)
+                        await entry.OpenInitialAsync(
+                            certificates.Certificate, certificates.Chain, certificates.Version, ct)
                             .ConfigureAwait(false);
                     }
                     return entry.AcquireLease(participantFactory);
@@ -1241,6 +1246,9 @@ namespace Opc.Ua
             return SnapshotEntries();
         }
 
+        /// <summary>
+        /// Takes ownership of replacement certificate handles and advances the version when their material differs.
+        /// </summary>
         void IChannelCertRotationHost.ReplaceClientCertificate(
             Certificate? clientCertificate,
             CertificateCollection? clientCertificateChain)
@@ -1249,11 +1257,19 @@ namespace Opc.Ua
             CertificateCollection? previousCertificateChain;
             lock (m_certLock)
             {
+                ThrowIfDisposed();
                 previousCertificate = m_clientCertificate;
                 previousCertificateChain = m_clientCertificateChain;
+                if (!ClientChannelCertificateSnapshot.HaveSameMaterial(
+                    previousCertificate,
+                    previousCertificateChain,
+                    clientCertificate,
+                    clientCertificateChain))
+                {
+                    m_clientCertificateVersion++;
+                }
                 m_clientCertificate = clientCertificate;
                 m_clientCertificateChain = clientCertificateChain;
-                m_clientCertificateVersion++;
             }
 
             previousCertificate?.Dispose();
@@ -1293,12 +1309,17 @@ namespace Opc.Ua
             m_diagnostics.EmitChannelClosed(entry, reason);
         }
 
-        (Certificate? Certificate, CertificateCollection? Chain, long Version)
-            IChannelEntryHost.SnapshotClientCertificate()
+        /// <summary>
+        /// Acquires a certificate snapshot whose lifetime is independent of later manager updates.
+        /// </summary>
+        ClientChannelCertificateSnapshot IChannelEntryHost.SnapshotClientCertificate()
         {
             return CurrentClientCertificateSnapshot;
         }
 
+        /// <summary>
+        /// Creates a transport using certificate handles already retained by its owning channel entry.
+        /// </summary>
         ValueTask<ITransportChannel> IChannelEntryHost.CreateChannelAsync(
             ConfiguredEndpoint endpoint,
             Certificate? clientCertificate,
@@ -1308,17 +1329,13 @@ namespace Opc.Ua
         {
             IServiceMessageContext context = Configuration.CreateMessageContext();
 
-            // The entry passes on what SnapshotClientCertificate handed it,
-            // which are the manager's own handles. CreateChannelAsync stores its
-            // arguments in TransportChannelSettings, and those are disposed when
-            // the channel closes, so each channel needs a handle of its own -
-            // otherwise the first channel to close invalidates the manager's and
-            // every later channel (and DiscoveryClient) throws on a dead handle.
+            // The entry already owns a per-transport snapshot, distinct from the manager's handles.
+            // It also releases these handles when a custom transport does not own its settings.
             return CreateChannelAsync(
                 endpoint,
                 context,
-                clientCertificate?.AddRef(),
-                clientCertificateChain?.AddRef(),
+                clientCertificate,
+                clientCertificateChain,
                 reverseConnection,
                 ct);
         }

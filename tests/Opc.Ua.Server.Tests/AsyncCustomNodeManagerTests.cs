@@ -4132,7 +4132,7 @@ namespace Opc.Ua.Server.Tests
         /// Verifies that changing monitoring mode updates the monitored item's mode.
         /// </summary>
         [Test]
-        public async Task SetMonitoringModeAsync_ChangesModeAsync()
+        public async Task SetMonitoringModeAsyncChangesModeAsync()
         {
             // Setup manager and node
             using ITestNodeManager manager = CreateManager();
@@ -4178,7 +4178,8 @@ namespace Opc.Ua.Server.Tests
             var processedItems = new List<bool> { false };
             var modeErrors = new List<ServiceResult> { null };
             await manager.SetMonitoringModeAsync(
-                 new OperationContext(new RequestHeader(), null, RequestType.SetMonitoringMode, RequestLifetime.None),
+                 new OperationContext(
+                     new RequestHeader(), null, RequestType.SetMonitoringMode, RequestLifetime.None, m_mockSession.Object),
                  MonitoringMode.Reporting,
                  monitoredItems,
                  processedItems,

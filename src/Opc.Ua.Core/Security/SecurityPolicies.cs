@@ -776,18 +776,19 @@ namespace Opc.Ua
             Certificate signingCertificate,
             byte[] dataToVerify)
         {
-            // check if nothing to do.
-            if (signature == null)
+            if (securityPolicy.AsymmetricSignatureAlgorithm == AsymmetricSignatureAlgorithm.None)
             {
                 return true;
+            }
+
+            if (signature == null || signature.Signature.Length == 0)
+            {
+                return false;
             }
 
             // sign data.
             switch (securityPolicy.AsymmetricSignatureAlgorithm)
             {
-                // always accept signatures if security is not used.
-                case AsymmetricSignatureAlgorithm.None:
-                    return true;
                 case AsymmetricSignatureAlgorithm.RsaPkcs15Sha1:
                     if (signature.Algorithm == SecurityAlgorithms.RsaSha1)
                     {

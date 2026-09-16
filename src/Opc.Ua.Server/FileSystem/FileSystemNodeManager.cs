@@ -438,18 +438,30 @@ namespace Opc.Ua.Server.FileSystem
             return FileSystemNodeId.BuildFile(providerPath, NamespaceIndex);
         }
 
-        ValueTask IFileSystemHost.OnProviderChangedAsync(CancellationToken cancellationToken)
+        /// <inheritdoc/>
+        ValueTask IFileSystemHost.ApplyMutationAsync(
+            FileSystemMutationKind kind,
+            string path,
+            string targetPath,
+            NodeId sourceNodeId,
+            CancellationToken cancellationToken)
         {
-            return default;
+            return FileSystemDirectoryOperations.ApplyProviderMutationAsync(
+                this, kind, path, targetPath, sourceNodeId, cancellationToken);
         }
 
+        /// <inheritdoc/>
         bool IFileSystemHost.TryGetProviderPath(
             NodeId nodeId,
             out string providerPath,
             out bool isDirectory,
             out bool isRoot)
         {
-            if (!FileSystemNodeId.TryParse(nodeId, out FileSystemNodeId parsed))
+            if (nodeId.NamespaceIndex != NamespaceIndex ||
+                !FileSystemNodeId.TryParse(nodeId, out FileSystemNodeId parsed) ||
+                parsed.ComponentPath != null ||
+                !TryNormalizeProviderPath(parsed.ProviderPath, out providerPath) ||
+                (parsed.RootType == FileSystemNodeId.Root && !string.IsNullOrEmpty(providerPath)))
             {
                 providerPath = string.Empty;
                 isDirectory = false;
@@ -457,9 +469,33 @@ namespace Opc.Ua.Server.FileSystem
                 return false;
             }
 
-            providerPath = parsed.ProviderPath;
             isDirectory = parsed.RootType != FileSystemNodeId.File;
-            isRoot = parsed.RootType == FileSystemNodeId.Root;
+            isRoot = string.IsNullOrEmpty(providerPath);
+            return true;
+        }
+
+        /// <summary>
+        /// Normalizes root spellings and rejects provider paths with ambiguous or traversal segments.
+        /// </summary>
+        private static bool TryNormalizeProviderPath(string path, out string providerPath)
+        {
+            providerPath = string.Empty;
+            if (path.Trim(s_pathSeparators).Length == 0)
+            {
+                return true;
+            }
+            if (path.AsSpan().IndexOfAny('\\', ':') >= 0)
+            {
+                return false;
+            }
+            foreach (string segment in path.Split('/'))
+            {
+                if (string.IsNullOrWhiteSpace(segment) || segment is "." or "..")
+                {
+                    return false;
+                }
+            }
+            providerPath = path;
             return true;
         }
 
@@ -480,6 +516,11 @@ namespace Opc.Ua.Server.FileSystem
 
         private readonly Dictionary<NodeId, FileHandle> m_handles = [];
         private readonly Lock m_lock = new();
+
+        /// <summary>
+        /// Identifies separator-only spellings of the mounted root.
+        /// </summary>
+        private static readonly char[] s_pathSeparators = ['/', '\\'];
 
         /// <summary>
         /// Boxes a <see cref="FileSystemNodeId"/> for storage in

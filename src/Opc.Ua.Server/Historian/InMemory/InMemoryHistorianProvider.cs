@@ -906,7 +906,9 @@ namespace Opc.Ua.Server.Historian.InMemory
             foreach (EventEntry entry in ordered)
             {
                 var timestamp = entry.Record.SourceTimestamp.ToDateTime();
-                if (timestamp < lo || timestamp >= hi)
+                if (request.IsForward
+                    ? timestamp < lo || timestamp >= hi
+                    : timestamp <= lo || timestamp > hi)
                 {
                     continue;
                 }

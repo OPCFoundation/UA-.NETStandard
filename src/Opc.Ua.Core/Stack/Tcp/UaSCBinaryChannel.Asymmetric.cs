@@ -1556,33 +1556,26 @@ namespace Opc.Ua.Bindings
                 receiverCertificate!,
                 ct).ConfigureAwait(false);
 
-            ArraySegment<byte> body;
-            uint requestId;
-            uint sequenceNumber;
-            byte[] signature;
-
             try
             {
-                body = FinishReadAsymmetricMessage(
+                ArraySegment<byte> body = FinishReadAsymmetricMessage(
                     plainText,
                     headerSize,
                     receiverCertificate,
                     senderCertificate,
                     oscRequestSignature,
-                    out requestId,
-                    out sequenceNumber,
-                    out signature);
+                    out uint requestId,
+                    out uint sequenceNumber,
+                    out byte[] signature);
+
+                return new AsymmetricMessage(
+                    body, channelId, senderCertificate, requestId, sequenceNumber, signature);
             }
             catch
             {
-                // See ReadAsymmetricMessage: nothing else owns the decrypted
-                // buffer until the body is handed back.
                 ReturnDecryptedBuffer(plainText);
                 throw;
             }
-
-            return new AsymmetricMessage(
-                body, channelId, senderCertificate, requestId, sequenceNumber, signature);
         }
 
         /// <summary>

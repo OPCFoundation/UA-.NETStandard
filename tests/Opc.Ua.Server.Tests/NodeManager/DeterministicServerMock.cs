@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Moq;
 
 namespace Opc.Ua.Server.Tests.NodeManager
@@ -43,9 +44,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Creates the mock server.
         /// </summary>
-        public static Mock<IServerInternal> Create(out MonitoredItemQueueFactory queueFactory)
+        public static Mock<IServerInternal> Create(
+            out MonitoredItemQueueFactory queueFactory,
+            TimeProvider timeProvider = null)
         {
             var mockServer = new Mock<IServerInternal>();
+            if (timeProvider != null)
+            {
+                mockServer.As<ITimeProviderProvider>().SetupGet(server => server.TimeProvider).Returns(timeProvider);
+            }
             var mockMasterNodeManager = new Mock<IMasterNodeManager>();
             var mockConfigurationNodeManager = new Mock<IConfigurationNodeManager>();
             var mockCoreNodeManager = new Mock<ICoreNodeManager>();

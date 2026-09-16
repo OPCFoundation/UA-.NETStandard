@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Diagnostics;
+using System.Threading;
 using NUnit.Framework;
 
 namespace Opc.Ua.Types.Tests.Utils
@@ -201,6 +204,62 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(pattern.IsMatch("ClientAndServer"), Is.True);
             Assert.That(pattern.IsMatch("ServerApplication"), Is.False);
             Assert.That(pattern.IsMatch(null), Is.False);
+        }
+
+        /// <summary>
+        /// Verifies finite and unlimited evaluation preserve shared Like syntax and whole-string matching.
+        /// </summary>
+        [TestCase("d", @"[\d]", true)]
+        [TestCase("5", @"[\d]", false)]
+        [TestCase("-", @"[a\-z]", true)]
+        [TestCase("m", @"[a\-z]", false)]
+        [TestCase("]", @"[\]]", true)]
+        [TestCase("a\n", "a", false)]
+        [TestCase("a\n", "a_", true)]
+        [TestCase("a\nb", "a%b", true)]
+        [TestCase("", "", true)]
+        [TestCase("", "%", true)]
+        [TestCase("", "_", false)]
+        [TestCase(null, "%", false)]
+        public void EvaluationTimeoutPreservesPatternSemantics(string target, string text, bool expected)
+        {
+            Assert.That(LikePattern.TryParse(text, out LikePattern pattern), Is.True);
+            Assert.That(pattern.IsMatch(target, TimeSpan.FromSeconds(5)), Is.EqualTo(expected));
+            Assert.That(pattern.IsMatch(target, Timeout.InfiniteTimeSpan), Is.EqualTo(expected));
+            Assert.That(pattern.IsMatch(target), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Verifies invalid timeout values are reported explicitly rather than treated as an unlimited match.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(-2)]
+        public void InvalidEvaluationTimeoutIsRejected(int milliseconds)
+        {
+            Assert.That(LikePattern.TryParse("%", out LikePattern pattern), Is.True);
+            ArgumentOutOfRangeException error = Assert.Throws<ArgumentOutOfRangeException>(() =>
+                pattern.IsMatch("value", TimeSpan.FromMilliseconds(milliseconds)));
+            Assert.That(error.ParamName, Is.EqualTo("matchTimeout"));
+        }
+
+        /// <summary>
+        /// Verifies timeout enforcement during prefix retries and long character-list scans without poisoning reuse.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void EvaluationTimeoutBoundsWorkAndPreservesPatternReuse(bool characterList)
+        {
+            string text = characterList ? "[" + new string('a', 200_000) + "]" : "%" + new string('a', 8192) + "b";
+            string target = characterList ? "z" : new string('a', 32768);
+            string matching = characterList ? "a" : new string('a', 8192) + "b";
+            Assert.That(LikePattern.TryParse(text, out LikePattern pattern), Is.True);
+            var elapsed = Stopwatch.StartNew();
+
+            Assert.Throws<TimeoutException>(() => pattern.IsMatch(target, TimeSpan.FromMilliseconds(1)));
+
+            Assert.That(elapsed.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
+            Assert.That(pattern.IsMatch(matching, TimeSpan.FromSeconds(5)), Is.True);
+            Assert.That(pattern.IsMatch(matching), Is.True);
         }
     }
 }

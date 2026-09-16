@@ -456,9 +456,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(after, Has.Count.EqualTo(1));
             Assert.That(after[0].Thumbprint, Is.EqualTo(first.Thumbprint));
 
-            Assert.That(
-                PEMReader.ImportPublicKeysFromPEM(File.ReadAllBytes(pemFile)),
-                Has.Count.EqualTo(1));
+            using CertificateCollection remaining = CertificateCollection.From(
+                PEMReader.ImportPublicKeysFromPEM(File.ReadAllBytes(pemFile)));
+            Assert.That(remaining, Has.Count.EqualTo(1));
 
             // nothing of the removed block is left behind the rewritten content.
             Assert.That(new FileInfo(pemFile).Length, Is.LessThan(combined.Length));

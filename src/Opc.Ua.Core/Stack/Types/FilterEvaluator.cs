@@ -476,7 +476,6 @@ namespace Opc.Ua
                     {
                         return true;
                     }
-
                     continue;
                 }
 

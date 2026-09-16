@@ -200,7 +200,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void FindChildInLargeListMatchesLinearSearchAfterRandomChanges()
         {
-            var random = new Random(4711);
+            var random = new UnsecureRandom(4711);
             BaseObjectState parent = CreateParentWithChildren(kLargeChildCount);
             var children = new System.Collections.Generic.List<BaseInstanceState>();
             parent.GetChildren(m_context, children);

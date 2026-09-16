@@ -89,6 +89,9 @@ namespace Opc.Ua
             m_pump.Dispose();
         }
 
+        /// <summary>
+        /// Installs changed application certificate material and reconnects entries unless the manager has shut down.
+        /// </summary>
         private async ValueTask ProcessCertificateChangeAsync(
             CertificateChangeEvent evt,
             CancellationToken ct)
@@ -114,7 +117,16 @@ namespace Opc.Ua
                 return;
             }
 
-            UpdateClientCertificate(certificate, chain);
+            try
+            {
+                UpdateClientCertificate(certificate, chain);
+            }
+            catch
+            {
+                certificate.Dispose();
+                chain?.Dispose();
+                throw;
+            }
             await ReconnectAllAsync(ct).ConfigureAwait(false);
         }
 

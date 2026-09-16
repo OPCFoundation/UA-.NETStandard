@@ -107,8 +107,9 @@ namespace Opc.Ua.Server
                     "Security token is not a valid username token. An empty password is not accepted.");
             }
 
-            if (!m_userManagement.IsUserActive(userName) ||
-                !m_userDatabase.CheckCredentials(userName, password))
+            ct.ThrowIfCancellationRequested();
+            bool credentialsValid = m_userDatabase.CheckCredentials(userName, password);
+            if (!m_userManagement.IsUserActive(userName) || !credentialsValid)
             {
                 return Reject(
                     StatusCodes.BadUserAccessDenied,

@@ -430,14 +430,17 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(handle.IsWriteable, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that opening a readable handle does not change the file's underlying write capability.
+        /// </summary>
         [Test]
-        public void IsWriteableIsFalseWhileOpen()
+        public void IsWriteableIsTrueWhileOpen()
         {
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
             handle.Open(s_sessionId, ModeRead, out _);
 
-            Assert.That(handle.IsWriteable, Is.False);
+            Assert.That(handle.IsWriteable, Is.True);
         }
 
         [Test]

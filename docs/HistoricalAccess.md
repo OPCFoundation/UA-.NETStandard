@@ -628,8 +628,14 @@ provider instead pins an immutable archive generation and pages by offset.
 If your backend can compute aggregates server-side (Cassandra / Influx / TimescaleDB downsampling, ksql window functions, etc.) implement `IHistorianProcessedProvider`. Otherwise omit the interface — the framework will:
 
 1. Iterate `IHistorianDataProvider.ReadRawAsync` pages with `ReturnBounds = true`.
-2. Stream raw values through the `AggregateManager`'s `IAggregateCalculator`.
+2. Stream raw values through the `AggregateManager`'s `IAggregateCalculator`, using the node's
+   `Stepped` setting and draining completed intervals after each sample.
 3. Buffer the calculator output and emit it page-by-page back to the client (`MaxValuesPerPage = 1000` per buffered page).
+
+The fallback permits at most 100,000 buffered outputs. Exceeding that limit returns
+`Bad_TooManyOperations` before fetching further raw pages, rather than returning a partial successful
+result. When `UseServerCapabilitiesDefaults` is selected, both native and fallback requests use the
+node's advertised `DefaultAggregateConfiguration`; explicit request settings do not mutate those defaults.
 
 `AnnotationCount` counts annotation timestamps in half-open processing
 intervals. A zero processing interval produces one count over the complete
@@ -700,6 +706,10 @@ Update semantics (per entry, best effort):
 Changing a uniqueness field changes the entry identity: `Replace` then returns `BadNoEntryExists` and the client must `Remove` the old entry and `Insert` the new one. Every replaced, updated and removed version is retained in modified history, so `ReadModifiedAsync` returns the full trail even when several entries share a timestamp. Raw and modified reads page with exclusive composite cursors, so entries that share a timestamp are never lost or duplicated across a page boundary. `DeleteAtTime` removes the complete set of entries stored at a timestamp, and `ReturnBounds` yields the adjacent entry in composite-key order on each side of the window.
 
 ### Event history
+
+Event reads include the request's start time and exclude its end time in either direction.
+Reverse reads therefore include the later start boundary and exclude the earlier end boundary.
+Paging retains timestamp and insertion-sequence ordering, including events sharing a timestamp.
 
 `IHistorianEventProvider` works on notifier NodeIds. Events are keyed by `HistorianEventRecord.EventId` (within a notifier) and timestamped by `SourceTimestamp`:
 

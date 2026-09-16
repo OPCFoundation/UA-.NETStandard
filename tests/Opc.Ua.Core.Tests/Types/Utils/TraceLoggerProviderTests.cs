@@ -94,7 +94,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         /// <summary>
-        /// The logger reports enabled when a trace mask is configured, with no
+        /// The logger reports enabled when a trace sink and mask are configured, with no
         /// Tracing handler subscribed. IsEnabled used to consult only the
         /// handler, so every source-generated log call - which checks IsEnabled
         /// before doing any work - short-circuited and nothing reached the trace
@@ -111,12 +111,25 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [TestCase(LogLevel.Trace)]
         public void LoggerIsEnabledFollowsTheTraceMaskWithoutATracingHandler(LogLevel logLevel)
         {
+            string directory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                "TraceLoggerProviderTests",
+                Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
             using var provider = new TraceLoggerProvider();
             provider.SetTraceMask(Utils.TraceMasks.Error);
-
-            ILogger logger = provider.CreateLogger("category");
-
-            Assert.That(logger.IsEnabled(logLevel), Is.True);
+            provider.SetTraceOutput(Utils.TraceOutput.FileOnly);
+            try
+            {
+                provider.SetTraceLog(Path.Combine(directory, "trace.log"), deleteExisting: true);
+                ILogger logger = provider.CreateLogger("category");
+                Assert.That(logger.IsEnabled(logLevel), Is.True);
+            }
+            finally
+            {
+                provider.SetTraceLog(string.Empty, deleteExisting: false);
+                Directory.Delete(directory, true);
+            }
         }
 
         /// <summary>

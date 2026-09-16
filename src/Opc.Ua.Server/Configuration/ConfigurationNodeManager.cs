@@ -46,7 +46,10 @@ namespace Opc.Ua.Server
     /// certificate alarms and namespace metadata live in the sibling
     /// <c>ConfigurationNodeManager.*.cs</c> files.
     /// </summary>
-    public partial class ConfigurationNodeManager : DiagnosticsNodeManager, IConfigurationNodeManager
+    public partial class ConfigurationNodeManager :
+        DiagnosticsNodeManager,
+        IConfigurationNodeManager,
+        INodeManagerShutdown
     {
         /// <summary>
         /// Initializes the configuration and diagnostics manager.
@@ -231,7 +234,8 @@ namespace Opc.Ua.Server
             m_certificateGroups = [];
             m_configuration = configuration;
             m_namespaceMetadata = new NamespaceMetadataRegistry(this, m_logger);
-            m_alarmScheduler = new CertificateAlarmScheduler(m_timeProvider, m_logger);
+            m_alarmScheduler = new CertificateAlarmScheduler(
+                m_timeProvider, m_logger, () => m_configuration.CertificateManager as ICertificateRegistry);
             // TODO: configure cert groups in configuration
             var defaultApplicationGroup = new ServerCertificateGroup
             {
@@ -532,8 +536,31 @@ namespace Opc.Ua.Server
         /// </summary>
         public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
+            await PrepareForShutdownAsync().ConfigureAwait(false);
+            await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        ValueTask INodeManagerShutdown.PrepareForShutdownAsync()
+        {
+            return PrepareForShutdownAsync();
+        }
+
+        /// <summary>
+        /// Stops alarm and user-management work and drains deferred configuration effects before teardown.
+        /// </summary>
+        private async ValueTask PrepareForShutdownAsync()
+        {
             StopAlarmMonitoring();
             CancelPendingApplyChanges();
+
+            UserManagement.UserManagementBinding? userManagement =
+                Volatile.Read(ref m_userManagementBinding);
+            if (userManagement != null)
+            {
+                await userManagement.DisposeAsync().ConfigureAwait(false);
+                Interlocked.CompareExchange(ref m_userManagementBinding, null, userManagement);
+            }
 
             Task pending;
             Task pumpPending;
@@ -565,8 +592,6 @@ namespace Opc.Ua.Server
             {
                 m_logger.DeferredApplyChangesFaultedDuringShutdown(ex);
             }
-
-            await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

@@ -125,22 +125,51 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                m_browse ??= [];
-
-                // remove the first continuation point if too many points.
-                while (m_browse.Count >= MaxBrowse)
+                if (m_closed)
                 {
-                    ContinuationPoint cp = m_browse[0];
-                    m_browse.RemoveAt(0);
-                    m_store?.RemoveContinuationPoint(Id, ContinuationPointKind.Browse, cp.Id);
-                    cp?.Dispose();
+                    throw new ServiceResultException(StatusCodes.BadSessionClosed,
+                        "The session is closed and cannot accept browse continuation points.");
                 }
-
-                // add to end of list.
-                m_browse.Add(continuationPoint);
             }
 
-            m_store?.StoreContinuationPoint(CreateBrowseEnvelope(continuationPoint));
+            ContinuationPointEnvelope? envelope = m_store != null ? CreateBrowseEnvelope(continuationPoint) : null;
+            bool persisted = false;
+            bool admitted = false;
+            try
+            {
+                if (envelope != null)
+                {
+                    m_store!.StoreContinuationPoint(envelope);
+                    persisted = true;
+                }
+                lock (m_lock)
+                {
+                    if (m_closed)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSessionClosed,
+                            "The session closed while the browse continuation point was being persisted.");
+                    }
+                    m_browse ??= [];
+                    while (m_browse.Count >= MaxBrowse)
+                    {
+                        ContinuationPoint cp = m_browse[0];
+                        m_browse.RemoveAt(0);
+                        m_store?.RemoveContinuationPoint(Id, ContinuationPointKind.Browse, cp.Id);
+                        cp.Dispose();
+                    }
+                    // Ownership transfers only after persistence, so failed saves remain caller-owned.
+                    m_browse.Add(continuationPoint);
+                    admitted = true;
+                }
+            }
+            finally
+            {
+                if (persisted && !admitted)
+                {
+                    m_store!.RemoveContinuationPoint(
+                        envelope!.OwnerSessionId, ContinuationPointKind.Browse, envelope.Id);
+                }
+            }
         }
 
         /// <summary>

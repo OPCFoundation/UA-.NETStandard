@@ -756,7 +756,7 @@ namespace Opc.Ua
 
             if (blockSize > byte.MaxValue)
             {
-                dataArray[endOfData + paddingSize + 1] = (byte)((paddingSize & 0xFF) >> 8);
+                dataArray[endOfData + paddingSize + 1] = (byte)(paddingSize >> 8);
             }
 
             return new ArraySegment<byte>(dataArray, data.Offset, data.Count + paddingSize + paddingByteSize);
@@ -785,35 +785,24 @@ namespace Opc.Ua
                 throw new CryptographicException("Invalid padding.");
             }
 
-            // the plain text ends at this index; the padding count byte(s) are
-            // the last bytes before it.
             int end = data.Offset + data.Count;
-
             int paddingSize = dataArray[end - 1];
-
             if (paddingByteSize == 2)
             {
                 paddingSize <<= 8;
                 paddingSize += dataArray[end - 2];
             }
 
-            // the filler bytes precede the count byte(s) and must all repeat the
-            // low byte of the count (see AddPadding).
+            if (paddingSize > data.Count - paddingByteSize)
+            {
+                throw new CryptographicException("Invalid padding.");
+            }
+            int notvalid = 0;
             int start = end - paddingSize - paddingByteSize;
-
-            int notvalid = paddingSize + paddingByteSize > data.Count ? 1 : 0;
 
             for (int ii = 0; ii < paddingSize; ii++)
             {
-                int index = start + ii;
-
-                if (index < data.Offset || index >= end)
-                {
-                    notvalid |= 1;
-                    continue;
-                }
-
-                notvalid |= dataArray[index] ^ (paddingSize & 0xFF);
+                notvalid |= dataArray[start + ii] ^ (paddingSize & 0xFF);
             }
 
             if (notvalid != 0)

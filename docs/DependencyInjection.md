@@ -236,7 +236,7 @@ Prefer the first-class properties for their common settings and use
 | Method | Purpose and secure default |
 |--------|----------------------------|
 | `SetApplicationCertificates(...)` | Replaces the generated application-certificate identifiers. Prefer `SubjectName` and `PkiRoot` for the normal generated layout. |
-| `SetMaxRejectedCertificates(...)` | Sets rejected-certificate retention; default `5`. Zero or a negative value keeps no history and clears what the store already holds. |
+| `SetMaxRejectedCertificates(...)` | Sets rejected-certificate retention; default `5`. Zero keeps unlimited history; a negative value disables new storage. Directory prunes prior history at a negative limit; the shared key/value store retains it. |
 | `SetAutoAcceptUntrustedCertificates(...)` | Accepts otherwise-valid unknown peer certificates; default `false`. Prefer `AutoAcceptUntrustedCertificates`. Use `true` only in an isolated lab. |
 | `SetAddAppCertToTrustedStore(...)` | Adds a newly created application certificate to a shared trusted store; default `false`. |
 | `SetRejectSHA1SignedCertificates(...)` | Rejects SHA-1-signed certificates; default `true`. Prefer `RejectSHA1SignedCertificates`. |

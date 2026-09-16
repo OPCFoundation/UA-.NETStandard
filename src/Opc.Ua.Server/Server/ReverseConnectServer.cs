@@ -468,11 +468,13 @@ namespace Opc.Ua.Server
         {
             lock (m_connectionsLock)
             {
-                foreach (
-                    KeyValuePair<Uri, ReverseConnectProperty> entry in m_connections.Where(r =>
-                        r.Value.ConfigEntry == configEntry))
+                Uri[] urls = m_connections
+                    .Where(entry => entry.Value.ConfigEntry == configEntry)
+                    .Select(entry => entry.Key)
+                    .ToArray();
+                foreach (Uri url in urls)
                 {
-                    m_connections.Remove(entry.Key);
+                    m_connections.Remove(url);
                 }
             }
         }

@@ -320,6 +320,11 @@ namespace Opc.Ua.Bindings
 
             using (Gate.Enter())
             {
+                if (Volatile.Read(ref m_disposed) != 0 ||
+                    State is TcpChannelState.Closed or TcpChannelState.Closing)
+                {
+                    throw new ServiceResultException(StatusCodes.BadTcpSecureChannelUnknown);
+                }
                 // make sure the same client certificate is being used.
                 CompareCertificates(ClientCertificate, clientCertificate, false);
 
@@ -341,7 +346,6 @@ namespace Opc.Ua.Bindings
                     {
                         transportLimits.SetReceiveBufferSize(ReceiveBufferSize);
                     }
-
                     // Retire the old loop BEFORE closing the socket it reads
                     // from. Closing first makes that loop fail out of
                     // ReceiveChunkAsync with a socket error rather than a
@@ -358,10 +362,10 @@ namespace Opc.Ua.Bindings
                     {
                         dropped.Close();
                     }
-
                     StartReceiveLoop();
 
                     // need to assign a new token id.
+                    token.ChannelId = ChannelId;
                     token.TokenId = GetNewTokenId();
 
                     // put channel back in open state.
@@ -689,7 +693,7 @@ namespace Opc.Ua.Bindings
             uint requestId = 0;
             uint sequenceNumber = 0;
 
-            ArraySegment<byte> messageBody;
+            ArraySegment<byte> messageBody = default;
 
             try
             {
@@ -719,17 +723,13 @@ namespace Opc.Ua.Bindings
                 // check for replay attacks.
                 if (!VerifySequenceNumber(sequenceNumber, "ProcessOpenSecureChannelRequest"))
                 {
-                    // The decrypted body sits in a buffer of its own that only
-                    // the chunk collection below ever returns, and that does not
-                    // exist yet - so it has to go back here.
-                    ReturnDecryptedBuffer(messageBody);
-                    messageBody = default;
-
                     throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
                 }
             }
             catch (Exception e)
             {
+                ReturnDecryptedBuffer(messageBody);
+
                 const string errorSecurityChecksFailed
                     = "Could not verify security on OpenSecureChannel request.";
 
@@ -757,6 +757,7 @@ namespace Opc.Ua.Bindings
             BufferCollection? chunksToProcess = null;
             OpenSecureChannelRequest? request = null;
             ChannelToken? token = null;
+            bool bodyOwned = true;
             try
             {
                 bool firstCall = ClientCertificate == null;
@@ -781,14 +782,17 @@ namespace Opc.Ua.Bindings
                         clientCertificate?.Dispose();
                     }
                 }
+                clientCertificate = null;
 
                 // check if it is necessary to wait for more chunks.
                 if (!TcpMessageType.IsFinal(messageType))
                 {
+                    bodyOwned = false;
                     SaveIntermediateChunk(requestId, messageBody, true, gateHeld: true);
                     return false;
                 }
                 // get the chunks to process.
+                bodyOwned = false;
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true, gateHeld: true);
 
                 using var openRequestStream = new ArraySegmentStream(chunksToProcess);
@@ -1003,7 +1007,12 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
+                clientCertificate?.Dispose();
                 token?.Dispose();
+                if (bodyOwned)
+                {
+                    ReturnDecryptedBuffer(messageBody);
+                }
                 chunksToProcess?.Release(BufferManager, "ProcessOpenSecureChannelRequest");
             }
         }
@@ -1376,13 +1385,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="RequestId">The request identifier.</param>
         /// <param name="Request">The decoded request.</param>
-        /// <summary>
-        /// A request that has been decoded but not yet handed to the server.
-        /// </summary>
         /// <param name="Chunks">
-        /// The buffers the request was decoded from. The decoder does not copy
-        /// everything it reads, so these must outlive the handler and are
-        /// released only once it returns.
+        /// The buffers used during decoding, retained until the request callback returns.
+        /// Stream decoding copies the request's strings and byte strings; an asynchronous
+        /// callback may continue after these buffers are released.
         /// </param>
         private sealed record PendingRequestDispatch(
             uint RequestId,
@@ -1589,10 +1595,8 @@ namespace Opc.Ua.Bindings
                 // arbitrary request processing serialises the whole channel on
                 // it. The caller dispatches this once it has left the gate.
                 //
-                // Ownership of the chunks transfers with it. The decoder above
-                // does not copy everything it reads, so returning them to the
-                // pool here would let the request be overwritten underneath the
-                // handler by the next message on this channel.
+                // Transfer chunk cleanup to dispatch. Stream decoding has copied
+                // the request values, so they do not borrow these pooled arrays.
                 pending = new PendingRequestDispatch(requestId, request, chunksToProcess);
                 chunksToProcess = null;
 
@@ -1774,9 +1778,16 @@ namespace Opc.Ua.Bindings
             // read the type of the message before more chunks are processed, and
             // finish reading before the body can change hands below.
             NodeId typeId;
-            using (var decoder = new BinaryDecoder(messageBody, Quotas.MessageContext))
+            try
             {
+                using var decoder = new BinaryDecoder(messageBody, Quotas.MessageContext);
                 typeId = decoder.ReadNodeId(null);
+            }
+            catch
+            {
+                // ProcessRequestMessage reports ownership even when decoding fails.
+                ReturnBuffer(messageBody, nameof(ValidateDiscoveryServiceCall));
+                throw;
             }
 
             if (typeId != ObjectIds.GetEndpointsRequest_Encoding_DefaultBinary &&

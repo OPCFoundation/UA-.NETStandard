@@ -100,7 +100,16 @@ namespace Opc.Ua.Server.UserDatabase
         /// The constructor.
         /// </summary>
         public LinqUserDatabase()
+            : this(null)
         {
+        }
+
+        /// <summary>
+        /// Creates an empty database with an optional observer for verifying derived-key cleanup.
+        /// </summary>
+        internal LinqUserDatabase(Action<byte[]>? keyDerived)
+        {
+            m_keyDerived = keyDerived;
             Initialize();
         }
 
@@ -118,6 +127,7 @@ namespace Opc.Ua.Server.UserDatabase
             }
 
             string hash = Hash(password);
+            Role[]? assignedRoles = roles?.ToArray();
 
             bool added = true;
             User newUser = m_users.AddOrUpdate(userName,
@@ -126,14 +136,18 @@ namespace Opc.Ua.Server.UserDatabase
                     ID = Guid.NewGuid(),
                     UserName = userName,
                     Hash = hash,
-                    Roles = roles
+                    Roles = assignedRoles!
                 },
                 (key, value) =>
                 {
                     added = false;
-                    value.Hash = hash;
-                    value.Roles = roles;
-                    return value;
+                    return new User
+                    {
+                        ID = value.ID,
+                        UserName = value.UserName,
+                        Hash = hash,
+                        Roles = assignedRoles!
+                    };
                 });
 
             SaveChanges();
@@ -149,7 +163,13 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
 
-            return m_users.TryRemove(userName, out _);
+            if (!m_users.TryRemove(userName, out _))
+            {
+                return false;
+            }
+
+            SaveChanges();
+            return true;
         }
 
         /// <inheritdoc/>
@@ -165,12 +185,9 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("Password cannot be empty.", nameof(password));
             }
 
-            if (!m_users.TryGetValue(userName, out User? user))
-            {
-                return false;
-            }
-
-            return Check(user!.Hash, password);
+            bool known = m_users.TryGetValue(userName, out User? user);
+            bool valid = Check(known ? user!.Hash : s_unknownUserHash, password);
+            return known && valid;
         }
 
         /// <inheritdoc/>
@@ -230,7 +247,18 @@ namespace Opc.Ua.Server.UserDatabase
 
             if (Check(user!.Hash, oldPassword))
             {
-                user.Hash = Hash(newPassword);
+                var replacement = new User
+                {
+                    ID = user.ID,
+                    UserName = user.UserName,
+                    Hash = Hash(newPassword),
+                    Roles = user.Roles
+                };
+                if (!m_users.TryUpdate(userName, replacement, user))
+                {
+                    return false;
+                }
+                SaveChanges();
                 return true;
             }
 
@@ -250,12 +278,12 @@ namespace Opc.Ua.Server.UserDatabase
         [DataMember(Name = "Users", IsRequired = true, Order = 10)]
         public User[] Users
         {
-            get => [.. m_users.Values];
+            get => m_users.Values.Select(SnapshotUser).ToArray();
             set
             {
                 foreach (User user in value)
                 {
-                    m_users.TryAdd(user.UserName, user);
+                    m_users.TryAdd(user.UserName, SnapshotUser(user));
                 }
             }
         }
@@ -273,6 +301,9 @@ namespace Opc.Ua.Server.UserDatabase
             Save();
         }
 
+        /// <summary>
+        /// Creates a salted PBKDF2-SHA512 password verifier and clears temporary key material.
+        /// </summary>
         private static string Hash(ReadOnlySpan<byte> password)
         {
 #if NET10_0_OR_GREATER // Use span and non obsoleted APIs
@@ -280,15 +311,19 @@ namespace Opc.Ua.Server.UserDatabase
             Span<byte> keyBytes = stackalloc byte[kKeySize];
             Span<byte> saltBytes = stackalloc byte[kSaltSize + sizeof(uint)];
             RandomNumberGenerator.Fill(saltBytes);
-            Rfc2898DeriveBytes.Pbkdf2(
-                password,
-                saltBytes,
-                keyBytes,
-                kIterations,
-                HashAlgorithmName.SHA512);
-            string keyBase64 = Convert.ToBase64String(keyBytes);
-            string saltBase64 = Convert.ToBase64String(saltBytes);
-            return $"{kIterations}.{saltBase64}.{keyBase64}";
+            try
+            {
+                Rfc2898DeriveBytes.Pbkdf2(
+                    password, saltBytes, keyBytes, kIterations, HashAlgorithmName.SHA512);
+                string keyBase64 = Convert.ToBase64String(keyBytes);
+                string saltBase64 = Convert.ToBase64String(saltBytes);
+                return $"{kIterations}.{saltBase64}.{keyBase64}";
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(keyBytes);
+                CryptoUtils.ZeroMemory(saltBytes);
+            }
 
 #else // !NET10_0_OR_GREATER
             byte[] tmpPassword = password.ToArray();
@@ -308,9 +343,17 @@ namespace Opc.Ua.Server.UserDatabase
                     salt,
                     kIterations,
                     HashAlgorithmName.SHA512);
-                string keyBase64 = Convert.ToBase64String(algorithm.GetBytes(kKeySize));
-                string saltBase64 = Convert.ToBase64String(algorithm.Salt);
-                return $"{kIterations}.{saltBase64}.{keyBase64}";
+                byte[] key = algorithm.GetBytes(kKeySize);
+                try
+                {
+                    string keyBase64 = Convert.ToBase64String(key);
+                    string saltBase64 = Convert.ToBase64String(algorithm.Salt);
+                    return $"{kIterations}.{saltBase64}.{keyBase64}";
+                }
+                finally
+                {
+                    CryptoUtils.ZeroMemory(key);
+                }
             }
             finally
             {
@@ -319,7 +362,10 @@ namespace Opc.Ua.Server.UserDatabase
 #endif // !NET10_0_OR_GREATER
         }
 
-        private static bool Check(string hash, ReadOnlySpan<byte> password)
+        /// <summary>
+        /// Checks a stored password verifier with a fixed-time key comparison and clears the derived key afterward.
+        /// </summary>
+        private bool Check(string hash, ReadOnlySpan<byte> password)
         {
 #if NET6_0_OR_GREATER
             string[] parts = hash.Split('.', 3, StringSplitOptions.TrimEntries);
@@ -348,38 +394,73 @@ namespace Opc.Ua.Server.UserDatabase
 
             byte[] salt = Convert.FromBase64String(parts[1]);
             byte[] key = Convert.FromBase64String(parts[2]);
-            if (key.Length == 0)
+            if (key.Length != kKeySize)
             {
-                // An empty derived key cannot come from Hash() and would make the
-                // net10 span overload derive zero bytes; reject it explicitly.
+                CryptoUtils.ZeroMemory(key);
                 return false;
             }
-#if NET10_0_OR_GREATER
-            // Use span overloads
-            byte[] keyToCheck = Rfc2898DeriveBytes.Pbkdf2(
-                password,
-                salt,
-                iterations,
-                HashAlgorithmName.SHA512,
-                key.Length);
-            return keyToCheck.SequenceEqual(key);
-#else
-            byte[] tmpPassword = password.ToArray();
+            byte[]? keyToCheck = null;
             try
             {
-                using var algorithm = new Rfc2898DeriveBytes(
-                    tmpPassword,
-                    salt,
-                    iterations,
-                    HashAlgorithmName.SHA512);
-                byte[] keyToCheck = algorithm.GetBytes(kKeySize);
-                return keyToCheck.SequenceEqual(key);
+#if NET10_0_OR_GREATER
+                keyToCheck = Rfc2898DeriveBytes.Pbkdf2(
+                    password, salt, iterations, HashAlgorithmName.SHA512, kKeySize);
+#else
+                byte[] tmpPassword = password.ToArray();
+                try
+                {
+                    using var algorithm = new Rfc2898DeriveBytes(
+                        tmpPassword, salt, iterations, HashAlgorithmName.SHA512);
+                    keyToCheck = algorithm.GetBytes(kKeySize);
+                }
+                finally
+                {
+                    CryptoUtils.ZeroMemory(tmpPassword);
+                }
+#endif
+                m_keyDerived?.Invoke(keyToCheck);
+                return CryptoUtils.FixedTimeEquals(keyToCheck, key);
             }
             finally
             {
-                Array.Clear(tmpPassword, 0, tmpPassword.Length);
+                if (keyToCheck != null)
+                {
+                    CryptoUtils.ZeroMemory(keyToCheck);
+                }
+                CryptoUtils.ZeroMemory(key);
             }
-#endif
+        }
+
+        /// <summary>
+        /// Copies a user and its role collection so callers cannot mutate the stored record.
+        /// </summary>
+        private static User SnapshotUser(User user)
+        {
+            return new User
+            {
+                ID = user.ID,
+                UserName = user.UserName,
+                Hash = user.Hash,
+                Roles = user.Roles?.ToArray()!
+            };
+        }
+
+        /// <summary>
+        /// Creates a random password verifier for performing equivalent derivation work on unknown-user checks.
+        /// </summary>
+        private static string CreateUnknownUserHash()
+        {
+            byte[] secret = new byte[kKeySize];
+            try
+            {
+                using RandomNumberGenerator random = RandomNumberGenerator.Create();
+                random.GetBytes(secret);
+                return Hash(secret);
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(secret);
+            }
         }
 
         [OnDeserialized]
@@ -388,6 +469,15 @@ namespace Opc.Ua.Server.UserDatabase
             Initialize();
         }
 
+        /// <summary>
+        /// Observes the derived key before cleanup so tests can verify that the buffer is cleared.
+        /// </summary>
+        private readonly Action<byte[]>? m_keyDerived;
+
+        /// <summary>
+        /// Supplies a real verifier for credential checks that do not find a stored user.
+        /// </summary>
+        private static readonly string s_unknownUserHash = CreateUnknownUserHash();
         private ConcurrentDictionary<string, User> m_users = new();
     }
 

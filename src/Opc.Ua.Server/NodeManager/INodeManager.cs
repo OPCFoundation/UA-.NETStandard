@@ -140,6 +140,9 @@ namespace Opc.Ua.Server
         /// be responsible for filling in the target attributes.
         /// The references parameter may already contain references when the method is called. The implementer must
         /// include these references when calculating whether a continuation point must be returned.
+        /// Dispose a consumed or replaced continuation point before updating the continuationPoint reference.
+        /// On failure, leave disposal to the dispatcher. On successful paging, the dispatcher transfers ownership
+        /// to the session's continuation-point store.
         /// </remarks>
         /// <exception cref="ArgumentNullException">Thrown if the context, continuationPoint or references parameters are null.</exception>
         /// <exception cref="ServiceResultException">Thrown if an error occurs during processing.</exception>
@@ -581,6 +584,9 @@ namespace Opc.Ua.Server
         /// be responsible for filling in the target attributes.
         /// The references parameter may already contain references when the method is called. The implementer must
         /// include these references when calculating whether a continuation point must be returned.
+        /// Dispose a consumed or replaced continuation point before returning null or its replacement.
+        /// On failure, leave disposal to the dispatcher. On successful paging, the dispatcher transfers ownership
+        /// to the session's continuation-point store.
         /// </remarks>
         /// <returns>The continuation point that stores the state of the Browse operation or null if there are no more references to return.</returns>
         /// <exception cref="ArgumentNullException">Thrown if the context, continuationPoint or references parameters are null.</exception>

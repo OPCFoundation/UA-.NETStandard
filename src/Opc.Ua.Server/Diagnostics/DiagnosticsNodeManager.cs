@@ -126,24 +126,14 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                m_modifyAddressSpaceSemaphoreSlim.Wait(10);
-                try
+                lock (m_diagnosticsLock)
                 {
+                    m_diagnosticsDisposed = true;
                     m_diagnosticsScanTimer?.Dispose();
                     m_diagnosticsScanTimer = null;
-
-                    m_samplingTimer?.Dispose();
-                    m_samplingTimer = null;
                 }
-                finally
-                {
-                    m_modifyAddressSpaceSemaphoreSlim.Release();
-                }
-
-                m_modifyAddressSpaceSemaphoreSlim.Dispose();
-                m_diagnosticsTransitionSemaphore.Dispose();
-
-                m_historyCapabilities = null;
+                m_samplingTimer?.Dispose();
+                m_samplingTimer = null;
 
                 // OPC UA Part 17 — unsubscribe from the alias-name
                 // registry so the registry does not hold a stale handler
@@ -152,6 +142,56 @@ namespace Opc.Ua.Server
             }
 
             base.Dispose(disposing);
+        }
+
+        /// <summary>
+        /// Tracks a diagnostics operation and acquires address-space access unless the node manager is stopping.
+        /// </summary>
+        private async ValueTask<NodeManagerOperation> EnterDiagnosticsOperationAsync(CancellationToken ct)
+        {
+            NodeManagerOperation operation = BeginNodeManagerOperation();
+            bool acquired = false;
+            try
+            {
+                await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
+                acquired = true;
+                ThrowIfNodeManagerStopping();
+                return operation;
+            }
+            catch
+            {
+                if (acquired)
+                {
+                    m_modifyAddressSpaceSemaphoreSlim.Release();
+                }
+                operation.Dispose();
+                throw;
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override async ValueTask DisposeAsyncCore()
+        {
+            await m_diagnosticsTransitionSemaphore.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                await m_modifyAddressSpaceSemaphoreSlim.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    m_historyCapabilities = null;
+                }
+                finally
+                {
+                    m_modifyAddressSpaceSemaphoreSlim.Release();
+                    m_modifyAddressSpaceSemaphoreSlim.Dispose();
+                }
+            }
+            finally
+            {
+                m_diagnosticsTransitionSemaphore.Release();
+                m_diagnosticsTransitionSemaphore.Dispose();
+            }
+            await base.DisposeAsyncCore().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -714,6 +754,8 @@ namespace Opc.Ua.Server
             bool enabled,
             CancellationToken cancellationToken = default)
         {
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+
             // Transitions are serialized for their whole duration, including the removal of the
             // dynamic nodes, so that an enable cannot restore nodes that a still running disable
             // deletes afterwards. Once started, a transition is not cancelled half way.
@@ -732,7 +774,8 @@ namespace Opc.Ua.Server
         {
             var nodesToDelete = new List<NodeState>();
 
-            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            using NodeManagerOperation nodeOperation = await EnterDiagnosticsOperationAsync(CancellationToken.None)
+                .ConfigureAwait(false);
             try
             {
                 if (enabled == DiagnosticsEnabled)
@@ -743,6 +786,14 @@ namespace Opc.Ua.Server
                 ServerDiagnosticsState diagnosticsNode = FindPredefinedNode<ServerDiagnosticsState>(
                     ObjectIds.Server_ServerDiagnostics);
 
+                SessionDiagnosticsData[] sessions;
+                SubscriptionDiagnosticsData[] subscriptions;
+                lock (m_diagnosticsCollectionLock)
+                {
+                    sessions = [.. m_sessions];
+                    subscriptions = [.. m_subscriptions];
+                }
+
                 if (!enabled)
                 {
                     // stop scans; a scan that is already running holds the diagnostics lock, so
@@ -750,33 +801,8 @@ namespace Opc.Ua.Server
                     lock (m_diagnosticsLock)
                     {
                         DiagnosticsEnabled = false;
-                    }
+                        UpdateDiagnosticsScanTimer();
 
-                    m_diagnosticsScanTimer?.Dispose();
-                    m_diagnosticsScanTimer = null;
-
-                    // remove the dynamic nodes but keep the registrations so that the
-                    // nodes can be restored when the collection is enabled again.
-                    SessionsDiagnosticsSummaryState? sessionsSummary = FindPredefinedNode<SessionsDiagnosticsSummaryState>(
-                        ObjectIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary);
-                    for (int ii = 0; ii < m_sessions.Count; ii++)
-                    {
-                        SessionDiagnosticsObjectState sessionNode = m_sessions[ii].Summary;
-                        sessionsSummary?.RemoveReference(ReferenceTypeIds.HasComponent, false, sessionNode.NodeId);
-                        nodesToDelete.Add(sessionNode);
-                    }
-
-                    SubscriptionDiagnosticsArrayState? subscriptionArray = diagnosticsNode?.SubscriptionDiagnosticsArray;
-                    for (int ii = 0; ii < m_subscriptions.Count; ii++)
-                    {
-                        SubscriptionDiagnosticsState subscriptionNode = m_subscriptions[ii].Value.Variable;
-                        subscriptionArray?.RemoveReference(ReferenceTypeIds.HasComponent, false, subscriptionNode.NodeId);
-                        nodesToDelete.Add(subscriptionNode);
-                    }
-
-                    // static diagnostic variables are not readable while disabled.
-                    lock (m_diagnosticsLock)
-                    {
                         if (m_serverDiagnostics != null)
                         {
                             m_serverDiagnostics.Value = null!;
@@ -787,46 +813,67 @@ namespace Opc.Ua.Server
 
                         SetDiagnosticsArrayStatus(diagnosticsNode, StatusCodes.BadNotReadable);
                     }
+
+                    // remove the dynamic nodes but keep the registrations so that the
+                    // nodes can be restored when the collection is enabled again.
+                    SessionsDiagnosticsSummaryState? sessionsSummary = FindPredefinedNode<SessionsDiagnosticsSummaryState>(
+                        ObjectIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary);
+                    for (int ii = 0; ii < sessions.Length; ii++)
+                    {
+                        SessionDiagnosticsObjectState sessionNode = sessions[ii].Summary;
+                        sessionsSummary?.RemoveReference(ReferenceTypeIds.HasComponent, false, sessionNode.NodeId);
+                        nodesToDelete.Add(sessionNode);
+                    }
+
+                    SubscriptionDiagnosticsArrayState? subscriptionArray = diagnosticsNode?.SubscriptionDiagnosticsArray;
+                    for (int ii = 0; ii < subscriptions.Length; ii++)
+                    {
+                        SubscriptionDiagnosticsState subscriptionNode = subscriptions[ii].Value.Variable;
+                        subscriptionArray?.RemoveReference(ReferenceTypeIds.HasComponent, false, subscriptionNode.NodeId);
+                        nodesToDelete.Add(subscriptionNode);
+                    }
                 }
                 else
                 {
-                    DiagnosticsEnabled = true;
-
                     // restore the dynamic nodes of the sessions and subscriptions that are
-                    // still alive. Sessions first, the subscriptions link to them.
-                    for (int ii = 0; ii < m_sessions.Count; ii++)
+                    // still alive before scans resume. Sessions first, the subscriptions link to them.
+                    for (int ii = 0; ii < sessions.Length; ii++)
                     {
-                        m_sessions[ii] = await RestoreSessionDiagnosticsAsync(
-                            m_sessions[ii],
+                        SessionDiagnosticsData session = await RestoreSessionDiagnosticsAsync(
+                            sessions[ii],
                             CancellationToken.None).ConfigureAwait(false);
+                        lock (m_diagnosticsCollectionLock)
+                        {
+                            m_sessions[ii] = session;
+                        }
                     }
 
-                    for (int ii = 0; ii < m_subscriptions.Count; ii++)
+                    for (int ii = 0; ii < subscriptions.Length; ii++)
                     {
-                        m_subscriptions[ii] = await RestoreSubscriptionDiagnosticsAsync(
-                            m_subscriptions[ii],
+                        SubscriptionDiagnosticsData subscription = await RestoreSubscriptionDiagnosticsAsync(
+                            subscriptions[ii],
                             CancellationToken.None).ConfigureAwait(false);
+                        lock (m_diagnosticsCollectionLock)
+                        {
+                            m_subscriptions[ii] = subscription;
+                        }
                     }
 
-                    // reset all diagnostics nodes.
-                    if (m_serverDiagnostics != null)
+                    lock (m_diagnosticsLock)
                     {
-                        m_serverDiagnostics.Value = null!;
-                        m_serverDiagnostics.Error = StatusCodes.BadWaitingForInitialData;
-                        m_serverDiagnostics.Timestamp = DateTime.UtcNow;
-                    }
+                        DiagnosticsEnabled = true;
 
-                    SetDiagnosticsArrayStatus(diagnosticsNode, StatusCodes.Good);
+                        // reset all diagnostics nodes.
+                        if (m_serverDiagnostics != null)
+                        {
+                            m_serverDiagnostics.Value = null!;
+                            m_serverDiagnostics.Error = StatusCodes.BadWaitingForInitialData;
+                            m_serverDiagnostics.Timestamp = DateTime.UtcNow;
+                        }
 
-                    DoScan(true);
-
-                    if (m_diagnosticsMonitoringCount > 0)
-                    {
-                        m_diagnosticsScanTimer ??= m_timeProvider.CreateTimer(
-                            DoScan,
-                            null,
-                            TimeSpan.FromMilliseconds(1000),
-                            TimeSpan.FromMilliseconds(1000));
+                        SetDiagnosticsArrayStatus(diagnosticsNode, StatusCodes.Good);
+                        DoScan(true);
+                        UpdateDiagnosticsScanTimer();
                     }
                 }
             }
@@ -900,7 +947,8 @@ namespace Opc.Ua.Server
             NodeValueSimpleEventHandler updateCallback,
             CancellationToken cancellationToken)
         {
-            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            using NodeManagerOperation nodeOperation = await EnterDiagnosticsOperationAsync(cancellationToken)
+                .ConfigureAwait(false);
             try
             {
                 // get the node.
@@ -978,7 +1026,8 @@ namespace Opc.Ua.Server
         {
             NodeId nodeId = default;
 
-            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            using NodeManagerOperation nodeOperation = await EnterDiagnosticsOperationAsync(cancellationToken)
+                .ConfigureAwait(false);
             SessionDiagnosticsObjectState? tempSessionNode = null;
             try
             {
@@ -1019,7 +1068,10 @@ namespace Opc.Ua.Server
                     securityDiagnostics,
                     updateSecurityCallback);
 
-                m_sessions.Add(sessionData);
+                lock (m_diagnosticsCollectionLock)
+                {
+                    m_sessions.Add(sessionData);
+                }
 
                 if (!DiagnosticsEnabled)
                 {
@@ -1162,17 +1214,21 @@ namespace Opc.Ua.Server
             NodeId nodeId,
             CancellationToken cancellationToken = default)
         {
-            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            using NodeManagerOperation nodeOperation = await EnterDiagnosticsOperationAsync(cancellationToken)
+                .ConfigureAwait(false);
             try
             {
-                for (int ii = 0; ii < m_sessions.Count; ii++)
+                lock (m_diagnosticsCollectionLock)
                 {
-                    SessionDiagnosticsObjectState summary = m_sessions[ii].Summary;
-
-                    if (summary.NodeId == nodeId)
+                    for (int ii = 0; ii < m_sessions.Count; ii++)
                     {
-                        m_sessions.RemoveAt(ii);
-                        break;
+                        SessionDiagnosticsObjectState summary = m_sessions[ii].Summary;
+                        if (summary.NodeId == nodeId)
+                        {
+                            m_sessions.RemoveAt(ii);
+                            m_forceDiagnosticsScan = true;
+                            break;
+                        }
                     }
                 }
 
@@ -1199,7 +1255,8 @@ namespace Opc.Ua.Server
         {
             NodeId nodeId = default;
 
-            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            using NodeManagerOperation nodeOperation = await EnterDiagnosticsOperationAsync(cancellationToken)
+                .ConfigureAwait(false);
             SubscriptionDiagnosticsState? tempDiagnosticsNode = null;
             try
             {
@@ -1223,7 +1280,12 @@ namespace Opc.Ua.Server
                     cancellationToken).ConfigureAwait(false);
                 tempDiagnosticsNode = null; // ownership transferred to address space
 
-                m_subscriptions.Add(CreateSubscriptionDiagnosticsData(diagnosticsNode, diagnostics, updateCallback));
+                SubscriptionDiagnosticsData subscriptionData = CreateSubscriptionDiagnosticsData(
+                    diagnosticsNode, diagnostics, updateCallback);
+                lock (m_diagnosticsCollectionLock)
+                {
+                    m_subscriptions.Add(subscriptionData);
+                }
 
                 LinkSubscriptionDiagnostics(diagnosticsNode, diagnostics);
 
@@ -1345,17 +1407,21 @@ namespace Opc.Ua.Server
             NodeId nodeId,
             CancellationToken cancellationToken = default)
         {
-            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            using NodeManagerOperation nodeOperation = await EnterDiagnosticsOperationAsync(cancellationToken)
+                .ConfigureAwait(false);
             try
             {
-                for (int ii = 0; ii < m_subscriptions.Count; ii++)
+                lock (m_diagnosticsCollectionLock)
                 {
-                    SubscriptionDiagnosticsData diagnostics = m_subscriptions[ii];
-
-                    if (diagnostics.Value.Variable.NodeId == nodeId)
+                    for (int ii = 0; ii < m_subscriptions.Count; ii++)
                     {
-                        m_subscriptions.RemoveAt(ii);
-                        break;
+                        SubscriptionDiagnosticsData diagnostics = m_subscriptions[ii];
+                        if (diagnostics.Value.Variable.NodeId == nodeId)
+                        {
+                            m_subscriptions.RemoveAt(ii);
+                            m_forceDiagnosticsScan = true;
+                            break;
+                        }
                     }
                 }
             }
@@ -1370,7 +1436,8 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public async ValueTask<HistoryServerCapabilitiesState> GetDefaultHistoryCapabilitiesAsync(CancellationToken cancellationToken = default)
         {
-            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            using NodeManagerOperation nodeOperation = await EnterDiagnosticsOperationAsync(cancellationToken)
+                .ConfigureAwait(false);
             try
             {
                 // search the Node in PredefinedNodes.
@@ -1480,7 +1547,8 @@ namespace Opc.Ua.Server
                 }
             }
 
-            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            using NodeManagerOperation nodeOperation = await EnterDiagnosticsOperationAsync(cancellationToken)
+                .ConfigureAwait(false);
             try
             {
                 // Find the Server object
@@ -1529,7 +1597,8 @@ namespace Opc.Ua.Server
             bool isHistorical,
             CancellationToken cancellationToken = default)
         {
-            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            using NodeManagerOperation nodeOperation = await EnterDiagnosticsOperationAsync(cancellationToken)
+                .ConfigureAwait(false);
             try
             {
                 var state = new FolderState(null)
@@ -1580,7 +1649,8 @@ namespace Opc.Ua.Server
             string modellingRuleName,
             CancellationToken cancellationToken = default)
         {
-            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            using NodeManagerOperation nodeOperation = await EnterDiagnosticsOperationAsync(cancellationToken)
+                .ConfigureAwait(false);
             try
             {
                 var state = new FolderState(null)
@@ -1619,7 +1689,8 @@ namespace Opc.Ua.Server
             ArrayOf<string> serverProfiles,
             CancellationToken cancellationToken = default)
         {
-            await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            using NodeManagerOperation nodeOperation = await EnterDiagnosticsOperationAsync(cancellationToken)
+                .ConfigureAwait(false);
             try
             {
                 BaseVariableState? conformanceUnitsNode = FindPredefinedNode<BaseVariableState>(
@@ -2018,11 +2089,16 @@ namespace Opc.Ua.Server
                         .Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosticsArray)
                 {
                     // read session diagnostics.
-                    var sessionArray = new SessionDiagnosticsDataType[m_sessions.Count];
-
-                    for (int ii = 0; ii < m_sessions.Count; ii++)
+                    SessionDiagnosticsData[] sessions;
+                    lock (m_diagnosticsCollectionLock)
                     {
-                        SessionDiagnosticsData diagnostics = m_sessions[ii];
+                        sessions = [.. m_sessions];
+                    }
+                    var sessionArray = new SessionDiagnosticsDataType[sessions.Length];
+
+                    for (int ii = 0; ii < sessions.Length; ii++)
+                    {
+                        SessionDiagnosticsData diagnostics = sessions[ii];
                         UpdateSessionDiagnostics(context, diagnostics, sessionArray, ii);
                     }
 
@@ -2032,14 +2108,18 @@ namespace Opc.Ua.Server
                     VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityDiagnosticsArray)
                 {
                     // read session security diagnostics.
-                    var sessionSecurityArray = new SessionSecurityDiagnosticsDataType[m_sessions
-                        .Count];
+                    SessionDiagnosticsData[] sessions;
+                    lock (m_diagnosticsCollectionLock)
+                    {
+                        sessions = [.. m_sessions];
+                    }
+                    var sessionSecurityArray = new SessionSecurityDiagnosticsDataType[sessions.Length];
 
-                    for (int ii = 0; ii < m_sessions.Count; ii++)
+                    for (int ii = 0; ii < sessions.Length; ii++)
                     {
                         UpdateSessionSecurityDiagnostics(
                             context,
-                            m_sessions[ii],
+                            sessions[ii],
                             sessionSecurityArray,
                             ii);
                     }
@@ -2049,14 +2129,18 @@ namespace Opc.Ua.Server
                     .Server_ServerDiagnostics_SubscriptionDiagnosticsArray)
                 {
                     // read subscription diagnostics.
-                    var subscriptionArray = new SubscriptionDiagnosticsDataType[m_subscriptions
-                        .Count];
+                    SubscriptionDiagnosticsData[] subscriptions;
+                    lock (m_diagnosticsCollectionLock)
+                    {
+                        subscriptions = [.. m_subscriptions];
+                    }
+                    var subscriptionArray = new SubscriptionDiagnosticsDataType[subscriptions.Length];
 
-                    for (int ii = 0; ii < m_subscriptions.Count; ii++)
+                    for (int ii = 0; ii < subscriptions.Length; ii++)
                     {
                         UpdateSubscriptionDiagnostics(
                             context,
-                            m_subscriptions[ii],
+                            subscriptions[ii],
                             subscriptionArray,
                             ii);
                     }
@@ -2103,20 +2187,27 @@ namespace Opc.Ua.Server
                     try
                     {
                         m_doScanBusy = true;
+                        SessionDiagnosticsData[] sessions;
+                        SubscriptionDiagnosticsData[] subscriptions;
+                        lock (m_diagnosticsCollectionLock)
+                        {
+                            m_forceDiagnosticsScan = false;
+                            sessions = [.. m_sessions];
+                            subscriptions = [.. m_subscriptions];
+                        }
 
                         m_lastDiagnosticsScanTimestamp = m_timeProvider.GetTimestamp();
-                        m_forceDiagnosticsScan = false;
 
                         // update server diagnostics.
                         UpdateServerDiagnosticsSummary();
 
                         // update session diagnostics.
                         bool sessionsChanged = alwaysUpdateArrays != null;
-                        var sessionArray = new SessionDiagnosticsDataType[m_sessions.Count];
+                        var sessionArray = new SessionDiagnosticsDataType[sessions.Length];
 
-                        for (int ii = 0; ii < m_sessions.Count; ii++)
+                        for (int ii = 0; ii < sessions.Length; ii++)
                         {
-                            SessionDiagnosticsData diagnostics = m_sessions[ii];
+                            SessionDiagnosticsData diagnostics = sessions[ii];
 
                             if (UpdateSessionDiagnostics(null!, diagnostics, sessionArray, ii))
                             {
@@ -2139,11 +2230,11 @@ namespace Opc.Ua.Server
                         }
 
                         bool sessionsSecurityChanged = alwaysUpdateArrays != null;
-                        var sessionSecurityArray = new SessionSecurityDiagnosticsDataType[m_sessions.Count];
+                        var sessionSecurityArray = new SessionSecurityDiagnosticsDataType[sessions.Length];
 
-                        for (int ii = 0; ii < m_sessions.Count; ii++)
+                        for (int ii = 0; ii < sessions.Length; ii++)
                         {
-                            SessionDiagnosticsData diagnostics = m_sessions[ii];
+                            SessionDiagnosticsData diagnostics = sessions[ii];
 
                             if (UpdateSessionSecurityDiagnostics(
                                 null!,
@@ -2173,12 +2264,11 @@ namespace Opc.Ua.Server
                         }
 
                         bool subscriptionsChanged = alwaysUpdateArrays != null;
-                        var subscriptionArray = new SubscriptionDiagnosticsDataType[m_subscriptions
-                            .Count];
+                        var subscriptionArray = new SubscriptionDiagnosticsDataType[subscriptions.Length];
 
-                        for (int ii = 0; ii < m_subscriptions.Count; ii++)
+                        for (int ii = 0; ii < subscriptions.Length; ii++)
                         {
-                            SubscriptionDiagnosticsData diagnostics = m_subscriptions[ii];
+                            SubscriptionDiagnosticsData diagnostics = subscriptions[ii];
 
                             if (UpdateSubscriptionDiagnostics(
                                 null!,
@@ -2205,18 +2295,18 @@ namespace Opc.Ua.Server
                             subscriptionsNode.ClearChangeMasks(SystemContext, false);
                         }
 
-                        for (int ii = 0; ii < m_sessions.Count; ii++)
+                        for (int ii = 0; ii < sessions.Length; ii++)
                         {
-                            SessionDiagnosticsData diagnostics = m_sessions[ii];
+                            SessionDiagnosticsData diagnostics = sessions[ii];
                             var subscriptionDiagnosticsArray
                                 = new List<SubscriptionDiagnosticsDataType>();
 
                             NodeId sessionId = diagnostics.Summary.NodeId;
 
-                            for (int jj = 0; jj < m_subscriptions.Count; jj++)
+                            for (int jj = 0; jj < subscriptions.Length; jj++)
                             {
                                 SubscriptionDiagnosticsData subscriptionDiagnostics
-                                    = m_subscriptions[jj];
+                                    = subscriptions[jj];
 
                                 if (subscriptionDiagnostics.Value.Value == null)
                                 {
@@ -2295,16 +2385,8 @@ namespace Opc.Ua.Server
             {
                 monitoredItem.AlwaysReportUpdates = IsDiagnosticsStructureNode(handle.Node);
 
-                if (monitoredItem.MonitoringMode != MonitoringMode.Disabled)
+                if (UpdateDiagnosticsMonitoring(MonitoringMode.Disabled, monitoredItem.MonitoringMode))
                 {
-                    Interlocked.Increment(ref m_diagnosticsMonitoringCount);
-
-                    m_diagnosticsScanTimer ??= m_timeProvider.CreateTimer(
-                        DoScan,
-                        null,
-                        TimeSpan.FromMilliseconds(1000),
-                        TimeSpan.FromMilliseconds(1000));
-
                     DoScan(true);
                 }
             }
@@ -2325,20 +2407,10 @@ namespace Opc.Ua.Server
         {
             // check if diagnostics collection needs to be turned off.
             if (IsDiagnosticsNode(handle.Node) &&
-                monitoredItem.MonitoringMode != MonitoringMode.Disabled)
+                monitoredItem.MonitoringMode != MonitoringMode.Disabled &&
+                UpdateDiagnosticsMonitoring(monitoredItem.MonitoringMode, MonitoringMode.Disabled))
             {
-                Interlocked.Decrement(ref m_diagnosticsMonitoringCount);
-
-                if (m_diagnosticsMonitoringCount == 0 && m_diagnosticsScanTimer != null)
-                {
-                    m_diagnosticsScanTimer.Dispose();
-                    m_diagnosticsScanTimer = null;
-                }
-
-                if (m_diagnosticsScanTimer != null)
-                {
-                    DoScan(true);
-                }
+                DoScan(true);
             }
 
             // check if sampling needs to be turned off.
@@ -2369,36 +2441,57 @@ namespace Opc.Ua.Server
             MonitoringMode monitoringMode,
             CancellationToken cancellationToken = default)
         {
-            // only diagnostics nodes are counted when the items are created and deleted.
-            if (!IsDiagnosticsNode(handle.Node))
+            if (IsDiagnosticsNode(handle.Node) &&
+                UpdateDiagnosticsMonitoring(previousMode, monitoringMode) &&
+                previousMode == MonitoringMode.Disabled)
             {
-                return default;
+                DoScan(true);
             }
+            return default;
+        }
 
-            if (previousMode != MonitoringMode.Disabled)
+        /// <summary>
+        /// Updates the active diagnostics-monitor count and reports whether periodic scanning remains enabled.
+        /// </summary>
+        private bool UpdateDiagnosticsMonitoring(MonitoringMode previousMode, MonitoringMode monitoringMode)
+        {
+            lock (m_diagnosticsLock)
             {
-                Interlocked.Decrement(ref m_diagnosticsMonitoringCount);
+                if (m_diagnosticsDisposed)
+                {
+                    return false;
+                }
+                if (previousMode != MonitoringMode.Disabled)
+                {
+                    m_diagnosticsMonitoringCount--;
+                }
+                if (monitoringMode != MonitoringMode.Disabled)
+                {
+                    m_diagnosticsMonitoringCount++;
+                }
+                UpdateDiagnosticsScanTimer();
+                return m_diagnosticsScanTimer != null;
             }
+        }
 
-            if (monitoringMode != MonitoringMode.Disabled)
-            {
-                Interlocked.Increment(ref m_diagnosticsMonitoringCount);
-            }
-
-            if (m_diagnosticsMonitoringCount == 0 && m_diagnosticsScanTimer != null)
-            {
-                m_diagnosticsScanTimer.Dispose();
-                m_diagnosticsScanTimer = null;
-            }
-            else if (m_diagnosticsMonitoringCount > 0)
+        /// <summary>
+        /// Runs the scan timer only while diagnostics are enabled, monitored and not disposed.
+        /// </summary>
+        private void UpdateDiagnosticsScanTimer()
+        {
+            if (!m_diagnosticsDisposed && DiagnosticsEnabled && m_diagnosticsMonitoringCount > 0)
             {
                 m_diagnosticsScanTimer ??= m_timeProvider.CreateTimer(
                     DoScan,
                     null,
-                    TimeSpan.FromMilliseconds(1000),
-                    TimeSpan.FromMilliseconds(1000));
+                    TimeSpan.FromSeconds(1),
+                    TimeSpan.FromSeconds(1));
             }
-            return default;
+            else
+            {
+                m_diagnosticsScanTimer?.Dispose();
+                m_diagnosticsScanTimer = null;
+            }
         }
 
         /// <summary>
@@ -2539,14 +2632,28 @@ namespace Opc.Ua.Server
         private readonly SemaphoreSlim m_modifyAddressSpaceSemaphoreSlim = new(1, 1);
         private readonly SemaphoreSlim m_diagnosticsTransitionSemaphore = new(1, 1);
         private readonly Lock m_diagnosticsLock = new();
+
+        /// <summary>
+        /// Protects membership snapshots of session and subscription diagnostics.
+        /// </summary>
+        private readonly Lock m_diagnosticsCollectionLock = new();
         private readonly TimeProvider m_timeProvider;
         private readonly ushort m_namespaceIndex;
         private ITimer? m_diagnosticsScanTimer;
         private int m_diagnosticsMonitoringCount;
+
+        /// <summary>
+        /// Prevents diagnostics monitoring from restarting after disposal.
+        /// </summary>
+        private bool m_diagnosticsDisposed;
         private bool m_doScanBusy;
         private readonly bool m_durableSubscriptionsEnabled;
         private long m_lastDiagnosticsScanTimestamp;
-        private bool m_forceDiagnosticsScan = true;
+
+        /// <summary>
+        /// Requests a fresh diagnostics scan after collection membership changes.
+        /// </summary>
+        private volatile bool m_forceDiagnosticsScan = true;
         private ServerDiagnosticsSummaryValue? m_serverDiagnostics;
         private NodeValueSimpleEventHandler? m_serverDiagnosticsCallback;
         private readonly List<SessionDiagnosticsData> m_sessions;

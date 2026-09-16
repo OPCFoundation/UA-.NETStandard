@@ -25,6 +25,12 @@ design follows Microsoft's [guidance for library authors](https://learn.microsof
 
 ### Overview
 
+The legacy `TraceLoggerProvider` enables source-generated log calls when
+a configured trace-file or Debug sink can receive them, even without a
+`Tracing.TraceEventHandler` subscriber. `TraceMask` still filters individual
+messages. Trace events and file output can be enabled independently; file
+write failures report the actual path and error in Debug output.
+
 ```csharp
 public interface ITelemetryContext
 {
@@ -599,10 +605,15 @@ through the `Server.ServerDiagnostics.EnabledFlag` variable &mdash;
 writes flow through `DiagnosticsNodeManager.SetDiagnosticsEnabledAsync`,
 which atomically pauses or resumes the periodic scan loop.
 
-When disabled, the diagnostics nodes remain present but are not
-updated; reads return the last known values. Disable for
-high-throughput production servers where per-monitored-item counters
-become measurable overhead.
+When disabled, the periodic scan stops and diagnostics-array reads return
+`BadOutOfService`. Per-session and per-subscription diagnostic instances
+are removed; the standard diagnostics containers remain present.
+Re-enabling diagnostics resumes scanning if diagnostic items are still
+being monitored.
+
+Session and subscription array reads use stable snapshots. A concurrent
+removal does not truncate an in-progress result or block behind its
+diagnostic update callbacks; subsequent reads reflect the removal.
 
 ### Information-model surface
 
@@ -633,9 +644,10 @@ UaExpert relies on.
 - Subscription diagnostics aggregate across the publishing thread;
   reading them while the server is under heavy load briefly stalls
   publishing.
-- The scan loop runs at a fixed interval (default 1&nbsp;s). Custom
-  servers can subclass `DiagnosticsNodeManager` and override the
-  scan cadence for very large session populations.
+- One scan timer runs at a fixed 1&nbsp;s interval while diagnostics
+  are enabled and at least one diagnostic item is in Sampling or
+  Reporting mode. Ordinary monitored items do not keep this timer alive.
+  Disabling or deleting the last active diagnostic item stops it.
 
 ## 4. Packet capture, dissection, and replay
 

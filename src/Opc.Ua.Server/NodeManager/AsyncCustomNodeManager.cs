@@ -54,6 +54,7 @@ namespace Opc.Ua.Server
     public class AsyncCustomNodeManager :
         IAsyncNodeManager,
         IDisposable,
+        IAsyncDisposable,
         ILocalAddressSpaceSource,
         IPredefinedNodeSubtypeReplacer,
         INodeManagerMonitoredItemLifecycle
@@ -195,8 +196,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Frees any unmanaged resources.
+        /// Stops admission and starts releasing the node manager's owned resources.
         /// </summary>
+        /// <remarks>
+        /// This compatibility entry point does not synchronously wait for admitted operations or
+        /// asynchronous cleanup. Call <see cref="DisposeAsync()"/> to await the shared completion and
+        /// observe cleanup failures. Blocking here could prevent an admitted callback from returning
+        /// and therefore prevent the drain that disposal is waiting for.
+        /// </remarks>
         public void Dispose()
         {
             Dispose(true);
@@ -204,38 +211,266 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// An overrideable version of the Dispose.
+        /// Closes operation admission and initiates cleanup when disposing managed resources.
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing && !m_disposed)
+            if (!disposing)
             {
-                m_disposed = true;
-                m_writeSemaphore.Wait(500);
-                try
-                {
-                    PredefinedNodes.Clear();
-                }
-                finally
-                {
-                    m_writeSemaphore.Release();
-                }
-
-                m_writeSemaphore.Dispose();
-
-                m_monitoredItemSemaphore.Wait(500);
-                try
-                {
-                    m_monitoredItemManager?.Dispose();
-                }
-                finally
-                {
-                    m_monitoredItemSemaphore.Release();
-                }
-                m_monitoredItemSemaphore.Dispose();
-
-                m_componentCacheSemaphore.Dispose();
+                return;
             }
+            lock (m_operationLifetimeLock)
+            {
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_disposed = true;
+                if (m_operationCount == 0)
+                {
+                    m_operationsDrained.TrySetResult(true);
+                }
+            }
+            // Cleanup starts inline until its first incomplete await, then publishes the shared
+            // success or failure that DisposeAsync awaits; no separate Task.Run is queued here.
+            _ = DisposeOwnedResourcesAsync();
+        }
+
+        /// <summary>
+        /// Stops admission and waits for active operations before releasing owned resources.
+        /// </summary>
+        /// <remarks>
+        /// Concurrent callers join the same completion, including <see cref="DisposeAsyncCore()"/>
+        /// and every owned-resource cleanup attempt, even if <see cref="Dispose()"/> started it earlier.
+        /// </remarks>
+        public virtual async ValueTask DisposeAsync()
+        {
+            Dispose();
+            await m_disposalCompleted.Task.ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Releases subclass resources after admitted node-manager operations have drained.
+        /// </summary>
+        protected virtual ValueTask DisposeAsyncCore()
+        {
+            return default;
+        }
+
+        /// <summary>
+        /// Admits an operation until it exits, allowing guarded access during the active teardown callback.
+        /// </summary>
+        private protected NodeManagerOperation BeginNodeManagerOperation()
+        {
+            lock (m_operationLifetimeLock)
+            {
+                if (m_disposed && (!m_disposeAsyncCoreActive || !m_disposeAsyncCoreContext.Value))
+                {
+                    throw new ObjectDisposedException(GetType().Name);
+                }
+                m_operationCount++;
+                return new NodeManagerOperation(this);
+            }
+        }
+
+        /// <summary>
+        /// Rejects access after admission closes unless it belongs to the active teardown callback.
+        /// </summary>
+        private protected void ThrowIfNodeManagerStopping()
+        {
+            lock (m_operationLifetimeLock)
+            {
+                if (m_disposed && (!m_disposeAsyncCoreActive || !m_disposeAsyncCoreContext.Value))
+                {
+                    throw new ObjectDisposedException(GetType().Name);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Acquires a semaphore asynchronously and releases it if shutdown has already closed admission.
+        /// </summary>
+        private async ValueTask<SemaphoreLease> AcquireSemaphoreAsync(
+            SemaphoreSlim semaphore,
+            CancellationToken ct)
+        {
+            await semaphore.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                ThrowIfNodeManagerStopping();
+                return new SemaphoreLease(semaphore);
+            }
+            catch
+            {
+                semaphore.Release();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Acquires a semaphore for a synchronous operation and verifies that access is still admitted.
+        /// </summary>
+        private SemaphoreLease AcquireSemaphore(SemaphoreSlim semaphore)
+        {
+            semaphore.Wait();
+            try
+            {
+                ThrowIfNodeManagerStopping();
+                return new SemaphoreLease(semaphore);
+            }
+            catch
+            {
+                semaphore.Release();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Releases an admitted operation and signals shutdown when the final operation exits.
+        /// </summary>
+        private void CompleteNodeManagerOperation()
+        {
+            lock (m_operationLifetimeLock)
+            {
+                m_operationCount--;
+                if (m_disposed && m_operationCount == 0)
+                {
+                    m_operationsDrained.TrySetResult(true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Drains operations, runs subclass and owned-resource cleanup, and publishes the shared disposal result.
+        /// </summary>
+        private async Task DisposeOwnedResourcesAsync()
+        {
+            try
+            {
+                await m_operationsDrained.Task.ConfigureAwait(false);
+                var errors = new List<Exception>();
+                lock (m_operationLifetimeLock)
+                {
+                    m_disposeAsyncCoreActive = true;
+                }
+                m_disposeAsyncCoreContext.Value = true;
+                try
+                {
+                    await DisposeAsyncCore().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.NodeManagerDeferredCleanupFailed(ex);
+                    errors.Add(ex);
+                }
+                finally
+                {
+                    m_disposeAsyncCoreContext.Value = false;
+                    lock (m_operationLifetimeLock)
+                    {
+                        m_disposeAsyncCoreActive = false;
+                    }
+                }
+                await DisposeOwnedResourceAsync(m_writeSemaphore, PredefinedNodes.Clear, errors).ConfigureAwait(false);
+                await DisposeOwnedResourceAsync(m_monitoredItemSemaphore,
+                    () => m_monitoredItemManager?.Dispose(), errors).ConfigureAwait(false);
+                await DisposeOwnedResourceAsync(m_componentCacheSemaphore,
+                    () => m_componentCache?.Clear(), errors).ConfigureAwait(false);
+                if (errors.Count > 0)
+                {
+                    m_disposalCompleted.TrySetException(
+                        new AggregateException("Node-manager resource cleanup failed.", errors));
+                }
+                else
+                {
+                    m_disposalCompleted.TrySetResult(true);
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.NodeManagerDeferredCleanupFailed(ex);
+                m_disposalCompleted.TrySetException(ex);
+            }
+        }
+
+        /// <summary>
+        /// Waits for a resource's semaphore owner, records cleanup failures, and disposes the semaphore.
+        /// </summary>
+        private async ValueTask DisposeOwnedResourceAsync(
+            SemaphoreSlim semaphore,
+            Action cleanup,
+            List<Exception> errors)
+        {
+            await semaphore.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                cleanup();
+            }
+            catch (Exception ex)
+            {
+                m_logger.NodeManagerDeferredCleanupFailed(ex);
+                errors.Add(ex);
+            }
+            finally
+            {
+                semaphore.Release();
+                semaphore.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Retains operation admission through semaphore scopes and any deferred callbacks.
+        /// </summary>
+        private protected readonly struct NodeManagerOperation : IDisposable
+        {
+            /// <summary>
+            /// Captures the node manager whose admitted operation this scope completes.
+            /// </summary>
+            public NodeManagerOperation(AsyncCustomNodeManager owner)
+            {
+                m_owner = owner;
+            }
+
+            /// <summary>
+            /// Completes the admitted operation and allows a pending disposal drain to progress.
+            /// </summary>
+            public void Dispose()
+            {
+                m_owner.CompleteNodeManagerOperation();
+            }
+
+            /// <summary>
+            /// Owns the admission count retained by this operation scope.
+            /// </summary>
+            private readonly AsyncCustomNodeManager m_owner;
+        }
+
+        /// <summary>
+        /// Releases an acquired semaphore without ending the surrounding operation's lifetime.
+        /// </summary>
+        private readonly struct SemaphoreLease : IDisposable
+        {
+            /// <summary>
+            /// Captures an already-acquired semaphore for release when the scope exits.
+            /// </summary>
+            public SemaphoreLease(SemaphoreSlim semaphore)
+            {
+                m_semaphore = semaphore;
+            }
+
+            /// <summary>
+            /// Releases the semaphore retained by this scope.
+            /// </summary>
+            public void Dispose()
+            {
+                m_semaphore.Release();
+            }
+
+            /// <summary>
+            /// Holds the semaphore acquisition released by this scope.
+            /// </summary>
+            private readonly SemaphoreSlim m_semaphore;
         }
 
         /// <summary>
@@ -467,8 +702,8 @@ namespace Opc.Ua.Server
                 IReadOnlyCollection<NodeId>? nodeIds,
                 CancellationToken cancellationToken)
         {
-            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
             {
                 if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
                 {
@@ -480,10 +715,6 @@ namespace Opc.Ua.Server
                     return [];
                 }
                 return lifecycle.GetMonitoredItemsSnapshot(nodeIds);
-            }
-            finally
-            {
-                m_monitoredItemSemaphore.Release();
             }
         }
 
@@ -509,18 +740,14 @@ namespace Opc.Ua.Server
             ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
             object previousHandle = sampledMonitoredItem.ManagerHandle;
             ServiceResult result;
-            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
             {
                 result = await DetachMonitoredItemForLifecycleLockedAsync(
                     context,
                     sampledMonitoredItem,
                     lifecycle,
                     cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                m_monitoredItemSemaphore.Release();
             }
 
             if (ServiceResult.IsGood(result) && previousHandle is NodeHandle handle)
@@ -600,6 +827,9 @@ namespace Opc.Ua.Server
             return default;
         }
 
+        /// <summary>
+        /// Validates whether a sampled item can be rebound to this node manager's current address space.
+        /// </summary>
         private async ValueTask<ServiceResult> ValidateMonitoredItemForLifecycleAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)
@@ -621,8 +851,8 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadNodeIdUnknown;
             }
 
-            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
             {
                 NodeState source = await ValidateNodeAsync(
                     context,
@@ -669,10 +899,6 @@ namespace Opc.Ua.Server
                 return IsFatalInitialReadError(readResult)
                     ? readResult
                     : ServiceResult.Good;
-            }
-            finally
-            {
-                m_monitoredItemSemaphore.Release();
             }
         }
 
@@ -763,6 +989,9 @@ namespace Opc.Ua.Server
             return result;
         }
 
+        /// <summary>
+        /// Resolves the current node and attaches an existing sampled item to its monitoring manager.
+        /// </summary>
         private async ValueTask<ServiceResult> AttachMonitoredItemForLifecycleAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)
@@ -784,8 +1013,8 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadNodeIdUnknown;
             }
 
-            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
             {
                 NodeState source = await ValidateNodeAsync(
                     context,
@@ -911,10 +1140,6 @@ namespace Opc.Ua.Server
                 }
 
                 return result;
-            }
-            finally
-            {
-                m_monitoredItemSemaphore.Release();
             }
         }
 
@@ -1695,6 +1920,9 @@ namespace Opc.Ua.Server
             return AddNodeCoreAsync(context, item, cancellationToken);
         }
 
+        /// <summary>
+        /// Validates an AddNodes request and creates its node using the reserved identifier.
+        /// </summary>
         private async ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeCoreAsync(
             OperationContext context,
             AddNodesItem item,
@@ -1768,6 +1996,10 @@ namespace Opc.Ua.Server
                     return (new ServiceResult(StatusCodes.BadNodeIdExists), NodeId.Null);
                 }
             }
+            if (newNodeId.IsNull || !IsNodeIdInNamespace(newNodeId))
+            {
+                return (new ServiceResult(StatusCodes.BadNodeIdRejected), NodeId.Null);
+            }
             instance.NodeId = newNodeId;
 
             // Detect duplicate browse name beneath the parent. For local
@@ -1782,7 +2014,6 @@ namespace Opc.Ua.Server
                 {
                     return (new ServiceResult(StatusCodes.BadBrowseNameDuplicated), NodeId.Null);
                 }
-                parentNode.AddChild(instance);
             }
             else
             {
@@ -1795,52 +2026,121 @@ namespace Opc.Ua.Server
                         return (new ServiceResult(StatusCodes.BadBrowseNameDuplicated), NodeId.Null);
                     }
                 }
-
-                // Cross-NodeManager parent: write the inverse edge so Browse from
-                // the child still resolves the parent. The forward edge from
-                // parent to child is written below via Server.NodeManager.
-                instance.AddReference(item.ReferenceTypeId, true, parentNodeId);
             }
 
+            ServiceResult reservation = ReserveAddNodesNodeId(
+                ref newNodeId,
+                item.RequestedNewNodeId.IsNull,
+                cancellationToken);
+            if (ServiceResult.IsBad(reservation))
+            {
+                return (reservation, NodeId.Null);
+            }
             try
             {
-                await AddPredefinedNodeAsync(systemContext, instance, cancellationToken).ConfigureAwait(false);
-            }
-            catch (ServiceResultException ex)
-            {
-                parentNode?.RemoveChild(instance);
-                return (new ServiceResult(ex), NodeId.Null);
-            }
-
-            // Always add the forward edge from parent → child via the master so
-            // the parent's owning NodeManager records it (works whether parent
-            // is local or remote).
-            try
-            {
-                var forward = new List<IReference>
+                instance.NodeId = newNodeId;
+                if (parentNode != null)
                 {
-                    new NodeStateReference(item.ReferenceTypeId, false, instance.NodeId)
-                };
-                await Server.NodeManager.AddReferencesAsync(
-                    parentNodeId, forward, cancellationToken).ConfigureAwait(false);
+                    parentNode.AddChild(instance);
+                }
+                else
+                {
+                    instance.AddReference(item.ReferenceTypeId, true, parentNodeId);
+                }
+
+                NodeId previousAddNodeId = m_addNodesNodeId.Value;
+                m_addNodesNodeId.Value = newNodeId;
+                bool registered = false;
+                try
+                {
+                    await AddPredefinedNodeAsync(systemContext, instance, cancellationToken).ConfigureAwait(false);
+                    registered = true;
+                }
+                catch (ServiceResultException ex)
+                {
+                    return (new ServiceResult(ex), NodeId.Null);
+                }
+                finally
+                {
+                    m_addNodesNodeId.Value = previousAddNodeId;
+                    if (!registered)
+                    {
+                        parentNode?.RemoveChild(instance);
+                    }
+                }
+
+                // Publish the forward reference through the parent's owning manager, whether local or remote.
+                try
+                {
+                    var forward = new List<IReference>
+                    {
+                        new NodeStateReference(item.ReferenceTypeId, false, instance.NodeId)
+                    };
+                    await Server.NodeManager.AddReferencesAsync(
+                        parentNodeId, forward, cancellationToken).ConfigureAwait(false);
+                }
+                catch (ServiceResultException ex)
+                {
+                    return (new ServiceResult(ex), NodeId.Null);
+                }
+
+                await RefreshParentComponentCacheAsync(parentNodeId, cancellationToken).ConfigureAwait(false);
+
+                if (ModelChangeEmissionEnabled)
+                {
+                    ModelChangeAggregator.RecordNodeAdded(instance.NodeId, instance.TypeDefinitionId);
+                    ModelChangeAggregator.RecordReferenceAdded(parentNodeId);
+                    EmitModelChange(systemContext);
+                }
+
+                return (ServiceResult.Good, instance.NodeId);
             }
-            catch (ServiceResultException ex)
+            finally
             {
-                return (new ServiceResult(ex), NodeId.Null);
+                m_addNodesReservations.TryRemove(newNodeId, out _);
             }
+        }
 
-            // Refresh the parent's cached component view so a Browse issued
-            // after this runtime add reflects the new child.
-            await RefreshParentComponentCacheAsync(parentNodeId, cancellationToken).ConfigureAwait(false);
-
-            if (ModelChangeEmissionEnabled)
+        /// <summary>
+        /// Reserves an identifier before asynchronous registration, selecting a fresh counter ID
+        /// for automatic collisions.
+        /// </summary>
+        private ServiceResult ReserveAddNodesNodeId(
+            ref NodeId nodeId,
+            bool serverAssigned,
+            CancellationToken cancellationToken)
+        {
+            HashSet<NodeId>? attempted = null;
+            while (true)
             {
-                ModelChangeAggregator.RecordNodeAdded(instance.NodeId, instance.TypeDefinitionId);
-                ModelChangeAggregator.RecordReferenceAdded(parentNodeId);
-                EmitModelChange(systemContext);
-            }
+                cancellationToken.ThrowIfCancellationRequested();
+                if (nodeId.IsNull || !IsNodeIdInNamespace(nodeId))
+                {
+                    return StatusCodes.BadNodeIdRejected;
+                }
+                if (!PredefinedNodes.ContainsKey(nodeId) && m_addNodesReservations.TryAdd(nodeId, 0))
+                {
+                    if (!PredefinedNodes.ContainsKey(nodeId))
+                    {
+                        return ServiceResult.Good;
+                    }
+                    m_addNodesReservations.TryRemove(nodeId, out _);
+                }
+                if (!serverAssigned)
+                {
+                    return StatusCodes.BadNodeIdExists;
+                }
 
-            return (ServiceResult.Good, instance.NodeId);
+                nodeId = m_nodeIdFactory.NextCounterNodeId();
+                cancellationToken.ThrowIfCancellationRequested();
+                attempted ??= [];
+                if (!attempted.Add(nodeId))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "The NodeId factory repeated an occupied identifier while allocating an AddNodes identifier.");
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -1944,6 +2244,9 @@ namespace Opc.Ua.Server
             return ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Detaches items monitoring a deleted subtree and restores prior detachments if any item fails.
+        /// </summary>
         private async ValueTask<IReadOnlyList<IMonitoredItem>>
             DetachMonitoredItemsForNodeDeletionAsync(
                 ISystemContext context,
@@ -1952,8 +2255,8 @@ namespace Opc.Ua.Server
         {
             var detachedItems = new List<IMonitoredItem>();
             Exception? failure = null;
-            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
             {
                 if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
                 {
@@ -2011,10 +2314,6 @@ namespace Opc.Ua.Server
                         break;
                     }
                 }
-            }
-            finally
-            {
-                m_monitoredItemSemaphore.Release();
             }
 
             if (failure is not null)
@@ -2709,7 +3008,17 @@ namespace Opc.Ua.Server
                     Server.TypeTree);
             }
 
-            PredefinedNodes.AddOrUpdate(activeNode.NodeId, activeNode, (key, _) => activeNode);
+            if (!m_addNodesNodeId.Value.IsNull && m_addNodesNodeId.Value == activeNode.NodeId)
+            {
+                if (!PredefinedNodes.TryAdd(activeNode.NodeId, activeNode))
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdExists);
+                }
+            }
+            else
+            {
+                PredefinedNodes.AddOrUpdate(activeNode.NodeId, activeNode, (key, _) => activeNode);
+            }
 
             // Keep any cached component view pointing at the current instance
             // when a node is re-registered/replaced at runtime.
@@ -4153,8 +4462,8 @@ namespace Opc.Ua.Server
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
             var nodesToValidate = new List<NodeHandle>();
 
-            await m_writeSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (await AcquireSemaphoreAsync(m_writeSemaphore, cancellationToken).ConfigureAwait(false))
             {
                 for (int ii = 0; ii < nodesToWrite.Count; ii++)
                 {
@@ -4310,10 +4619,6 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
-            }
-            finally
-            {
-                m_writeSemaphore.Release();
             }
 
             // validates the nodes and writes the value to the underlying system.
@@ -4709,8 +5014,8 @@ namespace Opc.Ua.Server
             {
                 NodeHandle handle = nodesToValidate[ii];
 
-                await m_writeSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                try
+                using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+                using (await AcquireSemaphoreAsync(m_writeSemaphore, cancellationToken).ConfigureAwait(false))
                 {
                     // validate node.
                     NodeState source = await ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
@@ -4733,10 +5038,6 @@ namespace Opc.Ua.Server
                     // updates to source finished - report changes to monitored items.
                     await source.ClearChangeMasksAsync(context, false, cancellationToken)
                         .ConfigureAwait(false);
-                }
-                finally
-                {
-                    m_writeSemaphore.Release();
                 }
             }
         }
@@ -5587,8 +5888,8 @@ namespace Opc.Ua.Server
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
             var nodesToProcess = new List<NodeHandle>();
 
-            await m_writeSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (await AcquireSemaphoreAsync(m_writeSemaphore, cancellationToken).ConfigureAwait(false))
             {
                 for (int ii = 0; ii < nodesToUpdate.Count; ii++)
                 {
@@ -5661,10 +5962,6 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
-            }
-            finally
-            {
-                m_writeSemaphore.Release();
             }
 
             // validates the nodes and updates.
@@ -6682,8 +6979,8 @@ namespace Opc.Ua.Server
             bool unsubscribe,
             CancellationToken cancellationToken = default)
         {
-            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
             {
                 bool wasSubscribed = m_monitoredItemManager.MonitoredNodes.TryGetValue(
                     source.NodeId,
@@ -6711,10 +7008,6 @@ namespace Opc.Ua.Server
 
                 // all done.
                 return serviceResult;
-            }
-            finally
-            {
-                m_monitoredItemSemaphore.Release();
             }
         }
 
@@ -6762,8 +7055,8 @@ namespace Opc.Ua.Server
                 var events = new List<IFilterTarget>();
                 var nodesToRefresh = new List<NodeState>();
 
-                await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                try
+                using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+                using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
                 {
                     // check for server subscription.
                     if (monitoredItem.NodeId == ObjectIds.Server)
@@ -6784,10 +7077,6 @@ namespace Opc.Ua.Server
                         // get the refresh events.
                         nodesToRefresh.Add(((NodeHandle)monitoredItem.ManagerHandle).Node);
                     }
-                }
-                finally
-                {
-                    m_monitoredItemSemaphore.Release();
                 }
 
                 // block and wait for the refresh.
@@ -6879,8 +7168,8 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
             {
                 // validates the nodes (reads values from the underlying data source if required).
                 for (int ii = 0; ii < nodesToValidate.Count; ii++)
@@ -6927,10 +7216,6 @@ namespace Opc.Ua.Server
                 }
 
                 m_monitoredItemManager.ApplyChanges();
-            }
-            finally
-            {
-                m_monitoredItemSemaphore.Release();
             }
 
             // do any post processing.
@@ -6979,10 +7264,12 @@ namespace Opc.Ua.Server
 
             monitoredItem = restoredItem;
 
-            // report change.
-            OnMonitoredItemCreated(context, handle, restoredItem);
+            if (success)
+            {
+                OnMonitoredItemCreated(context, handle, restoredItem);
+            }
 
-            return true;
+            return success;
         }
 
         /// <summary>
@@ -7049,8 +7336,8 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
             {
                 // validates the nodes (reads values from the underlying data source if required).
                 for (int ii = 0; ii < nodesToValidate.Count; ii++)
@@ -7097,10 +7384,6 @@ namespace Opc.Ua.Server
                 }
 
                 m_monitoredItemManager.ApplyChanges();
-            }
-            finally
-            {
-                m_monitoredItemSemaphore.Release();
             }
 
             // do any post processing.
@@ -8011,17 +8294,7 @@ namespace Opc.Ua.Server
                 DateTimeUtc currentTime =
                     ((Server as ITimeProviderProvider)?.TimeProvider ??
                         TimeProvider.System).GetUtcNow().UtcDateTime;
-                double retainedWindow = Math.Max((long)queueSize - 1, 0) *
-                    filterToUse.ProcessingInterval;
-                DateTimeUtc retainedStartTime = retainedWindow.IsFinite() &&
-                    retainedWindow <=
-                        (currentTime - DateTimeUtc.MinValue).TotalMilliseconds
-                        ? currentTime.SubtractMilliseconds(retainedWindow)
-                        : DateTimeUtc.MinValue;
-                if (retainedStartTime > filterToUse.StartTime)
-                {
-                    filterToUse.StartTime = retainedStartTime;
-                }
+                filterToUse.ReviseStartTime(currentTime, queueSize);
 
                 if (filterToUse.AggregateConfiguration
                     .UseServerCapabilitiesDefaults)
@@ -8100,17 +8373,7 @@ namespace Opc.Ua.Server
 
             DateTimeUtc utcNow = ((Server as ITimeProviderProvider)?.TimeProvider ??
                 TimeProvider.System).GetUtcNow().UtcDateTime;
-            double queueWindow = Math.Max((long)queueSize - 1, 0) *
-                filterToUse.ProcessingInterval;
-            DateTimeUtc earliestStartTime = queueWindow.IsFinite() &&
-                queueWindow <= (utcNow - DateTimeUtc.MinValue).TotalMilliseconds
-                    ? utcNow.SubtractMilliseconds(queueWindow)
-                    : DateTimeUtc.MinValue;
-
-            if (earliestStartTime > filterToUse.StartTime)
-            {
-                filterToUse.StartTime = earliestStartTime;
-            }
+            filterToUse.ReviseStartTime(utcNow, queueSize);
 
             return StatusCodes.Good;
         }
@@ -8187,46 +8450,42 @@ namespace Opc.Ua.Server
 
             var modifiedItems = new List<IMonitoredItem>();
 
-            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                foreach ((int, NodeHandle) nodeInNamespace in nodesInNamespace)
-                {
-                    int ii = nodeInNamespace.Item1;
-                    NodeHandle handle = nodeInNamespace.Item2;
-                    MonitoredItemModifyRequest itemToModify = itemsToModify[ii];
-
-                    // owned by this node manager.
-                    itemToModify.Processed = true;
-
-                    // modify the monitored item.
-                    (ServiceResult error, MonitoringFilterResult? filterResult) = await ModifyMonitoredItemAsync(
-                        systemContext,
-                        context.DiagnosticsMask,
-                        timestampsToReturn,
-                        monitoredItems[ii],
-                        itemToModify,
-                        handle,
-                        cancellationToken).ConfigureAwait(false);
-                    errors[ii] = error;
-                    filterErrors[ii] = filterResult!;
-
-                    // save the modified item.
-                    if (ServiceResult.IsGood(errors[ii]))
-                    {
-                        modifiedItems.Add(monitoredItems[ii]);
-                    }
-                }
-            }
-            finally
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
             {
                 try
                 {
-                    m_monitoredItemManager.ApplyChanges();
+                    foreach ((int, NodeHandle) nodeInNamespace in nodesInNamespace)
+                    {
+                        int ii = nodeInNamespace.Item1;
+                        NodeHandle handle = nodeInNamespace.Item2;
+                        MonitoredItemModifyRequest itemToModify = itemsToModify[ii];
+
+                        // owned by this node manager.
+                        itemToModify.Processed = true;
+
+                        // modify the monitored item.
+                        (ServiceResult error, MonitoringFilterResult? filterResult) = await ModifyMonitoredItemAsync(
+                            systemContext,
+                            context.DiagnosticsMask,
+                            timestampsToReturn,
+                            monitoredItems[ii],
+                            itemToModify,
+                            handle,
+                            cancellationToken).ConfigureAwait(false);
+                        errors[ii] = error;
+                        filterErrors[ii] = filterResult!;
+
+                        // save the modified item.
+                        if (ServiceResult.IsGood(errors[ii]))
+                        {
+                            modifiedItems.Add(monitoredItems[ii]);
+                        }
+                    }
                 }
                 finally
                 {
-                    m_monitoredItemSemaphore.Release();
+                    m_monitoredItemManager.ApplyChanges();
                 }
             }
 
@@ -8525,8 +8784,8 @@ namespace Opc.Ua.Server
 
             var deletedItems = new List<IMonitoredItem>();
 
-            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
             {
                 foreach ((int, NodeHandle) nodeInNamespace in nodesInNamespace)
                 {
@@ -8549,10 +8808,6 @@ namespace Opc.Ua.Server
                     }
                 }
                 m_monitoredItemManager.ApplyChanges();
-            }
-            finally
-            {
-                m_monitoredItemSemaphore.Release();
             }
 
             // do any post processing.
@@ -8661,8 +8916,8 @@ namespace Opc.Ua.Server
             var transferredItems = new List<IMonitoredItem>();
             bool deferInitialValues = transferOptions.DeferInitialValues;
 
-            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
             {
                 for (int ii = 0; ii < monitoredItems.Count; ii++)
                 {
@@ -8689,10 +8944,6 @@ namespace Opc.Ua.Server
                     }
                     errors[ii] = StatusCodes.Good;
                 }
-            }
-            finally
-            {
-                m_monitoredItemSemaphore.Release();
             }
 
             // do any post processing.
@@ -8760,8 +9011,8 @@ namespace Opc.Ua.Server
 
             var changedItems = new List<IMonitoredItem>();
 
-            await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
             {
                 foreach ((int, NodeHandle) nodeInNamespace in nodesInNamespace)
                 {
@@ -8786,10 +9037,6 @@ namespace Opc.Ua.Server
                 }
 
                 m_monitoredItemManager.ApplyChanges();
-            }
-            finally
-            {
-                m_monitoredItemSemaphore.Release();
             }
 
             // do any post processing.
@@ -9096,8 +9343,8 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            m_componentCacheSemaphore.Wait();
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (AcquireSemaphore(m_componentCacheSemaphore))
             {
                 CacheEntry? entry = null;
 
@@ -9115,10 +9362,6 @@ namespace Opc.Ua.Server
 
                 return null;
             }
-            finally
-            {
-                m_componentCacheSemaphore.Release();
-            }
         }
 
         /// <summary>
@@ -9131,8 +9374,8 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            m_componentCacheSemaphore.Wait();
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (AcquireSemaphore(m_componentCacheSemaphore))
             {
                 if (m_componentCache != null)
                 {
@@ -9154,10 +9397,6 @@ namespace Opc.Ua.Server
                     }
                 }
             }
-            finally
-            {
-                m_componentCacheSemaphore.Release();
-            }
         }
 
         /// <summary>
@@ -9173,8 +9412,8 @@ namespace Opc.Ua.Server
                 return node;
             }
 
-            m_componentCacheSemaphore.Wait();
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (AcquireSemaphore(m_componentCacheSemaphore))
             {
                 m_componentCache ??= [];
 
@@ -9217,10 +9456,6 @@ namespace Opc.Ua.Server
 
                 return node;
             }
-            finally
-            {
-                m_componentCacheSemaphore.Release();
-            }
         }
 
         /// <summary>
@@ -9240,14 +9475,10 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            await m_componentCacheSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (await AcquireSemaphoreAsync(m_componentCacheSemaphore, cancellationToken).ConfigureAwait(false))
             {
                 m_componentCache.Remove(nodeId);
-            }
-            finally
-            {
-                m_componentCacheSemaphore.Release();
             }
         }
 
@@ -9271,18 +9502,14 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            m_componentCacheSemaphore.Wait();
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (AcquireSemaphore(m_componentCacheSemaphore))
             {
                 if (m_componentCache.TryGetValue(nodeId, out CacheEntry? entry) &&
                     !ReferenceEquals(entry.Entry, node))
                 {
                     entry.Entry = node;
                 }
-            }
-            finally
-            {
-                m_componentCacheSemaphore.Release();
             }
         }
 
@@ -9304,18 +9531,14 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            await m_componentCacheSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            using (await AcquireSemaphoreAsync(m_componentCacheSemaphore, cancellationToken).ConfigureAwait(false))
             {
                 if (m_componentCache.TryGetValue(parentId, out CacheEntry? entry) &&
                     !ReferenceEquals(entry.Entry, parent))
                 {
                     entry.Entry = parent;
                 }
-            }
-            finally
-            {
-                m_componentCacheSemaphore.Release();
             }
         }
 
@@ -9336,14 +9559,27 @@ namespace Opc.Ua.Server
         /// </summary>
         private class BrowserContext : IDisposable
         {
+            /// <summary>
+            /// Gets the browser retained by the continuation point.
+            /// </summary>
             public INodeBrowser Browser { get; }
+
+            /// <summary>
+            /// Gets the semaphore that serializes access to this browser's continuation state.
+            /// </summary>
             public SemaphoreSlim Semaphore { get; } = new(1, 1);
 
+            /// <summary>
+            /// Takes ownership of a browser and its continuation-state synchronization lifetime.
+            /// </summary>
             public BrowserContext(INodeBrowser browser)
             {
                 Browser = browser;
             }
 
+            /// <summary>
+            /// Releases the retained browser and its continuation-state semaphore.
+            /// </summary>
             public void Dispose()
             {
                 Browser.Dispose();
@@ -9364,6 +9600,38 @@ namespace Opc.Ua.Server
 #endif
         private List<LocalReference> m_removedExternalReferences = [];
         private bool m_disposed;
+
+        /// <summary>
+        /// Protects operation admission, the active-operation count, and teardown-context activation.
+        /// </summary>
+        private readonly Lock m_operationLifetimeLock = new();
+
+        /// <summary>
+        /// Completes once admission is closed and every admitted operation has exited.
+        /// </summary>
+        private readonly TaskCompletionSource<bool> m_operationsDrained =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>
+        /// Publishes the shared cleanup result awaited by every asynchronous disposal caller.
+        /// </summary>
+        private readonly TaskCompletionSource<bool> m_disposalCompleted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>
+        /// Identifies execution flowing through the subclass's asynchronous teardown callback.
+        /// </summary>
+        private readonly AsyncLocal<bool> m_disposeAsyncCoreContext = new();
+
+        /// <summary>
+        /// Limits teardown access to the callback's lifetime, rejecting captured contexts afterward.
+        /// </summary>
+        private bool m_disposeAsyncCoreActive;
+
+        /// <summary>
+        /// Counts admitted operations until their semaphore work and deferred callbacks finish.
+        /// </summary>
+        private int m_operationCount;
         /// <summary>
         /// the sync NodeManager adapter
         /// </summary>
@@ -9380,9 +9648,8 @@ namespace Opc.Ua.Server
         protected SemaphoreSlim m_monitoredItemSemaphore = new(1, 1);
 
         /// <summary>
-        /// Set of <see cref="NodeId"/>s that opt into multiple event consumer
-        /// task handling. Nodes in this set will use dynamic scaling of
-        /// consumer tasks based on the number of event monitored items.
+        /// Set of <see cref="NodeId"/>s that opt into concurrent delivery to independent event
+        /// monitored items. A single channel reader still preserves notification order.
         /// </summary>
         internal NodeIdDictionary<bool> MultiConsumerNodeIds { get; } = [];
         /// <summary>
@@ -9392,7 +9659,30 @@ namespace Opc.Ua.Server
         private PredefinedNodesAddressSpace? m_localAddressSpace;
         private readonly AsyncLocal<int> m_registrationDepth = new();
 
+        /// <summary>
+        /// Carries the NodeId reserved for the current asynchronous AddNodes operation.
+        /// </summary>
+        private readonly AsyncLocal<NodeId> m_addNodesNodeId = new();
+
+        /// <summary>
+        /// Retains AddNodes identifiers until asynchronous registration and reference publication have finished.
+        /// </summary>
+        private readonly NodeIdDictionary<byte> m_addNodesReservations = new();
+
         private const byte kHistoryAccessMask = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
         private const int kMaxInitialHistoryPages = 100_000;
+    }
+
+    /// <summary>
+    /// Source-generated diagnostics for deferred node-manager resource cleanup.
+    /// </summary>
+    internal static partial class AsyncCustomNodeManagerLog
+    {
+        /// <summary>
+        /// Reports a cleanup failure that is retained in the shared asynchronous disposal result.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.NodeManagerDisposal, Level = LogLevel.Error,
+            Message = "Deferred node-manager resource cleanup failed.")]
+        public static partial void NodeManagerDeferredCleanupFailed(this ILogger logger, Exception exception);
     }
 }
