@@ -2186,7 +2186,8 @@ namespace Opc.Ua.Wot
                 // A preserved scope may reset or rebind the generator's namespace prefixes.
                 name = "nsu=" + CoreUtils.EscapeUri(qualifiedName.NamespaceUri!) + ";" + qualifiedName.Name;
             }
-            JsonNode? generatedContext = generated.TryGetProperty("@context", out JsonElement originalContext)
+            bool hasGeneratedContext = generated.TryGetProperty("@context", out JsonElement originalContext);
+            JsonNode? generatedContext = hasGeneratedContext
                 ? JsonNode.Parse(originalContext.GetRawText()) : null;
             JsonNode? restoredContext = context;
             if (generatedContext is not null && !JsonEquals(generatedContext, context))
@@ -2206,9 +2207,8 @@ namespace Opc.Ua.Wot
                 combined.Add(generatedContext);
                 restoredContext = combined;
             }
-            JsonNode? existing = definition["@context"];
-            if (existing is not null &&
-                !JsonEquals(existing, generatedContext) &&
+            if (definition.TryGetPropertyValue("@context", out JsonNode? existing) &&
+                (!hasGeneratedContext || !JsonEquals(existing, generatedContext)) &&
                 !JsonEquals(existing, restoredContext))
             {
                 diagnostics.Add(new WotDiagnostic(

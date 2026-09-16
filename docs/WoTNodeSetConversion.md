@@ -575,6 +575,9 @@ opaque keys bound to their original owner without replacing the root context.
 Generated DataType names use their namespace-URI form when that local context
 is restored, so a reset or prefix rebinding cannot change the native identity.
 Generated localized-text overrides remain effective within the restored scope.
+Conflicting complete context residue members for the same definition are rejected
+in either order, including an explicit JSON `null`; absence is not a JSON-null
+value. Single contexts and equal duplicates remain accepted.
 Standard context references already emitted by the generator are not restored
 over its complete root context array.
 
