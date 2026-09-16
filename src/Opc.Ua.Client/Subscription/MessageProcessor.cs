@@ -519,6 +519,7 @@ namespace Opc.Ua.Client.Subscriptions
             try
             {
                 uint[] ordered = SortAscendingWrapAware(availableSequenceNumbers);
+                var availableSet = new HashSet<uint>(ordered);
                 Logger.SubscriptionRecoveringTransferredMessages(Id, ordered.Length);
 
                 bool wasDispatching = m_dispatchContext.Value;
@@ -528,7 +529,7 @@ namespace Opc.Ua.Client.Subscriptions
                     foreach (uint sequenceNumber in ordered)
                     {
                         await TryRepublishAsync(sequenceNumber, sequenceNumber,
-                            ordered, ct)
+                            availableSet.Contains, ct)
                             .ConfigureAwait(false);
                         ct.ThrowIfCancellationRequested();
                     }
@@ -599,18 +600,23 @@ namespace Opc.Ua.Client.Subscriptions
             return TryRepublishAsync(
                 missing,
                 curSeqNum,
-                AvailableInRetransmissionQueue,
+                IsAvailableInRetransmissionQueue,
                 ct);
+        }
+
+        private bool IsAvailableInRetransmissionQueue(uint sequenceNumber)
+        {
+            return AvailableInRetransmissionQueue.Contains(sequenceNumber);
         }
 
         private async ValueTask TryRepublishAsync(
             uint missing,
             uint curSeqNum,
-            IReadOnlyList<uint> availableSequenceNumbers,
+            Predicate<uint> isAvailable,
             CancellationToken ct)
         {
             Interlocked.Increment(ref m_republishCount);
-            if (!availableSequenceNumbers.Contains(missing))
+            if (!isAvailable(missing))
             {
                 Logger.SubscriptionMessageSequenceNumberSeqNumberNot(
                     Id,
