@@ -62,6 +62,75 @@ and runs the native dispatcher message loop. NUnit awaits each submitted task;
 it does not block a task with `Wait`, `Result`, or a nested modal test pump.
 Namespace teardown awaits termination of the dispatcher.
 
+## NodeSet2 explorer lane
+
+The six additional `NodeSetDesktopTests` cases run separately from the
+24-case count gate above. They exercise the File menu, multiple-file import,
+the existing explorer and inspector, global offline search, AllNodes,
+download consent followed by the nonstandard-model file picker, and dependency
+cancellation without replacing the current graph. Invalid-file cases verify
+that errors reach the banner and log, Diagnostics and Log remain usable, the
+current graph survives, and a corrected file can be opened. An invalid
+download also has to allow local dependency selection.
+
+After building the matching Release graph, run them on the same real desktop
+backend:
+
+```bash
+dotnet test tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj \
+  -c Release -f net10.0 -p:CustomTestTarget=net10.0 --no-build --no-restore \
+  --filter FullyQualifiedName~UaLens.Tests.NodeSets.NodeSetDesktopTests \
+  -- NUnit.ExplicitMode=Relaxed NUnit.NumberOfTestWorkers=0
+```
+
+The OS file picker and remote repository are injected. These cases exercise
+native Lens windows and bindings, not a real GitHub download or the operating
+system's file-dialog implementation. Loader/repository tests use deterministic
+files and HTTP responses; graph tests cover namespace remapping, cross-file
+references, unknown targets and static attributes.
+
+The separate, opt-in `NodeSetNetworkTests` fixture downloads DI using the
+production repository adapter and resolves it into the offline graph. Run its
+fully qualified fixture name with the same `NUnit.ExplicitMode=Relaxed` setting
+only when access to the public OPC Foundation repository is intended.
+
+To investigate a particular local file, run the dispatcher-watchdog case:
+
+```bash
+UALENS_NODESET_REPRO_FILE=/absolute/path/model.NodeSet2.xml \
+dotnet test tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj \
+  -c Release -f net10.0 -p:CustomTestTarget=net10.0 --no-build --no-restore \
+  --filter FullyQualifiedName~NodeSetImportResponsivenessTests \
+  -- NUnit.ExplicitMode=Relaxed NUnit.NumberOfTestWorkers=0
+```
+
+The NUnit worker checks dispatcher heartbeats with a three-second timeout
+while the file imports. A dependency prompt must render and allow cancellation;
+an invalid file may report an error. This case checks responsiveness and cleanup,
+not successful import of an arbitrary model. It leaves the supplied file unchanged.
+
+## Namespace highlighting lane
+
+`NamespaceHighlightDesktopTests` adds six explicit cases outside the 24-case
+gate: live-session and imported-XML sources in Light, DarkStandard and DarkNavy.
+They open the namespace picker through routed keyboard events and check the
+selected label, rendered row backgrounds, markers and text styles. The cases
+also cover later-expanded children, namespace zero, clearing the highlight,
+source removal and preservation of tree selection and expansion.
+
+```bash
+dotnet test tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj \
+  -c Release -f net10.0 -p:CustomTestTarget=net10.0 --no-build --no-restore \
+  --filter FullyQualifiedName~NamespaceHighlightDesktopTests \
+  -- NUnit.ExplicitMode=Relaxed NUnit.NumberOfTestWorkers=0
+```
+
+The live-session namespace table and browse responses are injected; these
+cases do not connect to a remote server. Offline cases import isolated XML
+files through the production loader. The ordinary `NamespaceHighlightTests`
+cover namespace remapping, appended namespaces, source replacement, refresh,
+collapsed branches and placeholders without a desktop.
+
 ## Recorded execution evidence
 
 The final four runs on Ubuntu 26.04.1 LTS with Xvfb/X11 each recorded

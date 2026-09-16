@@ -90,10 +90,16 @@
     <!-- Compact, stable menu bar: File / View / Tools / Help. -->
     <Menu x:Name="MainMenu" DockPanel.Dock="Top" Background="{DynamicResource PanelBg}">
       <MenuItem Header="_File">
+        <MenuItem x:Name="MenuOpenNodeSets" Header="Open _NodeSet2 files..."
+                  IsEnabled="{CompiledBinding !IsLoadingNodeSets}" />
+        <MenuItem x:Name="MenuCloseNodeSets" Header="Close NodeSet2 files"
+                  IsVisible="{CompiledBinding IsOffline}" IsEnabled="{CompiledBinding !IsLoadingNodeSets}" />
+        <Separator />
         <MenuItem x:Name="MenuExport"    Header="_Export NodeSet2…"    InputGesture="Ctrl+E" />
         <MenuItem x:Name="MenuExportTab" Header="Export _Document Data…" InputGesture="Ctrl+Shift+E" />
         <Separator />
-        <MenuItem x:Name="MenuOpenWorkspace" Header="_Open Workspace…" InputGesture="Ctrl+O" />
+        <MenuItem x:Name="MenuOpenWorkspace" Header="_Open Workspace…" InputGesture="Ctrl+O"
+                  IsEnabled="{CompiledBinding !IsLoadingNodeSets}" />
         <MenuItem x:Name="MenuSaveWorkspace" Header="_Save Workspace…" InputGesture="Ctrl+S" />
         <Separator />
         <MenuItem x:Name="MenuCertificates" Header="Manage _Certificates…" InputGesture="Ctrl+K" />
@@ -136,7 +142,7 @@
     </Menu>
 
     <!-- Persistent connection strip. -->
-    <Border DockPanel.Dock="Top" Classes="strip">
+    <Border DockPanel.Dock="Top" Classes="strip" IsEnabled="{CompiledBinding !IsLoadingNodeSets}">
       <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
         <TextBlock Grid.Column="0" x:Name="ServerLabel" VerticalAlignment="Center" Margin="0,0,8,0"
                    Foreground="{DynamicResource TextSecondary}" Text="Server" />
@@ -170,6 +176,24 @@
                 Margin="6,0,0,0" MinWidth="0" Padding="8,4" Content="⚙"
                 ToolTip.Tip="Connection settings (engine, locales, identity, reconnect)" />
       </Grid>
+    </Border>
+
+    <Border DockPanel.Dock="Top" Classes="strip" IsVisible="{CompiledBinding IsOffline}">
+      <DockPanel>
+        <Button DockPanel.Dock="Right" x:Name="CloseNodeSetsButton" Content="Close models"
+                IsEnabled="{CompiledBinding !IsLoadingNodeSets}" />
+        <TextBlock Text="{CompiledBinding OfflineSummary}" TextWrapping="Wrap"
+                   VerticalAlignment="Center" ToolTip.Tip="{CompiledBinding OfflineDetails}" />
+      </DockPanel>
+    </Border>
+    <Border DockPanel.Dock="Top" Classes="strip" IsVisible="{CompiledBinding IsLoadingNodeSets}">
+      <DockPanel>
+        <Button DockPanel.Dock="Right" x:Name="CancelNodeSetLoadButton" Content="Cancel import" />
+        <StackPanel Spacing="4">
+          <TextBlock Text="Loading NodeSet2 files and dependencies..." />
+          <ProgressBar IsIndeterminate="True" Height="4" />
+        </StackPanel>
+      </DockPanel>
     </Border>
 
     <!-- Persistent, non-dismissable error surface (survives diagnostics collapse). -->
@@ -290,7 +314,8 @@
                         Background="{DynamicResource SeparatorBrush}"
                         IsVisible="{CompiledBinding ShowReferences}" />
           <ContentControl Grid.Row="6" x:Name="RefsPanel" IsVisible="{CompiledBinding ShowReferences}">
-            <v:ReferencesView DataContext="{CompiledBinding References}" />
+            <v:ReferencesView x:Name="NodeReferences" DataContext="{CompiledBinding References}"
+                              ToolTip.Tip="In offline mode, double-click a reference target to inspect it." />
           </ContentControl>
         </Grid>
       </Border>
@@ -371,12 +396,14 @@
                   <StackPanel Orientation="Vertical" Spacing="12">
                     <TextBlock Classes="heading" Text="Welcome to UaLens" />
                     <TextBlock Classes="caption" TextWrapping="Wrap"
-                               Text="Connect to a server to browse, read, write and monitor. Discovery and local certificate stores work offline." />
+                               Text="Connect to a server to browse, read, write and monitor, or open NodeSet2 XML files to explore models offline." />
                     <WrapPanel Orientation="Horizontal">
                       <Button x:Name="WelcomeConnectBtn" Classes="primary" Content="Connect…"
                               Margin="0,0,8,8" />
                       <Button x:Name="WelcomeOpenWorkspaceBtn" Classes="tonal" Content="Open Workspace…"
                               Margin="0,0,8,8" />
+                      <Button x:Name="WelcomeOpenNodeSetsBtn" Classes="tonal" Content="Open NodeSet2 files..."
+                              IsEnabled="{CompiledBinding !IsLoadingNodeSets}" Margin="0,0,8,8" />
                       <Button x:Name="WelcomeDiscoveryBtn" Classes="tonal" Content="Discovery"
                               Margin="0,0,8,8" />
                       <Button x:Name="WelcomeCertificatesBtn" Classes="tonal" Content="Certificates"

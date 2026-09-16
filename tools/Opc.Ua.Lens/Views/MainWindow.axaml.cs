@@ -36,6 +36,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using UaLens.NodeSets.Loading;
 using UaLens.Themes;
 using UaLens.ViewModels;
 
@@ -60,7 +61,8 @@ internal sealed partial class MainWindow : Window, IAsyncDisposable
         AppearancePreferences? appearance = null,
         WriteValueOperationFactory? writeOperations = null,
         IStorageProvider? storageProvider = null,
-        Func<ApplicationConfiguration, CertificateStoreOperations>? certificateOperations = null)
+        Func<ApplicationConfiguration, CertificateStoreOperations>? certificateOperations = null,
+        INodeSetRepository? nodeSetRepository = null)
     {
         m_vm = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         m_appearance = appearance ?? new AppearancePreferences();
@@ -76,9 +78,11 @@ internal sealed partial class MainWindow : Window, IAsyncDisposable
         ILogger log = m_vm.Telemetry.CreateLogger("Shell");
         m_nodes = new NodeInteractionController(this, m_vm, log, writeOperations);
         m_connection = new ConnectionController(this, m_vm, log, storageProvider, certificateOperations);
+        m_nodeSets = new NodeSetController(this, m_vm, nodeSetRepository, storageProvider);
         m_shell = new ShellPresenter(this, m_vm, m_connection, log, ChangeThemeAsync);
         m_nodes.Attach();
         m_connection.Attach();
+        m_nodeSets.Attach();
         m_shell.Attach();
 
         AddHandler(KeyDownEvent, (_, e) => m_shell.OnKeyDown(e), RoutingStrategies.Tunnel);
@@ -139,6 +143,7 @@ internal sealed partial class MainWindow : Window, IAsyncDisposable
     {
         m_closing = true;
         m_shell.Dispose();
+        await m_nodeSets.DisposeAsync().ConfigureAwait(true);
         foreach (Window dialog in OwnedWindows.ToArray())
         {
             if (dialog is IAsyncDisposable ownedWork)
@@ -172,6 +177,7 @@ internal sealed partial class MainWindow : Window, IAsyncDisposable
     private readonly AppearancePreferences m_appearance;
     private readonly NodeInteractionController m_nodes;
     private readonly ConnectionController m_connection;
+    private readonly NodeSetController m_nodeSets;
     private readonly ShellPresenter m_shell;
     private Task? m_disposal;
     private bool m_closing;

@@ -4,6 +4,10 @@ UaLens provides a desktop workspace for the OPC Foundation .NET stack:
 connect securely, explore an address space, read and write values, call methods,
 and monitor values, events, quality and timestamps.
 
+Open one or more NodeSet2 XML files in the same explorer for read-only offline
+model inspection. The core OPC UA model is bundled. Missing dependencies can
+be selected locally or downloaded with permission from OPCFoundation/UA-Nodeset.
+
 Install the tool package with the version available from your configured feed:
 
 ```powershell

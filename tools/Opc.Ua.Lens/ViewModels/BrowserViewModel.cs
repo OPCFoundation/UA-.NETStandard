@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
@@ -39,6 +40,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
 using UaLens.Connection;
+using UaLens.NodeSets;
 using UaLens.Workspace;
 
 namespace UaLens.ViewModels;
@@ -80,6 +82,23 @@ internal enum BrowseViewKind
     /// Server-defined views under <c>ViewsFolder</c> (i=87).
     /// </summary>
     Views,
+
+    /// <summary>
+    /// Every imported node, including nodes outside the Root hierarchy.
+    /// </summary>
+    AllNodes
+}
+
+/// <summary>
+/// A namespace in the active address space, or the choice that clears highlighting.
+/// </summary>
+internal sealed record NamespaceOption(int? NamespaceIndex, string NamespaceUri)
+{
+    public static NamespaceOption None { get; } = new(null, string.Empty);
+
+    public string DisplayName => NamespaceIndex is { } index
+        ? $"{index}: {NamespaceUri}"
+        : "None (no highlighting)";
 }
 
 /// <summary>
@@ -129,6 +148,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
     private readonly Func<ISession?> m_session;
     private readonly IWorkspaceDispatcher m_dispatcher;
     private int m_treeGeneration;
+
     /// <summary>
     /// Last <see cref="ManagedSession"/> instance the tree was built against.
     /// The tree is only rebuilt when this changes — so transient
@@ -139,6 +159,62 @@ internal sealed partial class BrowserViewModel : ObservableObject
     private ISession? m_lastSessionRef;
 
     public ObservableCollection<NodeViewModel> Roots { get; } = new();
+
+    public NodeSetAddressSpace? OfflineSource { get; private set; }
+
+    public ObservableCollection<BrowseViewKind> ViewKinds { get; } = new(
+        Enum.GetValues<BrowseViewKind>().Where(kind => kind != BrowseViewKind.AllNodes));
+
+    public ObservableCollection<NamespaceOption> NamespaceOptions { get; } = [NamespaceOption.None];
+
+    public bool HasNamespaces => NamespaceOptions.Count > 1;
+
+    [ObservableProperty]
+    public partial NamespaceOption? SelectedNamespace { get; set; } = NamespaceOption.None;
+
+    public void SetOfflineSource(NodeSetAddressSpace? source)
+    {
+        m_dispatcher.VerifyAccess();
+        OfflineSource = source;
+        if (source is null && CurrentViewKind == BrowseViewKind.AllNodes)
+        {
+            CurrentViewKind = BrowseViewKind.Objects;
+        }
+        if (source is null)
+        {
+            ViewKinds.Remove(BrowseViewKind.AllNodes);
+        }
+        else if (!ViewKinds.Contains(BrowseViewKind.AllNodes))
+        {
+            ViewKinds.Add(BrowseViewKind.AllNodes);
+        }
+        OnPropertyChanged(nameof(OfflineSource));
+        Reload();
+    }
+
+    public NodeViewModel? ShowOfflineNode(NodeId nodeId)
+    {
+        m_dispatcher.VerifyAccess();
+        if (OfflineSource is not { } offline)
+        {
+            return null;
+        }
+        ReferenceDescription? description = offline.Nodes.Find(
+            node => ExpandedNodeId.ToNodeId(node.NodeId, offline.NamespaceUris) == nodeId);
+        if (description is null)
+        {
+            return null;
+        }
+        NodeViewModel? existing = Roots.FirstOrDefault(node => node.NodeId == nodeId);
+        if (existing is not null)
+        {
+            return existing;
+        }
+        var result = new NodeViewModel(
+            this, NodeId.Null, nodeId, description.DisplayName.Text ?? nodeId.ToString(), description.NodeClass);
+        Roots.Insert(0, result);
+        return result;
+    }
 
     public BrowserViewModel(
         ITelemetryContext telemetry,
@@ -176,6 +252,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
         ISession? cur = m_session();
         if (ReferenceEquals(cur, m_lastSessionRef))
         {
+            RefreshNamespaces();
             return;
         }
         m_lastSessionRef = cur;
@@ -193,9 +270,23 @@ internal sealed partial class BrowserViewModel : ObservableObject
     internal void Reload()
     {
         m_dispatcher.VerifyAccess();
+        RefreshNamespaces();
         m_treeGeneration++;
         Roots.Clear();
-        if (m_session() is not null && (m_connection is null || m_connection.IsConnected))
+        if (OfflineSource is { } offline && CurrentViewKind == BrowseViewKind.AllNodes)
+        {
+            foreach (IGrouping<ushort, ReferenceDescription> group in offline.Nodes.ToList().GroupBy(
+                node => ExpandedNodeId.ToNodeId(node.NodeId, offline.NamespaceUris).NamespaceIndex))
+            {
+                Roots.Add(new NodeViewModel(this, NodeId.Null, NodeId.Null,
+                    $"{group.Key}: {offline.NamespaceUris.GetString(group.Key)}", NodeClass.Unspecified)
+                {
+                    IndexNamespace = group.Key
+                });
+            }
+        }
+        else if (OfflineSource is not null ||
+            (m_session() is not null && (m_connection is null || m_connection.IsConnected)))
         {
             (NodeId rootId, string rootLabel) = GetRootSpec(CurrentViewKind);
             // Children load lazily on expand via LoadChildrenAsync, which
@@ -207,6 +298,64 @@ internal sealed partial class BrowserViewModel : ObservableObject
             root.IsExpanded = true;
         }
         m_lastSessionRef = m_session();
+    }
+
+    private void RefreshNamespaces()
+    {
+        NamespaceTable? table = OfflineSource?.NamespaceUris ?? m_session()?.NamespaceUris;
+        string[] namespaces = table?.ToArray() ?? [];
+        bool sameTable = ReferenceEquals(table, m_namespaceTable);
+        if (sameTable &&
+            NamespaceOptions.Count == namespaces.Length + 1 &&
+            NamespaceOptions.Skip(1).Select(option => option.NamespaceUri)
+                .SequenceEqual(namespaces, StringComparer.Ordinal))
+        {
+            return;
+        }
+        NamespaceOption? previous = sameTable ? SelectedNamespace : null;
+        m_namespaceTable = table;
+        SelectedNamespace = NamespaceOption.None;
+        NamespaceOptions.Clear();
+        NamespaceOptions.Add(NamespaceOption.None);
+        for (int index = 0; index < namespaces.Length; index++)
+        {
+            NamespaceOptions.Add(new NamespaceOption(index, namespaces[index]));
+        }
+        OnPropertyChanged(nameof(HasNamespaces));
+        SelectedNamespace = previous?.NamespaceIndex is not null
+            ? NamespaceOptions.Skip(1).FirstOrDefault(option => option.NamespaceUri == previous.NamespaceUri)
+                ?? NamespaceOption.None
+            : NamespaceOption.None;
+    }
+
+    partial void OnSelectedNamespaceChanging(NamespaceOption? value)
+    {
+        m_dispatcher.VerifyAccess();
+    }
+
+    partial void OnSelectedNamespaceChanged(NamespaceOption? oldValue, NamespaceOption? newValue)
+    {
+        if (oldValue?.NamespaceIndex == newValue?.NamespaceIndex)
+        {
+            return;
+        }
+        var pending = new Stack<NodeViewModel>(Roots);
+        while (pending.TryPop(out NodeViewModel? node))
+        {
+            if (!node.NodeId.IsNull &&
+                (node.NodeId.NamespaceIndex == oldValue?.NamespaceIndex) !=
+                (node.NodeId.NamespaceIndex == newValue?.NamespaceIndex))
+            {
+                node.NotifyNamespaceHighlightChanged();
+            }
+            foreach (NodeViewModel child in node.Children)
+            {
+                if (!child.IsPlaceholder)
+                {
+                    pending.Push(child);
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -252,33 +401,34 @@ internal sealed partial class BrowserViewModel : ObservableObject
         node.LoadError = string.Empty;
         int generation = m_treeGeneration;
         ISession? session = m_session();
+        NodeSetAddressSpace? offline = OfflineSource;
         var refs = new List<ReferenceDescription>();
         var continuationPoints = new List<ByteString>();
         try
         {
-            if (session is null)
+            if (offline is not null && node.IndexNamespace is { } namespaceIndex)
             {
-                throw new ServiceResultException(StatusCodes.BadNotConnected, "Reconnect, then retry this node.");
+                refs.AddRange(offline.Nodes.ToList().Where(reference =>
+                    ExpandedNodeId.ToNodeId(reference.NodeId, offline.NamespaceUris).NamespaceIndex == namespaceIndex));
             }
-            // Build the BrowseDescription(s) to issue against this node.
-            // For instance views (Objects, Views) we follow Aggregates+Organizes
-            // so folder-style navigation works.  For type views (ObjectTypes,
-            // VariableTypes, DataTypes, ReferenceTypes) we follow HasSubtype
-            // and constrain the NodeClass to the matching type class so the
-            // tree only surfaces type nodes.  Results are deduplicated by
-            // absolute NodeId so a child reachable through both refs (rare
-            // but possible) only shows once.  HasNotifier / HasEventSource
-            // are intentionally excluded — they cause duplicates on
-            // event-emitting servers.
-            ArrayOf<BrowseDescription> descriptions = BuildBrowseDescriptions(node.NodeId);
-
-            BrowseResponse resp = await session.BrowseAsync(null, null, 0, descriptions, default).ConfigureAwait(false);
-            CollectPage(resp.Results, descriptions.Count);
+            else
+            {
+                if (session is null && offline is null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNotConnected, "Reconnect, then retry this node.");
+                }
+                ArrayOf<BrowseDescription> descriptions = BuildBrowseDescriptions(node.NodeId);
+                BrowseResponse resp = offline is not null
+                    ? await offline.BrowseAsync(descriptions).ConfigureAwait(false)
+                    : await session!.BrowseAsync(null, null, 0, descriptions, default).ConfigureAwait(false);
+                CollectPage(resp.Results, descriptions.Count);
+            }
             // Drain continuation points until both browse results are complete.
             while (continuationPoints.Count > 0)
             {
                 ArrayOf<ByteString> nextCps = continuationPoints.ToArray();
-                BrowseNextResponse next = await session.BrowseNextAsync(null, false, nextCps, default).ConfigureAwait(false);
+                BrowseNextResponse next = await session!.BrowseNextAsync(null, false, nextCps, default)
+                    .ConfigureAwait(false);
                 continuationPoints.Clear();
                 for (int i = 0; i < nextCps.Count; i++)
                 {
@@ -292,7 +442,9 @@ internal sealed partial class BrowserViewModel : ObservableObject
 
             await PostToUiAsync(() =>
             {
-                if (generation == m_treeGeneration && ReferenceEquals(session, m_session()))
+                if (generation == m_treeGeneration &&
+                    ReferenceEquals(session, m_session()) &&
+                    ReferenceEquals(offline, OfflineSource))
                 {
                     ApplyChildren();
                     node.ChildrenLoaded = true;
@@ -305,7 +457,9 @@ internal sealed partial class BrowserViewModel : ObservableObject
             BrowserViewModelLog.BrowseFailed(m_log, ex, node.NodeId);
             await PostToUiAsync(() =>
             {
-                if (generation == m_treeGeneration && ReferenceEquals(session, m_session()))
+                if (generation == m_treeGeneration &&
+                    ReferenceEquals(session, m_session()) &&
+                    ReferenceEquals(offline, OfflineSource))
                 {
                     ApplyChildren();
                     node.LoadError = refs.Count == 0
@@ -361,15 +515,17 @@ internal sealed partial class BrowserViewModel : ObservableObject
 
         void ApplyChildren()
         {
+            RefreshNamespaces();
             node.Children.Clear();
             var seen = new HashSet<NodeId>();
             foreach (ReferenceDescription reference in refs)
             {
-                if (reference.NodeId.IsNull || reference.NodeId.IsAbsolute || session is null)
+                NamespaceTable? namespaceUris = offline?.NamespaceUris ?? session?.NamespaceUris;
+                if (reference.NodeId.IsNull || reference.NodeId.ServerIndex != 0 || namespaceUris is null)
                 {
                     continue;
                 }
-                NodeId child = ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris);
+                var child = ExpandedNodeId.ToNodeId(reference.NodeId, namespaceUris);
                 if (child.IsNull || !seen.Add(child))
                 {
                     continue;
@@ -398,13 +554,13 @@ internal sealed partial class BrowserViewModel : ObservableObject
     {
         switch (CurrentViewKind)
         {
-            case BrowseViewKind.ObjectTypes:
+            case BrowseViewKind.ObjectTypes when OfflineSource is null:
                 return BuildSubtypeDescriptions(nodeId, NodeClass.ObjectType);
-            case BrowseViewKind.VariableTypes:
+            case BrowseViewKind.VariableTypes when OfflineSource is null:
                 return BuildSubtypeDescriptions(nodeId, NodeClass.VariableType);
-            case BrowseViewKind.DataTypes:
+            case BrowseViewKind.DataTypes when OfflineSource is null:
                 return BuildSubtypeDescriptions(nodeId, NodeClass.DataType);
-            case BrowseViewKind.ReferenceTypes:
+            case BrowseViewKind.ReferenceTypes when OfflineSource is null:
                 return BuildSubtypeDescriptions(nodeId, NodeClass.ReferenceType);
             case BrowseViewKind.Objects:
             case BrowseViewKind.Views:
@@ -566,6 +722,27 @@ internal sealed partial class BrowserViewModel : ObservableObject
             IReadOnlyList<string> relativePaths,
             CancellationToken ct = default)
     {
+        if (OfflineSource is { } offline)
+        {
+            var resolved = new List<(string, StatusCode, IReadOnlyList<NodeId>)>();
+            foreach (string path in relativePaths)
+            {
+                ct.ThrowIfCancellationRequested();
+                try
+                {
+                    ArrayOf<NodeId> matches = await offline.ResolvePathAsync(
+                        startingNode.IsNull ? ObjectIds.ObjectsFolder : startingNode, path, ct).ConfigureAwait(false);
+                    resolved.Add(
+                        (path, matches.Count == 0 ? StatusCodes.BadNoMatch : StatusCodes.Good, matches.ToList()));
+                }
+                catch (ServiceResultException error)
+                {
+                    BrowserViewModelLog.RelativePathFailed(m_log, error, path);
+                    resolved.Add((path, error.StatusCode, Array.Empty<NodeId>()));
+                }
+            }
+            return resolved;
+        }
         if (m_session() is not { } session || relativePaths.Count == 0)
         {
             return Array.Empty<(string, StatusCode, IReadOnlyList<NodeId>)>();
@@ -716,6 +893,8 @@ internal sealed partial class BrowserViewModel : ObservableObject
         NodeClass.View => "👁️",
         _ => "•"
     };
+
+    private NamespaceTable? m_namespaceTable;
 }
 
 internal sealed partial class NodeViewModel : ObservableObject
@@ -726,6 +905,7 @@ internal sealed partial class NodeViewModel : ObservableObject
     public NodeId ParentNodeId { get; }
     public NodeClass NodeClass { get; }
     internal bool IsPlaceholder { get; }
+    internal ushort? IndexNamespace { get; init; }
 
     [ObservableProperty]
     private string m_text;
@@ -744,6 +924,10 @@ internal sealed partial class NodeViewModel : ObservableObject
     private string m_loadError = string.Empty;
 
     public bool HasLoadError => LoadError.Length > 0;
+
+    public bool IsNamespaceHighlighted => !IsPlaceholder &&
+        !NodeId.IsNull &&
+        NodeId.NamespaceIndex == m_owner.SelectedNamespace?.NamespaceIndex;
 
     public ObservableCollection<NodeViewModel> Children { get; } = new();
     internal bool ChildrenLoaded { get; set; }
@@ -791,5 +975,10 @@ internal sealed partial class NodeViewModel : ObservableObject
                 m_owner, NodeId, NodeId.Null, "Retry this node to load its children.", NodeClass.Unspecified, true));
         }
         HasItems = true;
+    }
+
+    internal void NotifyNamespaceHighlightChanged()
+    {
+        OnPropertyChanged(nameof(IsNamespaceHighlighted));
     }
 }

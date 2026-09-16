@@ -31,6 +31,7 @@ using System;
 using System.Threading;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using Opc.Ua;
 using UaLens.ViewModels;
 
 namespace UaLens.Views;
@@ -42,7 +43,9 @@ namespace UaLens.Views;
 /// </summary>
 internal interface IContextMenuPolicy
 {
-    /// <summary>Returns whether each menu entry should be visible.</summary>
+    /// <summary>
+    /// Returns whether each menu entry should be visible.
+    /// </summary>
     ContextMenuVisibility Inspect(NodeViewModel node);
 }
 
@@ -118,7 +121,7 @@ internal sealed partial class AddressSpaceView : UserControl
 
         tree.SelectionChanged += (_, _) =>
         {
-            if (tree.SelectedItem is NodeViewModel n)
+            if (tree.SelectedItem is NodeViewModel { NodeId.IsNull: false } n)
             {
                 NodeSelected?.Invoke(n);
             }
@@ -128,7 +131,7 @@ internal sealed partial class AddressSpaceView : UserControl
         // reflects the currently-selected node.
         menu.Opening += (_, _) =>
         {
-            if (tree.SelectedItem is not NodeViewModel n || ContextMenuPolicy is null)
+            if (tree.SelectedItem is not NodeViewModel { NodeId.IsNull: false } n || ContextMenuPolicy is null)
             {
                 miAdd.IsVisible = miAddRec.IsVisible = miCall.IsVisible = miWrite.IsVisible = false;
                 miReadHistory.IsVisible = miShowEvents.IsVisible = miPerf.IsVisible = false;
@@ -269,6 +272,16 @@ internal sealed partial class AddressSpaceView : UserControl
         };
     }
 
+    public bool SelectOfflineNode(NodeId nodeId)
+    {
+        if (DataContext is BrowserViewModel vm && vm.ShowOfflineNode(nodeId) is { } node)
+        {
+            this.RequiredControl<TreeView>("Tree").SelectedItem = node;
+            return true;
+        }
+        return false;
+    }
+
     /// <summary>
     /// Depth-limited DFS over the already-loaded tree nodes filtering by
     /// BrowseName / NodeId substring (case-insensitive).  When
@@ -290,6 +303,27 @@ internal sealed partial class AddressSpaceView : UserControl
         }
         bool fresh = fromBeginning || query != m_lastSearch;
         m_lastSearch = query;
+        if (DataContext is BrowserViewModel { OfflineSource: { } offline })
+        {
+            if (fresh)
+            {
+                m_offlineSearchIndex = 0;
+            }
+            for (; m_offlineSearchIndex < offline.Nodes.Count; m_offlineSearchIndex++)
+            {
+                ReferenceDescription candidate = offline.Nodes[m_offlineSearchIndex];
+                if ((candidate.DisplayName.Text ?? string.Empty).Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    (candidate.BrowseName.Name ?? string.Empty).Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    candidate.NodeId.ToString().Contains(query, StringComparison.OrdinalIgnoreCase))
+                {
+                    m_offlineSearchIndex++;
+                    SelectOfflineNode(ExpandedNodeId.ToNodeId(candidate.NodeId, offline.NamespaceUris));
+                    return;
+                }
+            }
+            m_offlineSearchIndex = 0;
+            return;
+        }
         NodeViewModel? skipUntil = fresh ? null : m_lastSearchHit;
         bool seenSkip = skipUntil is null;
         foreach (object root in tree.ItemsSource)
@@ -350,34 +384,8 @@ internal sealed partial class AddressSpaceView : UserControl
     /// </summary>
     private void WireViewKindCombo(ComboBox combo)
     {
-        combo.ItemsSource = Enum.GetValues<BrowseViewKind>();
-        bool syncing = false;
-
-        void SyncFromDataContext()
-        {
-            if (DataContext is BrowserViewModel vm)
-            {
-                syncing = true;
-                try
-                {
-                    combo.SelectedItem = vm.CurrentViewKind;
-                }
-                finally
-                {
-                    syncing = false;
-                }
-            }
-        }
-
-        SyncFromDataContext();
-        DataContextChanged += (_, _) => SyncFromDataContext();
-
         combo.SelectionChanged += async (_, _) =>
         {
-            if (syncing)
-            {
-                return;
-            }
             if (DataContext is BrowserViewModel vm
                 && combo.SelectedItem is BrowseViewKind kind
                 && kind != vm.CurrentViewKind)
@@ -391,4 +399,6 @@ internal sealed partial class AddressSpaceView : UserControl
     {
         AvaloniaXamlLoader.Load(this);
     }
+
+    private int m_offlineSearchIndex;
 }

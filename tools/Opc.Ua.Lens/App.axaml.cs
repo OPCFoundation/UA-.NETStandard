@@ -76,7 +76,8 @@ internal sealed partial class App : Application
                 writeOperations: services.GetRequiredService<WriteValueOperationFactory>(),
                 storageProvider: services.GetService<IStorageProvider>(),
                 certificateOperations: services.GetRequiredService<
-                    Func<ApplicationConfiguration, CertificateStoreOperations>>());
+                    Func<ApplicationConfiguration, CertificateStoreOperations>>(),
+                nodeSetRepository: services.GetRequiredService<NodeSets.Loading.INodeSetRepository>());
             if (m_desktopSmoke is { } smoke)
             {
                 // The smoke task is observed by Program after the desktop loop.

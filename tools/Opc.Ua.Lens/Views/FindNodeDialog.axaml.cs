@@ -50,7 +50,7 @@ internal sealed partial class FindNodeDialog : Window
 {
     private readonly BrowserViewModel m_browser;
 
-    public FindNodeDialog(BrowserViewModel browser, NodeId? defaultStart = null)
+    public FindNodeDialog(BrowserViewModel browser, NodeId defaultStart = default)
     {
         m_browser = browser ?? throw new ArgumentNullException(nameof(browser));
         InitializeComponent();
@@ -60,9 +60,9 @@ internal sealed partial class FindNodeDialog : Window
         var resolve = this.RequiredControl<Button>("ResolveButton");
         var close = this.RequiredControl<Button>("CloseButton");
 
-        if (defaultStart is { } start && !start.IsNull)
+        if (!defaultStart.IsNull)
         {
-            startBox.Text = start.ToString();
+            startBox.Text = defaultStart.ToString();
         }
 
         resolve.Click += async (_, _) =>

@@ -36,6 +36,8 @@ using Opc.Ua;
 using UaLens.Capabilities;
 using UaLens.Connection;
 using UaLens.Diagnostics;
+using UaLens.NodeSets;
+using UaLens.NodeSets.Loading;
 using UaLens.Telemetry;
 using UaLens.Themes;
 using UaLens.ViewModels;
@@ -70,6 +72,10 @@ internal static class UaLensServiceCollectionExtensions
                 store ?? new CertificateStoreService(configuration, telemetry), timeProvider);
         });
         services.AddUaLensConnection();
+        services.TryAddSingleton<INodeSetLoader>(_ => new NodeSetLoader());
+        services.TryAddSingleton<INodeSetRepository>(_ => new UaNodeSetRepository());
+        services.TryAddSingleton<INodeSetAddressSpaceFactory>(provider =>
+            new NodeSetAddressSpaceFactory(provider.GetRequiredService<ITelemetryContext>()));
         services.AddUaLensShowcases();
         services.TryAddSingleton<ICapabilityProbe>(_ => new SessionCapabilityProbe());
         services.TryAddSingleton<ICapabilityService>(provider => new CapabilityService(
@@ -96,7 +102,9 @@ internal static class UaLensServiceCollectionExtensions
             provider.GetRequiredService<IWorkspaceDispatcher>(),
             provider.GetRequiredService<Func<CancellationToken, Task<ResourceMonitorHost>>>(),
             provider.GetRequiredService<ICapabilityService>(),
-            provider.GetRequiredService<IPluginFactory>()));
+            provider.GetRequiredService<IPluginFactory>(),
+            provider.GetRequiredService<INodeSetLoader>(),
+            provider.GetRequiredService<INodeSetAddressSpaceFactory>()));
         services.TryAddSingleton(provider => provider.GetRequiredService<MainViewModel>().CreatePluginHost());
         return services;
     }
@@ -106,6 +114,7 @@ internal static class UaLensServiceCollectionExtensions
     /// The feature and its document never resolve services.
     /// Register the feature factory itself using an explicit construction delegate for NativeAOT.
     /// </summary>
+    /// <typeparam name="TFactory">The registered feature factory type.</typeparam>
     public static IServiceCollection AddUaLensPluginFactory<TFactory>(
         this IServiceCollection services,
         PluginKind kind,

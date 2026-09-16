@@ -38,6 +38,7 @@ using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using NUnit.Framework;
+using UaLens.NodeSets.Loading;
 using UaLens.Themes;
 using UaLens.ViewModels;
 using UaLens.Views;
@@ -50,12 +51,14 @@ namespace UaLens.Tests.Desktop;
 /// </summary>
 internal sealed class DesktopWindowScope : IAsyncDisposable
 {
-    private DesktopWindowScope(string directory, IStorageProvider? storageProvider)
+    private DesktopWindowScope(
+        string directory, IStorageProvider? storageProvider, INodeSetRepository? nodeSetRepository)
     {
         DirectoryPath = directory;
         Appearance = new AppearancePreferences(Path.Combine(directory, "appearance.json"));
         ViewModel = new MainViewModel();
-        Window = new MainWindow(ViewModel, Appearance, storageProvider: storageProvider);
+        Window = new MainWindow(
+            ViewModel, Appearance, storageProvider: storageProvider, nodeSetRepository: nodeSetRepository);
         Window.Closed += (_, _) => m_closed.TrySetResult();
     }
 
@@ -65,11 +68,12 @@ internal sealed class DesktopWindowScope : IAsyncDisposable
     public string DirectoryPath { get; }
     public Task Closed => m_closed.Task;
 
-    public static async Task<DesktopWindowScope> OpenAsync(IStorageProvider? storageProvider = null)
+    public static async Task<DesktopWindowScope> OpenAsync(
+        IStorageProvider? storageProvider = null, INodeSetRepository? nodeSetRepository = null)
     {
         Dispatcher.UIThread.VerifyAccess();
         string directory = Path.GetFullPath(Path.Combine("TestResults", "lens-desktop", Guid.NewGuid().ToString("N")));
-        var scope = new DesktopWindowScope(directory, storageProvider);
+        var scope = new DesktopWindowScope(directory, storageProvider, nodeSetRepository);
         Directory.CreateDirectory(directory);
         var loaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         void OnThemeChanged() => loaded.TrySetResult();

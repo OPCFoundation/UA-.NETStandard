@@ -27,8 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using UaLens.ViewModels;
 
 namespace UaLens.Views;
 
@@ -37,7 +39,16 @@ internal sealed partial class ReferencesView : UserControl
     public ReferencesView()
     {
         InitializeComponent();
+        DoubleTapped += (_, args) =>
+        {
+            if (args.Source is Control { DataContext: ReferenceRow row })
+            {
+                NavigateRequested?.Invoke(row.TargetNodeId);
+            }
+        };
     }
+
+    public event Action<string>? NavigateRequested;
 
     private void InitializeComponent()
     {

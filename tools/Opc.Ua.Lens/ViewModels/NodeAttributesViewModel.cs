@@ -38,6 +38,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
 using UaLens.Connection;
+using UaLens.NodeSets;
 using UaLens.Subscriptions;
 using UaLens.Workspace;
 
@@ -53,6 +54,7 @@ namespace UaLens.ViewModels;
 internal sealed partial class NodeAttributesViewModel : ObservableObject, IDisposable
 {
     private readonly Func<ISession?> m_session;
+    private readonly Func<NodeSetAddressSpace?>? m_offlineSource;
     private readonly IWorkspaceDispatcher m_dispatcher;
     private readonly ILogger m_log;
     private Action? m_cancelCurrent;
@@ -67,13 +69,15 @@ internal sealed partial class NodeAttributesViewModel : ObservableObject, IDispo
     public NodeAttributesViewModel(
         ITelemetryContext telemetry,
         ConnectionService connection,
-        IWorkspaceDispatcher? dispatcher = null)
+        IWorkspaceDispatcher? dispatcher = null,
+        Func<NodeSetAddressSpace?>? offlineSource = null)
         : this(telemetry, () => connection.CurrentSession, dispatcher ??
             (Avalonia.Application.Current is null
                 ? InlineWorkspaceDispatcher.Instance
                 : new AvaloniaWorkspaceDispatcher()))
     {
         ArgumentNullException.ThrowIfNull(connection);
+        m_offlineSource = offlineSource;
     }
 
     public NodeAttributesViewModel(
@@ -112,7 +116,9 @@ internal sealed partial class NodeAttributesViewModel : ObservableObject, IDispo
 
         try
         {
-            if (m_session() is not { } session)
+            ISession? session = m_session();
+            NodeSetAddressSpace? offline = m_offlineSource?.Invoke();
+            if (session is null && offline is null)
             {
                 Rows.Add(new AttributeRow("(disconnected)", string.Empty));
                 return;
@@ -130,7 +136,9 @@ internal sealed partial class NodeAttributesViewModel : ObservableObject, IDispo
                 idList.Add(new ReadValueId { NodeId = nodeId, AttributeId = e.AttributeId });
             }
             var ids = new ArrayOf<ReadValueId>(idList.ToArray());
-            ReadResponse resp = await session.ReadAsync(null, 0, TimestampsToReturn.Neither, ids, ct).ConfigureAwait(false);
+            ReadResponse resp = offline is not null
+                ? await offline.ReadAsync(ids, ct).ConfigureAwait(false)
+                : await session!.ReadAsync(null, 0, TimestampsToReturn.Neither, ids, ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
             ClientBase.ValidateResponse(resp.Results, ids);
             var rows = new List<AttributeRow>();

@@ -45,6 +45,8 @@
     <!-- App icon (PNG for window/taskbar via Avalonia; ICO consumed by
          <ApplicationIcon> for the Windows .exe resource). -->
     <AvaloniaResource Include="Assets\app-icon.png" />
+    <EmbeddedResource Include="..\..\src\Opc.Ua.Core\Schema\Opc.Ua.NodeSet.xml"
+                      LogicalName="UaLens.NodeSets.Opc.Ua.NodeSet2.xml" />
   </ItemGroup>
 
   <ItemGroup>

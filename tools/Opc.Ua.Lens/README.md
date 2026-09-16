@@ -9,6 +9,16 @@ administration or diagnostic tool from the searchable catalog. Document actions
 and document or connection settings let you perform advanced operations and
 control their configuration.
 
+**File > Open NodeSet2 files...** opens one or more information models in the
+same explorer without a server. Lens includes the OPC UA core model, resolves
+local dependencies, and offers approved downloads from OPCFoundation/UA-Nodeset
+or a file picker for missing models. See the
+[offline NodeSet2 guide](../../docs/UaLensNodeSets.md).
+
+The explorer's **Namespace** dropdown lists the active server or NodeSet
+namespaces. Select one to highlight its nodes without filtering the tree;
+choose **None (no highlighting)** to clear the highlight.
+
 ## Run from source
 
 From the repository root:

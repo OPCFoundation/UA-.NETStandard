@@ -36,6 +36,12 @@ Use the connection bar to choose an endpoint and connect. The endpoint picker
 shows the server's advertised security and identity policies. The primary state,
 security policy, and identity are visible while working.
 
+To explore information models without a server, choose **File > Open NodeSet2
+files...**. Multiple files share the same explorer and inspector. Missing
+dependencies can be selected locally or downloaded, with permission, from
+OPCFoundation/UA-Nodeset. See the [NodeSet2 explorer guide](UaLensNodeSets.md)
+for dependency resolution, complete-node browsing and offline limits.
+
 The standard headless `--smoke` and protocol probes are development diagnostics
 for a reference server's explicitly selected Anonymous/None endpoint. They do
 not prove secure desktop behavior or authorize accepting an untrusted certificate.
@@ -158,6 +164,15 @@ establish that a desktop capture run passed.
 
 *Browse the address space beside a monitor document. The connection bar applies
 to the primary session shared by the documents.*
+
+The explorer's **Namespace** dropdown lists namespace indexes and URIs from
+the connected server or loaded NodeSets. Selecting one highlights matching
+nodes with a background, left marker and bold label, including children loaded
+by later expansion. It does not filter nodes, change the selected node or
+collapse branches. Choose **None (no highlighting)** to clear it.
+The picker stays visible when the view/search filters are hidden. Highlight
+selection survives a tree refresh or view change, but resets when the address
+space changes or disconnects; it is not saved in the workspace.
 
 The default appearance follows the operating system. Light and Dark can be
 selected explicitly. Saved Light, DarkStandard, and DarkNavy preferences select

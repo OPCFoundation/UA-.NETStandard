@@ -45,11 +45,13 @@ using Opc.Ua;
 using UaLens.Capabilities;
 using UaLens.Connection;
 using UaLens.Diagnostics;
+using UaLens.NodeSets;
+using UaLens.NodeSets.Loading;
 using UaLens.Plugins.Gds;
 using UaLens.Plugins.SubscriptionBench;
+using UaLens.Storage;
 using UaLens.Subscriptions;
 using UaLens.Telemetry;
-using UaLens.Storage;
 using UaLens.Workspace;
 
 namespace UaLens.ViewModels;
@@ -85,7 +87,9 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
         IWorkspaceDispatcher? dispatcher = null,
         Func<CancellationToken, Task<ResourceMonitorHost>>? startResourceMonitor = null,
         ICapabilityService? capabilities = null,
-        IPluginFactory? pluginFactory = null)
+        IPluginFactory? pluginFactory = null,
+        INodeSetLoader? nodeSetLoader = null,
+        INodeSetAddressSpaceFactory? nodeSetFactory = null)
     {
         Telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
         m_logBuffer = telemetry.Buffer;
@@ -94,11 +98,13 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
         m_startResourceMonitor = startResourceMonitor
             ?? (cancellationToken => ResourceMonitorHost.StartAsync(telemetry, cancellationToken));
         Connection = connection ?? new ConnectionService(telemetry, new PublishLogObserver());
+        m_nodeSetLoader = nodeSetLoader ?? new NodeSetLoader();
+        m_nodeSetFactory = nodeSetFactory ?? new NodeSetAddressSpaceFactory(telemetry);
         m_workspaceProfile = Connection.IsConnected ? Connection.Profile : null;
         PublishLog = Connection.PublishLog ?? new PublishLogObserver();
         Browser = new BrowserViewModel(telemetry, Connection, m_dispatcher);
-        Attributes = new NodeAttributesViewModel(telemetry, Connection, m_dispatcher);
-        References = new ReferencesViewModel(telemetry, Connection, m_dispatcher);
+        Attributes = new NodeAttributesViewModel(telemetry, Connection, m_dispatcher, () => OfflineAddressSpace);
+        References = new ReferencesViewModel(telemetry, Connection, m_dispatcher, () => OfflineAddressSpace);
         m_documentOperations = documentOperations ?? new PluginDocumentOperations(Connection);
         Workspace = workspace ?? new DocumentWorkspace<IPlugin>(
             m_log, m_dispatcher, m_documentOperations.SynchronizeConnectionAsync);
@@ -129,6 +135,99 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
     public PublishLogObserver PublishLog { get; }
     public DocumentWorkspace<IPlugin> Workspace { get; }
     public CommandRegistry Commands { get; }
+
+    public NodeSetAddressSpace? OfflineAddressSpace { get; private set; }
+    public bool IsOffline => OfflineAddressSpace is not null;
+
+    [ObservableProperty]
+    public partial bool IsLoadingNodeSets { get; set; }
+
+    public string OfflineSummary => OfflineAddressSpace is { } source
+        ? $"Offline NodeSet2 (read-only): {source.Documents.Count} documents, {source.Nodes.Count} nodes, " +
+            $"{source.UnresolvedReferenceCount} unresolved references"
+        : string.Empty;
+
+    public string OfflineDetails => OfflineAddressSpace is { } source
+        ? string.Join(Environment.NewLine, source.Documents.ToList().Select(document =>
+            document.Source +
+            Environment.NewLine +
+            string.Join(Environment.NewLine, (document.NodeSet.Models ?? []).Select(model =>
+                $"  {model.ModelUri}  Version label: {model.Version ?? "(unspecified)"}  " +
+                $"Model version: {model.ModelVersion ?? "(unspecified)"}"))))
+        : string.Empty;
+
+    public Task OpenNodeSetsAsync(
+        ArrayOf<string> paths,
+        INodeSetDependencyResolver resolver,
+        CancellationToken cancellationToken = default)
+    {
+        m_dispatcher.VerifyAccess();
+        ArgumentNullException.ThrowIfNull(resolver);
+        ObjectDisposedException.ThrowIf(m_disposal is not null, this);
+        if (IsLoadingNodeSets)
+        {
+            throw new InvalidOperationException("A NodeSet2 import is already running.");
+        }
+        m_nodeSetWork = OpenNodeSetsCoreAsync(paths, resolver, cancellationToken);
+        return m_nodeSetWork;
+    }
+
+    public async Task CloseNodeSetsAsync()
+    {
+        m_dispatcher.VerifyAccess();
+        if (IsLoadingNodeSets)
+        {
+            throw new InvalidOperationException("Cancel the NodeSet2 import before closing the current model.");
+        }
+        SetOfflineAddressSpace(null);
+        await UpdateSelectionAsync(null).ConfigureAwait(true);
+        RefreshConnectionPresentation(Connection.Snapshot);
+    }
+
+    private async Task OpenNodeSetsCoreAsync(
+        ArrayOf<string> paths, INodeSetDependencyResolver resolver, CancellationToken cancellationToken)
+    {
+        IsLoadingNodeSets = true;
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, m_lifetime.Token);
+        long generation = Connection.Snapshot.Generation;
+        try
+        {
+            ArrayOf<NodeSetDocument> documents = await m_nodeSetLoader.LoadAsync(paths, resolver, linked.Token)
+                .ConfigureAwait(true);
+            NodeSetAddressSpace graph = await m_nodeSetFactory.CreateAsync(documents, linked.Token)
+                .ConfigureAwait(true);
+            linked.Token.ThrowIfCancellationRequested();
+            if (generation != Connection.Snapshot.Generation)
+            {
+                throw new InvalidOperationException("The connection changed during import. Open the NodeSets again.");
+            }
+            await Connection.DisconnectAsync().ConfigureAwait(true);
+            await SynchronizeConnectionAsync(m_lifetime.Token).ConfigureAwait(true);
+            m_lifetime.Token.ThrowIfCancellationRequested();
+            SetOfflineAddressSpace(graph);
+            await UpdateSelectionAsync(null).ConfigureAwait(true);
+            IsAddressSpaceVisible = true;
+            Browser.ShowFilters = true;
+            AttributesPanelMode = SidePanelMode.AttrsAndRefs;
+            ConnectionStatus = OfflineSummary;
+        }
+        finally
+        {
+            IsLoadingNodeSets = false;
+        }
+    }
+
+    private void SetOfflineAddressSpace(NodeSetAddressSpace? source)
+    {
+        OfflineAddressSpace = source;
+        Attributes.Clear();
+        References.Clear();
+        Browser.SetOfflineSource(source);
+        OnPropertyChanged(nameof(OfflineAddressSpace));
+        OnPropertyChanged(nameof(IsOffline));
+        OnPropertyChanged(nameof(OfflineSummary));
+        OnPropertyChanged(nameof(OfflineDetails));
+    }
 
     /// <summary>
     /// Read-only live collection retained for existing desktop bindings.
@@ -298,9 +397,14 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
     /// Imports legacy subscription configuration while disconnected. Legacy files
     /// contain no security or identity intent and therefore never authorize a reconnect.
     /// </summary>
+    /// <exception cref="InvalidOperationException">A NodeSet2 import is in progress.</exception>
     public async Task LoadSessionAsync(SessionFile file)
     {
         ArgumentNullException.ThrowIfNull(file);
+        if (IsLoadingNodeSets)
+        {
+            throw new InvalidOperationException("Cancel the NodeSet2 import before opening a workspace.");
+        }
         file.Validate();
         if (file.Version == "2")
         {
@@ -321,6 +425,7 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
                 m_pluginHost, PluginKind.Subscription, subscription: snapshot));
         await Workspace.RestoreAsync(documents, cancellationToken: m_lifetime.Token, onCommitted: () =>
         {
+            SetOfflineAddressSpace(null);
             EndpointUrl = file.EndpointUrl;
             Engine = engine;
             RestoredConnectionProfile = null;
@@ -356,6 +461,7 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
             ?? Enum.Parse<SubscriptionEngineKind>(file.Engine, ignoreCase: true);
         await Workspace.RestoreAsync([.. prepared], Math.Max(0, file.SelectedDocument), () =>
         {
+            SetOfflineAddressSpace(null);
             EndpointUrl = file.Profile?.EndpointUrl ?? file.EndpointUrl;
             Engine = engine;
             RestoredConnectionProfile = file.Profile;
@@ -505,6 +611,10 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
 
     private async Task ConnectCoreAsync(CancellationToken cancellationToken)
     {
+        if (IsLoadingNodeSets)
+        {
+            throw new InvalidOperationException("Cancel the NodeSet2 import before changing the connection.");
+        }
         if (Connection.Snapshot.Phase == ConnectionPhase.Connecting)
         {
             await Connection.CancelAsync().ConfigureAwait(true);
@@ -914,7 +1024,7 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
                         PluginKind.Subscription, cancellationToken: m_lifetime.Token).ConfigureAwait(true);
                 }
                 cancellationToken.ThrowIfCancellationRequested();
-                if (Connection.CurrentSession is null)
+                if (Connection.CurrentSession is null && !IsOffline)
                 {
                     await UpdateSelectionAsync(null).ConfigureAwait(true);
                     Attributes.Clear();
@@ -942,6 +1052,10 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
     private void RefreshConnectionPresentation(ConnectionSnapshot snapshot)
     {
         IsConnected = snapshot.IsConnected && Connection.IsConnected;
+        if (IsConnected && IsOffline)
+        {
+            SetOfflineAddressSpace(null);
+        }
         ConnectionStatus = snapshot.Phase switch
         {
             ConnectionPhase.Connecting => "Connecting…",
@@ -950,6 +1064,10 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
             ConnectionPhase.Failed => $"Connection failed: {snapshot.Error}",
             _ => "Disconnected"
         };
+        if (IsOffline && snapshot.Phase == ConnectionPhase.Disconnected)
+        {
+            ConnectionStatus = OfflineSummary;
+        }
         if (IsConnected)
         {
             Engine = snapshot.Profile?.Engine ?? Connection.Engine;
@@ -1041,6 +1159,11 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
         SelectedItemStatus = "Pick a Variable, or an Object that emits events.";
         if (node is null)
         {
+            return;
+        }
+        if (IsOffline)
+        {
+            SelectedItemStatus = $"Offline (read-only) · {node.NodeClass} · {node.NodeId}";
             return;
         }
 
@@ -1165,7 +1288,10 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
             try
             {
                 await m_lifetime.CancelAsync().ConfigureAwait(true);
+                await m_nodeSetWork.ConfigureAwait(
+                    ConfigureAwaitOptions.ContinueOnCapturedContext | ConfigureAwaitOptions.SuppressThrowing);
             }
+
             finally
             {
                 try
@@ -1314,6 +1440,10 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
 
     [ObservableProperty]
     private string m_resourceStatus = "CPU --   Mem --";
+
+    private readonly INodeSetLoader m_nodeSetLoader;
+    private readonly INodeSetAddressSpaceFactory m_nodeSetFactory;
+    private Task m_nodeSetWork = Task.CompletedTask;
 }
 
 internal static partial class MainViewModelLog

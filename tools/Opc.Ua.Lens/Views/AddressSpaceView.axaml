@@ -32,8 +32,24 @@
              xmlns:v="using:UaLens.Views"
              x:Class="UaLens.Views.AddressSpaceView"
              x:DataType="vm:BrowserViewModel">
+  <UserControl.Styles>
+    <Style Selector="Border.nodeRow">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="2,0,0,0" />
+      <Setter Property="Padding" Value="3,1" />
+    </Style>
+    <Style Selector="Border.nodeRow.namespaceMatch">
+      <Setter Property="Background" Value="{DynamicResource HighlightBg}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBlue}" />
+    </Style>
+    <Style Selector="Border.namespaceMatch TextBlock.nodeLabel">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    </Style>
+  </UserControl.Styles>
   <Border BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Padding="0">
-    <Grid RowDefinitions="Auto,Auto,*">
+    <Grid RowDefinitions="Auto,Auto,Auto,*">
       <DockPanel Grid.Row="0" Margin="4,4,4,2" LastChildFill="True"
                  IsVisible="{CompiledBinding ShowFilters, Mode=OneWay}">
         <TextBlock DockPanel.Dock="Left"
@@ -42,17 +58,38 @@
                    Foreground="{DynamicResource TextSecondary}"
                    Text="View:" />
         <ComboBox x:Name="ViewKindCombo"
+                  ItemsSource="{CompiledBinding ViewKinds}"
+                  SelectedItem="{CompiledBinding CurrentViewKind, Mode=OneWay}"
                   HorizontalAlignment="Stretch"
                   MinHeight="24"
                   VerticalAlignment="Center"
                   VerticalContentAlignment="Center"
-                  ToolTip.Tip="Re-roots the address-space tree (Objects / type hierarchies / Views)." />
+                  ToolTip.Tip="Select a hierarchy, or AllNodes to see every imported node grouped by namespace." />
       </DockPanel>
       <TextBox Grid.Row="1" x:Name="SearchBox" Margin="4,4,4,2"
                PlaceholderText="Search BrowseName / NodeId (Enter, F3 next)"
                FontFamily="Cascadia Mono, Consolas, monospace"
                IsVisible="{CompiledBinding ShowFilters, Mode=OneWay}" />
-      <TreeView Grid.Row="2" x:Name="Tree"
+      <Grid Grid.Row="2" ColumnDefinitions="Auto,*" Margin="4,4,4,2">
+        <TextBlock Text="Namespace:" VerticalAlignment="Center" Margin="0,0,4,0"
+                   Foreground="{DynamicResource TextSecondary}" />
+        <ComboBox Grid.Column="1" x:Name="NamespaceCombo"
+                  ItemsSource="{CompiledBinding NamespaceOptions}"
+                  SelectedItem="{CompiledBinding SelectedNamespace, Mode=TwoWay}"
+                  IsEnabled="{CompiledBinding HasNamespaces}"
+                  HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                  MinHeight="24" VerticalContentAlignment="Center"
+                  AutomationProperties.Name="Highlight nodes by namespace"
+                  ToolTip.Tip="Highlight nodes without filtering the tree. Choose None to clear highlighting.">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:NamespaceOption">
+              <TextBlock Text="{CompiledBinding DisplayName}" TextTrimming="CharacterEllipsis"
+                         ToolTip.Tip="{CompiledBinding NamespaceUri}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+      </Grid>
+      <TreeView Grid.Row="3" x:Name="Tree"
                 ItemsSource="{CompiledBinding Roots}"
                 Background="{DynamicResource AppBg}"
                 Foreground="{DynamicResource TextPrimary}"
@@ -77,35 +114,37 @@
         </TreeView.ContextMenu>
         <TreeView.ItemTemplate>
           <TreeDataTemplate DataType="vm:NodeViewModel" ItemsSource="{CompiledBinding Children}">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-              <!-- Code-editor-style letter tile (see NodeClassIcons.Tiles).
-                   Concrete instances render with a solid accent fill and
-                   white letter; type kinds render with a transparent fill,
-                   accent border and accent-coloured letter so the eye
-                   pairs each "X type" tile with its "X instance" tile.
-                   Hidden when NodeClass has no tile (Unspecified). -->
-              <Border Width="14" Height="14" CornerRadius="3"
-                      BorderThickness="1.2"
-                      VerticalAlignment="Center"
-                      IsVisible="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToIconVisibilityConverter.Instance}}"
-                      Background="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToFillConverter.Instance}}"
-                      BorderBrush="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToStrokeConverter.Instance}}">
-                <TextBlock Text="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToLetterConverter.Instance}}"
-                           Foreground="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToForegroundConverter.Instance}}"
-                           FontFamily="Cascadia Mono, Consolas, monospace"
-                           FontSize="9" FontWeight="Bold"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                           TextAlignment="Center"
-                           ToolTip.Tip="{CompiledBinding NodeClass}" />
-              </Border>
-              <TextBlock Text="{CompiledBinding Text}" VerticalAlignment="Center" />
-              <TextBlock Text="Loading..." IsVisible="{CompiledBinding IsLoading}" VerticalAlignment="Center" />
-              <TextBlock Text="{CompiledBinding LoadError}" IsVisible="{CompiledBinding HasLoadError}"
-                         Foreground="{DynamicResource ErrorText}" VerticalAlignment="Center" />
-              <Button Content="Retry" Command="{CompiledBinding RetryCommand}"
-                      IsVisible="{CompiledBinding HasLoadError}"
-                      AutomationProperties.Name="Retry loading this node's children" />
-            </StackPanel>
+            <Border Classes="nodeRow" Classes.namespaceMatch="{CompiledBinding IsNamespaceHighlighted}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <!-- Code-editor-style letter tile (see NodeClassIcons.Tiles).
+                     Concrete instances render with a solid accent fill and
+                     white letter; type kinds render with a transparent fill,
+                     accent border and accent-coloured letter so the eye
+                     pairs each "X type" tile with its "X instance" tile.
+                     Hidden when NodeClass has no tile (Unspecified). -->
+                <Border Width="14" Height="14" CornerRadius="3"
+                        BorderThickness="1.2"
+                        VerticalAlignment="Center"
+                        IsVisible="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToIconVisibilityConverter.Instance}}"
+                        Background="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToFillConverter.Instance}}"
+                        BorderBrush="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToStrokeConverter.Instance}}">
+                  <TextBlock Text="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToLetterConverter.Instance}}"
+                             Foreground="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToForegroundConverter.Instance}}"
+                             FontFamily="Cascadia Mono, Consolas, monospace"
+                             FontSize="9" FontWeight="Bold"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"
+                             TextAlignment="Center"
+                             ToolTip.Tip="{CompiledBinding NodeClass}" />
+                </Border>
+                <TextBlock Classes="nodeLabel" Text="{CompiledBinding Text}" VerticalAlignment="Center" />
+                <TextBlock Text="Loading..." IsVisible="{CompiledBinding IsLoading}" VerticalAlignment="Center" />
+                <TextBlock Text="{CompiledBinding LoadError}" IsVisible="{CompiledBinding HasLoadError}"
+                           Foreground="{DynamicResource ErrorText}" VerticalAlignment="Center" />
+                <Button Content="Retry" Command="{CompiledBinding RetryCommand}"
+                        IsVisible="{CompiledBinding HasLoadError}"
+                        AutomationProperties.Name="Retry loading this node's children" />
+              </StackPanel>
+            </Border>
           </TreeDataTemplate>
         </TreeView.ItemTemplate>
         <TreeView.Styles>

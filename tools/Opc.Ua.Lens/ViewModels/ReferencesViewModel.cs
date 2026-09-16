@@ -37,6 +37,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
 using UaLens.Connection;
+using UaLens.NodeSets;
 using UaLens.Workspace;
 
 namespace UaLens.ViewModels;
@@ -53,6 +54,7 @@ namespace UaLens.ViewModels;
 internal sealed partial class ReferencesViewModel : ObservableObject, IDisposable
 {
     private readonly Func<ISession?> m_session;
+    private readonly Func<NodeSetAddressSpace?>? m_offlineSource;
     private readonly IWorkspaceDispatcher m_dispatcher;
     private readonly ILogger m_log;
     private Action? m_cancelCurrent;
@@ -67,13 +69,15 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
     public ReferencesViewModel(
         ITelemetryContext telemetry,
         ConnectionService connection,
-        IWorkspaceDispatcher? dispatcher = null)
+        IWorkspaceDispatcher? dispatcher = null,
+        Func<NodeSetAddressSpace?>? offlineSource = null)
         : this(telemetry, () => connection.CurrentSession, dispatcher ??
             (Avalonia.Application.Current is null
                 ? InlineWorkspaceDispatcher.Instance
                 : new AvaloniaWorkspaceDispatcher()))
     {
         ArgumentNullException.ThrowIfNull(connection);
+        m_offlineSource = offlineSource;
     }
 
     public ReferencesViewModel(
@@ -112,7 +116,9 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
 
         try
         {
-            if (m_session() is not { } session)
+            ISession? session = m_session();
+            NodeSetAddressSpace? offline = m_offlineSource?.Invoke();
+            if (session is null && offline is null)
             {
                 Rows.Add(new ReferenceRow("·", "(disconnected)", string.Empty, string.Empty, string.Empty));
                 return;
@@ -129,7 +135,9 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
                     ResultMask = (uint)BrowseResultMask.All
                 }
             };
-            BrowseResponse resp = await session.BrowseAsync(null, null, 0, descriptions, ct).ConfigureAwait(false);
+            BrowseResponse resp = offline is not null
+                ? await offline.BrowseAsync(descriptions, ct).ConfigureAwait(false)
+                : await session!.BrowseAsync(null, null, 0, descriptions, ct).ConfigureAwait(false);
             var refs = new List<ReferenceDescription>();
             ByteString cp = ByteString.Empty;
             if (resp.Results.Count > 0 && !StatusCode.IsBad(resp.Results[0].StatusCode))
@@ -140,7 +148,7 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
             while (cp.Length > 0)
             {
                 ArrayOf<ByteString> cps = new ByteString[] { cp };
-                BrowseNextResponse next = await session.BrowseNextAsync(null, false, cps, ct).ConfigureAwait(false);
+                BrowseNextResponse next = await session!.BrowseNextAsync(null, false, cps, ct).ConfigureAwait(false);
                 cp = ByteString.Empty;
                 if (next.Results.Count > 0 && !StatusCode.IsBad(next.Results[0].StatusCode))
                 {
@@ -171,8 +179,10 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
                 {
                     idList.Add(new ReadValueId { NodeId = rt, AttributeId = Attributes.BrowseName });
                 }
-                ReadResponse rtRead = await session.ReadAsync(null, 0, TimestampsToReturn.Neither,
-                    new ArrayOf<ReadValueId>(idList.ToArray()), ct).ConfigureAwait(false);
+                ReadResponse rtRead = offline is not null
+                    ? await offline.ReadAsync([.. idList], ct).ConfigureAwait(false)
+                    : await session!.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                        new ArrayOf<ReadValueId>(idList.ToArray()), ct).ConfigureAwait(false);
                 int i = 0;
                 foreach (NodeId rt in refTypeIds)
                 {

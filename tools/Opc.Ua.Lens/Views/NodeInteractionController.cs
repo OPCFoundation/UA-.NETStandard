@@ -82,6 +82,20 @@ internal sealed class NodeInteractionController
         tree.ExportValueRequested += async n => await ExportValueAsync(n).ConfigureAwait(true);
         tree.FindByPathRequested += OnFindByPath;
         tree.ViewNodeStateRequested += OnViewNodeState;
+        m_window.RequiredControl<ReferencesView>("NodeReferences").NavigateRequested += target =>
+        {
+            if (m_vm.OfflineAddressSpace is { } offline &&
+                ExpandedNodeId.TryParse(target, out ExpandedNodeId expanded))
+            {
+                NodeId nodeId = expanded.ServerIndex == 0
+                    ? ExpandedNodeId.ToNodeId(expanded, offline.NamespaceUris)
+                    : NodeId.Null;
+                if (nodeId.IsNull || !tree.SelectOfflineNode(nodeId))
+                {
+                    m_vm.ConnectionStatus = $"Reference target is not available offline: {target}";
+                }
+            }
+        };
 
         m_window.RequiredControl<Button>("NodeMonitorBtn").Click +=
             async (_, _) => await MonitorSelectedAsync().ConfigureAwait(true);
@@ -471,7 +485,7 @@ internal sealed class NodeInteractionController
 
     private void OnFindByPath(NodeViewModel? node)
     {
-        var dlg = new FindNodeDialog(m_vm.Browser, node?.NodeId);
+        var dlg = new FindNodeDialog(m_vm.Browser, node?.NodeId ?? NodeId.Null);
         dlg.Show(m_window);
     }
 

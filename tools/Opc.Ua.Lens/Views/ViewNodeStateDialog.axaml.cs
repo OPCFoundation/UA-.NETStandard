@@ -40,7 +40,9 @@ using Avalonia.Input.Platform;
 using Avalonia.Markup.Xaml;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Opc.Ua;
+using Opc.Ua.Client;
 using UaLens.Connection;
+using UaLens.NodeSets;
 using UaLens.ViewModels;
 
 namespace UaLens.Views;
@@ -72,6 +74,7 @@ namespace UaLens.Views;
 internal sealed partial class ViewNodeStateDialog : Window
 {
     private readonly ConnectionService m_connection;
+    private readonly NodeSetAddressSpace? m_offline;
     private readonly NodeId m_nodeId;
     private readonly ObservableCollection<NodeStateItem> m_roots = new();
     private bool m_closed;
@@ -106,11 +109,12 @@ internal sealed partial class ViewNodeStateDialog : Window
         (Attributes.DataTypeDefinition, "DataTypeDefinition")
     ];
 
-    public ViewNodeStateDialog(BrowserViewModel browser, ConnectionService connection, NodeId? nodeId)
+    public ViewNodeStateDialog(BrowserViewModel browser, ConnectionService connection, NodeId nodeId)
     {
         ArgumentNullException.ThrowIfNull(browser);
         m_connection = connection ?? throw new ArgumentNullException(nameof(connection));
-        m_nodeId = nodeId ?? NodeId.Null;
+        m_nodeId = nodeId;
+        m_offline = browser.OfflineSource;
         InitializeComponent();
 
         var tree = this.RequiredControl<TreeView>("StateTree");
@@ -151,7 +155,8 @@ internal sealed partial class ViewNodeStateDialog : Window
     /// </summary>
     private async Task LoadOnOpenAsync()
     {
-        if (m_connection.Session is not { } session || m_nodeId.IsNull)
+        ManagedSession? session = m_connection.Session;
+        if ((session is null && m_offline is null) || m_nodeId.IsNull)
         {
             m_roots.Add(new NodeStateItem("(disconnected or null node)"));
             return;
@@ -163,9 +168,10 @@ internal sealed partial class ViewNodeStateDialog : Window
             var ids = new ArrayOf<ReadValueId>(s_allAttrs
                 .Select(a => new ReadValueId { NodeId = m_nodeId, AttributeId = a.Id })
                 .ToArray());
-            ReadResponse resp = await session
-                .ReadAsync(null, 0, TimestampsToReturn.Both, ids, CancellationToken.None)
-                .ConfigureAwait(true);
+            ReadResponse resp = m_offline is not null
+                ? await m_offline.ReadAsync(ids).ConfigureAwait(true)
+                : await session!.ReadAsync(null, 0, TimestampsToReturn.Both, ids, CancellationToken.None)
+                    .ConfigureAwait(true);
             results = resp.Results.ToArray() ?? Array.Empty<DataValue>();
         }
         catch (Exception ex)
@@ -207,7 +213,6 @@ internal sealed partial class ViewNodeStateDialog : Window
             : $"{Glyph(nc)} {m_nodeId}  ({nc})";
         var root = new NodeStateItem(rootHeader);
 
-        // ── Attributes ──────────────────────────────────────────────
         var attrs = new NodeStateItem("Attributes");
         List<(uint Id, string Name)> relevant = RelevantAttributes(nc);
         foreach ((uint Id, string Name) e in relevant)
@@ -229,11 +234,9 @@ internal sealed partial class ViewNodeStateDialog : Window
         }
         root.Children.Add(attrs);
 
-        // ── References (lazy) ───────────────────────────────────────
         var references = new NodeStateItem("References", LoadReferencesAsync);
         root.Children.Add(references);
 
-        // ── Value (Variables / VariableTypes only) ──────────────────
         if (nc == NodeClass.Variable || nc == NodeClass.VariableType)
         {
             int vIdx = IndexOf(Attributes.Value);
@@ -264,6 +267,19 @@ internal sealed partial class ViewNodeStateDialog : Window
             }
         }
 
+        if (m_offline is not null)
+        {
+            root.Children.Add(new NodeStateItem(
+                "NodeSet2 XML (complete authored definition, original namespace indexes)", async (item, ct) =>
+                {
+                    string xml = await m_offline.ReadNodeXmlAsync(m_nodeId, ct).ConfigureAwait(true);
+                    if (!m_closed)
+                    {
+                        item.Children.Clear();
+                        item.Children.Add(new NodeStateItem(xml));
+                    }
+                }));
+        }
         m_roots.Add(root);
         root.IsExpanded = true;
         attrs.IsExpanded = true;
@@ -281,7 +297,8 @@ internal sealed partial class ViewNodeStateDialog : Window
     {
         item.Children.Clear();
 
-        if (m_connection.Session is not { } session)
+        ManagedSession? session = m_connection.Session;
+        if (session is null && m_offline is null)
         {
             item.Children.Add(new NodeStateItem("(disconnected)"));
             return;
@@ -295,16 +312,16 @@ internal sealed partial class ViewNodeStateDialog : Window
                 new BrowseDescription
                 {
                     NodeId = m_nodeId,
-                    BrowseDirection = BrowseDirection.Forward,
+                    BrowseDirection = m_offline is null ? BrowseDirection.Forward : BrowseDirection.Both,
                     ReferenceTypeId = ReferenceTypeIds.References,
                     IncludeSubtypes = true,
                     NodeClassMask = 0,
                     ResultMask = (uint)BrowseResultMask.All
                 }
             };
-            BrowseResponse resp = await session
-                .BrowseAsync(null, null, 0, descriptions, ct)
-                .ConfigureAwait(true);
+            BrowseResponse resp = m_offline is not null
+                ? await m_offline.BrowseAsync(descriptions, ct).ConfigureAwait(true)
+                : await session!.BrowseAsync(null, null, 0, descriptions, ct).ConfigureAwait(true);
             ByteString cp = ByteString.Empty;
             if (resp.Results.Count > 0 && !StatusCode.IsBad(resp.Results[0].StatusCode))
             {
@@ -314,7 +331,7 @@ internal sealed partial class ViewNodeStateDialog : Window
             while (cp.Length > 0)
             {
                 ArrayOf<ByteString> cps = new ByteString[] { cp };
-                BrowseNextResponse next = await session
+                BrowseNextResponse next = await session!
                     .BrowseNextAsync(null, false, cps, ct)
                     .ConfigureAwait(true);
                 cp = ByteString.Empty;
@@ -360,9 +377,9 @@ internal sealed partial class ViewNodeStateDialog : Window
                 var nameIds = new ArrayOf<ReadValueId>(refTypeIds
                     .Select(rt => new ReadValueId { NodeId = rt, AttributeId = Attributes.BrowseName })
                     .ToArray());
-                ReadResponse nameResp = await session
-                    .ReadAsync(null, 0, TimestampsToReturn.Neither, nameIds, ct)
-                    .ConfigureAwait(true);
+                ReadResponse nameResp = m_offline is not null
+                    ? await m_offline.ReadAsync(nameIds, ct).ConfigureAwait(true)
+                    : await session!.ReadAsync(null, 0, TimestampsToReturn.Neither, nameIds, ct).ConfigureAwait(true);
                 for (int i = 0; i < refTypeIds.Count; i++)
                 {
                     if (i < nameResp.Results.Count &&
@@ -405,7 +422,7 @@ internal sealed partial class ViewNodeStateDialog : Window
                     : (!r.BrowseName.IsNull ? r.BrowseName.Name ?? string.Empty : string.Empty);
                 string target = r.NodeId.ToString() ?? string.Empty;
                 branch.Children.Add(new NodeStateItem(
-                    $"{rtName} → {target}  ({targetDisplay})"));
+                    $"{rtName} {(r.IsForward ? "→" : "←")} {target}  ({targetDisplay})"));
             }
             item.Children.Add(branch);
         }

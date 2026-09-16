@@ -29,6 +29,7 @@ Here is a list of available documentation for different topics:
 * Pluggable [Identity Providers](IdentityProviders.md) — interfaces (`IClientIdentityProvider`, `IUserTokenAuthenticator`, `IAccessTokenProvider`, `ITokenIssuer`, `IIdentityClaims`) plus the OPC 10000-6 §6.5.2.2 `IssuerEndpointUrl` JSON parser for OAuth2 / OIDC / Entra / JWT flows.
 * Support for [ECC Certificates](EccProfiles.md).
 * Working with [ComplexTypes](ComplexTypes.md) - Custom structures and enumerations.
+* [UaLens NodeSet2 explorer](UaLensNodeSets.md) - Offline model import, dependency resolution and address-space browsing.
 * [UaLens desktop engineering workspace](UaLens.md) - Connection, exploration, monitoring, history, events,
   administration and saved workspaces, with guided alarm, structured-model, continuity, PubSub and companion
   workflows, configuration prerequisites and safety limits.
