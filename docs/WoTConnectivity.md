@@ -1431,6 +1431,15 @@ absolute; this step does not fetch external schemas. Named
 definitions, so a host form cannot silently select a same-named source schema,
 or vice versa.
 
+**Current admission boundary:** full base TD/TM JSON Schema validation is
+deliberately deferred. The Binding-specific context, ownership, local dependency
+and URI-template guards described here are not a JSON Schema validator.
+Enumerated projection-owned forms can be carried, but actual bulk host-form
+supply and required external Binding-reference integration remain incomplete.
+Origin-preserving external reference carriage is not proof that the referenced
+definition was acquired or resolved. A successful document-resolution result
+alone must not be treated as admission proof for an executable TD.
+
 URI-template variables required by carried forms use that form owner's
 declarations. Source-affordance declarations take precedence over the source
 root; required root declarations are carried at the resulting affordance scope.
