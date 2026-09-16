@@ -91,6 +91,13 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string Format { get; set; } = "WoT-TD/1.1";
 
         /// <summary>
+        /// Gets or sets whether an authored projection role selects the projection Format and
+        /// ContentType before validation. Defaults to <c>false</c>, preserving explicit format admission.
+        /// This does not enable legacy projection syntax or change the requested document kind.
+        /// </summary>
+        public bool DetectProjectionFormat { get; set; }
+
+        /// <summary>
         /// Gets or sets an optional resource display name.
         /// </summary>
         public string? Name { get; set; }

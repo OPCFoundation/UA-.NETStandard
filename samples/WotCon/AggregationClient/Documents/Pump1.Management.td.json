@@ -8,7 +8,6 @@
     }
   ],
   "@type": [
-    "Thing",
     "uav:projection",
     "managementGroup"
   ],
@@ -68,10 +67,11 @@
     }
   },
   "title": "Management",
+  "uav:projectionKind": "ThingDescription",
   "uav:projects": [
     {
       "href": "pump1-members",
-      "type": "application/td+json",
+      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\"",
       "uav:routing": "source",
       "uav:sourceName": "pump1-members"
     }

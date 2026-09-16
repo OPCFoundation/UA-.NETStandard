@@ -828,6 +828,7 @@ namespace Opc.Ua.Wot
                 "uav:sourceDigest",
                 // Section 12 - projections.
                 "uav:projection",
+                "uav:projectionKind",
                 "uav:scenario",
                 "uav:projects",
                 "uav:sourceName",

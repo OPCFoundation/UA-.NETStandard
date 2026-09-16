@@ -8,7 +8,6 @@
     }
   ],
   "@type": [
-    "Thing",
     "uav:projection",
     "eventGroup"
   ],
@@ -36,10 +35,11 @@
     }
   },
   "title": "Supervision",
+  "uav:projectionKind": "ThingDescription",
   "uav:projects": [
     {
       "href": "pump2-members",
-      "type": "application/td+json",
+      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\"",
       "uav:routing": "source",
       "uav:sourceName": "pump2-members"
     }

@@ -212,7 +212,7 @@ namespace Opc.Ua.Wot
         /// affordance itself names the value the unit belongs to rather than
         /// the unit.
         /// </remarks>
-        private static void ValidateUnitProperty(
+        internal static void ValidateUnitProperty(
             WotDocument document,
             JsonElement element,
             string affordanceName,
@@ -229,10 +229,14 @@ namespace Opc.Ua.Wot
                 : null;
             string? token = declared is not null &&
                 declared.StartsWith(UnitPointerPrefix, StringComparison.Ordinal)
-                ? declared.Substring(UnitPointerPrefix.Length)
+                ? declared[UnitPointerPrefix.Length..]
                 : null;
+            string? target = token?
+                .Replace("~1", "/", StringComparison.Ordinal)
+                .Replace("~0", "~", StringComparison.Ordinal);
             if (token is null or { Length: 0 } ||
-                token.Contains('/', StringComparison.Ordinal))
+                token.Contains('/', StringComparison.Ordinal) ||
+                !string.Equals(token, EscapePointerToken(target!), StringComparison.Ordinal))
             {
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
@@ -243,9 +247,6 @@ namespace Opc.Ua.Wot
                     WotLocation.FromPointer(pointer)));
                 return;
             }
-            string target = token!
-                .Replace("~1", "/", StringComparison.Ordinal)
-                .Replace("~0", "~", StringComparison.Ordinal);
             if (string.Equals(target, affordanceName, StringComparison.Ordinal))
             {
                 diagnostics.Add(new WotDiagnostic(
@@ -257,7 +258,7 @@ namespace Opc.Ua.Wot
                     WotLocation.FromPointer(pointer)));
                 return;
             }
-            if (!document.Properties.TryGetValue(target, out JsonElement sibling) ||
+            if (!document.Properties.TryGetValue(target!, out JsonElement sibling) ||
                 sibling.ValueKind != JsonValueKind.Object ||
                 !string.Equals(
                     GetElementString(sibling, "type"), "string", StringComparison.Ordinal))

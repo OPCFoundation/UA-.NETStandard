@@ -105,7 +105,8 @@ namespace Opc.Ua.Wot
                 }
                 foreach (string token in TypeTokens)
                 {
-                    if (string.Equals(token, UavPrefix + "object", StringComparison.Ordinal) ||
+                    if (string.Equals(token, "Thing", StringComparison.Ordinal) ||
+                        string.Equals(token, UavPrefix + "object", StringComparison.Ordinal) ||
                         string.Equals(token, UavPrefix + "variable", StringComparison.Ordinal) ||
                         string.Equals(token, UavPrefix + "method", StringComparison.Ordinal))
                     {
@@ -162,12 +163,7 @@ namespace Opc.Ua.Wot
                 namespaceUri = ReadContextPrefix(definition);
                 return namespaceUri.Length != 0;
             }
-            namespaceUri = prefix switch
-            {
-                "ua" => WotVocabulary.OpcUaNamespace,
-                "uav" => WotVocabulary.VocabularyNamespace,
-                _ => string.Empty
-            };
+            namespaceUri = ReadImplicitContextPrefix(prefix);
             return namespaceUri.Length != 0;
         }
 
@@ -189,6 +185,98 @@ namespace Opc.Ua.Wot
             return false;
         }
 
+        internal ArrayOf<JsonElement> GetContextSequence(JsonElement carryingNode)
+        {
+            m_contextScopes ??= CreateContextScopes();
+            if (!m_contextScopes.TryGetValue(carryingNode, out ContextScope? scope))
+            {
+                throw new ArgumentException(
+                    "The context owner must be an original semantic object.", nameof(carryingNode));
+            }
+            var contexts = new List<JsonElement>();
+            for (; scope is not null; scope = scope.Parent)
+            {
+                contexts.Add(scope.Context);
+            }
+            contexts.Reverse();
+            return contexts.ToArrayOf();
+        }
+
+        internal ContextBindingScope? GetContextBindings(JsonElement carryingNode)
+        {
+            m_contextScopes ??= CreateContextScopes();
+            if (m_contextScopes.TryGetValue(carryingNode, out ContextScope? scope))
+            {
+                return scope?.Bindings;
+            }
+            throw new ArgumentException(
+                "The context owner must be an original semantic object.", nameof(carryingNode));
+        }
+
+        internal static ArrayOf<JsonElement> GetContextSequence(ContextBindingScope? scope)
+        {
+            var contexts = new List<JsonElement>();
+            for (; scope is not null; scope = scope.Parent)
+            {
+                contexts.Add(scope.Context);
+            }
+            contexts.Reverse();
+            return contexts.ToArrayOf();
+        }
+
+        internal bool TryGetKnownContextTerm(
+            string term, out JsonElement definition, out bool uncertain, JsonElement carryingNode)
+        {
+            m_contextScopes ??= CreateContextScopes();
+            if (m_contextScopes.TryGetValue(carryingNode, out ContextScope? scope))
+            {
+                return TryFindKnownContextTerm(scope, term, out definition, out uncertain);
+            }
+            definition = default;
+            uncertain = false;
+            return false;
+        }
+
+        internal static bool TryGetKnownContextTerm(
+            ContextBindingScope? scope, string term, out JsonElement definition, out bool uncertain,
+            out ContextBindingScope? definedAt)
+        {
+            ContextTermState state = FindKnownContextTerm(scope, term, out definition, out definedAt);
+            uncertain = state == ContextTermState.Unknown;
+            return state == ContextTermState.Defined;
+        }
+
+        internal static bool TryGetKnownContextPrefix(
+            ContextBindingScope? scope, string prefix, out string namespaceUri, out bool uncertain,
+            out ContextBindingScope? definedAt)
+        {
+            ContextTermState state = FindKnownContextTerm(scope, prefix, out JsonElement definition, out definedAt);
+            uncertain = state == ContextTermState.Unknown;
+            namespaceUri = state switch
+            {
+                ContextTermState.Defined => ReadContextPrefix(definition),
+                ContextTermState.Absent => ReadImplicitContextPrefix(prefix),
+                _ => string.Empty
+            };
+            return namespaceUri.Length != 0;
+        }
+
+        internal bool IsContextIndexMap(string term, JsonElement carryingNode)
+        {
+            return IsStandardIndexMap(term) ||
+                (TryGetContextTerm(term, out JsonElement definition, carryingNode) &&
+                    definition.ValueKind == JsonValueKind.Object &&
+                    definition.TryGetProperty("@container", out JsonElement container) &&
+                    IsIndexContainer(container));
+        }
+
+        private static bool IsStandardIndexMap(string term)
+        {
+            return s_tdScopedTerms.TryGetProperty(term, out JsonElement definition) &&
+                definition.TryGetProperty("@container", out JsonElement container) &&
+                IsIndexContainer(container);
+        }
+
         private static bool TryFindContextTerm(
             ContextScope? scope, string term, out JsonElement definition)
         {
@@ -201,6 +289,82 @@ namespace Opc.Ua.Wot
             }
             definition = default;
             return false;
+        }
+
+        private static bool TryFindKnownContextTerm(
+            ContextScope? scope, string term, out JsonElement definition, out bool uncertain)
+        {
+            return TryGetKnownContextTerm(scope?.Bindings, term, out definition, out uncertain, out _);
+        }
+
+        private static ContextTermState FindKnownContextTerm(
+            ContextBindingScope? scope, string term, out JsonElement definition, out ContextBindingScope? definedAt)
+        {
+            for (; scope is not null; scope = scope.Parent)
+            {
+                if (!scope.IsKnown)
+                {
+                    definition = default;
+                    definedAt = null;
+                    return ContextTermState.Unknown;
+                }
+                ContextTermState state = ReadKnownContextTerm(scope.Context, term, out definition);
+                if (state != ContextTermState.Absent)
+                {
+                    definedAt = state == ContextTermState.Defined ? scope : null;
+                    return state;
+                }
+            }
+            definition = default;
+            definedAt = null;
+            return ContextTermState.Absent;
+        }
+
+        private static ContextBindingScope? CreateContextBindings(
+            JsonElement context, ContextBindingScope? parent, bool isKnown)
+        {
+            if (isKnown && context.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement entry in context.EnumerateArray())
+                {
+                    parent = CreateContextBindings(entry, parent, isKnown);
+                }
+                return parent;
+            }
+            return new ContextBindingScope(context, parent, isKnown);
+        }
+
+        private static ContextTermState ReadKnownContextTerm(
+            JsonElement context, string term, out JsonElement definition)
+        {
+            definition = default;
+            if (context.ValueKind == JsonValueKind.Array)
+            {
+                for (int index = context.GetArrayLength() - 1; index >= 0; index--)
+                {
+                    ContextTermState state = ReadKnownContextTerm(context[index], term, out definition);
+                    if (state != ContextTermState.Absent)
+                    {
+                        return state;
+                    }
+                }
+                return ContextTermState.Absent;
+            }
+            if (context.ValueKind == JsonValueKind.Null)
+            {
+                return ContextTermState.Reset;
+            }
+            if (TryReadContextTerm(context, term, out definition))
+            {
+                return ContextTermState.Defined;
+            }
+            if ((context.ValueKind == JsonValueKind.String &&
+                    context.GetString() is not (WotVocabulary.WotContext or WotVocabulary.BindingContext)) ||
+                (context.ValueKind == JsonValueKind.Object && context.TryGetProperty("@import", out _)))
+            {
+                return ContextTermState.Unknown;
+            }
+            return ContextTermState.Absent;
         }
 
         internal static bool TryGetContextPrefix(
@@ -257,6 +421,16 @@ namespace Opc.Ua.Wot
                 return identity.GetString()!;
             }
             return string.Empty;
+        }
+
+        private static string ReadImplicitContextPrefix(string prefix)
+        {
+            return prefix switch
+            {
+                "ua" => WotVocabulary.OpcUaNamespace,
+                "uav" => WotVocabulary.VocabularyNamespace,
+                _ => string.Empty
+            };
         }
 
         private static bool TryReadContextTerm(
@@ -350,17 +524,18 @@ namespace Opc.Ua.Wot
                     if (!IsSemanticBoundary(member.Name))
                     {
                         ContextScope? childScope = scope;
-                        bool childIndexMap = false;
+                        bool childIndexMap = IsStandardIndexMap(member.Name);
                         if (TryFindContextTerm(scope, member.Name, out JsonElement definition) &&
                             definition.ValueKind == JsonValueKind.Object)
                         {
                             if (definition.TryGetProperty("@context", out JsonElement propertyContext))
                             {
-                                childScope = new ContextScope(propertyContext, scope);
+                                bool known = TryFindKnownContextTerm(scope, member.Name, out _, out _);
+                                childScope = new ContextScope(propertyContext, scope, known);
                             }
                             if (definition.TryGetProperty("@container", out JsonElement container))
                             {
-                                childIndexMap = IsIndexContainer(container);
+                                childIndexMap |= IsIndexContainer(container);
                             }
                         }
                         AddContextScopes(member.Value, childScope, scopes, childIndexMap);
@@ -401,6 +576,14 @@ namespace Opc.Ua.Wot
             JsonNode schema = JsonNode.Parse(
                 """
                 {
+                  "@vocab": "https://www.w3.org/2019/wot/json-schema#",
+                  "td": "https://www.w3.org/2019/wot/td#",
+                  "jsonschema": "https://www.w3.org/2019/wot/json-schema#",
+                  "wotsec": "https://www.w3.org/2019/wot/security#",
+                  "hctl": "https://www.w3.org/2019/wot/hypermedia#",
+                  "dct": "http://purl.org/dc/terms/",
+                  "schema": "http://schema.org/",
+                  "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
                   "title": {"@id": "https://www.w3.org/2019/wot/td#title", "@language": "en"},
                   "description": {"@id": "https://www.w3.org/2019/wot/td#description", "@language": "en"},
                   "titles": {"@container": "@language"},
@@ -408,8 +591,23 @@ namespace Opc.Ua.Wot
                   "properties": {"@container": "@index"}
                 }
                 """)!;
-            var terms = new JsonObject();
-            foreach (string name in new[] { "properties", "input", "output", "data", "dataResponse", "subscription", "cancellation" })
+            var terms = new JsonObject
+            {
+                ["@vocab"] = "https://www.w3.org/2019/wot/td#",
+                ["td"] = "https://www.w3.org/2019/wot/td#",
+                ["jsonschema"] = "https://www.w3.org/2019/wot/json-schema#",
+                ["wotsec"] = "https://www.w3.org/2019/wot/security#",
+                ["hctl"] = "https://www.w3.org/2019/wot/hypermedia#",
+                ["rdfs"] = "http://www.w3.org/2000/01/rdf-schema#",
+                ["xsd"] = "http://www.w3.org/2001/XMLSchema#",
+                ["dct"] = "http://purl.org/dc/terms/",
+                ["htv"] = "http://www.w3.org/2011/http#",
+                ["tm"] = "https://www.w3.org/2019/wot/tm#"
+            };
+            foreach (string name in new[]
+            {
+                "properties", "input", "output", "data", "dataResponse", "subscription", "cancellation"
+            })
             {
                 var definition = new JsonObject { ["@context"] = schema.DeepClone() };
                 if (name == "properties")
@@ -418,17 +616,47 @@ namespace Opc.Ua.Wot
                 }
                 terms[name] = definition;
             }
-            foreach (string name in new[] { "actions", "events", "schemaDefinitions", "uriVariables" })
+            foreach (string name in new[]
+            {
+                "actions", "events", "schemaDefinitions", "uriVariables", "securityDefinitions"
+            })
             {
                 terms[name] = new JsonObject { ["@container"] = "@index" };
             }
-            using JsonDocument document = JsonDocument.Parse(terms.ToJsonString());
+            terms["forms"] = JsonNode.Parse(
+                """
+                {
+                  "@context": {
+                    "@vocab": "https://www.w3.org/2019/wot/hypermedia#",
+                    "td": "https://www.w3.org/2019/wot/td#",
+                    "jsonschema": "https://www.w3.org/2019/wot/json-schema#",
+                    "wotsec": "https://www.w3.org/2019/wot/security#",
+                    "hctl": "https://www.w3.org/2019/wot/hypermedia#",
+                    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+                    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+                    "xsd": "http://www.w3.org/2001/XMLSchema#"
+                  }
+                }
+                """);
+            terms["securityDefinitions"]!["@context"] = JsonNode.Parse(
+                """
+                {
+                  "@vocab": "https://www.w3.org/2019/wot/security#",
+                  "td": "https://www.w3.org/2019/wot/td#",
+                  "jsonschema": "https://www.w3.org/2019/wot/json-schema#",
+                  "wotsec": "https://www.w3.org/2019/wot/security#",
+                  "hctl": "https://www.w3.org/2019/wot/hypermedia#",
+                  "dct": "http://purl.org/dc/terms/",
+                  "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                }
+                """);
+            using var document = JsonDocument.Parse(terms.ToJsonString());
             return document.RootElement.Clone();
         }
 
         private static JsonElement CreateUnitScopedTerm()
         {
-            using JsonDocument document = JsonDocument.Parse(
+            using var document = JsonDocument.Parse(
                 """
                 {
                   "@context": {
@@ -1118,11 +1346,31 @@ namespace Opc.Ua.Wot
             public Dictionary<JsonElement, WotBrowsePathElement> Elements { get; } = elements;
         }
 
-        private sealed class ContextScope(JsonElement context, ContextScope? parent)
+        private sealed class ContextScope(JsonElement context, ContextScope? parent, bool isKnown = true)
         {
             public JsonElement Context { get; } = context;
 
             public ContextScope? Parent { get; } = parent;
+
+            public ContextBindingScope? Bindings { get; } = CreateContextBindings(context, parent?.Bindings, isKnown);
+        }
+
+        internal sealed class ContextBindingScope(
+            JsonElement context, ContextBindingScope? parent, bool isKnown)
+        {
+            public JsonElement Context { get; } = context;
+
+            public ContextBindingScope? Parent { get; } = parent;
+
+            public bool IsKnown { get; } = isKnown;
+        }
+
+        private enum ContextTermState
+        {
+            Absent,
+            Defined,
+            Reset,
+            Unknown
         }
     }
 }

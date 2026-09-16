@@ -62,7 +62,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void ADocumentWithoutTheProjectionAnnotationIsNotAProjection()
         {
-            const string json = """
+            const string json = /*lang=json,strict*/ """
             {
               "@context": ["https://www.w3.org/2022/wot/td/v1.1"],
               "@type": "Thing",
@@ -101,7 +101,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void AMissingManifestIsReported()
         {
-            const string json = """
+            const string json = /*lang=json,strict*/ """
             {
               "@context": [
                 "https://www.w3.org/2022/wot/td/v1.1",
@@ -138,7 +138,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void AManifestEntryMissingItsRequiredKeysIsReported()
         {
             WotProjection projection = ParseProjection(
-                Projection(sources: """[ { "uav:sourceName": "a" } ]"""),
+                Projection(sources: /*lang=json,strict*/ """[ { "uav:sourceName": "a" } ]"""),
                 out List<WotDiagnostic> diagnostics);
 
             AssertHas(diagnostics, WotDiagnosticCode.ProjectionManifestInvalid);
@@ -338,7 +338,8 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             using WotDocument document = Parse(json);
             diagnostics = [];
-            WotProjection projection = WotProjection.Parse(document, diagnostics);
+            var projection = WotProjection.Parse(
+                document, diagnostics, WotProjectionCompatibilityMode.DraftProjection11);
             Assert.That(projection, Is.Not.Null, "The document carries uav:projection.");
             return projection;
         }

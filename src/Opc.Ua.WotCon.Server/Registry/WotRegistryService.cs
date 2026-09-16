@@ -70,7 +70,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         public WotRegistryService(
             IWotRegistryStore? store = null,
             WotRegistryPersistenceBounds? bounds = null)
-            : this(store, bounds, new WotRegistryIdentityBindings())
+            : this(store, bounds, new WotRegistryIdentityBindings(), WotProjectionCompatibilityMode.None)
         {
         }
 
@@ -81,7 +81,36 @@ namespace Opc.Ua.WotCon.Server.Registry
             IWotRegistryStore? store,
             WotRegistryPersistenceBounds? bounds,
             WotRegistryIdentityBindings identityBindings)
+            : this(store, bounds, identityBindings, WotProjectionCompatibilityMode.None)
         {
+        }
+
+        /// <summary>
+        /// Initializes a registry with an explicitly selected projection-plan compatibility mode.
+        /// </summary>
+        public WotRegistryService(
+            IWotRegistryStore? store,
+            WotRegistryPersistenceBounds? bounds,
+            WotProjectionCompatibilityMode projectionCompatibilityMode)
+            : this(store, bounds, new WotRegistryIdentityBindings(), projectionCompatibilityMode)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a registry with explicit authority bindings and projection-plan compatibility.
+        /// </summary>
+        public WotRegistryService(
+            IWotRegistryStore? store,
+            WotRegistryPersistenceBounds? bounds,
+            WotRegistryIdentityBindings identityBindings,
+            WotProjectionCompatibilityMode projectionCompatibilityMode)
+        {
+            if (projectionCompatibilityMode is not (
+                WotProjectionCompatibilityMode.None or WotProjectionCompatibilityMode.DraftProjection11))
+            {
+                throw new ArgumentOutOfRangeException(nameof(projectionCompatibilityMode));
+            }
+            m_projectionCompatibilityMode = projectionCompatibilityMode;
             m_store = store ?? new InMemoryWotRegistryStore();
             m_resourceStore = m_store is IWotRegistryResourceStoreProvider provider
                 ? provider.ResourceStore
@@ -632,12 +661,13 @@ namespace Opc.Ua.WotCon.Server.Registry
 
             ByteString content = await ReadContentAsync(version, cancellationToken)
                 .ConfigureAwait(false);
-            WoTValidationOutcomeDataType outcome = ValidateContent(content);
+            WoTValidationOutcomeDataType outcome = ValidateContent(content, resource.Kind, version);
             await StoreValidationAsync(
                     groupId,
                     resourceId,
                     versionId,
-                    version.DigestHex,
+                    version,
+                    resource.Kind,
                     outcome,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -758,12 +788,18 @@ namespace Opc.Ua.WotCon.Server.Registry
             return resource;
         }
 
-        private static WoTValidationOutcomeDataType ValidateContent(ByteString content)
+        private WoTValidationOutcomeDataType ValidateContent(
+            ByteString content, WoTDocumentKindEnum kind, WotResourceVersion version)
         {
             try
             {
-                using var document = WotDocument.Parse(content.Span.ToArray());
-                _ = document.Id;
+                using var document = WotDocument.Parse(content.Span.ToArray(), CreateDocumentOptions());
+                string? projectionError = WotProjectionAdmission.GetError(
+                    document, kind, version.Format, version.ContentType, m_projectionCompatibilityMode);
+                if (projectionError is not null)
+                {
+                    return FailedValidation(projectionError);
+                }
                 return new WoTValidationOutcomeDataType
                 {
                     FormatValidated = true,
@@ -778,6 +814,16 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 return FailedValidation(ex.Message);
             }
+        }
+
+        private WotNodeSetConverterOptions CreateDocumentOptions()
+        {
+            return new WotNodeSetConverterOptions
+            {
+                MaxJsonDocumentSize = Bounds.MaxDocumentBytes,
+                MaxJsonDepth = Bounds.MaxJsonDepth,
+                ProjectionCompatibilityMode = m_projectionCompatibilityMode
+            };
         }
 
         /// <inheritdoc/>
@@ -835,14 +881,22 @@ namespace Opc.Ua.WotCon.Server.Registry
             bool parseFailed = false;
             bool ambiguousIdentity = false;
             WotDocumentKind parsedKind = WotDocumentKind.Unknown;
+            bool projectionPlan = false;
             try
             {
-                var options = new WotNodeSetConverterOptions
+                using var document = WotDocument.Parse(content.Span.ToArray(), CreateDocumentOptions());
+                projectionPlan = WotProjection.IsProjection(document);
+                if (request.DetectProjectionFormat && projectionPlan)
                 {
-                    MaxJsonDocumentSize = Bounds.MaxDocumentBytes,
-                    MaxJsonDepth = Bounds.MaxJsonDepth
-                };
-                using var document = WotDocument.Parse(content.Span.ToArray(), options);
+                    format = WotProjection.Format;
+                    contentType = WotProjection.ContentType;
+                }
+                string? projectionError = WotProjectionAdmission.GetError(
+                    document, request.Kind, format, contentType, m_projectionCompatibilityMode);
+                if (projectionError is not null)
+                {
+                    return Rejected(m_snapshot.Generation, projectionError);
+                }
                 documentId = WotRegistryIdentity.ReadSourceId(document.RootElement);
                 parsedKind = document.Kind;
                 title = document.Title;
@@ -909,6 +963,15 @@ namespace Opc.Ua.WotCon.Server.Registry
                 string resourceId = DeriveResourceId(group, request, documentId);
                 WotResource? existing = group.Resources.TryGetValue(
                     resourceId, out WotResource? found) ? found : null;
+
+                if (projectionPlan &&
+                    (group.Kind != request.Kind ||
+                        (existing is not null && existing.Kind != request.Kind)))
+                {
+                    return Rejected(
+                        snapshot.Generation,
+                        "A projection result kind must match its existing resource and group kinds.");
+                }
 
                 if (existing is null &&
                     group.Resources.Count >= Bounds.MaxResourcesPerGroup)
@@ -1025,13 +1088,14 @@ namespace Opc.Ua.WotCon.Server.Registry
                     !current.HasContent ||
                     current.ContentLength != content.Length ||
                     !WotContentDigest.Equal(current.Digest, digest);
-                bool versionChanged = current is null ||
-                    contentChanged ||
+                bool admissionChanged = contentChanged ||
                     !string.Equals(
-                        current.ContentType,
+                        current?.ContentType,
                         contentType,
                         StringComparison.Ordinal) ||
-                    !string.Equals(current.Format, format, StringComparison.Ordinal) ||
+                    !string.Equals(current?.Format, format, StringComparison.Ordinal);
+                bool versionChanged = current is null ||
+                    admissionChanged ||
                     !string.Equals(current.DocumentId, documentId, StringComparison.Ordinal) ||
                     !string.Equals(current.Title, title, StringComparison.Ordinal) ||
                     !string.Equals(current.BaseUri, baseUri, StringComparison.Ordinal) ||
@@ -1099,8 +1163,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                         format: format,
                         modifiedAt: now,
                         epoch: current.Epoch + 1,
-                        validation: contentChanged ? validation : null,
-                        clearValidation: contentChanged && validation is null)
+                        validation: admissionChanged ? validation : null,
+                        clearValidation: admissionChanged && validation is null)
                         .WithDocumentMetadata(
                             documentId,
                             title,
@@ -1166,7 +1230,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         selectedVersionId,
                         StringComparison.Ordinal);
                 bool materializationChanged = selectedVersionChanged ||
-                    (updatesSelectedVersion && contentChanged);
+                    (updatesSelectedVersion && admissionChanged);
                 WoTLoadStateEnum loadState = materializationChanged
                     ? (parseFailed
                         ? WoTLoadStateEnum.Failed
@@ -2060,7 +2124,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             string groupId,
             string resourceId,
             string versionId,
-            string expectedDigestHex,
+            WotResourceVersion expectedVersion,
+            WoTDocumentKindEnum expectedKind,
             WoTValidationOutcomeDataType outcome,
             CancellationToken cancellationToken)
         {
@@ -2077,9 +2142,13 @@ namespace Opc.Ua.WotCon.Server.Registry
                         StatusCodes.BadNodeIdUnknown,
                         "The Version was removed while validation was running.");
                 }
-                if (!string.Equals(
+                if (version.IncarnationId != expectedVersion.IncarnationId ||
+                    resource.Kind != expectedKind ||
+                    !string.Equals(version.Format, expectedVersion.Format, StringComparison.Ordinal) ||
+                    !string.Equals(version.ContentType, expectedVersion.ContentType, StringComparison.Ordinal) ||
+                    !string.Equals(
                         version.DigestHex,
-                        expectedDigestHex,
+                        expectedVersion.DigestHex,
                         StringComparison.Ordinal))
                 {
                     throw new ServiceResultException(
@@ -2794,6 +2863,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             bool CreatedResource = false);
 
         private readonly IWotRegistryStore m_store;
+        private readonly WotProjectionCompatibilityMode m_projectionCompatibilityMode;
         private readonly IXRegistryResourceStore m_resourceStore;
         private readonly SemaphoreSlim m_mutex = new(1, 1);
         private WotRegistrySnapshot m_snapshot;

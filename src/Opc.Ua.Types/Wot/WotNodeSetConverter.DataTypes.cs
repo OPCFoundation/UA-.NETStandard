@@ -284,13 +284,18 @@ namespace Opc.Ua.Wot
             Visit(root);
             return names;
 
-            void Visit(JsonElement element)
+            void Visit(JsonElement element, bool indexMap = false)
             {
                 if (element.ValueKind == JsonValueKind.Object)
                 {
                     foreach (JsonProperty member in element.EnumerateObject())
                     {
-                        if (WotDocument.IsSemanticBoundary(member.Name))
+                        if (indexMap)
+                        {
+                            Visit(member.Value);
+                            continue;
+                        }
+                        if (WotDocument.IsSemanticBoundary(member.Name) || IsLiteralSchemaMember(member.Name))
                         {
                             continue;
                         }
@@ -299,7 +304,7 @@ namespace Opc.Ua.Wot
                         {
                             names.Add((element, member.Value.GetString()!));
                         }
-                        Visit(member.Value);
+                        Visit(member.Value, IsSchemaDeclarationMap(member.Name));
                     }
                 }
                 else if (element.ValueKind == JsonValueKind.Array)
@@ -612,53 +617,82 @@ namespace Opc.Ua.Wot
 
         internal static ArrayOf<JsonElement> ReadDataTypeDefinitionOccurrences(JsonElement root)
         {
-            var definitions = new List<JsonElement>();
-            Visit(root);
+            return ReadDataTypeDefinitionLocations(root).ToArrayOf(entry => entry.Definition);
+        }
+
+        internal static ArrayOf<(JsonElement Definition, string Pointer)> ReadDataTypeDefinitionLocations(
+            JsonElement root)
+        {
+            var definitions = new List<(JsonElement Definition, string Pointer)>();
+            Visit(root, string.Empty);
             return definitions.ToArrayOf();
 
-            void Visit(JsonElement element)
+            void Visit(JsonElement element, string pointer, bool indexMap = false)
             {
                 if (element.ValueKind == JsonValueKind.Object)
                 {
                     foreach (JsonProperty member in element.EnumerateObject())
                     {
-                        if (WotDocument.IsSemanticBoundary(member.Name))
+                        string location = pointer + "/" + EscapePointerToken(member.Name);
+                        if (indexMap)
+                        {
+                            Visit(member.Value, location);
+                            continue;
+                        }
+                        if (WotDocument.IsSemanticBoundary(member.Name) || IsLiteralSchemaMember(member.Name))
                         {
                             continue;
                         }
                         if (member.Name is "uav:dataTypeDefinition" or "uav:fieldDataTypeDefinition" &&
                             member.Value.ValueKind == JsonValueKind.Object)
                         {
-                            definitions.Add(member.Value);
+                            definitions.Add((member.Value, location));
                         }
                         else if (member.Name == "uav:dataTypeDefinitions" &&
                             member.Value.ValueKind == JsonValueKind.Array)
                         {
+                            int index = 0;
                             foreach (JsonElement definition in member.Value.EnumerateArray())
                             {
                                 if (definition.ValueKind == JsonValueKind.Object)
                                 {
-                                    definitions.Add(definition);
+                                    definitions.Add((definition, location +
+                                        "/" +
+                                        index.ToString(CultureInfo.InvariantCulture)));
                                 }
+                                index++;
                             }
                         }
                         else if (member.Name == "uav:dataTypeSubtypeOf" &&
                             member.Value.ValueKind == JsonValueKind.Object &&
                             IsReferenceOnlyDefinition(member.Value))
                         {
-                            definitions.Add(member.Value);
+                            definitions.Add((member.Value, location));
                         }
-                        Visit(member.Value);
+                        Visit(member.Value, location, IsSchemaDeclarationMap(member.Name));
                     }
                 }
                 else if (element.ValueKind == JsonValueKind.Array)
                 {
+                    int index = 0;
                     foreach (JsonElement item in element.EnumerateArray())
                     {
-                        Visit(item);
+                        Visit(item, pointer + "/" + index.ToString(CultureInfo.InvariantCulture));
+                        index++;
                     }
                 }
             }
+        }
+
+        internal static bool IsSchemaDeclarationMap(string member)
+        {
+            return member is "properties" or "actions" or "events" or "schemaDefinitions" or "uriVariables" or
+                "$defs" or "definitions" or "patternProperties";
+        }
+
+        internal static bool IsLiteralSchemaMember(string member)
+        {
+            return member is "const" or "default" or "enum" or "examples";
         }
 
         private static void AddDataTypeDefinition(
@@ -744,6 +778,29 @@ namespace Opc.Ua.Wot
                 return ToNodeSetNodeId(authored, nodeSet, diagnostics);
             }
             return DeriveDataTypeNodeId(document, name, nodeSet, diagnostics, definition);
+        }
+
+        internal static bool ValidateStandardDataTypeReference(
+            WotDocument document,
+            JsonElement reference,
+            List<WotDiagnostic> diagnostics)
+        {
+            string? id = GetElementString(reference, "uav:dataTypeId");
+            string? name = GetElementString(reference, "uav:dataTypeName");
+            if (id is null ||
+                name is null ||
+                !TryResolveDataTypeName(document, name, null, reference, out string? standardId) ||
+                standardId is null ||
+                NormalizeExpandedNodeId(id) == NormalizeExpandedNodeId(standardId))
+            {
+                return true;
+            }
+            diagnostics.Add(new WotDiagnostic(
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.DataTypeDefinitionInvalid,
+                $"The standard DataType name '{name}' identifies '{standardId}', not the supplied identity '{id}'.",
+                new WotLocation(reference: name)));
+            return false;
         }
 
         private static string? ResolveDataTypeName(
@@ -1264,6 +1321,11 @@ namespace Opc.Ua.Wot
             {
                 return null;
             }
+            if (!ReferencesKnownNamedDataType(document, reference, context, nodeSet) &&
+                !ValidateStandardDataTypeReference(document, reference, diagnostics))
+            {
+                return null;
+            }
             string? graphId = GetElementString(reference, "@id");
             if (graphId is not null && context.Identities.TryGetValue(graphId, out string? resolved))
             {
@@ -1289,6 +1351,32 @@ namespace Opc.Ua.Wot
                     new WotLocation(reference: graphId)));
             }
             return null;
+        }
+
+        private static bool ReferencesKnownNamedDataType(
+            WotDocument document,
+            JsonElement reference,
+            DataTypeDefinitionContext context,
+            UANodeSet nodeSet)
+        {
+            string? id = GetElementString(reference, "uav:dataTypeId");
+            string? name = GetElementString(reference, "uav:dataTypeName");
+            if (id is null ||
+                name is null ||
+                !TrySplitCompactName(document, name, out string namespaceUri, out string localName, reference))
+            {
+                return false;
+            }
+            string identity = NormalizeDataTypeValidationIdentity(id, nodeSet);
+            if (context.NamedIdentities.TryGetValue((namespaceUri, localName), out string? named) && named == identity)
+            {
+                return true;
+            }
+            return context.ValidationTypes.TryGetValue(identity, out DataTypeValidationNode? definition) &&
+                TrySplitCompactName(definition.Document, definition.Name,
+                    out string declaredNamespace, out string declaredName, definition.Source) &&
+                namespaceUri == declaredNamespace &&
+                localName == declaredName;
         }
 
         /// <summary>

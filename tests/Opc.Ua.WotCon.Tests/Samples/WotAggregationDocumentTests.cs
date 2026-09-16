@@ -34,6 +34,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using NUnit.Framework;
@@ -151,6 +152,43 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     regenerated.ToArray(),
                     Is.EqualTo(checkedIn),
                     $"{fileName} is not the formatted projection document.");
+            }
+        }
+
+        [Test]
+        public void PumpAssetProjectionDocumentsDeclareCurrentPlanHeaders()
+        {
+            ArrayOf<SampleDocument> projections =
+                WotAggregationDocumentGenerator.GenerateAssetProjectionDocuments(ReadPumpDocuments());
+            Assert.That(projections.Count, Is.EqualTo(s_assetProjectionDocuments.Length));
+            foreach (SampleDocument sample in projections)
+            {
+                using var document = WotDocument.Parse(sample.Json.Memory);
+                var diagnostics = new List<WotDiagnostic>();
+                WotProjection plan = WotProjection.Parse(document, diagnostics)!;
+                Assert.That(plan, Is.Not.Null, sample.Path);
+                Assert.That(diagnostics, Is.Empty, sample.Path);
+                Assert.That(plan.ResultKind, Is.EqualTo(WotDocumentKind.ThingDescription), sample.Path);
+                Assert.That(document.TypeTokens, Does.Not.Contain("Thing").And.Not.Contain("tm:ThingModel"), sample.Path);
+                if (!sample.Path.Contains(".Members.", StringComparison.Ordinal))
+                {
+                    Assert.That(plan.Sources.ToList().Select(source => source.MediaType),
+                        Is.All.EqualTo(WotProjection.ContentType), sample.Path);
+                }
+            }
+        }
+
+        [Test]
+        [Explicit("Rewrites only the checked-in projection plans from the retained source documents.")]
+        public async Task WriteAssetProjectionDocuments()
+        {
+            ArrayOf<SampleDocument> projections =
+                WotAggregationDocumentGenerator.GenerateAssetProjectionDocuments(ReadPumpDocuments());
+            for (int index = 0; index < projections.Count; index++)
+            {
+                SampleDocument document = projections[index];
+                await WotAggregationDocumentGenerator.WriteBytesAsync(
+                    DocumentPath(document.Path), document.Json).ConfigureAwait(false);
             }
         }
 
@@ -319,7 +357,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         public async Task PumpAssetProjectionDocumentsResolveToExpectedGroupsAndMembers()
         {
             var resolver = new WotProjectionResolver(
-                new WotAggregationDocumentGenerator.SampleThingResolver(ReadManifestDocuments()),
+                new WotAggregationDocumentGenerator.SampleThingResolver(ReadSubstitutedManifestDocuments()),
                 WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
 
             foreach (string pumpName in s_pumpAssetNames)
@@ -331,7 +369,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 WotConversionResult<WotDocument> assetResult = await resolver
                     .ResolveAsync(asset).ConfigureAwait(false);
 
-                Assert.That(assetResult.Success, Is.True, pumpName);
+                Assert.That(assetResult.Success, Is.True, pumpName + ": " + string.Join("; ", assetResult.Diagnostics));
                 using WotDocument assetView = assetResult.Value!;
                 JsonElement root = assetView.RootElement;
                 Assert.That(TypeNames(root), Does.Not.Contain("uav:projection"));
@@ -462,11 +500,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         [TestCase("Pump2")]
         public async Task ManagementProjectionsCompileWithTheirConditionEvents(string pumpName)
         {
-            var documents = ReadManifestDocuments().ToArrayOf(document => document with
-            {
-                Json = ByteString.From(Encoding.UTF8.GetBytes(
-                    SubstituteEndpoints(Encoding.UTF8.GetString(document.Json.ToArray()))))
-            });
+            ArrayOf<SampleDocument> documents = ReadSubstitutedManifestDocuments();
             var thingResolver = new WotAggregationDocumentGenerator.SampleThingResolver(documents);
             var projectionResolver = new WotProjectionResolver(
                 thingResolver, WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
@@ -1299,6 +1333,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
             return WotAggregationDocumentGenerator.ReadManifestDocuments(DocumentPath(string.Empty));
         }
 
+        private static ArrayOf<SampleDocument> ReadSubstitutedManifestDocuments()
+        {
+            return SubstituteEndpoints(ReadManifestDocuments());
+        }
+
         private static ArrayOf<SampleDocument> ReadPumpDocuments()
         {
             return ReadManifestDocuments().Filter(document =>
@@ -1320,20 +1359,47 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(result.Success, Is.True, fileName);
             using WotDocument view = result.Value!;
             JsonElement map = view.RootElement.GetProperty(mapName);
-            Assert.That(PropertyNames(map), Is.EquivalentTo(expectedMembers), fileName);
             Assert.That(TypeNames(view.RootElement), Does.Not.Contain("uav:projection"), fileName);
             string pumpName = fileName[..fileName.IndexOf('.', StringComparison.Ordinal)];
-            ArrayOf<SampleDocument> sources = ReadPumpDocuments();
+            ArrayOf<SampleDocument> sources = SubstituteEndpoints(ReadPumpDocuments());
+            var units = new Dictionary<string, Affordance>(StringComparer.Ordinal);
+            if (mapName == "properties")
+            {
+                List<Affordance> declarations = [.. ReadAffordances(sources, mapName)];
+                foreach (string name in expectedMembers)
+                {
+                    string localPath = s_propertyBindings.Single(binding => binding.Name == name).LocalPath;
+                    Affordance declaration = FindAffordance(sources, mapName, LocalNodeId(pumpName, localPath));
+                    if (declaration.Value.TryGetProperty("uav:unitProperty", out JsonElement pointer))
+                    {
+                        Affordance unit = declarations.Single(candidate =>
+                            candidate.ResourceId == declaration.ResourceId && candidate.Pointer == pointer.GetString());
+                        units[unit.Name] = unit;
+                    }
+                }
+            }
+            Assert.That(PropertyNames(map), Is.EquivalentTo(expectedMembers.Concat(units.Keys).Distinct()), fileName);
             foreach (JsonProperty member in map.EnumerateObject())
             {
+                if (Array.IndexOf(expectedMembers, member.Name) < 0)
+                {
+                    Affordance unit = units[member.Name];
+                    Assert.That(member.Value.GetProperty("type").GetString(), Is.EqualTo("string"), member.Name);
+                    Assert.That(member.Value.GetProperty("uav:id").GetString(),
+                        Is.EqualTo(unit.Value.GetProperty("uav:id").GetString()), member.Name);
+                    Assert.That(member.Value.GetProperty("uav:resolvedFrom").GetString(),
+                        Is.EqualTo(unit.ResourceId + "#" + unit.Pointer), member.Name);
+                    Assert.That(JsonNode.DeepEquals(
+                        JsonNode.Parse(member.Value.GetProperty("uav:engineeringUnits").GetRawText()),
+                        JsonNode.Parse(unit.Value.GetProperty("uav:engineeringUnits").GetRawText())), Is.True, member.Name);
+                    continue;
+                }
                 string localPath = mapName == "properties"
                     ? s_propertyBindings.Single(binding => binding.Name == member.Name).LocalPath
                     : member.Name;
                 string localId = LocalNodeId(pumpName, localPath);
                 Affordance declaration = FindAffordance(sources, mapName, localId);
-                string reference = fileName == $"{pumpName}.Members.td.json"
-                    ? declaration.ResourceId + "#" + declaration.Pointer
-                    : $"{pumpName.ToLowerInvariant()}-members#/{mapName}/{EscapePointer(member.Name)}";
+                string reference = declaration.ResourceId + "#" + declaration.Pointer;
                 Assert.That(
                     member.Value.GetProperty("uav:resolvedFrom").GetString(),
                     Is.EqualTo(reference),
@@ -1762,6 +1828,15 @@ namespace Opc.Ua.WotCon.Tests.Samples
         private static string SourceEndpoint(string source)
         {
             return source == "SourceA" ? "${SOURCE_A_ENDPOINT}" : "${SOURCE_B_ENDPOINT}";
+        }
+
+        private static ArrayOf<SampleDocument> SubstituteEndpoints(ArrayOf<SampleDocument> documents)
+        {
+            return documents.ToArrayOf(document => document with
+            {
+                Json = ByteString.From(Encoding.UTF8.GetBytes(
+                    SubstituteEndpoints(Encoding.UTF8.GetString(document.Json.ToArray()))))
+            });
         }
 
         private static string SubstituteEndpoints(string json)
