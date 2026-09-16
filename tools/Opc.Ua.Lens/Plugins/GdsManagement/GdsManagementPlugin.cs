@@ -117,7 +117,8 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin, I
     private readonly IGdsManagementClient? m_operationsClient;
     private readonly IGdsCertificateIssuance m_issuance;
     private readonly IGdsCertificateDelivery m_delivery;
-    private GlobalDiscoveryServerClient? m_client;
+    private IGlobalDiscoveryServerClient? m_client;
+    private readonly Func<ApplicationConfiguration, IUserIdentity, IGlobalDiscoveryServerClient> m_createClient;
     private GdsManagementView? m_view;
     private EndpointDescription? m_boundEndpoint;
 
@@ -201,8 +202,24 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin, I
         IGdsCertificateIssuance? issuance = null,
         IGdsManagementClient? client = null,
         IGdsCertificateDelivery? delivery = null)
+        : this(
+            host,
+            static (configuration, identity) => new GlobalDiscoveryServerClient(configuration, identity),
+            issuance,
+            client,
+            delivery)
+    {
+    }
+
+    internal GdsManagementPlugin(
+        PluginHost host,
+        Func<ApplicationConfiguration, IUserIdentity, IGlobalDiscoveryServerClient> createClient,
+        IGdsCertificateIssuance? issuance = null,
+        IGdsManagementClient? client = null,
+        IGdsCertificateDelivery? delivery = null)
     {
         m_host = host ?? throw new ArgumentNullException(nameof(host));
+        m_createClient = createClient ?? throw new ArgumentNullException(nameof(createClient));
         m_log = host.Log;
         m_operationsClient = client;
         m_issuance = issuance ?? new GdsCertificateIssuance();
@@ -225,9 +242,9 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin, I
         UpdateStatus();
     }
 
-    private bool OuterIsSuitable() => GdsSessionHelper.IsOuterSuitable(m_host.Connection.Session);
+    private bool OuterIsSuitable() => GdsSessionHelper.IsOuterSuitable(m_host.Connection.CurrentSession);
 
-    private bool OuterIsInsecure() => GdsSessionHelper.IsOuterInsecure(m_host.Connection.Session);
+    private bool OuterIsInsecure() => GdsSessionHelper.IsOuterInsecure(m_host.Connection.CurrentSession);
 
     private void SetSecondaryConnected(bool value)
     {
@@ -265,7 +282,8 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin, I
         var issue = new MenuItem { Header = "_Issue Cert…" };
         issue.Click += async (_, _) => await IssueNewCertificateCommand.ExecuteAsync(null).ConfigureAwait(true);
         var issueHttps = new MenuItem { Header = "Issue _HTTPS Cert…" };
-        issueHttps.Click += async (_, _) => await IssueNewHttpsCertificateCommand.ExecuteAsync(null).ConfigureAwait(true);
+        issueHttps.Click += async (_, _) => await IssueNewHttpsCertificateCommand.ExecuteAsync(null)
+            .ConfigureAwait(true);
         var groups = new MenuItem { Header = "View _Cert Groups" };
         groups.Click += async (_, _) => await ViewCertGroupsCommand.ExecuteAsync(null).ConfigureAwait(true);
         var pullLocal = new MenuItem { Header = "Pull _Trust List → local store" };
@@ -274,7 +292,17 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin, I
         var pullPush = new MenuItem { Header = "Pull Trust List → _push to server" };
         pullPush.Click += async (_, _) =>
             await PullTrustListPushToServerCommand.ExecuteAsync(null).ConfigureAwait(true);
-        return new[] { connect, disconnect, refresh, register, unregister, issue, issueHttps, groups, pullLocal, pullPush };
+        return new[] {
+            connect,
+            disconnect,
+            refresh,
+            register,
+            unregister,
+            issue,
+            issueHttps,
+            groups,
+            pullLocal,
+            pullPush };
     }
 
     public void OnActivated() { }
@@ -392,11 +420,11 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin, I
         try
         {
             ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync(ct).ConfigureAwait(true);
-            var client = new GlobalDiscoveryServerClient(cfg, pick.Identity);
+            IGlobalDiscoveryServerClient client = m_createClient(cfg, pick.Identity);
+            m_client = client;
             var configured = new ConfiguredEndpoint(
                 null, pick.Endpoint, EndpointConfiguration.Create(cfg));
             await client.ConnectAsync(configured, ct).ConfigureAwait(true);
-            m_client = client;
             m_boundEndpoint = pick.Endpoint;
             EndpointUrl = pick.Endpoint.EndpointUrl ?? EndpointUrl;
             SetSecondaryConnected(true);
@@ -423,7 +451,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin, I
     /// prompts the user via the picker flow.  Null on cancel /
     /// connect failure.
     /// </summary>
-    private async Task<GlobalDiscoveryServerClient?> EnsureSessionAsync(CancellationToken ct)
+    private async Task<IGlobalDiscoveryServerClient?> EnsureSessionAsync(CancellationToken ct)
     {
         if (m_client is { Session: { Connected: true } } good)
         {
@@ -451,7 +479,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin, I
     /// </summary>
     private async Task<bool> TryAutoPiggybackAsync(CancellationToken ct)
     {
-        if (m_host.Connection.Session is not { Connected: true } outer
+        if (m_host.Connection.CurrentSession is not { Connected: true } outer
             || outer.ConfiguredEndpoint?.Description is not { } desc)
         {
             return false;
@@ -467,11 +495,11 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin, I
 #pragma warning disable CA2000
             IUserIdentity identity = new UserIdentity(new AnonymousIdentityToken());
 #pragma warning restore CA2000
-            var client = new GlobalDiscoveryServerClient(cfg, identity);
+            IGlobalDiscoveryServerClient client = m_createClient(cfg, identity);
+            m_client = client;
             var configured = new ConfiguredEndpoint(
                 null, desc, EndpointConfiguration.Create(cfg));
             await client.ConnectAsync(configured, ct).ConfigureAwait(true);
-            m_client = client;
             m_boundEndpoint = desc;
             EndpointUrl = desc.EndpointUrl ?? EndpointUrl;
             SetSecondaryConnected(true);
@@ -557,7 +585,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin, I
         {
             return m_operationsClient;
         }
-        GlobalDiscoveryServerClient? client = await EnsureSessionAsync(cancellationToken).ConfigureAwait(true);
+        IGlobalDiscoveryServerClient? client = await EnsureSessionAsync(cancellationToken).ConfigureAwait(true);
         return client is null ? null : new GdsManagementClientAdapter(client);
     }
 
@@ -870,7 +898,8 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin, I
         IsBusy = true;
         try
         {
-            GlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IGlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(
+                true);
             if (client is null)
             {
                 return;
@@ -925,7 +954,8 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin, I
         IsBusy = true;
         try
         {
-            GlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IGlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(
+                true);
             if (client is null)
             {
                 return;
@@ -985,7 +1015,8 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin, I
         IsBusy = true;
         try
         {
-            GlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IGlobalDiscoveryServerClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(
+                true);
             if (client is null)
             {
                 return;
@@ -1017,7 +1048,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin, I
     /// <see cref="GlobalDiscoveryServerClient.ReadTrustListAsync(NodeId, long, CancellationToken)"/>.
     /// </summary>
     private static async Task<TrustListDataType> ReadGdsTrustListAsync(
-        GlobalDiscoveryServerClient client,
+        IGlobalDiscoveryServerClient client,
         NodeId applicationId,
         CancellationToken ct)
     {
@@ -1775,7 +1806,7 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin, I
 
     private async Task SafeDisposeClientAsync()
     {
-        GlobalDiscoveryServerClient? client = m_client;
+        IGlobalDiscoveryServerClient? client = m_client;
         if (client is null)
         {
             return;

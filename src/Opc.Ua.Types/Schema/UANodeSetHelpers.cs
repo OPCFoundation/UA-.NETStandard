@@ -2180,6 +2180,14 @@ namespace Opc.Ua.Export
                 return nodeId.WithNamespaceUri(namespaceUri).WithServerIndex(serverIndex);
             }
 
+            if (!resolveNamespaceUri && !string.IsNullOrEmpty(nodeId.NamespaceUri))
+            {
+                // The URI was not resolved against the namespace table, so keep
+                // the absolute form instead of silently dropping it - the
+                // alternative landed the target in namespace zero.
+                return nodeId.WithServerIndex(0);
+            }
+
             return nodeId.WithNamespaceIndex(namespaceIndex).WithServerIndex(0);
         }
 
@@ -2740,8 +2748,10 @@ namespace Opc.Ua.Export
                 return serverIndex;
             }
 
-            // return a bad value if parameters are bad.
-            if (serverUris == null || serverUris.Count < serverIndex)
+            // return a bad value if parameters are bad. Valid indexes run to
+            // Count - 1; "< serverIndex" let Count through and then appended
+            // the null that GetString returned for it.
+            if (serverUris == null || serverUris.Count <= serverIndex)
             {
                 return ushort.MaxValue;
             }

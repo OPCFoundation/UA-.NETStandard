@@ -121,15 +121,25 @@ namespace Opc.Ua.SourceGeneration
             IncrementalValueProvider<CompilationOptions> settings =
                 context.CompilationProvider
                     .Select((c, _) => CompilationOptions.From(c));
+            // Value comparers, not the reference equality ImmutableArray and
+            // ImmutableHashSet default to: these stages are derived from the
+            // compilation, so without them every keystroke invalidates the whole
+            // model generation even though nothing they read has changed.
             IncrementalValueProvider<ImmutableArray<ModelDependencyReference>> referencedModels =
                 context.CompilationProvider
-                    .Select((c, _) => ReferencedModelDependencyScanner.Scan(c));
+                    .Select((c, _) => ReferencedModelDependencyScanner.Scan(c))
+                    .WithComparer(
+                        IncrementalValueComparers.ForArray<ModelDependencyReference>());
             IncrementalValueProvider<ImmutableArray<ModelFluentAccessorProviderReference>>
                 referencedAccessorProviders = context.CompilationProvider
-                    .Select((c, _) => ReferencedFluentAccessorProviderScanner.Scan(c));
+                    .Select((c, _) => ReferencedFluentAccessorProviderScanner.Scan(c))
+                    .WithComparer(
+                        IncrementalValueComparers
+                            .ForArray<ModelFluentAccessorProviderReference>());
             IncrementalValueProvider<ImmutableHashSet<string>> stateTypeIndex =
                 context.CompilationProvider
-                    .Select((c, _) => OpcUaStateTypeIndex.Build(c));
+                    .Select((c, _) => OpcUaStateTypeIndex.Build(c))
+                    .WithComparer(IncrementalValueComparers.ForSet<string>());
 
             IncrementalValueProvider<ImmutableArray<NodeManagerAttributeDiscovery>> nodeManagerBindings =
                 context.SyntaxProvider.ForAttributeWithMetadataName(

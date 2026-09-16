@@ -579,10 +579,12 @@ namespace Opc.Ua.Core.Encoders.Tests
             bool foundWithNs = factory.TryGetEncodeableType(typeIdWithDefaultNs, out IEncodeableType typeWithNs);
             bool foundWithoutNs = factory.TryGetEncodeableType(typeIdWithoutNs, out IEncodeableType typeWithoutNs);
 
+            // Registrations and lookups both normalize an id that names
+            // namespace zero by its URI, so either spelling resolves.
             Assert.That(foundWithNs, Is.True);
-            Assert.That(foundWithoutNs, Is.False);
+            Assert.That(foundWithoutNs, Is.True);
             Assert.That(typeWithNs.Type, Is.EqualTo(typeof(TestEncodeable)));
-            Assert.That(typeWithoutNs, Is.Null);
+            Assert.That(typeWithoutNs.Type, Is.EqualTo(typeof(TestEncodeable)));
         }
 
         [Test]
@@ -976,8 +978,10 @@ namespace Opc.Ua.Core.Encoders.Tests
             bool foundWithoutNs = factory.TryGetEncodeableType(new ExpandedNodeId(140000), out IEncodeableType typeWithoutNs);
             bool foundWithNs = factory.TryGetEncodeableType(new ExpandedNodeId(140000, Namespaces.OpcUa), out _);
 
+            // The lookup normalizes the namespace zero URI form as well, so
+            // both spellings resolve to the same registration.
             Assert.That(foundWithoutNs, Is.True);
-            Assert.That(foundWithNs, Is.False);
+            Assert.That(foundWithNs, Is.True);
             Assert.That(typeWithoutNs.Type, Is.EqualTo(typeof(TestEncodeableWithDefaultNamespace)));
         }
 

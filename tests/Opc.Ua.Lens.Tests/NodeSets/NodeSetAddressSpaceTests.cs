@@ -230,6 +230,30 @@ namespace UaLens.Tests.NodeSets
         }
 
         [Test]
+        public async Task OfflineInspectorFormatsRolePermissionsWithTheGraphMessageContext()
+        {
+            NodeSetDocument document = ReadDocument($$"""
+            <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+              <NamespaceUris><Uri>urn:lens:roles</Uri></NamespaceUris>
+              <UAObject NodeId="ns=1;i=1" BrowseName="1:Secured">
+                <RolePermissions>
+                  <RolePermission Permissions="1">{{ObjectIds.WellKnownRole_Anonymous}}</RolePermission>
+                </RolePermissions>
+              </UAObject>
+            </UANodeSet>
+            """, "roles.xml");
+            NodeSetAddressSpace graph = await CreateAsync(document).ConfigureAwait(false);
+            await using var vm = new MainViewModel(Telemetry(), dispatcher: InlineWorkspaceDispatcher.Instance);
+            using var inspector = new NodeAttributesViewModel(
+                vm.Telemetry, vm.Connection, InlineWorkspaceDispatcher.Instance, () => graph);
+            await inspector.LoadAsync(
+                new NodeId(1, graph.NamespaceUris.GetIndexOrAppend("urn:lens:roles")), NodeClass.Object)
+                .ConfigureAwait(false);
+            Assert.That(inspector.Rows.Single(row => row.Name == "RolePermissions").Value,
+                Does.Contain("Anonymous").And.Contain("Browse"));
+        }
+
+        [Test]
         public void DuplicateNodeIdsAndCyclicSubtypeDefinitionsFailBeforePublication()
         {
             NodeSetDocument duplicate = ReadDocument(kApp, "duplicate.xml");

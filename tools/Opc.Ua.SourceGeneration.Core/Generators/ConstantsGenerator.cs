@@ -128,34 +128,16 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private bool WriteTemplate_NamespaceUriStrings(IWriteContext context)
+        private static bool WriteTemplate_NamespaceUriStrings(IWriteContext context)
         {
-            if (context.Target is not string uri)
+            if (context.Target is not NamespaceUriConstant constant)
             {
                 return false;
             }
 
-            for (int ii = 0; ii < m_context.ModelDesign.Namespaces.Length; ii++)
-            {
-                Namespace ns = m_context.ModelDesign.Namespaces[ii];
-
-                if (uri != ns.Value && uri != ns.XmlNamespace)
-                {
-                    continue;
-                }
-
-                context.Template.AddReplacement(Tokens.NamespaceUri, uri);
-                context.Template.AddReplacement(Tokens.CodeName, ns.Prefix);
-
-                if (uri != ns.XmlNamespace)
-                {
-                    context.Template.AddReplacement(Tokens.Name, ns.Name);
-                }
-                else
-                {
-                    context.Template.AddReplacement(Tokens.Name, ns.Name + "Xsd");
-                }
-            }
+            context.Template.AddReplacement(Tokens.NamespaceUri, constant.Uri);
+            context.Template.AddReplacement(Tokens.CodeName, constant.Prefix);
+            context.Template.AddReplacement(Tokens.Name, constant.Name);
 
             return context.Template.Render();
         }
@@ -190,9 +172,26 @@ namespace Opc.Ua.SourceGeneration
                 {
                     var variable = (VariableDesign)child;
 
-                    if (variable.DecodedValue is QualifiedName qname)
+                    if (variable.DecodedValue is QualifiedName qname &&
+                        !string.IsNullOrEmpty(qname.Name))
                     {
-                        browseNames[qname.Name] = qname.Name;
+                        // The default instance browse name is authored data, not a
+                        // symbolic name, so it can contain spaces and punctuation.
+                        // The constant name has to be a legal C# identifier while the
+                        // constant value stays the browse name verbatim.
+                        // Sanitizing can land on a constant name another node
+                        // already claimed ("Device Set" and "DeviceSet" both
+                        // yield "DeviceSet"), and this dictionary is keyed by
+                        // symbolic name everywhere else, so a hit here is not
+                        // necessarily a design error. Keep the entry that is
+                        // already there rather than overwriting it with a
+                        // different value or failing the whole model.
+                        string constantName = qname.Name.ToCSharpIdentifierPreserveCase();
+
+                        if (!browseNames.ContainsKey(constantName))
+                        {
+                            browseNames[constantName] = qname.Name;
+                        }
                     }
 
                     continue;
@@ -224,18 +223,92 @@ namespace Opc.Ua.SourceGeneration
             }
         }
 
-        private List<string> GetNamespaceUris()
+        private List<NamespaceUriConstant> GetNamespaceUris()
         {
-            List<string> namespaceUris = [];
+            List<NamespaceUriConstant> namespaceUris = [];
+
+            // Keyed by constant name: the Namespaces class has one member per
+            // name. A repeat of the same (name, URI) pair is simply dropped -
+            // that is the XmlNamespace == Value case this used to emit twice.
+            // Two different URIs claiming one name is not something this can
+            // resolve, because GetConstantSymbolForNamespace formats the same
+            // name for both: emitting both gives CS0102 and dropping one makes
+            // every reference to it resolve to the other one's URI, so report it.
+            var emitted = new Dictionary<string, string>(StringComparer.Ordinal);
             for (int ii = 0; ii < m_context.ModelDesign.Namespaces.Length; ii++)
             {
-                namespaceUris.Add(m_context.ModelDesign.Namespaces[ii].Value);
-                if (!string.IsNullOrEmpty(m_context.ModelDesign.Namespaces[ii].XmlNamespace))
+                Namespace ns = m_context.ModelDesign.Namespaces[ii];
+
+                if (!string.IsNullOrEmpty(ns.Value) &&
+                    ClaimConstantName(emitted, ns.Name, ns.Value))
                 {
-                    namespaceUris.Add(m_context.ModelDesign.Namespaces[ii].XmlNamespace);
+                    namespaceUris.Add(new NamespaceUriConstant(ns.Name, ns.Prefix, ns.Value));
+                }
+
+                // Only emit the "...Xsd" companion constant when the XML namespace
+                // actually differs from the namespace URI. When they are equal the
+                // plain constant above already covers it - emitting both here used
+                // to produce two "...Xsd" constants and no plain one.
+                // GetConstantForXmlNamespace applies the same condition, so the
+                // name it references is always one that was emitted.
+                if (!string.IsNullOrEmpty(ns.XmlNamespace) &&
+                    !string.Equals(ns.XmlNamespace, ns.Value, StringComparison.Ordinal) &&
+                    ClaimConstantName(emitted, ns.Name + "Xsd", ns.XmlNamespace))
+                {
+                    namespaceUris.Add(
+                        new NamespaceUriConstant(ns.Name + "Xsd", ns.Prefix, ns.XmlNamespace));
                 }
             }
             return namespaceUris;
+        }
+
+        /// <summary>
+        /// Claims a namespace constant name for a URI. Returns false when the
+        /// same name and URI were already emitted, and throws when a different
+        /// URI already owns the name - the Namespaces class can only hold one
+        /// member of that name, and both callers of it would resolve to it.
+        /// </summary>
+        private static bool ClaimConstantName(
+            Dictionary<string, string> emitted,
+            string name,
+            string uri)
+        {
+            if (!emitted.TryGetValue(name, out string claimed))
+            {
+                emitted.Add(name, uri);
+                return true;
+            }
+
+            if (!string.Equals(claimed, uri, StringComparison.Ordinal))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "Two namespaces map to the constant name '{0}': {1} and {2}. " +
+                    "Give one of them a distinct Name in the model design.",
+                    name,
+                    claimed,
+                    uri);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// A single namespace URI constant to emit: the C# constant name, the
+        /// namespace prefix it belongs to and the URI value.
+        /// </summary>
+        private sealed class NamespaceUriConstant
+        {
+            public NamespaceUriConstant(string name, string prefix, string uri)
+            {
+                Name = name;
+                Prefix = prefix;
+                Uri = uri;
+            }
+
+            public string Name { get; }
+            public string Prefix { get; }
+            public string Uri { get; }
         }
 
         private readonly IGeneratorContext m_context;

@@ -44,7 +44,7 @@ namespace UaLens.Plugins.Gds;
 ///
 /// <list type="bullet">
 ///   <item><see cref="IsOuterSuitable"/> / <see cref="IsOuterInsecure"/> —
-///         predicates over the outer Connection-pane <see cref="ManagedSession"/>
+///         predicates over the outer Connection-pane <see cref="ISession"/>
 ///         used to decide whether the outer can be piggy-backed on or
 ///         whether the Connect button should advertise "Connect securely…".</item>
 ///   <item><see cref="SafeDisconnectAndDisposeAsync"/> — defensive disconnect +
@@ -70,7 +70,7 @@ internal static class GdsSessionHelper
     /// security posture required before the GDS plug-ins will silently
     /// piggy-back on it instead of running the endpoint picker.
     /// </summary>
-    public static bool IsOuterSuitable(ManagedSession? session)
+    public static bool IsOuterSuitable(ISession? session)
     {
         return session is { Connected: true }
             && session.ConfiguredEndpoint?.Description is { } d
@@ -85,7 +85,7 @@ internal static class GdsSessionHelper
     /// "Connect securely…" so the user understands why the outer
     /// session can't be reused as-is.
     /// </summary>
-    public static bool IsOuterInsecure(ManagedSession? session)
+    public static bool IsOuterInsecure(ISession? session)
     {
         return session is { Connected: true }
             && session.ConfiguredEndpoint?.Description is { } d

@@ -62,7 +62,8 @@
   <Grid Margin="16" RowDefinitions="Auto,*,Auto">
     <TextBlock Grid.Row="0" Classes="h" Text="WORKLOAD" Margin="0,0,0,8" />
 
-    <StackPanel Grid.Row="1" Orientation="Vertical" Spacing="10">
+    <StackPanel Grid.Row="1" Orientation="Vertical" Spacing="10"
+                IsEnabled="{CompiledBinding ConfigurationEditable}">
       <Grid ColumnDefinitions="120,*,Auto">
         <TextBlock Grid.Column="0" Classes="statDim"
                    VerticalAlignment="Center" Text="Rate (ops/s):" />

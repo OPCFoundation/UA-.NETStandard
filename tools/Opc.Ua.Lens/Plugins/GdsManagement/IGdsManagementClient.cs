@@ -64,7 +64,7 @@ internal interface IGdsManagementClient
 
 internal sealed class GdsManagementClientAdapter : IGdsManagementClient
 {
-    public GdsManagementClientAdapter(GlobalDiscoveryServerClient client)
+    public GdsManagementClientAdapter(IGlobalDiscoveryServerClient client)
     {
         m_client = client ?? throw new ArgumentNullException(nameof(client));
     }
@@ -108,5 +108,5 @@ internal sealed class GdsManagementClientAdapter : IGdsManagementClient
         return new GdsIssuedCertificate(requestId, publicKey, privateKey, issuers);
     }
 
-    private readonly GlobalDiscoveryServerClient m_client;
+    private readonly IGlobalDiscoveryServerClient m_client;
 }

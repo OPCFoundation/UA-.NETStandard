@@ -580,7 +580,7 @@ namespace Opc.Ua
         [Pure]
         public ArrayOf<T> ReplaceItem(T value, int index)
         {
-            if (index < 0 || index > Count)
+            if (index < 0 || index >= Count)
             {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }

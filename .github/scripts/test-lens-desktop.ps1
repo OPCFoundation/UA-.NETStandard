@@ -56,9 +56,7 @@ try {
         if (Test-Path -LiteralPath $results) {
             Remove-Item -LiteralPath $results
         }
-        $filter = 'FullyQualifiedName~UaLens.Tests.Desktop.|' +
-            'FullyQualifiedName~UaLens.Tests.Subscriptions.MonitorStyleDesktopTests|' +
-            'FullyQualifiedName~UaLens.Tests.Connection.EndpointCredentialsPickerDialogTests'
+        $filter = ($expectedMethods.Keys | ForEach-Object { "FullyQualifiedName~.$_" }) -join '|'
         $arguments = @(
             'test', 'tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj',
             '--no-restore', '-p:CustomTestTarget=net10.0', '--framework', 'net10.0',

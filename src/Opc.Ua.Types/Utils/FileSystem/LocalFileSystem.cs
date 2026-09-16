@@ -78,7 +78,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Stream OpenRead(string path)
         {
-            return File.Open(path, FileMode.Open);
+            // FileMode.Open alone requests ReadWrite access with FileShare.None,
+            // which fails on a read-only file and locks out concurrent readers.
+            return File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         }
 
         /// <inheritdoc/>

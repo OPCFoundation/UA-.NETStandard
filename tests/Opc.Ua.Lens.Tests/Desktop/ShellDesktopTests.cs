@@ -274,6 +274,8 @@ public sealed class ShellDesktopTests
                 TaskCreationOptions.RunContinuationsAsynchronously);
             ArrayOf<ReadValueId> requested = [];
             var attributeSession = new Mock<ISession>(MockBehavior.Strict);
+            attributeSession.SetupGet(session => session.MessageContext)
+                .Returns(ServiceMessageContext.Create(scope.ViewModel.Telemetry));
             attributeSession.Setup(session => session.ReadAsync(
                 null, 0, TimestampsToReturn.Neither, It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
                 .Callback<RequestHeader?, double, TimestampsToReturn, ArrayOf<ReadValueId>, CancellationToken>(

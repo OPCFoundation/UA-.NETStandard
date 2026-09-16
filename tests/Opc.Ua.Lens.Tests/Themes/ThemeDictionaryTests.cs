@@ -27,10 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using NUnit.Framework;
 using ScottPlot.Plottables;
+using UaLens.Tests.Desktop;
 using UaLens.Themes;
 using UaLens.Views;
 using static UaLens.Tests.Themes.PaletteEvaluation;
@@ -108,7 +111,22 @@ namespace UaLens.Tests.Themes
         }
 
         [Test]
-        public void ApplyingChartColorsKeepsDataAndZoom()
+        [Platform("Win,Linux")]
+        [Explicit("Requires a dedicated real-desktop test process.")]
+        [Category("LensDesktopWorkflow")]
+        public Task ApplyingChartColorsKeepsDataAndZoom()
+        {
+            return AvaloniaDesktopTestHost.RunAsync(() =>
+            {
+                Application application = Application.Current!;
+                application.Resources["SurfaceBg"] = Brushes.White;
+                application.Resources["TextPrimary"] = Brushes.Black;
+                AssertChartColors();
+                return Task.CompletedTask;
+            });
+        }
+
+        private static void AssertChartColors()
         {
             using var plot = new ScottPlot.Plot();
             Scatter line = plot.Add.Scatter(new double[] { 0, 1 }, new double[] { 2, 3 });

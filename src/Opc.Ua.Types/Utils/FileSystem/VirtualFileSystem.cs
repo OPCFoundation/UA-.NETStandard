@@ -118,8 +118,8 @@ namespace Opc.Ua
         public Stream OpenWrite(string path)
         {
             // Open an in-memory stream for writing. Existing content remains
-            // available until it is overwritten, and the file is truncated
-            // to the stream's final position when the stream is disposed.
+            // available until it is overwritten, and the file is truncated to
+            // the furthest byte the stream wrote when it is disposed.
             return Open(path, false).GetStream(true);
         }
 
@@ -506,7 +506,10 @@ namespace Opc.Ua
                         {
                             if (CanWrite)
                             {
-                                m_file.SetLength(m_position);
+                                // Truncate to the furthest byte written, not to
+                                // the final position - a writer that seeks back
+                                // and writes a shorter tail must not lose data.
+                                m_file.SetLength(m_highWaterMark);
                             }
                         }
                         finally
@@ -625,6 +628,10 @@ namespace Opc.Ua
 
                     if (CanWrite && position > length)
                     {
+                        // Seeking past the end zero extends the file, so the
+                        // extension counts as written - otherwise the truncation
+                        // on dispose would throw it away again.
+                        m_highWaterMark = position;
                         m_file.SetLength(position);
                     }
 
@@ -636,6 +643,15 @@ namespace Opc.Ua
                 public override void SetLength(long value)
                 {
                     ThrowIfDisposed();
+
+                    // An explicit length request counts as written even when it
+                    // asks for the length the file already has, otherwise the
+                    // truncation on dispose throws those bytes away again.
+                    if (CanWrite && value >= 0)
+                    {
+                        m_highWaterMark = Math.Max(m_highWaterMark, value);
+                    }
+
                     if (m_file.Length == value)
                     {
                         return;
@@ -658,6 +674,7 @@ namespace Opc.Ua
                         m_position = value;
                     }
 
+                    m_highWaterMark = value;
                     m_file.SetLength(value);
                 }
 
@@ -685,6 +702,7 @@ namespace Opc.Ua
                     EnsureCanWrite();
                     m_file.WriteByte(m_position, value);
                     m_position = checked(m_position + 1);
+                    m_highWaterMark = Math.Max(m_highWaterMark, m_position);
                 }
 
                 /// <inheritdoc/>
@@ -735,6 +753,7 @@ namespace Opc.Ua
                     EnsureCanWrite();
                     m_file.Write(m_position, buffer);
                     m_position = checked(m_position + buffer.Length);
+                    m_highWaterMark = Math.Max(m_highWaterMark, m_position);
                 }
 
                 private void EnsureCanRead()
@@ -788,6 +807,7 @@ namespace Opc.Ua
 
                 private readonly VirtualFile m_file;
                 private long m_position;
+                private long m_highWaterMark;
                 private bool m_disposed;
             }
 

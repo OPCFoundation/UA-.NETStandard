@@ -246,15 +246,26 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         }
 
         [Test]
-        public void InListWithStringNonMemberYieldsFalse()
+        public void InListWithStringMemberAfterMismatchYieldsTrue()
         {
-            // For string operands InList compares against the first list entry only and
-            // returns that comparison result, so a leading mismatch yields false.
+            // A leading mismatch only rules out that operand; the remaining
+            // list entries are still compared.
             ContentFilterElement element = Element(
                 FilterOperator.InList,
                 new LiteralOperand(Variant.From("x")),
                 new LiteralOperand(Variant.From("a")),
                 new LiteralOperand(Variant.From("x")));
+            Assert.That(Filter(element).Evaluate(m_context, m_target), Is.True);
+        }
+
+        [Test]
+        public void InListWithStringNonMemberYieldsFalse()
+        {
+            ContentFilterElement element = Element(
+                FilterOperator.InList,
+                new LiteralOperand(Variant.From("x")),
+                new LiteralOperand(Variant.From("a")),
+                new LiteralOperand(Variant.From("b")));
             Assert.That(Filter(element).Evaluate(m_context, m_target), Is.False);
         }
 

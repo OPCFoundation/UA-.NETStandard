@@ -111,10 +111,10 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public void FindApplicationsWhitespaceMatchesAll()
+        public void FindApplicationsWhitespaceReturnsNoRecord()
         {
-            // Per OPC UA Part 12 §6.3.10, an empty or whitespace-only filter
-            // matches all registered Applications (it is not BadInvalidArgument).
+            // OPC 10000-12 §6.5.4: FindApplications is not a wildcard query; the
+            // node manager rejects an empty ApplicationUri with BadInvalidArgument.
             var database = new TestApplicationsDatabase();
 
             ApplicationRecordDataType[]? results = database.FindApplications(" ");
@@ -186,6 +186,19 @@ namespace Opc.Ua.Gds.Tests
         [TestCase("[", "\\[", true)]
         [TestCase("]", "\\]", true)]
         [TestCase("5a", "5\\%", false)]
+        // CTT GDS Application Directory / Query Applications patterns
+        [TestCase("urn:OPCFoundation:ServerApplication", "%_erver%", true)]
+        [TestCase("urn:OPCFoundation:ComplianceTestTool", "%_erver%", false)]
+        [TestCase("urn:OPCFoundation:ComplianceTestToolEmbeddedServer", "%e_", true)]
+        [TestCase("cab:other_foundation:ClientAndServer", "%\\_%", true)]
+        [TestCase("urn:OPCFoundation:ServerApplication", "%\\_%", false)]
+        [TestCase("Name with % wildcard", "%\\%%", true)]
+        [TestCase("Name without wildcard", "%\\%%", false)]
+        [TestCase("Example_Vendor - ClientAndServer", "%[q-s]", true)]
+        [TestCase("OPC Foundation Compliance Test Tool", "%[^q-s]", true)]
+        [TestCase("OPC Foundation Compliance Test Tool", "%_ompliance%", true)]
+        [TestCase("a_b", "[_]", false)]
+        [TestCase("target", "%[a^j-l]%", false)]
         public void MatchImplementsUaWildcardSpecification(
             string target,
             string pattern,
@@ -194,6 +207,35 @@ namespace Opc.Ua.Gds.Tests
             bool result = ApplicationsDatabaseBase.Match(target, pattern);
 
             Assert.That(result, Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// OPC 10000-4 §7.7.3: the '^' shall be the first character of a list;
+        /// malformed filters are rejected (CTT GDS Application Directory 078.js).
+        /// </summary>
+        [TestCase("%[a^j-l]%")]
+        [TestCase("abc[")]
+        [TestCase("abc\\")]
+        [TestCase("abc[]")]
+        [TestCase("abc[z-a]")]
+        public void QueryWithInvalidPatternThrowsBadInvalidArgument(string pattern)
+        {
+            var database = new TestApplicationsDatabase();
+
+            foreach (Action query in new Action[] {
+                () => database.QueryServers(0, 0, pattern, null, null, [], out _),
+                () => database.QueryServers(0, 0, null, pattern, null, [], out _),
+                () => database.QueryServers(0, 0, null, null, pattern, [], out _),
+                () => database.QueryApplications(0, 0, pattern, null, 0, null, [], out _, out _),
+                () => database.QueryApplications(0, 0, null, pattern, 0, null, [], out _, out _),
+                () => database.QueryApplications(0, 0, null, null, 0, pattern, [], out _, out _)
+            })
+            {
+                Assert.That(
+                    () => query(),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadInvalidArgument));
+            }
         }
 
         [Test]

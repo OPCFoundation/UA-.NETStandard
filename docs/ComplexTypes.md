@@ -93,6 +93,10 @@ else
 await complexTypeSystem.LoadAsync();
 
 Console.WriteLine($"Loaded {complexTypeSystem.GetDefinedTypes().Count} custom types");
+
+// The type system owns the node cache it resolves through; dispose it once no
+// more types are loaded. Types already loaded stay registered with the session.
+complexTypeSystem.Dispose();
 ```
 
 After loading, the session can automatically encode and decode custom types when reading or writing values.
@@ -821,8 +825,13 @@ ComplexTypeSystem(IComplexTypeResolver complexTypeResolver, ITelemetryContext te
 // Create with a resolver, a custom type builder factory and telemetry
 ComplexTypeSystem(IComplexTypeResolver complexTypeResolver, IComplexTypeFactory complexTypeBuilderFactory, ITelemetryContext telemetry)
 
+// As above; ownsResolver: true makes Dispose() also dispose the resolver. The other
+// constructors leave a caller-supplied resolver with the caller.
+ComplexTypeSystem(IComplexTypeResolver complexTypeResolver, IComplexTypeFactory complexTypeBuilderFactory, ITelemetryContext telemetry, bool ownsResolver)
+
 // Client factory helpers (Opc.Ua.Client, namespace Opc.Ua.Client.ComplexTypes) bind a
-// ComplexTypeSystem to a session using the session node cache as the resolver:
+// ComplexTypeSystem to a session through a NodeCacheResolver with its own node cache.
+// The returned system owns that resolver, so dispose it when done loading types:
 
 // Uses the default, NativeAOT friendly type builder
 static ComplexTypeSystem ComplexTypeSystem.Create(ISession session, ITelemetryContext telemetry)

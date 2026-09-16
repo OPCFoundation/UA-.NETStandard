@@ -155,7 +155,7 @@ internal sealed partial class ViewNodeStateDialog : Window
     /// </summary>
     private async Task LoadOnOpenAsync()
     {
-        ManagedSession? session = m_connection.Session;
+        ISession? session = m_connection.CurrentSession;
         if ((session is null && m_offline is null) || m_nodeId.IsNull)
         {
             m_roots.Add(new NodeStateItem("(disconnected or null node)"));
@@ -297,7 +297,7 @@ internal sealed partial class ViewNodeStateDialog : Window
     {
         item.Children.Clear();
 
-        ManagedSession? session = m_connection.Session;
+        ISession? session = m_connection.CurrentSession;
         if (session is null && m_offline is null)
         {
             item.Children.Add(new NodeStateItem("(disconnected)"));
@@ -408,7 +408,9 @@ internal sealed partial class ViewNodeStateDialog : Window
         // reference type, ordered alphabetically for stable output.
         var groups = refs
             .GroupBy(r => r.ReferenceTypeId)
-            .OrderBy(g => refTypeNames.TryGetValue(g.Key, out string? n) ? n : g.Key.ToString(), StringComparer.Ordinal);
+            .OrderBy(
+                g => refTypeNames.TryGetValue(g.Key, out string? n) ? n : g.Key.ToString(),
+                StringComparer.Ordinal);
         foreach (IGrouping<NodeId, ReferenceDescription> group in groups)
         {
             string rtName = refTypeNames.TryGetValue(group.Key, out string? name)

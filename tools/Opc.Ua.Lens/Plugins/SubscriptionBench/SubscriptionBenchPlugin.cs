@@ -272,7 +272,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     /// </summary>
     public async Task OnConnectionStateChangedAsync(CancellationToken cancellationToken)
     {
-        ManagedSession? session = m_host.Connection.Session;
+        ISession? session = m_host.Connection.CurrentSession;
         long generation = m_host.Connection.Snapshot.Generation;
 
         if (session is null)
@@ -334,7 +334,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     [RelayCommand]
     private async Task PickVariablesAsync()
     {
-        if (m_host.Connection.Session is not { } session)
+        if (m_host.Connection.CurrentSession is not { } session)
         {
             Status = "Not connected — connect first.";
             return;
@@ -359,7 +359,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
     [RelayCommand]
     private async Task PickSubtreeAsync()
     {
-        if (m_host.Connection.Session is not { } session)
+        if (m_host.Connection.CurrentSession is not { } session)
         {
             Status = "Not connected — connect first.";
             return;
@@ -372,10 +372,10 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
             Title: "Pick subtree root for Subscription Bench pool",
             AcceptedClasses: NodeClass.Unspecified,
             Header: "Pick a starting node. Every Variable beneath it is added to the bench pool."));
-        NodeId? root = owner is null
-            ? await picker.ShowDialog<NodeId?>(new Window()).ConfigureAwait(true)
-            : await picker.ShowDialog<NodeId?>(owner).ConfigureAwait(true);
-        if (!root.HasValue || root.Value.IsNull)
+        NodeId root = owner is null
+            ? await picker.ShowDialog<NodeId>(new Window()).ConfigureAwait(true)
+            : await picker.ShowDialog<NodeId>(owner).ConfigureAwait(true);
+        if (root.IsNull)
         {
             Status = "Subtree pick cancelled — pool unchanged.";
             return;
@@ -385,7 +385,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         VariablePoolDiscovery discovery;
         try
         {
-            discovery = await BrowsePoolAsync(session, root.Value).ConfigureAwait(true);
+            discovery = await BrowsePoolAsync(session, root).ConfigureAwait(true);
         }
         catch (OperationCanceledException)
         {
@@ -447,7 +447,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
             AppendPool(new[] { (nodeId, name) });
             return;
         }
-        if (m_host.Connection.Session is not { } session)
+        if (m_host.Connection.CurrentSession is not { } session)
         {
             Status = "Connect to a server before seeding the pool.";
             return;
@@ -491,9 +491,9 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         }
     }
 
-    private async Task<VariablePoolDiscovery> BrowsePoolAsync(ManagedSession session, NodeId root)
+    private async Task<VariablePoolDiscovery> BrowsePoolAsync(ISession session, NodeId root)
     {
-        if (m_sessionCts is not { } source || !ReferenceEquals(session, m_host.Connection.Session))
+        if (m_sessionCts is not { } source || !ReferenceEquals(session, m_host.Connection.CurrentSession))
         {
             throw new OperationCanceledException("The session changed before subtree discovery started.");
         }
@@ -822,7 +822,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         }
     }
 
-    private void RefreshServerLimits(ManagedSession session)
+    private void RefreshServerLimits(ISession session)
     {
         ServerCapabilities? caps = session.ServerCapabilities;
         uint mi = caps?.MaxMonitoredItemsPerSubscription ?? 0;
@@ -882,7 +882,7 @@ internal sealed partial class SubscriptionBenchPlugin : ObservableObject, IPlugi
         {
             sb.Append(CultureInfo.InvariantCulture, $"Items in error    : {topology.CountBadItems()}\n");
         }
-        if (m_host.Connection.Session is { } session)
+        if (m_host.Connection.CurrentSession is { } session)
         {
             sb.Append(CultureInfo.InvariantCulture, $"Session good pubs : {session.GoodPublishRequestCount}\n");
             sb.Append(CultureInfo.InvariantCulture,

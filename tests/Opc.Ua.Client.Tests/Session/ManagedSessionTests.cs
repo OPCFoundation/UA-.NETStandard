@@ -515,6 +515,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             int connectAttempts = 0;
             var sessionFactory = new Mock<ISessionFactory>();
             sessionFactory.SetupGet(f => f.Telemetry).Returns(telemetry);
+            sessionFactory.Setup(f => f.WithSubscriptionEngine(It.IsAny<ISubscriptionEngineFactory>(), It.IsAny<TimeProvider?>()))
+                .Returns(sessionFactory.Object);
             sessionFactory.Setup(f => f.CreateAsync(
                     It.IsAny<ApplicationConfiguration>(),
                     It.IsAny<ConfiguredEndpoint>(),
@@ -558,6 +560,74 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CreateAsyncConnectsThroughAFactoryThatCarriesTheSubscriptionEngine(
+            bool engineConfigured)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+            var configuredEngine = new Mock<ISubscriptionEngineFactory>().Object;
+
+            var specialised = new Mock<ISessionFactory>();
+            specialised.SetupGet(f => f.Telemetry).Returns(telemetry);
+            var original = new Mock<ISessionFactory>();
+            original.SetupGet(f => f.Telemetry).Returns(telemetry);
+            original.SetupGet(f => f.SubscriptionEngineFactory)
+                .Returns(engineConfigured ? configuredEngine : null);
+            original.Setup(f => f.WithSubscriptionEngine(It.IsAny<ISubscriptionEngineFactory>(), It.IsAny<TimeProvider?>()))
+                .Returns(specialised.Object);
+
+            Mock<ISessionFactory> expected = engineConfigured ? original : specialised;
+            expected.Setup(f => f.CreateAsync(
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<ConfiguredEndpoint>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<string>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<IUserIdentity?>(),
+                    It.IsAny<ArrayOf<string>>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadCertificateUntrusted));
+
+            var reconnectPolicy = new ReconnectPolicy
+            {
+                Strategy = BackoffStrategy.Constant,
+                InitialDelay = TimeSpan.FromMilliseconds(5),
+                MaxRetries = 0,
+                JitterFactor = 0.0,
+                MaxTotalReconnectTime = TimeSpan.FromSeconds(10)
+            };
+
+            Assert.ThrowsAsync<ServiceResultException>(
+                async () => await Client.ManagedSession.CreateAsync(
+                    configuration,
+                    endpoint,
+                    original.Object,
+                    reconnectPolicy: reconnectPolicy).ConfigureAwait(false));
+
+            // A factory without an engine is specialised with the V2 default
+            // and the copy connects; a factory that has one is used as-is.
+            original.Verify(
+                f => f.WithSubscriptionEngine(It.IsAny<ISubscriptionEngineFactory>(), It.IsAny<TimeProvider?>()),
+                engineConfigured ? Times.Never() : Times.Once());
+            expected.Verify(
+                f => f.CreateAsync(
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<ConfiguredEndpoint>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<string>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<IUserIdentity?>(),
+                    It.IsAny<ArrayOf<string>>(),
+                    It.IsAny<CancellationToken>()),
+                Times.AtLeastOnce());
+        }
+
+        [Test]
         public async Task CreateAsyncDisposesManagedSessionWhenInitialWaitIsCanceledAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -575,6 +645,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             var sessionFactory = new Mock<ISessionFactory>();
             sessionFactory.SetupGet(f => f.Telemetry).Returns(telemetry);
+            sessionFactory.Setup(f => f.WithSubscriptionEngine(It.IsAny<ISubscriptionEngineFactory>(), It.IsAny<TimeProvider?>()))
+                .Returns(sessionFactory.Object);
             sessionFactory.Setup(f => f.CreateAsync(
                     It.IsAny<ApplicationConfiguration>(),
                     It.IsAny<ConfiguredEndpoint>(),
@@ -652,6 +724,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             var sessionFactory = new Mock<ISessionFactory>();
             sessionFactory.SetupGet(f => f.Telemetry).Returns(telemetry);
+            sessionFactory.Setup(f => f.WithSubscriptionEngine(It.IsAny<ISubscriptionEngineFactory>(), It.IsAny<TimeProvider?>()))
+                .Returns(sessionFactory.Object);
             sessionFactory.Setup(f => f.CreateAsync(
                     It.IsAny<ApplicationConfiguration>(),
                     It.IsAny<ConfiguredEndpoint>(),
@@ -863,6 +937,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             var sessionFactory = new Mock<ISessionFactory>();
             sessionFactory.SetupGet(f => f.Telemetry).Returns(telemetry.Object);
+            sessionFactory.Setup(f => f.WithSubscriptionEngine(It.IsAny<ISubscriptionEngineFactory>(), It.IsAny<TimeProvider?>()))
+                .Returns(sessionFactory.Object);
             var connectStarted = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var connectCompletion = new TaskCompletionSource<IDisposable>(

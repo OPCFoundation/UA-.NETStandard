@@ -31,6 +31,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
@@ -62,7 +63,8 @@ internal sealed partial class MainWindow : Window, IAsyncDisposable
         WriteValueOperationFactory? writeOperations = null,
         IStorageProvider? storageProvider = null,
         Func<ApplicationConfiguration, CertificateStoreOperations>? certificateOperations = null,
-        INodeSetRepository? nodeSetRepository = null)
+        INodeSetRepository? nodeSetRepository = null,
+        string? favoritesPath = null)
     {
         m_vm = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         m_appearance = appearance ?? new AppearancePreferences();
@@ -79,13 +81,13 @@ internal sealed partial class MainWindow : Window, IAsyncDisposable
         m_nodes = new NodeInteractionController(this, m_vm, log, writeOperations);
         m_connection = new ConnectionController(this, m_vm, log, storageProvider, certificateOperations);
         m_nodeSets = new NodeSetController(this, m_vm, nodeSetRepository, storageProvider);
-        m_shell = new ShellPresenter(this, m_vm, m_connection, log, ChangeThemeAsync);
+        m_shell = new ShellPresenter(this, m_vm, m_connection, log, ChangeThemeAsync, favoritesPath);
         m_nodes.Attach();
         m_connection.Attach();
         m_nodeSets.Attach();
         m_shell.Attach();
 
-        AddHandler(KeyDownEvent, (_, e) => m_shell.OnKeyDown(e), RoutingStrategies.Tunnel);
+        AddHandler(InputElement.KeyDownEvent, (_, e) => m_shell.OnKeyDown(e), RoutingStrategies.Tunnel);
         Opened += async (_, _) =>
         {
             try
@@ -129,6 +131,11 @@ internal sealed partial class MainWindow : Window, IAsyncDisposable
         };
     }
 
+    internal MainWindow(MainViewModel viewModel, AppearancePreferences? appearance, string? favoritesPath)
+        : this(viewModel, appearance, writeOperations: null, favoritesPath: favoritesPath)
+    {
+    }
+
     /// <summary>
     /// True once a close has been requested, so the trust prompt rejects and closes.
     /// </summary>
@@ -142,7 +149,7 @@ internal sealed partial class MainWindow : Window, IAsyncDisposable
     private async Task DisposeCoreAsync()
     {
         m_closing = true;
-        m_shell.Dispose();
+        await m_shell.StopAsync().ConfigureAwait(true);
         await m_nodeSets.DisposeAsync().ConfigureAwait(true);
         foreach (Window dialog in OwnedWindows.ToArray())
         {

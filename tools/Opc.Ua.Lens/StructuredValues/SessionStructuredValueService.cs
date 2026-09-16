@@ -132,6 +132,11 @@ internal sealed class SessionStructuredValueService : IStructuredValueService, I
             EnsureCurrent(generation);
             if (definition is EnumDefinition enumeration)
             {
+                if (enumeration.IsOptionSet)
+                {
+                    return await OpenOptionSetAsync(
+                        dataTypeId, enumeration, value, generation, cancellationToken).ConfigureAwait(false);
+                }
                 IEnumeratedType? enumType = FindType(dataTypeId, generation) as IEnumeratedType;
                 enumType ??= new DefaultComplexTypeFactory()
                     .Create(generation.NamespaceUris.GetString(dataTypeId.NamespaceIndex) ?? string.Empty,
@@ -140,7 +145,8 @@ internal sealed class SessionStructuredValueService : IStructuredValueService, I
                 cancellationToken.ThrowIfCancellationRequested();
                 EnsureCurrent(generation);
                 return StructuredValueDraft.ForEnumeration(
-                    dataTypeId, enumeration, value, enumType, () => EnsureCurrent(generation));
+                    dataTypeId, enumeration, value, enumType,
+                    () => EnsureDraftCurrent(generation, cancellationToken));
             }
             if (definition is not StructureDefinition structureDefinition)
             {
@@ -227,7 +233,45 @@ internal sealed class SessionStructuredValueService : IStructuredValueService, I
             EnsureCurrent(generation);
             return StructuredValueDraft.ForStructure(
                 dataTypeId, structureDefinition, source, adapter, generation.MessageContext,
-                () => EnsureCurrent(generation));
+                () => EnsureDraftCurrent(generation, cancellationToken));
+        }
+        finally
+        {
+            m_typeGate.Release();
+        }
+    }
+
+    public async Task<StructuredArrayDraft> OpenArrayAsync(
+        NodeId elementDataTypeId,
+        int valueRank,
+        ArrayOf<uint> declaredDimensions,
+        Variant value,
+        bool isStructureField = false,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Generation generation = GetGeneration();
+        await m_typeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            EnsureCurrent(generation);
+            IType? type = await LoadTypeAsync(elementDataTypeId, generation, cancellationToken).ConfigureAwait(false);
+            BuiltInType builtIn = type switch
+            {
+                IBuiltInType primitive => primitive.BuiltInType,
+                IEnumeratedType => BuiltInType.Enumeration,
+                IEncodeableType => BuiltInType.ExtensionObject,
+                _ => TypeInfo.GetBuiltInType(elementDataTypeId)
+            };
+            if (builtIn == BuiltInType.Null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDataTypeIdUnknown, "The array element type cannot be resolved.");
+            }
+            EnsureDraftCurrent(generation, cancellationToken);
+            return new StructuredArrayDraft(
+                builtIn, valueRank, declaredDimensions, value, generation.MessageContext,
+                () => EnsureDraftCurrent(generation, cancellationToken), isStructureField);
         }
         finally
         {
@@ -278,6 +322,58 @@ internal sealed class SessionStructuredValueService : IStructuredValueService, I
         }
         throw new ServiceResultException(
             StatusCodes.BadDecodingError, "DataTypeDefinition was not a decoded data-type definition.");
+    }
+
+    private async Task<StructuredValueDraft> OpenOptionSetAsync(
+        NodeId dataTypeId,
+        EnumDefinition definition,
+        Variant value,
+        Generation generation,
+        CancellationToken cancellationToken)
+    {
+        IType? type = FindType(dataTypeId, generation);
+        if (value.IsNull || (value.TryGetValue(out ExtensionObject empty) && empty.IsNull))
+        {
+            type ??= await LoadTypeAsync(dataTypeId, generation, cancellationToken).ConfigureAwait(false);
+            value = type switch
+            {
+                IEncodeableType activator => Variant.FromStructure(activator.CreateInstance()),
+                IBuiltInType builtIn => Variant.CreateDefault(TypeInfo.Create(
+                    builtIn.BuiltInType, ValueRanks.Scalar)),
+                _ => throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The OptionSet's native body or unsigned width cannot be resolved.")
+            };
+        }
+        if (value.TryGetValue(out ExtensionObject extension))
+        {
+            if (!extension.TryGetValue(out IEncodeable? body, generation.MessageContext))
+            {
+                _ = await LoadTypeAsync(dataTypeId, generation, cancellationToken).ConfigureAwait(false);
+                if (!extension.TryGetValue(out body, generation.MessageContext))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError, "The OptionSet body cannot be decoded by its native adapter.");
+                }
+            }
+            value = Variant.FromStructure(body);
+        }
+        else
+        {
+            type ??= await LoadTypeAsync(dataTypeId, generation, cancellationToken).ConfigureAwait(false);
+            BuiltInType declared = type is IBuiltInType builtIn
+                ? builtIn.BuiltInType
+                : TypeInfo.GetBuiltInType(dataTypeId);
+            if (type is IEncodeableType or IEnumeratedType ||
+                declared == BuiltInType.Null || declared != value.TypeInfo.BuiltInType)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadTypeMismatch, "The OptionSet value does not match its declared unsigned width.");
+            }
+        }
+        EnsureDraftCurrent(generation, cancellationToken);
+        return StructuredValueDraft.ForOptionSet(
+            dataTypeId, definition, value, generation.MessageContext,
+            () => EnsureDraftCurrent(generation, cancellationToken));
     }
 
     private async Task<IType?> LoadTypeAsync(
@@ -335,6 +431,12 @@ internal sealed class SessionStructuredValueService : IStructuredValueService, I
                     StatusCodes.BadInvalidState, "The session or namespace metadata changed. Reload the value.");
             }
         }
+    }
+
+    private void EnsureDraftCurrent(Generation generation, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        EnsureCurrent(generation);
     }
 
     private sealed class Generation

@@ -224,11 +224,22 @@ namespace Opc.Ua.SourceGeneration
                 // Use a set for O(1) membership tests instead of an O(n)
                 // ContainsValue scan per input (Ordinal preserves the previous
                 // dictionary-value equality semantics exactly).
+                // AllFilePaths, not Files.Values: Files exposes one entry per
+                // model URI, so a superseded NodeSet2 version would not be
+                // recognised as a NodeSet input and would be picked up as a
+                // ModelDesign target and generated a second time.
                 var nodesetPaths = new HashSet<string>(
-                    nodesets.Files.Values, StringComparer.Ordinal);
+                    nodesets.AllFilePaths, StringComparer.Ordinal);
+                // Distinct: a project can list the same file as an AdditionalFile
+                // more than once (a glob overlapping an explicit item). The file
+                // system dedupes its own view, but a repeated design target is
+                // generated twice and the second AddSource throws on the
+                // duplicate hint name - and it also inflates totalModelCount,
+                // which decides the single-model [NodeManager] fallback.
                 List<string> designTargets = [.. m_input
                     .Where(f => !nodesetPaths.Contains(f.Item1.Path))
-                    .Select(f => f.Item1.Path)];
+                    .Select(f => f.Item1.Path)
+                    .Distinct(StringComparer.Ordinal)];
 
                 var designDependencies = new List<string>(nodesets.DesignFileEntries);
                 designDependencies.AddRange(designTargets);
@@ -437,7 +448,14 @@ namespace Opc.Ua.SourceGeneration
                 int cmp = candidateIsProducer.CompareTo(existingIsProducer);
                 if (cmp == 0)
                 {
-                    cmp = string.CompareOrdinal(candidate.Version, existing.Version);
+                    // Compare the version numerically: ordinally "1.05.9" sorts
+                    // above "1.05.10", which would pick the older model. Shared
+                    // with NodesetFileCollection so the two halves of the
+                    // pipeline cannot pick different winners for the same pair;
+                    // it reports a date against a version as equal, which the
+                    // PublicationDate tie-break below then settles.
+                    cmp = SemVer.CompareVersionStrings(
+                        candidate.Version, existing.Version);
                 }
                 if (cmp == 0)
                 {

@@ -738,6 +738,13 @@ namespace Opc.Ua.Bindings
 
             BufferCollection? chunksToProcess = null;
 
+            // The decrypted body lives in a buffer of its own, separate from the
+            // chunk it came from, and only the chunk collection returns it. Until
+            // it joins that collection it is this method's to return - the
+            // certificate and sequence-number checks below both reject messages a
+            // peer can send at will.
+            bool bodyOwned = true;
+
             try
             {
                 // verify server certificate.
@@ -753,11 +760,13 @@ namespace Opc.Ua.Bindings
                 if (!TcpMessageType.IsFinal(messageType))
                 {
                     SaveIntermediateChunk(requestId, messageBody, false, gateHeld: true);
+                    bodyOwned = false;
                     return false;
                 }
 
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, false, gateHeld: true);
+                bodyOwned = false;
 
                 // read message body.
 
@@ -844,6 +853,12 @@ namespace Opc.Ua.Bindings
 #pragma warning disable CA1508
                 serverCertificate?.Dispose();
 #pragma warning restore CA1508
+
+                if (bodyOwned)
+                {
+                    ReturnDecryptedBuffer(messageBody);
+                }
+
                 chunksToProcess?.Release(BufferManager, "ProcessOpenSecureChannelResponse");
             }
 
@@ -1808,10 +1823,18 @@ namespace Opc.Ua.Bindings
 
             BufferCollection? chunksToProcess = null;
 
-            // check for replay attacks.
+            // Check for replay attacks. Handled the same way as a failed security
+            // check above: throwing here would only reach the receive loop's
+            // catch-all, which logs the error and moves on, leaving the pending
+            // operation to hang until it times out on a channel that is still
+            // open and still trusting the peer's sequence numbers.
             if (!VerifySequenceNumber(sequenceNumber, "ProcessResponseMessage"))
             {
-                throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
+                ForceReconnect(
+                    ServiceResult.Create(
+                        StatusCodes.BadSequenceNumberInvalid,
+                        "Invalid sequence number in response."));
+                return false;
             }
 
             try

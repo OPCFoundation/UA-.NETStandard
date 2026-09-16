@@ -342,14 +342,115 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(
                 Tokens.ListOfFields,
-                fields,
+                dataType.BasicDataType == BasicDataType.UserDefined
+                    ? BuildStructureFields(dataType, fields)
+                    : fields,
                 LoadTemplate_Field);
 
             return context.Template.Render();
         }
 
+        /// <summary>
+        /// Expands the declared fields of a structure into the field sequence the
+        /// binary encoding actually puts on the wire. A union is prefixed with its
+        /// 32-bit <c>SwitchField</c> and every member selects on it; a structure
+        /// with optional fields is prefixed with the presence bits of the encoding
+        /// mask (padded to 32 bits) and every optional member selects on its bit.
+        /// Without this the served DataTypeDictionary describes a different layout
+        /// than the generated Encode/Decode produces.
+        /// </summary>
+        private static List<object> BuildStructureFields(
+            DataTypeDesign dataType,
+            List<Parameter> fields)
+        {
+            bool isUnion = dataType.IsUnion;
+            var expanded = new List<object>(fields.Count + 2);
+
+            if (isUnion)
+            {
+                expanded.Add(new BinaryField("SwitchField", "opc:UInt32"));
+            }
+            else
+            {
+                int optionalCount = 0;
+                foreach (Parameter field in fields)
+                {
+                    if (field.IsOptional)
+                    {
+                        expanded.Add(new BinaryField(
+                            field.Name + kSpecifiedSuffix, "opc:Bit"));
+                        optionalCount++;
+                    }
+                }
+
+                // Same limit the generated encoder works to: the mask is 32 bits
+                // wide, so a 33rd optional field has no presence bit.
+                if (optionalCount > kEncodingMaskBits)
+                {
+                    throw new InvalidOperationException(CoreUtils.Format(
+                        "Data type '{0}' declares {1} optional fields. The binary encoding mask is only {2} bits wide.",
+                        dataType.SymbolicName?.Name,
+                        optionalCount,
+                        kEncodingMaskBits));
+                }
+
+                if (optionalCount > 0 && optionalCount < kEncodingMaskBits)
+                {
+                    expanded.Add(new BinaryField(
+                        "Reserved1",
+                        "opc:Bit",
+                        length: (uint)(kEncodingMaskBits - optionalCount)));
+                }
+            }
+
+            for (int ii = 0; ii < fields.Count; ii++)
+            {
+                Parameter field = fields[ii];
+                if (isUnion)
+                {
+                    expanded.Add(new BinaryField(
+                        field,
+                        "SwitchField",
+                        switchValue: (uint)(ii + 1)));
+                }
+                else if (field.IsOptional)
+                {
+                    expanded.Add(new BinaryField(
+                        field,
+                        field.Name + kSpecifiedSuffix,
+                        switchValue: null));
+                }
+                else
+                {
+                    expanded.Add(new BinaryField(field, null, null));
+                }
+            }
+
+            return expanded;
+        }
+
         private TemplateString LoadTemplate_Field(ILoadContext context)
         {
+            if (context.Target is BinaryField binaryField)
+            {
+                if (binaryField.Field == null)
+                {
+                    // A synthetic wire-only field: the union selector, an encoding
+                    // mask presence bit or the reserved padding of the mask.
+                    context.Out.WriteLine(
+                        "<opc:Field Name=\"{0}\" TypeName=\"{1}\"{2} />",
+                        binaryField.Name.AsXmlAttributeValue(),
+                        binaryField.TypeName,
+                        binaryField.Length > 0
+                            ? CoreUtils.Format(" Length=\"{0}\"", binaryField.Length)
+                            : string.Empty);
+                    return null;
+                }
+
+                WriteStructureField(context, binaryField);
+                return null;
+            }
+
             if (context.Target is not Parameter field)
             {
                 return null;
@@ -360,7 +461,30 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            BasicDataType basicType = dataType.BasicDataType;
+            if (dataType.BasicDataType == BasicDataType.Enumeration)
+            {
+                context.Out.WriteLine(
+                    "<opc:EnumeratedValue Name=\"{0}\" Value=\"{1}\" />",
+                    field.Name.AsXmlAttributeValue(),
+                    field.Identifier);
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Writes the <c>opc:Field</c> element(s) for one declared structure field,
+        /// carrying the switch attributes that tie an optional or union member to
+        /// the presence bit / selector that precedes it.
+        /// </summary>
+        private void WriteStructureField(ILoadContext context, BinaryField binaryField)
+        {
+            Parameter field = binaryField.Field;
+
+            // The authored field name lands in XML attributes, so it has to be
+            // escaped - a BrowseName may legally contain '&', '<' or a quote,
+            // which would otherwise make the served dictionary non-well-formed.
+            string fieldName = field.Name.AsXmlAttributeValue();
 
             string fieldDataType = field.DataTypeNode.GetBinaryDataType(
                 m_context.ModelDesign.TargetNamespace.Value,
@@ -371,46 +495,94 @@ namespace Opc.Ua.SourceGeneration
                 fieldDataType = "ua:ExtensionObject";
             }
 
-            if (basicType == BasicDataType.Enumeration)
+            string switchAttributes = string.Empty;
+            if (!string.IsNullOrEmpty(binaryField.SwitchField))
             {
-                context.Out.WriteLine(
-                    "<opc:EnumeratedValue Name=\"{0}\" Value=\"{1}\" />",
-                    field.Name,
-                    field.Identifier);
-                return null;
+                switchAttributes = CoreUtils.Format(
+                    " SwitchField=\"{0}\"",
+                    binaryField.SwitchField.AsXmlAttributeValue());
+                if (binaryField.SwitchValue.HasValue)
+                {
+                    switchAttributes += CoreUtils.Format(
+                        " SwitchValue=\"{0}\"",
+                        binaryField.SwitchValue.Value);
+                }
             }
 
             if (field.ValueRank != ValueRank.Scalar)
             {
                 context.Out.WriteLine(
-                    "<opc:Field Name=\"NoOf{0}\" TypeName=\"opc:Int32\" />",
-                    field.Name);
+                    "<opc:Field Name=\"NoOf{0}\" TypeName=\"opc:Int32\"{1} />",
+                    fieldName,
+                    switchAttributes);
                 context.Out.WriteLine(
-                    "<opc:Field Name=\"{0}\" TypeName=\"{1}\" LengthField=\"NoOf{0}\" />",
-                    field.Name,
-                    fieldDataType);
-                return null;
+                    "<opc:Field Name=\"{0}\" TypeName=\"{1}\" LengthField=\"NoOf{0}\"{2} />",
+                    fieldName,
+                    fieldDataType,
+                    switchAttributes);
+                return;
             }
+
             if (field.IsInherited)
             {
                 context.Out.WriteLine(
-                    "<opc:Field Name=\"{0}\" TypeName=\"{1}\" SourceType=\"{2}\" />",
-                    field.Name,
+                    "<opc:Field Name=\"{0}\" TypeName=\"{1}\" SourceType=\"{2}\"{3} />",
+                    fieldName,
                     fieldDataType,
                     (field.Parent as DataTypeDesign).GetBinaryDataType(
                         m_context.ModelDesign.TargetNamespace.Value,
-                        m_context.ModelDesign.Namespaces));
-            }
-            else
-            {
-                context.Out.WriteLine(
-                    "<opc:Field Name=\"{0}\" TypeName=\"{1}\" />",
-                    field.Name,
-                    fieldDataType);
+                        m_context.ModelDesign.Namespaces),
+                    switchAttributes);
+                return;
             }
 
-            return null;
+            context.Out.WriteLine(
+                "<opc:Field Name=\"{0}\" TypeName=\"{1}\"{2} />",
+                fieldName,
+                fieldDataType,
+                switchAttributes);
         }
+
+        /// <summary>
+        /// One entry of a structure's binary field sequence: either a declared
+        /// field together with the switch it selects on, or a wire-only field the
+        /// binary encoding inserts (union selector, presence bit, mask padding).
+        /// </summary>
+        private sealed class BinaryField
+        {
+            public BinaryField(string name, string typeName, uint length = 0)
+            {
+                Name = name;
+                TypeName = typeName;
+                Length = length;
+            }
+
+            public BinaryField(Parameter field, string switchField, uint? switchValue)
+            {
+                Field = field;
+                Name = field.Name;
+                SwitchField = switchField;
+                SwitchValue = switchValue;
+            }
+
+            public Parameter Field { get; }
+            public string Name { get; }
+            public string TypeName { get; }
+            public uint Length { get; }
+            public string SwitchField { get; }
+            public uint? SwitchValue { get; }
+        }
+
+        /// <summary>
+        /// Number of presence bits in the binary encoding mask of a structure
+        /// with optional fields.
+        /// </summary>
+        private const int kEncodingMaskBits = 32;
+
+        /// <summary>
+        /// Suffix of the presence bit that gates an optional field.
+        /// </summary>
+        private const string kSpecifiedSuffix = "Specified";
 
         private TemplateString LoadTemplate_BinaryDocumentation(ILoadContext context)
         {
@@ -427,7 +599,7 @@ namespace Opc.Ua.SourceGeneration
 
             context.Out.WriteLine(
                 "<opc:Documentation>{0}</opc:Documentation>",
-                dataType.Description.Value);
+                dataType.Description.Value.AsXmlText());
 
             return context.TemplateString;
         }

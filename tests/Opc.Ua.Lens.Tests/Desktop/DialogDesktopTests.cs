@@ -79,7 +79,8 @@ public sealed class DialogDesktopTests
                     [
                         new DataValue(Variant.From(1)),
                         new DataValue(Variant.From(DataTypeIds.Int32)),
-                        new DataValue(Variant.From(ValueRanks.Scalar))
+                        new DataValue(Variant.From(ValueRanks.Scalar)),
+                        new DataValue(Variant.From(ArrayOf<uint>.Empty))
                     ]
                 });
             CancellationToken writeToken = default;

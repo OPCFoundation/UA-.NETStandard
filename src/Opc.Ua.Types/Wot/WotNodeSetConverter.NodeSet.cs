@@ -1691,6 +1691,34 @@ namespace Opc.Ua.Wot
                 string.Equals(referenceType, WotVocabulary.HasProperty, StringComparison.Ordinal);
         }
 
+        /// <summary>
+        /// Compares two component reference types, either of which may be
+        /// written as the alias or as the numeric identifier, so that
+        /// HasComponent and HasProperty are told apart however they are spelled.
+        /// </summary>
+        private static bool IsSameComponentReferenceType(string? left, string? right)
+        {
+            return NormalizeComponentReferenceType(left) ==
+                NormalizeComponentReferenceType(right);
+
+            static string? NormalizeComponentReferenceType(string? referenceType)
+            {
+                if (string.Equals(referenceType, "HasComponent", StringComparison.Ordinal) ||
+                    string.Equals(
+                        referenceType, WotVocabulary.HasComponent, StringComparison.Ordinal))
+                {
+                    return "HasComponent";
+                }
+                if (string.Equals(referenceType, "HasProperty", StringComparison.Ordinal) ||
+                    string.Equals(
+                        referenceType, WotVocabulary.HasProperty, StringComparison.Ordinal))
+                {
+                    return "HasProperty";
+                }
+                return referenceType;
+            }
+        }
+
         private static bool IsGeneratesEventReference(string? referenceType)
         {
             return string.Equals(referenceType, "GeneratesEvent", StringComparison.Ordinal) ||

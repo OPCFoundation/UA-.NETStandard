@@ -56,7 +56,7 @@ namespace Opc.Ua
     /// DataType are supported. UInteger-backed <c>IsOptionSet</c> DataTypes
     /// are left opaque (their wire form is the plain unsigned integer).
     /// </remarks>
-    public class ComplexTypeSystem
+    public class ComplexTypeSystem : IDisposable
     {
         /// <summary>
         /// an internal limit to prevent the retry
@@ -110,10 +110,52 @@ namespace Opc.Ua
             IComplexTypeResolver complexTypeResolver,
             IComplexTypeFactory complexTypeBuilderFactory,
             ITelemetryContext telemetry)
+            : this(complexTypeResolver, complexTypeBuilderFactory, telemetry, ownsResolver: false)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the type system with a complex type resolver to load the custom types.
+        /// </summary>
+        /// <param name="complexTypeResolver">The resolver the types are loaded through.</param>
+        /// <param name="complexTypeBuilderFactory">The factory that builds the types.</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="ownsResolver"><see langword="true"/> to dispose
+        /// <paramref name="complexTypeResolver"/>, if it is disposable, when
+        /// this type system is disposed. Resolvers passed to the other
+        /// constructors stay with the caller.</param>
+        public ComplexTypeSystem(
+            IComplexTypeResolver complexTypeResolver,
+            IComplexTypeFactory complexTypeBuilderFactory,
+            ITelemetryContext telemetry,
+            bool ownsResolver)
         {
             m_complexTypeResolver = complexTypeResolver;
             m_complexTypeBuilderFactory = complexTypeBuilderFactory;
             m_logger = telemetry.CreateLogger<ComplexTypeSystem>();
+            m_ownsResolver = ownsResolver;
+        }
+
+        /// <summary>
+        /// Releases the resolver when this type system owns it. Types already
+        /// loaded stay registered in the encodeable factory.
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Disposes the resolver if this type system owns it.
+        /// </summary>
+        /// <param name="disposing">True when called from <see cref="Dispose()"/>.</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing && m_ownsResolver && m_complexTypeResolver is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
         }
 
         /// <summary>
@@ -1720,6 +1762,7 @@ namespace Opc.Ua
 
         private readonly ILogger m_logger;
         private readonly IComplexTypeResolver m_complexTypeResolver;
+        private readonly bool m_ownsResolver;
         private readonly IComplexTypeFactory m_complexTypeBuilderFactory;
         private readonly NodeIdDictionary<DataTypeDefinition> m_dataTypeDefinitionCache = [];
         private readonly NodeIdDictionary<QualifiedName> m_dataTypeBrowseNameCache = [];

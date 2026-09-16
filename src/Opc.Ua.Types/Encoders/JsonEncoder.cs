@@ -854,7 +854,7 @@ namespace Opc.Ua
                 WriteNull(fieldName);
                 return;
             }
-            CheckStringLength(value.Length);
+            CheckStringLength(value);
             m_writer.WritePropertyName(fieldName!);
             m_writer.WriteStringValue(value);
         }
@@ -1379,8 +1379,19 @@ namespace Opc.Ua
                         WriteJsonExtensionObjectBody(
                             rawJson,
                             !m_options.SuppressArtifacts && !localTypeId.IsNull);
+                        break;
                     }
-                    break;
+                    if (rawJson.Length == 0)
+                    {
+                        // No body at all.
+                        break;
+                    }
+                    // A non object body cannot be inlined into the envelope.
+                    // Silently dropping it produced an ExtensionObject whose
+                    // body was gone without any error.
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingError,
+                        "ExtensionObject JSON body must be a JSON object.");
                 case ExtensionObjectEncoding.Binary:
                     WriteByte(JsonProperties.UaEncoding, (byte)ExtensionObjectEncoding.Binary);
                     WriteByteString(
@@ -1856,7 +1867,7 @@ namespace Opc.Ua
                 m_writer.WriteNullValue();
                 return;
             }
-            CheckStringLength(value.Length);
+            CheckStringLength(value);
             m_writer.WriteStringValue(value);
         }
 
@@ -2386,7 +2397,8 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void CheckArrayLength(int length)
         {
-            if (length > Context.MaxArrayLength)
+            // Zero means unlimited, as in every other codec.
+            if (Context.MaxArrayLength > 0 && length > Context.MaxArrayLength)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
@@ -2400,7 +2412,8 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void CheckByteStringLength(int length)
         {
-            if (length > Context.MaxByteStringLength)
+            // Zero means unlimited, as in every other codec.
+            if (Context.MaxByteStringLength > 0 && length > Context.MaxByteStringLength)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
@@ -2427,14 +2440,9 @@ namespace Opc.Ua
         /// Check string
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void CheckStringLength(int length)
+        private void CheckStringLength(string value)
         {
-            if (length > Context.MaxStringLength)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    $"{length} characters > max (= {Context.MaxStringLength})");
-            }
+            EncodingLimits.CheckStringLength(Context.MaxStringLength, value);
         }
 
         private const int kFlushThreshold = 16 * 1024;

@@ -221,7 +221,9 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         [TestCase(0u, 1u, 1u, false, TestName = "QueueSize 0")]
         [TestCase(101u, 101u, 102u, false, TestName = "QueueSize over standard subscripion limit")]
         [TestCase(9999u, 1000u, 1000u, false, TestName = "QueueSize over durable limit")]
-        [TestCase(0u, 1000u, 1u, true, TestName = "QueueSize 0 Event MI")]
+        // Part 4 §7.21: event queueSize 0 is the server default and 1 the
+        // server minimum, so neither is returned literally.
+        [TestCase(0u, 1000u, 1000u, true, TestName = "QueueSize 0 Event MI")]
         [TestCase(
             1001u,
             1001u,

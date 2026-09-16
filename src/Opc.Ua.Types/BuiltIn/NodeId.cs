@@ -220,7 +220,7 @@ namespace Opc.Ua
             m_inner.NamespaceIdx = namespaceIndex;
             m_inner.Type = (byte)IdType.Opaque;
             m_identifier = value;
-            m_inner.Numeric = (uint)value.GetHashCode();
+            m_inner.Numeric = value.IsEmpty ? 0 : (uint)value.GetHashCode();
         }
 
         /// <summary>
@@ -409,15 +409,20 @@ namespace Opc.Ua
                     return false;
                 }
 
-                if (ushort.TryParse(text[3..index], out ushort ns))
+                if (!ushort.TryParse(text[3..index], out ushort ns))
                 {
-                    namespaceIndex = ns;
+                    // An unparsable or out of range index must not be silently
+                    // dropped - that would land the node id in namespace zero.
+                    error = NodeIdParseError.InvalidNamespaceFormat;
+                    return false;
+                }
 
-                    if (options?.NamespaceMappings != null &&
-                        ns < options.NamespaceMappings.Length)
-                    {
-                        namespaceIndex = options.NamespaceMappings[ns];
-                    }
+                namespaceIndex = ns;
+
+                if (options?.NamespaceMappings != null &&
+                    ns < options.NamespaceMappings.Length)
+                {
+                    namespaceIndex = options.NamespaceMappings[ns];
                 }
 
                 text = text[(index + 1)..];
@@ -1304,7 +1309,16 @@ namespace Opc.Ua
         {
             if (IsNull)
             {
-                return nodeId.IsNull ? 0 : 1; // nodeId is greater than null
+                return nodeId.IsNull ? 0 : -1; // a null NodeId sorts before any value
+            }
+
+            if (nodeId.IsNull)
+            {
+                // ... and any value sorts after a null NodeId. Without this the
+                // comparisons below answer -1 for everything that is not a
+                // namespace zero numeric id, so both directions report "less
+                // than" and the comparer is not even transitive.
+                return +1;
             }
 
             // check for different namespace.
@@ -1348,7 +1362,7 @@ namespace Opc.Ua
         {
             if (IsNull)
             {
-                return string.IsNullOrEmpty(obj) ? 0 : 1;
+                return string.IsNullOrEmpty(obj) ? 0 : -1;
             }
             if (NamespaceIndex != 0 || IdType != IdType.String)
             {
@@ -1362,7 +1376,7 @@ namespace Opc.Ua
         {
             if (IsNull)
             {
-                return obj == 0 ? 0 : 1;
+                return obj == 0 ? 0 : -1;
             }
             if (NamespaceIndex != 0 || IdType != IdType.Numeric)
             {
@@ -1376,7 +1390,7 @@ namespace Opc.Ua
         {
             if (IsNull)
             {
-                return obj == Guid.Empty ? 0 : 1;
+                return obj == Guid.Empty ? 0 : -1;
             }
             if (NamespaceIndex != 0 || IdType != IdType.Guid)
             {
@@ -1390,7 +1404,7 @@ namespace Opc.Ua
         {
             if (IsNull)
             {
-                return obj.IsEmpty ? 0 : 1;
+                return obj.IsEmpty ? 0 : -1;
             }
             if (NamespaceIndex != 0 || IdType != IdType.Opaque)
             {
@@ -1405,7 +1419,7 @@ namespace Opc.Ua
             // Needed for filter operators - do not remove
             return obj switch
             {
-                null => IsNull ? 0 : -1,
+                null => IsNull ? 0 : 1,
                 int n => n < 0 ? -1 : CompareTo((uint)n),
                 uint n => CompareTo(n),
                 Guid g => CompareTo(g),

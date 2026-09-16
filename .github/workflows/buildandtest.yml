@@ -364,7 +364,19 @@ jobs:
           $testArgs += @('--filter', '(Category=Contract|Category=Integration)&Category!=ChaosTCP&Category!=Soak')
         }
 
-        dotnet test @testArgs
+        if ($IsLinux -and '${{ matrix.csproj }}' -eq 'Lens')
+        {
+          if (-not (Get-Command xvfb-run -ErrorAction SilentlyContinue))
+          {
+            throw 'UaLens desktop tests require xvfb-run on the Linux agent.'
+          }
+          xvfb-run -a dotnet test @testArgs
+        }
+        else
+        {
+          dotnet test @testArgs
+        }
+        exit $LASTEXITCODE
 
     - name: Stage macOS crash reports
       # Apple Crash Reporter writes .crash (legacy) and .ips (JSON, macOS 12+)
@@ -549,10 +561,12 @@ jobs:
     # than adding one per run. Uses actions/github-script rather than a
     # community action to keep this workflow on first-party actions only.
     - name: Comment coverage on the pull request
-      if: ${{ steps.probe.outputs.has_reports == 'true' && github.event_name == 'pull_request' }}
-      # A pull_request from a fork gets a read-only GITHUB_TOKEN no matter what
-      # `permissions:` says, so commenting fails there. The step summary still
-      # carries the numbers, so a failure here must not fail the job.
+      if: >-
+        ${{ steps.probe.outputs.has_reports == 'true' && github.event_name == 'pull_request'
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && github.actor != 'dependabot[bot]' }}
+      # Fork and Dependabot pull requests have read-only tokens. Their coverage
+      # remains in the job summary without attempting a privileged API call.
       continue-on-error: true
       uses: actions/github-script@v9
       with:

@@ -115,6 +115,7 @@ internal sealed class SessionModelInspectorBackend : IModelInspectorBackend
         NodeId dataType = NodeId.Null;
         QualifiedName dataTypeName = QualifiedName.Null;
         int rank = ValueRanks.Scalar;
+        ArrayOf<uint> dimensions = default;
         DataValue value = default;
         bool canWrite = false;
         bool canCall = false;
@@ -132,6 +133,10 @@ internal sealed class SessionModelInspectorBackend : IModelInspectorBackend
             }
             value = new DataValue(attributes[0].WrappedValue.Copy()).WithStatus(attributes[0].StatusCode);
             canWrite = (access & AccessLevels.CurrentWrite) != 0;
+            if (rank != ValueRanks.Scalar)
+            {
+                dimensions = await ReadArrayDimensionsAsync(session, nodeId, cancellationToken).ConfigureAwait(false);
+            }
         }
         else if (nodeClass == NodeClass.DataType)
         {
@@ -160,7 +165,10 @@ internal sealed class SessionModelInspectorBackend : IModelInspectorBackend
         var inspection = new ModelInspection(
             generation, sessionId, namespaces, portableTarget, nodeId,
             displayName.Text ?? browseName.Name ?? nodeId.ToString(),
-            nodeClass, dataType, dataTypeName, rank, value, canWrite, canCall, CoreUtils.Clone(definition));
+            nodeClass, dataType, dataTypeName, rank, value, canWrite, canCall, CoreUtils.Clone(definition))
+        {
+            ArrayDimensions = dimensions
+        };
         cancellationToken.ThrowIfCancellationRequested();
         EnsureCurrent(inspection);
         return inspection;
@@ -282,6 +290,21 @@ internal sealed class SessionModelInspectorBackend : IModelInspectorBackend
         {
             throw new ServiceResultException(StatusCodes.BadNotWritable);
         }
+        if (rank != ValueRanks.Scalar)
+        {
+            ArrayOf<uint> dimensions = await ReadArrayDimensionsAsync(session, inspection.NodeId, cancellationToken)
+                .ConfigureAwait(false);
+            if (!dimensions.Span.SequenceEqual(inspection.ArrayDimensions.Span))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadTypeMismatch, "Array dimensions changed; read the variable again.");
+            }
+            if (StructuredArrayValue.RequiresEditor(rank, value) && !value.IsNull)
+            {
+                StructuredArrayValue.Read(value, session.MessageContext)
+                    .Validate(rank, dimensions, session.MessageContext);
+            }
+        }
         TypeInfo actual = TypeInfo.IsInstanceOfDataType(
             value, dataType, rank, session.NamespaceUris, session.TypeTree);
         if (actual.IsUnknown)
@@ -336,6 +359,18 @@ internal sealed class SessionModelInspectorBackend : IModelInspectorBackend
     {
         return new UaTypeDescription(new ExpandedNodeId(id), name, definition,
             namespaceUris.GetString(id.NamespaceIndex));
+    }
+
+    private static async Task<ArrayOf<uint>> ReadArrayDimensionsAsync(
+        ISession session, NodeId nodeId, CancellationToken cancellationToken)
+    {
+        ArrayOf<DataValue> attributes = await ReadAttributesAsync(
+            session, nodeId, [Attributes.ArrayDimensions], cancellationToken).ConfigureAwait(false);
+        if (!attributes[0].WrappedValue.TryGetValue(out ArrayOf<uint> dimensions))
+        {
+            throw new ServiceResultException(StatusCodes.BadDecodingError, "Invalid ArrayDimensions metadata.");
+        }
+        return CoreUtils.Clone(dimensions);
     }
 
     private static async Task<QualifiedName> ReadBrowseNameAsync(

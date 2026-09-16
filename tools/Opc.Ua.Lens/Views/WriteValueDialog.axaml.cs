@@ -30,6 +30,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -44,7 +45,7 @@ namespace UaLens.Views;
 
 /// <summary>
 /// Variable write dialog: reads the selected variable's
-/// <c>Value</c> / <c>DataType</c> / <c>ValueRank</c> attributes once,
+/// <c>Value</c> / <c>DataType</c> / <c>ValueRank</c> / <c>ArrayDimensions</c> attributes once,
 /// shows the current value pre-formatted, and lets the user enter a
 /// replacement.  On OK parses via <see cref="VariantParser"/> and calls
 /// <c>session.WriteAsync</c>; surfaces the resulting status code inline.
@@ -54,12 +55,26 @@ internal sealed partial class WriteValueDialog : Window, IAsyncDisposable
     public WriteValueDialog(
         NodeViewModel node,
         ISession session,
-        WriteValueOperation? operation = null,
+        IStructuredValueService? values = null,
+        CancellationToken cancellationToken = default)
+        : this(
+            node,
+            session,
+            new WriteValueOperation(
+                (node ?? throw new ArgumentNullException(nameof(node))).NodeId, session, cancellationToken),
+            values)
+    {
+    }
+
+    public WriteValueDialog(
+        NodeViewModel node,
+        ISession session,
+        WriteValueOperation operation,
         IStructuredValueService? values = null)
     {
         ArgumentNullException.ThrowIfNull(node);
         m_session = session ?? throw new ArgumentNullException(nameof(session));
-        m_operation = operation ?? new WriteValueOperation(node.NodeId, session);
+        m_operation = operation ?? throw new ArgumentNullException(nameof(operation));
         m_values = values ?? (m_ownedValues = new SessionStructuredValueService(session));
         InitializeComponent();
 
@@ -125,9 +140,14 @@ internal sealed partial class WriteValueDialog : Window, IAsyncDisposable
         SetEditingEnabled(false);
     }
 
+    public Task StopAsync()
+    {
+        return m_disposal ??= DisposeCoreAsync();
+    }
+
     public ValueTask DisposeAsync()
     {
-        return new ValueTask(m_disposal ??= DisposeCoreAsync());
+        return new ValueTask(StopAsync());
     }
 
     private async Task DisposeCoreAsync()
@@ -222,6 +242,7 @@ internal sealed partial class WriteValueDialog : Window, IAsyncDisposable
             }
             m_dataType = m_operation.DataType;
             m_valueRank = m_operation.ValueRank;
+            m_arrayDimensions = m_operation.ArrayDimensions;
             dataTypeLbl.Text = $"{m_dataType}    rank={m_valueRank}";
 
             DataValue current = m_operation.CurrentValue;
@@ -231,33 +252,24 @@ internal sealed partial class WriteValueDialog : Window, IAsyncDisposable
             // concrete starting point.
             valueText.Text = formatted;
 
-            // If the resolved DataType is a Structure or Enum and we are
-            // editing a scalar, swap the primitive TextBox for the
-            // structured editor.  The TextBox stays available as a fallback
-            // when the server doesn't expose DataTypeDefinition.
-            if (m_valueRank == ValueRanks.Scalar ||
-                m_valueRank == ValueRanks.ScalarOrOneDimension ||
-                m_valueRank == ValueRanks.Any)
+            m_definition = await m_values.ResolveAsync(m_dataType, m_operation.CancellationToken).ConfigureAwait(true);
+            if (m_closing)
             {
-                DataTypeDefinition? def = await m_values.ResolveAsync(m_dataType, m_operation.CancellationToken)
+                return;
+            }
+            if (m_definition is StructureDefinition or EnumDefinition ||
+                StructuredArrayValue.RequiresEditor(m_valueRank, current.WrappedValue))
+            {
+                await complexEditor.InitializeValueAsync(
+                    m_dataType, m_definition, m_values, current.WrappedValue,
+                    m_valueRank, m_arrayDimensions, m_operation.CancellationToken)
                     .ConfigureAwait(true);
                 if (m_closing)
                 {
                     return;
                 }
-                if (def is StructureDefinition or EnumDefinition)
-                {
-                    m_definition = def;
-                    await complexEditor.InitializeAsync(
-                        m_dataType, def, m_values, current.WrappedValue, m_operation.CancellationToken)
-                        .ConfigureAwait(true);
-                    if (m_closing)
-                    {
-                        return;
-                    }
-                    complexEditor.IsVisible = true;
-                    valueText.IsVisible = false;
-                }
+                complexEditor.IsVisible = true;
+                valueText.IsVisible = false;
             }
             m_loaded = true;
             SetEditingEnabled(true);
@@ -280,17 +292,30 @@ internal sealed partial class WriteValueDialog : Window, IAsyncDisposable
         {
             (byte[] bytes, UaLens.Connection.EncodingFormat fmt, string name) =
                 await UaLens.Views.EncodedValueIO.LoadAsync(this).ConfigureAwait(true);
-            if (bytes.Length == 0 || m_closing)
+            m_operation.CancellationToken.ThrowIfCancellationRequested();
+            if (bytes.Length == 0)
             {
-                return;
+                if (string.IsNullOrEmpty(name))
+                {
+                    return;
+                }
+                throw new ServiceResultException(StatusCodes.BadDecodingError, "The imported value file is empty.");
             }
             DataValue dv = UaLens.Connection.DataValueCodec.DecodeDataValue(
                 bytes, fmt, m_session.MessageContext);
-            if (m_definition is not null)
+            if (m_definition is not null || StructuredArrayValue.RequiresEditor(m_valueRank, dv.WrappedValue))
             {
-                await this.RequiredControl<ComplexValueEditor>("ComplexEditor").InitializeAsync(
-                    m_dataType, m_definition, m_values, dv.WrappedValue, m_operation.CancellationToken)
+                ComplexValueEditor editor = this.RequiredControl<ComplexValueEditor>("ComplexEditor");
+                await editor.InitializeValueAsync(
+                    m_dataType, m_definition, m_values, dv.WrappedValue,
+                    m_valueRank, m_arrayDimensions, m_operation.CancellationToken)
                     .ConfigureAwait(true);
+                if (m_closing)
+                {
+                    return;
+                }
+                editor.IsVisible = true;
+                valueText.IsVisible = false;
             }
             if (m_closing)
             {
@@ -476,6 +501,7 @@ internal sealed partial class WriteValueDialog : Window, IAsyncDisposable
     private readonly SessionStructuredValueService? m_ownedValues;
     private NodeId m_dataType = NodeId.Null;
     private int m_valueRank = ValueRanks.Scalar;
+    private ArrayOf<uint> m_arrayDimensions;
     private DataTypeDefinition? m_definition;
     private Task m_loadTask = Task.CompletedTask;
     private Task m_importTask = Task.CompletedTask;

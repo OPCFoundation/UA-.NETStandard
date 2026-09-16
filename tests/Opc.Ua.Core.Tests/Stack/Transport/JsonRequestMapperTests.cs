@@ -322,6 +322,41 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     .ConfigureAwait(false));
         }
 
+        /// <summary>
+        /// The fault for a JSON request that could not be decoded or processed
+        /// echoes the RequestHandle of the payload (OPC 10000-4 §7.33); without a
+        /// payload it falls back to 0.
+        /// </summary>
+        [Test]
+        public void CreateFaultEchoesRequestHandleOfPayload()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = ServiceMessageContext.Create(telemetry);
+            var request = new ReadRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 321, Timestamp = DateTime.UtcNow }
+            };
+            byte[] payload = EncodeRequest(request, context);
+            Microsoft.Extensions.Logging.ILogger logger = telemetry.CreateLogger<JsonRequestMapperTests>();
+
+            ServiceFault fault = JsonRequestMapper.CreateFault(
+                logger,
+                payload,
+                new ServiceResultException(StatusCodes.BadDecodingError));
+            Assert.That(fault.ResponseHeader.ServiceResult, Is.EqualTo((StatusCode)StatusCodes.BadDecodingError));
+            Assert.That(fault.ResponseHeader.RequestHandle, Is.EqualTo(321u));
+
+            fault = JsonRequestMapper.CreateFault(logger, payload, new InvalidOperationException("boom"));
+            Assert.That(fault.ResponseHeader.ServiceResult, Is.EqualTo((StatusCode)StatusCodes.BadUnexpectedError));
+            Assert.That(fault.ResponseHeader.RequestHandle, Is.EqualTo(321u));
+
+            fault = JsonRequestMapper.CreateFault(
+                logger,
+                null,
+                new ServiceResultException(StatusCodes.BadRequestTooLarge));
+            Assert.That(fault.ResponseHeader.RequestHandle, Is.Zero);
+        }
+
         private static byte[] EncodeRequest(ReadRequest request, IServiceMessageContext context)
         {
             using var memory = new MemoryStream();

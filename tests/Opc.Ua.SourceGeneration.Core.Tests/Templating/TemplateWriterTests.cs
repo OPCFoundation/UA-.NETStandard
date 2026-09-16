@@ -1262,7 +1262,34 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         }
 
         /// <summary>
-        /// Verifies that Write calls the underlying TextWriter.Write method with correct parameters.
+        /// Regression: generated source and schema documents must never pick up
+        /// the machine's culture. Under a culture whose negative sign is not the
+        /// ASCII hyphen (sv-SE uses U+2212) and whose decimal separator is a
+        /// comma, the emitted numbers used to be unparseable as C# literals.
+        /// </summary>
+        [Test]
+        [SetCulture("sv-SE")]
+        public void WriteFormatsInvariantlyRegardlessOfCurrentCulture()
+        {
+            using var stringWriter = new StringWriter();
+            using (var templateWriter = new TemplateWriter(stringWriter))
+            {
+                templateWriter.Write("{0}", -1);
+                templateWriter.Write(" {0}", 1.5);
+                templateWriter.Write(" {0} {1}", -2, 2.25);
+                templateWriter.WriteLine(" {0} {1} {2}", -3, 3.5, -4.5);
+            }
+
+            Assert.That(
+                stringWriter.ToString().Trim(),
+                Is.EqualTo("-1 1.5 -2 2.25 -3 3.5 -4.5"));
+        }
+
+        /// <summary>
+        /// Verifies that Write formats the arguments itself and hands the
+        /// finished text to the underlying TextWriter. The writer must not be
+        /// asked to format, because its own format provider is the current
+        /// culture.
         /// </summary>
         [Test]
         public void Write_CallsUnderlyingWriterWithCorrectParameters()
@@ -1278,7 +1305,8 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             templateWriter.Write(format, arg1, arg2);
 
             // Assert
-            mockWriter.Verify(w => w.Write(format, arg1, arg2), Times.Once);
+            mockWriter.Verify(w => w.Write("first and second"), Times.Once);
+            mockWriter.Verify(w => w.Write(format, arg1, arg2), Times.Never);
         }
 
         /// <summary>

@@ -87,6 +87,29 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public void WithSubscriptionEngineReturnsAConfiguredCopyAndLeavesTheOriginal()
+        {
+            var manager = new Mock<IClientChannelManager>();
+            var registry = new Mock<ISecurityPolicyRegistry>().Object;
+            var original = new ChannelManagerSessionFactory(
+                manager.Object,
+                m_telemetry,
+                DiagnosticsMasks.All,
+                securityPolicies: registry);
+            ISubscriptionEngineFactory engine = new Mock<ISubscriptionEngineFactory>().Object;
+
+            ISessionFactory copy = original.WithSubscriptionEngine(engine);
+
+            Assert.That(copy, Is.TypeOf<ChannelManagerSessionFactory>());
+            Assert.That(copy, Is.Not.SameAs(original));
+            Assert.That(copy.SubscriptionEngineFactory, Is.SameAs(engine));
+            Assert.That(copy.ReturnDiagnostics, Is.EqualTo(DiagnosticsMasks.All));
+            Assert.That(copy.Telemetry, Is.SameAs(m_telemetry));
+            Assert.That(((ChannelManagerSessionFactory)copy).SecurityPolicyRegistry, Is.SameAs(registry));
+            Assert.That(original.SubscriptionEngineFactory, Is.Null);
+        }
+
+        [Test]
         public void ReturnDiagnosticsDefaultsToNone()
         {
             var manager = new Mock<IClientChannelManager>();

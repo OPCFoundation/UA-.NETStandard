@@ -398,6 +398,18 @@ namespace Opc.Ua.Client
         {
             if (disposing)
             {
+                if (m_dispatchContext.Value)
+                {
+                    // Called from one of this subscription's own notification
+                    // callbacks, which run on the message worker: blocking on
+                    // that worker here would deadlock. Stop the loop and let
+                    // the teardown finish once the callback returns.
+                    m_disposed = true;
+                    _ = ResetPublishTimerAndWorkerStateAsync();
+                    m_backgroundWork.Dispose();
+                    return;
+                }
+
                 // ResetPublishTimerAndWorkerState() owns disposing m_publishTimer and
                 // m_messageWorkerCts. Disposing them here first caused races where
                 // ResetPublishTimerAndWorkerStateAsync would observe a disposed CTS
@@ -1048,6 +1060,31 @@ namespace Opc.Ua.Client
                 DeleteSubscription();
             }
 
+            ChangesCompleted();
+        }
+
+        /// <summary>
+        /// Resets the client side state after the owning session was
+        /// re-created in place, so the subscription can be created again on the
+        /// new session.
+        /// </summary>
+        /// <remarks>
+        /// Nothing is deleted on the wire, and not because the server discarded
+        /// anything: per OPC UA Part 4 §5.7.2.1 a server that terminates a
+        /// session for any reason other than CloseSession(deleteSubscriptions)
+        /// keeps its subscriptions alive until their lifetime expires,
+        /// precisely so they can be reassigned. This client simply cannot
+        /// delete them any more - a subscription service call only counts when
+        /// it is made on the session the subscription is assigned to
+        /// (Part 4 §5.14.1.3), and the previous session's authentication token
+        /// is gone. That is what TransferSubscriptions is for; this path only
+        /// runs when transfer was not requested or did not succeed, and the
+        /// orphaned server-side subscriptions then expire on their own.
+        /// </remarks>
+        internal async Task ResetForSessionRecreateAsync()
+        {
+            await ResetPublishTimerAndWorkerStateAsync().ConfigureAwait(false);
+            DeleteSubscription();
             ChangesCompleted();
         }
 
@@ -1779,7 +1816,13 @@ namespace Opc.Ua.Client
 
                 // fill in any gaps in the queue
                 LinkedListNode<IncomingMessage>? node = m_incomingMessages.First;
-                if (node is not null)
+                // While the last processed sequence number has not been
+                // resynchronised with the server (transfer / restore from
+                // storage) there is no known predecessor to fill towards: the
+                // loop below would otherwise insert one placeholder per
+                // sequence number from 1 up to the server's current one -
+                // millions of them for a long-lived subscription.
+                if (node is not null && !m_resyncLastSequenceNumberProcessed)
                 {
                     //gaps between m_lastSequenceNumberProcessed and starting node
                     LinkedListNode<IncomingMessage> currentNode = node;
@@ -2311,6 +2354,11 @@ namespace Opc.Ua.Client
                 Task.CurrentId,
                 Session?.SessionId);
 
+            // The whole worker flow is the dispatch context: nothing between
+            // messages reads the flag, and the async method builder restores
+            // the caller's context, so set it once instead of allocating a
+            // new ExecutionContext twice per message.
+            m_dispatchContext.Value = true;
             try
             {
                 while (!ct.IsCancellationRequested && !m_disposed)
@@ -3314,6 +3362,14 @@ namespace Opc.Ua.Client
         private readonly BackgroundTaskScope m_backgroundWork =
             new(nameof(Subscription), AmbientMessageContext.Telemetry);
         private bool m_disposed;
+
+        /// <summary>
+        /// True while the current asynchronous flow is dispatching one of this
+        /// subscription's notification callbacks, i.e. while it runs on the
+        /// message worker. Used so a Dispose from inside such a callback does
+        /// not block on the worker it is running on.
+        /// </summary>
+        private readonly AsyncLocal<bool> m_dispatchContext = new();
         private int m_recreateAfterTransferInProgress;
         private readonly Lock m_cache = new();
         private readonly LinkedList<NotificationMessage> m_messageCache = new();

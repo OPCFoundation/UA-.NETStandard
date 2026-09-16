@@ -521,26 +521,32 @@ namespace Opc.Ua
 
             var buffer = new StringBuilder();
 
-            if (NamespaceIndex > 0)
+            if (NamespaceIndex == 0)
             {
-                if (useNamespaceUri)
+                // prepend the namespace index if the name contains a colon,
+                // otherwise the text parses back into the wrong namespace.
+                if (Name!.Contains(':', StringComparison.Ordinal))
                 {
-                    string? namespaceUri = context.NamespaceUris.GetString(NamespaceIndex);
-                    if (!string.IsNullOrEmpty(namespaceUri))
-                    {
-                        buffer.Append("nsu=")
-                            .Append(CoreUtils.EscapeUri(namespaceUri!))
-                            .Append(';');
-                    }
-                    else
-                    {
-                        buffer.Append(NamespaceIndex).Append(':');
-                    }
+                    buffer.Append("0:");
+                }
+            }
+            else if (useNamespaceUri)
+            {
+                string? namespaceUri = context.NamespaceUris.GetString(NamespaceIndex);
+                if (!string.IsNullOrEmpty(namespaceUri))
+                {
+                    buffer.Append("nsu=")
+                        .Append(CoreUtils.EscapeUri(namespaceUri!))
+                        .Append(';');
                 }
                 else
                 {
                     buffer.Append(NamespaceIndex).Append(':');
                 }
+            }
+            else
+            {
+                buffer.Append(NamespaceIndex).Append(':');
             }
 
             buffer.Append(Name);

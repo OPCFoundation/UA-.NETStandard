@@ -28,8 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using Moq;
 using Opc.Ua;
 using Opc.Ua.Client;
@@ -111,6 +113,85 @@ internal sealed class StructuredValueTestContext : IDisposable
         return new NativeType(typeId, definition, type);
     }
 
+    public NativeOptionSet RegisterOptionSet(string name, ArrayOf<EnumField> fields)
+    {
+        var typeId = new NodeId(m_nextId++, NamespaceIndex);
+        var binaryId = new NodeId(m_nextId++, NamespaceIndex);
+        var xmlId = new NodeId(m_nextId++, NamespaceIndex);
+        var definition = new EnumDefinition { IsOptionSet = true, Fields = fields };
+        IEncodeableType type = new DefaultComplexTypeFactory()
+            .Create(kNamespaceUri, NamespaceIndex)
+            .AddOptionSetType(
+                new QualifiedName(name, NamespaceIndex),
+                NodeId.ToExpandedNodeId(typeId, MessageContext.NamespaceUris),
+                NodeId.ToExpandedNodeId(binaryId, MessageContext.NamespaceUris),
+                NodeId.ToExpandedNodeId(xmlId, MessageContext.NamespaceUris),
+                definition);
+        MessageContext.Factory.Builder.AddEncodeableType(type).Commit();
+        return new NativeOptionSet(typeId, definition, type);
+    }
+
+    public void RegisterOptionSetBaseCodec()
+    {
+        var type = new Mock<IEncodeableType>(MockBehavior.Strict);
+        type.SetupGet(value => value.Type).Returns(typeof(OptionSet));
+        type.SetupGet(value => value.XmlName).Returns(new XmlQualifiedName("OptionSet", Namespaces.OpcUaXsd));
+        type.Setup(value => value.CreateInstance()).Returns(() => new OptionSet());
+        MessageContext.Factory.Builder.AddEncodeableType(type.Object).Commit();
+    }
+
+    public ByteString EncodeVariant(Variant value, bool raw = false)
+    {
+        using var encoder = new BinaryEncoder(MessageContext);
+        if (raw)
+        {
+            encoder.WriteVariantValue(null, value);
+        }
+        else
+        {
+            encoder.WriteVariant(null, value);
+        }
+        return ByteString.From(encoder.CloseAndReturnBuffer());
+    }
+
+    public Variant RoundTrip(Variant value, bool raw = false)
+    {
+        ByteString bytes = EncodeVariant(value, raw);
+        using var stream = new MemoryStream(bytes.Span.ToArray());
+        using var decoder = new BinaryDecoder(stream, MessageContext);
+        return raw ? decoder.ReadVariantValue(null, value.TypeInfo) : decoder.ReadVariant(null);
+    }
+
+    public void Invalidate(string change)
+    {
+        switch (change)
+        {
+            case "Refresh":
+                Service.Refresh();
+                break;
+            case "Session":
+                SessionId = new NodeId(2u);
+                break;
+            case "Namespaces":
+                MessageContext.NamespaceUris.GetIndexOrAppend("urn:unit:test:changed");
+                break;
+            case "Endpoint":
+                Endpoint.EndpointUrl = "opc.tcp://unit.test:4841";
+                break;
+            case "Server":
+                Endpoint.Server.ApplicationUri = "urn:unit:test:replacement";
+                break;
+            case "Disconnect":
+                Connected = false;
+                break;
+            case "Context":
+                MessageContext = ServiceMessageContext.Create(MessageContext.Telemetry);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(change));
+        }
+    }
+
     public static StructureField Field(
         string name, NodeId dataType, bool optional = false, int rank = ValueRanks.Scalar)
     {
@@ -132,6 +213,8 @@ internal sealed class StructuredValueTestContext : IDisposable
     }
 
     internal sealed record NativeType(NodeId DataTypeId, StructureDefinition Definition, IEncodeableType Type);
+
+    internal sealed record NativeOptionSet(NodeId DataTypeId, EnumDefinition Definition, IEncodeableType Type);
 
     private const string kNamespaceUri = "urn:unit:test:structured";
     private uint m_nextId = 1000;

@@ -51,8 +51,12 @@ internal sealed partial class ComplexValueElementDialog : Window, IAsyncDisposab
         NodeId dataTypeId,
         DataTypeDefinition? definition,
         IStructuredValueService service,
-        Variant initial)
+        Variant initial,
+        int valueRank = ValueRanks.Scalar,
+        ArrayOf<uint> declaredDimensions = default,
+        CancellationToken cancellationToken = default)
     {
+        m_lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         InitializeComponent();
         ComplexValueEditor editor = this.RequiredControl<ComplexValueEditor>("Editor");
         var ok = this.RequiredControl<Button>("OkButton");
@@ -62,7 +66,8 @@ internal sealed partial class ComplexValueElementDialog : Window, IAsyncDisposab
         {
             try
             {
-                m_initialization = editor.InitializeAsync(dataTypeId, definition, service, initial, m_lifetime.Token);
+                m_initialization = editor.InitializeValueAsync(
+                    dataTypeId, definition, service, initial, valueRank, declaredDimensions, m_lifetime.Token);
                 await m_initialization.ConfigureAwait(true);
                 ok.IsEnabled = true;
             }
@@ -125,7 +130,7 @@ internal sealed partial class ComplexValueElementDialog : Window, IAsyncDisposab
         AvaloniaXamlLoader.Load(this);
     }
 
-    private readonly CancellationTokenSource m_lifetime = new();
+    private readonly CancellationTokenSource m_lifetime;
     private Task m_initialization = Task.CompletedTask;
     private Task? m_shutdown;
 }

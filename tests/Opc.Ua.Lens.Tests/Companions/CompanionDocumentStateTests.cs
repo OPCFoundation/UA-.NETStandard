@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -99,6 +100,99 @@ public sealed class CompanionDocumentStateTests
         }
     }
 
+    [Test]
+    public async Task CapturingAPreparedDocumentPersistsOnlyConfigurationWithoutDisarmingItAsync()
+    {
+        var host = new ObserveTestHost();
+        await using (host.ConfigureAwait(false))
+        {
+            var context = new CompanionPreparedOperationTestContext(
+                CompanionOperationSafety.SampleMutation, telemetry: host.Telemetry);
+            var document = new CompanionPlugin(host.Host, context.Workspace);
+            await using (document.ConfigureAwait(false))
+            {
+                await PrepareDocumentAsync(document, context).ConfigureAwait(false);
+                CompanionOperationDraft draft = document.PreparedOperation ??
+                    throw new InvalidOperationException("Expected a prepared task before capturing state.");
+                Assert.That(draft.Input, Is.EqualTo("prepared-input-must-not-be-persisted"));
+                Assert.That(document.ConfirmLocalSample, Is.True);
+                Assert.That(document.RunTaskCommand.CanExecute(null), Is.True);
+
+                JsonElement state = document.CaptureState();
+
+                string[] expectedProperties = ["Version", "ProviderId", "TargetId"];
+                Assert.That(state.EnumerateObject().Select(property => property.Name),
+                    Is.EquivalentTo(expectedProperties));
+                Assert.That(state.GetProperty("Version").GetInt32(), Is.EqualTo(1));
+                Assert.That(state.GetProperty("ProviderId").GetString(), Is.EqualTo("sample"));
+                Assert.That(state.GetRawText(), Does.Not.Contain("prepared-input-must-not-be-persisted"));
+                Assert.That(state.GetRawText(), Does.Not.Contain("Apply recipe"));
+                Assert.That(document.PreparedOperation, Is.SameAs(draft));
+                Assert.That(document.ConfirmLocalSample, Is.True);
+                Assert.That(document.RunTaskCommand.CanExecute(null), Is.True);
+                context.VerifyInspectionCount(2);
+                context.VerifyExecutionCount(0);
+            }
+        }
+    }
+
+    [Test]
+    public async Task RestoreDiscardsPreparedAndInjectedAuthorizationStateWithoutProviderWorkAsync()
+    {
+        var host = new ObserveTestHost();
+        await using (host.ConfigureAwait(false))
+        {
+            var context = new CompanionPreparedOperationTestContext(
+                CompanionOperationSafety.SampleMutation, telemetry: host.Telemetry);
+            var document = new CompanionPlugin(host.Host, context.Workspace);
+            await using (document.ConfigureAwait(false))
+            {
+                await PrepareDocumentAsync(document, context).ConfigureAwait(false);
+                CompanionOperationDraft draft = document.PreparedOperation ??
+                    throw new InvalidOperationException("Expected a prepared task before restoring state.");
+                Assert.That(document.ConfirmLocalSample, Is.True);
+                Assert.That(document.Targets, Has.Count.EqualTo(1));
+                Assert.That(document.Values[0].Name, Is.EqualTo("Temperature"));
+                using JsonDocument saved = JsonDocument.Parse("""
+                    {
+                      "Version": 1,
+                      "ProviderId": "sample",
+                      "TargetId": "nsu=urn:ualens:test;i=1234",
+                      "OperationInput": "restored-input-must-not-arm-a-task",
+                      "ConfirmLocalSample": true,
+                      "PreparedOperation": { "OperationId": "apply", "Input": "restored recipe" }
+                    }
+                    """);
+
+                await document.RestoreStateAsync(saved.RootElement).ConfigureAwait(false);
+
+                Assert.That(document.SelectedProvider?.Id, Is.EqualTo("sample"));
+                Assert.That(document.PreparedOperation, Is.Null);
+                Assert.That(document.ConfirmLocalSample, Is.False);
+                Assert.That(document.OperationInput, Is.Empty);
+                Assert.That(document.SelectedTarget, Is.Null);
+                Assert.That(document.SelectedOperation, Is.Null);
+                Assert.That(document.Targets, Is.Empty);
+                Assert.That(document.Values, Is.Empty);
+                Assert.That(document.Operations, Is.Empty);
+                Assert.That(document.PrepareTaskCommand.CanExecute(null), Is.False);
+                Assert.That(document.RunTaskCommand.CanExecute(null), Is.False);
+                Assert.That(document.PreparationSummary, Does.StartWith("Prepare the selected task"));
+                Assert.That(document.Status, Does.Contain("no task or workload"));
+                Assert.That(document.CaptureState().GetProperty("TargetId").GetString(),
+                    Is.EqualTo("nsu=urn:ualens:test;i=1234"));
+                await Assert.ThatAsync(
+                    () => context.Workspace.ExecuteAsync(draft, true),
+                    Throws.InvalidOperationException.With.Message.Contains("Prepare")).ConfigureAwait(false);
+                context.Provider.Verify(
+                    item => item.DiscoverAsync(It.IsAny<CompanionContext>(), It.IsAny<CancellationToken>()),
+                    Times.Once);
+                context.VerifyInspectionCount(2);
+                context.VerifyExecutionCount(0);
+            }
+        }
+    }
+
     [TestCase(2, "sample", null)]
     [TestCase(1, "unregistered", null)]
     [TestCase(1, "sample", "not a node id")]
@@ -146,6 +240,19 @@ public sealed class CompanionDocumentStateTests
     private static JsonElement State(CompanionDocumentState state)
     {
         return JsonSerializer.SerializeToElement(state, CompanionJsonContext.Default.CompanionDocumentState);
+    }
+
+    private static async Task PrepareDocumentAsync(
+        CompanionPlugin document,
+        CompanionPreparedOperationTestContext context)
+    {
+        await context.Workspace.BindAsync(context.Session.Object).ConfigureAwait(false);
+        document.IsOffline = false;
+        await document.DiscoverCommand.ExecuteAsync(null).ConfigureAwait(false);
+        await document.InspectCommand.ExecuteAsync(null).ConfigureAwait(false);
+        document.OperationInput = "prepared-input-must-not-be-persisted";
+        await document.PrepareTaskCommand.ExecuteAsync(null).ConfigureAwait(false);
+        document.ConfirmLocalSample = true;
     }
 
     private static Mock<ICompanionProvider> CreateProvider()

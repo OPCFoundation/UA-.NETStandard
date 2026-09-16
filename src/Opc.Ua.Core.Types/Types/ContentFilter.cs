@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -589,6 +590,21 @@ namespace Opc.Ua
                     continue;
                 }
 
+                // a literal Like pattern must be a valid search string (OPC 10000-4 §7.7.3).
+                if (m_filterOperator == FilterOperator.Like &&
+                    ii == 1 &&
+                    filterOperand is LiteralOperand literal &&
+                    TryGetLikePattern(literal.Value, out string? pattern) &&
+                    !LikePattern.IsValid(pattern))
+                {
+                    result.OperandResults.Add(ServiceResult.Create(
+                        StatusCodes.BadFilterOperandInvalid,
+                        "The Like pattern '{0}' is not a valid search string.",
+                        pattern));
+                    error = true;
+                    continue;
+                }
+
                 result.OperandResults.Add(null!); // intentional null sentinel: list cleared if no errors, otherwise non-null entries indicate failures
             }
 
@@ -603,6 +619,29 @@ namespace Opc.Ua
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Gets the pattern text of a literal Like operand. Like evaluates String
+        /// and LocalizedText operands; other literals resolve to FALSE and are
+        /// not checked here.
+        /// </summary>
+        private static bool TryGetLikePattern(Variant value, [NotNullWhen(true)] out string? pattern)
+        {
+            if (value.TryGetValue(out LocalizedText localizedText))
+            {
+                pattern = localizedText.Text;
+            }
+            else if (value.TryGetValue(out string text))
+            {
+                pattern = text;
+            }
+            else
+            {
+                pattern = null;
+            }
+
+            return pattern != null;
         }
 
         /// <summary>

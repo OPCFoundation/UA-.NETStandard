@@ -5793,7 +5793,9 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase("Z", "m_z")]
         [TestCase("a", "m_a")]
         [TestCase("z", "m_z")]
-        [TestCase("0", "m_0")]
+        // A name that is only a digit gets the sanitizer's leading underscore
+        // before the "m_" prefix is applied.
+        [TestCase("0", "m__0")]
         [TestCase("_", "m__")]
         public void GetChildFieldName_SingleCharacterName_ReturnsCorrectFieldName(string name, string expected)
         {
@@ -5845,12 +5847,15 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
-        /// Tests that GetChildFieldName handles names with special characters correctly.
+        /// Tests that GetChildFieldName handles names with special characters
+        /// correctly. A BrowseName may contain characters that are not legal in
+        /// a C# identifier, and the backing field has to be one: these used to
+        /// come out as "m_$Value" / "m_name-With-Dash", which do not compile.
         /// </summary>
         [TestCase("_Property", "m__Property")]
-        [TestCase("$Value", "m_$Value")]
-        [TestCase("Name-With-Dash", "m_name-With-Dash")]
-        [TestCase("Name.With.Dot", "m_name.With.Dot")]
+        [TestCase("$Value", "m__Value")]
+        [TestCase("Name-With-Dash", "m_name_With_Dash")]
+        [TestCase("Name.With.Dot", "m_name_With_Dot")]
         public void GetChildFieldName_SpecialCharacters_ReturnsCorrectFieldName(string name, string expected)
         {
             // Arrange
@@ -5868,8 +5873,10 @@ namespace Opc.Ua.Schema.Model.Tests
         /// </summary>
         [TestCase("Property123", "m_property123")]
         [TestCase("Property1", "m_property1")]
-        [TestCase("1Property", "m_1Property")]
-        [TestCase("123", "m_123")]
+        // An identifier may not start with a digit, so the sanitizer prefixes
+        // one - "m_1Property" and "m_123" did not compile.
+        [TestCase("1Property", "m__1Property")]
+        [TestCase("123", "m__123")]
         public void GetChildFieldName_NamesWithNumbers_ReturnsCorrectFieldName(string name, string expected)
         {
             // Arrange
@@ -13207,6 +13214,549 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo(" test "));
+        }
+
+        /// <summary>
+        /// Regression: structure field names are authored data and were used
+        /// verbatim as the generated property's identifier, so a field named
+        /// after a C# keyword or after one of the members every generated data
+        /// type carries produced source that does not compile.
+        /// </summary>
+        [TestCase("Value", "Value")]
+        [TestCase("event", "@event")]
+        [TestCase("Some Name", "SomeName")]
+        [TestCase("Some-Name", "Some_Name")]
+        [TestCase("TypeId", "TypeIdField")]
+        [TestCase("EncodingMask", "EncodingMaskField")]
+        [TestCase("SwitchField", "SwitchFieldField")]
+        [TestCase("Encode", "EncodeField")]
+        [TestCase("Clone", "CloneField")]
+        public void GetPropertyName_ReservedOrIllegalNames_AreMadeLegal(
+            string fieldName,
+            string expected)
+        {
+            var field = new Parameter { Name = fieldName };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [field]
+            };
+            field.Parent = dataType;
+
+            Assert.That(field.GetPropertyName(), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// A field named after its own structure cannot be a member of it.
+        /// </summary>
+        [Test]
+        public void GetPropertyName_FieldNamedAfterItsStructure_IsRenamed()
+        {
+            var field = new Parameter { Name = "SomeType" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [field]
+            };
+            field.Parent = dataType;
+
+            Assert.That(field.GetPropertyName(), Is.EqualTo("SomeTypeField"));
+        }
+
+        /// <summary>
+        /// The disambiguated name must not collide with a sibling either.
+        /// </summary>
+        [Test]
+        public void GetPropertyName_DisambiguatedNameCollidingWithSibling_GetsSuffixed()
+        {
+            var colliding = new Parameter { Name = "TypeId" };
+            var sibling = new Parameter { Name = "TypeIdField" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [colliding, sibling]
+            };
+            colliding.Parent = dataType;
+            sibling.Parent = dataType;
+
+            // Declaration order decides: the reserved "TypeId" is renamed first
+            // and takes "TypeIdField", so the sibling that was already spelled
+            // that way has to move.
+            Assert.That(colliding.GetPropertyName(), Is.EqualTo("TypeIdField"));
+            Assert.That(sibling.GetPropertyName(), Is.EqualTo("TypeIdFieldField"));
+            Assert.That(
+                colliding.GetPropertyName(),
+                Is.Not.EqualTo(sibling.GetPropertyName()));
+        }
+
+        /// <summary>
+        /// Regression: the sibling scan compared the candidate against the raw
+        /// authored names, so a sibling that only sanitizes onto the candidate
+        /// ("Encode Field" loses its space) was not seen and both fields were
+        /// given the same property, which does not compile.
+        /// </summary>
+        [Test]
+        public void GetPropertyName_DisambiguatedNameCollidingWithSanitizedSibling_GetsSuffixed()
+        {
+            var colliding = new Parameter { Name = "Encode" };
+            var sibling = new Parameter { Name = "Encode Field" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [colliding, sibling]
+            };
+            colliding.Parent = dataType;
+            sibling.Parent = dataType;
+
+            Assert.Multiple(() =>
+            {
+                // Names are handed out in declaration order: "Encode" is
+                // reserved so it takes "EncodeField" first, and "Encode Field"
+                // - which sanitizes onto the same name - has to move.
+                Assert.That(colliding.GetPropertyName(), Is.EqualTo("EncodeField"));
+                Assert.That(sibling.GetPropertyName(), Is.EqualTo("EncodeFieldField"));
+                Assert.That(
+                    colliding.GetPropertyName(),
+                    Is.Not.EqualTo(sibling.GetPropertyName()));
+            });
+        }
+
+        /// <summary>
+        /// Regression: the disambiguated name was never re-checked against the
+        /// reserved members, so appending "Field" could land straight on one of
+        /// them - "Switch" becomes "SwitchField", the member a generated union
+        /// already declares.
+        /// </summary>
+        [Test]
+        public void GetPropertyName_DisambiguatedNameThatIsItselfReserved_GetsSuffixed()
+        {
+            // "Switch" is the enclosing type's name, so it has to be renamed -
+            // and the obvious candidate, "SwitchField", is itself reserved.
+            var field = new Parameter { Name = "Switch" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("Switch", "http://test.org/UA/"),
+                Fields = [field]
+            };
+            field.Parent = dataType;
+
+            Assert.That(field.GetPropertyName(), Is.EqualTo("SwitchField_"));
+        }
+
+        /// <summary>
+        /// Regression: disambiguation only ran for reserved names, so two
+        /// siblings whose authored names differ only in characters the
+        /// sanitizer drops both kept the same identifier and the generated type
+        /// declared the member twice (CS0102).
+        /// </summary>
+        [Test]
+        public void GetPropertyName_SiblingsThatSanitizeAlike_AreMadeUnique()
+        {
+            var first = new Parameter { Name = "Value Id" };
+            var second = new Parameter { Name = "ValueId" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [first, second]
+            };
+            first.Parent = dataType;
+            second.Parent = dataType;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    first.GetPropertyName(),
+                    Is.EqualTo("ValueId"),
+                    "the first field declared keeps the plain name");
+                Assert.That(
+                    second.GetPropertyName(),
+                    Is.EqualTo("ValueIdField"),
+                    "the later one has to move");
+                Assert.That(
+                    first.GetPropertyName(),
+                    Is.Not.EqualTo(second.GetPropertyName()));
+            });
+        }
+
+        /// <summary>
+        /// Regression: the collision check compared generated property names
+        /// only. A field "Value" is stored in the backing field "m_value", so a
+        /// sibling literally named "m_value" declared a property of that name
+        /// next to it (CS0102).
+        /// </summary>
+        [Test]
+        public void GetPropertyName_CollidingWithASiblingBackingField_IsMadeUnique()
+        {
+            var first = new Parameter { Name = "Value" };
+            var second = new Parameter { Name = "m_value" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [first, second]
+            };
+            first.Parent = dataType;
+            second.Parent = dataType;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.GetChildFieldName(), Is.EqualTo("m_value"));
+                Assert.That(
+                    second.GetPropertyName(),
+                    Is.Not.EqualTo("m_value"),
+                    "the property would collide with the sibling's backing field");
+                Assert.That(
+                    second.GetPropertyName(),
+                    Is.Not.EqualTo(second.GetChildFieldName()));
+            });
+        }
+
+        /// <summary>
+        /// The templates declare their own backing fields, which a generated
+        /// property cannot be named after either.
+        /// </summary>
+        [TestCase("m_FieldNames")]
+        [TestCase("m_pooledSentinel")]
+        public void GetPropertyName_CollidingWithATemplateBackingField_IsMadeUnique(
+            string fieldName)
+        {
+            var field = new Parameter { Name = fieldName };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [field]
+            };
+            field.Parent = dataType;
+
+            Assert.That(field.GetPropertyName(), Is.Not.EqualTo(fieldName));
+        }
+
+        /// <summary>
+        /// Regression: disambiguating the properties was not enough. The backing
+        /// field mapping is lossier than the property mapping, so "Value Id" and
+        /// "ValueId" both landed on "m_valueId" and the generated class declared
+        /// the field twice (CS0102) even though the properties differed.
+        /// </summary>
+        [Test]
+        public void GetChildFieldName_SiblingsThatSanitizeAlike_AreMadeUnique()
+        {
+            var first = new Parameter { Name = "Value Id" };
+            var second = new Parameter { Name = "ValueId" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [first, second]
+            };
+            first.Parent = dataType;
+            second.Parent = dataType;
+
+            Assert.That(
+                first.GetChildFieldName(),
+                Is.Not.EqualTo(second.GetChildFieldName()));
+        }
+
+        /// <summary>
+        /// Two properties that differ only in the case of their first letter
+        /// would share one backing field, since the mapping lower-cases it.
+        /// </summary>
+        [Test]
+        public void GetChildFieldName_SiblingsDifferingOnlyByCase_AreMadeUnique()
+        {
+            var first = new Parameter { Name = "Value" };
+            var second = new Parameter { Name = "value" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [first, second]
+            };
+            first.Parent = dataType;
+            second.Parent = dataType;
+
+            Assert.That(
+                first.GetChildFieldName(),
+                Is.Not.EqualTo(second.GetChildFieldName()));
+        }
+
+        /// <summary>
+        /// Regression: deciding one field at a time only ever saw the siblings'
+        /// pre-disambiguation names, so with three authored names that sanitize
+        /// alike the first kept the plain name and the other two both picked the
+        /// same replacement (CS0102). The mapping is computed for the whole
+        /// field list in one pass.
+        /// </summary>
+        [Test]
+        public void GetPropertyName_ThreeSiblingsThatSanitizeAlike_AreAllUnique()
+        {
+            var first = new Parameter { Name = "A-" };
+            var second = new Parameter { Name = "A?" };
+            var third = new Parameter { Name = "A!" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [first, second, third]
+            };
+            foreach (Parameter field in dataType.Fields)
+            {
+                field.Parent = dataType;
+            }
+
+            string[] names =
+            [
+                first.GetPropertyName(),
+                second.GetPropertyName(),
+                third.GetPropertyName()
+            ];
+
+            Assert.That(names, Is.Unique);
+            Assert.That(
+                new[]
+                {
+                    first.GetFieldsEnumMemberName(),
+                    second.GetFieldsEnumMemberName(),
+                    third.GetFieldsEnumMemberName()
+                },
+                Is.Unique);
+            Assert.That(
+                new[]
+                {
+                    first.GetChildFieldName(),
+                    second.GetChildFieldName(),
+                    third.GetChildFieldName()
+                },
+                Is.Unique);
+        }
+
+        /// <summary>
+        /// Regression: the check only looked at fields declared on the type, so
+        /// a derived field could sanitize onto an inherited property's name and
+        /// the generated class redeclared it without new/override (CS0108).
+        /// </summary>
+        [Test]
+        public void GetPropertyName_CollidingWithAnInheritedProperty_IsMadeUnique()
+        {
+            var baseField = new Parameter { Name = "Value Id" };
+            var baseType = new DataTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("BaseType", "http://test.org/UA/"),
+                SymbolicName = new XmlQualifiedName("BaseType", "http://test.org/UA/"),
+                Fields = [baseField]
+            };
+            baseField.Parent = baseType;
+
+            var derivedField = new Parameter { Name = "ValueId" };
+            var derived = new DataTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("Derived", "http://test.org/UA/"),
+                SymbolicName = new XmlQualifiedName("Derived", "http://test.org/UA/"),
+                BaseTypeNode = baseType,
+                Fields = [derivedField]
+            };
+            derivedField.Parent = derived;
+
+            Assert.That(baseField.GetPropertyName(), Is.EqualTo("ValueId"));
+            Assert.That(
+                derivedField.GetPropertyName(),
+                Is.Not.EqualTo("ValueId"),
+                "redeclaring the inherited name without override is CS0108");
+        }
+
+        /// <summary>
+        /// A derived field carrying the *same* wire name as an inherited one is
+        /// a deliberate redeclaration - the generator emits it as an override
+        /// (HistoryUpdateDetails.NodeId) - so it has to keep the name.
+        /// </summary>
+        [Test]
+        public void GetPropertyName_RedeclaringAnInheritedFieldKeepsTheName()
+        {
+            var baseField = new Parameter { Name = "NodeId" };
+            var baseType = new DataTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("BaseType", "http://test.org/UA/"),
+                SymbolicName = new XmlQualifiedName("BaseType", "http://test.org/UA/"),
+                Fields = [baseField]
+            };
+            baseField.Parent = baseType;
+
+            var derivedField = new Parameter { Name = "NodeId" };
+            var derived = new DataTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("Derived", "http://test.org/UA/"),
+                SymbolicName = new XmlQualifiedName("Derived", "http://test.org/UA/"),
+                BaseTypeNode = baseType,
+                Fields = [derivedField]
+            };
+            derivedField.Parent = derived;
+
+            Assert.That(derivedField.GetPropertyName(), Is.EqualTo("NodeId"));
+        }
+
+        /// <summary>
+        /// Same hole in the Fields enumeration member names.
+        /// </summary>
+        [Test]
+        public void GetFieldsEnumMemberName_SiblingsThatSanitizeAlike_AreMadeUnique()
+        {
+            var first = new Parameter { Name = "Value Id" };
+            var second = new Parameter { Name = "ValueId" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [first, second]
+            };
+            first.Parent = dataType;
+            second.Parent = dataType;
+
+            Assert.That(
+                first.GetFieldsEnumMemberName(),
+                Is.Not.EqualTo(second.GetFieldsEnumMemberName()));
+        }
+
+        /// <summary>
+        /// Regression: the reserved set was a hand-transcribed snapshot of the
+        /// data type templates and left out members they declare, so a field
+        /// with one of those names still produced CS0102.
+        /// </summary>
+        [TestCase("EncodingMaskFieldNames", "EncodingMaskFieldNamesField")]
+        [TestCase("Reuse", "ReuseField")]
+        public void GetPropertyName_TemplateDeclaredMembers_AreReserved(
+            string fieldName,
+            string expected)
+        {
+            var field = new Parameter { Name = fieldName };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [field]
+            };
+            field.Parent = dataType;
+
+            Assert.That(field.GetPropertyName(), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// The field being renamed must not block its own candidate: it is
+        /// excluded from the sibling scan.
+        /// </summary>
+        [Test]
+        public void GetPropertyName_FieldDoesNotCollideWithItself()
+        {
+            var field = new Parameter { Name = "TypeIdField" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("TypeIdField", "http://test.org/UA/"),
+                Fields = [field]
+            };
+            field.Parent = dataType;
+
+            // Named after its structure, so it renames to "TypeIdFieldField" -
+            // not "TypeIdFieldField_", which a self-match would have produced.
+            Assert.That(field.GetPropertyName(), Is.EqualTo("TypeIdFieldField"));
+        }
+
+        /// <summary>
+        /// The generated <c>{ClassName}Fields</c> enumeration already declares
+        /// None, so a field of that name has to be renamed there.
+        /// </summary>
+        [TestCase("First", "First")]
+        [TestCase("None", "NoneField")]
+        [TestCase("event", "@event")]
+        [TestCase("Some Name", "SomeName")]
+        public void GetFieldsEnumMemberName_ReservedNames_AreMadeLegal(
+            string fieldName,
+            string expected)
+        {
+            var field = new Parameter { Name = fieldName };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [field]
+            };
+            field.Parent = dataType;
+
+            Assert.That(field.GetFieldsEnumMemberName(), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Regression: NaN and the infinities have no C# literal form. They used
+        /// to be emitted as "(double)NaN" / "(double)Infinity", which the
+        /// compiler rejects.
+        /// </summary>
+        [TestCase(double.NaN, "double.NaN")]
+        [TestCase(double.PositiveInfinity, "double.PositiveInfinity")]
+        [TestCase(double.NegativeInfinity, "double.NegativeInfinity")]
+        [TestCase(1.5, "(double)1.5")]
+        public void GetScalarValueAsCode_NonFiniteDouble_EmitsTheNamedConstant(
+            double value,
+            string expected)
+        {
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("Double", Namespaces.OpcUa),
+                BasicDataType = BasicDataType.Double
+            };
+
+            Assert.That(
+                dataType.GetScalarValueAsCode(
+                    null, value, default, false, "http://test.org/UA/", []),
+                Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Same for Float.
+        /// </summary>
+        [TestCase(float.NaN, "float.NaN")]
+        [TestCase(float.PositiveInfinity, "float.PositiveInfinity")]
+        [TestCase(float.NegativeInfinity, "float.NegativeInfinity")]
+        [TestCase(1.5f, "(float)1.5")]
+        public void GetScalarValueAsCode_NonFiniteFloat_EmitsTheNamedConstant(
+            float value,
+            string expected)
+        {
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("Float", Namespaces.OpcUa),
+                BasicDataType = BasicDataType.Float
+            };
+
+            Assert.That(
+                dataType.GetScalarValueAsCode(
+                    null, value, default, false, "http://test.org/UA/", []),
+                Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Regression: the relative path into the root's hierarchy was taken by
+        /// cutting at the first underscore, which mangles the path when the root
+        /// type's own name contains one.
+        /// </summary>
+        [Test]
+        public void GetMergedInstance_RootNameWithUnderscore_ResolvesTheChild()
+        {
+            const string uri = "http://test.org/UA/";
+            var merged = new PropertyDesign
+            {
+                SymbolicId = new XmlQualifiedName("My_Type_Child", uri),
+                SymbolicName = new XmlQualifiedName("Child", uri)
+            };
+            var root = new ObjectTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("My_Type", uri),
+                SymbolicName = new XmlQualifiedName("My_Type", uri),
+                Hierarchy = new Hierarchy()
+            };
+            root.Hierarchy.Nodes["Child"] = new HierarchyNode
+            {
+                RelativePath = "Child",
+                Instance = merged
+            };
+
+            var instance = new PropertyDesign
+            {
+                SymbolicId = new XmlQualifiedName("My_Type_Child", uri),
+                SymbolicName = new XmlQualifiedName("Child", uri),
+                Parent = root
+            };
+
+            Assert.That(instance.GetMergedInstance(), Is.SameAs(merged));
         }
     }
 }

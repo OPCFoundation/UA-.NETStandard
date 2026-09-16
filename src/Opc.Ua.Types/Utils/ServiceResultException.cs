@@ -130,7 +130,9 @@ namespace Opc.Ua
         /// Initializes the exception with a Result object.
         /// </summary>
         public ServiceResultException(ServiceResult status)
-            : base(GetMessage(status), status.InnerResult?.GetServiceResultException())
+            // status may be null: GetMessage and the Result assignment below
+            // both tolerate it, so this must too.
+            : base(GetMessage(status), status?.InnerResult?.GetServiceResultException())
         {
             Result = status ?? ServiceResult.Bad;
         }

@@ -52,16 +52,18 @@ internal sealed class ConnectionSetupDialog : Window
     public ConnectionSetupDialog(
         ConnectionService connection,
         ConnectionSetupSelection initial,
-        bool pinned = false)
+        bool pinned = false,
+        ConnectionProfile? selectedProfile = null)
     {
         m_connection = connection ?? throw new ArgumentNullException(nameof(connection));
         m_backend = connection.ConfiguredBackend ??
             throw new NotSupportedException("This backend does not expose configured transport setup.");
-        m_initial = initial;
+        m_initial = initial ?? throw new ArgumentNullException(nameof(initial));
         m_pinned = pinned;
+        m_selectedProfile = selectedProfile;
         Title = pinned ? "Saved connection setup (pinned)" : "Transport and reverse-connect setup";
         Width = 760;
-        Height = 750;
+        Height = 820;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var content = new StackPanel { Margin = new Thickness(18), Spacing = 9 };
         m_endpoint = new TextBox { Name = "SetupEndpointUrl", Text = initial.EndpointUrl, MaxLength = 2048 };
@@ -88,41 +90,36 @@ internal sealed class ConnectionSetupDialog : Window
             Value = initial.ReverseConnection?.WaitTimeoutSeconds ?? 20,
             Increment = 1
         };
+        m_hold = new NumericUpDown
+        {
+            Name = "ReverseHoldSeconds", Minimum = 1, Maximum = 60,
+            Value = initial.ReverseConnection?.HoldTimeSeconds ?? 15,
+            Increment = 1
+        };
         m_tls = new ComboBox { Name = "ListenerTlsConfiguration", HorizontalAlignment = HorizontalAlignment.Stretch };
         m_application = new ComboBox
         {
             Name = "ApplicationIdentityConfiguration", HorizontalAlignment = HorizontalAlignment.Stretch
         };
-        var tlsItems = new List<string> { "None (TCP only)" };
+        var tlsItems = new List<ConfigurationChoice> { new(null, "None (TCP only)") };
         foreach (ConfiguredReverseTlsSource source in m_backend.Configurations.ReverseTlsSources)
         {
-            tlsItems.Add(source.DisplayName);
+            tlsItems.Add(new ConfigurationChoice(source.Id, source.DisplayName));
         }
-        m_tls.ItemsSource = tlsItems;
-        m_tls.SelectedIndex = 0;
-        for (int i = 0; i < m_backend.Configurations.ReverseTlsSources.Count; i++)
+        SelectReference(m_tls, tlsItems, initial.ReverseConnection?.TlsConfigurationId);
+        var applicationItems = new List<ConfigurationChoice>
         {
-            if (m_backend.Configurations.ReverseTlsSources[i].Id == initial.ReverseConnection?.TlsConfigurationId)
-            {
-                m_tls.SelectedIndex = i + 1;
-            }
-        }
-        var applicationItems = new List<string> { "Default UaLens application certificate (not the user identity)" };
+            new(null, "Default UaLens application certificate (not the user identity)")
+        };
         foreach (ConfiguredApplicationIdentity identity in m_backend.Configurations.ApplicationIdentities)
         {
-            applicationItems.Add(identity.ToString());
+            applicationItems.Add(new ConfigurationChoice(identity.Id, identity.ToString()));
         }
-        m_application.ItemsSource = applicationItems;
-        m_application.SelectedIndex = 0;
-        for (int i = 0; i < m_backend.Configurations.ApplicationIdentities.Count; i++)
-        {
-            if (m_backend.Configurations.ApplicationIdentities[i].Id == initial.ApplicationIdentityId)
-            {
-                m_application.SelectedIndex = i + 1;
-            }
-        }
-        AddField(content, "Server endpoint / discovery URL", m_endpoint);
-        AddField(content, "ApplicationInstanceKey — configured secure-channel identity", m_application);
+        SelectReference(m_application, applicationItems, initial.ApplicationIdentityId);
+        m_fields = new StackPanel { Spacing = 9 };
+        AddField(m_fields, "Server endpoint / discovery URL (scheme selects the registered binding)", m_endpoint);
+        AddField(m_fields, "ApplicationInstanceKey — configured secure-channel identity", m_application);
+        content.Children.Add(m_fields);
         var capabilities = new StackPanel { Spacing = 6 };
         foreach (ConnectionTransportCapability capability in m_backend.Transports.Capabilities)
         {
@@ -137,14 +134,15 @@ internal sealed class ConnectionSetupDialog : Window
             Content = capabilities,
             IsExpanded = false
         });
-        content.Children.Add(m_reverse);
-        var reverseFields = new StackPanel { Spacing = 7 };
-        AddField(reverseFields,
+        m_fields.Children.Add(m_reverse);
+        m_reverseFields = new StackPanel { Spacing = 7 };
+        AddField(m_reverseFields,
             "Local listener URL (binding/firewall and server reverse target are external setup)", m_listener);
-        AddField(reverseFields, "Expected ServerUri (exact application URI, not a hostname)", m_serverUri);
-        AddField(reverseFields, "Wait timeout (seconds)", m_timeout);
-        AddField(reverseFields, "Configured listener TLS certificate + validator (required for WSS)", m_tls);
-        content.Children.Add(reverseFields);
+        AddField(m_reverseFields, "Expected ServerUri (exact application URI, not a hostname)", m_serverUri);
+        AddField(m_reverseFields, "Wait timeout (seconds)", m_timeout);
+        AddField(m_reverseFields, "Unclaimed connection hold time (seconds)", m_hold);
+        AddField(m_reverseFields, "Configured listener TLS certificate + validator (required for WSS)", m_tls);
+        m_fields.Children.Add(m_reverseFields);
         content.Children.Add(new TextBlock
         {
             Text = "Only the exact ServerUri AND complete endpoint URL are accepted. " +
@@ -153,6 +151,11 @@ internal sealed class ConnectionSetupDialog : Window
             TextWrapping = TextWrapping.Wrap,
             FontSize = 12
         });
+        m_readiness = new TextBlock
+        {
+            Name = "TransportSetupReadiness", TextWrapping = TextWrapping.Wrap, FontSize = 12
+        };
+        AddField(content, "Selected setup readiness (registration is not network or trust qualification)", m_readiness);
         m_status = new TextBlock { Name = "ReverseConnectionStatus", TextWrapping = TextWrapping.Wrap };
         content.Children.Add(m_status);
         m_start = new Button { Name = "StartReverseListenerButton", Content = "Start listener" };
@@ -165,23 +168,30 @@ internal sealed class ConnectionSetupDialog : Window
             Spacing = 7,
             Children = { m_start, m_wait, m_cancelWait, m_stop }
         });
-        var use = new Button { Name = "UseConnectionSetupButton", Content = "Use setup", IsDefault = true };
+        m_use = new Button { Name = "UseConnectionSetupButton", Content = "Use setup", IsDefault = true };
         var cancel = new Button { Name = "CancelButton", Content = "Cancel", IsCancel = true };
         content.Children.Add(new StackPanel
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right,
             Spacing = 8,
-            Children = { use, cancel }
+            Children = { m_use, cancel }
         });
         Content = new ScrollViewer { Content = content };
-        if (pinned)
+        m_endpoint.TextChanged += (_, _) => OnSetupChanged();
+        m_listener.TextChanged += (_, _) => OnSetupChanged();
+        m_serverUri.TextChanged += (_, _) => OnSetupChanged();
+        m_application.SelectionChanged += (_, _) => OnSetupChanged();
+        m_tls.SelectionChanged += (_, _) => OnSetupChanged();
+        m_timeout.ValueChanged += (_, _) => OnSetupChanged();
+        m_hold.ValueChanged += (_, _) => OnSetupChanged();
+        m_reverse.PropertyChanged += (_, args) =>
         {
-            m_endpoint.IsEnabled = false;
-            m_application.IsEnabled = false;
-            m_reverse.IsEnabled = false;
-            reverseFields.IsEnabled = false;
-        }
+            if (args.Property == CheckBox.IsCheckedProperty)
+            {
+                OnSetupChanged();
+            }
+        };
         m_start.Click += async (_, _) =>
         {
             m_operation = StartListenerAsync();
@@ -192,15 +202,23 @@ internal sealed class ConnectionSetupDialog : Window
             m_operation = WaitForServerAsync();
             await m_operation.ConfigureAwait(true);
         };
-        m_cancelWait.Click += async (_, _) => await CancelWaitAsync().ConfigureAwait(true);
+        m_cancelWait.Click += async (_, _) =>
+        {
+            try
+            {
+                await CancelWaitAsync().ConfigureAwait(true);
+            }
+            catch (Exception error) when (IsSetupFailure(error))
+            {
+                m_status.Text = $"Operation cancellation failed: {error.Message}";
+            }
+        };
         m_stop.Click += async (_, _) =>
         {
-            await CancelWaitAsync().ConfigureAwait(true);
-            await m_operation.ConfigureAwait(true);
-            m_operation = StopListenerAsync();
+            m_operation = StopListenerAsync(m_operation);
             await m_operation.ConfigureAwait(true);
         };
-        use.Click += (_, _) =>
+        m_use.Click += (_, _) =>
         {
             if (!m_operation.IsCompleted)
             {
@@ -210,10 +228,7 @@ internal sealed class ConnectionSetupDialog : Window
             try
             {
                 ConnectionSetupSelection selected = ReadSetup();
-                if (selected.ReverseConnection is { } reverse)
-                {
-                    using ReverseConnectionLease lease = m_backend.ReverseConnections.Acquire(reverse);
-                }
+                RequireReadySetup(selected);
                 Close(selected);
             }
             catch (Exception error) when (IsSetupFailure(error))
@@ -256,7 +271,9 @@ internal sealed class ConnectionSetupDialog : Window
                 await lifetime.CancelAsync().ConfigureAwait(true);
                 await CancelWaitAsync().ConfigureAwait(true);
                 await m_operation.ConfigureAwait(true);
-                if (m_startedHere && (result?.ReverseConnection is null || ct.IsCancellationRequested))
+                if (m_startedProfile is not null &&
+                    m_backend.ReverseConnections.Snapshot.Profile == m_startedProfile &&
+                    (result?.ReverseConnection != m_startedProfile || ct.IsCancellationRequested))
                 {
                     await m_backend.ReverseConnections.StopAsync(CancellationToken.None).ConfigureAwait(true);
                 }
@@ -267,28 +284,19 @@ internal sealed class ConnectionSetupDialog : Window
 
     private ConnectionSetupSelection ReadSetup()
     {
+        ConnectionSetupSelection setup = ReadIntent();
+        m_backend.Transports.RequireSetup(setup, m_backend.Configurations, m_selectedProfile);
+        return setup;
+    }
+
+    private ConnectionSetupSelection ReadIntent()
+    {
         if (m_pinned)
         {
-            m_backend.Transports.RequireForward(m_initial.EndpointUrl);
-            m_initial.ReverseConnection?.Validate(m_initial.EndpointUrl);
-            if (m_initial.ApplicationIdentityId is { } application)
-            {
-                m_backend.Configurations.ResolveApplication(application);
-            }
             return m_initial;
         }
         string url = m_endpoint.Text?.Trim() ?? string.Empty;
-        if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? endpoint) ||
-            string.IsNullOrEmpty(endpoint.Host) || !string.IsNullOrEmpty(endpoint.UserInfo) ||
-            !string.IsNullOrEmpty(endpoint.Query) || !string.IsNullOrEmpty(endpoint.Fragment))
-        {
-            throw new ArgumentException(
-                "Enter an absolute endpoint URL without credentials, query secrets or fragments.");
-        }
-        m_backend.Transports.RequireForward(url);
-        string? applicationId = m_application.SelectedIndex > 0
-            ? m_backend.Configurations.ApplicationIdentities[m_application.SelectedIndex - 1].Id
-            : null;
+        string? applicationId = ReadReference(m_application);
         ReverseConnectionProfile? reverse = null;
         if (m_reverse.IsChecked == true)
         {
@@ -297,12 +305,10 @@ internal sealed class ConnectionSetupDialog : Window
                 ListenerUrl = m_listener.Text?.Trim() ?? string.Empty,
                 EndpointUrl = url,
                 ServerUri = m_serverUri.Text?.Trim() ?? string.Empty,
-                WaitTimeoutSeconds = (int)(m_timeout.Value ?? 20),
-                TlsConfigurationId = m_tls.SelectedIndex > 0
-                    ? m_backend.Configurations.ReverseTlsSources[m_tls.SelectedIndex - 1].Id
-                    : null
+                WaitTimeoutSeconds = ReadSeconds(m_timeout, 300, "Wait timeout"),
+                HoldTimeSeconds = ReadSeconds(m_hold, 60, "Connection hold time"),
+                TlsConfigurationId = ReadReference(m_tls)
             };
-            m_backend.Transports.RequireReverse(reverse);
         }
         return new ConnectionSetupSelection(url, reverse, applicationId);
     }
@@ -311,26 +317,31 @@ internal sealed class ConnectionSetupDialog : Window
     {
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(m_lifetime!.Token);
         m_startCancellation = cancellation;
+        string? message = null;
+        SetBusy("Starting the explicitly configured listener...");
         try
         {
             ReverseConnectionProfile profile = ReadSetup().ReverseConnection ??
                 throw new InvalidOperationException("Enable reverse connect and configure the expected server first.");
-            m_startedHere |= m_backend.ReverseConnections.Snapshot.Phase == ReverseConnectionPhase.Stopped;
-            SetBusy("Starting the explicitly configured listener…");
+            bool stopped = m_backend.ReverseConnections.Snapshot.Phase == ReverseConnectionPhase.Stopped;
             await m_backend.ReverseConnections.StartAsync(profile, cancellation.Token).ConfigureAwait(true);
-            RefreshState();
+            if (stopped)
+            {
+                m_startedProfile = profile;
+            }
         }
         catch (OperationCanceledException)
         {
-            RefreshState("Listener start canceled.");
+            message = "Listener start canceled.";
         }
         catch (Exception error) when (IsSetupFailure(error))
         {
-            RefreshState($"Listener did not start: {error.Message}");
+            message = $"Listener did not start: {error.Message}";
         }
         finally
         {
             m_startCancellation = null;
+            CompleteOperation(message);
         }
     }
 
@@ -338,30 +349,41 @@ internal sealed class ConnectionSetupDialog : Window
     {
         using var wait = CancellationTokenSource.CreateLinkedTokenSource(m_lifetime!.Token);
         m_waitCancellation = wait;
+        string? message = null;
+        SetBusy("Discovering the selected transport... Cancel operation releases this discovery only.");
+        int revision = m_setupRevision;
+        DiscoveredEndpoints = default;
+        DiscoverySetup = null;
+        m_discoveryCompleted = false;
         try
         {
             ConnectionSetupSelection setup = ReadSetup();
-            if (setup.ReverseConnection is null)
+            ArrayOf<EndpointDescription> endpoints =
+                await m_connection.DiscoverEndpointsAsync(setup, wait.Token).ConfigureAwait(true);
+            wait.Token.ThrowIfCancellationRequested();
+            if (revision != m_setupRevision || ReadIntent() != setup)
             {
-                throw new InvalidOperationException("Enable and explicitly start reverse connect before waiting.");
+                throw new InvalidOperationException(
+                    "The setup changed during discovery. Discover the current selection explicitly.");
             }
-            SetBusy("Waiting for the exact endpoint and ServerUri… Cancel wait releases this wait only.");
-            DiscoveredEndpoints = await m_connection.DiscoverEndpointsAsync(setup, wait.Token).ConfigureAwait(true);
+            DiscoveredEndpoints = endpoints;
             DiscoverySetup = setup;
-            RefreshState($"Matched server; {DiscoveredEndpoints.Count} endpoint/security descriptions discovered. " +
-                "Use setup to select one.");
+            m_discoveryCompleted = true;
+            message = $"{DiscoveredEndpoints.Count} endpoint/security descriptions discovered. " +
+                "Use setup, then Connect to select security and user identity. Discovery does not establish trust.";
         }
         catch (OperationCanceledException)
         {
-            RefreshState("Wait canceled. The explicitly started listener remains available until Stop or Cancel.");
+            message = "Discovery canceled. An explicitly started listener remains available until Stop or Cancel.";
         }
         catch (Exception error) when (IsSetupFailure(error))
         {
-            RefreshState($"No matching discovery result: {error.Message}");
+            message = $"No matching discovery result: {error.Message}";
         }
         finally
         {
             m_waitCancellation = null;
+            CompleteOperation(message);
         }
     }
 
@@ -375,51 +397,135 @@ internal sealed class ConnectionSetupDialog : Window
         {
             await cancellation.CancelAsync().ConfigureAwait(true);
         }
-        await m_backend.ReverseConnections.CancelWaitAsync().ConfigureAwait(true);
     }
 
-    private async Task StopListenerAsync()
+    private async Task StopListenerAsync(Task previous)
     {
+        string? message = null;
+        SetBusy("Stopping the owned reverse listener (disconnects the primary reverse session, if any)...");
+        m_stop.IsEnabled = false;
         try
         {
-            SetBusy("Stopping the owned reverse listener (disconnects the primary reverse session, if any)…");
+            await CancelWaitAsync().ConfigureAwait(true);
+            await previous.ConfigureAwait(true);
             await m_connection.StopReverseListenerAsync(m_lifetime!.Token).ConfigureAwait(true);
-            m_startedHere = false;
+            m_startedProfile = null;
             DiscoveredEndpoints = default;
             DiscoverySetup = null;
-            RefreshState();
+            m_discoveryCompleted = false;
         }
         catch (OperationCanceledException)
         {
-            RefreshState("Listener stop canceled.");
+            message = "Listener stop canceled.";
         }
         catch (Exception error) when (IsSetupFailure(error))
         {
-            RefreshState($"Listener stop failed: {error.Message}");
+            message = $"Listener stop failed: {error.Message}";
+        }
+        finally
+        {
+            CompleteOperation(message);
         }
     }
 
     private void SetBusy(string message)
     {
-        m_start.IsEnabled = false;
-        m_wait.IsEnabled = false;
-        m_cancelWait.IsEnabled = true;
-        m_cancelWait.Content = "Cancel operation";
-        m_status.Text = message;
+        m_operations++;
+        m_operationMessage = message;
+        RefreshState();
+    }
+
+    private void CompleteOperation(string? message)
+    {
+        m_operations--;
+        RefreshState(message);
+    }
+
+    private void OnSetupChanged()
+    {
+        m_setupRevision++;
+        DiscoveredEndpoints = default;
+        DiscoverySetup = null;
+        m_discoveryCompleted = false;
+        RefreshState();
+    }
+
+    private void RequireReadySetup(ConnectionSetupSelection setup)
+    {
+        ConnectionTransportReadiness readiness = Assess(setup);
+        foreach (ConnectionTransportCheck check in readiness.Checks)
+        {
+            if (check.State == ConnectionTransportCheckState.Blocked)
+            {
+                throw new InvalidOperationException(check.Detail);
+            }
+        }
+    }
+
+    private ConnectionTransportReadiness Assess(ConnectionSetupSelection setup)
+    {
+        return ConnectionTransportReadiness.Assess(m_backend.Transports, m_backend.Configurations, setup,
+            m_backend.ReverseConnections.Snapshot, m_selectedProfile, DiscoveredEndpoints, m_discoveryCompleted);
     }
 
     private void RefreshState(string? message = null)
     {
         ReverseConnectionSnapshot state = m_backend.ReverseConnections.Snapshot;
-        m_start.IsEnabled = state.Phase == ReverseConnectionPhase.Stopped;
-        m_wait.IsEnabled = state.Phase == ReverseConnectionPhase.Listening;
-        m_cancelWait.IsEnabled = state.Phase == ReverseConnectionPhase.Waiting;
-        m_cancelWait.Content = "Cancel wait";
-        m_stop.IsEnabled = state.Phase is not (ReverseConnectionPhase.Stopped or ReverseConnectionPhase.Stopping);
-        m_status.Text = message ?? $"Listener: {state.Phase}. " +
+        bool busy = m_operations != 0;
+        m_fields.IsEnabled = !m_pinned && !busy;
+        m_reverseFields.IsVisible = m_reverse.IsChecked == true;
+        m_start.IsEnabled = false;
+        m_wait.IsEnabled = false;
+        m_use.IsEnabled = false;
+        try
+        {
+            ConnectionTransportReadiness readiness = Assess(ReadIntent());
+            m_readiness.Text = string.Join(Environment.NewLine, readiness.Checks.ToList());
+            m_start.IsEnabled = !busy && readiness.CanStartListener;
+            m_wait.IsEnabled = !busy && readiness.CanDiscover;
+            m_use.IsEnabled = !busy && readiness.CanUseSetup;
+        }
+        catch (Exception error) when (IsSetupFailure(error))
+        {
+            m_readiness.Text = $"Setup blocked: {error.Message}";
+        }
+        m_wait.Content = m_reverse.IsChecked == true ? "Wait / discover" : "Discover endpoints";
+        m_cancelWait.IsEnabled = m_startCancellation is not null || m_waitCancellation is not null;
+        m_cancelWait.Content = "Cancel operation";
+        m_stop.IsEnabled = state.Phase is not (ReverseConnectionPhase.Stopped or ReverseConnectionPhase.Stopping)
+            && m_operations < 2 && (!busy || m_startCancellation is not null || m_waitCancellation is not null);
+        m_status.Text = busy ? m_operationMessage : message ?? $"Listener: {state.Phase}. " +
             (state.Profile is null
-                ? "No listener was started."
-                : $"{state.Profile.ListenerUrl} → {state.Profile.ServerUri}");
+                ? "Use setup saves intent only; it does not start a listener."
+                : $"{state.Profile.ListenerUrl} -> {state.Profile.ServerUri}");
+    }
+
+    private static int ReadSeconds(NumericUpDown control, int maximum, string name)
+    {
+        if (control.Value is not { } value || value < 1 || value > maximum || decimal.Truncate(value) != value)
+        {
+            throw new ArgumentException($"{name} must be a whole number from 1 to {maximum} seconds.");
+        }
+        return (int)value;
+    }
+
+    private static string? ReadReference(ComboBox picker)
+    {
+        return picker.SelectedItem is ConfigurationChoice selected
+            ? selected.Id
+            : throw new InvalidOperationException("Select an explicit configured source or the displayed default.");
+    }
+
+    private static void SelectReference(ComboBox picker, List<ConfigurationChoice> choices, string? id)
+    {
+        int index = choices.FindIndex(choice => string.Equals(choice.Id, id, StringComparison.Ordinal));
+        if (index < 0)
+        {
+            index = choices.Count;
+            choices.Add(new ConfigurationChoice(id, $"Unavailable saved configuration: {id}"));
+        }
+        picker.ItemsSource = choices;
+        picker.SelectedIndex = index;
     }
 
     private static bool IsSetupFailure(Exception error)
@@ -435,25 +541,43 @@ internal sealed class ConnectionSetupDialog : Window
         panel.Children.Add(control);
     }
 
+    private sealed record ConfigurationChoice(string? Id, string Label)
+    {
+        public override string ToString()
+        {
+            return Label;
+        }
+    }
+
     private readonly ConnectionService m_connection;
     private readonly IConfiguredConnectionBackend m_backend;
     private readonly ConnectionSetupSelection m_initial;
     private readonly bool m_pinned;
+    private readonly ConnectionProfile? m_selectedProfile;
+    private readonly StackPanel m_fields;
+    private readonly StackPanel m_reverseFields;
     private readonly TextBox m_endpoint;
     private readonly CheckBox m_reverse;
     private readonly TextBox m_listener;
     private readonly TextBox m_serverUri;
     private readonly NumericUpDown m_timeout;
+    private readonly NumericUpDown m_hold;
     private readonly ComboBox m_tls;
     private readonly ComboBox m_application;
     private readonly TextBlock m_status;
+    private readonly TextBlock m_readiness;
     private readonly Button m_start;
     private readonly Button m_wait;
     private readonly Button m_cancelWait;
     private readonly Button m_stop;
+    private readonly Button m_use;
     private CancellationTokenSource? m_lifetime;
     private CancellationTokenSource? m_waitCancellation;
     private CancellationTokenSource? m_startCancellation;
     private Task m_operation = Task.CompletedTask;
-    private bool m_startedHere;
+    private ReverseConnectionProfile? m_startedProfile;
+    private string? m_operationMessage;
+    private int m_operations;
+    private int m_setupRevision;
+    private bool m_discoveryCompleted;
 }

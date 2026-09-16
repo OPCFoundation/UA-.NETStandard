@@ -32,6 +32,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
@@ -57,18 +58,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        // GetCallingAssembly has to be called from the public entry point:
+        // inside a private helper it only ever reports this assembly, so every
+        // meter and activity source was named after Opc.Ua.Types.
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public Meter CreateMeter()
-        {
-            (string name, string version) = GetAssemblyInfo();
-            return new Meter(name, version);
-        }
-
-        /// <inheritdoc/>
-        public ActivitySource ActivitySource
-            => s_sources.GetOrAdd(GetAssemblyInfo(),
-                    key => new ActivitySource(key.Item1, key.Item2));
-
-        private static (string, string) GetAssemblyInfo()
         {
             Assembly assembly;
             try
@@ -79,6 +73,32 @@ namespace Opc.Ua
             {
                 assembly = typeof(TelemetryContextBase).Assembly;
             }
+            (string name, string version) = GetAssemblyInfo(assembly);
+            return new Meter(name, version);
+        }
+
+        /// <inheritdoc/>
+        public ActivitySource ActivitySource
+        {
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            get
+            {
+                Assembly assembly;
+                try
+                {
+                    assembly = Assembly.GetCallingAssembly();
+                }
+                catch (PlatformNotSupportedException)
+                {
+                    assembly = typeof(TelemetryContextBase).Assembly;
+                }
+                return s_sources.GetOrAdd(GetAssemblyInfo(assembly),
+                    key => new ActivitySource(key.Item1, key.Item2));
+            }
+        }
+
+        private static (string, string) GetAssemblyInfo(Assembly assembly)
+        {
             return s_cache.GetOrAdd(assembly, GetAssemblyInfoCore);
             static (string, string) GetAssemblyInfoCore(Assembly assembly)
             {

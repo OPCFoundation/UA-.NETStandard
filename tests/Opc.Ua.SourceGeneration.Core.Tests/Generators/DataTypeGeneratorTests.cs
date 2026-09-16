@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.IO;
 using Moq;
 using NUnit.Framework;
@@ -177,6 +178,238 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(capturedPath, Does.Contain("Test.DataTypes.g.cs"));
             Assert.That(capturedPath, Does.StartWith("C:\\output"));
             m_mockFileSystem.Verify(fs => fs.OpenWrite(It.IsAny<string>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Regression: a structure field named after a C# keyword produced
+        /// <c>public int event { ... }</c>, which does not compile. The property
+        /// identifier is escaped while the DataMember name - the wire name -
+        /// stays the authored one.
+        /// </summary>
+        [Test]
+        public void Emit_FieldNamedAfterAKeyword_EscapesThePropertyIdentifier()
+        {
+            string source = EmitStructureWithField("event", isUnion: false);
+
+            Assert.That(
+                source,
+                Does.Contain("@event"),
+                "the property identifier must be escaped");
+            Assert.That(
+                source,
+                Does.Contain("Name = \"event\""),
+                "the wire name stays the authored field name");
+        }
+
+        /// <summary>
+        /// Regression: a field whose name collides with a member the templates
+        /// emit on every generated data type (TypeId here) produced a duplicate
+        /// member. The property is renamed; the wire name is unaffected.
+        /// </summary>
+        [Test]
+        public void Emit_FieldNamedAfterAGeneratedMember_RenamesTheProperty()
+        {
+            string source = EmitStructureWithField("TypeId", isUnion: false);
+
+            Assert.That(source, Does.Contain("TypeIdField"));
+            Assert.That(
+                source,
+                Does.Contain("Name = \"TypeId\""),
+                "the wire name stays the authored field name");
+        }
+
+        /// <summary>
+        /// A union's switch enumeration, its case labels and the value it reads
+        /// and writes must all use the same escaped identifier.
+        /// </summary>
+        [Test]
+        public void Emit_UnionFieldNamedAfterAKeyword_IsConsistentAcrossTheType()
+        {
+            string source = EmitStructureWithField("event", isUnion: true);
+
+            Assert.That(
+                source,
+                Does.Contain("@event = 1"),
+                "the switch enumeration member is escaped");
+            Assert.That(
+                source,
+                Does.Contain("case TestUnionFields.@event:"),
+                "the case label uses the same identifier");
+            Assert.That(
+                source,
+                Does.Not.Contain("TestUnionFields.event:"),
+                "an unescaped keyword would not compile");
+        }
+
+        /// <summary>
+        /// The binary encoding mask is 32 bits wide (OPC 10000-6 5.2.7), so the
+        /// 33rd optional field has no bit to occupy. "1 &lt;&lt; 32" wraps back to 1
+        /// in C#, which would silently hand it the first field's bit and make
+        /// Encode set — and Decode read — the wrong presence flag.
+        /// </summary>
+        [Test]
+        public void Emit_StructureWithMoreThan32OptionalFields_Fails()
+        {
+            Assert.That(
+                () => EmitStructureWithOptionalFields(33),
+                Throws.InstanceOf<InvalidOperationException>());
+        }
+
+        /// <summary>
+        /// Exactly 32 optional fields fill the mask; the last one takes the
+        /// high bit rather than wrapping.
+        /// </summary>
+        [Test]
+        public void Emit_StructureWith32OptionalFields_UsesTheHighBit()
+        {
+            string source = EmitStructureWithOptionalFields(32);
+
+            Assert.That(source, Does.Contain("Field0 = 0x1,"));
+            Assert.That(source, Does.Contain("Field31 = 0x80000000,"));
+        }
+
+        private string EmitStructureWithOptionalFields(int count)
+        {
+            const string uri = "http://test.org/UA/";
+            const string typeName = "TestOptionalStructure";
+
+            var int32 = new DataTypeDesign
+            {
+                SymbolicId = new System.Xml.XmlQualifiedName(
+                    "Int32", Types.Namespaces.OpcUa),
+                SymbolicName = new System.Xml.XmlQualifiedName(
+                    "Int32", Types.Namespaces.OpcUa),
+                BasicDataType = BasicDataType.Int32,
+                NumericId = 6,
+                NumericIdSpecified = true
+            };
+
+            var fields = new Parameter[count];
+            for (int ii = 0; ii < count; ii++)
+            {
+                fields[ii] = new Parameter
+                {
+                    Name = "Field" + ii.ToString(CultureInfo.InvariantCulture),
+                    ValueRank = ValueRank.Scalar,
+                    IsOptional = true,
+                    DataType = int32.SymbolicId,
+                    DataTypeNode = int32
+                };
+            }
+
+            var structure = new DataTypeDesign
+            {
+                SymbolicId = new System.Xml.XmlQualifiedName(typeName, uri),
+                SymbolicName = new System.Xml.XmlQualifiedName(typeName, uri),
+                BrowseName = typeName,
+                ClassName = typeName,
+                BasicDataType = BasicDataType.UserDefined,
+                IsStructure = true,
+                // Selects the ClassWithOptionalFields template, which is what
+                // emits the encoding-mask Fields enumeration.
+                HasFields = true,
+                BaseType = new System.Xml.XmlQualifiedName(
+                    "Structure", Types.Namespaces.OpcUa),
+                BaseTypeNode = new DataTypeDesign
+                {
+                    SymbolicId = new System.Xml.XmlQualifiedName(
+                        "Structure", Types.Namespaces.OpcUa),
+                    SymbolicName = new System.Xml.XmlQualifiedName(
+                        "Structure", Types.Namespaces.OpcUa),
+                    BasicDataType = BasicDataType.Structure
+                },
+                Fields = fields
+            };
+            foreach (Parameter field in fields)
+            {
+                field.Parent = structure;
+            }
+
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([structure]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<Parameter>())).Returns(false);
+            m_mockModelDesign.Setup(m => m.UseAllowSubtypes).Returns(true);
+
+            using var fileSystem = new VirtualFileSystem();
+            m_context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = m_mockModelDesign.Object,
+                Telemetry = m_mockTelemetry.Object,
+                Options = new GeneratorOptions()
+            };
+
+            new DataTypeGenerator(m_context).Emit();
+
+            return System.Text.Encoding.UTF8.GetString(
+                fileSystem.Get(Path.Combine("out", "Test.DataTypes.g.cs")));
+        }
+
+        private string EmitStructureWithField(string fieldName, bool isUnion)
+        {
+            const string uri = "http://test.org/UA/";
+            string typeName = isUnion ? "TestUnion" : "TestStructure";
+
+            var int32 = new DataTypeDesign
+            {
+                SymbolicId = new System.Xml.XmlQualifiedName(
+                    "Int32", Types.Namespaces.OpcUa),
+                SymbolicName = new System.Xml.XmlQualifiedName(
+                    "Int32", Types.Namespaces.OpcUa),
+                BasicDataType = BasicDataType.Int32,
+                NumericId = 6,
+                NumericIdSpecified = true
+            };
+            var field = new Parameter
+            {
+                Name = fieldName,
+                ValueRank = ValueRank.Scalar,
+                DataType = int32.SymbolicId,
+                DataTypeNode = int32
+            };
+            var structure = new DataTypeDesign
+            {
+                SymbolicId = new System.Xml.XmlQualifiedName(typeName, uri),
+                SymbolicName = new System.Xml.XmlQualifiedName(typeName, uri),
+                BrowseName = typeName,
+                ClassName = typeName,
+                BasicDataType = BasicDataType.UserDefined,
+                IsStructure = true,
+                IsUnion = isUnion,
+                BaseType = new System.Xml.XmlQualifiedName(
+                    "Structure", Types.Namespaces.OpcUa),
+                BaseTypeNode = new DataTypeDesign
+                {
+                    SymbolicId = new System.Xml.XmlQualifiedName(
+                        "Structure", Types.Namespaces.OpcUa),
+                    SymbolicName = new System.Xml.XmlQualifiedName(
+                        "Structure", Types.Namespaces.OpcUa),
+                    BasicDataType = BasicDataType.Structure
+                },
+                Fields = [field]
+            };
+            field.Parent = structure;
+
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([structure]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+            m_mockModelDesign.Setup(m => m.IsExcluded(It.IsAny<Parameter>())).Returns(false);
+            m_mockModelDesign.Setup(m => m.UseAllowSubtypes).Returns(true);
+
+            using var fileSystem = new VirtualFileSystem();
+            m_context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = "out",
+                ModelDesign = m_mockModelDesign.Object,
+                Telemetry = m_mockTelemetry.Object,
+                Options = new GeneratorOptions()
+            };
+
+            new DataTypeGenerator(m_context).Emit();
+
+            return System.Text.Encoding.UTF8.GetString(
+                fileSystem.Get(Path.Combine("out", "Test.DataTypes.g.cs")));
         }
     }
 }

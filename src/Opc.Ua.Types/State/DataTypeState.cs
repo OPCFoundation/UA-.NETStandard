@@ -298,7 +298,9 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        m_dataTypeDefinition = dataTypeDefinition;
+                        // Through the property so the change mask is raised and
+                        // monitored items on the attribute are notified.
+                        DataTypeDefinition = dataTypeDefinition;
                     }
 
                     return result!;

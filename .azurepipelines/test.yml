@@ -19,11 +19,10 @@ parameters:
   default: ''
 # Test project discovery.  The defaults fan out over every *.Tests.csproj except
 # the tiers that are deliberately kept out of mainline CI (see #3810): AoT has
-# its own stage, and the stress / durable tiers run nightly.  The OneFuzz
-# validator contracts are excluded for the same reason as AoT: the project pins
-# net10.0 (it must match the net10.0-only drop it validates), so a legacy leg
-# invoking `dotnet test` for net48 fails with NETSDK1005 before
-# RestrictForLegacyTfm can empty it.  They run in the GitHub fuzz-public-drop job.
+# its own stage, and the stress / durable tiers run nightly. The OneFuzz
+# validator contracts run in the GitHub fuzz-public-drop job against its
+# net10.0-only drop. Framework eligibility is evaluated from each project's
+# MSBuild properties rather than maintained as a project-name exclusion list.
 - name: projectfilename
   type: string
   default: '*.Tests.csproj'
@@ -95,13 +94,23 @@ jobs:
     DOTNET_CLI_TELEMETRY_OPTOUT: true
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   steps:
+  - task: UseDotNet@2
+    displayName: 'Install .NET 10.0 for test discovery'
+    inputs:
+      packageType: 'sdk'
+      version: '10.0.x'
   - task: PowerShell@2
     name: testmatrix
     displayName: Prepare Tests
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
-      arguments: -FileName ${{ parameters.projectfilename }} -ExcludeFileName "${{ parameters.excludeprojects }}" -AgentTable ${{ parameters.agents }}
+      arguments: >-
+        -FileName "${{ parameters.projectfilename }}"
+        -ExcludeFileName "${{ parameters.excludeprojects }}"
+        -AgentTable ${{ parameters.agents }}
+        -TestFramework "${{ parameters.framework }}"
+        -CustomTestTarget "${{ parameters.customtestarget }}"
 - job: testall${{ parameters.jobnamesuffix }}
   displayName: Tests (${{ parameters.framework }})
   dependsOn: testprep${{ parameters.jobnamesuffix }}
@@ -132,13 +141,22 @@ jobs:
     # its tests on net48 - therefore run without the collector, and their gate
     # job below degrades to the test-result check.
     ${{ if and(parameters.coverage, not(startsWith(parameters.framework, 'net4')), not(startsWith(parameters.customtestarget, 'net4'))) }}:
-      CoverageArgs: '/p:CollectCoverage=true --collect:"XPlat Code Coverage" --settings ./tests/coverlet.runsettings.xml'
+      CoverageArgs: '/p:CollectCoverage=true --collect "XPlat Code Coverage" --settings ./tests/coverlet.runsettings.xml'
     ${{ else }}:
       CoverageArgs: ''
     ${{ if ne(parameters.testfilter, '') }}:
       TestFilterArgs: '--filter "${{ parameters.testfilter }}"'
     ${{ else }}:
       TestFilterArgs: ''
+    # Both runners use the same arguments so Xvfb cannot change test selection,
+    # coverage collection, diagnostics, or the TRX consumed by the result gate.
+    TestArguments: >-
+      --no-restore ${{ variables.DotCliCommandline }}
+      --configuration ${{ parameters.configuration }}
+      ${{ variables.CoverageArgs }} ${{ variables.TestFilterArgs }}
+      --blame-hang-timeout ${{ parameters.hangtimeout }} --blame-hang-dump-type mini
+      --blame-crash --blame-crash-dump-type mini
+      --logger trx --results-directory "$(Agent.TempDirectory)"
   pool:
     ${{ if and(ne(parameters.poolName, ''), not(parameters.hosted)) }}:
       name: ${{ parameters.poolName }}
@@ -198,7 +216,11 @@ jobs:
       projects: $(file)
       arguments: '${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }}'
   - task: DotNetCoreCLI@2
+    name: testWithoutXvfb
     displayName: Test ${{ parameters.configuration }}
+    condition: >-
+      and(succeeded(), not(and(eq(variables['Agent.OS'], 'Linux'),
+      eq(variables['file'], 'tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj'))))
     timeoutInMinutes: 90
     # continueOnError: a non-zero 'dotnet test' exit code no longer fails the job
     # directly - the "Evaluate test results" gate below decides pass/fail from the
@@ -243,8 +265,29 @@ jobs:
       # opcfoundation.visualstudio.com (observed on mac PR build 14614 log 737:
       # all 707 tests passed, then post-test publish errored with
       # "nodename nor servname provided, or not known" and failed the job).
-      arguments: '--no-restore ${{ variables.DotCliCommandline }} --configuration ${{ parameters.configuration }} ${{ variables.CoverageArgs }} ${{ variables.TestFilterArgs }} --blame-hang-timeout ${{ parameters.hangtimeout }} --blame-hang-dump-type mini --blame-crash --blame-crash-dump-type mini --logger trx --results-directory $(Agent.TempDirectory)'
+      arguments: '${{ variables.TestArguments }}'
       publishTestResults: false
+  - task: PowerShell@2
+    name: testWithXvfb
+    displayName: Test UaLens ${{ parameters.configuration }} under Xvfb
+    condition: >-
+      and(succeeded(), eq(variables['Agent.OS'], 'Linux'),
+      eq(variables['file'], 'tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj'))
+    timeoutInMinutes: 90
+    continueOnError: true
+    inputs:
+      targetType: inline
+      pwsh: true
+      workingDirectory: $(System.DefaultWorkingDirectory)
+      script: |
+        $ErrorActionPreference = 'Stop'
+        $PSNativeCommandUseErrorActionPreference = $false
+        if (-not (Get-Command xvfb-run -CommandType Application -ErrorAction SilentlyContinue))
+        {
+            throw 'UaLens desktop tests require xvfb-run on the Linux agent.'
+        }
+        xvfb-run -a dotnet test "$(file)" ${{ variables.TestArguments }}
+        exit $LASTEXITCODE
   - task: PublishTestResults@2
     displayName: 'Publish Test Results ${{ parameters.configuration }} (${{ parameters.framework }})'
     # succeededOrFailed() so test results land in AzDO even when tests failed;

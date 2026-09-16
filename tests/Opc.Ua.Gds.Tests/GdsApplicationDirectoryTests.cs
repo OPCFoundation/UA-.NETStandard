@@ -371,6 +371,38 @@ namespace Opc.Ua.Gds.Tests
                 "FindApplications with non-matching URI should return empty.");
         }
 
+        /// <summary>
+        /// OPC 10000-4 §7.7.3: the '^' shall be the first character of a list.
+        /// QueryServers used to accept '%[a^j-l]%' with Good
+        /// (CTT GDS Application Directory 078.js).
+        /// </summary>
+        [Test]
+        public async Task QueryServersWithInvalidPatternReturnsBadInvalidArgumentAsync()
+        {
+            CallResponse response = await Session.CallAsync(
+                null,
+                new CallMethodRequest[] {
+                    new() {
+                        ObjectId = m_directoryNodeId,
+                        MethodId = ToNodeId(MethodIds.Directory_QueryServers),
+                        InputArguments = new Variant[] {
+                            new(0u),
+                            new(0u),
+                            new(string.Empty),
+                            new("%[a^j-l]%"),
+                            new(string.Empty),
+                            new(Array.Empty<string>())
+                        }.ToArrayOf()
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(response.Results[0].OutputArguments, Is.Empty);
+        }
+
         [Test]
         public async Task GetApplicationWithValidIdReturnsDescriptionAsync()
         {
@@ -458,6 +490,50 @@ namespace Opc.Ua.Gds.Tests
         {
             var invalidId = new NodeId(Guid.NewGuid());
             Assert.ThrowsAsync<ServiceResultException>(async () => await UnregisterApplicationAsync(invalidId).ConfigureAwait(false));
+        }
+
+        /// <summary>
+        /// Several RegisterApplication calls in one Call request each get their
+        /// own result (CTT GDS Application Directory 019.js reports BadNotFound
+        /// for this request, but it never reaches the server).
+        /// </summary>
+        [Test]
+        public async Task RegisterApplicationBatchedInOneCallRequestAsync()
+        {
+            ApplicationRecordDataType[] records =
+            [
+                CreateTestApplicationRecord("Batch1", ApplicationType.Client),
+                CreateTestApplicationRecord("Batch2"),
+                CreateTestApplicationRecord("Batch3"),
+                CreateTestApplicationRecord("Batch4", ApplicationType.ClientAndServer)
+            ];
+            records[3].DiscoveryUrls = ["opc.tcp://localhost:4840/Batch4a", "opc.tcp://localhost:4840/Batch4b"];
+
+            NodeId methodId = ToNodeId(MethodIds.Directory_RegisterApplication);
+            CallResponse response = await Session.CallAsync(
+                null,
+                records.Select(record => new CallMethodRequest
+                {
+                    ObjectId = m_directoryNodeId,
+                    MethodId = methodId,
+                    InputArguments = new Variant[] { new(new ExtensionObject(record)) }.ToArrayOf()
+                }).ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(StatusCode.IsGood(response.ResponseHeader.ServiceResult), Is.True);
+            Assert.That(response.Results.Count, Is.EqualTo(records.Length));
+            var applicationIds = new List<NodeId>();
+            foreach (CallMethodResult result in response.Results)
+            {
+                Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                applicationIds.Add((NodeId)result.OutputArguments[0]);
+            }
+            Assert.That(applicationIds, Is.Unique);
+
+            foreach (NodeId applicationId in applicationIds)
+            {
+                await UnregisterApplicationAsync(applicationId).ConfigureAwait(false);
+            }
         }
 
         private async Task<NodeId> RegisterApplicationAsync(

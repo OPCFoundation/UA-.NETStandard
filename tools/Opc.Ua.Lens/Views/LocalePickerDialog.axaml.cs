@@ -45,9 +45,6 @@ namespace UaLens.Views;
 /// </summary>
 internal sealed partial class LocalePickerDialog : Window
 {
-    private readonly ConnectionService m_connection;
-    private readonly ObservableCollection<string> m_locales = new();
-
     public LocalePickerDialog(ConnectionService connection)
     {
         m_connection = connection ?? throw new ArgumentNullException(nameof(connection));
@@ -65,7 +62,7 @@ internal sealed partial class LocalePickerDialog : Window
         list.ItemsSource = m_locales;
 
         // Seed from the session if one is connected, else the .NET UI culture.
-        if (connection.Session is { } session)
+        if (connection.CurrentSession is { } session)
         {
             foreach (string l in session.PreferredLocales)
             {
@@ -127,7 +124,7 @@ internal sealed partial class LocalePickerDialog : Window
         };
         apply.Click += async (_, _) =>
         {
-            if (m_connection.Session is not { } session)
+            if (m_connection.CurrentSession is not { } session)
             {
                 Close();
                 return;
@@ -156,4 +153,7 @@ internal sealed partial class LocalePickerDialog : Window
     {
         AvaloniaXamlLoader.Load(this);
     }
+
+    private readonly ConnectionService m_connection;
+    private readonly ObservableCollection<string> m_locales = new();
 }

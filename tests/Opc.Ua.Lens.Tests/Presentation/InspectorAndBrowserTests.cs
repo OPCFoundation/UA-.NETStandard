@@ -53,6 +53,7 @@ public sealed class InspectorAndBrowserTests
         var pending = new TaskCompletionSource<ReadResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
         ArrayOf<ReadValueId> requested = [];
         var session = new Mock<ISession>(MockBehavior.Strict);
+        session.SetupGet(value => value.MessageContext).Returns(ServiceMessageContext.Create(Telemetry()));
         session.Setup(value => value.ReadAsync(
             null, 0, TimestampsToReturn.Neither, It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
             .Callback<RequestHeader?, double, TimestampsToReturn, ArrayOf<ReadValueId>, CancellationToken>(

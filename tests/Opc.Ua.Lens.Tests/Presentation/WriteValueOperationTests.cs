@@ -129,7 +129,8 @@ namespace UaLens.Tests.Presentation
                 .ReturnsAsync(new ReadResponse
                 {
                     Results = denied
-                        ? [new DataValue().WithStatus(StatusCodes.BadUserAccessDenied), new DataValue(), new DataValue()]
+                        ? [new DataValue().WithStatus(StatusCodes.BadUserAccessDenied),
+                            new DataValue(), new DataValue(), new DataValue()]
                         : []
                 });
             await using var operation = new WriteValueOperation(new NodeId("test", 1), session.Object);
@@ -184,6 +185,80 @@ namespace UaLens.Tests.Presentation
             Assert.That(operation.Outcome, Is.EqualTo(outcome).And.Not.Empty);
         }
 
+        [Test]
+        public async Task MatrixMetadataDimensionsAreCopiedBeforeEditing()
+        {
+            uint[] dimensions = [2, 3];
+            Mock<ISession> session = CreateSession();
+            session.Setup(value => value.ReadAsync(
+                null, 0, TimestampsToReturn.Neither, It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
+                .Callback<RequestHeader?, double, TimestampsToReturn, ArrayOf<ReadValueId>, CancellationToken>(
+                    (_, _, _, ids, _) =>
+                    {
+                        Assert.That(ids.Count, Is.EqualTo(4));
+                        Assert.That(ids[3].AttributeId, Is.EqualTo(Attributes.ArrayDimensions));
+                    })
+                .ReturnsAsync(new ReadResponse
+                {
+                    Results =
+                    [
+                        new DataValue(Variant.From(((ArrayOf<int>)[1, 2, 3, 4, 5, 6]).ToMatrix([2, 3]))),
+                        new DataValue(Variant.From(DataTypeIds.Int32)),
+                        new DataValue(Variant.From(2)),
+                        new DataValue(Variant.From(new ArrayOf<uint>(dimensions)))
+                    ]
+                });
+            await using var operation = new WriteValueOperation(new NodeId("test", 1), session.Object);
+            await operation.LoadAsync().ConfigureAwait(false);
+            dimensions[0] = 9;
+            Assert.That(operation.State, Is.EqualTo(WriteValueState.Editing));
+            Assert.That(operation.ValueRank, Is.EqualTo(2));
+            Assert.That(operation.ArrayDimensions.Count, Is.EqualTo(2));
+            Assert.That(operation.ArrayDimensions[0], Is.EqualTo(2));
+            Assert.That(operation.ArrayDimensions[1], Is.EqualTo(3));
+        }
+
+        [Test]
+        public async Task MalformedArrayDimensionsPreventWriting()
+        {
+            Mock<ISession> session = CreateSession();
+            session.Setup(value => value.ReadAsync(
+                null, 0, TimestampsToReturn.Neither, It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ReadResponse
+                {
+                    Results =
+                    [
+                        new DataValue(Variant.From(1)),
+                        new DataValue(Variant.From(DataTypeIds.Int32)),
+                        new DataValue(Variant.From(ValueRanks.Scalar)),
+                        new DataValue(Variant.From("not dimensions"))
+                    ]
+                });
+            await using var operation = new WriteValueOperation(new NodeId("test", 1), session.Object);
+            await operation.LoadAsync().ConfigureAwait(false);
+            await operation.WriteAsync(new DataValue(Variant.From(2))).ConfigureAwait(false);
+            Assert.That(operation.State, Is.EqualTo(WriteValueState.Failed));
+            Assert.That(operation.Outcome, Does.Contain("ArrayDimensions"));
+            Assert.That(operation.WasDispatched, Is.False);
+        }
+
+        [Test]
+        public async Task ParentCancellationAfterMetadataPreventsDispatch()
+        {
+            using var cancellation = new CancellationTokenSource();
+            Mock<ISession> session = CreateSession();
+            await using var operation = new WriteValueOperation(
+                new NodeId("test", 1), session.Object, cancellation.Token);
+            await operation.LoadAsync().ConfigureAwait(false);
+            Assert.That(operation.State, Is.EqualTo(WriteValueState.Editing));
+            await cancellation.CancelAsync().ConfigureAwait(false);
+            Assert.That(operation.CancellationToken.IsCancellationRequested, Is.True);
+            await operation.WriteAsync(new DataValue(Variant.From(2))).ConfigureAwait(false);
+            Assert.That(operation.WasDispatched, Is.False);
+            session.Verify(value => value.WriteAsync(
+                null, It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
         private static Mock<ISession> CreateSession()
         {
             var session = new Mock<ISession>(MockBehavior.Strict);
@@ -201,7 +276,8 @@ namespace UaLens.Tests.Presentation
                 [
                     new DataValue(Variant.From(1)),
                     new DataValue(Variant.From(DataTypeIds.Int32)),
-                    new DataValue(Variant.From(ValueRanks.Scalar))
+                    new DataValue(Variant.From(ValueRanks.Scalar)),
+                    new DataValue(Variant.From(ArrayOf<uint>.Empty))
                 ]
             };
         }

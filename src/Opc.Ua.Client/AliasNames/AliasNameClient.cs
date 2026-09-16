@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
 
 namespace Opc.Ua.Client.AliasNames
@@ -96,6 +97,7 @@ namespace Opc.Ua.Client.AliasNames
                 session,
                 categoryId,
                 session.MessageContext.Telemetry);
+            m_logger = session.MessageContext.Telemetry.CreateLogger<AliasNameClient>();
         }
 
         /// <summary>
@@ -445,35 +447,10 @@ namespace Opc.Ua.Client.AliasNames
                 throw new ServiceResultException(br.StatusCode);
             }
 
-            foreach (ReferenceDescription r in SnapshotReferences(br.References))
-            {
-                if (!r.TypeDefinition.Equals(ObjectTypeIds.AliasNameCategoryType))
-                {
-                    continue;
-                }
-                var localId = ExpandedNodeId.ToNodeId(
-                    r.NodeId, Session.NamespaceUris);
-                if (localId.IsNull)
-                {
-                    continue;
-                }
-                yield return new AliasNameSubCategoryInfo(
-                    localId,
-                    r.BrowseName,
-                    r.DisplayName);
-            }
-
             ByteString continuationPoint = br.ContinuationPoint;
-            while (!continuationPoint.IsEmpty)
+            try
             {
-                (_, continuationPoint, ArrayOf<ReferenceDescription> nextReferences) =
-                    await Session.BrowseNextAsync(
-                        requestHeader: null,
-                        releaseContinuationPoint: false,
-                        continuationPoint,
-                        ct).ConfigureAwait(false);
-
-                foreach (ReferenceDescription r in SnapshotReferences(nextReferences))
+                foreach (ReferenceDescription r in SnapshotReferences(br.References))
                 {
                     if (!r.TypeDefinition.Equals(ObjectTypeIds.AliasNameCategoryType))
                     {
@@ -490,12 +467,49 @@ namespace Opc.Ua.Client.AliasNames
                         r.BrowseName,
                         r.DisplayName);
                 }
+
+                while (!continuationPoint.IsEmpty)
+                {
+                    (_, continuationPoint, ArrayOf<ReferenceDescription> nextReferences) =
+                        await Session.BrowseNextAsync(
+                            requestHeader: null,
+                            releaseContinuationPoint: false,
+                            continuationPoint,
+                            ct).ConfigureAwait(false);
+
+                    foreach (ReferenceDescription r in SnapshotReferences(nextReferences))
+                    {
+                        if (!r.TypeDefinition.Equals(ObjectTypeIds.AliasNameCategoryType))
+                        {
+                            continue;
+                        }
+                        var localId = ExpandedNodeId.ToNodeId(
+                            r.NodeId, Session.NamespaceUris);
+                        if (localId.IsNull)
+                        {
+                            continue;
+                        }
+                        yield return new AliasNameSubCategoryInfo(
+                            localId,
+                            r.BrowseName,
+                            r.DisplayName);
+                    }
+                }
+            }
+            finally
+            {
+                // Part 4 §5.9.3.2 requires releasing a continuation point the
+                // client stops following.
+                await Session.ReleaseContinuationPointAsync(continuationPoint, m_logger)
+                    .ConfigureAwait(false);
             }
         }
 
         // --------------------------------------------------------------
         // Internal helpers
         // --------------------------------------------------------------
+
+        private readonly ILogger m_logger;
 
         private static ReferenceDescription[] SnapshotReferences(
             ArrayOf<ReferenceDescription> references)

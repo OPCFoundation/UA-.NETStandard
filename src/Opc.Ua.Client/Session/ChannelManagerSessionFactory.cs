@@ -85,6 +85,7 @@ namespace Opc.Ua.Client
             m_innerFactory = new DefaultSessionFactory(telemetry)
             {
                 TimeProvider = timeProvider,
+                SubscriptionEngineFactory = engineFactory,
                 SecurityPolicyRegistry = securityPolicies
             };
             ReturnDiagnostics = returnDiagnostics;
@@ -99,6 +100,26 @@ namespace Opc.Ua.Client
         /// is used.
         /// </summary>
         public ISecurityPolicyRegistry? SecurityPolicyRegistry { get; }
+
+        /// <inheritdoc/>
+        public ISubscriptionEngineFactory? SubscriptionEngineFactory => m_engineFactory;
+
+        /// <inheritdoc/>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="engineFactory"/> is <see langword="null"/>.
+        /// </exception>
+        public ISessionFactory WithSubscriptionEngine(
+            ISubscriptionEngineFactory engineFactory,
+            TimeProvider? timeProvider = null)
+        {
+            return new ChannelManagerSessionFactory(
+                m_manager,
+                Telemetry,
+                ReturnDiagnostics,
+                timeProvider ?? m_timeProvider,
+                engineFactory ?? throw new ArgumentNullException(nameof(engineFactory)),
+                SecurityPolicyRegistry);
+        }
 
         /// <inheritdoc/>
         public DiagnosticsMasks ReturnDiagnostics

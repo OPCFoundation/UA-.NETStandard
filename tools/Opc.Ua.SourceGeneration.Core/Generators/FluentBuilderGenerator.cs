@@ -551,6 +551,25 @@ namespace Opc.Ua.SourceGeneration
                 var seen = new Dictionary<string, ChildAccessor>(StringComparer.Ordinal);
                 foreach (ChildAccessor child in wrapper.Children)
                 {
+                    // The wrapper itself declares Builder and Node, and a member
+                    // may not carry the name of its enclosing class. A child
+                    // sanitizing to one of those would not compile.
+                    if (s_reservedWrapperMembers.Contains(child.AccessorName) ||
+                        string.Equals(
+                            child.AccessorName,
+                            wrapper.ClassName,
+                            StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException(CoreUtils.Format(
+                            "Fluent builder generation: child '{0}' on '{1}' " +
+                            "sanitizes to the C# accessor '{2}', which the " +
+                            "generated wrapper already declares. Rename the " +
+                            "child in the design.",
+                            child.BrowseName,
+                            wrapper.ClassName,
+                            child.AccessorName));
+                    }
+
                     if (seen.TryGetValue(child.AccessorName, out ChildAccessor existing))
                     {
                         throw new InvalidOperationException(CoreUtils.Format(
@@ -1835,6 +1854,13 @@ namespace Opc.Ua.SourceGeneration
         {
             return (leafName ?? string.Empty) + suffix;
         }
+
+        /// <summary>
+        /// Members every generated instance wrapper declares itself, which a child
+        /// accessor therefore cannot be named after.
+        /// </summary>
+        private static readonly HashSet<string> s_reservedWrapperMembers =
+            new(StringComparer.Ordinal) { "Builder", "Node" };
 
         private static string GetAccessorName(NodeDesign node)
         {

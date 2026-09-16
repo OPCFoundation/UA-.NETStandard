@@ -69,6 +69,62 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public void WithSubscriptionEngineReturnsAConfiguredCopyAndLeavesTheOriginal()
+        {
+            var registry = new Mock<ISecurityPolicyRegistry>().Object;
+            var original = new DefaultSessionFactory(m_telemetry)
+            {
+                ReturnDiagnostics = DiagnosticsMasks.All,
+                SecurityPolicyRegistry = registry,
+                TimeProvider = TimeProvider.System
+            };
+            ISubscriptionEngineFactory engine = new Mock<ISubscriptionEngineFactory>().Object;
+
+            ISessionFactory copy = original.WithSubscriptionEngine(engine);
+
+            Assert.That(copy, Is.Not.SameAs(original));
+            Assert.That(copy.SubscriptionEngineFactory, Is.SameAs(engine));
+            Assert.That(copy.ReturnDiagnostics, Is.EqualTo(DiagnosticsMasks.All));
+            Assert.That(copy.Telemetry, Is.SameAs(m_telemetry));
+            Assert.That(((DefaultSessionFactory)copy).SecurityPolicyRegistry, Is.SameAs(registry));
+            Assert.That(
+                ((DefaultSessionFactory)copy).TimeProvider,
+                Is.SameAs(TimeProvider.System),
+                "no time provider given keeps the factory's own");
+            Assert.That(original.SubscriptionEngineFactory, Is.Null, "a shared factory must not be mutated");
+        }
+
+        [Test]
+        public void WithSubscriptionEngineKeepsTheSubclassAndOverridesTheTimeProvider()
+        {
+            var original = new DerivedSessionFactory(m_telemetry);
+            ISubscriptionEngineFactory engine = new Mock<ISubscriptionEngineFactory>().Object;
+            var timeProvider = new Mock<TimeProvider>().Object;
+
+            ISessionFactory copy = original.WithSubscriptionEngine(engine, timeProvider);
+
+            Assert.That(copy, Is.TypeOf<DerivedSessionFactory>(), "a subclass's overrides must survive");
+            Assert.That(((DefaultSessionFactory)copy).TimeProvider, Is.SameAs(timeProvider));
+            Assert.That(original.TimeProvider, Is.Null);
+        }
+
+        [Test]
+        public void WithSubscriptionEngineRejectsANullEngine()
+        {
+            var factory = new DefaultSessionFactory(m_telemetry);
+
+            Assert.Throws<ArgumentNullException>(() => factory.WithSubscriptionEngine(null!));
+        }
+
+        private sealed class DerivedSessionFactory : DefaultSessionFactory
+        {
+            public DerivedSessionFactory(ITelemetryContext telemetry)
+                : base(telemetry)
+            {
+            }
+        }
+
+        [Test]
         public void ReturnDiagnosticsCanBeSet()
         {
             var factory = new DefaultSessionFactory(m_telemetry)

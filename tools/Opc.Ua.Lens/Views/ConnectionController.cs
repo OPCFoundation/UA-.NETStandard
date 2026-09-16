@@ -170,7 +170,7 @@ internal sealed class ConnectionController
 
     private async Task PublishingPipelineAsync()
     {
-        if (m_vm.Connection.Session is not { } session)
+        if (m_vm.Connection.CurrentSession is not { } session)
         {
             m_vm.ConnectionStatus = "Connect to change the publish pipeline.";
             return;
@@ -264,7 +264,7 @@ internal sealed class ConnectionController
         ArrayOf<EndpointDescription> endpoints = default;
         if (profile.ReverseConnection is not null)
         {
-            var dialog = new ConnectionSetupDialog(m_vm.Connection, setup, pinned: true);
+            var dialog = new ConnectionSetupDialog(m_vm.Connection, setup, pinned: true, selectedProfile: profile);
             if (await dialog.PromptAsync(m_window, cancellationToken).ConfigureAwait(true) is null)
             {
                 return;
@@ -407,12 +407,17 @@ internal sealed class ConnectionController
         {
             ConnectionProfile? profile = m_vm.RestoredConnectionProfile ?? m_vm.Connection.Profile;
             ConnectionSetupSelection initial = m_vm.RestoredConnectionProfile is { } restored
-                ? new ConnectionSetupSelection(restored.EndpointUrl, restored.ReverseConnection, restored.ApplicationIdentityId)
-                : m_setup ??
-                    new ConnectionSetupSelection(
-                        profile?.EndpointUrl ?? m_vm.EndpointUrl, profile?.ReverseConnection, profile?.ApplicationIdentityId);
+                ? new ConnectionSetupSelection(
+                    restored.EndpointUrl,
+                    restored.ReverseConnection,
+                    restored.ApplicationIdentityId)
+                : m_setup ?? new ConnectionSetupSelection(
+                    profile?.EndpointUrl ?? m_vm.EndpointUrl,
+                    profile?.ReverseConnection,
+                    profile?.ApplicationIdentityId);
             var dialog = new ConnectionSetupDialog(
-                m_vm.Connection, initial, pinned: m_vm.RestoredConnectionProfile is not null);
+                m_vm.Connection, initial, pinned: m_vm.RestoredConnectionProfile is not null,
+                selectedProfile: m_vm.RestoredConnectionProfile);
             ConnectionSetupSelection? selected = await dialog.PromptAsync(m_window).ConfigureAwait(true);
             if (selected is not null)
             {

@@ -414,13 +414,14 @@ namespace Opc.Ua.Server
                     // use the default if no translation available.
                     if (translatedText == null)
                     {
-                        return defaultText.FilterByPreferredLocales(preferredLocales);
+                        return preferredLocales.Count > 0 && defaultText.Translations == null && info.Text != null
+                            ? new LocalizedText(info)
+                            : defaultText.FilterByPreferredLocales(preferredLocales);
                     }
                 }
 
                 // construct translated localized text.
-                return new LocalizedText(new TranslationInfo(
-                    info.Key, culture.Name, translatedText, info.Args));
+                return new LocalizedText(culture.Name, translatedText, info);
             }
         }
 

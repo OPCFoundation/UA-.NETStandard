@@ -100,7 +100,8 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     private readonly ILogger m_log;
     private readonly IGdsPushClient? m_operationsClient;
 
-    private ServerPushConfigurationClient? m_client;
+    private IServerPushConfigurationClient? m_client;
+    private readonly Func<ApplicationConfiguration, IServerPushConfigurationClient> m_createClient;
     private GdsPushView? m_view;
     private CancellationTokenSource? m_busyCts;
     private readonly Timer m_statusTimer;
@@ -235,8 +236,17 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     public IReadOnlyList<TrustListMasks> TrustListMaskOptions { get; } = Enum.GetValues<TrustListMasks>();
 
     public GdsPushPlugin(PluginHost host, IGdsPushClient? client = null)
+        : this(host, static configuration => new ServerPushConfigurationClient(configuration), client)
+    {
+    }
+
+    internal GdsPushPlugin(
+        PluginHost host,
+        Func<ApplicationConfiguration, IServerPushConfigurationClient> createClient,
+        IGdsPushClient? client = null)
     {
         m_host = host ?? throw new ArgumentNullException(nameof(host));
+        m_createClient = createClient ?? throw new ArgumentNullException(nameof(createClient));
         m_log = host.Log;
         m_operationsClient = client;
         int n = Interlocked.Increment(ref s_nextNumber);
@@ -271,9 +281,9 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         }
     }
 
-    private bool OuterIsSuitable() => GdsSessionHelper.IsOuterSuitable(m_host.Connection.Session);
+    private bool OuterIsSuitable() => GdsSessionHelper.IsOuterSuitable(m_host.Connection.CurrentSession);
 
-    private bool OuterIsInsecure() => GdsSessionHelper.IsOuterInsecure(m_host.Connection.Session);
+    private bool OuterIsInsecure() => GdsSessionHelper.IsOuterInsecure(m_host.Connection.CurrentSession);
 
     private void SetSecondaryConnected(bool value)
     {
@@ -463,7 +473,8 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         try
         {
             ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync(ct).ConfigureAwait(true);
-            var client = new ServerPushConfigurationClient(cfg);
+            IServerPushConfigurationClient client = m_createClient(cfg);
+            m_client = client;
             client.AdminCredentialsRequired += OnAdminCredentialsRequired;
             client.KeepAlive += OnKeepAlive;
             client.AdminCredentials = pick.Identity;
@@ -499,7 +510,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     /// the picker flow.  Returns null if the user cancels or the
     /// connect attempt fails.
     /// </summary>
-    private async Task<ServerPushConfigurationClient?> EnsureSessionAsync(CancellationToken ct)
+    private async Task<IServerPushConfigurationClient?> EnsureSessionAsync(CancellationToken ct)
     {
         if (m_client is { Session: { Connected: true } } good)
         {
@@ -533,7 +544,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     /// </summary>
     private async Task<bool> TryAutoPiggybackAsync(CancellationToken ct)
     {
-        if (m_host.Connection.Session is not { Connected: true } outer
+        if (m_host.Connection.CurrentSession is not { Connected: true } outer
             || outer.ConfiguredEndpoint?.Description is not { } desc)
         {
             return false;
@@ -551,7 +562,8 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
 #pragma warning disable CA2000
             IUserIdentity identity = new UserIdentity(new AnonymousIdentityToken());
 #pragma warning restore CA2000
-            var client = new ServerPushConfigurationClient(cfg);
+            IServerPushConfigurationClient client = m_createClient(cfg);
+            m_client = client;
             client.AdminCredentialsRequired += OnAdminCredentialsRequired;
             client.KeepAlive += OnKeepAlive;
             client.AdminCredentials = identity;
@@ -653,7 +665,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         {
             return m_operationsClient;
         }
-        ServerPushConfigurationClient? client = await EnsureSessionAsync(cancellationToken).ConfigureAwait(true);
+        IServerPushConfigurationClient? client = await EnsureSessionAsync(cancellationToken).ConfigureAwait(true);
         return client is null ? null : new GdsPushClientAdapter(client);
     }
 
@@ -700,12 +712,13 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         IsBusy = true;
         try
         {
-            ServerPushConfigurationClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IServerPushConfigurationClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(
+                true);
             if (client is null)
             {
                 return;
             }
-            Opc.Ua.Security.Certificates.CertificateCollection rejected = await client.GetRejectedListAsync(
+            using Opc.Ua.Security.Certificates.CertificateCollection rejected = await client.GetRejectedListAsync(
                 CancellationToken.None).ConfigureAwait(true);
             Rejected.Clear();
             foreach (Opc.Ua.Security.Certificates.Certificate cert in rejected)
@@ -861,7 +874,8 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         }
         try
         {
-            ServerPushConfigurationClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IServerPushConfigurationClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(
+                true);
             if (client is null)
             {
                 return;
@@ -939,7 +953,8 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         IsBusy = true;
         try
         {
-            ServerPushConfigurationClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            IServerPushConfigurationClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(
+                true);
             if (client is null)
             {
                 return;
@@ -1005,7 +1020,10 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
-    private void PopulateTrustList(TrustListDataType list, Opc.Ua.Security.Certificates.CertificateCollection rejected, TrustListMasks masks)
+    private void PopulateTrustList(
+        TrustListDataType list,
+        Opc.Ua.Security.Certificates.CertificateCollection rejected,
+        TrustListMasks masks)
     {
         Trusted.Clear();
         Issuers.Clear();
@@ -1093,7 +1111,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
 
     private async Task SafeDisposeClientAsync()
     {
-        ServerPushConfigurationClient? client = m_client;
+        IServerPushConfigurationClient? client = m_client;
         if (client is null)
         {
             return;

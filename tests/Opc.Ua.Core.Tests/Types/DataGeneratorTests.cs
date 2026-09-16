@@ -136,5 +136,115 @@ namespace Opc.Ua.Core.Tests.Types
                 "GetRandomNodeId(useBoundaryValues: true) never returned a null " +
                 "node id, so the boundary values are no longer reachable.");
         }
+
+        /// <summary>
+        /// The random bits are read back as a double. They used to be read back
+        /// as a float and widened, so the generator never produced a value
+        /// outside the float range and the whole upper exponent range of the
+        /// type went untested by everything built on it.
+        /// </summary>
+        [Test]
+        public void GetRandomDoubleCoversTheFullDoubleRange()
+        {
+            var generator = new DataGenerator(new RandomSource(42), NUnitTelemetryContext.Create());
+            bool sawBeyondSingleRange = false;
+
+            for (int ii = 0; ii < 2000 && !sawBeyondSingleRange; ii++)
+            {
+                double value = generator.GetRandomDouble();
+
+                sawBeyondSingleRange = !double.IsNaN(value) &&
+                    !double.IsInfinity(value) &&
+                    System.Math.Abs(value) > float.MaxValue;
+            }
+
+            Assert.That(sawBeyondSingleRange, Is.True,
+                "GetRandomDouble never produced a finite value outside the range " +
+                "of a float, so it is still reading the random bits as a float.");
+        }
+
+        /// <summary>
+        /// The typed array generators honour the type they picked. They used to
+        /// pick one and then fill the array from the unconstrained variant
+        /// generator, so an "integer array" could come back full of strings and
+        /// date times.
+        /// </summary>
+        [TestCaseSource(nameof(TypedArrayCases))]
+        public void TypedVariantArraysHoldOnlyTheirOwnTypes(
+            string name,
+            BuiltInType[] allowed)
+        {
+            var generator = new DataGenerator(new RandomSource(42), NUnitTelemetryContext.Create());
+
+            for (int attempt = 0; attempt < 50; attempt++)
+            {
+                Variant[] values = GenerateTypedArray(generator, name);
+
+                foreach (Variant value in values)
+                {
+                    Assert.That(
+                        value.TypeInfo.BuiltInType,
+                        Is.AnyOf(allowed),
+                        $"{name} produced a {value.TypeInfo.BuiltInType} element.");
+                }
+            }
+        }
+
+        private static Variant[] GenerateTypedArray(DataGenerator generator, string name)
+        {
+            return name switch
+            {
+                nameof(DataGenerator.GetRandomUIntegerArray) =>
+                    generator.GetRandomUIntegerArray(false, 16, true),
+                nameof(DataGenerator.GetRandomIntegerArray) =>
+                    generator.GetRandomIntegerArray(false, 16, true),
+                _ => generator.GetRandomNumberArray(false, 16, true)
+            };
+        }
+
+        public static IEnumerable<object[]> TypedArrayCases()
+        {
+            yield return
+            [
+                nameof(DataGenerator.GetRandomUIntegerArray),
+                new[]
+                {
+                    BuiltInType.Byte,
+                    BuiltInType.UInt16,
+                    BuiltInType.UInt32,
+                    BuiltInType.UInt64
+                }
+            ];
+
+            yield return
+            [
+                nameof(DataGenerator.GetRandomIntegerArray),
+                new[]
+                {
+                    BuiltInType.SByte,
+                    BuiltInType.Int16,
+                    BuiltInType.Int32,
+                    BuiltInType.Int64
+                }
+            ];
+
+            yield return
+            [
+                nameof(DataGenerator.GetRandomNumberArray),
+                new[]
+                {
+                    BuiltInType.SByte,
+                    BuiltInType.Byte,
+                    BuiltInType.Int16,
+                    BuiltInType.UInt16,
+                    BuiltInType.Int32,
+                    BuiltInType.UInt32,
+                    BuiltInType.Int64,
+                    BuiltInType.UInt64,
+                    BuiltInType.Float,
+                    BuiltInType.Double
+                }
+            ];
+        }
     }
 }

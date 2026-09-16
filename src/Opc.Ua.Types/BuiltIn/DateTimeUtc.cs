@@ -330,7 +330,8 @@ namespace Opc.Ua
         /// </summary>
         public DateTimeUtc AddMilliseconds(double milliseconds)
         {
-            return new DateTimeUtc(Value + (long)(milliseconds * TimeSpan.TicksPerMillisecond));
+            return new DateTimeUtc(
+                SaturatingAdd(Value, MillisecondsToTicks(milliseconds)));
         }
 
         /// <summary>
@@ -338,7 +339,8 @@ namespace Opc.Ua
         /// </summary>
         public DateTimeUtc SubtractMilliseconds(double milliseconds)
         {
-            return new DateTimeUtc(Value - (long)(milliseconds * TimeSpan.TicksPerMillisecond));
+            return new DateTimeUtc(
+                SaturatingSubtract(Value, MillisecondsToTicks(milliseconds)));
         }
 
         /// <summary>
@@ -354,7 +356,7 @@ namespace Opc.Ua
         /// </summary>
         public DateTimeUtc Add(TimeSpan value)
         {
-            return new DateTimeUtc(Value + value.Ticks);
+            return new DateTimeUtc(SaturatingAdd(Value, value.Ticks));
         }
 
         /// <summary>
@@ -362,7 +364,7 @@ namespace Opc.Ua
         /// </summary>
         public DateTimeUtc Subtract(TimeSpan value)
         {
-            return new DateTimeUtc(Value - value.Ticks);
+            return new DateTimeUtc(SaturatingSubtract(Value, value.Ticks));
         }
 
         /// <inheritdoc/>
@@ -444,16 +446,16 @@ namespace Opc.Ua
         public static DateTimeUtc Parse(ReadOnlySpan<char> s, IFormatProvider? provider)
         {
 #if NET8_0_OR_GREATER
-            return DateTime.Parse(s, provider);
+            return DateTime.Parse(s, provider, kParseStyles);
 #else
-            return DateTime.Parse(new string(s.ToArray()), provider);
+            return DateTime.Parse(new string(s.ToArray()), provider, kParseStyles);
 #endif
         }
 
         /// <inheritdoc/>
         public static DateTimeUtc Parse(string s, IFormatProvider? provider)
         {
-            return DateTime.Parse(s, provider);
+            return DateTime.Parse(s, provider, kParseStyles);
         }
 
         /// <inheritdoc/>
@@ -465,7 +467,7 @@ namespace Opc.Ua
             if (DateTime.TryParse(
                 s,
                 provider,
-                DateTimeStyles.AssumeUniversal,
+                kParseStyles,
                 out DateTime dt))
             {
                 result = dt;
@@ -488,7 +490,7 @@ namespace Opc.Ua
                 new string(s.ToArray()),
 #endif
                 provider,
-                DateTimeStyles.AssumeUniversal,
+                kParseStyles,
                 out DateTime dt))
             {
                 result = dt;
@@ -558,6 +560,65 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Adds a tick offset without wrapping around. <see cref="Value"/>
+        /// reports <see cref="long.MaxValue"/> for the "no expiry" sentinel, so
+        /// plain addition overflows into a negative file time and the bounds
+        /// check would then clamp it to <see cref="MinValue"/>.
+        /// </summary>
+        private static long SaturatingAdd(long value, long ticks)
+        {
+            long result = unchecked(value + ticks);
+            if (ticks > 0 && result < value)
+            {
+                return long.MaxValue;
+            }
+            if (ticks < 0 && result > value)
+            {
+                return long.MinValue;
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Subtracts a tick offset without wrapping around. Negating
+        /// <see cref="long.MinValue"/> is not representable - unchecked it
+        /// yields <see cref="long.MinValue"/> again - so subtracting the most
+        /// negative offset, which is mathematically a very large addition,
+        /// would saturate to <see cref="MinValue"/> instead of
+        /// <see cref="MaxValue"/>.
+        /// </summary>
+        private static long SaturatingSubtract(long value, long ticks)
+        {
+            return ticks == long.MinValue
+                ? long.MaxValue
+                : SaturatingAdd(value, -ticks);
+        }
+
+        /// <summary>
+        /// Converts a millisecond offset to ticks. A double to long conversion
+        /// saturates on .NET 5 and later but yields <see cref="long.MinValue"/>
+        /// for NaN and for out of range values on .NET Framework, so the
+        /// conversion is done explicitly to keep every target identical.
+        /// </summary>
+        private static long MillisecondsToTicks(double milliseconds)
+        {
+            double ticks = milliseconds * TimeSpan.TicksPerMillisecond;
+            if (double.IsNaN(ticks))
+            {
+                return 0;
+            }
+            if (ticks >= long.MaxValue)
+            {
+                return long.MaxValue;
+            }
+            if (ticks <= long.MinValue)
+            {
+                return long.MinValue;
+            }
+            return (long)ticks;
+        }
+
+        /// <summary>
         /// Ensure the file time is in the correct boundaries defined
         /// by the specification
         /// </summary>
@@ -579,7 +640,11 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static DateTimeUtc From(string s)
         {
-            return DateTime.ParseExact(s, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+            return DateTime.ParseExact(
+                s,
+                "yyyy-MM-dd HH:mm:ss",
+                CultureInfo.InvariantCulture,
+                kParseStyles);
         }
 
         /// <inheritdoc/>
@@ -605,6 +670,14 @@ namespace Opc.Ua
         {
             return ToDateTime().ToString(format, provider);
         }
+
+        /// <summary>
+        /// Text without a time zone designator denotes UTC, not machine local
+        /// time. Without this a zone-less timestamp is shifted by the local
+        /// offset when it is converted into the UTC file time.
+        /// </summary>
+        private const DateTimeStyles kParseStyles =
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal;
 
         private const long kMaxValue = 2650467743990000000;
         private const long kTickOffset = 584388 * TimeSpan.TicksPerDay;

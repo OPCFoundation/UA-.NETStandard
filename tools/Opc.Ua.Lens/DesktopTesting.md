@@ -6,6 +6,13 @@ run does not execute these cases. The runner rejects a missing display, missing
 TRX, zero tests, an unexpected count, duplicate test identities, skipped tests,
 and any failed case.
 
+The count gate selects its named regression methods, not the whole `Desktop`
+namespace. Additional workflow tests use their own process-owned dispatcher
+and the explicit `LensDesktopWorkflow` category. Run them separately from both
+the count gate and ordinary unit tests: the two desktop hosts must not initialize
+Avalonia in the same process, and ordinary chart and offline tests require no
+Avalonia application.
+
 ## Prerequisites and command
 
 - .NET SDK 10 and PowerShell 7.
@@ -61,6 +68,26 @@ one UI thread, uses STA on Windows, installs Avalonia's synchronization context,
 and runs the native dispatcher message loop. NUnit awaits each submitted task;
 it does not block a task with `Wait`, `Result`, or a nested modal test pump.
 Namespace teardown awaits termination of the dispatcher.
+
+## Connected desktop workflow lane
+
+The `LensDesktopWorkflow` category exercises editing, commissioning, connected
+administration, browsing, subscriptions, and document lifecycles through injected
+protocol clients. These cases use real native windows but do not require a remote
+OPC UA server. Class or method-level explicit markers keep their process-owned
+dispatcher out of ordinary unit-test runs, including runs without a display.
+
+After building the matching Release graph, run the category in a fresh process:
+
+```bash
+dotnet test tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj \
+  -c Release -f net10.0 -p:CustomTestTarget=net10.0 --no-build --no-restore \
+  --filter 'TestCategory=LensDesktopWorkflow' \
+  -- NUnit.ExplicitMode=Relaxed NUnit.NumberOfTestWorkers=0
+```
+
+The Windows desktop CI job runs this category after the separate 24-case gate.
+Do not combine their filters or select the whole `Desktop` namespace.
 
 ## NodeSet2 explorer lane
 

@@ -183,6 +183,7 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
                     ? await offline.ReadAsync([.. idList], ct).ConfigureAwait(false)
                     : await session!.ReadAsync(null, 0, TimestampsToReturn.Neither,
                         new ArrayOf<ReadValueId>(idList.ToArray()), ct).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
                 int i = 0;
                 foreach (NodeId rt in refTypeIds)
                 {

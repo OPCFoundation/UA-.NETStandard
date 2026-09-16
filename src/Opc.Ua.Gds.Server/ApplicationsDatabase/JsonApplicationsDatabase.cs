@@ -71,6 +71,15 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     if (db != null)
                     {
                         db.FileName = fileName;
+                        lock (db.Lock)
+                        {
+                            if (db.AssignServerEndpointIds())
+                            {
+                                // Persist the identifiers of endpoints saved
+                                // before endpoints had an identifier.
+                                db.Save();
+                            }
+                        }
                         return db;
                     }
                 }

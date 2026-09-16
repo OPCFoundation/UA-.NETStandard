@@ -91,6 +91,47 @@ namespace Opc.Ua.Server.Tests.AliasNames
             Assert.That(AliasNameWildcardMatcher.IsMatch(null, null), Is.False);
         }
 
+        /// <summary>
+        /// Part 17 §6.3.2 / Part 4 §7.7.3: malformed Like patterns are not
+        /// valid search strings (CTT AliasName Base Err-001..Err-003).
+        /// </summary>
+        [TestCase("A[")]
+        [TestCase(@"A\")]
+        [TestCase(@"A\\\")]
+        [TestCase("A[]")]
+        [TestCase("A[!]")]
+        [TestCase(@"A[a\]")]
+        [TestCase("A[z-a]")]
+        public void InvalidPatternsAreRejectedAndMatchNothing(string pattern)
+        {
+            Assert.That(AliasNameWildcardMatcher.IsValidPattern(pattern), Is.False);
+            Assert.That(AliasNameWildcardMatcher.IsMatch("A[", pattern), Is.False);
+            Assert.That(AliasNameWildcardMatcher.IsMatch(@"A\", pattern), Is.False);
+        }
+
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase("%")]
+        [TestCase(@"A\\")]
+        [TestCase(@"A\[")]
+        [TestCase("abc[13-68]")]
+        [TestCase("[^Ss]ensor")]
+        [TestCase("5[%]")]
+        public void ValidPatternsAreAccepted(string pattern)
+        {
+            Assert.That(AliasNameWildcardMatcher.IsValidPattern(pattern), Is.True);
+        }
+
+        [Test]
+        public void EscapedSpecialCharactersMatchLiterally()
+        {
+            Assert.That(AliasNameWildcardMatcher.IsMatch(@"A\", @"A\\"), Is.True);
+            Assert.That(AliasNameWildcardMatcher.IsMatch("A[", @"A\["), Is.True);
+            Assert.That(AliasNameWildcardMatcher.IsMatch("5%", "5[%]"), Is.True);
+            Assert.That(AliasNameWildcardMatcher.IsMatch("abc4", "abc[13-68]"), Is.True);
+            Assert.That(AliasNameWildcardMatcher.IsMatch("abc2", "abc[13-68]"), Is.False);
+        }
+
         [Test]
         public void RegexMetaCharactersAreEscaped()
         {

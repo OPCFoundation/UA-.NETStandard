@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
@@ -50,10 +51,30 @@ namespace Opc.Ua.Client
     /// </remarks>
     public class ManagedSessionFactory : ISessionFactory
     {
-        private readonly DefaultSessionFactory m_innerFactory;
+        private DefaultSessionFactory m_innerFactory;
 
         /// <inheritdoc/>
         public ITelemetryContext Telemetry { get; init; }
+
+        /// <inheritdoc/>
+        public ISubscriptionEngineFactory? SubscriptionEngineFactory
+            => m_innerFactory.SubscriptionEngineFactory;
+
+        /// <inheritdoc/>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="engineFactory"/> is <see langword="null"/>.
+        /// </exception>
+        public virtual ISessionFactory WithSubscriptionEngine(
+            ISubscriptionEngineFactory engineFactory,
+            TimeProvider? timeProvider = null)
+        {
+            // A shallow copy keeps the runtime type and its overrides; only
+            // the inner factory is swapped, so this instance is untouched.
+            var copy = (ManagedSessionFactory)MemberwiseClone();
+            copy.m_innerFactory = (DefaultSessionFactory)m_innerFactory
+                .WithSubscriptionEngine(engineFactory, timeProvider);
+            return copy;
+        }
 
         /// <inheritdoc/>
         public DiagnosticsMasks ReturnDiagnostics
@@ -91,6 +112,9 @@ namespace Opc.Ua.Client
                 sessionTimeout,
                 preferredLocales,
                 checkDomain: false,
+                updateBeforeConnect,
+                connection: null,
+                reverseConnectManager: null,
                 ct).ConfigureAwait(false);
         }
 
@@ -114,6 +138,9 @@ namespace Opc.Ua.Client
                 sessionTimeout,
                 preferredLocales,
                 checkDomain,
+                updateBeforeConnect,
+                connection: null,
+                reverseConnectManager: null,
                 ct).ConfigureAwait(false);
         }
 
@@ -138,6 +165,9 @@ namespace Opc.Ua.Client
                 sessionTimeout,
                 preferredLocales,
                 checkDomain,
+                updateBeforeConnect,
+                connection,
+                reverseConnectManager: null,
                 ct).ConfigureAwait(false);
         }
 
@@ -162,6 +192,9 @@ namespace Opc.Ua.Client
                 sessionTimeout,
                 preferredLocales,
                 checkDomain,
+                updateBeforeConnect,
+                connection: null,
+                reverseConnectManager,
                 ct).ConfigureAwait(false);
         }
 
@@ -237,6 +270,9 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             ArrayOf<string> preferredLocales,
             bool checkDomain,
+            bool updateBeforeConnect,
+            ITransportWaitingConnection? connection,
+            ReverseConnectManager? reverseConnectManager,
             CancellationToken ct)
         {
             return ManagedSession.CreateAsync(
@@ -249,6 +285,9 @@ namespace Opc.Ua.Client
                 sessionTimeout: sessionTimeout,
                 preferredLocales: preferredLocales,
                 checkDomain: checkDomain,
+                reverseConnectManager: reverseConnectManager,
+                connection: connection,
+                updateBeforeConnect: updateBeforeConnect,
                 ct: ct);
         }
     }

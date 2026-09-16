@@ -545,11 +545,11 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Clone the byte string
+        /// Clone the byte string, preserving the distinction between null and empty.
         /// </summary>
         public ByteString Copy()
         {
-            return new(m_memory.ToArray());
+            return IsNull ? default : new(m_memory.ToArray());
         }
 
         /// <summary>

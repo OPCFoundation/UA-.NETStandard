@@ -397,6 +397,73 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
+        /// <summary>
+        /// Removing one certificate from a PEM file that holds several rewrites
+        /// the file to exactly what is left. The rewrite opened the file without
+        /// truncating it, and the replacement is shorter than what it replaces,
+        /// so the tail of the old content stayed behind and parsed again - the
+        /// deleted certificate came back, or a duplicate of its neighbour did.
+        /// </summary>
+        [Test]
+        public async Task DeleteFromAMultiCertificatePemFileTruncatesTheFileAsync()
+        {
+            using Certificate first = CertificateBuilder
+                .Create("CN=PemFirst")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate second = CertificateBuilder
+                .Create("CN=PemSecond")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            string certificatesDir = Path.Combine(m_tempDir, "certs");
+            Directory.CreateDirectory(certificatesDir);
+
+            byte[] firstPem = PEMWriter.ExportCertificateAsPEM(first);
+            byte[] secondPem = PEMWriter.ExportCertificateAsPEM(second);
+            byte[] combined = new byte[firstPem.Length + secondPem.Length];
+            firstPem.CopyTo(combined, 0);
+            secondPem.CopyTo(combined, firstPem.Length);
+
+            string pemFile = Path.Combine(certificatesDir, "bundle.pem");
+            File.WriteAllBytes(pemFile, combined);
+
+            using (var store = new DirectoryCertificateStore(m_telemetry))
+            {
+                store.Open(m_tempDir, noPrivateKeys: true);
+
+                using (CertificateCollection before = await store.EnumerateAsync()
+                    .ConfigureAwait(false))
+                {
+                    Assert.That(before, Has.Count.EqualTo(2));
+                }
+
+                // the last certificate in the file: what is left is shorter than
+                // what was there, so anything not truncated is still readable.
+                Assert.That(
+                    await store.DeleteAsync(second.Thumbprint).ConfigureAwait(false),
+                    Is.True);
+            }
+
+            // read back from disk through a store that shares no cache with the
+            // one that performed the delete.
+            using var reopened = new DirectoryCertificateStore(m_telemetry);
+            reopened.Open(m_tempDir, noPrivateKeys: true);
+
+            using CertificateCollection after = await reopened.EnumerateAsync()
+                .ConfigureAwait(false);
+
+            Assert.That(after, Has.Count.EqualTo(1));
+            Assert.That(after[0].Thumbprint, Is.EqualTo(first.Thumbprint));
+
+            Assert.That(
+                PEMReader.ImportPublicKeysFromPEM(File.ReadAllBytes(pemFile)),
+                Has.Count.EqualTo(1));
+
+            // nothing of the removed block is left behind the rewritten content.
+            Assert.That(new FileInfo(pemFile).Length, Is.LessThan(combined.Length));
+        }
+
         [Test]
         public async Task IsRevokedAsyncReflectsCrlAddedAfterCacheWarmupAsync()
         {

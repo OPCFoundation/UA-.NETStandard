@@ -199,7 +199,12 @@ namespace Opc.Ua
 
             if (!serviceLevel)
             {
-                mask >>= 5;
+                // The operation level bits sit five positions above their
+                // service level counterparts, but UserPermissionAdditionalInfo
+                // is an internal flag outside those pairs and must survive the
+                // shift - otherwise operation level AdditionalInfo is dropped.
+                const uint userPermission = (uint)DiagnosticsMasks.UserPermissionAdditionalInfo;
+                mask = ((mask & ~userPermission) >> 5) | (mask & userPermission);
             }
 
             diagnosticsMask = (DiagnosticsMasks)mask;
@@ -226,7 +231,12 @@ namespace Opc.Ua
 
             if (!serviceLevel)
             {
-                mask >>= 5;
+                // The operation level bits sit five positions above their
+                // service level counterparts, but UserPermissionAdditionalInfo
+                // is an internal flag outside those pairs and must survive the
+                // shift - otherwise operation level AdditionalInfo is dropped.
+                const uint userPermission = (uint)DiagnosticsMasks.UserPermissionAdditionalInfo;
+                mask = ((mask & ~userPermission) >> 5) | (mask & userPermission);
             }
 
             diagnosticsMask = (DiagnosticsMasks)mask;

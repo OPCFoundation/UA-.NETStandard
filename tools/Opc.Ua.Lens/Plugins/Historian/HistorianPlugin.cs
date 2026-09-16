@@ -54,8 +54,10 @@ using UaLens.Workspace;
 
 namespace UaLens.Plugins.Historian;
 
-/// <summary>Operating mode for the Historian tab — selects which OPC UA
-/// HistoryRead variant is dispatched on <see cref="HistorianPlugin.ReadCommand"/>.</summary>
+/// <summary>
+/// Operating mode for the Historian tab — selects which OPC UA
+/// HistoryRead variant is dispatched on <see cref="HistorianPlugin.ReadCommand"/>.
+/// </summary>
 internal enum HistorianReadMode
 {
     Raw,
@@ -69,23 +71,39 @@ internal enum HistorianReadMode
 /// </summary>
 internal enum HistorianUpdateOp
 {
-    /// <summary>UpdateDataDetails, PerformUpdateType.Insert.</summary>
+    /// <summary>
+    /// UpdateDataDetails, PerformUpdateType.Insert.
+    /// </summary>
     Insert,
-    /// <summary>UpdateDataDetails, PerformUpdateType.Update (insert-or-replace).</summary>
+    /// <summary>
+    /// UpdateDataDetails, PerformUpdateType.Update (insert-or-replace).
+    /// </summary>
     InsertReplace,
-    /// <summary>UpdateDataDetails, PerformUpdateType.Replace.</summary>
+    /// <summary>
+    /// UpdateDataDetails, PerformUpdateType.Replace.
+    /// </summary>
     Replace,
-    /// <summary>DeleteRawModifiedDetails with StartTime == EndTime == timestamp.</summary>
+    /// <summary>
+    /// DeleteRawModifiedDetails with StartTime == EndTime == timestamp.
+    /// </summary>
     Remove,
-    /// <summary>DeleteRawModifiedDetails over a range, IsDeleteModified=false.</summary>
+    /// <summary>
+    /// DeleteRawModifiedDetails over a range, IsDeleteModified=false.
+    /// </summary>
     DeleteRaw,
-    /// <summary>DeleteRawModifiedDetails over a range, IsDeleteModified=true.</summary>
+    /// <summary>
+    /// DeleteRawModifiedDetails over a range, IsDeleteModified=true.
+    /// </summary>
     DeleteModified,
-    /// <summary>DeleteAtTimeDetails with a list of timestamps.</summary>
+    /// <summary>
+    /// DeleteAtTimeDetails with a list of timestamps.
+    /// </summary>
     DeleteAtTime
 }
 
-/// <summary>Time-range quick-pick units backing the Last-N quick range.</summary>
+/// <summary>
+/// Time-range quick-pick units backing the Last-N quick range.
+/// </summary>
 internal enum HistorianTimeUnit
 {
     Minutes,
@@ -93,13 +111,19 @@ internal enum HistorianTimeUnit
     Days
 }
 
-/// <summary>Payload for <see cref="HistorianPlugin.InsertAtCommand"/> — the chart's "Insert here…" menu.</summary>
+/// <summary>
+/// Payload for <see cref="HistorianPlugin.InsertAtCommand"/> — the chart's "Insert here…" menu.
+/// </summary>
 internal sealed record InsertAtArgs(DateTime Timestamp, double Value);
 
-/// <summary>Payload for <see cref="HistorianPlugin.EditNearestCommand"/> / <see cref="HistorianPlugin.DeleteNearestCommand"/>.</summary>
+/// <summary>
+/// Payload for <see cref="HistorianPlugin.EditNearestCommand"/> / <see cref="HistorianPlugin.DeleteNearestCommand"/>.
+/// </summary>
 internal sealed record NearestArgs(DateTime Timestamp);
 
-/// <summary>One row in the aggregate-type ComboBox.</summary>
+/// <summary>
+/// One row in the aggregate-type ComboBox.
+/// </summary>
 internal sealed class AggregateOption
 {
     public required string DisplayName { get; init; }
@@ -121,13 +145,17 @@ internal sealed partial class AtTimeRow : ObservableObject
     [ObservableProperty]
     private DateTime m_timestamp = DateTime.UtcNow;
 
-    /// <summary>True while this row is being edited (picker shown).</summary>
+    /// <summary>
+    /// True while this row is being edited (picker shown).
+    /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsEditor))]
     [NotifyPropertyChangedFor(nameof(IsLabel))]
     private bool m_isEditing = true;
 
-    /// <summary>True when this row is the trailing sentinel that renders as `+`.</summary>
+    /// <summary>
+    /// True when this row is the trailing sentinel that renders as `+`.
+    /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsEditor))]
     [NotifyPropertyChangedFor(nameof(IsLabel))]
@@ -178,8 +206,6 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
     [ObservableProperty]
     private string m_status = "● Idle — pick a Variable and click Read.";
 
-    // ---- Target ----
-
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ReadCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExecuteUpdateCommand))]
@@ -195,7 +221,9 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
     [NotifyPropertyChangedFor(nameof(TargetDescription))]
     private string m_targetDisplayName = string.Empty;
 
-    /// <summary>True when a non-null target NodeId has been picked.</summary>
+    /// <summary>
+    /// True when a non-null target NodeId has been picked.
+    /// </summary>
     public bool HasTarget => !TargetNodeId.IsNull;
 
     public string TargetDescription
@@ -211,8 +239,6 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
                 TargetDisplayName, TargetNodeId, FormatRange());
         }
     }
-
-    // ---- Read mode + per-mode config ----
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsRawMode))]
@@ -267,7 +293,6 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
 
     public ObservableCollection<AtTimeRow> AtTimes { get; } = new();
 
-    // ---- Time range ----
     //
     // Custom range is the single source of truth.  "Last N units" is
     // a quick-fill action driven by SetLastRangeDialog which writes
@@ -280,8 +305,6 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TargetDescription))]
     private DateTime m_customEnd = DateTime.UtcNow;
-
-    // ---- Results ----
 
     public ObservableCollection<HistoryRow> Rows { get; } = new();
 
@@ -298,9 +321,9 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
     [NotifyCanExecuteChangedFor(nameof(ExecuteUpdateCommand))]
     private bool m_isReading;
 
-    // ---- History Update bar ----
-
-    /// <summary>Display strings for the HistoryUpdate op combo box.</summary>
+    /// <summary>
+    /// Display strings for the HistoryUpdate op combo box.
+    /// </summary>
     public IReadOnlyList<string> UpdateOpOptions { get; } = new[]
     {
         "Insert",
@@ -320,7 +343,9 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
     [NotifyPropertyChangedFor(nameof(IsDeleteAtTimeOp))]
     private HistorianUpdateOp m_selectedUpdateOp = HistorianUpdateOp.Insert;
 
-    /// <summary>Combo-box index adapter for <see cref="SelectedUpdateOp"/>.</summary>
+    /// <summary>
+    /// Combo-box index adapter for <see cref="SelectedUpdateOp"/>.
+    /// </summary>
     public int SelectedUpdateOpIndex
     {
         get => (int)SelectedUpdateOp;
@@ -405,8 +430,6 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
             new() { DisplayName = "Delta",    NodeId = new NodeId(Objects.AggregateFunction_Delta)    }
         };
     }
-
-    // ---- IPlugin ----
 
     public PluginKind Kind => PluginKind.Historian;
 
@@ -493,12 +516,10 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
         }
     }
 
-    // ---- Commands ----
-
     [RelayCommand]
     private async Task PickVariableAsync()
     {
-        if (m_host.Connection.Session is not { } session)
+        if (m_host.Connection.CurrentSession is not { } session)
         {
             Status = "● Connect to a server first.";
             return;
@@ -556,7 +577,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
     /// the user requested.
     /// </summary>
     private static async Task<bool> IsHistorizingAsync(
-        ManagedSession session, NodeId nodeId, CancellationToken ct)
+        ISession session, NodeId nodeId, CancellationToken ct)
     {
         try
         {
@@ -683,14 +704,14 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
     private bool CanRead() =>
         !IsReading
         && HasTarget
-        && m_host.Connection.Session is not null;
+        && m_host.Connection.CurrentSession is not null;
 
     [RelayCommand(CanExecute = nameof(CanRead))]
     private Task ReadAsync() => m_readTask = ReadCoreAsync();
 
     private async Task ReadCoreAsync()
     {
-        if (m_host.Connection.Session is not { } session)
+        if (m_host.Connection.CurrentSession is not { } session)
         {
             Status = "● Not connected — connect first.";
             return;
@@ -709,7 +730,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
         var reader = new HistoryReader(session);
         IsReading = true;
         Status = "● Reading…";
-        Dispatcher.UIThread.Post(() => Rows.Clear());
+        await Dispatcher.UIThread.InvokeAsync(Rows.Clear);
 
         try
         {
@@ -841,7 +862,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
             return;
         }
 
-        if (m_host.Connection.Session is not { } session)
+        if (m_host.Connection.CurrentSession is not { } session)
         {
             Status = "● Not connected — connect first.";
             return;
@@ -942,7 +963,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
     /// </summary>
     private async Task OpenInsertDialogAsync(DateTime timestamp, double value, string hint)
     {
-        if (m_host.Connection.Session is not { } session)
+        if (m_host.Connection.CurrentSession is not { } session)
         {
             Status = "● Not connected — connect first.";
             return;
@@ -1083,7 +1104,9 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
         return best;
     }
 
-    /// <summary>True when at least one numeric row is plotted.</summary>
+    /// <summary>
+    /// True when at least one numeric row is plotted.
+    /// </summary>
     public bool HasAnyNumericRow
     {
         get
@@ -1148,7 +1171,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
             return;
         }
 
-        if (m_host.Connection.Session is not { } session)
+        if (m_host.Connection.CurrentSession is not { } session)
         {
             Status = "● Not connected — connect first.";
             return;
@@ -1199,7 +1222,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
         {
             return;
         }
-        if (m_host.Connection.Session is not { } session)
+        if (m_host.Connection.CurrentSession is not { } session)
         {
             Status = "● Not connected — connect first.";
             return;
@@ -1238,7 +1261,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
     }
 
     private bool CanExecuteUpdate() =>
-        HasTarget && !IsReading && m_host.Connection.Session is not null;
+        HasTarget && !IsReading && m_host.Connection.CurrentSession is not null;
 
     /// <summary>
     /// Dispatches the HistoryUpdate selected in the
@@ -1252,7 +1275,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
     [RelayCommand(CanExecute = nameof(CanExecuteUpdate))]
     public async Task ExecuteUpdateAsync()
     {
-        if (m_host.Connection.Session is not { } session || TargetNodeId.IsNull)
+        if (m_host.Connection.CurrentSession is not { } session || TargetNodeId.IsNull)
         {
             UpdateResult = "● Not connected or no target.";
             return;
@@ -1378,7 +1401,8 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
                 var w = new StreamWriter(s, new UTF8Encoding(false));
                 await using (w.ConfigureAwait(false))
                 {
-                    await w.WriteLineAsync("source_timestamp_utc,server_timestamp_utc,value,status").ConfigureAwait(true);
+                    await w.WriteLineAsync("source_timestamp_utc,server_timestamp_utc,value,status")
+                        .ConfigureAwait(true);
                     foreach (HistoryRow row in Rows)
                     {
                         await w.WriteLineAsync(string.Format(CultureInfo.InvariantCulture,
@@ -1398,8 +1422,6 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin, IWork
             m_log.CsvExportFailed(ex, Title);
         }
     }
-
-    // ---- Helpers ----
 
     private (DateTime Start, DateTime End) ResolveRange()
     {

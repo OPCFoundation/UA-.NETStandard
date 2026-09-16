@@ -719,6 +719,68 @@ namespace Opc.Ua.SourceGeneration
                         System.Collections.Generic.IReadOnlyList<Variant> fields,
                         int index)
                         => default;
+                    public static sbyte? GetNullableSByte(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static byte? GetNullableByte(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static short? GetNullableInt16(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static int? GetNullableInt32(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static long? GetNullableInt64(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static ulong? GetNullableUInt64(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static float? GetNullableFloat(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static System.Guid? GetNullableGuid(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static System.Xml.XmlElement? GetXmlElement(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static ExpandedNodeId GetExpandedNodeId(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static QualifiedName GetQualifiedName(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static Variant GetVariant(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static bool[]? GetBoolArray(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static sbyte[]? GetSByteArray(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static byte[]? GetByteArray(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static short[]? GetInt16Array(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static ushort[]? GetUInt16Array(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static int[]? GetInt32Array(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static uint[]? GetUInt32Array(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static long[]? GetInt64Array(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static ulong[]? GetUInt64Array(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static float[]? GetFloatArray(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static double[]? GetDoubleArray(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static DateTime[]? GetDateTimeArray(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static System.Guid[]? GetGuidArray(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static ByteString[]? GetByteStringArray(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static System.Xml.XmlElement?[]? GetXmlElementArray(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static ExpandedNodeId[]? GetExpandedNodeIdArray(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static QualifiedName[]? GetQualifiedNameArray(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static StatusCode[]? GetStatusCodeArray(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static Variant[]? GetVariantArray(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
                     public static T GetEncodeable<T>(
                         System.Collections.Generic.IReadOnlyList<Variant> fields,
                         int index)
@@ -728,6 +790,20 @@ namespace Opc.Ua.SourceGeneration
                         System.Collections.Generic.IReadOnlyList<Variant> fields,
                         int index)
                         where T : class
+                        => default;
+                    public static string[]? GetStringArray(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
+                        => default;
+                    public static T GetEnum<T>(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
+                        where T : struct, System.Enum
+                        => default;
+                    public static T[]? GetEnumArray<T>(
+                        System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
+                        where T : struct, System.Enum
                         => default;
                 }
             }
@@ -888,6 +964,72 @@ namespace Opc.Ua.SourceGeneration
                     public static NodeId[]? GetNodeIdArray(
                         global::System.Collections.Generic.IReadOnlyList<Variant> fields,
                         int index) => default;
+                    public static ushort? GetNullableUInt16(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static sbyte? GetNullableSByte(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static byte? GetNullableByte(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static short? GetNullableInt16(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static int? GetNullableInt32(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static long? GetNullableInt64(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static ulong? GetNullableUInt64(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static float? GetNullableFloat(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static global::System.Guid? GetNullableGuid(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static global::System.Xml.XmlElement? GetXmlElement(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static ExpandedNodeId GetExpandedNodeId(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static QualifiedName GetQualifiedName(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static Variant GetVariant(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static string[]? GetStringArray(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static bool[]? GetBoolArray(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static sbyte[]? GetSByteArray(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static byte[]? GetByteArray(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static short[]? GetInt16Array(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static ushort[]? GetUInt16Array(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static int[]? GetInt32Array(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static uint[]? GetUInt32Array(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static long[]? GetInt64Array(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static ulong[]? GetUInt64Array(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static float[]? GetFloatArray(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static double[]? GetDoubleArray(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static global::System.DateTime[]? GetDateTimeArray(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static global::System.Guid[]? GetGuidArray(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static ByteString[]? GetByteStringArray(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static global::System.Xml.XmlElement?[]? GetXmlElementArray(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static ExpandedNodeId[]? GetExpandedNodeIdArray(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static QualifiedName[]? GetQualifiedNameArray(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static StatusCode[]? GetStatusCodeArray(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
+                    public static Variant[]? GetVariantArray(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields, int index) => default;
                     public static T GetEncodeable<T>(
                         global::System.Collections.Generic.IReadOnlyList<Variant> fields,
                         int index)
@@ -896,6 +1038,14 @@ namespace Opc.Ua.SourceGeneration
                         global::System.Collections.Generic.IReadOnlyList<Variant> fields,
                         int index)
                         where T : class, IEncodeable => default;
+                    public static T GetEnum<T>(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
+                        where T : struct, global::System.Enum => default;
+                    public static T[]? GetEnumArray<T>(
+                        global::System.Collections.Generic.IReadOnlyList<Variant> fields,
+                        int index)
+                        where T : struct, global::System.Enum => default;
                 }
                 public class Encodeable : IEncodeable
                 {

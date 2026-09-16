@@ -320,6 +320,22 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Adopts already resolved mapping tables and the current nesting depth
+        /// from an outer decoder. Used when an ExtensionObject with an XML body
+        /// is decoded from inside another decoder - the nested body is part of
+        /// the same message and must share both.
+        /// </summary>
+        internal void InheritDecodingState(
+            ushort[]? namespaceMappings,
+            ushort[]? serverMappings,
+            uint nestingLevel)
+        {
+            m_namespaceMappings = namespaceMappings;
+            m_serverMappings = serverMappings;
+            m_nestingLevel = nestingLevel;
+        }
+
         /// <inheritdoc/>
         public T DecodeMessage<T>() where T : IEncodeable
         {
@@ -352,7 +368,16 @@ namespace Opc.Ua
             PushNamespace(typeName.Namespace);
 
             // read the message.
-            T encodeable = ReadEncodeable(name, (T)activator.CreateInstance());
+            if (activator.CreateInstance() is not T instance)
+            {
+                // The type name comes from the document and need not name a T.
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Type '{0}' is not a {1}.",
+                    typeName,
+                    typeof(T).Name);
+            }
+            T encodeable = ReadEncodeable(name, instance);
 
             PopNamespace();
 
@@ -584,10 +609,7 @@ namespace Opc.Ua
                 string? xml = SafeReadString();
 
                 // check the length.
-                if (Context.MaxStringLength > 0 && Context.MaxStringLength < xml!.Length)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
+                EncodingLimits.CheckStringLength(Context.MaxStringLength, xml);
 
                 if (!string.IsNullOrEmpty(xml))
                 {
@@ -1047,7 +1069,15 @@ namespace Opc.Ua
                     encodeableTypeId);
             }
 
-            var value = (T)activator.CreateInstance();
+            if (activator.CreateInstance() is not T value)
+            {
+                // The type id comes from the wire and need not name a T at all.
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Type '{0}' is not a {1}.",
+                    encodeableTypeId,
+                    typeof(T).Name);
+            }
             return ReadEncodeable(fieldName, value);
         }
 
@@ -1960,7 +1990,7 @@ namespace Opc.Ua
                     int[] dimensions = ReadInt32Array("Dimensions").ToArray() ?? [];
                     if (BeginField("Elements", true))
                     {
-                        value = ReadEncodeableArray<T>(null, encodeableTypeId).ToMatrix(dimensions);
+                        value = ToMatrixOrThrow(ReadEncodeableArray<T>(null, encodeableTypeId), dimensions);
                         EndField("Elements");
                     }
 
@@ -1991,7 +2021,7 @@ namespace Opc.Ua
                     int[] dimensions = ReadInt32Array("Dimensions").ToArray() ?? [];
                     if (BeginField("Elements", true))
                     {
-                        value = ReadEncodeableArray<T>(null).ToMatrix(dimensions);
+                        value = ToMatrixOrThrow(ReadEncodeableArray<T>(null), dimensions);
                         EndField("Elements");
                     }
 
@@ -2005,6 +2035,31 @@ namespace Opc.Ua
                 m_nestingLevel--;
             }
             return value;
+        }
+
+        /// <summary>
+        /// Builds a matrix from decoded elements and wire supplied dimensions.
+        /// MatrixOf throws ArgumentException for invalid dimensions (negative,
+        /// zero rank, overflowing product, or a length mismatch), which must be
+        /// reported through the decoder rejection channel instead of escaping.
+        /// </summary>
+        /// <typeparam name="T">The element type of the matrix.</typeparam>
+        /// <exception cref="ServiceResultException"></exception>
+        private static MatrixOf<T> ToMatrixOrThrow<T>(ArrayOf<T> elements, int[] dimensions)
+        {
+            try
+            {
+                return elements.ToMatrix(dimensions);
+            }
+            catch (ArgumentException ex)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    ex,
+                    "Encodeable matrix Dimensions [{0}] are inconsistent with {1} element(s).",
+                    string.Join(",", dimensions),
+                    elements.Count);
+            }
         }
 
         /// <inheritdoc/>
@@ -2138,7 +2193,14 @@ namespace Opc.Ua
             // skip whitespace.
             while (m_reader.NodeType != XmlNodeType.Element)
             {
-                m_reader.Read();
+                if (!m_reader.Read())
+                {
+                    // Read() returns false at the end of the document, leaving
+                    // NodeType at None - without this the loop never ends.
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Error reading variant value. No element found.");
+                }
             }
 
             try
@@ -2385,7 +2447,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private DiagnosticInfo? ReadDiagnosticInfo(int depth)
         {
-            if (depth >= DiagnosticInfo.MaxInnerDepth)
+            if (depth > DiagnosticInfo.MaxInnerDepth)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
@@ -2662,15 +2724,16 @@ namespace Opc.Ua
                 string value = m_reader.ReadContentAsString();
 
                 // check the length.
-                if (value != null &&
-                    Context.MaxStringLength > 0 &&
-                    Context.MaxStringLength < value.Length)
+                if (EncodingLimits.StringExceedsLimit(
+                    Context.MaxStringLength,
+                    value,
+                    out int byteLength))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadEncodingLimitsExceeded,
                         "ReadString in {0} exceeds MaxStringLength: {1} > {2}",
                         functionName ?? string.Empty,
-                        value.Length,
+                        byteLength,
                         Context.MaxStringLength);
                 }
 

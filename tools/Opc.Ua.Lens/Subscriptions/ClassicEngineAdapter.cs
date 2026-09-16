@@ -104,11 +104,17 @@ namespace UaLens.Subscriptions
                 MonitoringMode = e.MonitoredItem.Status.MonitoringMode
             }).ToArray();
 
-        public ClassicEngineAdapter(ISession session, ITelemetryContext telemetry,
+        public ClassicEngineAdapter(ManagedSession session, ITelemetryContext telemetry,
+            PublishLogObserver? publishLog = null)
+            : this((ISession)session, telemetry, publishLog)
+        {
+        }
+
+        internal ClassicEngineAdapter(ISession session, ITelemetryContext telemetry,
             PublishLogObserver? publishLog = null)
         {
-            ArgumentNullException.ThrowIfNull(telemetry);
             m_session = session ?? throw new ArgumentNullException(nameof(session));
+            ArgumentNullException.ThrowIfNull(telemetry);
             m_log = telemetry.CreateLogger("ClassicAdapter");
             m_publishLog = publishLog;
             m_channel = Channel.CreateBounded<NotificationEvent>(new BoundedChannelOptions(8192)

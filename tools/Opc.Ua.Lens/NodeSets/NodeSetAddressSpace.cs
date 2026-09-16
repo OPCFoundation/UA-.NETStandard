@@ -184,6 +184,8 @@ namespace UaLens.NodeSets
         public ArrayOf<ReferenceDescription> Nodes { get; }
         public int UnresolvedReferenceCount { get; }
 
+        internal IServiceMessageContext MessageContext => m_context.AsMessageContext();
+
         public Task<BrowseResponse> BrowseAsync(
             ArrayOf<BrowseDescription> descriptions, CancellationToken cancellationToken = default)
         {

@@ -92,7 +92,9 @@ namespace Opc.Ua.Schema.Xml
             var handler = new ValidationEventHandler(OnValidate);
             TargetSchema = Load(stream, handler);
 
-            foreach (XmlSchemaImport import in TargetSchema.Includes.Cast<XmlSchemaImport>())
+            // Includes carries xs:include and xs:redefine as well, which are not
+            // XmlSchemaImport - casting every entry threw InvalidCastException.
+            foreach (XmlSchemaImport import in TargetSchema.Includes.OfType<XmlSchemaImport>())
             {
                 import.Schema = Load(import.SchemaLocation, import.Namespace, handler);
             }

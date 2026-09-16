@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
@@ -47,6 +48,25 @@ namespace Opc.Ua.Client
         /// Telemetry configuration to use when creating sessions.
         /// </summary>
         ITelemetryContext Telemetry { get; }
+
+        /// <summary>
+        /// The subscription engine the sessions created by this factory use,
+        /// or <see langword="null"/> for the classic engine.
+        /// </summary>
+        ISubscriptionEngineFactory? SubscriptionEngineFactory { get; }
+
+        /// <summary>
+        /// Returns a factory that behaves exactly like this one except that
+        /// the sessions it creates use <paramref name="engineFactory"/> and,
+        /// when given, <paramref name="timeProvider"/>. This factory is not
+        /// modified, so a shared instance can be specialised per caller.
+        /// </summary>
+        /// <param name="engineFactory">The subscription engine to use.</param>
+        /// <param name="timeProvider">The time provider for the sessions, or
+        /// <see langword="null"/> to keep this factory's.</param>
+        ISessionFactory WithSubscriptionEngine(
+            ISubscriptionEngineFactory engineFactory,
+            TimeProvider? timeProvider = null);
 
         /// <summary>
         /// Creates a new unconnected session with the channel to the server.

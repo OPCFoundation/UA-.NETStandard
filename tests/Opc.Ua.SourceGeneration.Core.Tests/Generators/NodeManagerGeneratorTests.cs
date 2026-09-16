@@ -394,6 +394,46 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(mgr, Does.Match(@"public\s+static\s+string\[\]\s+DefaultNamespaceUris\(\)"));
         }
 
+        /// <summary>
+        /// Regression: the factory's body is a call to the public
+        /// (server, configuration) constructor, so emitting a factory while that
+        /// constructor is suppressed produced source that does not compile. The
+        /// factory is skipped instead (with a warning).
+        /// </summary>
+        [Test]
+        public void EmittedFactory_WithoutDefaultConstructor_IsNotEmitted()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(
+                generateNodeManager: true,
+                emitDefaultConstructor: false);
+
+            Assert.That(
+                files.Keys,
+                Has.None.EndsWith(".NodeManagerFactory.g.cs"),
+                "a factory calling a constructor that is not emitted would not compile");
+            Assert.That(
+                files.Keys,
+                Has.One.EndsWith(".NodeManager.g.cs"),
+                "the manager itself is still emitted");
+        }
+
+        /// <summary>
+        /// With the default constructor in place the factory is emitted and
+        /// calls it.
+        /// </summary>
+        [Test]
+        public void EmittedFactory_WithDefaultConstructor_CallsTheTwoArgumentForm()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(
+                generateNodeManager: true,
+                emitDefaultConstructor: true);
+
+            string factory = files.Single(
+                kv => kv.Key.EndsWith(".NodeManagerFactory.g.cs", StringComparison.Ordinal)).Value;
+
+            Assert.That(factory, Does.Contain("(server, configuration)"));
+        }
+
         [Test]
         public void EmittedNodeManagerInUnrelatedNamespaceUsesQualifiedModelComposer()
         {

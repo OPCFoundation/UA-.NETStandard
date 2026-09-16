@@ -55,6 +55,9 @@ The server listens on `opc.tcp://localhost:62542/PumpDeviceIntegrationServer`
 by default. Override with `--host localhost`, `--port 62550`, and
 `--pumps N` (or the matching `host`, `port`, and `pumps` environment
 variables). `--pumps` defaults to `2` and accepts values from 1 to 100.
+For bounded local experiments, `--run-seconds N` requests graceful shutdown after
+1–3600 seconds. `--pki-root` selects an absolute private certificate-store root;
+`--autoaccept false` disables the sample's default untrusted-certificate convenience.
 
 Sample console output:
 
@@ -76,6 +79,44 @@ info: Opc.Ua.Di.Server.DiNodeManager
 info: Opc.Ua.Server.Hosting.OpcUaServerHostedService
       OPC UA server listening at opc.tcp://localhost:62542/PumpDeviceIntegrationServer.
 ```
+
+## Software-update simulator
+
+The software-update walkthrough is opt-in and creates a separate DI device. It
+does not install pump firmware, execute uploaded bytes, provision hardware or
+change the operating system.
+
+```powershell
+$env:CustomTestTarget = 'net10.0'
+dotnet run --project samples\DI\PumpDeviceIntegrationServer\PumpDeviceIntegrationServer.csproj `
+  -c Release -f net10.0 -- --host localhost --port 62550 --software-update-demo true --autoaccept false
+```
+
+In UaLens, connect to `opc.tcp://localhost:62550/PumpDeviceIntegrationServer`.
+The sample retains its secure endpoints. Explicitly establish peer-certificate
+trust on both sides before connecting; disabling auto-accept does not install a
+client certificate in the sample's trust list. Do not change to an insecure
+profile or enable blanket trust to bypass this prerequisite.
+Open **Companion Tasks**, choose **Devices and software update**, then Discover
+and Inspect the `SoftwareUpdateDemo` device's **SoftwareUpdate** instance.
+
+Use **Upload verified sample package** with an absolute local file path, a sample
+package suffix and its independently computed SHA-256. Prepare the task, review
+the byte count/digest, confirm this loopback endpoint is the repository sample,
+and Run. The staged package is not installed automatically.
+
+Use the separate Prepare step and **Install sample software package** with an
+absolute manufacturer URI, a software revision and the same digest. Installation
+fails if no matching package has been staged or its contents no longer match the
+digest. The simulator copies verified bytes into its in-memory software-version
+folder and returns observed state. Confirmation and supported recovery methods
+are separate explicit tasks. There is no physical power-cycle or rollback claim.
+All staged packages and installed-version data disappear when the process ends.
+
+**Observe update state** performs a bounded 1–60 second read-only observation.
+Polling can miss intermediate transitions; it is not a lossless event stream.
+The shared client and server contracts are documented in
+[Software Update](../../../docs/SoftwareUpdate.md).
 
 Browse to `Objects > DeviceSet > Pump_1` in any OPC UA client (e.g.
 UaExpert) to explore the first simulated pump. BrowseNames use

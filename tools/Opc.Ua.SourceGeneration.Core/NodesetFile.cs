@@ -114,6 +114,18 @@ namespace Opc.Ua.SourceGeneration
             .ToDictionary(x => x.Key, x => x.Value.FileName);
 
         /// <summary>
+        /// The path of every file identified as a NodeSet2 input, including the
+        /// superseded versions <see cref="Files"/> hides behind the winning one
+        /// and the ones that failed to load. Callers use this to tell NodeSet2
+        /// inputs apart from ModelDesign inputs: a superseded NodeSet is still a
+        /// NodeSet and must not be generated a second time by the ModelDesign
+        /// pass, and a NodeSet that failed to load is still not a ModelDesign -
+        /// handing it to the ModelDesign pass only turns a skipped file into a
+        /// second, more confusing failure.
+        /// </summary>
+        public IEnumerable<string> AllFilePaths => m_nodesetPaths;
+
+        /// <summary>
         /// The models in the collection
         /// </summary>
         public IEnumerable<string> ModelUris => m_nodesets.Values
@@ -159,6 +171,13 @@ namespace Opc.Ua.SourceGeneration
                         continue;
                     }
 
+                    // Positively identified as a NodeSet2 input. Record it
+                    // before the load is attempted: a file that fails to load
+                    // is still not a ModelDesign, and letting it fall through
+                    // to the ModelDesign pass turns a skipped file into a
+                    // second failure that aborts the whole pass.
+                    m_nodesetPaths.Add(file);
+
                     using Stream istrm = fileSystem.OpenRead(file);
                     SystemContext systemContext = new(telemetry)
                     {
@@ -175,7 +194,9 @@ namespace Opc.Ua.SourceGeneration
                     catch (Exception e)
                     {
                         m_logger.LogError(e, "NodeSet could not be loaded ({File})", file);
-                        return;
+                        // Skip this NodeSet, not every remaining one - the other
+                        // inputs are independent and must still be loaded.
+                        continue;
                     }
 #endif
                     if (nodeset.Models == null ||
@@ -203,9 +224,16 @@ namespace Opc.Ua.SourceGeneration
                         {
                             ModelUri = !string.IsNullOrEmpty(options.ModelUri) ?
                                 options.ModelUri : model.ModelUri,
-                            Version = !string.IsNullOrEmpty(options.Version) ?
-                                options.Version :
-                                model.PublicationDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                            // The NodeSet's own <Model Version="..."> before the
+                            // publication date: a file that declares a version
+                            // was being compared by date, so "1.05.9" and
+                            // "1.05.10" were ordered by when they were published
+                            // rather than by which version is newer.
+                            Version = FirstNonEmpty(
+                                options.Version,
+                                model.Version,
+                                model.PublicationDate.ToString(
+                                    "yyyy-MM-dd", CultureInfo.InvariantCulture)),
                             Name = !string.IsNullOrEmpty(options.Name) ?
                                 options.Name : name,
                             Prefix = !string.IsNullOrEmpty(options.Prefix) ?
@@ -234,18 +262,30 @@ namespace Opc.Ua.SourceGeneration
                         }
                     }
 
-                    if (m_nodesets.TryGetValue(model.ModelUri, out NodesetFile existing) &&
-                        existing.Info.Version.CompareTo(info.Info.Version, StringComparison.Ordinal) < 0)
+                    if (m_nodesets.TryGetValue(model.ModelUri, out NodesetFile existing))
                     {
-                        info.PreviousVersions = [];
-
-                        if (existing.PreviousVersions != null)
+                        // Keep the newest version under the model URI and record
+                        // the superseded one. Replacing unconditionally used to
+                        // drop a newer NodeSet that happened to be read first.
+                        if (CompareVersions(existing, info) < 0)
                         {
-                            info.PreviousVersions.AddRange(existing.PreviousVersions);
-                        }
+                            info.PreviousVersions = [];
 
-                        existing.PreviousVersions = null;
-                        info.PreviousVersions.Add(existing);
+                            if (existing.PreviousVersions != null)
+                            {
+                                info.PreviousVersions.AddRange(existing.PreviousVersions);
+                            }
+
+                            existing.PreviousVersions = null;
+                            info.PreviousVersions.Add(existing);
+                            m_nodesets[model.ModelUri] = info;
+                        }
+                        else
+                        {
+                            existing.PreviousVersions ??= [];
+                            existing.PreviousVersions.Add(info);
+                        }
+                        continue;
                     }
                     m_nodesets[model.ModelUri] = info;
                 }
@@ -386,6 +426,47 @@ namespace Opc.Ua.SourceGeneration
             return true;
         }
 
+        /// <summary>
+        /// Compares two NodeSets of the same model URI. Versions first (numeric
+        /// per component, because ordinally "1.05.9" sorts above "1.05.10"),
+        /// then the publication date - which also settles the case where one
+        /// side is versioned and the other only dated, and the version strings
+        /// are therefore not comparable at all.
+        /// </summary>
+        private static int CompareVersions(NodesetFile left, NodesetFile right)
+        {
+            int cmp = SemVer.CompareVersionStrings(left.Info.Version, right.Info.Version);
+            if (cmp != 0)
+            {
+                return cmp;
+            }
+            return DateTime.Compare(
+                GetPublicationDate(left), GetPublicationDate(right));
+        }
+
+        /// <summary>
+        /// The first of the candidates that carries a value.
+        /// </summary>
+        private static string FirstNonEmpty(params string[] candidates)
+        {
+            foreach (string candidate in candidates)
+            {
+                if (!string.IsNullOrEmpty(candidate))
+                {
+                    return candidate;
+                }
+            }
+            return string.Empty;
+        }
+
+        private static DateTime GetPublicationDate(NodesetFile nodeset)
+        {
+            ModelTableEntry[] models = nodeset.NodeSet?.Models;
+            return models != null && models.Length > 0
+                ? models[0].PublicationDate
+                : DateTime.MinValue;
+        }
+
         private static string GetNameFromUri(string uri)
         {
             var builder = new Uri(uri);
@@ -422,6 +503,12 @@ namespace Opc.Ua.SourceGeneration
 
         private readonly ILogger m_logger;
         private readonly Dictionary<string, NodesetFile> m_nodesets = [];
+
+        /// <summary>
+        /// Every input recognised as a NodeSet2 file, whether or not it loaded
+        /// and whether or not it won its model URI. See <see cref="AllFilePaths"/>.
+        /// </summary>
+        private readonly HashSet<string> m_nodesetPaths = new(StringComparer.Ordinal);
         private readonly List<(NodesetFile NodeSet, string IdentifierFile)> m_identifierFiles = [];
         private readonly List<NodesetIdentifierValidationError> m_identifierValidationErrors = [];
     }

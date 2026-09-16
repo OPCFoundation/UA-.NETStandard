@@ -159,7 +159,8 @@ internal static class PerformanceState
         {
             throw new FormatException("The saved workload mode is invalid.");
         }
-        if (!double.IsFinite(dto.TargetRate) || dto.TargetRate < 0 || dto.TargetRate > MaxRate)
+        if (!double.IsFinite(dto.TargetRate) || dto.TargetRate < 0 || dto.TargetRate > MaxRate ||
+            (!dto.UnboundedBurst && dto.TargetRate < 1))
         {
             throw new FormatException("The saved target rate is out of range.");
         }
@@ -180,6 +181,10 @@ internal static class PerformanceState
         if (dto.Target is { } t)
         {
             target = ValidateTarget(t);
+            if (target.Mode != (BenchmarkMode)dto.Mode)
+            {
+                throw new FormatException("The saved target does not match the workload mode.");
+            }
         }
         return new PerformanceRestoredState(
             (BenchmarkMode)dto.Mode,
@@ -215,6 +220,15 @@ internal static class PerformanceState
         {
             throw new FormatException("The saved target has an invalid built-in type.");
         }
+        if ((BenchmarkMode)t.Mode == BenchmarkMode.Call && objectId.IsNull)
+        {
+            throw new FormatException("The saved method target has no parent object.");
+        }
+        if (t.ValueRank < ValueRanks.ScalarOrOneDimension || t.InputArguments is null ||
+            t.InputArguments.Count > BenchmarkConfiguration.MaxInputArguments || t.DisplayName is null)
+        {
+            throw new FormatException("The saved target rank, signature or display name is invalid.");
+        }
         Argument[]? arguments = null;
         if (t.InputArguments is { Count: > 0 })
         {
@@ -222,7 +236,8 @@ internal static class PerformanceState
             for (int i = 0; i < arguments.Length; i++)
             {
                 PerformanceArgumentDto a = t.InputArguments[i];
-                if (!Enum.IsDefined((BuiltInType)a.BuiltInType))
+                if (a is null || !Enum.IsDefined((BuiltInType)a.BuiltInType) ||
+                    a.ValueRank < ValueRanks.ScalarOrOneDimension)
                 {
                     throw new FormatException("A saved target argument has an invalid built-in type.");
                 }

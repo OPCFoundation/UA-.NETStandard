@@ -114,9 +114,9 @@ internal sealed partial class ModelInspectorPlugin : ObservableObject, IPlugin, 
     public bool CanWrite => CanEdit && EditingEnabled && ConfirmWrite && m_inspection?.CanWrite == true;
     public bool CanCall => CanConfigure && m_backend.IsBound && m_browser is not null &&
         m_inspection is { NodeClass: NodeClass.Method, CanCall: true };
-    public bool IsStructuredValue => m_inspection is
-        { NodeClass: NodeClass.Variable, Definition: StructureDefinition or EnumDefinition } &&
-        (m_inspection.ValueRank == ValueRanks.Scalar || m_inspection.Value.WrappedValue.TypeInfo.IsScalar);
+    public bool IsStructuredValue => m_inspection is { NodeClass: NodeClass.Variable } &&
+        (m_inspection.Definition is StructureDefinition or EnumDefinition ||
+            StructuredArrayValue.RequiresEditor(m_inspection.ValueRank, m_inspection.Value.WrappedValue));
 
     public ArrayOf<ModelSchemaChoice> SchemaFormats { get; } =
     [
@@ -459,7 +459,9 @@ internal sealed partial class ModelInspectorPlugin : ObservableObject, IPlugin, 
             m_inspection = inspection;
             bool requiresDefinition = inspection.NodeClass != NodeClass.Method &&
                 (inspection.NodeClass != NodeClass.Variable ||
-                 inspection.Value.WrappedValue.TypeInfo.BuiltInType is BuiltInType.Null or BuiltInType.ExtensionObject);
+                 (inspection.Value.WrappedValue.TypeInfo.BuiltInType is
+                    BuiltInType.Null or BuiltInType.ExtensionObject &&
+                  TypeInfo.GetBuiltInType(inspection.DataType) is BuiltInType.Null or BuiltInType.ExtensionObject));
             ReadState = inspection.Definition is null && requiresDefinition
                 ? ModelReadState.Unavailable
                 : ModelReadState.Available;
@@ -471,13 +473,10 @@ internal sealed partial class ModelInspectorPlugin : ObservableObject, IPlugin, 
                     : string.Empty;
             m_valueEditable = inspection.NodeClass == NodeClass.Variable &&
                 (inspection.Definition is not null || inspection.Value.WrappedValue.TypeInfo.BuiltInType is
-                    not (BuiltInType.Null or BuiltInType.ExtensionObject));
+                    not (BuiltInType.Null or BuiltInType.ExtensionObject) ||
+                    TypeInfo.GetBuiltInType(inspection.DataType) is
+                        not (BuiltInType.Null or BuiltInType.ExtensionObject));
             EditorStatus = "Read-only. Enable editing to prepare an isolated local value.";
-            if (inspection.Definition is EnumDefinition { IsOptionSet: true })
-            {
-                m_valueEditable = false;
-                EditorStatus = "OptionSets require a dedicated bit-field editor; they are not encoded as plain enums.";
-            }
             if (m_view is not null)
             {
                 await m_view.LoadAsync(inspection, m_backend.Values!, token).ConfigureAwait(true);
@@ -599,7 +598,7 @@ internal sealed partial class ModelInspectorPlugin : ObservableObject, IPlugin, 
         }
         else if (inspection.Definition is EnumDefinition enumeration)
         {
-            text.AppendLine(enumeration.IsOptionSet ? "OptionSet (read-only limitation)" : "Enumeration");
+            text.AppendLine(enumeration.IsOptionSet ? "OptionSet (named bit indexes)" : "Enumeration");
             foreach (EnumField field in enumeration.Fields)
             {
                 text.Append(field.Name).Append(" = ").Append(field.Value).AppendLine();

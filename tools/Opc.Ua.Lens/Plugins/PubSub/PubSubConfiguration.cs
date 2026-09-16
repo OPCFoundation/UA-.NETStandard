@@ -33,6 +33,7 @@ using System.Globalization;
 using System.Net;
 using System.Text.Json.Serialization;
 using Opc.Ua;
+using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Eth;
 using Opc.Ua.PubSub.Kafka;
 
@@ -63,6 +64,12 @@ internal enum PubSubBrokerAuthentication
     Provider
 }
 
+internal enum PubSubKeySource
+{
+    SecurityKeyService,
+    ConfiguredProvider
+}
+
 internal enum PubSubReadiness
 {
     Ready,
@@ -79,6 +86,8 @@ internal sealed record PubSubFieldConfiguration
     public string Name { get; init; } = string.Empty;
 
     public BuiltInType Type { get; init; } = BuiltInType.Int32;
+
+    public Guid FieldId { get; init; }
 
     public string SourceNodeId { get; init; } = string.Empty;
 
@@ -113,11 +122,21 @@ internal sealed record PubSubConfiguration
 
     public string SecurityKeyServiceEndpoint { get; init; } = string.Empty;
 
+    public PubSubKeySource KeySource { get; init; }
+
     public bool ReceiveEnabled { get; init; } = true;
 
-    public ushort LocalPublisherId { get; init; } = 2;
+    public ulong LocalPublisherId { get; init; } = 2;
 
-    public ushort PublisherFilter { get; init; } = 1;
+    public PublisherIdType LocalPublisherIdType { get; init; } = PublisherIdType.UInt16;
+
+    public string LocalPublisherName { get; init; } = string.Empty;
+
+    public ulong PublisherFilter { get; init; } = 1;
+
+    public PublisherIdType PublisherFilterType { get; init; } = PublisherIdType.UInt16;
+
+    public string PublisherFilterName { get; init; } = string.Empty;
 
     public ushort WriterGroupId { get; init; } = 100;
 
@@ -141,7 +160,19 @@ internal sealed record PubSubConfiguration
 
     public uint MetadataMinorVersion { get; init; }
 
+    public Guid DataSetClassId { get; init; }
+
     public bool RawDataEncoding { get; init; }
+
+    public UadpNetworkMessageContentMask UadpNetworkMask { get; init; } = PubSubContentMasks.DefaultUadpNetwork;
+
+    public UadpDataSetMessageContentMask UadpDataSetMask { get; init; } = PubSubContentMasks.DefaultUadpDataSet;
+
+    public JsonNetworkMessageContentMask JsonNetworkMask { get; init; } = PubSubContentMasks.DefaultJsonNetwork;
+
+    public JsonDataSetMessageContentMask JsonDataSetMask { get; init; } = PubSubContentMasks.DefaultJsonDataSet;
+
+    public DataSetFieldContentMask FieldContentMask { get; init; } = PubSubContentMasks.DefaultField;
 
     public string AdapterProviderId { get; init; } = string.Empty;
 
@@ -185,6 +216,10 @@ internal sealed record PubSubConfiguration
         WriteBackEnabled || ActionResponderEnabled;
 
     [JsonIgnore]
+    public DataSetFieldContentMask EffectiveFieldMask =>
+        RawDataEncoding ? DataSetFieldContentMask.RawData : FieldContentMask;
+
+    [JsonIgnore]
     public string TransportProfileUri => Profile switch
     {
         PubSubProfile.UdpUadp or PubSubProfile.DtlsUadp => Profiles.PubSubUdpUadpTransport,
@@ -222,6 +257,7 @@ internal static class PubSubConfigurationValidation
             configuration.TransportProviderId is null || configuration.CredentialReference is null ||
             configuration.SecurityProviderId is null || configuration.SecurityGroupId is null ||
             configuration.SecurityKeyServiceEndpoint is null ||
+            configuration.LocalPublisherName is null || configuration.PublisherFilterName is null ||
             configuration.AdapterProviderId is null || configuration.ActionName is null ||
             configuration.ActionResponseTopic is null || configuration.ActionObjectNodeId is null ||
             configuration.ActionMethodNodeId is null)
@@ -230,7 +266,7 @@ internal static class PubSubConfigurationValidation
                 "Configuration text fields cannot be null.")];
         }
         if (!Enum.IsDefined(configuration.Profile) || !Enum.IsDefined(configuration.Publication) ||
-            !Enum.IsDefined(configuration.BrokerAuthentication) ||
+            !Enum.IsDefined(configuration.BrokerAuthentication) || !Enum.IsDefined(configuration.KeySource) ||
             configuration.SecurityMode is not (MessageSecurityMode.None or MessageSecurityMode.Sign or
                 MessageSecurityMode.SignAndEncrypt))
         {
@@ -251,11 +287,16 @@ internal static class PubSubConfigurationValidation
         ValidateReference(configuration.SecurityGroupId, "Security group");
         ValidateReference(configuration.AdapterProviderId, "UA adapter provider");
 
-        if (configuration.LocalPublisherId == 0 || configuration.PublisherFilter == 0 ||
-            configuration.WriterGroupId == 0 || configuration.DataSetWriterId == 0)
+        if (!PubSubIdentity.TryCreate(configuration.LocalPublisherIdType, configuration.LocalPublisherId,
+                configuration.LocalPublisherName, configuration.IsJson, out _) ||
+            !PubSubIdentity.TryCreate(configuration.PublisherFilterType, configuration.PublisherFilter,
+                configuration.PublisherFilterName, configuration.IsJson, out _) ||
+            configuration.WriterGroupId == 0 || configuration.DataSetWriterId == 0 ||
+            configuration.ActionWriterId == 0 || configuration.ActionTargetId == 0)
         {
-            Add("Identity", "Use nonzero publisher, writer-group and writer identities; wildcard capture is disabled.");
+            Add("Identity", "Use bounded, correctly typed nonzero publisher/writer/Action IDs; no wildcards.");
         }
+        issues.AddRange(PubSubContentMasks.Inspect(configuration));
         if (!configuration.ReceiveEnabled && configuration.Publication == PubSubPublication.Disabled &&
             !configuration.ActionResponderEnabled)
         {
@@ -276,9 +317,10 @@ internal static class PubSubConfigurationValidation
         if (configuration.SecurityMode != MessageSecurityMode.None &&
             (string.IsNullOrEmpty(configuration.SecurityProviderId) ||
              string.IsNullOrEmpty(configuration.SecurityGroupId) ||
-             string.IsNullOrEmpty(configuration.SecurityKeyServiceEndpoint)) && requireEndpoint)
+             (configuration.KeySource == PubSubKeySource.SecurityKeyService &&
+              string.IsNullOrEmpty(configuration.SecurityKeyServiceEndpoint))) && requireEndpoint)
         {
-            Add("Security", "Select a key/SKS provider, group and configured service endpoint. No keys are generated.");
+            Add("Security", "Select a registered key provider/group and, for SKS, its pinned service endpoint.");
         }
         if (configuration.SecurityMode == MessageSecurityMode.None &&
             (!string.IsNullOrEmpty(configuration.SecurityProviderId) ||
@@ -288,14 +330,10 @@ internal static class PubSubConfigurationValidation
             Add("Security", "Remove unused security-provider settings or select message security.");
         }
         if (configuration.SecurityKeyServiceEndpoint.Length > 0 &&
-            (configuration.SecurityKeyServiceEndpoint.Length > 1024 ||
-             !Uri.TryCreate(configuration.SecurityKeyServiceEndpoint, UriKind.Absolute, out Uri? keyService) ||
-             !string.IsNullOrEmpty(keyService.UserInfo) || !string.IsNullOrEmpty(keyService.Query) ||
-             !string.IsNullOrEmpty(keyService.Fragment) ||
-             HasControlCharacters(configuration.SecurityKeyServiceEndpoint) ||
-             keyService.Scheme is not ("opc.tcp" or "https" or "opc.https" or "opc.wss")))
+            (!IsKeyServiceEndpoint(configuration.SecurityKeyServiceEndpoint) ||
+             configuration.KeySource != PubSubKeySource.SecurityKeyService))
         {
-            Add("Security", "Use an explicit SKS endpoint without credentials, query parameters or fragments.");
+            Add("Security", "Only SKS uses an endpoint; credentials, query parameters and fragments are forbidden.");
         }
         if (configuration.IsBroker)
         {
@@ -306,6 +344,7 @@ internal static class PubSubConfigurationValidation
             }
             if (configuration.Topic.Contains('+', StringComparison.Ordinal) ||
                 configuration.Topic.Contains('#', StringComparison.Ordinal) ||
+                configuration.Topic.Contains('*', StringComparison.Ordinal) ||
                 configuration.ActionResponseTopic.Contains('*', StringComparison.Ordinal) ||
                 configuration.ActionResponseTopic.Contains('+', StringComparison.Ordinal) ||
                 configuration.ActionResponseTopic.Contains('#', StringComparison.Ordinal))
@@ -313,10 +352,10 @@ internal static class PubSubConfigurationValidation
                 Add("Broker", "Use explicit topics, not wildcard subscriptions or response destinations.");
             }
             if (configuration.Profile is PubSubProfile.KafkaJson or PubSubProfile.KafkaUadp &&
-                (configuration.Topic.Contains('/', StringComparison.Ordinal) ||
-                 configuration.ActionResponseTopic.Contains('/', StringComparison.Ordinal)))
+                (!IsKafkaTopic(configuration.Topic) ||
+                 !IsKafkaTopic(configuration.ActionResponseTopic)))
             {
-                Add("Kafka", "Kafka topic names cannot contain slash separators.");
+                Add("Kafka", "Use bounded Kafka topic names containing only letters, digits, dot, dash or underscore.");
             }
             if (configuration.BrokerAuthentication == PubSubBrokerAuthentication.Provider &&
                 (string.IsNullOrEmpty(configuration.CredentialReference) ||
@@ -331,7 +370,9 @@ internal static class PubSubConfigurationValidation
             }
         }
         else if (!string.IsNullOrEmpty(configuration.Topic) ||
-            !string.IsNullOrEmpty(configuration.CredentialReference))
+            !string.IsNullOrEmpty(configuration.CredentialReference) ||
+            !string.IsNullOrEmpty(configuration.ActionResponseTopic) ||
+            configuration.BrokerAuthentication != PubSubBrokerAuthentication.Unconfigured)
         {
             Add("Transport", "Datagram profiles do not use broker topics or broker credentials.");
         }
@@ -377,11 +418,18 @@ internal static class PubSubConfigurationValidation
                 {
                     Add("Endpoint", "UDP/DTLS requires a literal IP address and explicit port.");
                 }
-                else if (configuration.Profile == PubSubProfile.DtlsUadp &&
-                    (address.IsIPv6Multicast || address.GetAddressBytes()[0] is >= 224 and <= 239))
+                else if (address.Equals(IPAddress.Any) || address.Equals(IPAddress.IPv6Any) ||
+                    (configuration.Profile == PubSubProfile.DtlsUadp &&
+                     (address.IsIPv6Multicast || address.Equals(IPAddress.Broadcast) ||
+                      (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork &&
+                       address.GetAddressBytes()[0] is >= 224 and <= 239))))
                 {
-                    Add("DTLS", "The installed DTLS transport supports explicitly configured unicast peers only.");
+                    Add("Endpoint", "Use an explicit destination; DTLS requires a unicast peer, not broadcast.");
                 }
+            }
+            else if (string.IsNullOrEmpty(endpoint.Host))
+            {
+                Add("Endpoint", "An explicit broker or Ethernet destination is required.");
             }
         }
         if (configuration.Profile is PubSubProfile.UdpUadp or PubSubProfile.DtlsUadp or PubSubProfile.EthernetUadp &&
@@ -401,6 +449,8 @@ internal static class PubSubConfigurationValidation
         else
         {
             var names = new HashSet<string>(StringComparer.Ordinal);
+            var identifiers = new HashSet<Guid>();
+            var targets = new HashSet<ExpandedNodeId>();
             foreach (PubSubFieldConfiguration field in configuration.Fields)
             {
                 if (field is null)
@@ -413,6 +463,10 @@ internal static class PubSubConfigurationValidation
                 {
                     Add("Schema", "Use unique bounded field names and supported scalar built-in types.");
                 }
+                if (field.FieldId != Guid.Empty && !identifiers.Add(field.FieldId))
+                {
+                    Add("Schema", "Nonempty dataset field IDs must be unique.");
+                }
                 if (configuration.Publication == PubSubPublication.Synthetic &&
                     field.Type is not (BuiltInType.Boolean or BuiltInType.Int32 or BuiltInType.Double or
                         BuiltInType.DateTime or BuiltInType.String))
@@ -421,6 +475,11 @@ internal static class PubSubConfigurationValidation
                 }
                 ValidateNode(field.SourceNodeId, configuration.Publication == PubSubPublication.ServerSource, "Source");
                 ValidateNode(field.TargetNodeId, configuration.WriteBackEnabled, "Write-back target");
+                if (configuration.WriteBackEnabled && IsPortableNodeId(field.TargetNodeId) &&
+                    !targets.Add(ExpandedNodeId.Parse(field.TargetNodeId)))
+                {
+                    Add("Write-back", "Map each field to a distinct UA target; duplicate targets are not authorized.");
+                }
             }
         }
         if (configuration.UsesServerAdapter && string.IsNullOrEmpty(configuration.AdapterProviderId) && requireEndpoint)
@@ -544,6 +603,30 @@ internal static class PubSubConfigurationValidation
             nodeId.ServerIndex == 0 && (nodeId.NamespaceIndex == 0 || !string.IsNullOrEmpty(nodeId.NamespaceUri));
     }
 
+    public static bool IsKeyServiceEndpoint(string endpoint)
+    {
+        return endpoint is { Length: > 0 and <= 1024 } && !HasControlCharacters(endpoint) &&
+            Uri.TryCreate(endpoint, UriKind.Absolute, out Uri? uri) && !string.IsNullOrEmpty(uri.Host) &&
+            string.IsNullOrEmpty(uri.UserInfo) && string.IsNullOrEmpty(uri.Query) &&
+            string.IsNullOrEmpty(uri.Fragment) && uri.Scheme is "opc.tcp" or "https" or "opc.https" or "opc.wss";
+    }
+
+    public static bool IsKafkaTopic(string topic)
+    {
+        if (topic is null || topic.Length > 240 || topic is "." or "..")
+        {
+            return false;
+        }
+        foreach (char character in topic)
+        {
+            if (!char.IsAsciiLetterOrDigit(character) && character is not ('-' or '_' or '.'))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static bool IsScalarType(BuiltInType type)
     {
         return type is >= BuiltInType.Boolean and <= BuiltInType.ByteString or
@@ -551,7 +634,7 @@ internal static class PubSubConfigurationValidation
             BuiltInType.QualifiedName or BuiltInType.LocalizedText;
     }
 
-    private static bool HasControlCharacters(string text)
+    public static bool HasControlCharacters(string text)
     {
         foreach (char character in text)
         {

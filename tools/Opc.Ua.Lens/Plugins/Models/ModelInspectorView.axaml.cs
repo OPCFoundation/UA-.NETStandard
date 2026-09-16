@@ -41,8 +41,8 @@ using UaLens.Views;
 namespace UaLens.Plugins.Models;
 
 /// <summary>
-/// Presentation only: structured fields use the shared editor, and primitive/array
-/// edits use the existing dialogs. No alternative field editor is maintained here.
+/// Presentation only: structures, named values and arrays use the shared editor.
+/// Primitive scalar edits use the existing dialog.
 /// </summary>
 internal sealed partial class ModelInspectorView : UserControl
 {
@@ -75,16 +75,17 @@ internal sealed partial class ModelInspectorView : UserControl
         ComplexValueEditor editor = this.RequiredControl<ComplexValueEditor>("ValueEditor");
         editor.IsVisible = false;
         m_structured = inspection.NodeClass == NodeClass.Variable &&
-            (inspection.Definition is StructureDefinition or EnumDefinition) &&
-            (inspection.ValueRank == ValueRanks.Scalar || m_candidate.TypeInfo.IsScalar);
-        if (!m_structured || inspection.Definition is EnumDefinition { IsOptionSet: true })
+            (StructuredArrayValue.RequiresEditor(inspection.ValueRank, m_candidate) ||
+                inspection.Definition is StructureDefinition or EnumDefinition);
+        if (!m_structured)
         {
             return;
         }
         try
         {
-            await editor.InitializeAsync(
-                inspection.DataType, inspection.Definition, values, m_candidate, cancellationToken)
+            await editor.InitializeValueAsync(
+                inspection.DataType, inspection.Definition, values, m_candidate,
+                inspection.ValueRank, inspection.ArrayDimensions, cancellationToken)
                 .ConfigureAwait(true);
             editor.IsVisible = true;
         }
@@ -163,11 +164,15 @@ internal sealed partial class ModelInspectorView : UserControl
             throw new ServiceResultException(StatusCodes.BadDecodingError, "The imported value file is empty.");
         }
         Variant imported = DataValueCodec.DecodeDataValue(bytes, format, m_values.MessageContext).WrappedValue;
-        if (m_structured)
+        if (m_structured || StructuredArrayValue.RequiresEditor(m_inspection.ValueRank, imported))
         {
-            await this.RequiredControl<ComplexValueEditor>("ValueEditor").InitializeAsync(
-                m_inspection.DataType, m_inspection.Definition, m_values, imported, cancellationToken)
+            ComplexValueEditor editor = this.RequiredControl<ComplexValueEditor>("ValueEditor");
+            await editor.InitializeValueAsync(
+                m_inspection.DataType, m_inspection.Definition, m_values, imported,
+                m_inspection.ValueRank, m_inspection.ArrayDimensions, cancellationToken)
                 .ConfigureAwait(true);
+            m_structured = true;
+            editor.IsVisible = true;
         }
         m_candidate = imported.Copy();
         UpdatePreview();

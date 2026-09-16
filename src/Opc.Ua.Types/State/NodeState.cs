@@ -167,10 +167,11 @@ namespace Opc.Ua
             target.m_displayName = m_displayName;
             target.m_description = m_description;
             target.m_writeMask = m_writeMask;
-            target.m_changeMasks = m_changeMasks;
+            target.m_userWriteMask = m_userWriteMask;
 
             target.RolePermissions = RolePermissions;
             target.UserRolePermissions = UserRolePermissions;
+            target.AccessRestrictions = AccessRestrictions;
 
             lock (m_referencesLock)
             {
@@ -202,6 +203,11 @@ namespace Opc.Ua
             target.ReleaseStatus = ReleaseStatus;
             target.NodeSetDocumentation = NodeSetDocumentation;
             target.Extensions = Extensions;
+
+            // Assigned last so that the copy reports the same change mask as
+            // the source instead of the bits the property setters and
+            // AddReferences above raise.
+            target.m_changeMasks = m_changeMasks;
         }
 
         /// <summary>
@@ -332,6 +338,16 @@ namespace Opc.Ua
             m_children = null;
             m_references = null;
             m_changeMasks = NodeStateChangeMasks.None;
+
+            // Note: unlike CopyTo, this deliberately does not carry over
+            // m_userWriteMask, RolePermissions, UserRolePermissions or
+            // AccessRestrictions. Initialize instantiates a node from a
+            // prototype rather than cloning it, and propagating the prototype's
+            // access control makes the instance inherit restrictions it never
+            // had - the GDS certificate group nodes become unreadable for the
+            // users that could read them before. Whether an instance should
+            // inherit its prototype's permissions is a security decision for
+            // the address space to make, not a copy detail.
 
             var children = new List<BaseInstanceState>();
             source.GetChildren(context, children);
@@ -1342,7 +1358,9 @@ namespace Opc.Ua
 
             if (string.IsNullOrEmpty(symbolicName) && !browseName.IsNull)
             {
-                SymbolicName = browseName.Name!;
+                // This defaults the CHILD's symbolic name. Assigning the
+                // property would rename this node after its last child.
+                symbolicName = browseName.Name!;
             }
 
             // check for children defined by the type.
@@ -4835,7 +4853,9 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        m_nodeId = nodeId;
+                        // Through the property so the change mask is raised and
+                        // monitored items on the attribute are notified.
+                        NodeId = nodeId;
                     }
 
                     return result;
@@ -4883,7 +4903,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        m_browseName = browseName;
+                        BrowseName = browseName;
                     }
 
                     return result;
@@ -4908,7 +4928,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        m_displayName = displayName;
+                        DisplayName = displayName;
                     }
 
                     return result;
@@ -4937,7 +4957,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        m_description = description;
+                        Description = description;
                     }
 
                     return result;
@@ -4990,7 +5010,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        m_userWriteMask = userWriteMask;
+                        UserWriteMask = userWriteMask;
                     }
 
                     return result;
@@ -5062,6 +5082,7 @@ namespace Opc.Ua
                     if (ServiceResult.IsGood(result))
                     {
                         SetAccessRestrictions(accessRestrictions);
+                        m_changeMasks |= NodeStateChangeMasks.NonValue;
                     }
 
                     return result;
@@ -5743,7 +5764,9 @@ namespace Opc.Ua
             uint attributeId,
             DataValue value)
         {
-            if (componentPath.Count >= index)
+            // check if writing attributes of the current node. The condition was
+            // inverted, so the path was never followed into the children.
+            if (index >= componentPath.Count)
             {
                 return WriteAttribute(context, attributeId, default, value);
             }
@@ -6124,6 +6147,9 @@ namespace Opc.Ua
             // that are not assigned to a sub type's properties. Unlike the sub
             // type implementations we do not create a new instance here if
             // replacement is null. TODO: should this be reconsidered?
+            BaseInstanceState? found = null;
+            bool adopted = false;
+
             lock (m_childrenLock)
             {
                 if (m_children != null)
@@ -6137,12 +6163,32 @@ namespace Opc.Ua
                             if (createOrReplace && replacement != null)
                             {
                                 m_children[ii] = child = replacement;
+                                m_changeMasks |= NodeStateChangeMasks.Children;
+                                adopted = true;
                             }
 
-                            return child;
+                            found = child;
+                            break;
                         }
                     }
                 }
+            }
+
+            if (found != null)
+            {
+                // A replacement has to be adopted the same way AddChild adopts
+                // a new child, otherwise it keeps pointing at its old parent.
+                if (adopted && !ReferenceEquals(found.Parent, this))
+                {
+                    found.Parent = this;
+
+                    if (found.ReferenceTypeId.IsNull)
+                    {
+                        found.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+                    }
+                }
+
+                return found;
             }
 
             if (createOrReplace && replacement != null)

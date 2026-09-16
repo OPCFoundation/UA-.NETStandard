@@ -120,8 +120,14 @@ namespace Opc.Ua
         {
             if (target is MethodState state)
             {
-                state.OutputArguments = OutputArguments;
-                state.InputArguments = InputArguments;
+                // The argument properties are children that base.CopyTo does
+                // not clone (they live in typed fields, not m_children), so they
+                // have to be cloned here - otherwise the clone and the original
+                // share them.
+                state.OutputArguments =
+                    (PropertyState<ArrayOf<Argument>>?)OutputArguments?.Clone();
+                state.InputArguments =
+                    (PropertyState<ArrayOf<Argument>>?)InputArguments?.Clone();
                 state.MethodDeclarationId = MethodDeclarationId;
                 state.Executable = Executable;
                 state.UserExecutable = UserExecutable;
@@ -249,7 +255,7 @@ namespace Opc.Ua
 
             if (m_userExecutable)
             {
-                encoder.WriteBoolean("UserExecutable", m_executable);
+                encoder.WriteBoolean("UserExecutable", m_userExecutable);
             }
 
             encoder.PopNamespace();

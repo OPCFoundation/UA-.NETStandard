@@ -61,6 +61,18 @@ internal interface IStructuredValueService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Opens a typed array or matrix draft with the declared rank and dimension
+    /// bounds. An untyped null starts as a typed null, not an empty array.
+    /// </summary>
+    Task<StructuredArrayDraft> OpenArrayAsync(
+        NodeId elementDataTypeId,
+        int valueRank,
+        ArrayOf<uint> declaredDimensions,
+        Variant value,
+        bool isStructureField = false,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Discards metadata and invalidates outstanding lookups and drafts.
     /// </summary>
     void Refresh();

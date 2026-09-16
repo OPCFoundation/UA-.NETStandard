@@ -1405,7 +1405,7 @@ namespace Opc.Ua
                         if (ReferenceEquals(policies[ii], value))
                         {
                             SelectedUserTokenPolicyIndex = ii;
-                            break;
+                            return;
                         }
                     }
                 }

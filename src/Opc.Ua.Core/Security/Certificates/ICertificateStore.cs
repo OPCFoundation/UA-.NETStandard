@@ -104,7 +104,8 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificates">The certificate collection.</param>
         /// <param name="maxCertificates">The max number of rejected certificates to keep in the store.
-        /// A negative number keeps no history, 0 is unlimited.</param>
+        /// Zero or less keeps no history at all and discards whatever is already stored; a positive
+        /// value caps the history at that many, discarding the oldest first.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         Task AddRejectedAsync(
             CertificateCollection certificates,

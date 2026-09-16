@@ -162,10 +162,15 @@ namespace Opc.Ua.Schema.Binary
                     Import(directive.Location, directive.Namespace);
                 }
             }
-            else if (Dictionary.TargetNamespace != Ua.Types.Namespaces.OpcUa)
+            else if (Dictionary.TargetNamespace != Ua.Types.Namespaces.OpcUa &&
+                Dictionary.TargetNamespace != Ua.Types.Namespaces.OpcUaBuiltInTypes)
             {
                 // Import built-in types if no imports are specified and not built in.
-                Import(null, Ua.Types.Namespaces.OpcUa);
+                // The built-in type dictionary lives under the BuiltInTypes
+                // namespace: no resource is registered for Namespaces.OpcUa, so
+                // importing that one threw "Cannot import namespace" for every
+                // dictionary that declares no imports of its own.
+                Import(null, Ua.Types.Namespaces.OpcUaBuiltInTypes);
             }
 
             // import types from imported dictionaries.
@@ -534,7 +539,7 @@ namespace Opc.Ua.Schema.Binary
                         "Field '{0}' in structured type '{1}' references a length field '{2}' which is not an integer value.",
                         field.Name,
                         description.Name,
-                        field.SwitchField);
+                        field.LengthField);
                 }
             }
 

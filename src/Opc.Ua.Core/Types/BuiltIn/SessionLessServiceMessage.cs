@@ -97,7 +97,7 @@ namespace Opc.Ua
                 encoder.WriteStringArray("ServerUris", Array.Empty<string>());
             }
 
-            if (LocaleIds != null && LocaleIds.Count > 1)
+            if (LocaleIds != null && LocaleIds.Count > 0)
             {
                 encoder.WriteStringArray("LocaleIds", LocaleIds.ToArray());
             }

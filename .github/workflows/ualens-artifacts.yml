@@ -91,12 +91,24 @@ jobs:
       run: |
         pwsh -NoProfile -File .github/scripts/test-lens-desktop.ps1 -Configuration Release -NoBuild
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Execute connected desktop workflows in a separate process
+      timeout-minutes: 12
+      shell: pwsh
+      run: |
+        dotnet test tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj -c Release -f net10.0 -p:CustomTestTarget=net10.0 --no-build --no-restore --filter 'TestCategory=LensDesktopWorkflow' --logger 'trx;LogFileName=workflow.trx' --results-directory TestResults/lens-desktop-workflow -- NUnit.ExplicitMode=Relaxed NUnit.NumberOfTestWorkers=0
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        [xml] $report = Get-Content TestResults/lens-desktop-workflow/workflow.trx -Raw
+        $counts = $report.TestRun.ResultSummary.Counters
+        if ([int] $counts.total -le 0 -or [int] $counts.passed -ne [int] $counts.total) {
+          throw 'Every selected desktop workflow must execute and pass.'
+        }
     - uses: actions/upload-artifact@v7
       if: always()
       with:
         name: ualens-windows-desktop-regressions
         path: |
           TestResults/lens-desktop
+          TestResults/lens-desktop-workflow
           artifacts/lens/desktop-logs
         if-no-files-found: error
 

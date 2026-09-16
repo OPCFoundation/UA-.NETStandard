@@ -57,7 +57,7 @@ internal sealed class PubSubPublicationDrain
         m_publish = writer.PublishSink ?? throw new InvalidOperationException("The writer has no transport sink.");
         m_drainLocalReader = configuration.Publication == PubSubPublication.Synthetic &&
             configuration.ReceiveEnabled && !configuration.WriteBackEnabled &&
-            configuration.LocalPublisherId == configuration.PublisherFilter &&
+            PubSubIdentity.Local(configuration) == PubSubIdentity.Filter(configuration) &&
             configuration.Profile == PubSubProfile.UdpUadp &&
             Uri.TryCreate(configuration.Endpoint, UriKind.Absolute, out Uri? endpoint) && endpoint.IsLoopback;
         writer.PublishSink = PublishAsync;

@@ -1370,7 +1370,7 @@ namespace Opc.Ua.SourceGeneration
                 IsRequired = {{Tokens.IsRequired}},
                 EmitDefaultValue = {{Tokens.EmitDefaultValue}},
                 Order = {{Tokens.FieldIndex}})]
-            {{Tokens.AccessorSymbol}} {{Tokens.TypeName}} {{Tokens.BrowseName}}
+            {{Tokens.AccessorSymbol}} {{Tokens.TypeName}} {{Tokens.PropertyName}}
             {
                 get => {{Tokens.FieldName}};
                 set => {{Tokens.FieldName}} = value;
@@ -1391,7 +1391,7 @@ namespace Opc.Ua.SourceGeneration
                 IsRequired = {{Tokens.IsRequired}},
                 EmitDefaultValue = {{Tokens.EmitDefaultValue}},
                 Order = {{Tokens.FieldIndex}})]
-            {{Tokens.AccessorSymbol}} {{Tokens.TypeName}} {{Tokens.BrowseName}}
+            {{Tokens.AccessorSymbol}} {{Tokens.TypeName}} {{Tokens.PropertyName}}
             {
                 get => {{Tokens.FieldName}};
                 set => {{Tokens.FieldName}} = value == null ?

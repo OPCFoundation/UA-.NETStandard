@@ -86,15 +86,42 @@ namespace Opc.Ua.Wot
         private const string ThingIdMember = "id";
 
         /// <summary>
+        /// A resolved definition together with the document that declares it.
+        /// </summary>
+        private readonly struct ResolvedDefinition
+        {
+            public ResolvedDefinition(JsonElement definition, WotDocument owner)
+            {
+                Definition = definition;
+                Owner = owner;
+                Found = true;
+            }
+
+            /// <summary> The definition object. </summary>
+            public JsonElement Definition { get; }
+
+            /// <summary> The document that declares it. </summary>
+            public WotDocument? Owner { get; }
+
+            /// <summary> Whether anything was resolved at all. </summary>
+            public bool Found { get; }
+        }
+
+        /// <summary>
         /// One definition a document declares, and where it was found.
         /// </summary>
         private readonly struct DefinitionCandidate
         {
-            public DefinitionCandidate(string origin, string pointer, JsonElement element)
+            public DefinitionCandidate(
+                string origin,
+                string pointer,
+                JsonElement element,
+                WotDocument owner)
             {
                 Origin = origin;
                 Pointer = pointer;
                 Element = element;
+                Owner = owner;
             }
 
             /// <summary>
@@ -113,6 +140,13 @@ namespace Opc.Ua.Wot
             /// The definition object.
             /// </summary>
             public JsonElement Element { get; }
+
+            /// <summary>
+            /// The document that declares the definition. A chained reference
+            /// the definition carries is written in this document's context,
+            /// not in the context of the document that started the chain.
+            /// </summary>
+            public WotDocument Owner { get; }
 
             /// <summary>
             /// The reference a diagnostic names this candidate by: the
@@ -154,7 +188,7 @@ namespace Opc.Ua.Wot
                 AddCandidate(
                     document,
                     ReadLogicalId(root),
-                    new DefinitionCandidate(origin, string.Empty, root),
+                    new DefinitionCandidate(origin, string.Empty, root, document),
                     index);
             }
             foreach (KeyValuePair<string, JsonElement> affordance in document.Events)
@@ -174,7 +208,8 @@ namespace Opc.Ua.Wot
                     new DefinitionCandidate(
                         origin,
                         "/events/" + EscapePointerToken(affordance.Key),
-                        affordance.Value),
+                        affordance.Value,
+                        document),
                     index);
             }
         }
@@ -442,7 +477,7 @@ namespace Opc.Ua.Wot
         /// held documents, then the configured resolvers, then the well-known
         /// catalog.
         /// </summary>
-        private async ValueTask<JsonElement?> ResolveReferenceTargetAsync(
+        private async ValueTask<ResolvedDefinition> ResolveReferenceTargetAsync(
             WotDocument document,
             string reference,
             string where,
@@ -454,13 +489,19 @@ namespace Opc.Ua.Wot
             // Held documents, by logical identifier, expanded in the active
             // context of the node that wrote the reference.
             if (TryLookupHeld(
-                    document, reference, where, scope, out JsonElement held, out bool ambiguous))
+                    document,
+                    reference,
+                    where,
+                    scope,
+                    out JsonElement held,
+                    out WotDocument? heldOwner,
+                    out bool ambiguous))
             {
-                return held;
+                return new ResolvedDefinition(held, heldOwner ?? document);
             }
             if (ambiguous)
             {
-                return null;
+                return default;
             }
 
             // Held documents and configured resolvers, by location. The attempt
@@ -470,6 +511,7 @@ namespace Opc.Ua.Wot
             // so a well-known identifier is not reported as a missing file.
             bool located = false;
             JsonElement target = default;
+            WotDocument? locatedIn = null;
             string? unresolvedDocument = null;
             bool pointerMissed = false;
             if (WotEventSelectClauses.TrySplitEventTypeReference(
@@ -499,19 +541,22 @@ namespace Opc.Ua.Wot
                             where,
                             scope,
                             out JsonElement identified,
+                            out WotDocument? identifiedOwner,
                             out bool nowAmbiguous))
                     {
-                        return identified;
+                        return new ResolvedDefinition(
+                            identified, identifiedOwner ?? resolved);
                     }
                     if (nowAmbiguous)
                     {
-                        return null;
+                        return default;
                     }
                     if (WotDocument.TryEvaluatePointer(
                             resolved.RootElement, pointer, out target) &&
                         target.ValueKind == JsonValueKind.Object)
                     {
                         located = true;
+                        locatedIn = resolved;
                     }
                     else
                     {
@@ -526,18 +571,20 @@ namespace Opc.Ua.Wot
                     $"The EventType reference '{reference}' is not a document URI with an " +
                     "optional RFC 6901 JSON Pointer (WoT Binding Section 6.1).",
                     where);
-                return null;
+                return default;
             }
             if (located)
             {
-                return target;
+                return new ResolvedDefinition(target, locatedIn ?? document);
             }
 
             // The well-known catalog, last: a definition this library carries
             // shall never shadow one an author shipped.
             if (TryLookupWellKnown(document, reference, out JsonElement builtIn))
             {
-                return builtIn;
+                // A well-known definition carries no chained reference, so the
+                // context it would be expanded in does not matter.
+                return new ResolvedDefinition(builtIn, document);
             }
 
             if (pointerMissed)
@@ -547,7 +594,7 @@ namespace Opc.Ua.Wot
                     $"The EventType reference '{reference}' does not resolve to a " +
                     "definition of the document it names (WoT Binding Section 6.1).",
                     where);
-                return null;
+                return default;
             }
             if (unresolvedDocument is not null && NamesDocumentLocation(reference))
             {
@@ -566,7 +613,7 @@ namespace Opc.Ua.Wot
                         "(WoT Binding Sections 5.1.5 and 6.1).",
                         where);
                 }
-                return null;
+                return default;
             }
 
             AddError(
@@ -576,7 +623,7 @@ namespace Opc.Ua.Wot
                 "one declare, or one of the well-known base types; it is never dereferenced " +
                 "over the network (WoT Binding Sections 5.1.5 and 6.1).",
                 where);
-            return null;
+            return default;
         }
 
         /// <summary>
@@ -589,9 +636,11 @@ namespace Opc.Ua.Wot
             string where,
             ResolutionScope scope,
             out JsonElement definition,
+            out WotDocument? owner,
             out bool ambiguous)
         {
             definition = default;
+            owner = null;
             ambiguous = false;
 
             var matches = new List<DefinitionCandidate>();
@@ -617,6 +666,7 @@ namespace Opc.Ua.Wot
                 return false;
             }
             definition = matches[0].Element;
+            owner = matches[0].Owner;
             return true;
         }
 

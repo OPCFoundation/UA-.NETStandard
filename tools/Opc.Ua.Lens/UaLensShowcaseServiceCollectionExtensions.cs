@@ -102,7 +102,10 @@ internal static class UaLensShowcaseServiceCollectionExtensions
         services.AddUaLensPluginFactory<IPubSubRuntimeFactory>(
             PluginKind.PubSub, static (factory, host) => new PubSubPlugin(host, factory), isDefault: true);
 
-        services.TryAddSingleton(_ => new CompanionPluginFactory());
+        services.TryAddSingleton<ICompanionPackageReader, CompanionPackageReader>();
+        services.TryAddSingleton(provider => new CompanionPluginFactory(
+            timeProvider: provider.GetService<TimeProvider>(),
+            packages: provider.GetRequiredService<ICompanionPackageReader>()));
         services.AddUaLensPluginFactory<CompanionPluginFactory>(
             PluginKind.Companions, static (factory, host) => factory.Create(host), isDefault: true);
         return services;

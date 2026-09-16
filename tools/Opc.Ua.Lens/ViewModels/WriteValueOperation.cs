@@ -54,16 +54,18 @@ internal delegate WriteValueOperation WriteValueOperationFactory(NodeId nodeId, 
 /// </summary>
 internal sealed class WriteValueOperation : IAsyncDisposable
 {
-    public WriteValueOperation(NodeId nodeId, ISession session)
+    public WriteValueOperation(NodeId nodeId, ISession session, CancellationToken cancellationToken = default)
     {
         m_nodeId = nodeId;
         m_session = session ?? throw new ArgumentNullException(nameof(session));
+        m_lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
     }
 
     public WriteValueState State { get; private set; } = WriteValueState.Loading;
     public string Outcome { get; private set; } = string.Empty;
     public NodeId DataType { get; private set; }
     public int ValueRank { get; private set; } = ValueRanks.Scalar;
+    public ArrayOf<uint> ArrayDimensions { get; private set; } = [];
     public DataValue CurrentValue { get; private set; }
     public bool WasDispatched { get; private set; }
     public CancellationToken CancellationToken => m_lifetime.Token;
@@ -85,7 +87,8 @@ internal sealed class WriteValueOperation : IAsyncDisposable
     {
         lock (m_gate)
         {
-            if (!m_stopping && State == WriteValueState.Editing && m_work.IsCompleted)
+            if (!m_stopping && !m_lifetime.IsCancellationRequested &&
+                State == WriteValueState.Editing && m_work.IsCompleted)
             {
                 State = WriteValueState.Writing;
                 WasDispatched = true;
@@ -129,15 +132,17 @@ internal sealed class WriteValueOperation : IAsyncDisposable
     {
         try
         {
+            m_lifetime.Token.ThrowIfCancellationRequested();
             ReadResponse response = await m_session.ReadAsync(
                 null, 0, TimestampsToReturn.Neither,
                 [
                     new ReadValueId { NodeId = m_nodeId, AttributeId = Attributes.Value },
                     new ReadValueId { NodeId = m_nodeId, AttributeId = Attributes.DataType },
-                    new ReadValueId { NodeId = m_nodeId, AttributeId = Attributes.ValueRank }
+                    new ReadValueId { NodeId = m_nodeId, AttributeId = Attributes.ValueRank },
+                    new ReadValueId { NodeId = m_nodeId, AttributeId = Attributes.ArrayDimensions }
                 ], m_lifetime.Token).ConfigureAwait(false);
             m_lifetime.Token.ThrowIfCancellationRequested();
-            if (!StatusCode.IsGood(response.ResponseHeader.ServiceResult) || response.Results.Count != 3)
+            if (!StatusCode.IsGood(response.ResponseHeader.ServiceResult) || response.Results.Count != 4)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadDecodingError, "The current-value read did not return all requested attributes.");
@@ -155,8 +160,15 @@ internal sealed class WriteValueOperation : IAsyncDisposable
             {
                 throw new ServiceResultException(StatusCodes.BadDecodingError, "Invalid DataType or ValueRank.");
             }
+            ArrayOf<uint> dimensions = [];
+            if (!response.Results[3].WrappedValue.IsNull &&
+                !response.Results[3].WrappedValue.TryGetValue(out dimensions))
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError, "Invalid ArrayDimensions.");
+            }
             DataType = dataType;
             ValueRank = valueRank;
+            ArrayDimensions = CoreUtils.Clone(dimensions);
             CurrentValue = response.Results[0];
             State = WriteValueState.Editing;
         }
@@ -215,7 +227,7 @@ internal sealed class WriteValueOperation : IAsyncDisposable
     private readonly NodeId m_nodeId;
     private readonly ISession m_session;
     private readonly Lock m_gate = new();
-    private readonly CancellationTokenSource m_lifetime = new();
+    private readonly CancellationTokenSource m_lifetime;
     private Task m_work = Task.CompletedTask;
     private Task? m_shutdown;
     private bool m_started;

@@ -171,8 +171,8 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
     // CA2213: m_lds and m_gds ARE disposed in DisposeAsync below, but the
     // analyzer can't see ownership through async patterns + null checks.
 #pragma warning disable CA2213
-    private LocalDiscoveryServerClient? m_lds;
-    private GlobalDiscoveryServerClient? m_gds;
+    private ILocalDiscoveryServerClient? m_lds;
+    private IGlobalDiscoveryServerClient? m_gds;
 #pragma warning restore CA2213
     private QueryServersFilter m_gdsFilter = new();
     private bool m_favoritesLoaded;
@@ -199,8 +199,23 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
     public ObservableCollection<DiscoveryEndpointRow> Endpoints { get; } = new();
 
     public GdsDiscoveryPlugin(PluginHost host)
+        : this(host,
+            static configuration => new LocalDiscoveryServerClient(configuration),
+            static configuration => new GlobalDiscoveryServerClient(configuration),
+            favoritesPath: null)
+    {
+    }
+
+    internal GdsDiscoveryPlugin(
+        PluginHost host,
+        Func<ApplicationConfiguration, ILocalDiscoveryServerClient> createLds,
+        Func<ApplicationConfiguration, IGlobalDiscoveryServerClient> createGds,
+        string? favoritesPath)
     {
         m_host = host ?? throw new ArgumentNullException(nameof(host));
+        m_createLds = createLds ?? throw new ArgumentNullException(nameof(createLds));
+        m_createGds = createGds ?? throw new ArgumentNullException(nameof(createGds));
+        m_favoritesPath = favoritesPath;
         m_log = host.Log;
         m_title = $"GDS Discovery {Interlocked.Increment(ref s_nextNumber)}";
 
@@ -274,7 +289,10 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         }
         try
         {
-            m_gds?.Dispose();
+            if (m_gds is not null)
+            {
+                await m_gds.DisposeAsync().ConfigureAwait(false);
+            }
         }
         catch (Exception ex)
         {
@@ -283,16 +301,15 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         m_gds = null;
     }
 
-    // ----- Property hooks -----
-
     partial void OnSelectedNodeChanged(DiscoveryNode? value)
     {
+        SelectedEndpoint = null;
         _ = RefreshEndpointsAsync(value);
     }
 
-    // ----- Commands -----
-
-    /// <summary>Reloads the root currently selected (or all roots when none is).</summary>
+    /// <summary>
+    /// Reloads the root currently selected (or all roots when none is).
+    /// </summary>
     [RelayCommand]
     public async Task RefreshSelectedRootAsync()
     {
@@ -309,7 +326,9 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         await LoadRootAsync(root).ConfigureAwait(true);
     }
 
-    /// <summary>Opens the QueryServers filter dialog for the Global Discovery root.</summary>
+    /// <summary>
+    /// Opens the QueryServers filter dialog for the Global Discovery root.
+    /// </summary>
     [RelayCommand]
     public async Task EditFilterAsync()
     {
@@ -389,7 +408,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         }
         m_favorites.Add(url);
         SeedFavoritesIntoCustomRoot();
-        await FavoritesStore.SaveAsync(m_favorites, m_log).ConfigureAwait(true);
+        await FavoritesStore.SaveAsync(m_favorites, m_log, m_favoritesPath).ConfigureAwait(true);
         Status = $"● Added {url} to favourites.";
     }
 
@@ -423,7 +442,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
             return;
         }
         SeedFavoritesIntoCustomRoot();
-        await FavoritesStore.SaveAsync(m_favorites, m_log).ConfigureAwait(true);
+        await FavoritesStore.SaveAsync(m_favorites, m_log, m_favoritesPath).ConfigureAwait(true);
         Status = $"● Removed {url} from favourites.";
     }
 
@@ -466,8 +485,6 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         m_host.Workspace.EndpointUrl = ep.EndpointUrl ?? string.Empty;
         await m_host.Workspace.OpenToolAsync(kind, discoveryEndpoint: ep).ConfigureAwait(true);
     }
-
-    // ----- Internals -----
 
     private DiscoveryNode MakeRoot(DiscoveryRootKind kind, string label, string glyph)
     {
@@ -519,7 +536,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
 
     private async Task LoadLocalMachineAsync(DiscoveryNode root)
     {
-        LocalDiscoveryServerClient lds = await EnsureLdsAsync().ConfigureAwait(true);
+        ILocalDiscoveryServerClient lds = await EnsureLdsAsync().ConfigureAwait(true);
         ArrayOf<ApplicationDescription> apps = await lds
             .FindServersAsync(LocalMachineUrl, null, CancellationToken.None)
             .ConfigureAwait(true);
@@ -538,7 +555,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
 
     private async Task LoadLocalNetworkAsync(DiscoveryNode root)
     {
-        LocalDiscoveryServerClient lds = await EnsureLdsAsync().ConfigureAwait(true);
+        ILocalDiscoveryServerClient lds = await EnsureLdsAsync().ConfigureAwait(true);
         (ArrayOf<ServerOnNetwork> servers, _) = await lds
             .FindServersOnNetworkAsync(0, 100, CancellationToken.None)
             .ConfigureAwait(true);
@@ -718,7 +735,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
 
     private async Task LoadGlobalDiscoveryAsync(DiscoveryNode root)
     {
-        GlobalDiscoveryServerClient gds = await EnsureGdsAsync().ConfigureAwait(true);
+        IGlobalDiscoveryServerClient gds = await EnsureGdsAsync().ConfigureAwait(true);
         ArrayOf<ServerOnNetwork> servers = await gds.QueryServersAsync(
             maxRecordsToReturn: 100,
             applicationName: m_gdsFilter.ApplicationName,
@@ -741,15 +758,21 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
 
     private async Task RefreshEndpointsAsync(DiscoveryNode? node)
     {
-        await Dispatcher.UIThread.InvokeAsync(() => Endpoints.Clear())
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (ReferenceEquals(node, SelectedNode))
+            {
+                Endpoints.Clear();
+            }
+        })
             .GetTask().ConfigureAwait(true);
-        if (node is null || string.IsNullOrEmpty(node.EndpointUrl))
+        if (!ReferenceEquals(node, SelectedNode) || node is null || string.IsNullOrEmpty(node.EndpointUrl))
         {
             return;
         }
         try
         {
-            LocalDiscoveryServerClient lds = await EnsureLdsAsync().ConfigureAwait(true);
+            ILocalDiscoveryServerClient lds = await EnsureLdsAsync().ConfigureAwait(true);
             ArrayOf<EndpointDescription> endpoints = await lds
                 .GetEndpointsAsync(node.EndpointUrl, CancellationToken.None)
                 .ConfigureAwait(true);
@@ -766,6 +789,10 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
             }
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
+                if (!ReferenceEquals(node, SelectedNode))
+                {
+                    return;
+                }
                 Endpoints.Clear();
                 foreach (DiscoveryEndpointRow r in rows)
                 {
@@ -779,29 +806,32 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         catch (Exception ex)
         {
             m_log.DiscoveryGetEndpointsFailed(ex, node.EndpointUrl);
-            Status = $"● GetEndpoints({node.EndpointUrl}) failed: {ex.Message}";
+            if (ReferenceEquals(node, SelectedNode))
+            {
+                Status = $"● GetEndpoints({node.EndpointUrl}) failed: {ex.Message}";
+            }
         }
     }
 
-    private async Task<LocalDiscoveryServerClient> EnsureLdsAsync()
+    private async Task<ILocalDiscoveryServerClient> EnsureLdsAsync()
     {
         if (m_lds is not null)
         {
             return m_lds;
         }
         ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync().ConfigureAwait(true);
-        m_lds = new LocalDiscoveryServerClient(cfg);
+        m_lds = m_createLds(cfg);
         return m_lds;
     }
 
-    private async Task<GlobalDiscoveryServerClient> EnsureGdsAsync()
+    private async Task<IGlobalDiscoveryServerClient> EnsureGdsAsync()
     {
         if (m_gds is not null)
         {
             return m_gds;
         }
         ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync().ConfigureAwait(true);
-        m_gds = new GlobalDiscoveryServerClient(cfg);
+        m_gds = m_createGds(cfg);
         return m_gds;
     }
 
@@ -844,7 +874,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
     {
         try
         {
-            List<string> loaded = await FavoritesStore.LoadAsync(m_log, cancellationToken: cancellationToken)
+            List<string> loaded = await FavoritesStore.LoadAsync(m_log, m_favoritesPath, cancellationToken)
                 .ConfigureAwait(true);
             m_favorites.Clear();
             m_favorites.AddRange(loaded);
@@ -905,6 +935,10 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
             custom.Children.Insert(insert++, node);
         }
     }
+
+    private readonly Func<ApplicationConfiguration, ILocalDiscoveryServerClient> m_createLds;
+    private readonly Func<ApplicationConfiguration, IGlobalDiscoveryServerClient> m_createGds;
+    private readonly string? m_favoritesPath;
 
     private static DiscoveryNode? ResolveRoot(DiscoveryNode? node)
     {

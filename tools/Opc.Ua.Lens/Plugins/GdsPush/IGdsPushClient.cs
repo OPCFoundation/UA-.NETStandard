@@ -52,7 +52,7 @@ internal interface IGdsPushClient
 
 internal sealed class GdsPushClientAdapter : IGdsPushClient
 {
-    public GdsPushClientAdapter(ServerPushConfigurationClient client)
+    public GdsPushClientAdapter(IServerPushConfigurationClient client)
     {
         m_client = client ?? throw new ArgumentNullException(nameof(client));
     }
@@ -70,5 +70,5 @@ internal sealed class GdsPushClientAdapter : IGdsPushClient
     public ValueTask RemoveCertificateAsync(string thumbprint, bool trusted, CancellationToken cancellationToken)
         => m_client.RemoveCertificateAsync(thumbprint, trusted, cancellationToken);
 
-    private readonly ServerPushConfigurationClient m_client;
+    private readonly IServerPushConfigurationClient m_client;
 }

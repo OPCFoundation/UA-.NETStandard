@@ -604,7 +604,13 @@ namespace Opc.Ua.Client.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(clone.DisplayName, Is.EqualTo("Sensor 0"));
+                // The suffix is the clone's own freshly minted client handle:
+                // it exists to tell clones of the same template apart, so it
+                // must never be the placeholder 0 every clone would share.
+                Assert.That(clone.ClientHandle, Is.Not.Zero);
+                Assert.That(
+                    clone.DisplayName,
+                    Is.EqualTo($"Sensor {clone.ClientHandle}"));
                 Assert.That(clone.ClientHandle, Is.Not.EqualTo(item.ClientHandle));
                 Assert.That(clone.Handle, Is.EqualTo("local"));
             });
@@ -631,7 +637,15 @@ namespace Opc.Ua.Client.Tests
 
             var clone = new MonitoredItem(item);
 
-            Assert.That(clone.DisplayName, Is.EqualTo("Tank Level 0"));
+            Assert.Multiple(() =>
+            {
+                // The template's trailing handle is dropped and replaced by the
+                // clone's own, not by the placeholder 0.
+                Assert.That(clone.ClientHandle, Is.Not.Zero);
+                Assert.That(
+                    clone.DisplayName,
+                    Is.EqualTo($"Tank Level {clone.ClientHandle}"));
+            });
         }
 
         [Test]

@@ -53,12 +53,21 @@ namespace UaLens.Subscriptions
     internal sealed class ChannelV2EngineAdapter : ISubscriptionAdapter
     {
         public ChannelV2EngineAdapter(
+            ManagedSession session,
+            ITelemetryContext telemetry,
+            PublishLogObserver? publishLog = null)
+            : this((ISession)session, telemetry, publishLog)
+        {
+        }
+
+        internal ChannelV2EngineAdapter(
             ISession session,
             ITelemetryContext telemetry,
             PublishLogObserver? publishLog = null)
         {
+            ArgumentNullException.ThrowIfNull(session);
             ArgumentNullException.ThrowIfNull(telemetry);
-            m_session = session ?? throw new ArgumentNullException(nameof(session));
+            m_session = session;
             m_log = telemetry.CreateLogger("ChannelV2Adapter");
             m_publishLog = publishLog;
             m_channel = Channel.CreateBounded<NotificationEvent>(new BoundedChannelOptions(8192)
@@ -285,7 +294,8 @@ namespace UaLens.Subscriptions
         }
 
         /// <summary>
-        /// Writes to the delivery queue. Its dropped-item callback counts actual evictions.
+        /// Writes a notification. The channel callback counts actual evictions,
+        /// including concurrent writers racing with the display reader.
         /// </summary>
         internal void WriteEventOrCount(NotificationEvent ev)
         {

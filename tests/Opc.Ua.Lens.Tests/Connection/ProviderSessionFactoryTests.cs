@@ -136,6 +136,35 @@ public sealed class ProviderSessionFactoryTests
     }
 
     [Test]
+    public async Task EngineSpecializationPreservesTheProfileAndLeavesTheOriginalFactoryUnchanged()
+    {
+        (ApplicationConfiguration configuration, ConfiguredEndpoint endpoint, ConnectionProfile profile) = Setup();
+        var provider = new Mock<IClientIdentityProvider>(MockBehavior.Strict);
+        var inner = new Mock<ISessionFactory>(MockBehavior.Strict);
+        var specialized = new Mock<ISessionFactory>(MockBehavior.Strict);
+        var originalEngine = Mock.Of<ISubscriptionEngineFactory>();
+        var requestedEngine = Mock.Of<ISubscriptionEngineFactory>();
+        inner.SetupGet(value => value.SubscriptionEngineFactory).Returns(originalEngine);
+        specialized.SetupGet(value => value.SubscriptionEngineFactory).Returns(requestedEngine);
+        inner.Setup(value => value.WithSubscriptionEngine(requestedEngine, TimeProvider.System))
+            .Returns(specialized.Object);
+        var factory = new ProviderSessionFactory(inner.Object, provider.Object, profile);
+        ISessionFactory result = factory.WithSubscriptionEngine(requestedEngine, TimeProvider.System);
+        Assert.That(result, Is.Not.SameAs(factory).And.Not.SameAs(specialized.Object));
+        Assert.That(result.SubscriptionEngineFactory, Is.SameAs(requestedEngine));
+        Assert.That(factory.SubscriptionEngineFactory, Is.SameAs(originalEngine));
+        endpoint.Description.SecurityMode = MessageSecurityMode.None;
+        await Assert.ThatAsync(() => result.CreateAsync(
+            configuration, endpoint, false, true, "test", 60000, null, default),
+            Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
+        provider.VerifyNoOtherCalls();
+        specialized.Verify(value => value.CreateAsync(
+            It.IsAny<ApplicationConfiguration>(), It.IsAny<ConfiguredEndpoint>(),
+            It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<string>(), It.IsAny<uint>(),
+            It.IsAny<IUserIdentity>(), It.IsAny<ArrayOf<string>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
     public async Task DisposingSessionIdentityOwnerDoesNotDisposeItsConfiguredProvider()
     {
         var provider = new Mock<IClientIdentityProvider>();

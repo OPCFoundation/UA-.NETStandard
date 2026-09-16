@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua;
@@ -42,10 +43,14 @@ namespace UaLens.Plugins.Performance;
 /// </summary>
 internal enum BenchmarkMode
 {
-    /// <summary>Single-value <c>WriteAsync</c> per op (Part 4 §5.10.4).</summary>
+    /// <summary>
+    /// Single-value <c>WriteAsync</c> per op (Part 4 §5.10.4).
+    /// </summary>
     Write,
 
-    /// <summary>Method <c>CallAsync</c> per op (Part 4 §5.11.2).</summary>
+    /// <summary>
+    /// Method <c>CallAsync</c> per op (Part 4 §5.11.2).
+    /// </summary>
     Call
 }
 
@@ -54,13 +59,19 @@ internal enum BenchmarkMode
 /// </summary>
 internal enum ValueGenerator
 {
-    /// <summary>Uniform random in the appropriate domain for the data type.</summary>
+    /// <summary>
+    /// Uniform random in the appropriate domain for the data type.
+    /// </summary>
     Random,
 
-    /// <summary>Monotonically increasing counter, wrapped to fit the data type.</summary>
+    /// <summary>
+    /// Monotonically increasing counter, wrapped to fit the data type.
+    /// </summary>
     Sequential,
 
-    /// <summary>Same literal value reused for every op.</summary>
+    /// <summary>
+    /// Same literal value reused for every op.
+    /// </summary>
     Fixed
 }
 
@@ -93,45 +104,12 @@ internal readonly record struct BenchmarkSample(
 
 /// <summary>
 /// Background runner that pumps synthetic Write or Call ops at a
-/// configured target rate against an OPC UA session, cooperatively
-/// cancellable. Concurrency is bounded by the set of owned operation tasks
-/// so we never queue more than ~256 inflight ops at a time even when
-/// the target rate temporarily outruns the channel.  Each op's
-/// wall-clock latency is reported via <see cref="OnSample"/>; the host
-/// view-model aggregates them into the throughput series + histogram.
+/// configured target rate against an OPC UA session, cooperatively cancellable.
+/// At most 256 operation tasks are retained. Stop and natural completion both
+/// drain issued operations before publishing the final snapshot boundary.
 /// </summary>
 internal sealed class BenchmarkRunner : IAsyncDisposable
 {
-    /// <summary>Hard cap on max in-flight ops.  See class header.</summary>
-    public const int MaxConcurrencyCap = 256;
-
-    private readonly ISession m_session;
-    private readonly BenchmarkTarget m_target;
-    private readonly ValueGenerator m_generator;
-    private readonly double m_targetRatePerSec;
-    private readonly bool m_unboundedBurst;
-    private readonly TimeSpan m_duration;
-    private readonly TimeSpan m_drainTimeout;
-    private readonly TimeProvider m_timeProvider;
-
-    private CancellationTokenSource? m_cts;
-    private Task? m_loopTask;
-
-    /// <summary>
-    /// Fired once per completed op (whether success or failure).
-    /// May be raised on a non-UI thread; subscribers must marshal as
-    /// needed.
-    /// </summary>
-    public event Action<BenchmarkSample>? OnSample;
-
-    /// <summary>Fired exactly once when the runner stops (cancelled or completed).</summary>
-    public event Action<Guid, string?>? OnFinished;
-
-    /// <summary>
-    /// Reports a missed cleanup deadline while the runner still owns pending operations.
-    /// </summary>
-    public event Action<Guid>? OnDrainTimedOut;
-
     public BenchmarkRunner(
         ISession session,
         BenchmarkTarget target,
@@ -144,20 +122,64 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
     {
         m_session = session ?? throw new ArgumentNullException(nameof(session));
         m_target = target ?? throw new ArgumentNullException(nameof(target));
+        if (!Enum.IsDefined(target.Mode) || target.NodeId.IsNull ||
+            (target.Mode == BenchmarkMode.Call && target.ObjectId.IsNull))
+        {
+            throw new ArgumentException("The benchmark target is incomplete or invalid.", nameof(target));
+        }
+        if (!Enum.IsDefined(generator))
+        {
+            throw new ArgumentOutOfRangeException(nameof(generator));
+        }
+        if (!double.IsFinite(targetRatePerSec) || (!unboundedBurst && targetRatePerSec < 1))
+        {
+            throw new ArgumentOutOfRangeException(nameof(targetRatePerSec));
+        }
+        if (duration <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(duration));
+        }
         m_generator = generator;
-        m_targetRatePerSec = Math.Max(1.0, targetRatePerSec);
+        m_targetRatePerSec = targetRatePerSec;
         m_unboundedBurst = unboundedBurst;
-        m_duration = duration <= TimeSpan.Zero ? TimeSpan.FromSeconds(10) : duration;
+        m_duration = duration;
         m_drainTimeout = drainTimeout ?? TimeSpan.FromSeconds(5);
         m_timeProvider = timeProvider ?? TimeProvider.System;
+        Argument[] signature = target.InputArguments ?? [];
+        var inputTypes = new BuiltInType[signature.Length];
+        for (int i = 0; i < signature.Length; i++)
+        {
+            inputTypes[i] = ValueFactory.BuiltInForArgument(signature[i]);
+        }
+        m_inputTypes = new ArrayOf<BuiltInType>(inputTypes);
     }
 
     public Guid RunId { get; } = Guid.NewGuid();
 
     public bool DrainTimedOut { get; private set; }
 
-    /// <summary>True between Start and the time the loop fully drains after cancellation.</summary>
+    /// <summary>
+    /// True from Start until all issued operations have settled.
+    /// </summary>
     public bool IsRunning => m_loopTask is { IsCompleted: false };
+
+    public TimeSpan Elapsed { get; private set; }
+    public BenchmarkCompletion Completion { get; private set; }
+
+    /// <summary>
+    /// Raised once per completed operation, on the runner thread.
+    /// </summary>
+    public event Action<BenchmarkSample>? OnSample;
+
+    /// <summary>
+    /// Raised once after all samples, including on cancellation or failure.
+    /// </summary>
+    public event Action<Guid, string?>? OnFinished;
+
+    /// <summary>
+    /// Reports a missed cleanup deadline while the runner still owns pending operations.
+    /// </summary>
+    public event Action<Guid>? OnDrainTimedOut;
 
     /// <summary>
     /// Computes the recommended max-concurrency cap for a given target
@@ -166,21 +188,15 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
     /// </summary>
     public static int RecommendConcurrency(double targetRatePerSec)
     {
-        // 2x rate / 1000 ≈ enough in-flight ops to keep a 2 ms RTT pipe
-        // saturated without piling on more.  Floor at 4 so even low-rate
-        // benches can overlap a few requests; cap at MaxConcurrencyCap.
-        int suggested = (int)Math.Ceiling(targetRatePerSec * 2.0 / 1000.0);
-        if (suggested < 4)
+        if (!double.IsFinite(targetRatePerSec) || targetRatePerSec < 0)
         {
-            suggested = 4;
+            throw new ArgumentOutOfRangeException(nameof(targetRatePerSec));
         }
-
-        if (suggested > MaxConcurrencyCap)
+        if (targetRatePerSec >= MaxConcurrencyCap * 500.0)
         {
-            suggested = MaxConcurrencyCap;
+            return MaxConcurrencyCap;
         }
-
-        return suggested;
+        return Math.Max(4, (int)Math.Ceiling(targetRatePerSec / 500.0));
     }
 
     /// <summary>
@@ -192,13 +208,18 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
         {
             return;
         }
-
+        Elapsed = TimeSpan.Zero;
+        Completion = BenchmarkCompletion.Unknown;
         m_cts = new CancellationTokenSource();
         CancellationToken ct = m_cts.Token;
         m_loopTask = Task.Run(() => RunAsync(ct), CancellationToken.None);
     }
 
-    /// <summary>Cancels the run and awaits the loop to drain.</summary>
+    /// <summary>
+    /// Cancels the run and awaits every issued operation. A channel that has not
+    /// honored cancellation remains visibly stopping rather than leaking work
+    /// into a subsequent run or publishing an incomplete distribution as complete.
+    /// </summary>
     public async Task StopAsync()
     {
         Exception? cancellationFailure = null;
@@ -233,133 +254,144 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
         }
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        await StopAsync().ConfigureAwait(false);
+    }
+
     private async Task RunAsync(CancellationToken ct)
     {
         string? error = null;
+        bool loopFinished = false;
         int concurrency = m_unboundedBurst
             ? MaxConcurrencyCap
             : RecommendConcurrency(m_targetRatePerSec);
-        var operations = new List<Task>(concurrency);
+        var pending = new List<Task>(concurrency);
         using var duration = new CancellationTokenSource(m_duration, m_timeProvider);
         using var scheduling = CancellationTokenSource.CreateLinkedTokenSource(ct, duration.Token);
         CancellationToken scheduleToken = scheduling.Token;
 
         long startTicks = Stopwatch.GetTimestamp();
-        long endTicks = startTicks + (long)(m_duration.TotalSeconds * Stopwatch.Frequency);
         long opIndex = 0;
-
-        // Unbounded burst issues another operation whenever one owned slot is free.
         double tickGap = m_unboundedBurst
             ? 0
             : Stopwatch.Frequency / m_targetRatePerSec;
-        long nextOpTicks = startTicks;
+        double nextOpTicks = startTicks;
 
         try
         {
             while (!scheduleToken.IsCancellationRequested
-                && Stopwatch.GetTimestamp() < endTicks)
+                && Stopwatch.GetElapsedTime(startTicks) < m_duration)
             {
+                for (int i = pending.Count - 1; i >= 0; i--)
+                {
+                    if (pending[i].IsCompleted)
+                    {
+                        Task completed = pending[i];
+                        pending.RemoveAt(i);
+                        await completed.ConfigureAwait(false);
+                    }
+                }
+                if (pending.Count == concurrency)
+                {
+                    Task completed = await Task.WhenAny(pending).WaitAsync(scheduleToken).ConfigureAwait(false);
+                    pending.Remove(completed);
+                    await completed.ConfigureAwait(false);
+                }
                 if (!m_unboundedBurst)
                 {
                     long now = Stopwatch.GetTimestamp();
                     if (now < nextOpTicks)
                     {
-                        // Sleep in small chunks so we remain cancellable.
                         double waitMs = (nextOpTicks - now) * 1000.0 / Stopwatch.Frequency;
                         int sleepMs = waitMs > 5 ? (int)waitMs - 1 : 0;
                         if (sleepMs > 0)
                         {
-                            try
-                            {
-                                await Task.Delay(sleepMs, scheduleToken).ConfigureAwait(false);
-                            }
-                            catch (OperationCanceledException)
-                            {
-                                break;
-                            }
+                            await Task.Delay(sleepMs, scheduleToken).ConfigureAwait(false);
                         }
-                        // Final spin / yield for the last few hundred µs.
                         while (Stopwatch.GetTimestamp() < nextOpTicks
                             && !scheduleToken.IsCancellationRequested)
                         {
                             Thread.Yield();
                         }
                     }
-                    nextOpTicks += (long)tickGap;
-                }
-
-                await JoinCompletedAsync(operations).ConfigureAwait(false);
-                if (operations.Count == concurrency)
-                {
-                    await Task.WhenAny(operations).WaitAsync(scheduleToken).ConfigureAwait(false);
-                    await JoinCompletedAsync(operations).ConfigureAwait(false);
+                    nextOpTicks += tickGap;
                 }
                 scheduleToken.ThrowIfCancellationRequested();
-                operations.Add(IssueOpAsync(opIndex++, ct));
+                if (Stopwatch.GetElapsedTime(startTicks) >= m_duration)
+                {
+                    break;
+                }
+                pending.Add(IssueOpAsync(opIndex++, ct));
             }
+            loopFinished = true;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (scheduleToken.IsCancellationRequested)
         {
-            // cancellation is normal
+            loopFinished = true;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ServiceResultException or IOException or TimeoutException)
         {
             error = ex.Message;
+            loopFinished = true;
         }
         finally
         {
-            Task drain = Task.WhenAll(operations);
+            bool drained = false;
             try
             {
-                await drain.WaitAsync(m_drainTimeout, m_timeProvider, CancellationToken.None).ConfigureAwait(false);
+                Task drain = Task.WhenAll(pending);
+                try
+                {
+                    await drain.WaitAsync(m_drainTimeout, m_timeProvider, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (TimeoutException)
+                {
+                    DrainTimedOut = true;
+                    error = "Operation cleanup timed out; all issued operations were joined before completion.";
+                    try
+                    {
+                        m_cts?.Cancel();
+                    }
+                    catch (Exception failure)
+                    {
+                        error += $" Cancellation also failed: {failure.Message}";
+                    }
+                    try
+                    {
+                        OnDrainTimedOut?.Invoke(RunId);
+                    }
+                    catch (Exception)
+                    {
+                        // Consumer failures must not abandon the owned operations.
+                    }
+                    finally
+                    {
+                        // The deadline changes the outcome, not ownership. A caller cannot
+                        // start a successor or dispose resources until these operations finish.
+                        await drain.ConfigureAwait(false);
+                    }
+                }
+                drained = true;
             }
-            catch (TimeoutException)
+            finally
             {
-                DrainTimedOut = true;
-                error = "Operation cleanup timed out; all issued operations were joined before completion.";
+                Elapsed = Stopwatch.GetElapsedTime(startTicks);
+                if (!loopFinished || !drained)
+                {
+                    error ??= "Benchmark execution failed; an operation or sample consumer faulted.";
+                }
+                Completion = error is not null ? BenchmarkCompletion.Failed
+                    : ct.IsCancellationRequested ? BenchmarkCompletion.Stopped
+                    : BenchmarkCompletion.Completed;
                 try
                 {
-                    m_cts?.Cancel();
-                }
-                catch (Exception failure)
-                {
-                    error += $" Cancellation also failed: {failure.Message}";
-                }
-                try
-                {
-                    OnDrainTimedOut?.Invoke(RunId);
+                    OnFinished?.Invoke(RunId, error);
                 }
                 catch (Exception)
                 {
-                    // Consumer failures must not abandon the owned operations.
+                    // Completion observers do not own the runner's resource cleanup.
                 }
-                finally
-                {
-                    // The deadline changes the outcome, not ownership. A caller cannot
-                    // start a successor or dispose resources until these operations finish.
-                    await drain.ConfigureAwait(false);
-                }
-            }
-            try
-            {
-                OnFinished?.Invoke(RunId, error);
-            }
-            catch (Exception)
-            {
-                // Completion observers do not own the runner's resource cleanup.
-            }
-        }
-    }
-
-    private static async Task JoinCompletedAsync(List<Task> operations)
-    {
-        for (int index = operations.Count - 1; index >= 0; index--)
-        {
-            Task operation = operations[index];
-            if (operation.IsCompleted)
-            {
-                await operation.ConfigureAwait(false);
-                operations.RemoveAt(index);
             }
         }
     }
@@ -384,17 +416,16 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
                     }
                 ];
                 WriteResponse resp = await m_session.WriteAsync(null, wvs, ct).ConfigureAwait(false);
-                ok = resp.Results.Count > 0 && StatusCode.IsGood(resp.Results[0]);
+                ok = StatusCode.IsGood(resp.ResponseHeader.ServiceResult) &&
+                    resp.Results.Count == 1 && StatusCode.IsGood(resp.Results[0]);
             }
             else
             {
                 NodeId objectId = m_target.ObjectId;
-                Argument[] sig = m_target.InputArguments ?? Array.Empty<Argument>();
-                var args = new Variant[sig.Length];
-                for (int i = 0; i < sig.Length; i++)
+                var args = new Variant[m_inputTypes.Count];
+                for (int i = 0; i < args.Length; i++)
                 {
-                    BuiltInType bi = ValueFactory.BuiltInForArgument(sig[i]);
-                    args[i] = ValueFactory.BuildScalar(bi, m_generator, opIndex + i);
+                    args[i] = ValueFactory.BuildScalar(m_inputTypes[i], m_generator, opIndex + i);
                 }
                 ArrayOf<CallMethodRequest> calls =
                 [
@@ -406,14 +437,15 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
                     }
                 ];
                 CallResponse resp = await m_session.CallAsync(null, calls, ct).ConfigureAwait(false);
-                ok = resp.Results.Count > 0 && StatusCode.IsGood(resp.Results[0].StatusCode);
+                ok = StatusCode.IsGood(resp.ResponseHeader.ServiceResult) &&
+                    resp.Results.Count == 1 && StatusCode.IsGood(resp.Results[0].StatusCode);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             ok = false;
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is ServiceResultException or IOException or TimeoutException)
         {
             ok = false;
         }
@@ -421,19 +453,21 @@ internal sealed class BenchmarkRunner : IAsyncDisposable
         {
             long endTicks = Stopwatch.GetTimestamp();
             double latencyMs = (endTicks - startTicks) * 1000.0 / Stopwatch.Frequency;
-            try
-            {
-                OnSample?.Invoke(new BenchmarkSample(RunId, endTicks, latencyMs, ok));
-            }
-            catch
-            {
-                // swallow consumer errors so they don't bubble into the runner loop
-            }
+            OnSample?.Invoke(new BenchmarkSample(RunId, endTicks, latencyMs, ok));
         }
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        await StopAsync().ConfigureAwait(false);
-    }
+    public const int MaxConcurrencyCap = 256;
+
+    private readonly ISession m_session;
+    private readonly BenchmarkTarget m_target;
+    private readonly ValueGenerator m_generator;
+    private readonly ArrayOf<BuiltInType> m_inputTypes;
+    private readonly double m_targetRatePerSec;
+    private readonly bool m_unboundedBurst;
+    private readonly TimeSpan m_duration;
+    private readonly TimeSpan m_drainTimeout;
+    private readonly TimeProvider m_timeProvider;
+    private CancellationTokenSource? m_cts;
+    private Task? m_loopTask;
 }

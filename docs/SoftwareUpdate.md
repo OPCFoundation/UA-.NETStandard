@@ -203,6 +203,12 @@ Operational caps (defaults, configurable via constants on
 Handles are owned by the session that allocated them; cross-session
 access is rejected with `BadUserAccessDenied`.
 
+Committed package metadata contains the SHA-256 digest of the uploaded bytes.
+The `InstallSoftwarePackage` Hash argument is forwarded as hexadecimal
+`SoftwarePackage.Hash` to the application's install callback. A digest records
+content identity, not publisher authenticity: production applications still need
+their own signature, publisher, device and deployment authorization checks.
+
 > **Note** — `DirectLoadingType` and `CachedLoadingType` inherit
 > `PackageLoadingType` and therefore expose the same FileTransfer
 > slot. The wiring is shared because the upload semantics are
@@ -251,6 +257,28 @@ deployment flow is: upload via `UploadPackageAsync(...)` → drive the
 state machines via `PrepareAsync` / `InstallSoftwarePackageAsync` /
 `ConfirmAsync` as described below.
 
+Use `UploadPackageWithResultAsync` when the server can return asynchronous
+completion evidence:
+
+```csharp
+using FileStream payload = File.OpenRead(packagePath);
+SoftwareUpdateUploadResult result = await client.UploadPackageWithResultAsync(
+    payload, suggestedPackageId: packageId, ct: ct);
+if (!result.CompletionStateMachine.IsNull)
+{
+    // Observe this server-provided state machine before treating processing as complete.
+    // UploadPackageWithResultAsync does not wait for it or install any software.
+}
+```
+
+The result preserves both the byte count and `CompletionStateMachine`. The
+existing `UploadPackageAsync` overloads retain their byte-count return type.
+Malformed/ambiguous translations, bad service headers and malformed commit
+outputs are reported instead of becoming successful uploads. Cancellation stops
+transmission and does not send `CloseAndCommit`; cleanup of an opened handle uses
+an independent five-second token. A rejected or unavailable cleanup call is
+logged, not proof that the server rolled back staged data.
+
 ### Typed Part 16 state-machine surface
 
 `SoftwareUpdateClient` exposes typed accessors for the four child
@@ -298,6 +326,14 @@ needs to redo browse-path resolution. See
 API the typed wrappers build on.
 
 ## Hosted-server walkthrough
+
+For a repository-only in-memory walkthrough, run
+`PumpDeviceIntegrationServer` with `--host localhost --software-update-demo true`.
+This explicitly adds a separate `SoftwareUpdateDemo` device; it does not update
+the simulated pumps or execute package contents. Its install callback requires a
+matching staged SHA-256, rehashes the stored bytes and copies the package into an
+in-memory software-version folder. See the
+[pump sample guide](../samples/DI/PumpDeviceIntegrationServer/README.md#software-update-simulator).
 
 Attach the software-update facet to a `ComponentType`-derived device
 created through the Device Integration builder:

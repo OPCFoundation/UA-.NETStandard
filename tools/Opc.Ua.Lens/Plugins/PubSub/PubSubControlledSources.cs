@@ -80,7 +80,11 @@ internal sealed class PubSubSyntheticSource : IPublishedDataSetSource
                 Value = value,
                 StatusCode = StatusCodes.Good,
                 SourceTimestamp = DateTimeUtc.From(timestamp),
-                Encoding = m_configuration.RawDataEncoding ? PubSubFieldEncoding.RawData : PubSubFieldEncoding.DataValue
+                Encoding = m_configuration.EffectiveFieldMask == DataSetFieldContentMask.RawData
+                    ? PubSubFieldEncoding.RawData
+                    : m_configuration.EffectiveFieldMask == DataSetFieldContentMask.None
+                        ? PubSubFieldEncoding.Variant
+                        : PubSubFieldEncoding.DataValue
             };
         }
         return ValueTask.FromResult(new PublishedDataSetSnapshot(
@@ -197,8 +201,26 @@ internal sealed class PubSubControlledWriteBack : ISubscribedDataSetSink, IAsync
         }
         if (fields.Count != m_configuration.Fields.Count || fields.Any(field => field.FieldIndex >= 0))
         {
+            m_local.RecordEvidence("Write-back", StatusCodes.BadTypeMismatch,
+                "Write-back rejected a partial or positionally incompatible dataset without writing.");
             throw new ServiceResultException(StatusCodes.BadTypeMismatch,
                 "Write-back accepts complete, positionally mapped datasets only.");
+        }
+        for (int i = 0; i < fields.Count; i++)
+        {
+            DataSetField field = fields[i];
+            PubSubFieldConfiguration expected = m_configuration.Fields[i];
+            if (field.Name != expected.Name || field.Value.IsNull || !field.Value.TypeInfo.IsScalar ||
+                field.Value.TypeInfo.BuiltInType != expected.Type || !StatusCode.IsGood(field.StatusCode) ||
+                (field.Value.TryGetValue(out double number) && !double.IsFinite(number)) ||
+                (field.Value.TryGetValue(out float single) && !float.IsFinite(single)) ||
+                PubSubValueDisplay.Create(field).Truncated)
+            {
+                m_local.RecordEvidence("Write-back", StatusCodes.BadTypeMismatch,
+                    "The complete dataset was rejected before writing: " +
+                    "field name, scalar type, quality or size mismatch.");
+                throw new ServiceResultException(StatusCodes.BadTypeMismatch);
+            }
         }
         if (!await m_gate.WaitAsync(0, cancellationToken).ConfigureAwait(false))
         {
@@ -282,9 +304,21 @@ internal sealed class PubSubControlledActionHandler : IPubSubActionHandler, IAsy
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(invocation);
-        if (invocation.InputFields.Count > PubSubConfigurationValidation.MaxFields ||
-            !await m_gate.WaitAsync(0, cancellationToken).ConfigureAwait(false))
+        cancellationToken.ThrowIfCancellationRequested();
+        try
         {
+            PubSubActionInputs.Validate(invocation.InputFields);
+        }
+        catch (ArgumentException)
+        {
+            m_store.RecordEvidence("Action responder", StatusCodes.BadInvalidArgument,
+                "Invalid or unsupported scalar input was rejected without invoking the UA method.");
+            return new PubSubActionHandlerResult { StatusCode = StatusCodes.BadInvalidArgument };
+        }
+        if (!await m_gate.WaitAsync(0, cancellationToken).ConfigureAwait(false))
+        {
+            m_store.RecordEvidence("Action responder", StatusCodes.BadTooManyOperations,
+                "A concurrent Action was rejected without invoking the UA method.");
             return new PubSubActionHandlerResult { StatusCode = StatusCodes.BadTooManyOperations };
         }
         try

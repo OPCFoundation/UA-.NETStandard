@@ -141,6 +141,7 @@ internal sealed partial class NodeAttributesViewModel : ObservableObject, IDispo
                 : await session!.ReadAsync(null, 0, TimestampsToReturn.Neither, ids, ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
             ClientBase.ValidateResponse(resp.Results, ids);
+            IServiceMessageContext messageContext = offline?.MessageContext ?? session!.MessageContext;
             var rows = new List<AttributeRow>();
             for (int i = 0; i < resp.Results.Count; i++)
             {
@@ -160,7 +161,7 @@ internal sealed partial class NodeAttributesViewModel : ObservableObject, IDispo
                     }
                     continue;
                 }
-                string formatted = FormatValue(entry.AttributeId, dv);
+                string formatted = FormatValue(entry.AttributeId, dv, messageContext);
                 rows.Add(new AttributeRow(entry.Name, formatted));
             }
             if (rows.Count == 0)
@@ -208,7 +209,7 @@ internal sealed partial class NodeAttributesViewModel : ObservableObject, IDispo
         });
     }
 
-    private static string FormatValue(uint attributeId, in DataValue dv)
+    private static string FormatValue(uint attributeId, in DataValue dv, IServiceMessageContext messageContext)
     {
         Variant v = dv.WrappedValue;
         if (v.IsNull)
@@ -225,7 +226,7 @@ internal sealed partial class NodeAttributesViewModel : ObservableObject, IDispo
             Attributes.ValueRank => FormatValueRank(v),
             Attributes.AccessRestrictions => FormatAccessRestrictions(v),
             Attributes.RolePermissions
-                or Attributes.UserRolePermissions => FormatRolePermissions(v),
+                or Attributes.UserRolePermissions => FormatRolePermissions(v, messageContext),
             _ => FormatGeneric(v)
         };
     }
@@ -392,33 +393,13 @@ internal sealed partial class NodeAttributesViewModel : ObservableObject, IDispo
     /// the role name resolved via the OPC UA well-known role IDs (Anonymous,
     /// Observer, …).  Unknown roles fall back to the raw NodeId.
     /// </summary>
-    private static string FormatRolePermissions(Variant v)
+    private static string FormatRolePermissions(Variant v, IServiceMessageContext messageContext)
     {
-        // The Variant either decodes to RolePermissionType[] (preferred)
-        // or to ExtensionObject[] (when the type isn't pre-registered).
-        IList<RolePermissionType>? list = null;
-        object? boxed = v.AsBoxedObject();
-        if (boxed is RolePermissionType[] arr)
+        if (!v.TryGetValue(out ArrayOf<RolePermissionType> list, messageContext))
         {
-            list = arr;
+            return "(unsupported role permissions)";
         }
-        else if (boxed is IList<RolePermissionType> typed)
-        {
-            list = typed;
-        }
-        else if (boxed is ExtensionObject[] eos)
-        {
-            var parsed = new List<RolePermissionType>(eos.Length);
-            foreach (ExtensionObject eo in eos)
-            {
-                if (eo.TryGetValue(out RolePermissionType? rpt) && rpt is not null)
-                {
-                    parsed.Add(rpt);
-                }
-            }
-            list = parsed;
-        }
-        if (list is null || list.Count == 0)
+        if (list.IsEmpty)
         {
             return "(none)";
         }

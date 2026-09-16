@@ -49,7 +49,11 @@ namespace Opc.Ua
         /// The change subject used to emit certificate change events.
         /// </param>
         /// <param name="getCertificates">
-        /// A delegate that returns the current application certificates.
+        /// A delegate that returns a snapshot of the current application
+        /// certificates. It must hand back a collection this monitor owns and
+        /// disposes: the timer callback runs while other threads add, replace
+        /// and dispose entries, so enumerating the live list would throw and
+        /// could read an entry that has just been released.
         /// </param>
         /// <param name="expiryThreshold">
         /// The time span before expiry at which a warning is emitted.
@@ -66,7 +70,7 @@ namespace Opc.Ua
         /// </param>
         public CertificateLifecycleMonitor(
             CertificateChangeSubject subject,
-            Func<IReadOnlyList<CertificateEntry>> getCertificates,
+            Func<CertificateEntryCollection> getCertificates,
             TimeSpan expiryThreshold,
             TimeSpan checkInterval,
             ITelemetryContext telemetry,
@@ -86,7 +90,8 @@ namespace Opc.Ua
             try
             {
                 DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
-                foreach (CertificateEntry entry in m_getCertificates())
+                using CertificateEntryCollection certificates = m_getCertificates();
+                foreach (CertificateEntry entry in certificates)
                 {
                     if (now.Add(m_expiryThreshold) >= entry.NotAfter &&
                         m_alreadyNotified.Add(entry.Certificate.Thumbprint))
@@ -130,7 +135,7 @@ namespace Opc.Ua
         }
 
         private readonly CertificateChangeSubject m_subject;
-        private readonly Func<IReadOnlyList<CertificateEntry>> m_getCertificates;
+        private readonly Func<CertificateEntryCollection> m_getCertificates;
         private readonly TimeSpan m_expiryThreshold;
         private readonly TimeProvider m_timeProvider;
         private readonly ITimer m_timer;

@@ -121,7 +121,11 @@ namespace System
         /// </summary>
         public static int IndexOf(this string target, char value, StringComparison comparisonType)
         {
-            return target.IndexOf(value);
+            // Honour the comparison instead of always using the ordinal
+            // overload, which ignored a requested culture or case insensitivity.
+            return comparisonType == StringComparison.Ordinal
+                ? target.IndexOf(value)
+                : target.IndexOf(value.ToString(), comparisonType);
         }
 
         /// <summary>
@@ -133,7 +137,92 @@ namespace System
             string newValue,
             StringComparison comparisonType)
         {
-            return target.Replace(oldValue, newValue);
+            if (comparisonType == StringComparison.Ordinal)
+            {
+                return target.Replace(oldValue, newValue);
+            }
+
+            // The framework overload throws for these, and so does the ordinal
+            // branch above through string.Replace. Returning the target instead
+            // would make the contract depend on the target framework and on the
+            // comparison the caller asked for.
+            if (oldValue == null)
+            {
+                throw new ArgumentNullException(nameof(oldValue));
+            }
+            if (oldValue.Length == 0)
+            {
+                throw new ArgumentException(
+                    "String cannot be of zero length.",
+                    nameof(oldValue));
+            }
+
+            // Honour the comparison instead of always replacing ordinally.
+            var builder = new System.Text.StringBuilder(target.Length);
+            bool ordinalIgnoreCase = comparisonType == StringComparison.OrdinalIgnoreCase;
+            int index = 0;
+
+            while (index < target.Length)
+            {
+                int match = target.IndexOf(oldValue, index, comparisonType);
+
+                if (match < 0)
+                {
+                    builder.Append(target, index, target.Length - index);
+                    break;
+                }
+
+                // A culture sensitive match can span a different number of
+                // characters than oldValue - under de-DE "ss" matches the single
+                // sharp s character, and an ignorable oldValue matches none at
+                // all - so advance by the length that actually matched. Only the
+                // ordinal comparisons are guaranteed to match oldValue.Length
+                // characters.
+                int matched = ordinalIgnoreCase
+                    ? oldValue.Length
+                    : MatchLength(target, match, oldValue, comparisonType);
+
+                if (matched == 0)
+                {
+                    // Nothing to consume here, so keep the character and move
+                    // on rather than replacing the whole string one empty match
+                    // at a time.
+                    builder.Append(target, index, match - index + 1);
+                    index = match + 1;
+                    continue;
+                }
+
+                builder.Append(target, index, match - index).Append(newValue);
+                index = match + matched;
+            }
+
+            return builder.ToString();
+        }
+
+        /// <summary>
+        /// Returns the number of characters at <paramref name="start"/> that
+        /// compare equal to <paramref name="oldValue"/> under the given
+        /// comparison, which is not necessarily the length of
+        /// <paramref name="oldValue"/> for a culture sensitive comparison.
+        /// </summary>
+        private static int MatchLength(
+            string target,
+            int start,
+            string oldValue,
+            StringComparison comparisonType)
+        {
+            int available = target.Length - start;
+            for (int length = 0; length <= available; length++)
+            {
+                if (string.Equals(
+                    target.Substring(start, length),
+                    oldValue,
+                    comparisonType))
+                {
+                    return length;
+                }
+            }
+            return oldValue.Length;
         }
 
         /// <summary>

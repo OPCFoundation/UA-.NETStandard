@@ -115,7 +115,7 @@ namespace Opc.Ua.Wot
                         nestedOnly, diagnostics);
                 }
             }
-            ValidateEncodingIdentities(complete, identities, diagnostics);
+            ValidateEncodingIdentities(complete, identities, nodeSet, diagnostics);
             ValidateInheritedFieldPrefixes(complete, diagnostics);
             ValidateSubtypeGraph(complete, diagnostics);
             return identities;
@@ -340,8 +340,13 @@ namespace Opc.Ua.Wot
                 bool belongsHere = false;
                 foreach (Reference reference in encoding.References)
                 {
-                    if (string.Equals(
-                            reference.ReferenceType, "HasEncoding", StringComparison.Ordinal) &&
+                    // The reference type may be written as the alias or as the
+                    // numeric identifier; matching only the alias missed every
+                    // document that writes "i=38".
+                    if (IsReferenceTypeNamed(
+                            reference.ReferenceType,
+                            "HasEncoding",
+                            WotVocabulary.HasEncoding) &&
                         string.Equals(reference.Value, dataType.NodeId, StringComparison.Ordinal))
                     {
                         belongsHere = true;
@@ -383,8 +388,13 @@ namespace Opc.Ua.Wot
             {
                 foreach (Reference reference in dataType.References)
                 {
-                    if (string.Equals(
-                            reference.ReferenceType, "HasEncoding", StringComparison.Ordinal) &&
+                    // The reference type may be written as the alias or as the
+                    // numeric identifier; matching only the alias missed every
+                    // document that writes "i=38".
+                    if (IsReferenceTypeNamed(
+                            reference.ReferenceType,
+                            "HasEncoding",
+                            WotVocabulary.HasEncoding) &&
                         reference.IsForward)
                     {
                         return true;
@@ -403,8 +413,13 @@ namespace Opc.Ua.Wot
                 }
                 foreach (Reference reference in encoding.References)
                 {
-                    if (string.Equals(
-                            reference.ReferenceType, "HasEncoding", StringComparison.Ordinal) &&
+                    // The reference type may be written as the alias or as the
+                    // numeric identifier; matching only the alias missed every
+                    // document that writes "i=38".
+                    if (IsReferenceTypeNamed(
+                            reference.ReferenceType,
+                            "HasEncoding",
+                            WotVocabulary.HasEncoding) &&
                         string.Equals(reference.Value, dataType.NodeId, StringComparison.Ordinal))
                     {
                         return true;
@@ -449,6 +464,7 @@ namespace Opc.Ua.Wot
         private static void ValidateEncodingIdentities(
             Dictionary<string, JsonElement> complete,
             Dictionary<string, string> identities,
+            UANodeSet nodeSet,
             List<WotDiagnostic> diagnostics)
         {
             var claimed = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -461,11 +477,17 @@ namespace Opc.Ua.Wot
                     continue;
                 }
                 string name = GetElementString(entry.Value, "uav:dataTypeName") ?? entry.Key;
-                string binary = GetElementString(entry.Value, "uav:binaryEncodingId") ??
+                // An authored identity is portable while the derived one is
+                // NodeSet local, so the authored form has to be resolved before
+                // the two can be compared at all.
+                string binary = ResolveAuthoredEncodingId(
+                    entry.Value, "uav:binaryEncodingId", nodeSet) ??
                     identity + BinaryEncodingSuffix;
-                string xml = GetElementString(entry.Value, "uav:xmlEncodingId") ??
+                string xml = ResolveAuthoredEncodingId(
+                    entry.Value, "uav:xmlEncodingId", nodeSet) ??
                     identity + XmlEncodingSuffix;
-                string json = GetElementString(entry.Value, "uav:jsonEncodingId") ??
+                string json = ResolveAuthoredEncodingId(
+                    entry.Value, "uav:jsonEncodingId", nodeSet) ??
                     identity + JsonEncodingSuffix;
 
                 foreach (string encoding in new[] { binary, xml, json })
@@ -484,7 +506,8 @@ namespace Opc.Ua.Wot
                     claimed[encoding] = name;
                 }
 
-                string? declaredDefault = GetElementString(entry.Value, "uav:defaultEncodingId");
+                string? declaredDefault = ResolveAuthoredEncodingId(
+                    entry.Value, "uav:defaultEncodingId", nodeSet);
                 if (declaredDefault is not null &&
                     !string.Equals(declaredDefault, binary, StringComparison.Ordinal) &&
                     !string.Equals(declaredDefault, xml, StringComparison.Ordinal) &&
@@ -1424,6 +1447,25 @@ namespace Opc.Ua.Wot
             });
         }
 
+        /// <summary>
+        /// Reads an authored, portable encoding identity and resolves it into
+        /// the NodeSet local form the derived identities use.
+        /// </summary>
+        private static string? ResolveAuthoredEncodingId(
+            JsonElement definition,
+            string term,
+            UANodeSet nodeSet)
+        {
+            string? authored = GetElementString(definition, term);
+            if (authored is null)
+            {
+                return null;
+            }
+            // Any diagnostic about the identity itself is raised where the
+            // encoding Object is materialized, so it is not repeated here.
+            return ToNodeSetNodeId(authored, nodeSet, []);
+        }
+
         private static void RejectEncodingIdsOnAbstractType(
             JsonElement definition,
             List<WotDiagnostic> diagnostics,
@@ -1641,10 +1683,36 @@ namespace Opc.Ua.Wot
             {
                 return false;
             }
+            if (definition.IsUnion)
+            {
+                // Only a Structure can be a union.
+                return false;
+            }
+
+            var values = new HashSet<int>();
             foreach (Opc.Ua.Export.DataTypeField field in definition.Field)
             {
                 if (!string.IsNullOrEmpty(field.DataType) &&
                     !string.Equals(field.DataType, WotVocabulary.BaseDataType, StringComparison.Ordinal))
+                {
+                    return false;
+                }
+
+                // Facets only a structure field carries.
+                if (field.IsOptional ||
+                    field.AllowSubTypes ||
+                    field.ValueRank != -1 ||
+                    !string.IsNullOrEmpty(field.ArrayDimensions) ||
+                    field.MaxStringLength != 0)
+                {
+                    return false;
+                }
+
+                // An enumeration's field values are distinct, so two fields
+                // sharing one cannot be an enumeration. That is what a
+                // Structure whose fields are all typed BaseDataType looks like:
+                // every field leaves Value at the schema default of -1.
+                if (!values.Add(field.Value))
                 {
                     return false;
                 }
@@ -1870,6 +1938,14 @@ namespace Opc.Ua.Wot
             }
             string? identity = DeriveDataTypeNodeId(document, name, nodeSet, diagnostics);
             if (identity is null || !seen.Add(identity))
+            {
+                return;
+            }
+
+            // A name that a complete definition already claims is materialized
+            // by that definition; inferring it again would add a second Node
+            // with the same identity.
+            if (identities.ContainsValue(identity))
             {
                 return;
             }

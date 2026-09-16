@@ -181,16 +181,7 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
-            int colon = browseName.IndexOf(':', StringComparison.Ordinal);
-            if (colon <= 0)
-            {
-                return;
-            }
-            string local = browseName[(colon + 1)..];
-            string namespaceUri = browseName.StartsWith("nsu=", StringComparison.Ordinal)
-                ? browseName[4..colon]
-                : ResolvePrefix(document, browseName[..colon]);
-            if (namespaceUri.Length == 0)
+            if (!TrySplitBrowseName(document, browseName, out string namespaceUri, out string local))
             {
                 return;
             }
@@ -212,6 +203,46 @@ namespace Opc.Ua.Wot
             {
                 AddReferenceTypeName(namespaceUri, inverseName, nodeId, inverseName, false);
             }
+        }
+
+        /// <summary>
+        /// Splits a BrowseName into its namespace and local name. The portable
+        /// form is "nsu=&lt;uri&gt;;&lt;name&gt;": the URI itself contains colons, so it
+        /// must be split on the first ';' after the prefix and not on the first
+        /// ':' - doing the latter turned the namespace into "http".
+        /// </summary>
+        private bool TrySplitBrowseName(
+            WotDocument document,
+            string browseName,
+            out string namespaceUri,
+            out string local)
+        {
+            namespaceUri = string.Empty;
+            local = string.Empty;
+
+            if (browseName.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                int separator = browseName.IndexOf(';', 4);
+                if (separator <= 4 || separator == browseName.Length - 1)
+                {
+                    return false;
+                }
+                // The portable form escapes ';' and '%' in the namespace URI, so
+                // the raw substring would index under a different key than the
+                // unescaped URI every other reader resolves against.
+                namespaceUri = CoreUtils.UnescapeUri(browseName.AsSpan(4, separator - 4));
+                local = browseName[(separator + 1)..];
+                return namespaceUri.Length != 0;
+            }
+
+            int colon = browseName.IndexOf(':', StringComparison.Ordinal);
+            if (colon <= 0)
+            {
+                return false;
+            }
+            namespaceUri = ResolvePrefix(document, browseName[..colon]);
+            local = browseName[(colon + 1)..];
+            return namespaceUri.Length != 0;
         }
 
         private void AddReferenceTypeName(
@@ -386,7 +417,7 @@ namespace Opc.Ua.Wot
                 int separator = nodeId.IndexOf(';', StringComparison.Ordinal);
                 if (nodeId.StartsWith("nsu=", StringComparison.Ordinal) && separator > 4)
                 {
-                    m_namespaces.Add(nodeId[4..separator]);
+                    m_namespaces.Add(CoreUtils.UnescapeUri(nodeId.AsSpan(4, separator - 4)));
                 }
             }
             string? browseName = ReadString(element, "uav:browseName");
@@ -394,17 +425,7 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
-            int colon = browseName.IndexOf(':', StringComparison.Ordinal);
-            if (colon <= 0)
-            {
-                return;
-            }
-            string prefix = browseName[..colon];
-            string local = browseName[(colon + 1)..];
-            string namespaceUri = browseName.StartsWith("nsu=", StringComparison.Ordinal)
-                ? browseName[4..colon]
-                : ResolvePrefix(document, prefix);
-            if (namespaceUri.Length == 0)
+            if (!TrySplitBrowseName(document, browseName, out string namespaceUri, out string local))
             {
                 return;
             }
