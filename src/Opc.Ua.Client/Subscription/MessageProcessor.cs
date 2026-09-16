@@ -526,11 +526,16 @@ namespace Opc.Ua.Client.Subscriptions
                 m_dispatchContext.Value = true;
                 try
                 {
+                    // Advance the dedup gate after each completed attempt so
+                    // cancellation preserves progress already made and the
+                    // next message is not treated as the first after create.
                     foreach (uint sequenceNumber in ordered)
                     {
                         await TryRepublishAsync(sequenceNumber, sequenceNumber,
                             availableSet.Contains, ct)
                             .ConfigureAwait(false);
+                        LastDataSequenceNumberProcessed = sequenceNumber;
+                        LastSequenceNumberProcessed = sequenceNumber;
                         ct.ThrowIfCancellationRequested();
                     }
                 }
@@ -538,15 +543,6 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     m_dispatchContext.Value = wasDispatching;
                 }
-
-                // Advance the dedup gate past everything the server had
-                // queued, whether or not the republish succeeded. Anything
-                // still in the queue was already sent by the server, so the
-                // next message carries a higher sequence number and must not
-                // be treated as the first message after create.
-                uint last = ordered[^1];
-                LastDataSequenceNumberProcessed = last;
-                LastSequenceNumberProcessed = last;
             }
             finally
             {

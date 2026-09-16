@@ -958,7 +958,7 @@ namespace Opc.Ua.Client.Subscriptions
 
                     Assert.ThrowsAsync<OperationCanceledException>(
                         async () => await recoverTask.ConfigureAwait(false));
-                    Assert.That(sut.LastSequenceNumberProcessed, Is.Zero);
+                    Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(10));
                     Assert.That(sut.RepublishMessageCount, Is.EqualTo(1));
                 }
                 finally
