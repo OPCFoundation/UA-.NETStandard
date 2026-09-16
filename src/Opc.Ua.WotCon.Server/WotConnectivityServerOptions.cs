@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using Opc.Ua.WotCon.Server.Assets;
+using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Server
@@ -114,6 +115,13 @@ namespace Opc.Ua.WotCon.Server
         /// (Discover / CreateForEndpoint / ConnectionTest).
         /// </summary>
         public IWotAssetDiscoveryProvider? Discovery { get; set; }
+
+        /// <summary>
+        /// Gets or sets the shared converter used to prepare native declarations
+        /// and existing-type bindings before a legacy provider is connected.
+        /// Null selects the stock converter with the running AddressSpace context.
+        /// </summary>
+        public IWotDocumentConverter? DocumentConverter { get; set; }
 
         /// <summary>
         /// Optional registry service that mirrors materialized asset Thing

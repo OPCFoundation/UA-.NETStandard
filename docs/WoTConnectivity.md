@@ -60,11 +60,20 @@ in the configured asset namespace.
 2. Client opens `WoTFile` with mode `Write|EraseExisting` (the only
    write mode allowed per Spec §6.3.10), writes a JSON TD, and calls
    `CloseAndUpdate`.
-3. Server parses the TD, selects a registered
+3. Server parses the TD and prepares any native/existing-type binding through
+   the shared semantic converter before provider connection or graph mutation.
+   It then selects a registered
    `IWotAssetProviderFactory` whose `CanHandle` accepts it, connects
    the resulting provider, and materialises a property variable for
    each WoT property (mapped per Table 14) and a method node for each
    WoT action (mapped per §6.3.9).
+
+Native/type-bound descriptions use the converter's NodeSet/declaration facts
+instead of the reduced primitive mapper. The resolved ObjectType and declaration
+QNames/types are applied to the existing asset owner; Variables retain the
+legacy `HasWoTComponent` relation and action/argument metadata remains native.
+See [legacy existing-type bindings](WoTLegacyTypeBindings.md) for the complete
+preparation, identity, source-preservation and direct/DI contract.
 
 Optional flow when `DiscoverAssets` / `CreateAssetForEndpoint` /
 `ConnectionTest` are wired:
@@ -73,7 +82,9 @@ Optional flow when `DiscoverAssets` / `CreateAssetForEndpoint` /
 2. `ConnectionTest` verifies one of them.
 3. `CreateAssetForEndpoint(name, endpoint)` synthesises a TD via
    `IWotAssetDiscoveryProvider.CreateThingDescriptionAsync` and runs
-   the same materialisation path — no client upload needed.
+   the same materialisation path before publishing the new asset owner —
+   no client upload needed. Persisted native documents are also prepared before
+   creating their owners during startup; invalid source files are retained.
 
 Uploaded UTF-8 document bytes remain authoritative for file downloads, persistence,
 and registry mirroring. The provider-facing `ThingDescription` is a parsed

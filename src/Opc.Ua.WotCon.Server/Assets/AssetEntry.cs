@@ -41,11 +41,16 @@ namespace Opc.Ua.WotCon.Server.Assets
         {
             Name = name;
             Asset = asset;
+            UnboundTypeDefinitionId = asset.TypeDefinitionId;
         }
 
         public string Name { get; }
 
         public IWoTAssetState Asset { get; }
+
+        public NodeId UnboundTypeDefinitionId { get; }
+
+        public WotLegacyPreparedGraph? NativeGraph { get; set; }
 
         public WotAssetFileManager? FileManager { get; set; }
 
