@@ -944,6 +944,7 @@ namespace Opc.Ua.Client.Subscriptions
             await using (sut.ConfigureAwait(false))
             {
                 await sut.Block.WaitAsync();
+                bool blockHeld = true;
                 try
                 {
                     Task recoverTask = sut.RecoverTransferredMessagesAsync([10], cts.Token)
@@ -953,6 +954,7 @@ namespace Opc.Ua.Client.Subscriptions
                         .WaitAsync(TimeSpan.FromSeconds(5));
                     cts.Cancel();
                     sut.Block.Release();
+                    blockHeld = false;
 
                     Assert.ThrowsAsync<OperationCanceledException>(
                         async () => await recoverTask.ConfigureAwait(false));
@@ -961,7 +963,7 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 finally
                 {
-                    if (sut.Block.CurrentCount == 0)
+                    if (blockHeld)
                     {
                         sut.Block.Release();
                     }
