@@ -1220,7 +1220,17 @@ their map-entry interpretation even when no explicit root context is supplied.
 Referenced reusable schemas are carried into `schemaDefinitions` without
 overwriting the projection owner's definitions. Local references to selected
 DataSchemas follow their selected output names, and recursive schemas reuse
-the same output definition. Reusable schemas count with affordances against
+the same output definition. Known DataSchema locations in otherwise unselected
+properties, action input/output, event data/subscription/cancellation/response,
+URI-variable declarations and local definition maps can supply schema-only
+dependencies. Their containing schema root is carried into `schemaDefinitions`
+with its original context and reference origin; this does not select or execute
+the source affordance. Nested schema references reuse that root, including when
+several references address different children. Literal values, opaque metadata,
+forms and other non-schema locations do not become schema targets merely because
+their containing unselected schema has already been copied. Declaration-map
+entries named `const` remain ordinary schema names.
+Reusable schemas count with affordances against
 `MaxNodeCount`. Missing or malformed known references fail rather than leaving
 a successful document with dangling local pointers.
 

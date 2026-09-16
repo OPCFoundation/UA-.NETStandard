@@ -225,23 +225,42 @@ namespace Opc.Ua.Wot
                     return null;
                 }
                 string? replacedScope = ReplacedUriVariableScope(owner, pointer);
+                const string prefix = "/schemaDefinitions/";
+                bool reusable = pointer.StartsWith(prefix, StringComparison.Ordinal);
+                bool replacedVariable = replacedScope is not null && pointer.Length > replacedScope.Length;
+                string? localRoot = reusable || replacedVariable ? null : FindLocalSchemaRoot(owner, pointer);
                 string? mapped = MappedPointer(owner, pointer, replacedScope?.Length ?? 0);
                 if (mapped is not null)
                 {
+                    if (!reusable && !replacedVariable && localRoot is null &&
+                        mapped.StartsWith(prefix, StringComparison.Ordinal))
+                    {
+                        Fail("A local schema reference cannot enter a literal or non-schema member.",
+                            owner.Href + "#" + pointer);
+                        return null;
+                    }
                     return mapped;
                 }
 
-                const string prefix = "/schemaDefinitions/";
-                bool replacedVariable = replacedScope is not null && pointer.Length > replacedScope.Length;
-                if (!pointer.StartsWith(prefix, StringComparison.Ordinal) && !replacedVariable)
+                if (!reusable && !replacedVariable && localRoot is null)
                 {
-                    Fail("The local schema is neither a selected definition nor a reusable schema definition.",
+                    Fail("The local reference does not identify a known DataSchema location.",
                         owner.Href + "#" + pointer);
                     return null;
                 }
-                int nameStart = replacedVariable ? replacedScope!.Length + 1 : prefix.Length;
-                int next = pointer.IndexOf('/', nameStart);
-                string rootPointer = next < 0 ? pointer : pointer[..next];
+                int nameStart;
+                string rootPointer;
+                if (localRoot is not null)
+                {
+                    rootPointer = localRoot;
+                    nameStart = rootPointer.LastIndexOf('/') + 1;
+                }
+                else
+                {
+                    nameStart = replacedVariable ? replacedScope!.Length + 1 : prefix.Length;
+                    int next = pointer.IndexOf('/', nameStart);
+                    rootPointer = next < 0 ? pointer : pointer[..next];
+                }
                 if (!WotDocument.TryEvaluatePointer(owner.Document.RootElement, rootPointer, out JsonElement original) ||
                     original.ValueKind != JsonValueKind.Object)
                 {
@@ -277,6 +296,86 @@ namespace Opc.Ua.Wot
                 m_locations.Add((owner.SourceName is null, owner.Href, rootPointer), destination);
                 m_pending.Enqueue(new ReferenceCarriage(value, owner, rootPointer, destination));
                 return destination + pointer[rootPointer.Length..];
+            }
+
+            private static string? FindLocalSchemaRoot(ReferenceOwner owner, string pointer)
+            {
+                string[] tokens = pointer[1..].Split('/');
+                if (tokens.Length < 2)
+                {
+                    return null;
+                }
+                int rootLength;
+                if (tokens[0] is "properties" or "uriVariables" or "$defs" or "definitions")
+                {
+                    rootLength = 2;
+                }
+                else if (tokens.Length >= 3 &&
+                    ((tokens[0] == "actions" && tokens[2] is "input" or "output") ||
+                        (tokens[0] == "events" && tokens[2] is "data" or "subscription" or
+                            "cancellation" or "dataResponse")))
+                {
+                    rootLength = 3;
+                }
+                else if (tokens.Length >= 4 && tokens[0] is "actions" or "events" && tokens[2] == "uriVariables")
+                {
+                    rootLength = 4;
+                }
+                else
+                {
+                    return null;
+                }
+
+                string rootPointer = "/" + string.Join("/", tokens, 0, rootLength);
+                if (!WotDocument.TryEvaluatePointer(owner.Document.RootElement, rootPointer, out JsonElement schema) ||
+                    schema.ValueKind != JsonValueKind.Object)
+                {
+                    return null;
+                }
+                int index = rootLength;
+                while (index < tokens.Length)
+                {
+                    string member = UnescapeAffordanceName(tokens[index++]);
+                    if (!schema.TryGetProperty(member, out JsonElement child))
+                    {
+                        return null;
+                    }
+                    if (Array.IndexOf(s_schemaMaps, member) >= 0)
+                    {
+                        if (child.ValueKind != JsonValueKind.Object || index == tokens.Length ||
+                            !child.TryGetProperty(UnescapeAffordanceName(tokens[index++]), out child))
+                        {
+                            return null;
+                        }
+                    }
+                    else if (Array.IndexOf(s_schemaChildren, member) >= 0)
+                    {
+                        if (child.ValueKind == JsonValueKind.Array)
+                        {
+                            if (index == tokens.Length ||
+                                !int.TryParse(tokens[index], NumberStyles.None, CultureInfo.InvariantCulture,
+                                    out int item) ||
+                                !string.Equals(tokens[index], item.ToString(CultureInfo.InvariantCulture),
+                                    StringComparison.Ordinal) ||
+                                item >= child.GetArrayLength())
+                            {
+                                return null;
+                            }
+                            child = child[item];
+                            index++;
+                        }
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                    if (child.ValueKind != JsonValueKind.Object)
+                    {
+                        return null;
+                    }
+                    schema = child;
+                }
+                return rootPointer;
             }
 
             private string? MappedPointer(ReferenceOwner owner, string pointer, int minimumAncestorLength)

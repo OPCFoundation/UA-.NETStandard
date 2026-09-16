@@ -1849,7 +1849,7 @@ namespace Opc.Ua.Wot
                 }
                 if (!present)
                 {
-                    array.Add(resultType);
+                    array.Add(JsonValue.Create(resultType));
                 }
             }
             return array;
