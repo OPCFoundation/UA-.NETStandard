@@ -844,6 +844,40 @@ Property results carry their source message context when supplied by the channel
 
 The default `NullWotBinderRegistry` remains the no-binding baseline. With it, affordance forms either **fail a strict closure** (`StrictBindings = true`) or **materialize as degraded nodes** (`BadConfigurationError`) when non-strict. Protocol support is opt-in: `AddWotProtocolBinders()` registers all eight planners, while `AddHttpWotBinding()`, `AddMqttWotBinding()`, `AddModbusWotBinding()`, and `AddOpcUaWotBinding()` add their concrete executors. The core server registers none of these by default; see [WoT protocol bindings](WotBindings.md).
 
+The registry exposes `SupportedBindings` as a browseable folder of
+`WoTBindingType` objects, including an empty folder when no binders are registered.
+Standard descriptors expose `BindingUri`, `Title`, `ProfileVersion`,
+`DraftMaturity`, `Enabled`, `ContentTypes`, and the `Capabilities` structure as
+individual read-only Properties. Descriptor and property NodeIds are distinct
+per binding URI/version and never reuse model declaration NodeIds. `Enabled`
+reports whether the registered binding has effective runtime operations: a
+planner without an executor remains discoverable but is disabled. It does not
+report a particular remote endpoint's connection state.
+
+The read-only registry `SelectedBindings` array is a detached, deterministically
+ordered snapshot of bindings in currently published projection plans, not a copy
+of all registered capabilities. An unused registered binder is absent; retiring
+the last plan using a binding removes it from the selected set but leaves its
+registered descriptor available. Direct callers can capture the same selected set
+with `WotMaterializationCoordinator.GetSelectedBindingCapabilitiesAsync`.
+Snapshot capture waits for the coordinator's current operation; it does not add
+an independent publication or transaction mechanism.
+
+Older custom `IWotBinderRegistry` implementations may omit optional title,
+profile-version, or maturity metadata. Those Properties remain absent rather than
+reporting invented values, and unversioned identities remain distinct from
+explicitly empty versions. A binding URI must be nonblank. Identical repeated
+capabilities share one descriptor; conflicting snapshots with the same URI/version
+fail registry configuration instead of silently choosing one. Clients decoding
+the capability structure directly from a stock Session register the generated
+type with that Session's factory:
+
+```csharp
+session.MessageContext.Factory.Builder
+    .AddEncodeableType<WoTBindingCapabilityDataType>()
+    .Commit();
+```
+
 ### 11.5 Legacy 1.02 compatibility
 
 The legacy `WotConnectivityNodeManager`, its generated 1.02 namespace/NodeIds/method signatures and the client APIs are unchanged. When both features are hosted, legacy-created assets are additionally registered as Thing Description resources in a configured legacy group (`WotRegistryServerOptions.LegacyGroupId`) so they participate in registry materialization, without making the flat legacy asset list canonical for the registry.
