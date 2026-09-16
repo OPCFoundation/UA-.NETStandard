@@ -489,6 +489,96 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Recover the notification messages the server still holds in its
+        /// retransmission queue after a subscription was transferred to this
+        /// session.
+        /// </summary>
+        /// <remarks>
+        /// The gap-walking republish in <see cref="ProcessMessageCoreAsync"/>
+        /// only runs when a data message arrives, so a subscription that stays
+        /// quiet after the transfer - or that only emits keep-alives - would
+        /// never recover the messages the previous session left behind. Those
+        /// sequence numbers are known to be available the moment
+        /// <c>TransferSubscriptions</c> returns, so republish them right away.
+        /// The messages are recovered in ascending sequence order (wrap-aware
+        /// per Part 4 §7.30.5) and the dedup gate is advanced past them so the
+        /// first publish that follows is not mistaken for a gap.
+        /// </remarks>
+        /// <param name="availableSequenceNumbers">The sequence numbers the
+        /// server reported as available in its retransmission queue.</param>
+        /// <param name="ct">Cancellation token.</param>
+        protected async ValueTask RecoverTransferredMessagesAsync(
+            IReadOnlyList<uint> availableSequenceNumbers,
+            CancellationToken ct)
+        {
+            await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                AvailableInRetransmissionQueue = availableSequenceNumbers ?? [];
+                if (AvailableInRetransmissionQueue.Count == 0)
+                {
+                    return;
+                }
+                uint[] ordered = SortAscendingWrapAware(AvailableInRetransmissionQueue);
+                Logger.SubscriptionRecoveringTransferredMessages(Id, ordered.Length);
+
+                bool wasDispatching = m_dispatchContext.Value;
+                m_dispatchContext.Value = true;
+                try
+                {
+                    foreach (uint sequenceNumber in ordered)
+                    {
+                        await TryRepublishAsync(sequenceNumber, sequenceNumber, ct)
+                            .ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    m_dispatchContext.Value = wasDispatching;
+                }
+
+                // Advance the dedup gate past everything the server had
+                // queued, whether or not the republish succeeded. Anything
+                // still in the queue was already sent by the server, so the
+                // next message carries a higher sequence number and must not
+                // be treated as the first message after create.
+                uint last = ordered[^1];
+                LastDataSequenceNumberProcessed = last;
+                LastSequenceNumberProcessed = last;
+            }
+            finally
+            {
+                m_messageDispatchGate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Order sequence numbers from oldest to newest, tolerating the
+        /// wraparound from <see cref="uint.MaxValue"/> to 1.
+        /// </summary>
+        /// <param name="sequenceNumbers"></param>
+        private static uint[] SortAscendingWrapAware(IReadOnlyList<uint> sequenceNumbers)
+        {
+            const uint kBackwardThreshold = 1u << 31;
+            uint anchor = sequenceNumbers[0];
+            for (int i = 1; i < sequenceNumbers.Count; i++)
+            {
+                if (unchecked(sequenceNumbers[i] - anchor) >= kBackwardThreshold)
+                {
+                    anchor = sequenceNumbers[i];
+                }
+            }
+            uint[] ordered = [.. sequenceNumbers];
+            uint[] keys = new uint[ordered.Length];
+            for (int i = 0; i < ordered.Length; i++)
+            {
+                keys[i] = unchecked(ordered[i] - anchor);
+            }
+            Array.Sort(keys, ordered);
+            return ordered;
+        }
+
+        /// <summary>
         /// Try republish a missing message
         /// </summary>
         /// <param name="missing"></param>
@@ -816,6 +906,14 @@ namespace Opc.Ua.Client.Subscriptions
             this ILogger logger,
             Exception? exception,
             uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.MessageProcessor + 11, Level = LogLevel.Information,
+            Message = "{SubscriptionId}: Recovering {Count} transferred message(s) from the server " +
+                "retransmission queue.")]
+        public static partial void SubscriptionRecoveringTransferredMessages(
+            this ILogger logger,
+            uint subscriptionId,
+            int count);
     }
 
 }

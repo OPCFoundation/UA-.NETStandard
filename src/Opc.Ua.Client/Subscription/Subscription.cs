@@ -518,12 +518,21 @@ namespace Opc.Ua.Client.Subscriptions
                 await m_monitoredItems.ApplyChangesAsync(true, false,
                     ct).ConfigureAwait(false);
                 StartKeepAliveTimer();
-                return true;
             }
             finally
             {
                 m_stateLock.Release();
             }
+
+            // Recover the messages the server still holds for this
+            // subscription. Doing this here rather than waiting for the next
+            // publish response ensures the notifications are also recovered on
+            // a subscription that stays quiet (or only emits keep-alives)
+            // after the transfer. Runs outside the state lock so a
+            // notification handler may call back into the subscription.
+            await RecoverTransferredMessagesAsync(availableSequenceNumbers, ct)
+                .ConfigureAwait(false);
+            return true;
         }
 
         /// <summary>

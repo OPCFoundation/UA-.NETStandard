@@ -872,7 +872,7 @@ reconciliation, etc.) along with the recommended V2 alternative.
 | `s.MinLifetimeInterval` (property) | `SubscriptionOptions.MinLifetimeInterval`. |
 | `s.DisableMonitoredItemCache` | Not on V2 — there is no per-item cache to disable (the handler is the cache). |
 | `s.SequentialPublishing` | Always-on. The V2 prioritized publish-ack channel guarantees per-subscription in-order delivery; documented on `ISubscriptionNotificationHandler`. |
-| `s.RepublishAfterTransfer` | Implicit via `MessageProcessor.TryRepublishAsync` (always-on gap fill); no opt-out. |
+| `s.RepublishAfterTransfer` | Implicit and always-on; no opt-out. When `TransferSubscriptions` succeeds, the V2 engine immediately republishes every sequence number the server reports as still available in its retransmission queue (`MessageProcessor.RecoverTransferredMessagesAsync`), so a subscription that stays quiet - or only emits keep-alives - after the transfer still recovers the pending notifications. Gaps detected later are filled by `MessageProcessor.TryRepublishAsync`. |
 | `s.OutstandingMessageWorkers` (per-subscription) | Manager-wide `PublishWorkerCount`. |
 | `s.Id` / `s.TransferId` | `ISubscription.ServerId` (`uint`). |
 | `s.Handle` (caller bookkeeping) | Not on `ISubscription`. Callers keep a side dictionary keyed by the item `Name`. |
