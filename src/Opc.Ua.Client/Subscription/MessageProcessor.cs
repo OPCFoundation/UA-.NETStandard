@@ -560,28 +560,14 @@ namespace Opc.Ua.Client.Subscriptions
             const uint kBackwardThreshold = 1u << 31;
 
             // A retransmission queue always spans far less than half of the
-            // sequence-number space. Find the oldest entry as the one that has
-            // no distinct older entry in the same wrap-aware forward half.
+            // sequence-number space. Keep the oldest candidate, replacing it
+            // whenever the candidate is forward from the next entry.
             uint anchor = sequenceNumbers[0];
-            for (int i = 0; i < sequenceNumbers.Count; i++)
+            for (int i = 1; i < sequenceNumbers.Count; i++)
             {
-                bool isOldest = true;
-                for (int j = 0; j < sequenceNumbers.Count; j++)
-                {
-                    if (i == j || sequenceNumbers[i] == sequenceNumbers[j])
-                    {
-                        continue;
-                    }
-                    if (unchecked(sequenceNumbers[i] - sequenceNumbers[j]) < kBackwardThreshold)
-                    {
-                        isOldest = false;
-                        break;
-                    }
-                }
-                if (isOldest)
+                if (unchecked(anchor - sequenceNumbers[i]) < kBackwardThreshold)
                 {
                     anchor = sequenceNumbers[i];
-                    break;
                 }
             }
             uint[] ordered = [.. sequenceNumbers];
@@ -600,7 +586,9 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="missing"></param>
         /// <param name="curSeqNum"></param>
         /// <param name="ct"></param>
-        /// <param name="skipAvailabilityCheck"></param>
+        /// <param name="skipAvailabilityCheck">Bypass the shared publish
+        /// response availability check when iterating a transfer response
+        /// snapshot.</param>
         /// <returns></returns>
         private async ValueTask TryRepublishAsync(
             uint missing,
