@@ -530,11 +530,23 @@ namespace Opc.Ua.Client.Subscriptions
                     // next message is not treated as the first after create.
                     foreach (uint sequenceNumber in ordered)
                     {
-                        await TryRepublishAsync(sequenceNumber, sequenceNumber,
-                            ct, skipAvailabilityCheck: true)
+                        await RepublishKnownAvailableAsync(
+                            sequenceNumber,
+                            sequenceNumber,
+                            ct)
                             .ConfigureAwait(false);
-                        LastDataSequenceNumberProcessed = sequenceNumber;
-                        LastSequenceNumberProcessed = sequenceNumber;
+                        if (IsNewerSequenceNumber(
+                            sequenceNumber,
+                            LastDataSequenceNumberProcessed))
+                        {
+                            LastDataSequenceNumberProcessed = sequenceNumber;
+                        }
+                        if (IsNewerSequenceNumber(
+                            sequenceNumber,
+                            LastSequenceNumberProcessed))
+                        {
+                            LastSequenceNumberProcessed = sequenceNumber;
+                        }
                         ct.ThrowIfCancellationRequested();
                     }
                 }
@@ -580,31 +592,53 @@ namespace Opc.Ua.Client.Subscriptions
             return ordered;
         }
 
+        private static bool IsNewerSequenceNumber(uint sequenceNumber, uint currentSequenceNumber)
+        {
+            const uint kBackwardThreshold = 1u << 31;
+
+            return currentSequenceNumber == 0 ||
+                unchecked(sequenceNumber - currentSequenceNumber) is not 0 and < kBackwardThreshold;
+        }
+
         /// <summary>
         /// Try republish a missing message
         /// </summary>
         /// <param name="missing"></param>
         /// <param name="curSeqNum"></param>
         /// <param name="ct"></param>
-        /// <param name="skipAvailabilityCheck">Bypass the shared publish
-        /// response availability check when iterating a transfer response
-        /// snapshot.</param>
         /// <returns></returns>
         private async ValueTask TryRepublishAsync(
             uint missing,
             uint curSeqNum,
-            CancellationToken ct,
-            bool skipAvailabilityCheck = false)
+            CancellationToken ct)
         {
             Interlocked.Increment(ref m_republishCount);
-            if (!skipAvailabilityCheck &&
-                !AvailableInRetransmissionQueue.Contains(missing))
+            if (!AvailableInRetransmissionQueue.Contains(missing))
             {
                 Logger.SubscriptionMessageSequenceNumberSeqNumberNot(
                     Id,
                     missing);
                 return;
             }
+            await RepublishAvailableAsync(missing, curSeqNum, ct)
+                .ConfigureAwait(false);
+        }
+
+        private async ValueTask RepublishKnownAvailableAsync(
+            uint missing,
+            uint curSeqNum,
+            CancellationToken ct)
+        {
+            Interlocked.Increment(ref m_republishCount);
+            await RepublishAvailableAsync(missing, curSeqNum, ct)
+                .ConfigureAwait(false);
+        }
+
+        private async ValueTask RepublishAvailableAsync(
+            uint missing,
+            uint curSeqNum,
+            CancellationToken ct)
+        {
             try
             {
                 Logger.SubscriptionRepublishingMissingMessageSequenceNumber(
