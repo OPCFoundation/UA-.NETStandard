@@ -878,15 +878,15 @@ namespace Opc.Ua.Client.Subscriptions
             await using (sut.ConfigureAwait(false))
             {
                 await sut.RecoverTransferredMessagesAsync(
-                    [2, uint.MaxValue - 1, 1, uint.MaxValue], default)
+                    [3, uint.MaxValue - 5, 5], default)
                     .ConfigureAwait(false);
 
                 Assert.That(sut.ReceivedSequenceNumbers,
                     Is.EqualTo(new uint[]
                     {
-                        uint.MaxValue - 1, uint.MaxValue, 1, 2
+                        uint.MaxValue - 5, 3, 5
                     }));
-                Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(2));
+                Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(5));
             }
         }
 

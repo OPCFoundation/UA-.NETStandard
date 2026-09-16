@@ -519,7 +519,6 @@ namespace Opc.Ua.Client.Subscriptions
             try
             {
                 uint[] ordered = SortAscendingWrapAware(availableSequenceNumbers);
-                var availableSet = new HashSet<uint>(ordered);
                 Logger.SubscriptionRecoveringTransferredMessages(Id, ordered.Length);
 
                 bool wasDispatching = m_dispatchContext.Value;
@@ -532,7 +531,7 @@ namespace Opc.Ua.Client.Subscriptions
                     foreach (uint sequenceNumber in ordered)
                     {
                         await TryRepublishAsync(sequenceNumber, sequenceNumber,
-                            availableSet.Contains, ct)
+                            ct, skipAvailabilityCheck: true)
                             .ConfigureAwait(false);
                         LastDataSequenceNumberProcessed = sequenceNumber;
                         LastSequenceNumberProcessed = sequenceNumber;
@@ -561,16 +560,28 @@ namespace Opc.Ua.Client.Subscriptions
             const uint kBackwardThreshold = 1u << 31;
 
             // A retransmission queue always spans far less than half of the
-            // sequence-number space, so a single greedy pass using unsigned
-            // difference arithmetic finds the oldest entry: every other entry
-            // is then within the forward half-range of that anchor and can be
-            // ordered by its unchecked distance from it.
+            // sequence-number space. Find the oldest entry as the one that has
+            // no distinct older entry in the same wrap-aware forward half.
             uint anchor = sequenceNumbers[0];
-            for (int i = 1; i < sequenceNumbers.Count; i++)
+            for (int i = 0; i < sequenceNumbers.Count; i++)
             {
-                if (unchecked(sequenceNumbers[i] - anchor) >= kBackwardThreshold)
+                bool isOldest = true;
+                for (int j = 0; j < sequenceNumbers.Count; j++)
+                {
+                    if (i == j || sequenceNumbers[i] == sequenceNumbers[j])
+                    {
+                        continue;
+                    }
+                    if (unchecked(sequenceNumbers[i] - sequenceNumbers[j]) < kBackwardThreshold)
+                    {
+                        isOldest = false;
+                        break;
+                    }
+                }
+                if (isOldest)
                 {
                     anchor = sequenceNumbers[i];
+                    break;
                 }
             }
             uint[] ordered = [.. sequenceNumbers];
@@ -589,30 +600,17 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="missing"></param>
         /// <param name="curSeqNum"></param>
         /// <param name="ct"></param>
+        /// <param name="skipAvailabilityCheck"></param>
         /// <returns></returns>
-        private ValueTask TryRepublishAsync(uint missing, uint curSeqNum,
-            CancellationToken ct)
-        {
-            return TryRepublishAsync(
-                missing,
-                curSeqNum,
-                IsAvailableInRetransmissionQueue,
-                ct);
-        }
-
-        private bool IsAvailableInRetransmissionQueue(uint sequenceNumber)
-        {
-            return AvailableInRetransmissionQueue.Contains(sequenceNumber);
-        }
-
         private async ValueTask TryRepublishAsync(
             uint missing,
             uint curSeqNum,
-            Predicate<uint> isAvailable,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool skipAvailabilityCheck = false)
         {
             Interlocked.Increment(ref m_republishCount);
-            if (!isAvailable(missing))
+            if (!skipAvailabilityCheck &&
+                !AvailableInRetransmissionQueue.Contains(missing))
             {
                 Logger.SubscriptionMessageSequenceNumberSeqNumberNot(
                     Id,
