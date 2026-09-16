@@ -756,6 +756,8 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(sut.PublishState, Is.EqualTo(PublishState.Republish));
                 Assert.That(sut.RepublishMessageCount, Is.EqualTo(3));
                 Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(4));
+                Assert.That(sut.AvailableInRetransmissionQueue, Is.Empty,
+                    "recovered messages must not remain listed as available");
                 await m_completion.WaitForQueuedAckAsync(3).ConfigureAwait(false);
 
                 // The dedup gate advanced past the recovered messages, so the

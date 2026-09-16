@@ -541,10 +541,14 @@ namespace Opc.Ua.Client.Subscriptions
                 // queued, whether or not the republish succeeded. Anything
                 // still in the queue was already sent by the server, so the
                 // next message carries a higher sequence number and must not
-                // be treated as the first message after create.
+                // be treated as the first message after create. The recovered
+                // entries are dropped from the available set - they have been
+                // handled and acknowledged, and the next publish response
+                // republishes the set anyway.
                 uint last = ordered[^1];
                 LastDataSequenceNumberProcessed = last;
                 LastSequenceNumberProcessed = last;
+                AvailableInRetransmissionQueue = [];
             }
             finally
             {
@@ -556,7 +560,8 @@ namespace Opc.Ua.Client.Subscriptions
         /// Order sequence numbers from oldest to newest, tolerating the
         /// wraparound from <see cref="uint.MaxValue"/> to 1.
         /// </summary>
-        /// <param name="sequenceNumbers"></param>
+        /// <param name="sequenceNumbers">The unordered set of sequence numbers
+        /// the server reported as available in its retransmission queue.</param>
         private static uint[] SortAscendingWrapAware(IReadOnlyList<uint> sequenceNumbers)
         {
             const uint kBackwardThreshold = 1u << 31;
