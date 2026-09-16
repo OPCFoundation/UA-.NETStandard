@@ -2207,7 +2207,7 @@ namespace Opc.Ua.Client
                         {
                             if (lastSequenceNumberToRepublish == sequenceNumber)
                             {
-IncomingMessage entry = FindOrCreateEntry(now, backdatedTimestamp, sequenceNumber);
+                                IncomingMessage entry = FindOrCreateEntry(now, backdatedTimestamp, sequenceNumber);
                                 entry.Republished = false;
                                 entry.RepublishStatus = default;
                                 entry.RepublishImmediately = true;

@@ -1951,7 +1951,7 @@ namespace Opc.Ua
                 var encodeables = new List<T>();
                 XmlQualifiedName? xmlName = Context.Factory.TryGetEncodeableType(
                     encodeableTypeId, out IEncodeableType? encodeableType)
-                    ? TypeInfo.GetXmlName(encodeableType.CreateInstance(), Context)
+                    ? encodeableType.XmlName
                     : TypeInfo.GetXmlName(typeof(T));
                 PushNamespace(xmlName!.Namespace);
 
