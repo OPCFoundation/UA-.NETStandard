@@ -73,8 +73,8 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// cannot lose referenced content.
     /// </para>
     /// </remarks>
-    public sealed class FileWotRegistryStore
-        : IWotRegistryStore, IWotRegistryResourceStoreProvider, IDisposable
+    public sealed partial class FileWotRegistryStore
+        : IWotRegistryPreparedStore, IWotRegistryResourceStoreProvider, IDisposable
     {
         /// <summary>
         /// Initializes a new file-backed store rooted at <paramref name="rootFolder"/>.
@@ -166,13 +166,18 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         public void Dispose()
         {
-            m_stagedStore?.Dispose();
+            if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+            {
+                InvalidatePreparedInput();
+                m_stagedStore?.Dispose();
+            }
         }
 
         /// <inheritdoc/>
         public async ValueTask<WotRegistrySnapshot> LoadAsync(
             CancellationToken cancellationToken = default)
         {
+            InvalidatePreparedInput();
             m_expectedManifest = null;
             m_expectedGeneration = null;
             using StorageLock storageLock = await AcquireStorageLockAsync(cancellationToken)
@@ -236,12 +241,20 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         /// <inheritdoc/>
-        public async ValueTask CommitAsync(
+        public ValueTask CommitAsync(
             WotRegistrySnapshot snapshot,
             CancellationToken cancellationToken = default)
         {
+            return CommitCoreAsync(snapshot, cancellationToken);
+        }
+
+        private async ValueTask CommitCoreAsync(
+            WotRegistrySnapshot snapshot,
+            CancellationToken cancellationToken,
+            PreparedFileCommit? prepared = null)
+        {
             snapshot ??= WotRegistrySnapshot.Empty;
-            ValidatedCommit intended = await ValidateIntendedSnapshotAsync(
+            ValidatedCommit intended = prepared?.Validated ?? await ValidateIntendedSnapshotAsync(
                     snapshot,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -257,8 +270,10 @@ namespace Opc.Ua.WotCon.Server.Registry
 
             PristineCommitArtifacts? pristineArtifacts = null;
             List<string> promoted = [];
-            LoadedGeneration? current = await ReadGenerationAsync(cancellationToken)
-                .ConfigureAwait(false);
+            LoadedGeneration? current = prepared is null
+                ? await ReadGenerationAsync(cancellationToken).ConfigureAwait(false)
+                : await ReadCapturedGenerationAsync(prepared.Expected, cancellationToken, snapshot)
+                    .ConfigureAwait(false);
             if (current is null && !expected.Exists)
             {
                 string[] recoveryArtifacts = FindRecoveryArtifacts();
@@ -290,90 +305,107 @@ namespace Opc.Ua.WotCon.Server.Registry
                     $"WoT registry snapshot generation {snapshot.Generation} must be " +
                     $"strictly greater than the loaded generation {expectedGeneration}.");
             }
+            bool projectionMetadata = prepared?.Scope == WotRegistryCommitScope.ProjectionMetadata;
+            CapturedGeneration? committedGeneration = null;
             try
             {
-                pristineArtifacts?.ClaimBlobsDirectory();
-                Directory.CreateDirectory(m_blobsFolder);
-
-                // 1. Stage every referenced version blob durably before the manifest
-                // that points at it is switched in. Blobs are content-addressed, so an
-                // unchanged document is written at most once and shared across
-                // versions/resources.
-                foreach (KeyValuePair<string, byte[]> blob in intended.Blobs)
+                try
                 {
-                    // An injected store owns the durability of the bytes it holds, so the
-                    // directory fsync below does not apply to it. Content addressing makes
-                    // matching blobs immutable, so never rewrite one that already verifies.
-                    if (!await ResourceStoreBlobMatchesAsync(
-                            ResourceStore, blob.Key, blob.Value, cancellationToken)
-                        .ConfigureAwait(false))
+                    if (!projectionMetadata)
                     {
-                        await ResourceStore
-                            .WriteAsync(blob.Key, 0, ByteString.From(blob.Value), cancellationToken)
-                            .ConfigureAwait(false);
+                        pristineArtifacts?.ClaimBlobsDirectory();
+                        Directory.CreateDirectory(m_blobsFolder);
+                        foreach (KeyValuePair<string, byte[]> blob in intended.Blobs)
+                        {
+                            if (!await ResourceStoreBlobMatchesAsync(
+                                    ResourceStore, blob.Key, blob.Value, cancellationToken)
+                                .ConfigureAwait(false))
+                            {
+                                await ResourceStore.WriteAsync(
+                                    blob.Key, 0, ByteString.From(blob.Value), cancellationToken).ConfigureAwait(false);
+                            }
+                        }
+                        promoted = await PromoteStagedBlobsAsync(
+                            snapshot, pristineArtifacts, cancellationToken).ConfigureAwait(false);
+                        SyncDirectory(m_blobsFolder, DirectorySyncPhase.BlobsBeforeManifest);
+                    }
+                    SyncDirectory(m_root, DirectorySyncPhase.RootBeforeManifest);
+                    if (prepared is not null)
+                    {
+                        committedGeneration = await CaptureGenerationAsync(
+                            snapshot, intended.Stamp, intended.ManifestBytes,
+                            prepared.Expected, cancellationToken).ConfigureAwait(false);
                     }
                 }
+                catch (Exception failure) when (IsConfirmedPreSwitchFailure(failure))
+                {
+                    committedGeneration?.Dispose();
+                    committedGeneration = null;
+                    await RollbackPristinePreSwitchFailureAsync(snapshot, pristineArtifacts, failure)
+                        .ConfigureAwait(false);
+                    throw;
+                }
 
-                // 1b. Promote the staged bytes this snapshot references into the
-                // blob directory as artifacts this commit owns. The writer made
-                // them durable in staging before asking for the commit, which is
-                // what lets the manifest switch below name them safely.
-                promoted = await PromoteStagedBlobsAsync(
-                        snapshot, pristineArtifacts, cancellationToken)
-                    .ConfigureAwait(false);
-                SyncDirectory(m_blobsFolder, DirectorySyncPhase.BlobsBeforeManifest);
-                SyncDirectory(m_root, DirectorySyncPhase.RootBeforeManifest);
+                Dictionary<string, ContentEvidence>? evidence = null;
+                if (prepared is not null && committedGeneration is not null)
+                {
+                    evidence = new Dictionary<string, ContentEvidence>(StringComparer.Ordinal);
+                    foreach (KeyValuePair<string, ContentEvidence> entry in prepared.Expected.Contents)
+                    {
+                        evidence.Add(entry.Key, entry.Value);
+                    }
+                    foreach (KeyValuePair<string, ContentEvidence> entry in committedGeneration.Contents)
+                    {
+                        evidence[entry.Key] = entry.Value;
+                    }
+                }
+                string? replaceBackupPath = await AtomicReplaceManifestAsync(
+                    snapshot, intended.ManifestBytes, intended.Stamp, expected,
+                    expectedGeneration, pristineArtifacts, cancellationToken, evidence,
+                    () =>
+                    {
+                        committedGeneration?.Dispose();
+                        committedGeneration = null;
+                    }).ConfigureAwait(false);
+                try
+                {
+                    SyncDirectory(m_root, DirectorySyncPhase.RootAfterManifest);
+                }
+                catch (IOException durabilityFailure)
+                {
+                    await ResolvePostSwitchFailureAsync(
+                            snapshot, intended.ManifestBytes, intended.Stamp, durabilityFailure, evidence)
+                            .ConfigureAwait(false);
+                }
+                m_expectedManifest = intended.Stamp;
+                m_expectedGeneration = snapshot.Generation;
+                RetainCommittedGeneration(prepared, committedGeneration);
+                committedGeneration = null;
+                if (replaceBackupPath is not null)
+                {
+                    TryDelete(replaceBackupPath);
+                }
+                if (!projectionMetadata)
+                {
+                    await SweepPromotedStagingAsync(promoted, CancellationToken.None).ConfigureAwait(false);
+                }
             }
-            catch (Exception failure)
-                when (IsConfirmedPreSwitchFailure(failure))
+            catch (WotRegistryCommitDurabilityUncertainException)
             {
-                await RollbackPristinePreSwitchFailureAsync(
-                        snapshot,
-                        pristineArtifacts,
-                        failure)
-                    .ConfigureAwait(false);
+                RetainCommittedGeneration(prepared, committedGeneration);
+                committedGeneration = null;
                 throw;
             }
-
-            // 2. Durably switch the prevalidated manifest only after blob directory
-            // entries are on stable storage.
-            string? replaceBackupPath = await AtomicReplaceManifestAsync(
-                    snapshot,
-                    intended.ManifestBytes,
-                    intended.Stamp,
-                    expected,
-                    expectedGeneration,
-                    pristineArtifacts,
-                    cancellationToken)
-                .ConfigureAwait(false);
-
-            try
+            finally
             {
-                SyncDirectory(m_root, DirectorySyncPhase.RootAfterManifest);
+                committedGeneration?.Dispose();
             }
-            catch (IOException durabilityFailure)
-            {
-                await ResolvePostSwitchFailureAsync(
-                        snapshot,
-                        intended.ManifestBytes,
-                        intended.Stamp,
-                        durabilityFailure)
-                    .ConfigureAwait(false);
-            }
-
-            m_expectedManifest = intended.Stamp;
-            m_expectedGeneration = snapshot.Generation;
-            if (replaceBackupPath is not null)
-            {
-                TryDelete(replaceBackupPath);
-            }
-            await SweepPromotedStagingAsync(promoted, cancellationToken)
-                .ConfigureAwait(false);
         }
 
         private async ValueTask<ValidatedCommit> ValidateIntendedSnapshotAsync(
             WotRegistrySnapshot snapshot,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            IReadOnlyDictionary<string, ContentEvidence>? evidence = null)
         {
             if (snapshot.Generation < 0)
             {
@@ -496,9 +528,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             // snapshot that should have been rejected first.
             foreach (string digestHex in deferredVerifications)
             {
-                long storedLength = await VerifyBlobFromResourceStoreAsync(
-                        digestHex, "intended snapshot manifest", cancellationToken)
-                    .ConfigureAwait(false);
+                long storedLength = evidence is not null &&
+                    evidence.TryGetValue(digestHex, out ContentEvidence? retained)
+                    ? retained.ContentLength
+                    : await VerifyBlobFromResourceStoreAsync(
+                        digestHex, "intended snapshot manifest", cancellationToken).ConfigureAwait(false);
                 if (contentLengths.TryGetValue(digestHex, out long recordedLength) &&
                     storedLength != recordedLength)
                 {
@@ -521,7 +555,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             WotRegistrySnapshot intendedSnapshot,
             byte[] intendedManifestBytes,
             ManifestStamp intendedStamp,
-            IOException durabilityFailure)
+            IOException durabilityFailure,
+            IReadOnlyDictionary<string, ContentEvidence>? evidence = null)
         {
             m_expectedManifest = null;
             m_expectedGeneration = null;
@@ -529,7 +564,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             LoadedGeneration actual;
             try
             {
-                actual = await ReadGenerationAsync(CancellationToken.None)
+                actual = await ReadGenerationAsync(CancellationToken.None, evidence)
                     .ConfigureAwait(false) ??
                     throw new InvalidDataException(
                         "The primary manifest is missing after its atomic switch.");
@@ -566,18 +601,21 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         private ValueTask<LoadedGeneration?> ReadGenerationAsync(
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            IReadOnlyDictionary<string, ContentEvidence>? evidence = null)
         {
             return ReadGenerationAsync(
                 Path.Combine(m_root, ManifestFile),
                 "primary manifest",
-                cancellationToken);
+                cancellationToken,
+                evidence);
         }
 
         private async ValueTask<LoadedGeneration?> ReadGenerationAsync(
             string manifestPath,
             string manifestRole,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            IReadOnlyDictionary<string, ContentEvidence>? evidence = null)
         {
             byte[] manifestBytes;
             try
@@ -629,13 +667,35 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
             manifest = MigrateManifest(manifest);
 
+            List<string>? deferred = evidence is null ? null : [];
             WotRegistrySnapshot loaded = await LoadSnapshotAsync(
                     manifest,
                     manifestRole,
                     suppliedBlobs: null,
-                    deferredVerifications: null,
+                    deferredVerifications: deferred,
                     cancellationToken)
                 .ConfigureAwait(false);
+            if (deferred is not null)
+            {
+                foreach (WotResource resource in loaded.AllResources())
+                {
+                    foreach (WotResourceVersion version in resource.Versions)
+                    {
+                        if (!version.HasContent)
+                        {
+                            continue;
+                        }
+                        long length = evidence!.TryGetValue(version.DigestHex, out ContentEvidence? retained)
+                            ? retained.ContentLength
+                            : await VerifyBlobFromResourceStoreAsync(
+                                version.DigestHex, manifestRole, cancellationToken).ConfigureAwait(false);
+                        if (length != version.ContentLength)
+                        {
+                            throw new InvalidDataException("Manifest content length differs from immutable evidence.");
+                        }
+                    }
+                }
+            }
             return new LoadedGeneration(
                 loaded,
                 new ManifestStamp(
@@ -1227,9 +1287,17 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         private async ValueTask<StorageLock> AcquireStorageLockAsync(
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool writeIntent = true)
         {
-            EnsureRootDirectoryDurable();
+            if (writeIntent)
+            {
+                EnsureRootDirectoryDurable();
+            }
+            else if (!Directory.Exists(m_root) || !File.Exists(m_lockPath))
+            {
+                throw new InvalidOperationException("The loaded registry storage root is no longer present.");
+            }
 
             while (true)
             {
@@ -1241,7 +1309,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     {
                         lockStream = new FileStream(
                             m_lockPath,
-                            FileMode.OpenOrCreate,
+                            writeIntent ? FileMode.OpenOrCreate : FileMode.Open,
                             FileAccess.ReadWrite,
                             FileShare.None,
                             bufferSize: 1,
@@ -1345,6 +1413,21 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             long length = await ResourceStore.GetLengthAsync(expectedDigest, cancellationToken)
                 .ConfigureAwait(false);
+            return await VerifyBlobContentsAsync(
+                expectedDigest,
+                manifestRole,
+                length,
+                (offset, count, ct) => ResourceStore.ReadAsync(expectedDigest, offset, count, ct),
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async ValueTask<long> VerifyBlobContentsAsync(
+            string expectedDigest,
+            string manifestRole,
+            long length,
+            Func<long, int, CancellationToken, ValueTask<ByteString>> readAsync,
+            CancellationToken cancellationToken)
+        {
             if (length < 0)
             {
                 throw new InvalidDataException(
@@ -1361,9 +1444,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 ByteString chunk;
                 try
                 {
-                    chunk = await ResourceStore
-                        .ReadAsync(expectedDigest, offset, take, cancellationToken)
-                        .ConfigureAwait(false);
+                    chunk = await readAsync(offset, take, cancellationToken).ConfigureAwait(false);
                 }
                 catch (UnauthorizedAccessException ex)
                 {
@@ -1379,7 +1460,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         $"{manifestRole} could not be read. The registry was left unchanged.",
                         ex);
                 }
-                if (chunk.IsNull || chunk.Length == 0)
+                if (chunk.IsNull || chunk.Length == 0 || chunk.Length > take)
                 {
                     throw new InvalidDataException(
                         $"WoT registry document '{expectedDigest}' referenced by the " +
@@ -1939,7 +2020,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             ManifestStamp expectedStamp,
             long expectedGeneration,
             PristineCommitArtifacts? pristineArtifacts,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            IReadOnlyDictionary<string, ContentEvidence>? evidence = null,
+            Action? beforePristineRollback = null)
         {
             string path = Path.Combine(m_root, ManifestFile);
             string directory = Path.GetDirectoryName(path)!;
@@ -1968,6 +2051,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         IsConfirmedPreSwitchFailure(failure))
                 {
                     preserveTemporary = true;
+                    beforePristineRollback?.Invoke();
                     await RollbackPristinePreSwitchFailureAsync(
                             intendedSnapshot,
                             pristineArtifacts,
@@ -2004,7 +2088,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                                 expectedGeneration,
                                 tmp,
                                 replaceBackupPath,
-                                replaceFailure)
+                                replaceFailure,
+                                evidence)
                             .ConfigureAwait(false);
                         throw;
                     }
@@ -2033,19 +2118,23 @@ namespace Opc.Ua.WotCon.Server.Registry
             long expectedGeneration,
             string temporaryManifestPath,
             string replaceBackupPath,
-            Exception replaceFailure)
+            Exception replaceFailure,
+            IReadOnlyDictionary<string, ContentEvidence>? evidence = null)
         {
             ManifestCandidate primary = await InspectManifestCandidateAsync(
                     Path.Combine(m_root, ManifestFile),
-                    "primary manifest")
+                    "primary manifest",
+                    evidence)
                 .ConfigureAwait(false);
             ManifestCandidate temporary = await InspectManifestCandidateAsync(
                     temporaryManifestPath,
-                    "staged manifest")
+                    "staged manifest",
+                    evidence)
                 .ConfigureAwait(false);
             ManifestCandidate backup = await InspectManifestCandidateAsync(
                     replaceBackupPath,
-                    "replace backup manifest")
+                    "replace backup manifest",
+                    evidence)
                 .ConfigureAwait(false);
 
             if (MatchesIntended(
@@ -2089,14 +2178,16 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private async ValueTask<ManifestCandidate> InspectManifestCandidateAsync(
             string path,
-            string role)
+            string role,
+            IReadOnlyDictionary<string, ContentEvidence>? evidence = null)
         {
             try
             {
                 LoadedGeneration? generation = await ReadGenerationAsync(
                         path,
                         role,
-                        CancellationToken.None)
+                        CancellationToken.None,
+                        evidence)
                     .ConfigureAwait(false);
                 return generation is null
                     ? ManifestCandidate.Missing(path, role)

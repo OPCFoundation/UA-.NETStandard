@@ -108,12 +108,14 @@ namespace Opc.Ua.WotCon.Server.Registry
             try
             {
                 m_reloadRequired = true;
+                Interlocked.Exchange(ref m_validatedStoreGeneration, null)?.Dispose();
                 WotRegistrySnapshot loaded = await m_store
                     .LoadAsync(cancellationToken).ConfigureAwait(false);
                 WotRegistryIdentity.ValidateSnapshot(loaded);
                 loaded = RestoreVersionIncarnations(
                     loaded,
                     m_recoverySnapshot?.Generation == loaded.Generation ? m_recoverySnapshot : m_snapshot);
+                await RefreshValidatedStoreGenerationAsync(cancellationToken).ConfigureAwait(false);
                 Volatile.Write(ref m_snapshot, loaded);
                 m_recoverySnapshot = null;
                 m_reloadRequired = false;
@@ -2041,7 +2043,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                     return;
                 }
                 await CommitAndPublishAsync(
-                        snapshot, next, changed, projectionOnly: true, cancellationToken)
+                        snapshot, next, changed, projectionOnly: true, cancellationToken,
+                        WotRegistryCommitScope.ProjectionMetadata)
                     .ConfigureAwait(false);
             }
             finally
@@ -2053,6 +2056,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <inheritdoc/>
         public void Dispose()
         {
+            Interlocked.Exchange(ref m_validatedStoreGeneration, null)?.Dispose();
             m_mutex.Dispose();
         }
 
@@ -2430,37 +2434,95 @@ namespace Opc.Ua.WotCon.Server.Registry
             WotRegistrySnapshot intended,
             IReadOnlyList<string> changed,
             bool projectionOnly,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            WotRegistryCommitScope commitScope = WotRegistryCommitScope.Full)
+        {
+            IWotRegistryPreparedCommit? prepared = null;
+            try
+            {
+                try
+                {
+                    if (m_store is IWotRegistryPreparedStore { SupportsPreparedCommits: true } preparedStore)
+                    {
+                        if (m_validatedStoreGeneration is null)
+                        {
+                            await RefreshValidatedStoreGenerationAsync(cancellationToken).ConfigureAwait(false);
+                        }
+                        IWotRegistryValidatedGeneration captured = m_validatedStoreGeneration ??
+                            throw new InvalidOperationException("No validated store generation is available.");
+                        if (captured.Snapshot.Generation != previous.Generation)
+                        {
+                            throw new InvalidOperationException("The registry and captured store generations differ.");
+                        }
+                        prepared = await preparedStore.PrepareCommitAsync(
+                            intended, captured, commitScope, cancellationToken).ConfigureAwait(false);
+                        await prepared.CommitAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await m_store.CommitAsync(intended, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                catch (WotRegistryCommitDurabilityUncertainException exception)
+                {
+                    exception.CommittedSnapshot = RestoreVersionIncarnations(exception.CommittedSnapshot, intended);
+                    Volatile.Write(ref m_snapshot, exception.CommittedSnapshot);
+                    RaiseChanged(previous, exception.CommittedSnapshot, changed, projectionOnly);
+                    await RefreshValidatedStoreGenerationAfterCommitAsync(
+                        exception.CommittedSnapshot, exception.PersistenceFailure).ConfigureAwait(false);
+                    throw;
+                }
+                catch (WotRegistryCommitNotCommittedException)
+                {
+                    throw;
+                }
+                catch (WotRegistryCommitIndeterminateException)
+                {
+                    m_recoverySnapshot = intended;
+                    m_reloadRequired = true;
+                    throw;
+                }
+
+                Volatile.Write(ref m_snapshot, intended);
+                RaiseChanged(previous, intended, changed, projectionOnly);
+                await RefreshValidatedStoreGenerationAfterCommitAsync(intended).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (prepared is not null)
+                {
+                    await prepared.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+        }
+
+        private async ValueTask RefreshValidatedStoreGenerationAsync(CancellationToken cancellationToken)
+        {
+            if (m_store is not IWotRegistryPreparedStore { SupportsPreparedCommits: true } preparedStore)
+            {
+                return;
+            }
+            IWotRegistryValidatedGeneration next = await preparedStore
+                .CaptureValidatedGenerationAsync(cancellationToken).ConfigureAwait(false);
+            Interlocked.Exchange(ref m_validatedStoreGeneration, next)?.Dispose();
+        }
+
+        private async ValueTask RefreshValidatedStoreGenerationAfterCommitAsync(
+            WotRegistrySnapshot committed,
+            Exception? priorFailure = null)
         {
             try
             {
-                await m_store.CommitAsync(intended, cancellationToken).ConfigureAwait(false);
+                await RefreshValidatedStoreGenerationAsync(CancellationToken.None).ConfigureAwait(false);
             }
-            catch (WotRegistryCommitDurabilityUncertainException exception)
+            catch (Exception failure) when (failure is not OutOfMemoryException)
             {
-                exception.CommittedSnapshot = RestoreVersionIncarnations(exception.CommittedSnapshot, intended);
-                Volatile.Write(ref m_snapshot, exception.CommittedSnapshot);
-                RaiseChanged(
-                    previous,
-                    exception.CommittedSnapshot,
-                    changed,
-                    projectionOnly);
-                throw;
-            }
-            catch (WotRegistryCommitNotCommittedException)
-            {
-                // The store established that the previous generation remains active.
-                throw;
-            }
-            catch (WotRegistryCommitIndeterminateException)
-            {
-                m_recoverySnapshot = intended;
                 m_reloadRequired = true;
-                throw;
+                m_recoverySnapshot = committed;
+                throw new WotRegistryCommitDurabilityUncertainException(
+                    committed,
+                    priorFailure is null ? failure : new AggregateException(priorFailure, failure));
             }
-
-            Volatile.Write(ref m_snapshot, intended);
-            RaiseChanged(previous, intended, changed, projectionOnly);
         }
 
         private void EnsureMutationAllowed()
@@ -2798,6 +2860,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         private readonly SemaphoreSlim m_mutex = new(1, 1);
         private WotRegistrySnapshot m_snapshot;
         private WotRegistrySnapshot? m_recoverySnapshot;
+        private IWotRegistryValidatedGeneration? m_validatedStoreGeneration;
         private bool m_reloadRequired;
     }
 }

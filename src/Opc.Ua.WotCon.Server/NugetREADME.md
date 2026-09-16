@@ -21,6 +21,13 @@ wired onto runtime-loaded NodeSet generations, channels open lazily, local
 monitored items sample the async read handlers, and shadow reload keeps
 existing monitored items on the retired generation until they drain.
 
+File-backed registries also expose optional prepared metadata commits using
+validated generation and immutable-content lease evidence. Projection updates
+avoid rereading independent blob content without bypassing manifest conflicts
+or content integrity; unsupported providers do not advertise isolated commits.
+See [prepared registry metadata commits](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WotRegistryPreparedStore.md)
+for capability, platform, lifetime, and persistence-outcome contracts.
+
 ## Target frameworks
 
 `net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`,

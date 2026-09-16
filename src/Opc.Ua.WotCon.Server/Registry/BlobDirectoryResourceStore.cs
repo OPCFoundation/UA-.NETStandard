@@ -54,7 +54,7 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// path into the directory.
     /// </para>
     /// </remarks>
-    internal sealed class BlobDirectoryResourceStore : IXRegistryResourceStore
+    internal sealed class BlobDirectoryResourceStore : IWotRegistryContentLeaseProvider
     {
         /// <summary>
         /// Initializes the adapter over a blob directory.
@@ -70,6 +70,29 @@ namespace Opc.Ua.WotCon.Server.Registry
                 throw new ArgumentException("A blobs folder is required.", nameof(blobsFolder));
             }
             m_blobsFolder = blobsFolder;
+        }
+
+        /// <inheritdoc/>
+        public bool SupportsImmutableContentLeases => WotFileContentLease.IsSupported;
+
+        /// <inheritdoc/>
+        public async ValueTask<IWotRegistryContentLease> AcquireContentLeaseAsync(
+            string resourceKey,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            IWotRegistryContentLease? lease = null;
+            try
+            {
+                lease = WotFileContentLease.Open(PathFor(resourceKey), resourceKey);
+                var result = new ValueTask<IWotRegistryContentLease>(lease);
+                lease = null;
+                return await result.ConfigureAwait(false);
+            }
+            finally
+            {
+                lease?.Dispose();
+            }
         }
 
         /// <inheritdoc/>
