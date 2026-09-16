@@ -291,17 +291,125 @@ namespace Opc.Ua.WotCon.Server
         private void ApplyBindingCapabilities(BaseObjectState registry)
         {
             IReadOnlyList<WoTBindingCapabilityDataType> caps = Coordinator.BindingCapabilities;
-            if (caps.Count == 0)
+            ushort ns = (ushort)Server.NamespaceUris.GetIndex(Namespaces.WotCon);
+            var folderName = new QualifiedName(BrowseNames.SupportedBindings, ns);
+            NodeState? existingFolder = registry.FindChild(SystemContext, folderName);
+            if (existingFolder is not null and not FolderState)
             {
-                return;
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError, "SupportedBindings must be a Folder.");
             }
-            var encoded = new ExtensionObject[caps.Count];
-            for (int i = 0; i < caps.Count; i++)
+            var folder = existingFolder as FolderState ?? new FolderState(registry)
             {
-                encoded[i] = new ExtensionObject(caps[i]);
+                NodeId = new NodeId("WoTRegistry/SupportedBindings", ns),
+                BrowseName = folderName,
+                DisplayName = new LocalizedText(BrowseNames.SupportedBindings),
+                ReferenceTypeId = Ua.ReferenceTypeIds.HasComponent,
+                TypeDefinitionId = Ua.ObjectTypeIds.FolderType
+            };
+            if (existingFolder is null)
+            {
+                registry.AddChild(folder);
             }
-            SetChildValue(registry, "SelectedBindings",
-                new Variant(new ArrayOf<ExtensionObject>(encoded)));
+            var seen = new Dictionary<(string Uri, string? Version), WoTBindingCapabilityDataType>();
+            foreach (WoTBindingCapabilityDataType capability in caps)
+            {
+                string? uri = capability.BindingUri;
+                if (uri is null || string.IsNullOrWhiteSpace(uri))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError, "A binding descriptor requires a nonempty BindingUri.");
+                }
+                string? version = capability.ProfileVersion;
+                if (seen.TryGetValue((uri, version), out WoTBindingCapabilityDataType? previous))
+                {
+                    if (previous.IsEqual(capability))
+                    {
+                        continue;
+                    }
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError, "Conflicting binding descriptor identity.");
+                }
+                seen.Add((uri, version), capability);
+                string key = "WoTRegistry/SupportedBindings/" + Uri.EscapeDataString(uri) +
+                    (version is null ? "/unversioned" : "/version/" + Uri.EscapeDataString(version));
+                var binding = new WoTBindingState(folder);
+                binding.Create(SystemContext, new NodeId(key, ns),
+                    new QualifiedName(version is null ? uri : uri + "@" + version, ns),
+                    new LocalizedText(capability.Title ?? uri), assignNodeIds: true);
+                if (capability.Title is not null)
+                {
+                    binding.AddTitle(SystemContext);
+                    binding.Title!.Value = capability.Title;
+                }
+                if (version is not null)
+                {
+                    binding.AddProfileVersion(SystemContext);
+                    binding.ProfileVersion!.Value = version;
+                }
+                if (capability.DraftMaturity is not null)
+                {
+                    binding.AddDraftMaturity(SystemContext);
+                    binding.DraftMaturity!.Value = capability.DraftMaturity;
+                }
+                binding.AddEnabled(SystemContext);
+                binding.AddContentTypes(SystemContext);
+                binding.AddCapabilities(SystemContext);
+                var properties = new List<BaseInstanceState>();
+                binding.GetChildren(SystemContext, properties);
+                var identities = new Dictionary<NodeId, NodeId>();
+                foreach (BaseInstanceState property in properties)
+                {
+                    string name = property.BrowseName.Name ?? throw new InvalidOperationException(
+                        "A generated binding property has no BrowseName.");
+                    var propertyId = new NodeId(key + "/" + Uri.EscapeDataString(name), ns);
+                    if (!property.NodeId.IsNull)
+                    {
+                        identities[property.NodeId] = propertyId;
+                    }
+                    property.NodeId = propertyId;
+                }
+                binding.UpdateReferenceTargets(SystemContext, identities);
+                binding.ReferenceTypeId = Ua.ReferenceTypeIds.Organizes;
+                binding.BindingUri!.Value = uri;
+                binding.Enabled!.Value = capability.Capabilities.Count > 0;
+                binding.ContentTypes!.Value = capability.ContentTypes;
+                binding.Capabilities!.Value = capability;
+                folder.AddChild(binding);
+            }
+            AddPredefinedNodeSynchronously(folder);
+            var selectedName = new QualifiedName(BrowseNames.SelectedBindings, ns);
+            NodeState? existingSelected = registry.FindChild(SystemContext, selectedName);
+            if (existingSelected is not null and not BaseVariableState)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError, "SelectedBindings must be a Variable.");
+            }
+            var selected = existingSelected as BaseVariableState ??
+                PropertyState<ArrayOf<WoTBindingCapabilityDataType>>
+                .With<StructureBuilder<WoTBindingCapabilityDataType>>(registry);
+            if (existingSelected is null)
+            {
+                selected.NodeId = new NodeId("WoTRegistry/SelectedBindings", ns);
+                registry.AddChild(selected);
+            }
+            selected.BrowseName = selectedName;
+            selected.DisplayName = new LocalizedText(BrowseNames.SelectedBindings);
+            selected.ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty;
+            selected.TypeDefinitionId = Ua.VariableTypeIds.PropertyType;
+            selected.DataType = ExpandedNodeId.ToNodeId(DataTypeIds.WoTBindingCapabilityDataType, Server.NamespaceUris);
+            selected.ValueRank = ValueRanks.OneDimension;
+            selected.Value = Variant.FromStructure(ArrayOf<WoTBindingCapabilityDataType>.Empty);
+            selected.AccessLevel = AccessLevels.CurrentRead;
+            selected.UserAccessLevel = AccessLevels.CurrentRead;
+            selected.OnSimpleReadValueAsync = async (_, _, cancellationToken) =>
+            {
+                ArrayOf<WoTBindingCapabilityDataType> active = await Coordinator
+                    .GetSelectedBindingCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
+                return new AttributeSimpleReadResult(StatusCodes.Good,
+                    new Variant(active.ConvertAll(capability => new ExtensionObject(capability))));
+            };
+            AddPredefinedNodeSynchronously(selected);
         }
 
         private async ValueTask<ServiceResult> OnRefreshAsync(

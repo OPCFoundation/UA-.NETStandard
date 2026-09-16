@@ -257,7 +257,11 @@ Notes:
 
 * **Strict mode** (`WotRegistryServerOptions.StrictBindings = true`) fails the closure when any required form is unsupported or invalid.
 * **Degraded mode** materializes nodes with `BadConfigurationError` and emits a `WoTBindingFailureEvent`. Validated-but-non-executable forms also degrade the closure so their nodes are visible but flagged.
-* Binding capability snapshots populate the registry `SelectedBindings` node and contribute to refresh unchanged-detection.
+* Registered capabilities populate browseable `SupportedBindings` descriptors and
+  contribute to refresh unchanged-detection. The read-only `SelectedBindings`
+  array contains detached snapshots from published plans, not unused registered
+  binders. See [binding discovery](WoTConnectivity.md#114-binder-integration-seam)
+  for optional metadata, effective runtime policy and direct client decoding.
 * The legacy 1.02 `IWotAssetProviderFactory` provider model is preserved untouched.
 * The coordinator passes its prepared `WotBindingPlan`s to the host as `WotProjectionDocument.BindingPlans` (an `ArrayOf<WotBindingPlan>`), so the projection host can wire a per-generation OPC UA binding runtime once the closure's NodeSet2 content has been imported.
 

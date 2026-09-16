@@ -438,7 +438,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         /// <summary>
         /// Gets the binding capability snapshots advertised by the registered
-        /// binders. These populate the registry <c>SelectedBindings</c> node and
+        /// binders. These populate the registry <c>SupportedBindings</c> folder and
         /// contribute to refresh unchanged-detection.
         /// </summary>
         public IReadOnlyList<WoTBindingCapabilityDataType> BindingCapabilities => m_binders.Capabilities;
@@ -471,6 +471,51 @@ namespace Opc.Ua.WotCon.Server.Materialization
             if (m_converter is WotNodeSetDocumentConverter converter)
             {
                 converter.AddressSpace = addressSpace;
+            }
+        }
+
+        /// <summary>
+        /// Captures the bindings participating in the currently published projection plans.
+        /// The returned capability objects are detached from those plans.
+        /// </summary>
+        public async ValueTask<ArrayOf<WoTBindingCapabilityDataType>> GetSelectedBindingCapabilitiesAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (!TryBeginOperation(allowDisposed: false))
+            {
+                throw new ObjectDisposedException(nameof(WotMaterializationCoordinator));
+            }
+            try
+            {
+                await m_mutex.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    var selected = new Dictionary<(string Uri, string? Version), WoTBindingCapabilityDataType>();
+                    foreach (ClosureState closure in m_closures.Values)
+                    {
+                        foreach (WotBindingPlan plan in closure.BindingPlans)
+                        {
+                            foreach (WoTBindingCapabilityDataType capability in plan.Capabilities)
+                            {
+                                string uri = capability.BindingUri ?? throw new InvalidOperationException(
+                                    "A selected binding has no BindingUri.");
+                                selected[(uri, capability.ProfileVersion)] = capability;
+                            }
+                        }
+                    }
+                    return selected.OrderBy(pair => pair.Key.Uri, StringComparer.Ordinal)
+                        .ThenBy(pair => pair.Key.Version, StringComparer.Ordinal)
+                        .Select(pair => CoreUtils.Clone(pair.Value) ?? throw new InvalidOperationException(
+                            "A selected binding capability could not be copied.")).ToArrayOf();
+                }
+                finally
+                {
+                    m_mutex.Release();
+                }
+            }
+            finally
+            {
+                EndOperation();
             }
         }
 
