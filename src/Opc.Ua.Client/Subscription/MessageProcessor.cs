@@ -568,6 +568,12 @@ namespace Opc.Ua.Client.Subscriptions
         private static uint[] SortAscendingWrapAware(IReadOnlyList<uint> sequenceNumbers)
         {
             const uint kBackwardThreshold = 1u << 31;
+
+            // A retransmission queue always spans far less than half of the
+            // sequence-number space, so a single greedy pass using unsigned
+            // difference arithmetic finds the oldest entry: every other entry
+            // is then within the forward half-range of that anchor and can be
+            // ordered by its unchecked distance from it.
             uint anchor = sequenceNumbers[0];
             for (int i = 1; i < sequenceNumbers.Count; i++)
             {
