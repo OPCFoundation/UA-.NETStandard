@@ -539,6 +539,10 @@ namespace Opc.Ua.Client.Subscriptions
                 await RecoverTransferredMessagesAsync(availableSequenceNumbers, ct)
                     .ConfigureAwait(false);
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 Logger.SubscriptionFailedToRecoverTransferredMessages(ex, Id);
