@@ -1362,10 +1362,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         StatusCodes.BadNodeIdInvalid, "A canonical View requires a portable authored NodeId.");
                 }
                 ExpandedNodeId authored = ExpandedNodeId.Parse(identity.GetString()!);
-                NamespaceTable namespaces = ServerNamespaceUris ??= new NamespaceTable();
-                if (!string.IsNullOrEmpty(authored.NamespaceUri))
+                NamespaceTable namespaces = ServerNamespaceUris ?? new NamespaceTable();
+                if (!string.IsNullOrEmpty(authored.NamespaceUri) &&
+                    namespaces.GetIndex(authored.NamespaceUri) < 0)
                 {
-                    namespaces.GetIndexOrAppend(authored.NamespaceUri);
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid,
+                        "The authored View namespace is not present in the current source image.");
                 }
                 NodeId nodeId = ExpandedNodeId.ToNodeId(authored, namespaces);
                 if (nodeId.IsNull)

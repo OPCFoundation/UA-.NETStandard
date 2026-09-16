@@ -83,6 +83,62 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 WotRegistryGroups.ThingDescriptions, "canonical-view")!.RootNodeId, Is.EqualTo(expected));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task UnresolvedAuthoredIdentityDoesNotAllocateNamespaceStateAsync(bool suppliedTable)
+        {
+            using var registry = new WotRegistryService();
+            var viewHost = new InMemoryWotViewProjectionHost();
+            using var coordinator = new WotMaterializationCoordinator(
+                registry, new FakeWotProjectionHost(),
+                documentConverter: new FakeWotDocumentConverter(),
+                viewProjectionHost: viewHost);
+            var namespaces = new NamespaceTable();
+            namespaces.GetIndexOrAppend(Namespaces.WotCon);
+            int originalCount = namespaces.Count;
+            if (suppliedTable)
+            {
+                coordinator.ServerNamespaceUris = namespaces;
+            }
+            WotRegistryMutationResult source = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
+            {
+                GroupId = WotRegistryGroups.ThingDescriptions,
+                ResourceId = "canonical-source",
+                Content = ByteString.From(Encoding.UTF8.GetBytes(kSourceDocument))
+            }).ConfigureAwait(false);
+            Assert.That(source.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            WotRegistryMutationResult projection = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
+            {
+                GroupId = WotRegistryGroups.ThingDescriptions,
+                ResourceId = "canonical-view",
+                Format = "WoT-Projection/1.2",
+                ContentType =
+                    "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.2/projection\"",
+                Content = ByteString.From(Encoding.UTF8.GetBytes(kProjectionDocument))
+            }).ConfigureAwait(false);
+            Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+
+            WotRefreshResult refreshed = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+
+            WoTResourceLoadResultDataType result = refreshed.Results.Single(row => row.ResourceId == "canonical-view");
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.LoadState, Is.EqualTo(WoTLoadStateEnum.Failed));
+                Assert.That(result.RootNodeId.IsNull, Is.True);
+                Assert.That(viewHost.Applied, Is.Empty);
+                Assert.That(namespaces.Count, Is.EqualTo(originalCount));
+                Assert.That(namespaces.GetIndex("urn:c2:views"), Is.EqualTo(-1));
+                if (suppliedTable)
+                {
+                    Assert.That(coordinator.ServerNamespaceUris, Is.SameAs(namespaces));
+                }
+                else
+                {
+                    Assert.That(coordinator.ServerNamespaceUris, Is.Null);
+                }
+            });
+        }
+
         private const string kSourceDocument = """
             {
               "@context":"https://www.w3.org/2022/wot/td/v1.1",

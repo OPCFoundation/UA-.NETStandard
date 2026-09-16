@@ -1231,6 +1231,9 @@ differs from the registry namespace. Without one, the existing deterministic
 resource-relative `/View` identity is retained. A live View cannot be reassigned
 to another logical Resource, and materialization rejects an identity already
 occupied by another node owner or node role instead of replacing that node.
+Authored identities must resolve in the supplied source-image namespace table;
+identity selection does not grow or replace that table. An invalid or unresolved
+authored identity fails explicitly, rather than selecting the generated fallback.
 
 `ViewVersion` is a deterministic function of the resolved membership alone, computed
 exactly as *WoT Binding* §12.6 specifies: each resolved member's ExpandedNodeId in the
