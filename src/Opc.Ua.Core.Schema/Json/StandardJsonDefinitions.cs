@@ -138,16 +138,18 @@ namespace Opc.Ua.Schema.Json
 
         private static JsonObject Variant()
         {
-            return Object(new JsonObject
+            JsonObject schema = Object(new JsonObject
             {
-                ["Type"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["maximum"] = 29 },
-                ["Body"] = true,
+                ["UaType"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["maximum"] = 25 },
+                ["Value"] = true,
                 ["Dimensions"] = new JsonObject
                 {
                     ["type"] = "array",
                     ["items"] = new JsonObject { ["type"] = "integer" }
                 }
-            });
+            }, "UaType");
+            schema["type"] = new JsonArray("object", "null");
+            return schema;
         }
 
         private static JsonObject ExtensionObject()

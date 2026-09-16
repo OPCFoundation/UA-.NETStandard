@@ -286,6 +286,7 @@
     <File Path=".github/agents/coverage-test-generator.agent.md" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Client.ComplexTypes.Tests/Opc.Ua.Client.ComplexTypes.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Client.Tests/Opc.Ua.Redundancy.Client.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Schema.Tests/Opc.Ua.Core.Schema.Tests.csproj" />
@@ -354,6 +355,7 @@
     <Project Path="tests/Opc.Ua.Core.TestFramework/Opc.Ua.Core.TestFramework.csproj" />
   </Folder>
   <Folder Name="/tools/">
+    <Project Path="tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj" />
     <Project Path="tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Core/Opc.Ua.Mcp.Core.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Diagnostics/Opc.Ua.Mcp.Diagnostics.csproj" />

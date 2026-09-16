@@ -63,7 +63,8 @@ namespace Opc.Ua.PubSub.Security
     /// clear.
     /// </para>
     /// </remarks>
-    public sealed class PubSubSecurityWrapperResolver : IPubSubSecurityWrapperResolver
+    public sealed class PubSubSecurityWrapperResolver :
+        IPubSubSecurityWrapperResolver, IPubSubSecurityKeyProviderCatalog
     {
         private readonly Dictionary<string, IPubSubSecurityKeyProvider> m_keyProviders;
         private readonly ITelemetryContext m_telemetry;
@@ -155,6 +156,9 @@ namespace Opc.Ua.PubSub.Security
                 ?? ((_, _) => registered ?? PubSubAes256CtrPolicy.Instance);
             m_replayWindowSize = replayWindowSize;
         }
+
+        /// <inheritdoc/>
+        public ArrayOf<string> SecurityGroupIds => [.. m_keyProviders.Keys];
 
         private static IPubSubSecurityPolicy? SelectByUri(
             IEnumerable<IPubSubSecurityPolicy>? policies,

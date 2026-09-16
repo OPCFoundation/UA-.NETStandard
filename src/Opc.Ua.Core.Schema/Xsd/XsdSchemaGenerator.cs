@@ -244,7 +244,7 @@ namespace Opc.Ua.Schema.Xsd
 
             private TypeReference ResolveType(NodeId dataType)
             {
-                BuiltInType builtInType = TypeInfo.GetBuiltInType(dataType);
+                BuiltInType builtInType = SchemaTypeInfo.GetFieldEncodingType(dataType);
                 if (builtInType != BuiltInType.Null)
                 {
                     return BuiltInTypeReference(builtInType);

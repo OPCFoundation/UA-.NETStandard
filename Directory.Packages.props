@@ -13,9 +13,12 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.1" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="BitFaster.Caching" Version="2.6.1" />
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.7.0" />
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageVersion Include="Confluent.Kafka" Version="2.15.0" />
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <PackageVersion Include="Crdt" Version="1.1.2" />
@@ -53,6 +56,7 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.ResourceMonitoring" Version="10.5.0" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.9.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
@@ -106,6 +110,7 @@
     <PackageVersion Include="PolySharp" Version="1.16.0" />
     <PackageVersion Include="Roslynator.Analyzers" Version="5.0.0" />
     <PackageVersion Include="Roslynator.Formatting.Analyzers" Version="5.0.0" />
+    <PackageVersion Include="ScottPlot.Avalonia" Version="5.1.59" />
     <PackageVersion Include="SharpFuzz" Version="2.3.0" />
     <!-- Transitive vulnerability pin (consumed via Testcontainers.*):
          - SSH.NET 2026.0.0 fixes GHSA-q939-rpr3-3284 -->
