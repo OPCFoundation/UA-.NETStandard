@@ -1424,6 +1424,18 @@ Projection-owned forms use the projection root's declarations, never surviving
 source declarations. The projection annotation whitelist does not permit an
 enumerated member to restate `uriVariables`.
 
+Supplied Thing-level forms use the projection owner's Thing-level declarations
+and undergo the same URI-template syntax and dependency checks as carried
+affordance forms. Percent-encoded braces remain literal characters, not variable
+references.
+
+An active API key security scheme with `in: "uri"` can also declare a URI
+placeholder through its `name`. Resolution follows the form's effective security
+requirement, including form overrides and combined schemes, within the actual
+form owner's security domain. These placeholders are not synthesized as data
+`uriVariables`; a name shared with a data-variable declaration is a conflict.
+An unrelated or inactive security scheme cannot supply a missing variable.
+
 If host routing replaces a selected source's URI-variable subtree, source data
 references into that subtree retain their original variable schemas as supporting
 `schemaDefinitions`. They do not follow the source affordance's ancestor mapping

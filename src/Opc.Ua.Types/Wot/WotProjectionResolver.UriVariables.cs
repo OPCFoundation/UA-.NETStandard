@@ -138,6 +138,22 @@ namespace Opc.Ua.Wot
             {
                 Dictionary<string, JsonElement> definitions = ReadUriVariables(
                     m_host.Document.RootElement, string.Empty, m_diagnostics);
+                foreach ((string name, string pointer, bool security) in
+                    EnumerateFormUriVariables(m_root, m_host, string.Empty))
+                {
+                    if (security)
+                    {
+                        if (definitions.ContainsKey(name))
+                        {
+                            Fail($"The URI variable '{name}' is declared by both a data schema " +
+                                "and an active URI security scheme.", pointer);
+                        }
+                    }
+                    else if (!definitions.ContainsKey(name))
+                    {
+                        Fail($"The form owner does not declare the required URI variable '{name}'.", pointer);
+                    }
+                }
                 if (!m_root.ContainsKey("uriVariables"))
                 {
                     return;
@@ -190,35 +206,28 @@ namespace Opc.Ua.Wot
                         "/uriVariables/" +
                         EscapePointer(declaration.Key));
                 }
-                if (member.Value["forms"] is JsonArray forms)
+                foreach ((string name, string pointer, bool security) in
+                    EnumerateFormUriVariables(member.Value, owner, destination))
                 {
-                    for (int index = 0; index < forms.Count; index++)
+                    if (security)
                     {
-                        if (forms[index] is not JsonObject form || ReadString(form["href"]) is not string href)
+                        if (local.ContainsKey(name) || root.ContainsKey(name))
                         {
-                            continue;
+                            Fail($"The URI variable '{name}' is declared by both a data schema " +
+                                "and an active URI security scheme.", pointer);
                         }
-                        string formPointer = destination + "/forms/" + index.ToString(CultureInfo.InvariantCulture);
-                        if (!TryReadTemplateVariables(href, out List<string> names, out string error))
-                        {
-                            Fail(error, formPointer + "/href");
-                            continue;
-                        }
-                        foreach (string name in names)
-                        {
-                            if (variables.ContainsKey(name))
-                            {
-                                continue;
-                            }
-                            if (!root.TryGetValue(name, out JsonElement definition))
-                            {
-                                Fail($"The form owner does not declare the required URI variable '{name}'.",
-                                    formPointer + "/href");
-                                continue;
-                            }
-                            AddVariable(name, definition, "/uriVariables/" + EscapePointer(name));
-                        }
+                        continue;
                     }
+                    if (variables.ContainsKey(name))
+                    {
+                        continue;
+                    }
+                    if (!root.TryGetValue(name, out JsonElement definition))
+                    {
+                        Fail($"The form owner does not declare the required URI variable '{name}'.", pointer);
+                        continue;
+                    }
+                    AddVariable(name, definition, "/uriVariables/" + EscapePointer(name));
                 }
                 if (variables.Count != 0)
                 {
@@ -250,6 +259,97 @@ namespace Opc.Ua.Wot
                     variables[name] = schema;
                     RegisterVariable(schema, owner, pointer, destination + "/uriVariables/" + EscapePointer(name));
                 }
+            }
+
+            private IEnumerable<(string Name, string Pointer, bool Security)> EnumerateFormUriVariables(
+                JsonObject value, ReferenceOwner owner, string destination)
+            {
+                if (value["forms"] is not JsonArray forms)
+                {
+                    yield break;
+                }
+                for (int index = 0; index < forms.Count; index++)
+                {
+                    if (forms[index] is not JsonObject form || ReadString(form["href"]) is not string href)
+                    {
+                        continue;
+                    }
+                    string pointer = destination + "/forms/" + index.ToString(CultureInfo.InvariantCulture) + "/href";
+                    if (!TryReadTemplateVariables(href, out List<string> names, out string error))
+                    {
+                        Fail(error, pointer);
+                        continue;
+                    }
+                    if (names.Count == 0)
+                    {
+                        continue;
+                    }
+                    HashSet<string> securityVariables = ReadSecurityUriVariables(form, owner, pointer);
+                    foreach (string name in names)
+                    {
+                        yield return (name, pointer, securityVariables.Contains(name));
+                    }
+                }
+            }
+
+            private HashSet<string> ReadSecurityUriVariables(JsonObject form, ReferenceOwner owner, string pointer)
+            {
+                var variables = new HashSet<string>(StringComparer.Ordinal);
+                var pending = new Stack<string>();
+                if (form["security"] is JsonNode requirement)
+                {
+                    foreach (string name in NodeTokens(requirement))
+                    {
+                        pending.Push(name);
+                    }
+                }
+                else if (owner.Document.RootElement.TryGetProperty("security", out JsonElement inherited))
+                {
+                    foreach (string name in ElementTokens(inherited))
+                    {
+                        pending.Push(Qualify(owner.SourceName, name));
+                    }
+                }
+                var visited = new HashSet<string>(StringComparer.Ordinal);
+                JsonObject? definitions = m_root["securityDefinitions"] as JsonObject;
+                while (pending.Count != 0)
+                {
+                    string name = pending.Pop();
+                    if (!visited.Add(name))
+                    {
+                        continue;
+                    }
+                    if (definitions?[name] is not JsonObject definition)
+                    {
+                        Fail($"The required security definition '{name}' is not available in the resolved view.",
+                            pointer);
+                        continue;
+                    }
+                    if (ReadString(definition["scheme"]) == "combo")
+                    {
+                        foreach (string key in s_comboKeys)
+                        {
+                            foreach (string child in NodeTokens(definition[key]))
+                            {
+                                pending.Push(child);
+                            }
+                        }
+                    }
+                    else if (ReadString(definition["scheme"]) == "apikey" && ReadString(definition["in"]) == "uri")
+                    {
+                        string? variable = ReadString(definition["name"]);
+                        if (string.IsNullOrEmpty(variable))
+                        {
+                            Fail("An active URI API key security scheme must declare a non-empty variable name.",
+                                pointer);
+                        }
+                        else
+                        {
+                            variables.Add(variable);
+                        }
+                    }
+                }
+                return variables;
             }
 
             private void RegisterVariable(JsonObject schema, ReferenceOwner owner, string pointer, string destination)
