@@ -28,6 +28,9 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text.Json;
+using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Core.TestFramework;
 using Opc.Ua.Tests;
@@ -76,6 +79,141 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         [TearDown]
         protected new void TearDown()
         {
+        }
+
+        /// <summary>
+        /// Binary-decoded enum fields retain known symbols and unknown numeric values.
+        /// </summary>
+        [TestCase(ValueRanks.Scalar, 1, true)]
+        [TestCase(ValueRanks.OneDimension, 1, true)]
+        [TestCase(ValueRanks.TwoDimensions, 1, true)]
+        [TestCase(ValueRanks.Scalar, 99, true)]
+        [TestCase(ValueRanks.OneDimension, 99, true)]
+        [TestCase(ValueRanks.TwoDimensions, 99, true)]
+        [TestCase(ValueRanks.Scalar, 1, false)]
+        [TestCase(ValueRanks.OneDimension, 1, false)]
+        [TestCase(ValueRanks.TwoDimensions, 1, false)]
+        public void BinaryStructureRoundTripPreservesEnumerationSymbols(int valueRank, int numericValue, bool registerType)
+        {
+            ServiceMessageContext context = ServiceMessageContext.Create(Telemetry);
+            const string namespaceUri = "urn:enum-symbol-regression";
+            ushort namespaceIndex = context.NamespaceUris.GetIndexOrAppend(namespaceUri);
+            var enumId = new NodeId(1, namespaceIndex);
+            var enumType = new Opc.Ua.Encoders.Enumeration(
+                new XmlQualifiedName("State", namespaceUri),
+                new EnumDefinition
+                {
+                    Fields = [new EnumField { Name = "On", Value = 1 }]
+                });
+            if (registerType)
+            {
+                context.Factory.Builder
+                    .AddEnumeratedType(NodeId.ToExpandedNodeId(enumId, context.NamespaceUris), enumType)
+                    .Commit();
+            }
+            var original = new ComplexStructure(
+                new XmlQualifiedName("Machine", namespaceUri),
+                new ExpandedNodeId(2, namespaceUri),
+                new ExpandedNodeId(3, namespaceUri),
+                new ExpandedNodeId(4, namespaceUri),
+                new StructureDefinition
+                {
+                    StructureType = StructureType.Structure,
+                    BaseDataType = DataTypeIds.Structure,
+                    Fields = [new StructureField { Name = "State", DataType = enumId, ValueRank = valueRank }]
+                },
+                new Dictionary<string, BuiltInType> { ["State"] = BuiltInType.Enumeration });
+            var enumValue = new EnumValue(numericValue, enumType);
+            original["State"] = valueRank switch
+            {
+                ValueRanks.Scalar => Variant.From(enumValue),
+                ValueRanks.OneDimension => Variant.From(new EnumValue[] { enumValue }.ToArrayOf()),
+                _ => Variant.From(MatrixOf.From<EnumValue>(new EnumValue[,] { { enumValue } }))
+            };
+            using var encoder = new BinaryEncoder(context);
+            original.Encode(encoder);
+            using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer(), context);
+            var decoded = (ComplexStructure)original.CreateInstance();
+            decoded.Decode(decoder);
+            ArrayOf<EnumValue> actual = valueRank switch
+            {
+                ValueRanks.Scalar => new EnumValue[] { decoded["State"].GetEnumeration() }.ToArrayOf(),
+                ValueRanks.OneDimension => decoded["State"].GetEnumerationArray(),
+                _ => decoded["State"].GetEnumerationMatrix().ToArrayOf()
+            };
+            Assert.That(actual.Count, Is.EqualTo(1));
+            Assert.That(actual[0].Value, Is.EqualTo(numericValue));
+            Assert.That(actual[0].Symbol, Is.EqualTo(registerType && numericValue == 1 ? "On" : null));
+
+            using var jsonEncoder = new JsonEncoder(context, JsonEncoderOptions.RawData);
+            jsonEncoder.WriteEncodeable("Machine", decoded, ExpandedNodeId.Null);
+            using JsonDocument json = JsonDocument.Parse(jsonEncoder.CloseAndReturnText());
+            JsonElement state = json.RootElement.GetProperty("Machine").GetProperty("State");
+            string expected = registerType && numericValue == 1 ? "On_1" : numericValue.ToString(CultureInfo.InvariantCulture);
+            if (valueRank == ValueRanks.Scalar)
+            {
+                Assert.That(state.GetString(), Is.EqualTo(expected));
+            }
+            else
+            {
+                Assert.That(state.GetRawText(), Does.Contain($"\"{expected}\""));
+            }
+        }
+
+        /// <summary>
+        /// Enumeration metadata does not change null or empty array values during decoding.
+        /// </summary>
+        [Test]
+        [Combinatorial]
+        public void BinaryStructureRoundTripPreservesNullAndEmptyEnumerationArrays(
+            [Values] bool isNull,
+            [Values] bool registerType)
+        {
+            ServiceMessageContext context = ServiceMessageContext.Create(Telemetry);
+            const string namespaceUri = "urn:enum-array-null-regression";
+            ushort namespaceIndex = context.NamespaceUris.GetIndexOrAppend(namespaceUri);
+            var enumId = new NodeId(1, namespaceIndex);
+            if (registerType)
+            {
+                context.Factory.Builder.AddEnumeratedType(
+                    NodeId.ToExpandedNodeId(enumId, context.NamespaceUris),
+                    new Opc.Ua.Encoders.Enumeration(
+                        new XmlQualifiedName("State", namespaceUri),
+                        new EnumDefinition { Fields = [new EnumField { Name = "On", Value = 1 }] }))
+                    .Commit();
+            }
+            var original = new ComplexStructure(
+                new XmlQualifiedName("Machine", namespaceUri),
+                new ExpandedNodeId(2, namespaceUri),
+                new ExpandedNodeId(3, namespaceUri),
+                new ExpandedNodeId(4, namespaceUri),
+                new StructureDefinition
+                {
+                    StructureType = StructureType.Structure,
+                    BaseDataType = DataTypeIds.Structure,
+                    Fields = [new StructureField
+                    {
+                        Name = "State",
+                        DataType = enumId,
+                        ValueRank = ValueRanks.OneDimension
+                    }]
+                },
+                new Dictionary<string, BuiltInType> { ["State"] = BuiltInType.Enumeration });
+            original["State"] = Variant.From(isNull ? ArrayOf<EnumValue>.Null : ArrayOf<EnumValue>.Empty);
+
+            using var encoder = new BinaryEncoder(context);
+            original.Encode(encoder);
+            byte[] encoded = encoder.CloseAndReturnBuffer();
+            using var decoder = new BinaryDecoder(encoded, context);
+            var decoded = (ComplexStructure)original.CreateInstance();
+            decoded.Decode(decoder);
+            ArrayOf<EnumValue> actual = decoded["State"].GetEnumerationArray();
+            Assert.That(actual.IsNull, Is.EqualTo(isNull));
+            Assert.That(actual.Count, Is.Zero);
+
+            using var roundTripEncoder = new BinaryEncoder(context);
+            decoded.Encode(roundTripEncoder);
+            Assert.That(roundTripEncoder.CloseAndReturnBuffer(), Is.EqualTo(encoded));
         }
 
         /// <summary>
