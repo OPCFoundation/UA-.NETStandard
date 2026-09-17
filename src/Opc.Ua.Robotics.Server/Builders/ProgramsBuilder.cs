@@ -111,6 +111,10 @@ namespace Opc.Ua.Robotics.Server.Builders
                 context.Context,
                 m_options,
                 (node, ct) => context.Manager.AddPredefinedNodeAsync(node, ct),
+                (node, ct) => context.Manager.DeleteNodeAsync(
+                    (ServerSystemContext)context.Context,
+                    node.NodeId,
+                    ct),
                 cancellationToken).ConfigureAwait(false);
 
             m_scope.RegisteredResources.Add(binding);

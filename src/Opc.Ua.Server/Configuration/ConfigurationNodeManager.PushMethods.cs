@@ -368,8 +368,10 @@ namespace Opc.Ua.Server
                             if (matchingKeyStore != null)
                             {
                                 consumedPendingContext = pendingKeyContext;
-                                consumedPendingKey = await matchingKeyStore
-                                    .TryTakeMatchingAsync(pendingKeyContext, newCert, ct).ConfigureAwait(false);
+                                // Claim the regenerated key only when ApplyChanges
+                                // commits this staged operation. CancelChanges and
+                                // failed transactions must leave it available.
+                                break;
                             }
                             else if (previousCertificateWithKey == null ||
                                 !X509Utils.VerifyKeyPair(newCert, previousCertificateWithKey))
@@ -380,31 +382,18 @@ namespace Opc.Ua.Server
                             }
 
                             Certificate exportableKey;
-                            if (consumedPendingKey != null)
-                            {
-                                // The regenerated key from a matching
-                                // CreateSigningRequest(regeneratePrivateKey:
-                                // true) is consumed here.
-                                exportableKey = consumedPendingKey.AddRef();
-                            }
-                            else
+                            // The non-matching-store path requires the existing
+                            // certificate private key and carries it forward.
                             {
                                 // CA2000: exportableKey is disposed by the
                                 // `using` immediately below; the analyzer
                                 // cannot track disposal through the
                                 // conditional (?:) assignment.
 #pragma warning disable CA2000
-                                if (previousCertificateWithKey == null)
-                                {
-                                    throw new ServiceResultException(
-                                        StatusCodes.BadSecurityChecksFailed,
-                                        "A private key was not found");
-                                }
-
                                 try
                                 {
                                     exportableKey = X509Utils.CreateCopyWithPrivateKey(
-                                        previousCertificateWithKey, false);
+                                        previousCertificateWithKey!, false);
                                 }
                                 catch (CryptographicException ex)
                                 {
@@ -460,7 +449,7 @@ namespace Opc.Ua.Server
                 }
 
                 NodeId groupNodeId = certificateGroup.NodeId;
-                Certificate stagedNewCert = newCertificateWithKey!;
+                Certificate? stagedNewCert = newCertificateWithKey;
                 CertificateCollection stagedIssuers = newIssuerCollection;
                 Certificate? stagedPreviousCert = previousCertificateWithKey;
                 // Populated by CommitAsync with the thumbprints of exactly
@@ -486,14 +475,68 @@ namespace Opc.Ua.Server
                     AffectedCertificateType = certificateTypeId,
                     CommitAsync = async ct2 =>
                     {
-                        stagedNewlyAddedIssuerThumbprints = await ApplyCertificateSlotChangeAsync(
-                            certificateGroup,
-                            existingCertIdentifier,
-                            previousThumbprint,
-                            stagedNewCert,
-                            stagedIssuers,
-                            ct2,
-                            stagedPreviousCert).ConfigureAwait(false);
+                        Certificate? commitPendingKey = null;
+                        if (stagedNewCert == null)
+                        {
+                            commitPendingKey = await matchingKeyStore!
+                                .TryTakeMatchingAsync(
+                                    consumedPendingContext!,
+                                    newCert!,
+                                    ct2).ConfigureAwait(false);
+                            if (commitPendingKey == null)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadSecurityChecksFailed,
+                                    "The matching regenerated private key is no longer available.");
+                            }
+
+                            try
+                            {
+                                stagedNewCert = DefaultCertificateFactory.Instance
+                                    .CreateWithPrivateKey(newCert!, commitPendingKey);
+                            }
+                            catch
+                            {
+                                await PushConfigurationRollback.RunAsync(async rollbackToken =>
+                                {
+                                    await matchingKeyStore.TryRestoreAsync(
+                                        consumedPendingContext!,
+                                        commitPendingKey,
+                                        rollbackToken).ConfigureAwait(false);
+                                }, m_timeProvider).ConfigureAwait(false);
+                                throw;
+                            }
+                        }
+
+                        try
+                        {
+                            stagedNewlyAddedIssuerThumbprints = await ApplyCertificateSlotChangeAsync(
+                                certificateGroup,
+                                existingCertIdentifier,
+                                previousThumbprint,
+                                stagedNewCert,
+                                stagedIssuers,
+                                ct2,
+                                stagedPreviousCert).ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            if (commitPendingKey != null)
+                            {
+                                await PushConfigurationRollback.RunAsync(async rollbackToken =>
+                                {
+                                    await matchingKeyStore!.TryRestoreAsync(
+                                        consumedPendingContext!,
+                                        commitPendingKey,
+                                        rollbackToken).ConfigureAwait(false);
+                                }, m_timeProvider).ConfigureAwait(false);
+                            }
+                            throw;
+                        }
+                        finally
+                        {
+                            commitPendingKey?.Dispose();
+                        }
                         if (stagedPreviousCert != null)
                         {
                             RegisterPendingRotation(certificateTypeId, stagedPreviousCert);
@@ -513,7 +556,7 @@ namespace Opc.Ua.Server
                         await ApplyCertificateSlotChangeAsync(
                             certificateGroup,
                             existingCertIdentifier,
-                            stagedNewCert.Thumbprint,
+                            stagedNewCert!.Thumbprint,
                             stagedPreviousCert,
                             null,
                             ct2).ConfigureAwait(false);
@@ -527,7 +570,7 @@ namespace Opc.Ua.Server
                     },
                     DisposeStaged = () =>
                     {
-                        stagedNewCert.Dispose();
+                        stagedNewCert?.Dispose();
                         stagedIssuers.Dispose();
                         stagedPreviousCert?.Dispose();
                     }

@@ -262,6 +262,36 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
+        public async Task RefreshDeregistersRemovedAndMovedMaterialisedNodesAsync()
+        {
+            InMemoryFileSystemProvider provider = CreateProvider();
+            provider.AddDirectory("target");
+            provider.AddFile("old.txt", "x");
+            FileDirectoryState root = CreateRoot();
+            SessionSystemContext context = CreateContext();
+            var deregistered = new List<NodeState>();
+
+            await using IFileDirectoryBinding binding = await CreateBinder().BindAsync(
+                root,
+                provider,
+                context,
+                options: null,
+                registerNode: null,
+                deregisterNode: (node, _) =>
+                {
+                    deregistered.Add(node);
+                    return default;
+                },
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            provider.Delete("old.txt");
+            await binding.RefreshAsync().ConfigureAwait(false);
+
+            Assert.That(deregistered.Select(node => node.BrowseName.Name), Does.Contain("old.txt"));
+            Assert.That(Find<FileState>(root, context, "old.txt"), Is.Null);
+        }
+
+        [Test]
         public void MaxEntriesThrowsBeforeMaterialisingOverflow()
         {
             InMemoryFileSystemProvider provider = CreateProvider();

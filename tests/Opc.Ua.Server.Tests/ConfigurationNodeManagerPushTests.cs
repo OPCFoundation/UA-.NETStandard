@@ -1221,6 +1221,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
             Assert.That(result.ApplyChangesRequired, Is.True);
+
         }
 
         [Test]
@@ -1593,8 +1594,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.ApplyChangesRequired, Is.True);
         }
 
-        [Test]
-        public async Task UpdateCertificateWithRegeneratedPrivateKeyStagesCertificateAsync()
+        private async Task<ByteString> StageCertificateWithRegeneratedPrivateKeyAsync()
         {
             ISystemContext context = CreateAdminContext();
             ByteString currentCertificate = GetCurrentRsaCertificate(context);
@@ -1643,6 +1643,44 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
             Assert.That(result.ApplyChangesRequired, Is.True);
+            return signedCertificate.RawData.ToByteString();
+        }
+
+        [Test]
+        public async Task UpdateCertificateWithRegeneratedPrivateKeyStagesCertificateAsync()
+        {
+            _ = await StageCertificateWithRegeneratedPrivateKeyAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task UpdateCertificateWithRegeneratedPrivateKeyCanBeRetriedAfterCancelAsync()
+        {
+            ISystemContext context = CreateAdminContext();
+            ByteString certificate = await StageCertificateWithRegeneratedPrivateKeyAsync()
+                .ConfigureAwait(false);
+
+            ServiceResult cancelResult = await m_configNode.CancelChanges.OnCallMethod2Async(
+                context,
+                m_configNode.CancelChanges,
+                m_configNode.NodeId,
+                ArrayOf<Variant>.Empty,
+                [],
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(cancelResult), Is.True);
+
+            UpdateCertificateMethodStateResult retry = await m_configNode.UpdateCertificate.OnCallAsync(
+                    context,
+                    m_configNode.UpdateCertificate,
+                    m_configNode.NodeId,
+                    ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    certificate,
+                    [],
+                    null,
+                    ByteString.Empty,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(retry.ServiceResult), Is.True);
         }
 
         [Test]
