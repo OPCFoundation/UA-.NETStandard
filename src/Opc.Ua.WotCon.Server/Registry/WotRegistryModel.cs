@@ -846,16 +846,46 @@ namespace Opc.Ua.WotCon.Server.Registry
             long generation,
             ImmutableDictionary<string, WotResourceGroup> groups,
             ImmutableSortedDictionary<string, string>? labels = null)
+            : this(generation, groups, labels, default, 0)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a snapshot including its committed projection generation and canonical View graph.
+        /// </summary>
+        public WotRegistrySnapshot(
+            long generation,
+            ImmutableDictionary<string, WotResourceGroup> groups,
+            ImmutableSortedDictionary<string, string>? labels,
+            ByteString canonicalViewGraphState,
+            uint refreshGeneration)
         {
             Generation = generation;
             Groups = groups ?? ImmutableDictionary<string, WotResourceGroup>.Empty;
             Labels = labels ?? WotLabels.Empty;
+            CanonicalViewGraphState = canonicalViewGraphState.IsNull
+                ? default
+                : ByteString.From(canonicalViewGraphState.Span.ToArray());
+            RefreshGeneration = refreshGeneration;
         }
 
         /// <summary>
         /// Gets the monotonically increasing snapshot generation (registry epoch).
         /// </summary>
         public long Generation { get; }
+
+        /// <summary>
+        /// Gets the generation of the last committed materialization publication.
+        /// It is independent of the registry metadata epoch.
+        /// </summary>
+        public uint RefreshGeneration { get; }
+
+        /// <summary>
+        /// Gets the immutable, portable canonical View graph state, or Null for a legacy/absent graph.
+        /// Empty represents an explicitly empty graph, not legacy absence.
+        /// Graph bytes and all affected Resource projections belong to the same registry decision.
+        /// </summary>
+        public ByteString CanonicalViewGraphState { get; }
 
         /// <summary>
         /// Gets the groups keyed by groupid.
@@ -935,7 +965,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 throw new ArgumentNullException(nameof(group));
             }
-            return new WotRegistrySnapshot(generation, Groups.SetItem(group.GroupId, group), Labels);
+            return new WotRegistrySnapshot(
+                generation, Groups.SetItem(group.GroupId, group), Labels,
+                CanonicalViewGraphState, RefreshGeneration);
         }
 
         /// <summary>
@@ -943,7 +975,8 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         public WotRegistrySnapshot WithoutGroup(string groupId, long generation)
         {
-            return new WotRegistrySnapshot(generation, Groups.Remove(groupId), Labels);
+            return new WotRegistrySnapshot(
+                generation, Groups.Remove(groupId), Labels, CanonicalViewGraphState, RefreshGeneration);
         }
 
         /// <summary>
@@ -952,7 +985,23 @@ namespace Opc.Ua.WotCon.Server.Registry
         public WotRegistrySnapshot WithLabels(
             ImmutableSortedDictionary<string, string> labels, long generation)
         {
-            return new WotRegistrySnapshot(generation, Groups, labels);
+            return new WotRegistrySnapshot(
+                generation, Groups, labels, CanonicalViewGraphState, RefreshGeneration);
+        }
+
+        /// <summary>
+        /// Produces the metadata image of one materialization decision. Null graph input preserves
+        /// the existing graph; Empty supplies an explicitly empty graph. The caller supplies the committed generations.
+        /// </summary>
+        public WotRegistrySnapshot WithPublicationState(
+            long generation,
+            uint refreshGeneration,
+            ByteString canonicalViewGraphState = default)
+        {
+            return new WotRegistrySnapshot(
+                generation, Groups, Labels,
+                canonicalViewGraphState.IsNull ? CanonicalViewGraphState : canonicalViewGraphState,
+                refreshGeneration);
         }
 
         /// <summary>

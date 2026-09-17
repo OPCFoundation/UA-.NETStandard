@@ -150,6 +150,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             ManifestDto original = ToManifest(expected);
             ManifestDto normalized = ToManifest(intended);
             normalized.Generation = original.Generation;
+            normalized.RefreshGeneration = original.RefreshGeneration;
+            normalized.CanonicalViewGraphState = original.CanonicalViewGraphState;
             GroupDto[] oldGroups = original.Groups ?? [];
             GroupDto[] newGroups = normalized.Groups ?? [];
             if (oldGroups.Length != newGroups.Length)
