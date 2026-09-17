@@ -945,35 +945,18 @@ namespace Opc.Ua.Server
 
                 if (m_consumerTask != null)
                 {
-                    try
-                    {
-                        // Bound the wait — do not block indefinitely if the consumer is stuck.
-                        bool completed = m_consumerTask
-                            .Wait(TimeSpan.FromSeconds(5));
-
-                        if (!completed)
-                        {
-                            m_logger?.MonitoredNode2ConsumerDidNotDrainWithin5();
-                            m_consumerCts.Cancel();
-
-                            try
-                            {
-                                m_consumerTask.GetAwaiter().GetResult();
-                            }
-                            catch
-                            {
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        m_logger?.MonitoredNode2ConsumerFaultedDuringShutdown(ex);
-                    }
+                    m_consumerCts.Cancel();
+                    _ = m_consumerTask.ContinueWith(
+                        static (_, state) => ((CancellationTokenSource)state!).Dispose(),
+                        m_consumerCts,
+                        CancellationToken.None,
+                        TaskContinuationOptions.ExecuteSynchronously,
+                        TaskScheduler.Default);
                 }
-
-                // Cancel and dispose only after the consumer has finished.
-                m_consumerCts?.Cancel();
-                m_consumerCts?.Dispose();
+                else
+                {
+                    m_consumerCts?.Dispose();
+                }
             }
         }
     }
