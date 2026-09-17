@@ -79,6 +79,12 @@ namespace Opc.Ua.Server.Historian
         public uint MaxValues { get; init; }
 
         /// <summary>
+        /// Maximum number of values the provider should emit in one page.
+        /// Zero means the provider may use its own default page size.
+        /// </summary>
+        public uint PageLimit { get; init; }
+
+        /// <summary>
         /// True for forward-in-time reads, false for reverse.
         /// </summary>
         public bool IsForward { get; init; }

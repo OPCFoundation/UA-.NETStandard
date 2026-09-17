@@ -66,6 +66,9 @@ namespace Opc.Ua.Server.Historian
     {
         /// <summary>
         /// Reads one page of raw values from the archive.
+        /// Values that hide prior values at the same source timestamp, or
+        /// have associated annotations, must set the
+        /// <see cref="AggregateBits.ExtraData"/> status bit.
         /// </summary>
         /// <param name="context">Operation context.</param>
         /// <param name="request">Normalised raw read request.</param>

@@ -250,7 +250,26 @@ namespace Opc.Ua.Server.Historian
                     {
                         continue;
                     }
-                    await FlushAsync(batch, ct).ConfigureAwait(false);
+                    try
+                    {
+                        await FlushAsync(batch, ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception exception)
+                    {
+                        int dropped = 0;
+                        foreach (List<DataValue> values in batch.Values)
+                        {
+                            dropped += values.Count;
+                        }
+                        Interlocked.Add(ref m_droppedSamples, dropped);
+                        m_logger?.HistorianCaptureSinkFlushFailedForNodesNodeS(
+                            exception,
+                            batch.Count);
+                    }
                 }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)

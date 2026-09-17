@@ -1942,6 +1942,10 @@ namespace Opc.Ua.Server.Historian
                     initialState,
                     bufferedProcessedOffset: null,
                     cancellationToken).ConfigureAwait(false);
+                if (filtered.Count == 0 && page.NextToken.IsEmpty)
+                {
+                    result.StatusCode = StatusCodes.GoodNoData;
+                }
                 return ServiceResult.Good;
             }
             finally
@@ -2280,14 +2284,6 @@ namespace Opc.Ua.Server.Historian
             HistorianEventRecord record,
             SimpleAttributeOperand op)
         {
-            if (op.BrowsePath.Count == 0)
-            {
-                if (op.AttributeId == Attributes.NodeId)
-                {
-                    return new Variant(record.EventType);
-                }
-                return default;
-            }
             if (!record.TryGetQualifiedField(
                     HistorianEventFieldKey.FromOperand(op),
                     out Variant value) &&
@@ -2483,9 +2479,8 @@ namespace Opc.Ua.Server.Historian
                     NodeId = node.NodeId,
                     StartTime = start,
                     EndTime = end,
-                    MaxValues = ApplyHistorianLimit(
-                        details.NumValuesPerNode,
-                        capabilities.MaxReturnDataValues),
+                    MaxValues = details.NumValuesPerNode,
+                    PageLimit = capabilities.MaxReturnDataValues,
                     IsForward = isForward,
                     ReturnBounds = details.ReturnBounds
                 };
@@ -2922,7 +2917,7 @@ namespace Opc.Ua.Server.Historian
 
         private static DataValue ApplyIndexRange(DataValue value, NumericRange indexRange)
         {
-            if (indexRange.IsNull || !StatusCode.IsGood(value.StatusCode))
+            if (indexRange.IsNull || value.WrappedValue.IsNull)
             {
                 return value;
             }

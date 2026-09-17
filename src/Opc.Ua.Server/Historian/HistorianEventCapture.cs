@@ -292,9 +292,27 @@ namespace Opc.Ua.Server.Historian
                             cancellationToken).ConfigureAwait(false);
                     foreach (EventBatch events in batch.Values)
                     {
-                        await FlushAsync(
-                            events,
-                            cancellationToken).ConfigureAwait(false);
+                        try
+                        {
+                            await FlushAsync(
+                                events,
+                                cancellationToken).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                            when (cancellationToken.IsCancellationRequested)
+                        {
+                            throw;
+                        }
+                        catch (Exception exception)
+                        {
+                            Interlocked.Add(
+                                ref m_droppedEvents,
+                                events.Events.Count);
+                            m_logger.HistorianEventCaptureFlushFailed(
+                                exception,
+                                events.Notifier.NodeId,
+                                events.Events.Count);
+                        }
                     }
                 }
             }
@@ -779,5 +797,18 @@ namespace Opc.Ua.Server.Historian
             this ILogger logger,
             Exception exception,
             NodeId nodeId);
+
+        /// <summary>
+        /// Logs an event batch dropped after a historian provider failure.
+        /// </summary>
+        [LoggerMessage(
+            EventId = ServerEventIds.HistorianEventCapture + 7,
+            Level = LogLevel.Warning,
+            Message = "The historian event capture flush for {NodeId} failed; {Count} event(s) were dropped.")]
+        public static partial void HistorianEventCaptureFlushFailed(
+            this ILogger logger,
+            Exception exception,
+            NodeId nodeId,
+            int count);
     }
 }

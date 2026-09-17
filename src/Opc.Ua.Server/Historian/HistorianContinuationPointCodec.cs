@@ -240,6 +240,7 @@ namespace Opc.Ua.Server.Historian
                     kind == HistorianReadKind.Annotations &&
                         formatVersion <
                             kAnnotationRequestNodeIdFormatVersion,
+                    (uint)formatVersion,
                     new HistorianResumeToken(resumeToken),
                     timestamps,
                     string.IsNullOrEmpty(indexRangeText)
@@ -397,6 +398,7 @@ namespace Opc.Ua.Server.Historian
             NodeId nodeId,
             NodeId providerNodeId,
             bool usesLegacyAnnotationNodeId,
+            uint formatVersion,
             HistorianResumeToken resumeToken,
             TimestampsToReturn timestamps,
             NumericRange indexRange,
@@ -414,7 +416,7 @@ namespace Opc.Ua.Server.Historian
                     TimestampsToReturn = timestamps,
                     IndexRange = indexRange,
                     DataEncoding = dataEncoding,
-                    RawRequest = ReadRawRequest(decoder, nodeId)
+                    RawRequest = ReadRawRequest(decoder, nodeId, formatVersion)
                 },
                 HistorianReadKind.Modified => new HistorianContinuationState
                 {
@@ -479,20 +481,27 @@ namespace Opc.Ua.Server.Historian
             encoder.WriteDateTime(null, request.StartTime);
             encoder.WriteDateTime(null, request.EndTime);
             encoder.WriteUInt32(null, request.MaxValues);
+            encoder.WriteUInt32(null, request.PageLimit);
             encoder.WriteBoolean(null, request.IsForward);
             encoder.WriteBoolean(null, request.ReturnBounds);
         }
 
         private static HistorianRawReadRequest ReadRawRequest(
             BinaryDecoder decoder,
-            NodeId nodeId)
+            NodeId nodeId,
+            uint formatVersion)
         {
+            uint maxValues = decoder.ReadUInt32(null);
+            uint pageLimit = formatVersion >= kRawPageLimitFormatVersion
+                ? decoder.ReadUInt32(null)
+                : maxValues;
             return new HistorianRawReadRequest
             {
                 NodeId = nodeId,
                 StartTime = decoder.ReadDateTime(null),
                 EndTime = decoder.ReadDateTime(null),
-                MaxValues = decoder.ReadUInt32(null),
+                MaxValues = maxValues,
+                PageLimit = pageLimit,
                 IsForward = decoder.ReadBoolean(null),
                 ReturnBounds = decoder.ReadBoolean(null)
             };
@@ -619,8 +628,10 @@ namespace Opc.Ua.Server.Historian
         private const uint kLegacyFormatVersion = 1;
         private const uint kNamespaceMappedFormatVersion = 2;
         private const uint kAnnotationRequestNodeIdFormatVersion = 3;
+        private const uint kRawPageLimitFormatVersion = 4;
+
         private const uint kFormatVersion =
-            kAnnotationRequestNodeIdFormatVersion;
+            kRawPageLimitFormatVersion;
         private const int kMaxPayloadSize = 1024 * 1024;
         private const int kMaxProviderIdLength = 256;
         private const int kMaxResumeTokenSize = 64 * 1024;

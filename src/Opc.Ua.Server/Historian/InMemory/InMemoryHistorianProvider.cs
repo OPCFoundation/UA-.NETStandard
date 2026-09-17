@@ -906,9 +906,12 @@ namespace Opc.Ua.Server.Historian.InMemory
             foreach (EventEntry entry in ordered)
             {
                 var timestamp = entry.Record.SourceTimestamp.ToDateTime();
-                if (request.IsForward
-                    ? timestamp < lo || timestamp >= hi
-                    : timestamp <= lo || timestamp > hi)
+                bool exactInstant = lo == hi;
+                if (exactInstant
+                    ? timestamp != lo
+                    : request.IsForward
+                        ? timestamp < lo || timestamp >= hi
+                        : timestamp <= lo || timestamp > hi)
                 {
                     continue;
                 }
@@ -1348,7 +1351,17 @@ namespace Opc.Ua.Server.Historian.InMemory
                         }
                         else
                         {
+                            if (!CanStoreRaw(archive, key.SourceTimestamp.ToDateTime()))
+                            {
+                                statuses[i] = StatusCodes.BadOutOfRange;
+                                break;
+                            }
                             archive.Raw[key] = CloneValue(value);
+                            LogModification(
+                                archive,
+                                value,
+                                HistoryUpdateType.Insert,
+                                context.DefaultModificationInfo);
                             statuses[i] = StatusCodes.GoodEntryInserted;
                             EvictRawIfNeeded(archive, key.SourceTimestamp.ToDateTime());
                         }
@@ -1379,7 +1392,17 @@ namespace Opc.Ua.Server.Historian.InMemory
                         }
                         else
                         {
+                            if (!CanStoreRaw(archive, key.SourceTimestamp.ToDateTime()))
+                            {
+                                statuses[i] = StatusCodes.BadOutOfRange;
+                                break;
+                            }
                             archive.Raw[key] = CloneValue(value);
+                            LogModification(
+                                archive,
+                                value,
+                                HistoryUpdateType.Insert,
+                                context.DefaultModificationInfo);
                             statuses[i] = StatusCodes.GoodEntryInserted;
                             EvictRawIfNeeded(archive, key.SourceTimestamp.ToDateTime());
                         }
@@ -1479,6 +1502,13 @@ namespace Opc.Ua.Server.Historian.InMemory
                             : StatusCodes.GoodEntryInserted,
                         _ => StatusCodes.BadInvalidArgument
                     };
+                    if (!exists &&
+                        (updateType == HistoryUpdateType.Insert ||
+                            updateType == HistoryUpdateType.Update) &&
+                        !CanStoreRaw(archive, key.SourceTimestamp.ToDateTime()))
+                    {
+                        preflightResult = StatusCodes.BadOutOfRange;
+                    }
 
                     if (StatusCode.IsBad(preflightResult))
                     {
@@ -1515,6 +1545,11 @@ namespace Opc.Ua.Server.Historian.InMemory
                     archive.Raw[key] = CloneValue(value);
                     if (statuses[i].Code == StatusCodes.GoodEntryInserted.Code)
                     {
+                        LogModification(
+                            archive,
+                            value,
+                            HistoryUpdateType.Insert,
+                            context.DefaultModificationInfo);
                         if (!newestInsertedTimestamp.HasValue || timestamp > newestInsertedTimestamp.Value)
                         {
                             newestInsertedTimestamp = timestamp;
@@ -1632,7 +1667,9 @@ namespace Opc.Ua.Server.Historian.InMemory
             DateTime windowMin = lo;
             DateTime windowMax = hi;
 
-            uint cap = request.MaxValues > 0 ? request.MaxValues : kMaxValuesPerPage;
+            uint cap = request.PageLimit > 0
+                ? Math.Min(request.PageLimit, kMaxValuesPerPage)
+                : request.MaxValues > 0 ? request.MaxValues : kMaxValuesPerPage;
             var output = new List<HistoricalDataValue>((int)Math.Min(cap, kMaxValuesPerPage));
             HistoricalValueKey lastEmitted = default;
 
@@ -1780,14 +1817,20 @@ namespace Opc.Ua.Server.Historian.InMemory
                 // ContinuationPoint on the final page (OPC UA Part 11; CTT HA Read Raw 008/009).
                 if (capReached)
                 {
-                    if (isOpenEnded)
+                    if (isOpenEnded && cap == request.MaxValues)
                     {
                         return new HistorianPage<HistoricalDataValue>(output);
                     }
                     return new HistorianPage<HistoricalDataValue>(output, EncodeCursor(lastEmitted));
                 }
 
-                output.Add(new HistoricalDataValue(CloneValue(entry.Value)));
+                DataValue value = CloneValue(entry.Value);
+                if (HasModifiedValueAt(archive, entry.Key))
+                {
+                    value = value.WithStatus(
+                        value.StatusCode.WithAggregateBits(AggregateBits.ExtraData));
+                }
+                output.Add(new HistoricalDataValue(value));
                 lastEmitted = entry.Key;
                 capReached = output.Count >= cap;
             }
@@ -2092,9 +2135,12 @@ namespace Opc.Ua.Server.Historian.InMemory
             bool capReached = false;
             foreach (KeyValuePair<DateTime, Annotation> entry in source)
             {
-                bool outside = request.IsForward
-                    ? entry.Key < lo || entry.Key >= hi
-                    : entry.Key <= lo || entry.Key > hi;
+                bool exactInstant = lo == hi;
+                bool outside = exactInstant
+                    ? entry.Key != lo
+                    : request.IsForward
+                        ? entry.Key < lo || entry.Key >= hi
+                        : entry.Key <= lo || entry.Key > hi;
                 if (outside)
                 {
                     continue;
@@ -2240,6 +2286,32 @@ namespace Opc.Ua.Server.Historian.InMemory
                     archive.Raw.Remove(archive.Raw.Keys.First());
                 }
             }
+        }
+
+        private bool CanStoreRaw(NodeArchive archive, DateTime timestamp)
+        {
+            if (m_options.RawDataRetentionPeriod > TimeSpan.Zero &&
+                archive.LatestRawTimestamp != DateTime.MinValue &&
+                timestamp < archive.LatestRawTimestamp - m_options.RawDataRetentionPeriod)
+            {
+                return false;
+            }
+
+            return m_options.MaxSamplesPerNode == 0 ||
+                archive.Raw.Count < m_options.MaxSamplesPerNode ||
+                timestamp >= archive.Raw.Keys.First().SourceTimestamp.ToDateTime();
+        }
+
+        private static bool HasModifiedValueAt(NodeArchive archive, HistoricalValueKey key)
+        {
+            foreach (ModificationEntry entry in archive.ModifiedLog)
+            {
+                if (entry.Value.SourceTimestamp == key.SourceTimestamp)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static void RefreshLatestRawTimestamp(NodeArchive archive)

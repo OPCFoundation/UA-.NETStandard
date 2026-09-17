@@ -1013,6 +1013,77 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.IsFinal, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a history update insert is retained in modified history.
+        /// </summary>
+        [Test]
+        public async Task InsertedValueAppearsInModifiedHistoryAsync()
+        {
+            using var provider = new InMemoryHistorianProvider();
+            var nodeId = new NodeId("modified.insert", NamespaceIndex);
+            HistorianOperationContext context = CreateContext();
+            DateTime timestamp = BaseTime.AddSeconds(10);
+
+            await provider.InsertAsync(
+                context,
+                nodeId,
+                [MakeValue(timestamp, 1)],
+                CancellationToken.None).ConfigureAwait(false);
+
+            HistorianPage<ModifiedDataValue> page = await provider.ReadModifiedAsync(
+                context,
+                new HistorianModifiedReadRequest
+                {
+                    NodeId = nodeId,
+                    StartTime = BaseTime,
+                    EndTime = BaseTime.AddMinutes(1),
+                    IsForward = true
+                },
+                default,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(page.Values, Has.Count.EqualTo(1));
+            Assert.That(page.Values[0].Info.UpdateType, Is.EqualTo(HistoryUpdateType.Insert));
+            Assert.That(page.Values[0].Value.SourceTimestamp, Is.EqualTo(timestamp));
+        }
+
+        /// <summary>
+        /// Verifies that a provider page limit produces a continuation when data remains.
+        /// </summary>
+        [Test]
+        public async Task RawServerPageLimitProducesContinuationAsync()
+        {
+            using var provider = new InMemoryHistorianProvider();
+            var nodeId = new NodeId("raw.server-page-limit", NamespaceIndex);
+            HistorianOperationContext context = CreateContext();
+            await provider.InsertAsync(
+                context,
+                nodeId,
+                [
+                    MakeValue(BaseTime.AddSeconds(1), 1),
+                    MakeValue(BaseTime.AddSeconds(2), 2),
+                    MakeValue(BaseTime.AddSeconds(3), 3)
+                ],
+                CancellationToken.None).ConfigureAwait(false);
+
+            HistorianPage<HistoricalDataValue> page = await provider.ReadRawAsync(
+                context,
+                new HistorianRawReadRequest
+                {
+                    NodeId = nodeId,
+                    StartTime = BaseTime,
+                    EndTime = DateTimeUtc.MaxValue,
+                    MaxValues = 3,
+                    PageLimit = 2,
+                    IsForward = true
+                },
+                default,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(page.Values, Has.Count.EqualTo(2));
+            Assert.That(page.IsFinal, Is.False);
+        }
+
         private static readonly DateTime BaseTime = new(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         private static DataValue MakeValue(DateTime sourceTimestamp, double value)
