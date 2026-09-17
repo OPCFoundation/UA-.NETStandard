@@ -236,9 +236,13 @@ namespace Opc.Ua.WotCon.Server.Registry
         public bool HasContent { get; init; } = true;
 
         /// <summary>
-        /// Gets the validation outcome recorded for this Version, if any.
+        /// Gets a defensive copy of the validation outcome recorded for this Version, if any.
         /// </summary>
-        public WoTValidationOutcomeDataType? Validation { get; init; }
+        public WoTValidationOutcomeDataType? Validation
+        {
+            get => (WoTValidationOutcomeDataType?)m_validation?.Clone();
+            init => m_validation = (WoTValidationOutcomeDataType?)value?.Clone();
+        }
 
         /// <summary>
         /// Gets the document identity parsed from this Version's bytes.
@@ -337,6 +341,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 ModelVersion = modelVersion
             };
         }
+
+        private readonly WoTValidationOutcomeDataType? m_validation;
     }
 
     /// <summary>
@@ -396,7 +402,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             ActiveVersionId = activeVersionId;
             Enabled = enabled;
             LoadState = loadState;
-            Validation = validation;
+            m_validation = (WoTValidationOutcomeDataType?)validation?.Clone();
             Diagnostics = diagnostics.IsDefault ? [] : diagnostics;
             Epoch = epoch;
             RefreshGeneration = refreshGeneration;
@@ -468,9 +474,10 @@ namespace Opc.Ua.WotCon.Server.Registry
         public WoTLoadStateEnum LoadState { get; }
 
         /// <summary>
-        /// Gets the last validation outcome, if any.
+        /// Gets a defensive copy of the last validation outcome, if any.
         /// </summary>
-        public WoTValidationOutcomeDataType? Validation { get; }
+        public WoTValidationOutcomeDataType? Validation =>
+            (WoTValidationOutcomeDataType?)m_validation?.Clone();
 
         /// <summary>
         /// Gets the human-readable diagnostics for the last operation.
@@ -711,6 +718,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             };
         }
 
+        private readonly WoTValidationOutcomeDataType? m_validation;
         private static readonly DateTime s_unixEpoch =
             new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     }

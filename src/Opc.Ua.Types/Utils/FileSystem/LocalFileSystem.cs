@@ -78,7 +78,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Stream OpenRead(string path)
         {
-            return File.Open(path, FileMode.Open);
+            return File.OpenRead(path);
         }
 
         /// <inheritdoc/>
