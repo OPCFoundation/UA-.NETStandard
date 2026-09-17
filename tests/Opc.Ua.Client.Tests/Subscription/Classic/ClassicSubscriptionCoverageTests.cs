@@ -585,7 +585,8 @@ namespace Opc.Ua.Client.Tests
             ArrayOf<MonitoredItem> deleted = await subscription.DeleteItemsAsync()
                 .ConfigureAwait(false);
 
-            Assert.That(deleted, Has.One.SameAs(item));
+            Assert.That(deleted.Count, Is.EqualTo(1));
+            Assert.That(deleted[0], Is.SameAs(item));
             session.Verify(s => s.DeleteMonitoredItemsAsync(
                 It.IsAny<RequestHeader>(),
                 7,
