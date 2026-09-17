@@ -182,9 +182,12 @@ namespace Opc.Ua.Server.Historian
             {
                 return;
             }
+            // Once faulted, the pipeline is already dead; treat further enqueues
+            // as a silent no-op (like a post-Dispose enqueue) rather than counting
+            // them as drops, since only samples actually lost in the channel or a
+            // failed flush are tracked as dropped.
             if (m_consumer.IsFaulted)
             {
-                Interlocked.Increment(ref m_droppedSamples);
                 m_logger?.HistorianCaptureSinkUnavailable(
                     m_consumer.Exception?.InnerException ??
                     m_consumer.Exception!,
@@ -269,6 +272,14 @@ namespace Opc.Ua.Server.Historian
                         m_logger?.HistorianCaptureSinkFlushFailedForNodesNodeS(
                             exception,
                             batch.Count);
+
+                        // A provider infrastructure failure (as opposed to an
+                        // operation-level rejection, which surfaces as a bad
+                        // status in the outcome and is handled inline) must
+                        // fault the shared consumer so it surfaces on the
+                        // next Enqueue or DisposeAsync, per the documented
+                        // best-effort contract.
+                        throw;
                     }
                 }
             }

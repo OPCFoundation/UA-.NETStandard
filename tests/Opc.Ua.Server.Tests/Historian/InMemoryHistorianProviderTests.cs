@@ -1014,10 +1014,13 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Verifies that a history update insert is retained in modified history.
+        /// Verifies that a plain insert of a brand-new value is the current
+        /// live value and therefore does not appear in modified history:
+        /// per <see cref="IHistorianModifiedProvider"/>, modified history
+        /// only returns prior/replaced/deleted values.
         /// </summary>
         [Test]
-        public async Task InsertedValueAppearsInModifiedHistoryAsync()
+        public async Task InsertedValueDoesNotAppearInModifiedHistoryAsync()
         {
             using var provider = new InMemoryHistorianProvider();
             var nodeId = new NodeId("modified.insert", NamespaceIndex);
@@ -1042,9 +1045,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 default,
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(page.Values, Has.Count.EqualTo(1));
-            Assert.That(page.Values[0].Info.UpdateType, Is.EqualTo(HistoryUpdateType.Insert));
-            Assert.That(page.Values[0].Value.SourceTimestamp, Is.EqualTo(timestamp));
+            Assert.That(page.Values, Has.Count.EqualTo(0));
         }
 
         /// <summary>

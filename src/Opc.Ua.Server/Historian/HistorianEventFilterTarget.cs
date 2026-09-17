@@ -99,6 +99,12 @@ namespace Opc.Ua.Server.Historian
             NumericRange indexRange)
         {
             _ = context;
+            if (relativePath.Count == 0 && attributeId == Attributes.NodeId)
+            {
+                // Events have no real NodeId; the EventType stands in for it
+                // when the select/where clause targets the operand itself.
+                return new Variant(m_record.EventType);
+            }
             var key = new HistorianEventFieldKey(
                 typeDefinitionId,
                 relativePath,

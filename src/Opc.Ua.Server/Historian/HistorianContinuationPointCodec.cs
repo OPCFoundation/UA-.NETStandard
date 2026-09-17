@@ -491,6 +491,8 @@ namespace Opc.Ua.Server.Historian
             NodeId nodeId,
             uint formatVersion)
         {
+            DateTimeUtc startTime = decoder.ReadDateTime(null);
+            DateTimeUtc endTime = decoder.ReadDateTime(null);
             uint maxValues = decoder.ReadUInt32(null);
             uint pageLimit = formatVersion >= kRawPageLimitFormatVersion
                 ? decoder.ReadUInt32(null)
@@ -498,8 +500,8 @@ namespace Opc.Ua.Server.Historian
             return new HistorianRawReadRequest
             {
                 NodeId = nodeId,
-                StartTime = decoder.ReadDateTime(null),
-                EndTime = decoder.ReadDateTime(null),
+                StartTime = startTime,
+                EndTime = endTime,
                 MaxValues = maxValues,
                 PageLimit = pageLimit,
                 IsForward = decoder.ReadBoolean(null),

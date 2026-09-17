@@ -366,7 +366,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 original,
                 CancellationToken.None).ConfigureAwait(false);
             Assert.That(envelope, Is.Not.Null);
-            Assert.That(envelope!.CodecVersion, Is.EqualTo(3));
+            Assert.That(envelope!.CodecVersion, Is.EqualTo(4));
 
             IHistoryContinuationPoint? decoded = await codec.DecodeAsync(
                 envelope,
