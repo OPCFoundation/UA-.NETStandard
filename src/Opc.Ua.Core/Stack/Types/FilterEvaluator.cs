@@ -68,6 +68,9 @@ namespace Opc.Ua
                     return true;
                 }
 
+                m_results = new Variant[m_filter.Elements.Count];
+                m_evaluated = new bool[m_filter.Elements.Count];
+
                 if (Evaluate(0).TryGetValue(out bool result))
                 {
                     return result;
@@ -82,51 +85,51 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private Variant Evaluate(int index)
         {
+            if ((uint)index >= (uint)m_filter.Elements.Count)
+            {
+                throw ServiceResultException.Unexpected(
+                    "ElementOperand references an element that does not exist.");
+            }
+
+            if (m_evaluated != null && m_evaluated[index])
+            {
+                return m_results![index];
+            }
+
             // get the element to evaluate.
             ContentFilterElement element = m_filter.Elements[index];
 
-            switch (element.FilterOperator)
+            Variant result = element.FilterOperator switch
             {
-                case FilterOperator.And:
-                    return And(element);
-                case FilterOperator.Or:
-                    return Or(element);
-                case FilterOperator.Not:
-                    return Not(element);
-                case FilterOperator.Equals:
-                    return Equals(element);
-                case FilterOperator.GreaterThan:
-                    return GreaterThan(element);
-                case FilterOperator.GreaterThanOrEqual:
-                    return GreaterThanOrEqual(element);
-                case FilterOperator.LessThan:
-                    return LessThan(element);
-                case FilterOperator.LessThanOrEqual:
-                    return LessThanOrEqual(element);
-                case FilterOperator.Between:
-                    return Between(element);
-                case FilterOperator.InList:
-                    return InList(element);
-                case FilterOperator.Like:
-                    return Like(element);
-                case FilterOperator.IsNull:
-                    return IsNull(element);
-                case FilterOperator.Cast:
-                    return Cast(element);
-                case FilterOperator.OfType:
-                    return OfType(element);
-                case FilterOperator.InView:
-                    return InView(element);
-                case FilterOperator.RelatedTo:
-                    return RelatedTo(element);
-                case FilterOperator.BitwiseAnd:
-                    return BitwiseAnd(element);
-                case FilterOperator.BitwiseOr:
-                    return BitwiseOr(element);
-                default:
-                    throw ServiceResultException.Unexpected(
-                        $"FilterOperator {element.FilterOperator} is not recognized.");
+                FilterOperator.And => And(element),
+                FilterOperator.Or => Or(element),
+                FilterOperator.Not => Not(element),
+                FilterOperator.Equals => Equals(element),
+                FilterOperator.GreaterThan => GreaterThan(element),
+                FilterOperator.GreaterThanOrEqual => GreaterThanOrEqual(element),
+                FilterOperator.LessThan => LessThan(element),
+                FilterOperator.LessThanOrEqual => LessThanOrEqual(element),
+                FilterOperator.Between => Between(element),
+                FilterOperator.InList => InList(element),
+                FilterOperator.Like => Like(element),
+                FilterOperator.IsNull => IsNull(element),
+                FilterOperator.Cast => Cast(element),
+                FilterOperator.OfType => OfType(element),
+                FilterOperator.InView => InView(element),
+                FilterOperator.RelatedTo => RelatedTo(element),
+                FilterOperator.BitwiseAnd => BitwiseAnd(element),
+                FilterOperator.BitwiseOr => BitwiseOr(element),
+                _ => throw ServiceResultException.Unexpected(
+                    $"FilterOperator {element.FilterOperator} is not recognized.")
+            };
+
+            if (m_results != null)
+            {
+                m_results[index] = result;
+                m_evaluated![index] = true;
             }
+
+            return result;
         }
 
         /// <summary>
@@ -211,7 +214,7 @@ namespace Opc.Ua
 
             if (operand is ElementOperand element)
             {
-                return Evaluate((int)element.Index);
+                return Evaluate(checked((int)element.Index));
             }
 
             // oops - Validate() was not called.
@@ -790,6 +793,8 @@ namespace Opc.Ua
         private readonly ContentFilter m_filter;
         private readonly IFilterContext m_context;
         private readonly IFilterTarget m_target;
+        private Variant[]? m_results;
+        private bool[]? m_evaluated;
     }
 
     /// <summary>

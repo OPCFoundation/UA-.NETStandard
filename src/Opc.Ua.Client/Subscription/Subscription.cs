@@ -559,6 +559,7 @@ namespace Opc.Ua.Client.Subscriptions
                 CurrentPriority = 0;
                 CurrentMaxNotificationsPerPublish = 0;
                 LastSequenceNumberProcessed = 0;
+                LastDataSequenceNumberProcessed = 0;
                 LastNotificationTimestamp = 0;
                 AvailableInRetransmissionQueue = [];
 
@@ -1376,7 +1377,9 @@ namespace Opc.Ua.Client.Subscriptions
         internal void OnSubscriptionDeleteCompleted()
         {
             LastSequenceNumberProcessed = 0;
+            LastDataSequenceNumberProcessed = 0;
             LastNotificationTimestamp = 0;
+            AvailableInRetransmissionQueue = [];
 
             Id = 0;
             m_createdEvent.Reset();
@@ -1388,6 +1391,13 @@ namespace Opc.Ua.Client.Subscriptions
             m_deletedItems.Clear();
 
             // Notify all monitored items of the changes
+            foreach (IMonitoredItem item in m_monitoredItems.Items)
+            {
+                if (item is MonitoredItems.MonitoredItem monitoredItem)
+                {
+                    monitoredItem.Reset();
+                }
+            }
             m_monitoredItems.OnSubscriptionStateChange(SubscriptionState.Deleted,
                 CurrentPublishingInterval);
             OnSubscriptionStateChanged(SubscriptionState.Deleted);
