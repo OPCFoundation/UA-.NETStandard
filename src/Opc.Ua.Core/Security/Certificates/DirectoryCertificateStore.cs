@@ -44,6 +44,11 @@ using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
 #endif
 
+#if NET8_0_OR_GREATER || NET472_OR_GREATER
+using System.Security.AccessControl;
+using System.Security.Principal;
+#endif
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -289,12 +294,22 @@ namespace Opc.Ua
                 // build file name.
                 string fileName = GetFileName(certificate);
 
-                // write the private and public key.
-                WriteFile(data, fileName, writePrivateKey);
-
-                if (writePrivateKey)
+                try
                 {
-                    WriteFile(certificate.RawData, fileName, false);
+                    // write the private and public key.
+                    WriteFile(data, fileName, writePrivateKey);
+
+                    if (writePrivateKey)
+                    {
+                        WriteFile(certificate.RawData, fileName, false);
+                    }
+                }
+                finally
+                {
+                    if (writePrivateKey)
+                    {
+                        CryptoUtils.ZeroMemory(data);
+                    }
                 }
 
                 m_lastDirectoryCheck = DateTime.MinValue;
@@ -1553,6 +1568,11 @@ namespace Opc.Ua
                 parentDir.Create();
             }
 
+            if (includePrivateKey)
+            {
+                RestrictPrivateDirectory(fileInfo.Directory);
+            }
+
             // write file.
             FileMode fileMode = allowOverride ? FileMode.OpenOrCreate : FileMode.Create;
             var writer = new BinaryWriter(fileInfo.Open(fileMode, FileAccess.Write));
@@ -1566,11 +1586,106 @@ namespace Opc.Ua
                 writer.Dispose();
             }
 
+            if (includePrivateKey)
+            {
+                RestrictPrivateFile(fileInfo);
+            }
+
             m_certificateSubdir?.Refresh();
             m_privateKeySubdir?.Refresh();
 
             return fileInfo;
         }
+
+        private static void RestrictPrivateDirectory(DirectoryInfo? directory)
+        {
+            if (directory == null)
+            {
+                return;
+            }
+
+#if NET7_0_OR_GREATER
+            if (OperatingSystem.IsWindows())
+            {
+                RestrictPrivateWindowsDirectory(directory);
+            }
+            else
+            {
+                File.SetUnixFileMode(
+                    directory.FullName,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
+#elif NET472_OR_GREATER
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                var security = directory.GetAccessControl();
+                SetPrivateAccessRules(security);
+                directory.SetAccessControl(security);
+            }
+#endif
+        }
+
+        private static void RestrictPrivateFile(FileInfo file)
+        {
+#if NET7_0_OR_GREATER
+            if (OperatingSystem.IsWindows())
+            {
+                RestrictPrivateWindowsFile(file);
+            }
+            else
+            {
+                File.SetUnixFileMode(
+                    file.FullName,
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            }
+#elif NET472_OR_GREATER
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                var security = file.GetAccessControl();
+                SetPrivateAccessRules(security);
+                file.SetAccessControl(security);
+            }
+#endif
+        }
+
+#if NET8_0_OR_GREATER || NET472_OR_GREATER
+#pragma warning disable CA1416
+        private static void RestrictPrivateWindowsDirectory(DirectoryInfo directory)
+        {
+            var security = directory.GetAccessControl();
+            SetPrivateAccessRules(security);
+            directory.SetAccessControl(security);
+        }
+
+        private static void RestrictPrivateWindowsFile(FileInfo file)
+        {
+            var security = file.GetAccessControl();
+            SetPrivateAccessRules(security);
+            file.SetAccessControl(security);
+        }
+
+        private static void SetPrivateAccessRules(FileSystemSecurity security)
+        {
+            security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+            security.RemoveAccessRuleAll(new FileSystemAccessRule(
+                new SecurityIdentifier(WellKnownSidType.WorldSid, null),
+                FileSystemRights.FullControl,
+                AccessControlType.Allow));
+            security.AddAccessRule(new FileSystemAccessRule(
+                WindowsIdentity.GetCurrent().User!,
+                FileSystemRights.FullControl,
+                AccessControlType.Allow));
+            security.AddAccessRule(new FileSystemAccessRule(
+                new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
+                FileSystemRights.FullControl,
+                AccessControlType.Allow));
+            security.AddAccessRule(new FileSystemAccessRule(
+                new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null),
+                FileSystemRights.FullControl,
+                AccessControlType.Allow));
+        }
+#pragma warning restore CA1416
+#endif
 
         /// <summary>
         /// Writes replacement PEM contents to a temporary file and atomically replaces the existing file.

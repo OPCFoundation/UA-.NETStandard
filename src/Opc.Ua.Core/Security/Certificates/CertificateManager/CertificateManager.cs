@@ -470,9 +470,7 @@ namespace Opc.Ua
                 lock (m_certificatesLock)
                 {
                     m_rejectUnknownRevocationStatus = value;
-                    ApplyValidationFlags(m_peerCore);
-                    ApplyValidationFlags(m_userCore);
-                    ApplyValidationFlags(m_httpsCore);
+                    ApplyValidationFlagsToCachedCores();
                 }
             }
         }
@@ -958,7 +956,7 @@ namespace Opc.Ua
                 certificateType,
                 oldEntry?.Certificate,
                 newCertificate,
-                issuerChain));
+                effectiveChain));
 
             // Dispose the old entry after notification so observers
             // can still read the old certificate during the callback.
