@@ -224,6 +224,13 @@ namespace Opc.Ua.WotCon.Server.Assets
                     {
                         return ServiceResult.Create(StatusCodes.BadNotFound, "Asset not found.");
                     }
+                }
+                if (entry.NativeGraph is { } graph)
+                {
+                    await ClearNativeReferencesAsync(entry, graph, ct).ConfigureAwait(false);
+                }
+                lock (m_assetsLock)
+                {
                     m_byName.Remove(entry.Name);
                     m_byNodeId.Remove(assetId);
                 }
@@ -241,7 +248,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
                 entry.FileManager?.Dispose();
 
-                await ClearNativeGraphAsync(entry, ct).ConfigureAwait(false);
+                await ClearNativeGraphAsync(entry, deletingOwner: true, ct).ConfigureAwait(false);
                 await m_manager.DeleteAssetNodeAsync(entry.Asset, ct).ConfigureAwait(false);
                 DeleteTdFromDisk(entry.Name);
                 await RemoveFromRegistryAsync(entry, ct).ConfigureAwait(false);
@@ -635,7 +642,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 entry.Provider = provider;
 
                 await ClearDynamicChildrenAsync(entry, ct).ConfigureAwait(false);
-                await ClearNativeGraphAsync(entry, ct).ConfigureAwait(false);
+                await ClearNativeGraphAsync(entry, deletingOwner: false, ct).ConfigureAwait(false);
 
                 entry.Asset.TypeDefinitionId = native is null
                     ? entry.UnboundTypeDefinitionId : native.Root.TypeDefinitionId;
@@ -1726,11 +1733,13 @@ namespace Opc.Ua.WotCon.Server.Assets
             lock (m_assetsLock)
             {
                 entries = [.. m_byNodeId.Values];
-                m_byName.Clear();
-                m_byNodeId.Clear();
             }
             foreach (AssetEntry entry in entries)
             {
+                if (entry.NativeGraph is { } graph)
+                {
+                    await ClearNativeReferencesAsync(entry, graph, CancellationToken.None).ConfigureAwait(false);
+                }
                 if (entry.Provider != null)
                 {
                     try
@@ -1743,6 +1752,11 @@ namespace Opc.Ua.WotCon.Server.Assets
                     }
                 }
                 entry.FileManager?.Dispose();
+            }
+            lock (m_assetsLock)
+            {
+                m_byName.Clear();
+                m_byNodeId.Clear();
             }
             m_writeLock.Dispose();
         }

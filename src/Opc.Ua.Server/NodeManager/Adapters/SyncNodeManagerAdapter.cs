@@ -61,7 +61,10 @@ namespace Opc.Ua.Server
     /// This allows asynchronous nodeManagers to be treated as synchronous, which can help
     /// compatibility with existing code.
     /// </remarks>
-    public class SyncNodeManagerAdapter : INodeManager3, INodeManagerReadinessParticipant
+    public class SyncNodeManagerAdapter :
+        INodeManager3,
+        INodeManagerReadinessParticipant,
+        INodeManagementAsyncNodeManager
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="SyncNodeManagerAdapter"/> class.
@@ -75,6 +78,45 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public IEnumerable<string> NamespaceUris => m_nodeManager.NamespaceUris;
+
+        /// <inheritdoc/>
+        public bool AllowNodeManagement => m_nodeManager.AllowNodeManagement;
+
+        /// <inheritdoc/>
+        public ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeAsync(
+            OperationContext context,
+            AddNodesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            return m_nodeManager.AddNodeAsync(context, item, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ServiceResult> DeleteNodeAsync(
+            OperationContext context,
+            DeleteNodesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            return m_nodeManager.DeleteNodeAsync(context, item, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ServiceResult> AddReferenceAsync(
+            OperationContext context,
+            AddReferencesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            return m_nodeManager.AddReferenceAsync(context, item, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<ServiceResult> DeleteReferenceAsync(
+            OperationContext context,
+            DeleteReferencesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            return m_nodeManager.DeleteReferenceAsync(context, item, cancellationToken);
+        }
 
         /// <inheritdoc/>
         public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)

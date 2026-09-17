@@ -555,7 +555,7 @@ namespace Opc.Ua.WotCon.Tests
             return ByteString.From(Encoding.UTF8.GetBytes(root.ToJsonString()));
         }
 
-        private sealed class Fixture : IAsyncDisposable
+        private sealed partial class Fixture : IAsyncDisposable
         {
             public ClientSession Session { get; private set; } = null!;
             public WotConnectivityClient Client { get; private set; } = null!;

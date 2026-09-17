@@ -35,6 +35,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Export;
+using Opc.Ua.Server;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server.Materialization;
@@ -451,17 +452,127 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
             }
             entry.NativeGraph = graph;
+            bool published = false;
+            try
+            {
+                await PublishNativeReciprocalReferencesAsync(entry, graph, references, ct).ConfigureAwait(false);
+                published = true;
+            }
+            finally
+            {
+                if (!published)
+                {
+                    await ClearDynamicChildrenAsync(entry, CancellationToken.None).ConfigureAwait(false);
+                    await ClearNativeGraphAsync(entry, deletingOwner: false, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    entry.Asset.TypeDefinitionId = entry.UnboundTypeDefinitionId;
+                }
+            }
         }
 
-        private async ValueTask ClearNativeGraphAsync(AssetEntry entry, CancellationToken ct)
+        private async ValueTask PublishNativeReciprocalReferencesAsync(
+            AssetEntry entry, WotLegacyPreparedGraph graph, List<IReference> references, CancellationToken ct)
+        {
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.AddReferences, RequestLifetime.None);
+            foreach (IReference reference in references)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (reference.ReferenceTypeId == Ua.ReferenceTypeIds.HasTypeDefinition ||
+                    reference.TargetId.ServerIndex != 0)
+                {
+                    continue;
+                }
+                NodeId targetId = ExpandedNodeId.ToNodeId(reference.TargetId, m_manager.SystemContext.NamespaceUris);
+                IAsyncNodeManager targetManager = await ResolveNativeReferenceManagerAsync(targetId, ct)
+                    .ConfigureAwait(false) ?? throw new ServiceResultException(StatusCodes.BadTargetNodeIdInvalid,
+                        "A native reference requires a loaded local target.");
+                ServiceResult result = await targetManager.AddReferenceAsync(context, new AddReferencesItem
+                {
+                    SourceNodeId = targetId,
+                    ReferenceTypeId = reference.ReferenceTypeId,
+                    IsForward = reference.IsInverse,
+                    TargetNodeId = entry.Asset.NodeId,
+                    TargetNodeClass = NodeClass.Object
+                }, ct).ConfigureAwait(false);
+                if (result.StatusCode == StatusCodes.Good)
+                {
+                    graph.ReciprocalReferences.Add(new LocalReference(
+                        targetId, reference.ReferenceTypeId, !reference.IsInverse, entry.Asset.NodeId));
+                }
+                else if (result.StatusCode != StatusCodes.BadDuplicateReferenceNotAllowed)
+                {
+                    throw new ServiceResultException(ServiceResult.IsBad(result) ? result :
+                        ServiceResult.Create(StatusCodes.BadUnexpectedError,
+                            "The native reference target did not report whether it added the reciprocal edge."));
+                }
+            }
+        }
+
+        private async ValueTask<IAsyncNodeManager?> ResolveNativeReferenceManagerAsync(
+            NodeId targetId, CancellationToken ct)
+        {
+            // Restored assets are built before this manager enters the master's routing table.
+            if (m_manager.FindPredefinedNode<NodeState>(targetId) is not null)
+            {
+                return m_manager;
+            }
+            var target = await m_manager.Server.NodeManager.GetManagerHandleAsync(targetId, ct).ConfigureAwait(false);
+            return target.handle is null ? null : target.nodeManager;
+        }
+
+        private async ValueTask ClearNativeReferencesAsync(
+            AssetEntry entry, WotLegacyPreparedGraph graph, CancellationToken ct)
+        {
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.DeleteReferences, RequestLifetime.None);
+            for (int index = graph.ReciprocalReferences.Count - 1; index >= 0; index--)
+            {
+                LocalReference reference = graph.ReciprocalReferences[index];
+                IAsyncNodeManager? targetManager = await ResolveNativeReferenceManagerAsync(reference.SourceId, ct)
+                    .ConfigureAwait(false);
+                if (targetManager is not null)
+                {
+                    ServiceResult result = await targetManager.DeleteReferenceAsync(context, new DeleteReferencesItem
+                    {
+                        SourceNodeId = reference.SourceId,
+                        ReferenceTypeId = reference.ReferenceTypeId,
+                        IsForward = !reference.IsInverse,
+                        TargetNodeId = reference.TargetId,
+                        DeleteBidirectional = false
+                    }, ct).ConfigureAwait(false);
+                    if (result.StatusCode != StatusCodes.Good && result.StatusCode != StatusCodes.BadNoMatch)
+                    {
+                        throw new ServiceResultException(ServiceResult.IsBad(result) ? result :
+                            ServiceResult.Create(StatusCodes.BadUnexpectedError,
+                                "The native reference target did not confirm reciprocal edge removal."));
+                    }
+                }
+                graph.ReciprocalReferences.RemoveAt(index);
+            }
+            foreach (IReference reference in graph.RootReferences)
+            {
+                entry.Asset.RemoveReference(reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
+            }
+            graph.RootReferences.Clear();
+        }
+
+        private async ValueTask ClearNativeGraphAsync(AssetEntry entry, bool deletingOwner, CancellationToken ct)
         {
             if (entry.NativeGraph is not { } graph)
             {
                 return;
             }
-            foreach (IReference reference in graph.RootReferences)
+            await ClearNativeReferencesAsync(entry, graph, ct).ConfigureAwait(false);
+            if (deletingOwner)
             {
-                entry.Asset.RemoveReference(reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
+                // Deleting the owner must not let generic bidirectional cleanup claim a preexisting peer edge.
+                var references = new List<IReference>();
+                graph.Root.GetReferences(m_manager.SystemContext, references);
+                foreach (IReference reference in references)
+                {
+                    entry.Asset.RemoveReference(reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
+                }
             }
             foreach (NodeState node in graph.Nodes.ToList())
             {
@@ -542,5 +653,6 @@ namespace Opc.Ua.WotCon.Server.Assets
         public Dictionary<BaseDataVariableState, WotProjectedAffordance> Properties { get; }
         public Dictionary<MethodState, WotProjectedAffordance> Actions { get; }
         public List<IReference> RootReferences { get; } = [];
+        public List<LocalReference> ReciprocalReferences { get; } = [];
     }
 }

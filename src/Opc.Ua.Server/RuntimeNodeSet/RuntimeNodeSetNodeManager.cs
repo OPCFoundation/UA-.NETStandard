@@ -305,33 +305,46 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             await base.AddReferencesAsync(references, cancellationToken)
                 .ConfigureAwait(false);
 
-            lock (m_addedReferencesLock)
+            foreach (KeyValuePair<NodeId, IList<IReference>> entry in references)
             {
-                foreach (KeyValuePair<NodeId, IList<IReference>> entry in references)
+                if (!PredefinedNodes.ContainsKey(entry.Key))
                 {
-                    if (!PredefinedNodes.ContainsKey(entry.Key))
-                    {
-                        continue;
-                    }
+                    continue;
+                }
 
-                    if (!m_addedReferences.TryGetValue(
-                        entry.Key,
-                        out List<IReference>? added))
-                    {
-                        m_addedReferences[entry.Key] = added = [];
-                    }
-                    foreach (IReference reference in entry.Value)
-                    {
-                        if (!added.Any(existing =>
-                            existing.ReferenceTypeId == reference.ReferenceTypeId &&
-                            existing.IsInverse == reference.IsInverse &&
-                            existing.TargetId == reference.TargetId))
-                        {
-                            added.Add(reference);
-                        }
-                    }
+                foreach (IReference reference in entry.Value)
+                {
+                    TrackAddedReference(entry.Key, reference);
                 }
             }
+        }
+
+        public override async ValueTask<ServiceResult> AddReferenceAsync(
+            OperationContext context,
+            AddReferencesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            ServiceResult result = await base.AddReferenceAsync(context, item, cancellationToken).ConfigureAwait(false);
+            if (result.StatusCode == StatusCodes.Good)
+            {
+                TrackAddedReference(item.SourceNodeId,
+                    new NodeStateReference(item.ReferenceTypeId, !item.IsForward, item.TargetNodeId));
+            }
+            return result;
+        }
+
+        public override async ValueTask<ServiceResult> DeleteReferenceAsync(
+            OperationContext context,
+            DeleteReferencesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            ServiceResult result = await base.DeleteReferenceAsync(context, item, cancellationToken)
+                .ConfigureAwait(false);
+            if (result.StatusCode == StatusCodes.Good || result.StatusCode == StatusCodes.BadNoMatch)
+            {
+                ForgetAddedReference(item.SourceNodeId, item.ReferenceTypeId, !item.IsForward, item.TargetNodeId);
+            }
+            return result;
         }
 
         public override async ValueTask<ServiceResult> DeleteReferenceAsync(
@@ -352,22 +365,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             if (ServiceResult.IsGood(result) &&
                 sourceHandle is NodeHandle handle)
             {
-                lock (m_addedReferencesLock)
-                {
-                    if (m_addedReferences.TryGetValue(
-                        handle.NodeId,
-                        out List<IReference>? references))
-                    {
-                        references.RemoveAll(reference =>
-                            reference.ReferenceTypeId == referenceTypeId &&
-                            reference.IsInverse == isInverse &&
-                            reference.TargetId == targetId);
-                        if (references.Count == 0)
-                        {
-                            m_addedReferences.Remove(handle.NodeId);
-                        }
-                    }
-                }
+                ForgetAddedReference(handle.NodeId, referenceTypeId, isInverse, targetId);
             }
             return result;
         }
@@ -660,6 +658,43 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             }
 
             return (ushort)index;
+        }
+
+        private void TrackAddedReference(NodeId sourceId, IReference reference)
+        {
+            lock (m_addedReferencesLock)
+            {
+                if (!m_addedReferences.TryGetValue(sourceId, out List<IReference>? added))
+                {
+                    m_addedReferences[sourceId] = added = [];
+                }
+                if (!added.Any(existing =>
+                    existing.ReferenceTypeId == reference.ReferenceTypeId &&
+                    existing.IsInverse == reference.IsInverse &&
+                    existing.TargetId == reference.TargetId))
+                {
+                    added.Add(reference);
+                }
+            }
+        }
+
+        private void ForgetAddedReference(
+            NodeId sourceId, NodeId referenceTypeId, bool isInverse, ExpandedNodeId targetId)
+        {
+            lock (m_addedReferencesLock)
+            {
+                if (m_addedReferences.TryGetValue(sourceId, out List<IReference>? references))
+                {
+                    references.RemoveAll(reference =>
+                        reference.ReferenceTypeId == referenceTypeId &&
+                        reference.IsInverse == isInverse &&
+                        reference.TargetId == targetId);
+                    if (references.Count == 0)
+                    {
+                        m_addedReferences.Remove(sourceId);
+                    }
+                }
+            }
         }
 
         private readonly ParsedNodeSetDocument[] m_documents;

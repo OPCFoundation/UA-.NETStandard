@@ -56,8 +56,13 @@ owner. Native/archive identities are not silently rebased. A preserved graph
 must use the legacy manager's owned asset namespace for its instance nodes;
 unsupported ownership is rejected rather than partially published.
 
-Native non-placement references retain both directions. Inverse hierarchical
-references must agree with the existing management parent and `Organizes`
+Native non-placement references retain both directions, including the reciprocal
+edge browsable from an already-loaded local peer. Publication uses the target
+NodeManager's per-edge reference result, not a void bulk-add acknowledgement:
+`Good` owns a new edge, while `BadDuplicateReferenceNotAllowed` preserves an
+existing edge without acquiring ownership. Unsupported or failed local-target
+publication fails the update and compensates references added by the candidate.
+Inverse hierarchical references must agree with the existing management parent and `Organizes`
 placement; a conflicting parent is rejected before provider effects rather
 than silently discarded. Classification uses loaded ReferenceTypes and any
 ReferenceType ancestry in the prepared native graph. Retirement removes only
@@ -89,8 +94,18 @@ root still reuses the owner's identity.
 Failed native admission leaves an existing valid asset/provider/document in
 place. Replacing a valid graph reuses the existing R43 interaction indexing and
 cleanup paths; the additional native ownership/reference augmentation is retired
-with its graph. Only root references actually added by that graph are owned and
-removed during retirement; pre-existing owner references remain. Registry
+with its graph. Only owner-side and peer-side references actually added by that
+graph are owned, independently at each end. Retirement preserves preexisting edges. Owner deletion
+does not let generic bidirectional node cleanup remove a preexisting peer-side
+edge of the native relation; that surviving edge can temporarily target an absent
+Node. Replacement retires the outgoing reference ownership before publishing the
+incoming generation, including when both generations use the same relation.
+Peer ownership is recorded by NodeId rather than a captured manager handle.
+The runtime NodeSet manager's existing incoming-reference journal carries these
+edges across its reload, and cleanup resolves the current target manager.
+Asset-manager retirement releases its owned edges before restored assets acquire
+their own ownership. These are reference-level cleanup guarantees, not atomic
+publication of the whole asset graph or its persisted document. Registry
 mirroring/transaction semantics and event modes are separate contracts and are
 not changed by this mapping.
 

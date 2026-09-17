@@ -760,13 +760,19 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Adds a single forward reference whose source is owned by this node
+        /// Adds a single reference whose source is owned by this node
         /// manager. The master dispatcher routes the complementary inverse edge
         /// to the target's owning node manager when the target is local.
         /// </summary>
         /// <param name="context">The operation context.</param>
         /// <param name="item">The AddReferencesItem describing the edge to add.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>
+        /// <see cref="StatusCodes.Good"/> only when the edge was added, or
+        /// <see cref="StatusCodes.BadDuplicateReferenceNotAllowed"/> when it already
+        /// existed and was not changed. The existence check and addition must be atomic.
+        /// Other results report a failure without claiming ownership of an edge.
+        /// </returns>
         ValueTask<ServiceResult> AddReferenceAsync(
             OperationContext context,
             AddReferencesItem item,
