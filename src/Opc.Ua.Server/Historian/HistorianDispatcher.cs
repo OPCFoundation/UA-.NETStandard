@@ -1085,6 +1085,22 @@ namespace Opc.Ua.Server.Historian
             HistorianResumeToken token = default;
             while (true)
             {
+                HistorianPage<HistorianAnnotation> timestampedPage;
+                if (annotationProvider is IHistorianTimestampedAnnotationProvider timestamped)
+                {
+                    timestampedPage = await timestamped.ReadAnnotationsWithTimestampsAsync(
+                        opContext, request, token, cancellationToken).ConfigureAwait(false);
+                    foreach (HistorianAnnotation annotation in timestampedPage.Values)
+                    {
+                        annotationTimes.Add(annotation.SourceTimestamp);
+                    }
+                    if (timestampedPage.IsFinal)
+                    {
+                        break;
+                    }
+                    token = timestampedPage.NextToken;
+                    continue;
+                }
                 HistorianPage<Annotation> page = await annotationProvider.ReadAnnotationsAsync(
                     opContext, request, token, cancellationToken).ConfigureAwait(false);
 
@@ -1422,11 +1438,46 @@ namespace Opc.Ua.Server.Historian
                     parentVariable,
                     HistoryUpdateType.Insert);
 
+                if (annotations is IHistorianTimestampedAnnotationProvider timestamped)
+                {
+                    HistorianPage<HistorianAnnotation> timestampedPage = await timestamped.ReadAnnotationsWithTimestampsAsync(
+                        opContext,
+                        request,
+                        resumeToken,
+                        cancellationToken).ConfigureAwait(false);
+                    var timestampedDataValues = new List<DataValue>(timestampedPage.Values.Count);
+                    foreach (HistorianAnnotation a in timestampedPage.Values)
+                    {
+                        timestampedDataValues.Add(new DataValue(
+                            new Variant(new ExtensionObject(a.Annotation)),
+                            StatusCodes.Good,
+                            sourceTimestamp: a.SourceTimestamp,
+                            serverTimestamp: DateTimeUtc.MinValue));
+                    }
+                    FillHistoryData(systemContext, result, timestampedDataValues, nodeToRead, timestampsToReturn);
+                    HistorianContinuationState? timestampedInitialState = null;
+                    if (claim == null && !timestampedPage.NextToken.IsEmpty)
+                    {
+                        timestampedInitialState = new HistorianContinuationState
+                        {
+                            Id = Guid.NewGuid(),
+                            Provider = provider,
+                            NodeId = nodeToRead.NodeId,
+                            Kind = HistorianReadKind.Annotations,
+                            ResumeToken = timestampedPage.NextToken,
+                            AnnotationRequest = request,
+                            TimestampsToReturn = timestampsToReturn,
+                            IndexRange = nodeToRead.ParsedIndexRange,
+                            DataEncoding = nodeToRead.DataEncoding
+                        };
+                    }
+                    await SaveSuccessorOrCompleteAsync(
+                        systemContext, result, claim, !timestampedPage.NextToken.IsEmpty, timestampedPage.NextToken,
+                        timestampedInitialState, null, cancellationToken).ConfigureAwait(false);
+                    return ServiceResult.Good;
+                }
                 HistorianPage<Annotation> page = await annotations.ReadAnnotationsAsync(
-                    opContext,
-                    request,
-                    resumeToken,
-                    cancellationToken).ConfigureAwait(false);
+                    opContext, request, resumeToken, cancellationToken).ConfigureAwait(false);
 
                 var dataValues = new List<DataValue>(page.Values.Count);
                 foreach (Annotation a in page.Values)
@@ -1560,6 +1611,7 @@ namespace Opc.Ua.Server.Historian
             ArrayOf<DataValue> updateValues = details.UpdateValues;
             var annotationList = new List<Annotation>(updateValues.Count);
             var times = new List<DateTimeUtc>(updateValues.Count);
+            var timestampedList = new List<HistorianAnnotation>(updateValues.Count);
             for (int i = 0; i < updateValues.Count; i++)
             {
                 DataValue dv = updateValues[i];
@@ -1573,6 +1625,40 @@ namespace Opc.Ua.Server.Historian
                 Annotation? annotation = DecodeAnnotation(dv);
                 annotationList.Add(annotation!);
                 times.Add(annotation != null ? annotation.AnnotationTime : dv.SourceTimestamp);
+                timestampedList.Add(new HistorianAnnotation(dv.SourceTimestamp, annotation!));
+            }
+
+            if (annotations is IHistorianTimestampedAnnotationProvider timestampedProvider)
+            {
+                HistorianUpdateOutcome<HistorianAnnotation> timestampedOutcome =
+                    details.PerformInsertReplace switch
+                    {
+                        PerformUpdateType.Insert => await timestampedProvider.InsertAnnotationsWithTimestampsAsync(
+                            opContext, parentVariable.NodeId, timestampedList.ToArrayOf(), cancellationToken).ConfigureAwait(false),
+                        PerformUpdateType.Replace => await timestampedProvider.ReplaceAnnotationsWithTimestampsAsync(
+                            opContext, parentVariable.NodeId, timestampedList.ToArrayOf(), cancellationToken).ConfigureAwait(false),
+                        PerformUpdateType.Update => await timestampedProvider.UpdateAnnotationsWithTimestampsAsync(
+                            opContext, parentVariable.NodeId, timestampedList.ToArrayOf(), cancellationToken).ConfigureAwait(false),
+                        PerformUpdateType.Remove => await timestampedProvider.DeleteAnnotationsWithTimestampsAsync(
+                            opContext, parentVariable.NodeId, timestampedList.ToArrayOf(), cancellationToken).ConfigureAwait(false),
+                        _ => new HistorianUpdateOutcome<HistorianAnnotation>(
+                            RepeatStatus(StatusCodes.BadInvalidArgument, annotationList.Count).ToArrayOf())
+                    };
+                var timestampedOldValues = new Annotation[timestampedOutcome.OldValues.Count];
+                for (int i = 0; i < timestampedOldValues.Length; i++)
+                {
+                    timestampedOldValues[i] = timestampedOutcome.OldValues[i].Annotation;
+                }
+                var adaptedOutcome = new HistorianUpdateOutcome<Annotation>(
+                    timestampedOutcome.OperationResults,
+                    timestampedOldValues.ToArrayOf(),
+                    timestampedOutcome.DiagnosticInfos,
+                    timestampedOutcome.TransactionRolledBack);
+                result.OperationResults = adaptedOutcome.OperationResults;
+                result.DiagnosticInfos = adaptedOutcome.DiagnosticInfos;
+                ServiceResult adaptedResult = GetOperationResult(adaptedOutcome);
+                ReportAuditAnnotationUpdate(systemContext, details, parentVariable, adaptedOutcome, adaptedResult.StatusCode);
+                return adaptedResult;
             }
 
             HistorianUpdateOutcome<Annotation> outcome = details.PerformInsertReplace switch
