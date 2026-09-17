@@ -44,7 +44,10 @@ namespace Opc.Ua.Redundancy
     /// derived from the supplied master key. Cross-target-framework safe
     /// (no AES-GCM dependency).
     /// </summary>
-    public sealed class AesCbcHmacRecordProtector : IOwnedRecordProtector, IDisposable
+    public sealed class AesCbcHmacRecordProtector :
+        IOwnedRecordProtector,
+        IContextBoundRecordProtector,
+        IDisposable
     {
         /// <summary>
         /// Creates a protector from a master key (≥ 32 bytes) and a key
@@ -53,7 +56,7 @@ namespace Opc.Ua.Redundancy
         /// <param name="masterKey">The master key (at least 32 bytes).</param>
         /// <param name="keyId">
         /// Identifies the key version; only records carrying the same id are
-        /// accepted by <see cref="TryUnprotect"/>.
+        /// accepted by <see cref="TryUnprotect(ByteString, out ByteString)"/>.
         /// </param>
         public AesCbcHmacRecordProtector(ReadOnlySpan<byte> masterKey, uint keyId = 1)
         {
@@ -77,6 +80,12 @@ namespace Opc.Ua.Redundancy
 
         /// <inheritdoc/>
         public ByteString Protect(ByteString plaintext)
+        {
+            return Protect(default(ByteString), plaintext);
+        }
+
+        /// <inheritdoc/>
+        public ByteString Protect(ByteString context, ByteString plaintext)
         {
             byte[] data = plaintext.IsNull ? [] : plaintext.ToArray();
 
@@ -103,15 +112,32 @@ namespace Opc.Ua.Redundancy
             Buffer.BlockCopy(iv, 0, envelope, 5, IvLength);
             Buffer.BlockCopy(cipher, 0, envelope, headerLength, cipher.Length);
 
-            byte[] tag = ComputeTag(envelope, headerLength + cipher.Length);
+            byte[] tag = ComputeTag(context, envelope, headerLength + cipher.Length);
             Buffer.BlockCopy(tag, 0, envelope, headerLength + cipher.Length, TagLength);
             return new ByteString(envelope);
         }
 
         /// <inheritdoc/>
+        public ByteString Protect(string context, ByteString plaintext)
+        {
+            return Protect(
+                ByteString.From(System.Text.Encoding.UTF8.GetBytes(context ?? string.Empty)),
+                plaintext);
+        }
+
+        /// <inheritdoc/>
         public bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext)
         {
-            if (!TryDecrypt(protectedRecord, out byte[] data))
+            return TryUnprotect(default(ByteString), protectedRecord, out plaintext);
+        }
+
+        /// <inheritdoc/>
+        public bool TryUnprotect(
+            ByteString context,
+            ByteString protectedRecord,
+            out ByteString plaintext)
+        {
+            if (!TryDecrypt(context, protectedRecord, out byte[] data))
             {
                 plaintext = default;
                 return false;
@@ -121,16 +147,47 @@ namespace Opc.Ua.Redundancy
         }
 
         /// <inheritdoc/>
+        public bool TryUnprotect(
+            string context,
+            ByteString protectedRecord,
+            out ByteString plaintext)
+        {
+            return TryUnprotect(
+                ByteString.From(System.Text.Encoding.UTF8.GetBytes(context ?? string.Empty)),
+                protectedRecord,
+                out plaintext);
+        }
+
+        /// <inheritdoc/>
         public bool TryUnprotectOwned(ByteString protectedRecord, out byte[] plaintext)
         {
             // The decrypted buffer is a fresh allocation distinct from the
             // protected input, so it is handed back directly as the caller-owned
             // plaintext (no second copy). The caller is responsible for wiping it.
-            if (!TryDecrypt(protectedRecord, out byte[] data))
+            if (!TryDecrypt(default, protectedRecord, out byte[] data))
             {
                 plaintext = [];
                 return false;
             }
+            plaintext = data;
+            return true;
+        }
+
+        /// <summary>
+        /// Verifies and decrypts a context-bound envelope into caller-owned
+        /// plaintext.
+        /// </summary>
+        public bool TryUnprotectOwned(
+            ByteString context,
+            ByteString protectedRecord,
+            out byte[] plaintext)
+        {
+            if (!TryDecrypt(context, protectedRecord, out byte[] data))
+            {
+                plaintext = [];
+                return false;
+            }
+
             plaintext = data;
             return true;
         }
@@ -144,7 +201,7 @@ namespace Opc.Ua.Redundancy
             CryptoUtils.ZeroMemory(m_macKey);
         }
 
-        private bool TryDecrypt(ByteString protectedRecord, out byte[] data)
+        private bool TryDecrypt(ByteString context, ByteString protectedRecord, out byte[] data)
         {
             data = [];
             if (protectedRecord.IsNull)
@@ -166,7 +223,7 @@ namespace Opc.Ua.Redundancy
             int cipherLength = envelope.Length - headerLength - TagLength;
 
             // Verify the MAC before decrypting (Encrypt-then-MAC).
-            byte[] expectedTag = ComputeTag(envelope, headerLength + cipherLength);
+            byte[] expectedTag = ComputeTag(context, envelope, headerLength + cipherLength);
             var actualTag = new ReadOnlySpan<byte>(envelope, headerLength + cipherLength, TagLength);
             if (!CryptoUtils.FixedTimeEquals(expectedTag, actualTag))
             {
@@ -189,10 +246,20 @@ namespace Opc.Ua.Redundancy
             return true;
         }
 
-        private byte[] ComputeTag(byte[] buffer, int length)
+        private byte[] ComputeTag(ByteString context, byte[] buffer, int length)
         {
             using var hmac = new HMACSHA256(m_macKey);
-            return hmac.ComputeHash(buffer, 0, length);
+            byte[] contextBytes = context.IsNull ? [] : context.ToArray();
+            byte[] input = new byte[sizeof(int) + contextBytes.Length + length];
+            BinaryPrimitives.WriteInt32LittleEndian(input, contextBytes.Length);
+            contextBytes.CopyTo(input.AsSpan(sizeof(int)));
+            Buffer.BlockCopy(
+                buffer,
+                0,
+                input,
+                sizeof(int) + contextBytes.Length,
+                length);
+            return hmac.ComputeHash(input);
         }
 
         private static byte[] DeriveKey(byte[] masterKey, string label)

@@ -315,7 +315,7 @@ namespace Opc.Ua
                 .ScanAsync(CrlPrefix, ct)
                 .ConfigureAwait(false))
             {
-                if (TryDecodeCrl(entry.Value, out X509CRL? crl))
+                if (TryDecodeCrl(entry.Key, entry.Value, out X509CRL? crl))
                 {
                     crls.Add(crl);
                 }
@@ -385,7 +385,12 @@ namespace Opc.Ua
             }
 
             await m_store
-                .SetAsync(CrlKey(crl.RawData), m_protector.Protect(new ByteString(crl.RawData)), ct)
+                .SetAsync(
+                    CrlKey(crl.RawData),
+                    m_protector.Protect(
+                        ByteString.From(Encoding.UTF8.GetBytes(CrlKey(crl.RawData))),
+                        new ByteString(crl.RawData)),
+                    ct)
                 .ConfigureAwait(false);
             if (m_logger.IsEnabled(LogLevel.Debug))
             {
@@ -429,7 +434,7 @@ namespace Opc.Ua
                 .ScanAsync(CertPrefix, ct)
                 .ConfigureAwait(false))
             {
-                if (TryUnprotect(entry.Value, out ByteString plaintext) &&
+                if (TryUnprotect(entry.Key, entry.Value, out ByteString plaintext) &&
                     plaintext.Span.Length >= TimestampLength)
                 {
                     long ticks = BinaryPrimitives.ReadInt64LittleEndian(plaintext.Span);
@@ -467,7 +472,9 @@ namespace Opc.Ua
             BinaryPrimitives.WriteInt32LittleEndian(plaintext.AsSpan(TimestampLength), key.Length);
             key.CopyTo(plaintext.AsSpan(TimestampLength + sizeof(int)));
             der.CopyTo(plaintext.AsSpan(TimestampLength + sizeof(int) + key.Length));
-            return m_protector.Protect(new ByteString(plaintext));
+            return m_protector.Protect(
+                ByteString.From(Encoding.UTF8.GetBytes(recordKey)),
+                new ByteString(plaintext));
         }
 
         private bool TryDecodeCertificate(
@@ -476,7 +483,7 @@ namespace Opc.Ua
             [NotNullWhen(true)] out Certificate? certificate)
         {
             certificate = null;
-            if (!TryUnprotect(value, out ByteString plaintext) ||
+            if (!TryUnprotect(recordKey, value, out ByteString plaintext) ||
                 plaintext.Span.Length <= TimestampLength + sizeof(int))
             {
                 return false;
@@ -510,10 +517,13 @@ namespace Opc.Ua
             }
         }
 
-        private bool TryDecodeCrl(ByteString value, [NotNullWhen(true)] out X509CRL? crl)
+        private bool TryDecodeCrl(
+            string recordKey,
+            ByteString value,
+            [NotNullWhen(true)] out X509CRL? crl)
         {
             crl = null;
-            if (!TryUnprotect(value, out ByteString plaintext) || plaintext.Span.Length == 0)
+            if (!TryUnprotect(recordKey, value, out ByteString plaintext) || plaintext.Span.Length == 0)
             {
                 return false;
             }
@@ -533,9 +543,12 @@ namespace Opc.Ua
             }
         }
 
-        private bool TryUnprotect(ByteString value, out ByteString plaintext)
+        private bool TryUnprotect(string recordKey, ByteString value, out ByteString plaintext)
         {
-            if (m_protector.TryUnprotect(value, out plaintext))
+            if (m_protector.TryUnprotect(
+                ByteString.From(Encoding.UTF8.GetBytes(recordKey)),
+                value,
+                out plaintext))
             {
                 return true;
             }

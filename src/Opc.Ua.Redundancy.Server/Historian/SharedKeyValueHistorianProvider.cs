@@ -3157,7 +3157,7 @@ namespace Opc.Ua.Redundancy.Server
                 throw new ServiceResultException(
                     StatusCodes.BadEncodingLimitsExceeded);
             }
-            ByteString record = m_protector.Protect(plaintext);
+            ByteString record = m_protector.Protect("historian-record", plaintext);
             if (record.IsEmpty || record.Length > m_options.MaxRecordBytes)
             {
                 throw new ServiceResultException(
@@ -3171,7 +3171,7 @@ namespace Opc.Ua.Redundancy.Server
         {
             if (record.IsEmpty ||
                 record.Length > m_options.MaxRecordBytes ||
-                !m_protector.TryUnprotect(record, out ByteString plaintext) ||
+                !m_protector.TryUnprotect("historian-record", record, out ByteString plaintext) ||
                 plaintext.IsEmpty ||
                 plaintext.Length > m_options.MaxRecordBytes)
             {

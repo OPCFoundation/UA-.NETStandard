@@ -178,10 +178,11 @@ namespace Opc.Ua.Redundancy.Server
             uint monitoredItemId,
             CancellationToken cancellationToken = default)
         {
+            string key = DataChangeKeyFor(monitoredItemId);
             (bool found, ByteString value) = await m_store
-                .TryGetAsync(DataChangeKeyFor(monitoredItemId), cancellationToken)
+                .TryGetAsync(key, cancellationToken)
                 .ConfigureAwait(false);
-            if (!found || !m_protector.TryUnprotect(value, out ByteString payload))
+            if (!found || !m_protector.TryUnprotect(key, value, out ByteString payload))
             {
                 return null;
             }
@@ -207,10 +208,11 @@ namespace Opc.Ua.Redundancy.Server
             uint monitoredItemId,
             CancellationToken cancellationToken = default)
         {
+            string key = EventKeyFor(monitoredItemId);
             (bool found, ByteString value) = await m_store
-                .TryGetAsync(EventKeyFor(monitoredItemId), cancellationToken)
+                .TryGetAsync(key, cancellationToken)
                 .ConfigureAwait(false);
-            if (!found || !m_protector.TryUnprotect(value, out ByteString payload))
+            if (!found || !m_protector.TryUnprotect(key, value, out ByteString payload))
             {
                 return null;
             }
@@ -408,13 +410,19 @@ namespace Opc.Ua.Redundancy.Server
             var operations = new List<Task>();
             foreach (KeyValuePair<uint, DataChangeQueueSnapshot> entry in dataChange)
             {
-                ByteString payload = m_protector.Protect(EncodeDataChangeSnapshot(entry.Value));
-                operations.Add(m_store.SetAsync(DataChangeKeyFor(entry.Key), payload, cancellationToken).AsTask());
+                string key = DataChangeKeyFor(entry.Key);
+                ByteString payload = m_protector.Protect(
+                    key,
+                    EncodeDataChangeSnapshot(entry.Value));
+                operations.Add(m_store.SetAsync(key, payload, cancellationToken).AsTask());
             }
             foreach (KeyValuePair<uint, EventQueueSnapshot> entry in events)
             {
-                ByteString payload = m_protector.Protect(EncodeEventSnapshot(entry.Value));
-                operations.Add(m_store.SetAsync(EventKeyFor(entry.Key), payload, cancellationToken).AsTask());
+                string key = EventKeyFor(entry.Key);
+                ByteString payload = m_protector.Protect(
+                    key,
+                    EncodeEventSnapshot(entry.Value));
+                operations.Add(m_store.SetAsync(key, payload, cancellationToken).AsTask());
             }
             foreach (uint id in removals)
             {

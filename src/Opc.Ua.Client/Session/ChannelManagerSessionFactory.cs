@@ -144,7 +144,7 @@ namespace Opc.Ua.Client
                 endpoint,
                 clientCertificate,
                 clientCertificateChain,
-                availableEndpoints,
+                availableEndpoints.IsEmpty ? endpoint.DiscoveryEndpoints : availableEndpoints,
                 discoveryProfileUris);
         }
 

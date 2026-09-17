@@ -1263,6 +1263,7 @@ namespace Opc.Ua
                 ArrayOf<EndpointDescription> collection = await client
                     .GetEndpointsAsync(default, ct)
                     .ConfigureAwait(false);
+                DiscoveryEndpoints = collection;
 
                 // find list of matching endpoints.
                 ArrayOf<EndpointDescription> matches = MatchEndpoints(
@@ -1278,6 +1279,7 @@ namespace Opc.Ua
                 // update the endpoint.
                 Update(match);
             }
+
             finally
             {
                 if (client != null)
@@ -1293,6 +1295,12 @@ namespace Opc.Ua
                 }
             }
         }
+
+        /// <summary>
+        /// Gets the endpoint descriptions returned by the most recent
+        /// discovery request used to update this endpoint.
+        /// </summary>
+        public ArrayOf<EndpointDescription> DiscoveryEndpoints { get; private set; }
 
         /// <summary>
         /// Returns a discovery url that can be used to update the endpoint description.

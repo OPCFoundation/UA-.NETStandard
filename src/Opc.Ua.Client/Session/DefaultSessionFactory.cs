@@ -589,7 +589,13 @@ namespace Opc.Ua.Client
                 .ConfigureAwait(false);
 
             // create the session object.
-            ISession session = Create(channel, configuration, endpoint, null);
+            ISession session = Create(
+                channel,
+                configuration,
+                endpoint,
+                null,
+                null,
+                endpoint.DiscoveryEndpoints);
             session.ReturnDiagnostics = returnDiagnostics;
 
             // create the session.

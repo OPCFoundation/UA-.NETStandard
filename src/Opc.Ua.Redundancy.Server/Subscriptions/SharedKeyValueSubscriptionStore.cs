@@ -124,18 +124,22 @@ namespace Opc.Ua.Redundancy.Server
                 var generation = Guid.NewGuid();
                 foreach (StoredSubscription subscription in snapshot)
                 {
+                    string key = SnapshotGenerationKeyFor(generation, subscription.Id);
                     await m_store
                         .SetAsync(
-                            SnapshotGenerationKeyFor(generation, subscription.Id),
-                            m_protector.Protect(Encode(subscription)),
+                            key,
+                            m_protector.Protect(key, Encode(subscription)),
                             cancellationToken)
                         .ConfigureAwait(false);
                 }
 
+                string manifestKey = SnapshotManifestKey();
                 await m_store
                     .SetAsync(
-                        SnapshotManifestKey(),
-                        m_protector.Protect(EncodeSnapshotManifest(generation, (uint)snapshot.Count)),
+                        manifestKey,
+                        m_protector.Protect(
+                            manifestKey,
+                            EncodeSnapshotManifest(generation, (uint)snapshot.Count)),
                         cancellationToken)
                     .ConfigureAwait(false);
 
@@ -158,14 +162,18 @@ namespace Opc.Ua.Redundancy.Server
         public async ValueTask<RestoreSubscriptionResult> RestoreSubscriptionsAsync(
             CancellationToken cancellationToken = default)
         {
+            string manifestKey = SnapshotManifestKey();
             (bool foundManifest, ByteString protectedManifest) = await m_store
-                .TryGetAsync(SnapshotManifestKey(), cancellationToken)
+                .TryGetAsync(manifestKey, cancellationToken)
                 .ConfigureAwait(false);
 
             Dictionary<uint, StoredSubscription> restored;
             if (foundManifest)
             {
-                if (!m_protector.TryUnprotect(protectedManifest, out ByteString manifestPayload) ||
+                if (!m_protector.TryUnprotect(
+                        manifestKey,
+                        protectedManifest,
+                        out ByteString manifestPayload) ||
                     manifestPayload.IsNull)
                 {
                     throw new ServiceResultException(
@@ -255,10 +263,11 @@ namespace Opc.Ua.Redundancy.Server
             uint subscriptionId,
             CancellationToken cancellationToken = default)
         {
+            string stateKey = RetransmissionStateKeyFor(subscriptionId);
             (bool found, ByteString value) = await m_store
-                .TryGetAsync(RetransmissionStateKeyFor(subscriptionId), cancellationToken)
+                .TryGetAsync(stateKey, cancellationToken)
                 .ConfigureAwait(false);
-            if (!found || !m_protector.TryUnprotect(value, out ByteString payload))
+            if (!found || !m_protector.TryUnprotect(stateKey, value, out ByteString payload))
             {
                 return null;
             }
@@ -287,7 +296,7 @@ namespace Opc.Ua.Redundancy.Server
                 .ScanAsync(RetransmissionMessagePrefixFor(subscriptionId), cancellationToken)
                 .ConfigureAwait(false))
             {
-                if (m_protector.TryUnprotect(pair.Value, out ByteString messagePayload))
+                if (m_protector.TryUnprotect(pair.Key, pair.Value, out ByteString messagePayload))
                 {
                     NotificationMessage message = DecodeNotificationMessage(messagePayload, namespaceUris, serverUris);
                     messages.Add(message);
@@ -470,7 +479,7 @@ namespace Opc.Ua.Redundancy.Server
                 .ScanAsync(ContinuationPointPrefixFor(ownerSessionId), cancellationToken)
                 .ConfigureAwait(false))
             {
-                if (m_protector.TryUnprotect(pair.Value, out ByteString payload))
+                if (m_protector.TryUnprotect(pair.Key, pair.Value, out ByteString payload))
                 {
                     ContinuationPointEnvelope? envelope = DecodeContinuationPointEnvelope(payload);
                     if (envelope != null)
@@ -562,9 +571,12 @@ namespace Opc.Ua.Redundancy.Server
 
                     if (batch.StateDirty)
                     {
+                        string key = RetransmissionStateKeyFor(batch.SubscriptionId);
                         await m_store.SetAsync(
-                                RetransmissionStateKeyFor(batch.SubscriptionId),
-                                m_protector.Protect(EncodeRetransmissionState(batch.NextSequenceNumber)),
+                                key,
+                                m_protector.Protect(
+                                    key,
+                                    EncodeRetransmissionState(batch.NextSequenceNumber)),
                                 cancellationToken)
                             .ConfigureAwait(false);
                     }
@@ -572,9 +584,12 @@ namespace Opc.Ua.Redundancy.Server
                     var operations = new List<Task>(batch.Messages.Length + batch.Deletes.Length);
                     foreach (NotificationMessage message in batch.Messages)
                     {
+                        string key = RetransmissionMessageKeyFor(
+                            batch.SubscriptionId,
+                            message.SequenceNumber);
                         operations.Add(m_store.SetAsync(
-                                RetransmissionMessageKeyFor(batch.SubscriptionId, message.SequenceNumber),
-                                m_protector.Protect(EncodeNotificationMessage(message)),
+                                key,
+                                m_protector.Protect(key, EncodeNotificationMessage(message)),
                                 cancellationToken)
                             .AsTask());
                     }
@@ -600,9 +615,15 @@ namespace Opc.Ua.Redundancy.Server
             {
                 foreach (ContinuationPointEnvelope envelope in continuationPointBatch.Stores)
                 {
+                    string key = ContinuationPointKeyFor(
+                        envelope.OwnerSessionId,
+                        envelope.Kind,
+                        envelope.Id);
                     await m_store.SetAsync(
-                            ContinuationPointKeyFor(envelope.OwnerSessionId, envelope.Kind, envelope.Id),
-                            m_protector.Protect(EncodeContinuationPointEnvelope(envelope)),
+                            key,
+                            m_protector.Protect(
+                                key,
+                                EncodeContinuationPointEnvelope(envelope)),
                             cancellationToken)
                         .ConfigureAwait(false);
                 }
@@ -827,7 +848,7 @@ namespace Opc.Ua.Redundancy.Server
                         StatusCodes.BadDecodingError,
                         "The persisted subscription key is malformed.");
                 }
-                if (!m_protector.TryUnprotect(pair.Value, out ByteString payload) || payload.IsNull)
+                if (!m_protector.TryUnprotect(pair.Key, pair.Value, out ByteString payload) || payload.IsNull)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadSecurityChecksFailed,

@@ -43,7 +43,10 @@ namespace Opc.Ua.Redundancy
     /// rotation). Each member key is identified by its <c>keyId</c>, so a record
     /// is only ever decrypted by the key version that produced it.
     /// </summary>
-    public sealed class KeyRingRecordProtector : IOwnedRecordProtector, IDisposable
+    public sealed class KeyRingRecordProtector :
+        IOwnedRecordProtector,
+        IContextBoundRecordProtector,
+        IDisposable
     {
         /// <summary>
         /// Creates a key ring.
@@ -81,6 +84,18 @@ namespace Opc.Ua.Redundancy
         }
 
         /// <inheritdoc/>
+        public ByteString Protect(ByteString context, ByteString plaintext)
+        {
+            return m_active.Protect(context, plaintext);
+        }
+
+        /// <inheritdoc/>
+        public ByteString Protect(string context, ByteString plaintext)
+        {
+            return m_active.Protect(context, plaintext);
+        }
+
+        /// <inheritdoc/>
         public bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext)
         {
             // A record carries the key-id of the key that produced it; each
@@ -93,6 +108,42 @@ namespace Opc.Ua.Redundancy
                     return true;
                 }
             }
+            plaintext = default;
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public bool TryUnprotect(
+            ByteString context,
+            ByteString protectedRecord,
+            out ByteString plaintext)
+        {
+            foreach (IRecordProtector protector in m_all)
+            {
+                if (protector.TryUnprotect(context, protectedRecord, out plaintext))
+                {
+                    return true;
+                }
+            }
+
+            plaintext = default;
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public bool TryUnprotect(
+            string context,
+            ByteString protectedRecord,
+            out ByteString plaintext)
+        {
+            foreach (IRecordProtector protector in m_all)
+            {
+                if (protector.TryUnprotect(context, protectedRecord, out plaintext))
+                {
+                    return true;
+                }
+            }
+
             plaintext = default;
             return false;
         }
@@ -116,6 +167,32 @@ namespace Opc.Ua.Redundancy
                     return true;
                 }
             }
+            plaintext = [];
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public bool TryUnprotectOwned(
+            ByteString context,
+            ByteString protectedRecord,
+            out byte[] plaintext)
+        {
+            foreach (IRecordProtector protector in m_all)
+            {
+                if (protector is IContextBoundRecordProtector contextual &&
+                    contextual.TryUnprotect(context, protectedRecord, out ByteString unprotectedContext))
+                {
+                    plaintext = unprotectedContext.ToArray();
+                    return true;
+                }
+
+                if (protector.TryUnprotect(protectedRecord, out ByteString unprotected))
+                {
+                    plaintext = unprotected.ToArray();
+                    return true;
+                }
+            }
+
             plaintext = [];
             return false;
         }

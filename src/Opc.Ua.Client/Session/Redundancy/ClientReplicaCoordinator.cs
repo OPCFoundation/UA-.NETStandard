@@ -199,7 +199,12 @@ namespace Opc.Ua.Client.Redundancy
             {
                 (bool found, ByteString stored) = await m_store
                     .TryGetAsync(m_options.SessionRecordKey, ct).ConfigureAwait(false);
-                if (found && m_protector.TryUnprotect(stored, out ByteString plaintext) && !plaintext.IsNull)
+                if (found &&
+                    m_protector.TryUnprotect(
+                        m_options.SessionRecordKey,
+                        stored,
+                        out ByteString plaintext) &&
+                    !plaintext.IsNull)
                 {
                     using var stream = new System.IO.MemoryStream(plaintext.ToArray(), writable: false);
                     var config = SessionConfiguration.Create(stream, m_telemetry);
@@ -261,7 +266,9 @@ namespace Opc.Ua.Client.Redundancy
             }
             using var stream = new System.IO.MemoryStream();
             m_session.SaveSessionConfiguration(stream);
-            ByteString protectedRecord = m_protector.Protect(new ByteString(stream.ToArray()));
+            ByteString protectedRecord = m_protector.Protect(
+                m_options.SessionRecordKey,
+                new ByteString(stream.ToArray()));
             await m_store.SetAsync(m_options.SessionRecordKey, protectedRecord, ct).ConfigureAwait(false);
         }
 

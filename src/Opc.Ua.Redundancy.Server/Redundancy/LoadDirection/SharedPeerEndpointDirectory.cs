@@ -68,12 +68,13 @@ namespace Opc.Ua.Redundancy.Server
                 return [];
             }
 
+            string key = m_options.EndpointKeyPrefix + serverUri;
             (bool found, ByteString value) = await m_store
-                .TryGetAsync(m_options.EndpointKeyPrefix + serverUri, cancellationToken)
+                .TryGetAsync(key, cancellationToken)
                 .ConfigureAwait(false);
 
             if (found &&
-                m_protector.TryUnprotect(value, out ByteString payload) &&
+                m_protector.TryUnprotect(key, value, out ByteString payload) &&
                 PeerEndpointCodec.TryDecode(payload, m_context, out ArrayOf<EndpointDescription> endpoints))
             {
                 return endpoints;

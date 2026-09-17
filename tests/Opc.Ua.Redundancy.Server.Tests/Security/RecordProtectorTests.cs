@@ -157,6 +157,23 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public void ContextBindingRejectsCutAndPasteAcrossStoreKeys()
+        {
+            using var protector = new AesCbcHmacRecordProtector(MakeKey(11));
+            ByteString record = protector.Protect(
+                "trusted/cert/a",
+                ByteString.From(new byte[] { 8, 6, 7, 5 }));
+
+            Assert.That(
+                protector.TryUnprotect("rejected/cert/a", record, out _),
+                Is.False);
+            Assert.That(
+                protector.TryUnprotect("trusted/cert/a", record, out ByteString plaintext),
+                Is.True);
+            Assert.That(plaintext.ToArray(), Is.EqualTo(new byte[] { 8, 6, 7, 5 }));
+        }
+
+        [Test]
         public void DifferentKeyIdIsRejected()
         {
             byte[] key = MakeKey(9);

@@ -37,7 +37,9 @@ namespace Opc.Ua.Redundancy
     /// (<see cref="AesCbcHmacRecordProtector"/>); see
     /// <c>docs/HighAvailability.md</c>.
     /// </summary>
-    public sealed class NullRecordProtector : IOwnedRecordProtector
+    public sealed class NullRecordProtector :
+        IOwnedRecordProtector,
+        IContextBoundRecordProtector
     {
         /// <summary>
         /// The shared singleton instance.
@@ -51,9 +53,51 @@ namespace Opc.Ua.Redundancy
         }
 
         /// <inheritdoc/>
+        public ByteString Protect(ByteString context, ByteString plaintext)
+        {
+            return plaintext;
+        }
+
+        /// <inheritdoc/>
+        public ByteString Protect(string context, ByteString plaintext)
+        {
+            return plaintext;
+        }
+
+        /// <inheritdoc/>
         public bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext)
         {
             plaintext = protectedRecord;
+            return true;
+        }
+
+        /// <inheritdoc/>
+        public bool TryUnprotect(
+            ByteString context,
+            ByteString protectedRecord,
+            out ByteString plaintext)
+        {
+            plaintext = protectedRecord;
+            return true;
+        }
+
+        /// <inheritdoc/>
+        public bool TryUnprotect(
+            string context,
+            ByteString protectedRecord,
+            out ByteString plaintext)
+        {
+            plaintext = protectedRecord;
+            return true;
+        }
+
+        /// <inheritdoc/>
+        public bool TryUnprotectOwned(
+            ByteString context,
+            ByteString protectedRecord,
+            out byte[] plaintext)
+        {
+            plaintext = protectedRecord.IsNull ? [] : protectedRecord.ToArray();
             return true;
         }
 

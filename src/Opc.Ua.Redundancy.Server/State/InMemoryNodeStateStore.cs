@@ -124,7 +124,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 return false;
             }
-            if (!m_protector.TryUnprotect(stored, out ByteString marker) ||
+            if (!m_protector.TryUnprotect("node-state-marker", stored, out ByteString marker) ||
                 marker.Length != 1 ||
                 marker.Span[0] != 1)
             {
@@ -149,7 +149,7 @@ namespace Opc.Ua.Redundancy.Server
             ValidateCoordinator(m_store);
             return m_store.SetAsync(
                 PartitionPrefix + Uri.EscapeDataString(partitionId),
-                m_protector.Protect(new ByteString(new byte[] { 1 })),
+                m_protector.Protect("node-state-marker", new ByteString(new byte[] { 1 })),
                 ct);
         }
 
@@ -434,7 +434,7 @@ namespace Opc.Ua.Redundancy.Server
                     await m_store
                         .SetAsync(
                             SnapshotChunkKey(generation, chunkIndex),
-                            m_protector.Protect(new ByteString(plaintext)),
+                            m_protector.Protect("node-state-chunk", new ByteString(plaintext)),
                             ct)
                         .ConfigureAwait(false);
                     chunkIndex++;
@@ -515,6 +515,7 @@ namespace Opc.Ua.Redundancy.Server
                 }
 
                 ByteString manifest = m_protector.Protect(
+                    "node-state-manifest",
                     EncodeManifest(generation, chunkIndex, sequence, predecessor));
                 ct.ThrowIfCancellationRequested();
                 publicationUncertain = true;
@@ -927,7 +928,7 @@ namespace Opc.Ua.Redundancy.Server
         {
             return m_store.SetAsync(
                 DeltaPrefix + FormatSequence(sequence),
-                m_protector.Protect(EncodeDelta(kind, nodeId, payload)),
+                m_protector.Protect("node-state-delta", EncodeDelta(kind, nodeId, payload)),
                 ct);
         }
 
@@ -943,7 +944,7 @@ namespace Opc.Ua.Redundancy.Server
 
         private NodeStateChange DecodeDelta(ulong sequence, ByteString frame)
         {
-            if (!m_protector.TryUnprotect(frame, out ByteString plaintext) || plaintext.IsNull)
+            if (!m_protector.TryUnprotect("node-state-delta", frame, out ByteString plaintext) || plaintext.IsNull)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadDecodingError,
@@ -999,7 +1000,7 @@ namespace Opc.Ua.Redundancy.Server
                 (bool found, ByteString chunk) = await m_store
                     .TryGetAsync(SnapshotChunkKey(manifest.Generation, i), ct)
                     .ConfigureAwait(false);
-                if (!found || !m_protector.TryUnprotect(chunk, out ByteString plaintext) || plaintext.IsNull)
+                if (!found || !m_protector.TryUnprotect("node-state-chunk", chunk, out ByteString plaintext) || plaintext.IsNull)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadDecodingError,
@@ -1115,7 +1116,7 @@ namespace Opc.Ua.Redundancy.Server
         private bool TryDecodeManifest(ByteString stored, out SnapshotManifest manifest)
         {
             manifest = default;
-            if (!m_protector.TryUnprotect(stored, out ByteString plaintext) || plaintext.IsNull)
+            if (!m_protector.TryUnprotect("node-state-record", stored, out ByteString plaintext) || plaintext.IsNull)
             {
                 return false;
             }
@@ -1249,7 +1250,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 return (default, 0, []);
             }
-            if (!m_protector.TryUnprotect(stored, out ByteString payload) ||
+            if (!m_protector.TryUnprotect("node-state-record", stored, out ByteString payload) ||
                 payload.Length < sizeof(ulong) ||
                 payload.Length % sizeof(ulong) != 0)
             {
@@ -1285,7 +1286,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 BinaryPrimitives.WriteUInt64BigEndian(buffer.AsSpan((i + 1) * sizeof(ulong)), pending[i]);
             }
-            return m_protector.Protect(new ByteString(buffer));
+            return m_protector.Protect("node-state-record", new ByteString(buffer));
         }
 
         private async ValueTask CompleteSequenceAsync(ulong sequence, CancellationToken ct)
@@ -1318,7 +1319,9 @@ namespace Opc.Ua.Redundancy.Server
             ByteString payload,
             CancellationToken ct)
         {
-            ByteString replacement = m_protector.Protect(WithSequence(sequence, payload));
+            ByteString replacement = m_protector.Protect(
+                "node-state-record",
+                WithSequence(sequence, payload));
             bool linearizable = IsLinearizableKey(key);
             while (true)
             {
@@ -1369,7 +1372,7 @@ namespace Opc.Ua.Redundancy.Server
         {
             sequence = 0;
             payload = ByteString.Empty;
-            return m_protector.TryUnprotect(stored, out ByteString wrapped) &&
+            return m_protector.TryUnprotect("node-state-record", stored, out ByteString wrapped) &&
                 TrySplitSequence(wrapped, out sequence, out payload);
         }
 

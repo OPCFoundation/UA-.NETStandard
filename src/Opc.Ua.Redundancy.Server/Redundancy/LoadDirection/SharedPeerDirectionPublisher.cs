@@ -84,9 +84,11 @@ namespace Opc.Ua.Redundancy.Server
         private ValueTask PublishAsync(string keyPrefix, byte value, CancellationToken cancellationToken)
         {
             long ticks = m_timeProvider.GetUtcNow().UtcDateTime.Ticks;
+            string key = keyPrefix + m_localServerUri;
             ByteString payload = m_protector.Protect(
+                key,
                 PeerDirectionCodec.Encode(m_localServerUri, value, ticks, m_context));
-            return m_store.SetAsync(keyPrefix + m_localServerUri, payload, cancellationToken);
+            return m_store.SetAsync(key, payload, cancellationToken);
         }
 
         private readonly ISharedKeyValueStore m_store;

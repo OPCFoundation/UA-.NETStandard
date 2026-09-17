@@ -160,7 +160,8 @@ namespace Opc.Ua.Redundancy.Server
                 blob = EncodeRecord(passcodeBytes, pkcs12);
 
                 var plaintext = new ByteString(blob);
-                ByteString payload = m_protector.Protect(plaintext);
+                string recordKey = KeyFor(context);
+                ByteString payload = m_protector.Protect(recordKey, plaintext);
                 bool stored = true;
                 if (onlyIfAbsent)
                 {
@@ -257,14 +258,19 @@ namespace Opc.Ua.Redundancy.Server
             // would otherwise alias) and without leaving a second, unwipeable
             // copy behind.
             byte[] plainBytes;
-            if (m_protector is IOwnedRecordProtector ownedProtector)
+            if (m_protector is IContextBoundRecordProtector contextualProtector &&
+                contextualProtector.TryUnprotect(key, value, out ByteString contextualPlaintext))
+            {
+                plainBytes = contextualPlaintext.ToArray();
+            }
+            else if (m_protector is IOwnedRecordProtector ownedProtector)
             {
                 if (!ownedProtector.TryUnprotectOwned(value, out plainBytes))
                 {
                     return null;
                 }
             }
-            else if (m_protector.TryUnprotect(value, out ByteString plaintext))
+            else if (m_protector.TryUnprotect(key, value, out ByteString plaintext))
             {
                 plainBytes = plaintext.ToArray();
             }
