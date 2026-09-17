@@ -111,7 +111,6 @@ namespace Opc.Ua.WotCon.Tests
                 Assert.That(fixture.Provider.Connects, Is.Zero, nodeId.ToString());
                 Assert.That(fixture.Recorder.ObservedPublishedOwner, Is.False, nodeId.ToString());
                 await AssertNoPublishedAssetsAsync(fixture);
-                await TestContext.Out.WriteLineAsync($"Reserved fixed identity: {nodeId.WithNamespaceIndex(1)}");
             }
         }
 
