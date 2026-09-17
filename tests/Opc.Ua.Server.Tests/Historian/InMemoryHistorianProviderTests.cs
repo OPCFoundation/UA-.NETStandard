@@ -189,8 +189,11 @@ namespace Opc.Ua.Server.Tests.Historian
                 },
                 default,
                 CancellationToken.None).ConfigureAwait(false);
-            Assert.That(mod.Values, Has.Count.EqualTo(1));
+            // The insert (brand-new value) and the update-that-replaces it
+            // are both modifications of the historized record.
+            Assert.That(mod.Values, Has.Count.EqualTo(2));
             Assert.That(mod.Values[0].Info.UpdateType, Is.EqualTo(HistoryUpdateType.Update));
+            Assert.That(mod.Values[1].Info.UpdateType, Is.EqualTo(HistoryUpdateType.Insert));
         }
 
         /// <summary>
@@ -659,13 +662,14 @@ namespace Opc.Ua.Server.Tests.Historian
                         NodeId = nodeId,
                         StartTime = BaseTime,
                         EndTime = BaseTime.AddMinutes(1),
-                        MaxValues = 2,
+                        MaxValues = 4,
                         IsForward = true
                     },
                     default,
                     CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(page.Values, Has.Count.EqualTo(2));
+            // 2 inserts + 2 replaces == 4 modified-history entries.
+            Assert.That(page.Values, Has.Count.EqualTo(4));
             Assert.That(page.IsFinal, Is.True);
         }
 
@@ -714,13 +718,28 @@ namespace Opc.Ua.Server.Tests.Historian
                     default,
                     CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(page.Values, Has.Count.EqualTo(2));
-            Assert.That(
-                page.Values[0].Value.SourceTimestamp,
-                Is.EqualTo((DateTimeUtc)upper));
-            Assert.That(
-                page.Values[1].Value.SourceTimestamp,
-                Is.EqualTo((DateTimeUtc)middle));
+            // 2 inserts + 2 replaces qualify (middle, upper); lower is
+            // excluded by the reverse-read boundary rule.
+            Assert.That(page.Values, Has.Count.EqualTo(4));
+            int upperCount = 0, middleCount = 0, lowerCount = 0;
+            foreach (ModifiedDataValue v in page.Values)
+            {
+                if (v.Value.SourceTimestamp == (DateTimeUtc)upper)
+                {
+                    upperCount++;
+                }
+                else if (v.Value.SourceTimestamp == (DateTimeUtc)middle)
+                {
+                    middleCount++;
+                }
+                else if (v.Value.SourceTimestamp == (DateTimeUtc)lower)
+                {
+                    lowerCount++;
+                }
+            }
+            Assert.That(upperCount, Is.EqualTo(2));
+            Assert.That(middleCount, Is.EqualTo(2));
+            Assert.That(lowerCount, Is.Zero);
         }
 
         /// <summary>
@@ -736,6 +755,10 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianOperationContext earlierContext = CreateContext();
             HistorianOperationContext middleContext = CreateContext();
             HistorianOperationContext laterContext = CreateContext();
+            // The insert's own INSERT modified-history entry must sort after
+            // all the backdated replaces below (it has the oldest
+            // modification time of the four).
+            insertContext.DefaultModificationInfo.ModificationTime = BaseTime;
             earlierContext.DefaultModificationInfo.ModificationTime =
                 BaseTime.AddMinutes(1);
             middleContext.DefaultModificationInfo.ModificationTime =
@@ -787,6 +810,11 @@ namespace Opc.Ua.Server.Tests.Historian
                 request,
                 second.NextToken,
                 CancellationToken.None).ConfigureAwait(false);
+            HistorianPage<ModifiedDataValue> fourth = await provider.ReadModifiedAsync(
+                laterContext,
+                request,
+                third.NextToken,
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(first.Values, Has.Count.EqualTo(1));
             Assert.That(first.Values[0].Value.WrappedValue.TryGetValue(out double firstValue), Is.True);
@@ -801,7 +829,14 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(third.Values, Has.Count.EqualTo(1));
             Assert.That(third.Values[0].Value.WrappedValue.TryGetValue(out double thirdValue), Is.True);
             Assert.That(thirdValue, Is.EqualTo(2));
-            Assert.That(third.IsFinal, Is.True);
+            Assert.That(third.IsFinal, Is.False);
+            // The insert's own INSERT entry (the brand-new value 0) sorts
+            // last: it has the oldest modification time of the four.
+            Assert.That(fourth.Values, Has.Count.EqualTo(1));
+            Assert.That(fourth.Values[0].Value.WrappedValue.TryGetValue(out double fourthValue), Is.True);
+            Assert.That(fourthValue, Is.Zero);
+            Assert.That(fourth.Values[0].Info.UpdateType, Is.EqualTo(HistoryUpdateType.Insert));
+            Assert.That(fourth.IsFinal, Is.True);
         }
 
         /// <summary>
@@ -820,6 +855,11 @@ namespace Opc.Ua.Server.Tests.Historian
                 BaseTime.AddMinutes(1);
             laterContext.DefaultModificationInfo.ModificationTime =
                 BaseTime.AddMinutes(2);
+            // The insert's own INSERT modified-history entry must sort last
+            // in this reverse read: give it the newest modification time of
+            // the three.
+            insertContext.DefaultModificationInfo.ModificationTime =
+                BaseTime.AddMinutes(3);
             DateTime sourceTimestamp = BaseTime.AddSeconds(10);
             await provider.InsertAsync(
                 insertContext,
@@ -855,6 +895,11 @@ namespace Opc.Ua.Server.Tests.Historian
                 request,
                 first.NextToken,
                 CancellationToken.None).ConfigureAwait(false);
+            HistorianPage<ModifiedDataValue> third = await provider.ReadModifiedAsync(
+                laterContext,
+                request,
+                second.NextToken,
+                CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(first.Values, Has.Count.EqualTo(1));
             Assert.That(first.Values[0].Value.WrappedValue.TryGetValue(out double firstValue), Is.True);
@@ -863,7 +908,12 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(second.Values, Has.Count.EqualTo(1));
             Assert.That(second.Values[0].Value.WrappedValue.TryGetValue(out double secondValue), Is.True);
             Assert.That(secondValue, Is.Zero);
-            Assert.That(second.IsFinal, Is.True);
+            Assert.That(second.IsFinal, Is.False);
+            Assert.That(third.Values, Has.Count.EqualTo(1));
+            Assert.That(third.Values[0].Value.WrappedValue.TryGetValue(out double thirdValue), Is.True);
+            Assert.That(thirdValue, Is.Zero);
+            Assert.That(third.Values[0].Info.UpdateType, Is.EqualTo(HistoryUpdateType.Insert));
+            Assert.That(third.IsFinal, Is.True);
         }
 
         /// <summary>
@@ -882,6 +932,11 @@ namespace Opc.Ua.Server.Tests.Historian
                 BaseTime.AddMinutes(1);
             laterContext.DefaultModificationInfo.ModificationTime =
                 BaseTime.AddMinutes(2);
+            // The insert's own INSERT entry must sort ahead of (be
+            // considered already consumed relative to) the boundary below:
+            // give it the newest modification time of the three.
+            insertContext.DefaultModificationInfo.ModificationTime =
+                BaseTime.AddMinutes(3);
             DateTime sourceTimestamp = BaseTime.AddSeconds(10);
             await provider.InsertAsync(
                 insertContext,
@@ -913,7 +968,9 @@ namespace Opc.Ua.Server.Tests.Historian
                     new HistorianResumeCursor(
                         sourceTimestamp,
                         ByteString.Empty,
-                        1)),
+                        // Sequence 2 is now the laterContext replace entry:
+                        // the insert consumes sequence 1.
+                        2)),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(page.Values, Has.Count.EqualTo(1));
@@ -1014,13 +1071,13 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Verifies that a plain insert of a brand-new value is the current
-        /// live value and therefore does not appear in modified history:
-        /// per <see cref="IHistorianModifiedProvider"/>, modified history
-        /// only returns prior/replaced/deleted values.
+        /// Verifies that a history-update insert of a brand-new value is
+        /// retained as an INSERT entry in modified history: an explicit
+        /// HistoryUpdate insert is itself a modification of the historized
+        /// record, distinct from raw auto-capture inserts.
         /// </summary>
         [Test]
-        public async Task InsertedValueDoesNotAppearInModifiedHistoryAsync()
+        public async Task InsertedValueAppearsInModifiedHistoryAsync()
         {
             using var provider = new InMemoryHistorianProvider();
             var nodeId = new NodeId("modified.insert", NamespaceIndex);
@@ -1032,6 +1089,121 @@ namespace Opc.Ua.Server.Tests.Historian
                 nodeId,
                 [MakeValue(timestamp, 1)],
                 CancellationToken.None).ConfigureAwait(false);
+
+            HistorianPage<ModifiedDataValue> page = await provider.ReadModifiedAsync(
+                context,
+                new HistorianModifiedReadRequest
+                {
+                    NodeId = nodeId,
+                    StartTime = BaseTime,
+                    EndTime = BaseTime.AddMinutes(1),
+                    IsForward = true
+                },
+                default,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(page.Values, Has.Count.EqualTo(1));
+            Assert.That(page.Values[0].Info.UpdateType, Is.EqualTo(HistoryUpdateType.Insert));
+            Assert.That(page.Values[0].Value.SourceTimestamp, Is.EqualTo(timestamp));
+        }
+
+        /// <summary>
+        /// Verifies that a HistoryUpdate Update call that inserts a
+        /// brand-new value (no prior entry existed) is also retained as an
+        /// INSERT entry in modified history.
+        /// </summary>
+        [Test]
+        public async Task UpdateThatInsertsAppearsInModifiedHistoryAsync()
+        {
+            using var provider = new InMemoryHistorianProvider();
+            var nodeId = new NodeId("modified.update-inserts", NamespaceIndex);
+            HistorianOperationContext context = CreateContext();
+            DateTime timestamp = BaseTime.AddSeconds(10);
+
+            HistorianUpdateOutcome<DataValue> outcome = await provider.UpdateAsync(
+                context,
+                nodeId,
+                [MakeValue(timestamp, 1)],
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(outcome.OperationResults[0].Code, Is.EqualTo(StatusCodes.GoodEntryInserted.Code));
+
+            HistorianPage<ModifiedDataValue> page = await provider.ReadModifiedAsync(
+                context,
+                new HistorianModifiedReadRequest
+                {
+                    NodeId = nodeId,
+                    StartTime = BaseTime,
+                    EndTime = BaseTime.AddMinutes(1),
+                    IsForward = true
+                },
+                default,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(page.Values, Has.Count.EqualTo(1));
+            Assert.That(page.Values[0].Info.UpdateType, Is.EqualTo(HistoryUpdateType.Insert));
+            Assert.That(page.Values[0].Value.SourceTimestamp, Is.EqualTo(timestamp));
+        }
+
+        /// <summary>
+        /// Verifies that a transactional (atomic) HistoryUpdate insert is
+        /// also retained as an INSERT entry in modified history.
+        /// </summary>
+        [Test]
+        public async Task TransactionalInsertAppearsInModifiedHistoryAsync()
+        {
+            using var provider = new InMemoryHistorianProvider();
+            var nodeId = new NodeId("modified.insert-atomic", NamespaceIndex);
+            HistorianOperationContext context = CreateContext();
+            DateTime timestamp = BaseTime.AddSeconds(10);
+
+            HistorianUpdateOutcome<DataValue> outcome = await provider.InsertAtomicAsync(
+                context,
+                nodeId,
+                [MakeValue(timestamp, 1)],
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(outcome.TransactionRolledBack, Is.False);
+            Assert.That(outcome.OperationResults[0].Code, Is.EqualTo(StatusCodes.GoodEntryInserted.Code));
+
+            HistorianPage<ModifiedDataValue> page = await provider.ReadModifiedAsync(
+                context,
+                new HistorianModifiedReadRequest
+                {
+                    NodeId = nodeId,
+                    StartTime = BaseTime,
+                    EndTime = BaseTime.AddMinutes(1),
+                    IsForward = true
+                },
+                default,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(page.Values, Has.Count.EqualTo(1));
+            Assert.That(page.Values[0].Info.UpdateType, Is.EqualTo(HistoryUpdateType.Insert));
+            Assert.That(page.Values[0].Value.SourceTimestamp, Is.EqualTo(timestamp));
+        }
+
+        /// <summary>
+        /// Verifies that the bulk auto-capture path (used by the
+        /// framework's historizing pipeline, not by an explicit
+        /// HistoryUpdate service call) does NOT log inserted values into
+        /// modified history: only explicit HistoryUpdate operations are
+        /// modifications of the historized record.
+        /// </summary>
+        [Test]
+        public async Task AutoCaptureInsertBatchDoesNotAppearInModifiedHistoryAsync()
+        {
+            using var provider = new InMemoryHistorianProvider();
+            var nodeId = new NodeId("modified.auto-capture", NamespaceIndex);
+            HistorianOperationContext context = CreateContext();
+            DateTime timestamp = BaseTime.AddSeconds(10);
+
+            ArrayOf<HistorianUpdateOutcome<DataValue>> outcomes = await provider.InsertBatchAsync(
+                context,
+                [new HistorianDataBatch(nodeId, [MakeValue(timestamp, 1)])],
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(outcomes[0].OperationResults[0].Code, Is.EqualTo(StatusCodes.GoodEntryInserted.Code));
 
             HistorianPage<ModifiedDataValue> page = await provider.ReadModifiedAsync(
                 context,

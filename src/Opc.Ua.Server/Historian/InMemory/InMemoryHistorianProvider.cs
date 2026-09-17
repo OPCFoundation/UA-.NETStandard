@@ -1365,9 +1365,11 @@ namespace Opc.Ua.Server.Historian.InMemory
                                 break;
                             }
                             archive.Raw[key] = CloneValue(value);
-                            // A brand-new insert is the current live value, not a
-                            // prior/replaced/deleted one: per IHistorianModifiedProvider
-                            // it must not appear in the modified-history log.
+                            // An explicit HistoryUpdate insert is itself a
+                            // modification of the historized record and must
+                            // be retained as an INSERT entry in modified
+                            // history (unlike raw auto-capture inserts).
+                            LogModification(archive, value, HistoryUpdateType.Insert, context.DefaultModificationInfo);
                             statuses[i] = StatusCodes.GoodEntryInserted;
                             EvictRawIfNeeded(archive, key.SourceTimestamp.ToDateTime());
                         }
@@ -1404,9 +1406,11 @@ namespace Opc.Ua.Server.Historian.InMemory
                                 break;
                             }
                             archive.Raw[key] = CloneValue(value);
-                            // A brand-new insert is the current live value, not a
-                            // prior/replaced/deleted one: per IHistorianModifiedProvider
-                            // it must not appear in the modified-history log.
+                            // An explicit HistoryUpdate update-that-inserts is
+                            // itself a modification of the historized record
+                            // and must be retained as an INSERT entry in
+                            // modified history (unlike raw auto-capture inserts).
+                            LogModification(archive, value, HistoryUpdateType.Insert, context.DefaultModificationInfo);
                             statuses[i] = StatusCodes.GoodEntryInserted;
                             EvictRawIfNeeded(archive, key.SourceTimestamp.ToDateTime());
                         }
@@ -1549,9 +1553,15 @@ namespace Opc.Ua.Server.Historian.InMemory
                     archive.Raw[key] = CloneValue(value);
                     if (statuses[i].Code == StatusCodes.GoodEntryInserted.Code)
                     {
-                        // A brand-new insert is the current live value, not a
-                        // prior/replaced/deleted one: per IHistorianModifiedProvider
-                        // it must not appear in the modified-history log.
+                        // An explicit HistoryUpdate insert is itself a
+                        // modification of the historized record and must
+                        // be retained as an INSERT entry in modified
+                        // history (unlike raw auto-capture inserts).
+                        LogModification(
+                            archive,
+                            value,
+                            HistoryUpdateType.Insert,
+                            context.DefaultModificationInfo);
                         if (!newestInsertedTimestamp.HasValue || timestamp > newestInsertedTimestamp.Value)
                         {
                             newestInsertedTimestamp = timestamp;

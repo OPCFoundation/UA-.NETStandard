@@ -253,14 +253,25 @@ namespace Opc.Ua.Server.Tests.Historian
                 default,
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(modified.Values, Has.Count.EqualTo(2));
-            var readings = new List<double>();
+            // 1 insert entry (the brand-new value) + 2 replace entries
+            // (each prior version) == 3 modified-history entries.
+            Assert.That(modified.Values, Has.Count.EqualTo(3));
+            var replaceReadings = new List<double>();
+            var insertReadings = new List<double>();
             foreach (ModifiedDataValue value in modified.Values)
             {
-                readings.Add(ReadReading(value.Value));
-                Assert.That(value.Info.UpdateType, Is.EqualTo(HistoryUpdateType.Replace));
+                if (value.Info.UpdateType == HistoryUpdateType.Insert)
+                {
+                    insertReadings.Add(ReadReading(value.Value));
+                }
+                else
+                {
+                    Assert.That(value.Info.UpdateType, Is.EqualTo(HistoryUpdateType.Replace));
+                    replaceReadings.Add(ReadReading(value.Value));
+                }
             }
-            Assert.That(readings, Is.EquivalentTo(PriorReadings));
+            Assert.That(replaceReadings, Is.EquivalentTo(PriorReadings));
+            Assert.That(insertReadings, Is.EquivalentTo(new[] { 1.0 }));
         }
 
         /// <summary>
@@ -324,7 +335,10 @@ namespace Opc.Ua.Server.Tests.Historian
                 Assert.That(pages, Is.LessThan(10), "Pagination did not terminate.");
             }
 
-            Assert.That(readings, Is.EquivalentTo(PriorReadings));
+            // 2 insert entries (brand-new values) + 2 replace entries
+            // (each prior version) share the same timestamp; paging one at a
+            // time must not lose any of them.
+            Assert.That(readings, Is.EquivalentTo(new[] { 1.0, 2.0, 1.0, 2.0 }));
         }
 
         /// <summary>
@@ -500,7 +514,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 },
                 default,
                 CancellationToken.None).ConfigureAwait(false);
-            Assert.That(modified.Values, Has.Count.EqualTo(3));
+            Assert.That(modified.Values, Has.Count.EqualTo(5));
             var updateTypes = new List<HistoryUpdateType>();
             foreach (ModifiedDataValue value in modified.Values)
             {
@@ -1371,10 +1385,15 @@ namespace Opc.Ua.Server.Tests.Historian
 
         private static readonly double[] PriorReadings = [1.0, 2.0];
 
+        // Insert (Temperature=1.0), Replace (Temperature 1.0->2.0),
+        // Update-that-replaces (Temperature 2.0->3.0), Insert (Pressure=4.0
+        // via the same Update call), Delete (Temperature=3.0 removed).
         private static readonly HistoryUpdateType[] ExpectedUpdateTypes =
         [
+            HistoryUpdateType.Insert,
             HistoryUpdateType.Replace,
             HistoryUpdateType.Update,
+            HistoryUpdateType.Insert,
             HistoryUpdateType.Delete
         ];
     }
