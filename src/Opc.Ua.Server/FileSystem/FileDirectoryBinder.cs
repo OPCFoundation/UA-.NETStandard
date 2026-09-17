@@ -635,10 +635,17 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     return;
                 }
-                if (!m_initializing && m_registerNode != null)
+                if (m_registerNode == null)
                 {
-                    await m_registerNode(entry.Node, cancellationToken).ConfigureAwait(false);
+                    entry.Registered = true;
+                    return;
                 }
+                if (m_initializing)
+                {
+                    return;
+                }
+
+                await m_registerNode(entry.Node, cancellationToken).ConfigureAwait(false);
                 entry.Registered = true;
             }
 

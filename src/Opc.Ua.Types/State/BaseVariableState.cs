@@ -2031,6 +2031,18 @@ namespace Opc.Ua
                 StatusCode statusCode = value.StatusCode;
                 DateTimeUtc sourceTimestamp = value.SourceTimestamp;
 
+                var typeInfo = TypeInfo.IsInstanceOfDataType(
+                    valueToWrite,
+                    m_dataType,
+                    m_valueRank,
+                    context.NamespaceUris,
+                    context.TypeTable);
+                if (typeInfo.IsUnknown &&
+                    !(m_dataType.IsNull && valueToWrite.IsNull))
+                {
+                    return StatusCodes.BadTypeMismatch;
+                }
+
                 if (onWriteValueAsync != null)
                 {
                     AttributeWriteResult writeResult = await onWriteValueAsync(

@@ -349,7 +349,7 @@ namespace Opc.Ua.Server
                 return (new ServiceResult(StatusCodes.BadNothingToDo), NodeId.Null);
             }
 
-            if (item.BrowseName.IsNull)
+            if (item.BrowseName.IsNull || string.IsNullOrEmpty(item.BrowseName.Name))
             {
                 return (new ServiceResult(StatusCodes.BadBrowseNameInvalid), NodeId.Null);
             }

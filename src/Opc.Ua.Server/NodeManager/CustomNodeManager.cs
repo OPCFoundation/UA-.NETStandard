@@ -5047,8 +5047,7 @@ namespace Opc.Ua.Server
             }
 
             bool componentCacheReferenceAdded =
-                m_monitoredItemManager is MonitoredNodeMonitoredItemManager &&
-                !m_monitoredItemManager.MonitoredNodes.ContainsKey(handle.NodeId);
+                m_monitoredItemManager is MonitoredNodeMonitoredItemManager;
             ISampledDataChangeMonitoredItem dataChangeMonitoredItem =
                 m_monitoredItemManager.CreateMonitoredItem(
                     Server,
@@ -5305,9 +5304,9 @@ namespace Opc.Ua.Server
 
                 var aggregateFilterResult = new AggregateFilterResult
                 {
-                    RevisedProcessingInterval = aggregateFilter.ProcessingInterval,
-                    RevisedStartTime = aggregateFilter.StartTime,
-                    RevisedAggregateConfiguration = aggregateFilter.AggregateConfiguration
+                    RevisedProcessingInterval = revisedFilter.ProcessingInterval,
+                    RevisedStartTime = revisedFilter.StartTime,
+                    RevisedAggregateConfiguration = revisedFilter.AggregateConfiguration
                 };
 
                 filterToUse = revisedFilter;

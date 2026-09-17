@@ -433,8 +433,8 @@ namespace Opc.Ua.Server
                 var dataValue = new DataValue(
                     default,
                     StatusCodes.Good,
-                    m_timeProvider.GetUtcNow().UtcDateTime,
-                    DateTime.MinValue);
+                    DateTime.MinValue,
+                    m_timeProvider.GetUtcNow().UtcDateTime);
 
                 // Read at enqueue time via the async entry point: ReadAttributeAsync honors an
                 // asynchronous value read handler (OnReadValueAsync) when one is registered and

@@ -1988,7 +1988,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<Dictionary<NodeId, Variant[]>>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<NodeMetadata?>((NodeMetadata?)null));
+                .Returns(new ValueTask<NodeMetadata>((NodeMetadata)null));
             manager
                 .Setup(nodeManager => nodeManager.GetNodeMetadataAsync(
                     It.IsAny<OperationContext>(),
@@ -2355,7 +2355,7 @@ namespace Opc.Ua.Server.Tests
                         It.IsAny<ushort>(),
                         It.IsAny<CancellationToken>()))
                     .Returns((ushort namespaceIndex, CancellationToken _) =>
-                        new ValueTask<NamespaceMetadataState?>(
+                        new ValueTask<NamespaceMetadataState>(
                             namespaceIndex == SourceNamespaceIndex
                                 ? m_sourceNamespaceMetadata
                                 : namespaceIndex == TargetNamespaceIndex
@@ -2589,7 +2589,7 @@ namespace Opc.Ua.Server.Tests
                         It.IsAny<Dictionary<NodeId, Variant[]>>(),
                         It.IsAny<bool>(),
                         It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<NodeMetadata?>(permissionMetadata));
+                    .Returns(new ValueTask<NodeMetadata>(permissionMetadata));
             }
 
             private static Mock<IAsyncNodeManager> CreateNodeManager(
@@ -2624,7 +2624,7 @@ namespace Opc.Ua.Server.Tests
                         Dictionary<NodeId, Variant[]> _,
                         bool _,
                         CancellationToken _) =>
-                        new ValueTask<NodeMetadata?>(metadata));
+                        new ValueTask<NodeMetadata>(metadata));
                 manager
                     .Setup(nodeManager => nodeManager.GetNodeMetadataAsync(
                         It.IsAny<OperationContext>(),

@@ -103,7 +103,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 if (current is BaseObjectState notifier)
                 {
-                    firstSource ??= notifier;
+                    firstSource = notifier;
                     if ((notifier.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
                     {
                         notifier.EventNotifier |= EventNotifiers.SubscribeToEvents;

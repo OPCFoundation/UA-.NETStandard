@@ -662,7 +662,7 @@ namespace Opc.Ua.Server
                     }
 
                     await m_server.NodeManager
-                        .DeleteMonitoredItemsAsync(context, Id, monitoredItems, errors, cancellationToken)
+                        .DeleteMonitoredItemsAsync(context, Id, monitoredItems, errors, CancellationToken.None)
                         .ConfigureAwait(false);
 
                     // dispose the monitored items.
@@ -2656,7 +2656,12 @@ namespace Opc.Ua.Server
             // update items.
             if (validItems)
             {
-                await m_server.NodeManager.DeleteMonitoredItemsAsync(context, Id, monitoredItems, errors, cancellationToken)
+                await m_server.NodeManager.DeleteMonitoredItemsAsync(
+                    context,
+                    Id,
+                    monitoredItems,
+                    errors,
+                    CancellationToken.None)
                     .ConfigureAwait(false);
             }
 

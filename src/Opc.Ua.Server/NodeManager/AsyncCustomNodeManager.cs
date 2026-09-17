@@ -1933,7 +1933,7 @@ namespace Opc.Ua.Server
                 return (new ServiceResult(StatusCodes.BadNothingToDo), NodeId.Null);
             }
 
-            if (item.BrowseName.IsNull)
+            if (item.BrowseName.IsNull || string.IsNullOrEmpty(item.BrowseName.Name))
             {
                 return (new ServiceResult(StatusCodes.BadBrowseNameInvalid), NodeId.Null);
             }
@@ -7038,14 +7038,17 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
+            MonitoredNode2? monitoredNode;
+            ServiceResult serviceResult;
+            bool wasSubscribed;
             using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
             {
-                bool wasSubscribed = m_monitoredItemManager.MonitoredNodes.TryGetValue(
+                wasSubscribed = m_monitoredItemManager.MonitoredNodes.TryGetValue(
                     source.NodeId,
                     out MonitoredNode2? existingMonitoredNode) &&
                     existingMonitoredNode.EventMonitoredItems.ContainsKey(
                         monitoredItem.Id);
-                (MonitoredNode2? monitoredNode, ServiceResult serviceResult) = m_monitoredItemManager!
+                (monitoredNode, serviceResult) = m_monitoredItemManager!
                     .SubscribeToEvents(
                         context,
                         source,
@@ -7060,21 +7063,17 @@ namespace Opc.Ua.Server
                 {
                     source.SetAreEventsMonitored(context, !unsubscribe, true);
                 }
-
-                // signal update.
-                if (ServiceResult.IsGood(serviceResult) &&
-                    monitoredNode != null)
-                {
-                    await OnSubscribeToEventsAsync(
-                        context,
-                        monitoredNode,
-                        unsubscribe,
-                        cancellationToken).ConfigureAwait(false);
-                }
-
-                // all done.
-                return serviceResult;
             }
+
+            // Signal event-source registries without holding the monitored-item semaphore.
+            if (ServiceResult.IsGood(serviceResult) &&
+                monitoredNode != null)
+            {
+                await OnSubscribeToEventsAsync(context, monitoredNode, unsubscribe, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            return serviceResult;
         }
 
         /// <summary>

@@ -639,7 +639,7 @@ namespace Opc.Ua.Server
             if (m_provider.RequiresConfirmation)
             {
                 updateId = Uuid.NewUuid();
-                ScheduleRevert(updateId, restartDelayTime, revertAfterTime);
+                ScheduleRevert(updateId, restartDelayTime, revertAfterTime, context);
             }
 
             RefreshVersionNodes(context);
@@ -685,6 +685,7 @@ namespace Opc.Ua.Server
             CancelPendingRevert();
 
             await m_provider.ConfirmUpdateAsync(cancellationToken).ConfigureAwait(false);
+            RefreshVersionNodes(context);
 
             m_logger.ConfigurationFileUpdateConfirmed(updateId.Guid);
 
@@ -793,7 +794,11 @@ namespace Opc.Ua.Server
             m_node.ClearChangeMasks(context, includeChildren: true);
         }
 
-        private void ScheduleRevert(Uuid updateId, double restartDelayTime, double revertAfterTime)
+        private void ScheduleRevert(
+            Uuid updateId,
+            double restartDelayTime,
+            double revertAfterTime,
+            ISystemContext context)
         {
             CancelPendingRevert();
 
@@ -842,6 +847,7 @@ namespace Opc.Ua.Server
                 try
                 {
                     await m_provider.RevertUpdateAsync(CancellationToken.None).ConfigureAwait(false);
+                    RefreshVersionNodes(context);
                     m_logger.ConfigurationFileUpdateNotConfirmedReverted(updateId.Guid);
                 }
                 catch (Exception ex)

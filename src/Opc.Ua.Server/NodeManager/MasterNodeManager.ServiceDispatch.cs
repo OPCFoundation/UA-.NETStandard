@@ -94,8 +94,9 @@ namespace Opc.Ua.Server
                 case PerformUpdateType.Update:
                     return PermissionType.InsertHistory | PermissionType.ModifyHistory;
                 case PerformUpdateType.Replace:
-                case PerformUpdateType.Remove:
                     return PermissionType.ModifyHistory;
+                case PerformUpdateType.Remove:
+                    return PermissionType.DeleteHistory;
                 default:
                     Debug.Fail($"Unexpected update type {updateType}");
                     return PermissionType.ModifyHistory;
@@ -1076,9 +1077,8 @@ namespace Opc.Ua.Server
                 if (commonRoleIdPermissions.TryGetValue(currentRoleId, out PermissionType value))
                 {
                     userActualPermissions |= value;
-                    if ((value & requestedPermission) != PermissionType.None)
+                    if ((userActualPermissions & requestedPermission) == requestedPermission)
                     {
-                        // there is one role that current session has na is listed in requested role
                         return StatusCodes.Good;
                     }
                 }

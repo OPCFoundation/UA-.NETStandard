@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -282,8 +283,13 @@ namespace Opc.Ua.Server.FileSystem
                     return null!;
                 }
 
+                if (!TryNormalizeProviderPath(parsed.Value.ProviderPath, out string providerPath))
+                {
+                    return null!;
+                }
+
                 FileSystemEntry? entry = await Provider
-                    .GetEntryAsync(parsed.Value.ProviderPath, cancellationToken)
+                    .GetEntryAsync(providerPath, cancellationToken)
                     .ConfigureAwait(false);
                 if (parsed.Value.RootType != FileSystemNodeId.Root && entry == null)
                 {
@@ -300,14 +306,14 @@ namespace Opc.Ua.Server.FileSystem
                         isRoot: true),
                     FileSystemNodeId.Directory => new DirectoryObjectState(
                         context,
-                        FileSystemNodeId.BuildDirectory(parsed.Value.ProviderPath, NamespaceIndex),
-                        parsed.Value.ProviderPath,
+                        FileSystemNodeId.BuildDirectory(providerPath, NamespaceIndex),
+                        providerPath,
                         entry!.Value.Name,
                         isRoot: false),
                     FileSystemNodeId.File => new FileObjectState(
                         context,
-                        FileSystemNodeId.BuildFile(parsed.Value.ProviderPath, NamespaceIndex),
-                        parsed.Value.ProviderPath,
+                        FileSystemNodeId.BuildFile(providerPath, NamespaceIndex),
+                        providerPath,
                         entry!.Value.Name),
                     _ => null
                 };
@@ -332,6 +338,15 @@ namespace Opc.Ua.Server.FileSystem
                 handle.Validated = true;
                 handle.Node = target = component;
                 return target;
+            }
+            catch (Exception ex) when (
+                ex is IOException ||
+                ex is UnauthorizedAccessException ||
+                ex is ArgumentException ||
+                ex is NotSupportedException ||
+                ex is PathTooLongException)
+            {
+                return null!;
             }
             finally
             {

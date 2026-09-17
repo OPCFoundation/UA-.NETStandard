@@ -545,6 +545,23 @@ namespace Opc.Ua.Server
                     // update monitored items.
                     for (int ii = 0; ii < items.Count; ii++)
                     {
+                        ServiceResult permissionResult = await m_nodeManager
+                            .ValidateRolePermissionsAsync(
+                                context,
+                                itemsToRead[ii].NodeId,
+                                PermissionType.Read,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                        if (ServiceResult.IsBad(permissionResult))
+                        {
+                            items[ii].QueueValue(
+                                DataValue.FromStatusCode(
+                                    permissionResult.StatusCode,
+                                    m_timeProvider.GetUtcNow().UtcDateTime),
+                                permissionResult);
+                            continue;
+                        }
+
                         if (values[ii].IsNull)
                         {
                             values[ii] = DataValue.FromStatusCode(

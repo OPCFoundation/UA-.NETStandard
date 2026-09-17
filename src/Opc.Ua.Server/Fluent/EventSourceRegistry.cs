@@ -667,6 +667,7 @@ namespace Opc.Ua.Server.Fluent
                     ready.TrySetException(new ServiceResultException(
                         StatusCodes.BadConfigurationError, "The event source factory returned no stream."));
                     _ = ready.Task.Exception;
+                    MarkSourceFailed(entry);
                     m_logger?.PublishFactoryForBrowseIdNodeIdReturned(entry.Notifier.BrowseName, entry.Notifier.NodeId);
                     return;
                 }
@@ -684,6 +685,7 @@ namespace Opc.Ua.Server.Fluent
                     ex,
                     entry.Notifier.BrowseName,
                     entry.Notifier.NodeId);
+                MarkSourceFailed(entry);
                 try
                 {
                     entry.Options.OnError?.Invoke(ex);
@@ -728,6 +730,7 @@ namespace Opc.Ua.Server.Fluent
                 ready.TrySetException(ex);
                 _ = ready.Task.Exception;
                 m_logger?.PublishIteratorForBrowseIdNodeIdThrew(ex, entry.Notifier.BrowseName, entry.Notifier.NodeId);
+                MarkSourceFailed(entry);
                 try
                 {
                     entry.Options.OnError?.Invoke(ex);
@@ -741,6 +744,13 @@ namespace Opc.Ua.Server.Fluent
                 startupLifetime.Cancel();
                 await startup.ConfigureAwait(false);
             }
+        }
+
+        private void MarkSourceFailed(SourceEntry entry)
+        {
+            entry.WorkerCts = null;
+            entry.WorkerTask = null;
+            SignalReconcile();
         }
 
         private async Task CompleteStartupAsync(

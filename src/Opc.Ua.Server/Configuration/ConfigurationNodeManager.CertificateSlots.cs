@@ -313,7 +313,7 @@ namespace Opc.Ua.Server
                             await appStore.AddAsync(
                                 removedCertificateBackup,
                                 passwordProvider?.GetPassword(existingCertIdentifier),
-                                ct).ConfigureAwait(false);
+                                CancellationToken.None).ConfigureAwait(false);
                             m_logger.RestoredPreviousCertificateAfterReplacementFailed(
                                 existingCertIdentifier.CertificateType);
                         }
@@ -377,7 +377,7 @@ namespace Opc.Ua.Server
                         addCertificateWithKey,
                         removedCertificateBackup,
                         newlyAddedIssuerThumbprints?.ToArrayOf() ?? ArrayOf<string>.Empty,
-                        ct).ConfigureAwait(false);
+                        CancellationToken.None).ConfigureAwait(false);
 
                     throw;
                 }
@@ -446,7 +446,9 @@ namespace Opc.Ua.Server
                     .OpenStore(existingCertIdentifier, Server.Telemetry);
                 if (appStore != null)
                 {
-                    await appStore.DeleteAsync(committedCertificateWithKey.Thumbprint, ct)
+                    await appStore.DeleteAsync(
+                            committedCertificateWithKey.Thumbprint,
+                            CancellationToken.None)
                         .ConfigureAwait(false);
                     ICertificatePasswordProvider? passwordProvider = m_configuration
                         .SecurityConfiguration
@@ -454,7 +456,7 @@ namespace Opc.Ua.Server
                     await appStore.AddAsync(
                         removedCertificateBackup,
                         passwordProvider?.GetPassword(existingCertIdentifier),
-                        ct).ConfigureAwait(false);
+                        CancellationToken.None).ConfigureAwait(false);
                     m_logger.RestoredPreviousCertificateAfterIssuerImportFailed(
                         existingCertIdentifier.CertificateType);
                 }
@@ -471,7 +473,10 @@ namespace Opc.Ua.Server
             // own scope here so a hypothetical future change to that
             // contract can never mask the original issuer-import failure
             // this method was called to compensate.
-            await RemoveIssuerCertificatesAsync(certificateGroup, newlyAddedIssuerThumbprints, ct)
+            await RemoveIssuerCertificatesAsync(
+                    certificateGroup,
+                    newlyAddedIssuerThumbprints,
+                    CancellationToken.None)
                 .ConfigureAwait(false);
         }
 
