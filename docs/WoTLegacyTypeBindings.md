@@ -42,6 +42,10 @@ provider or old-generation effects. A native root may repeat the owner's fixed
 `HasInterface` reference or author the `HasWoTComponent` relation.
 The existing asset NodeId and placement remain stable, and automatically assigned
 property/action identities use the existing legacy conventions.
+Mandatory properties with colliding local names use separate escaped namespace-URI
+and local-name path segments. This avoids dependence on declaration order or
+server namespace indexes. Unique local names and authored interaction identities
+retain their legacy paths.
 Argument Properties use the reserved `InputArguments` / `OutputArguments` children
 of their owning action path, so authored `_in`/`_out` action names cannot alias them.
 

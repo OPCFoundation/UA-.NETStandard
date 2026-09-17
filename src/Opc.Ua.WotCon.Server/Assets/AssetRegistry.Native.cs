@@ -227,13 +227,27 @@ namespace Opc.Ua.WotCon.Server.Assets
                     }
                 }
             }
-            foreach (BaseDataVariableState variable in nodes.OfType<BaseDataVariableState>())
+            var assignedIds = new HashSet<NodeId>(assigned.Values);
+            foreach (IGrouping<string, BaseDataVariableState> propertyGroup in nodes.OfType<BaseDataVariableState>()
+                .Where(variable => ReferenceEquals(variable.Parent, root) &&
+                    !assigned.ContainsKey(variable.NodeId) && !string.IsNullOrEmpty(variable.BrowseName.Name))
+                .GroupBy(variable => variable.BrowseName.Name!, StringComparer.Ordinal))
             {
-                if (ReferenceEquals(variable.Parent, root) && !assigned.ContainsKey(variable.NodeId) &&
-                    !string.IsNullOrEmpty(variable.BrowseName.Name))
+                NodeId localId = m_manager.AllocateChildNodeId(entry.Name, "props", propertyGroup.Key);
+                bool qualify = propertyGroup.Count() > 1 || assignedIds.Contains(localId);
+                foreach (BaseDataVariableState variable in propertyGroup)
                 {
-                    assigned[variable.NodeId] = m_manager.AllocateChildNodeId(
-                        entry.Name, "props", variable.BrowseName.Name);
+                    NodeId nodeId = localId;
+                    if (qualify)
+                    {
+                        string namespaceUri = context.NamespaceUris.GetString(variable.BrowseName.NamespaceIndex) ??
+                            throw new ServiceResultException(StatusCodes.BadBrowseNameInvalid,
+                                "A mandatory declaration requires a known BrowseName namespace.");
+                        nodeId = m_manager.AllocateChildNodeId(entry.Name, "props",
+                            Uri.EscapeDataString(namespaceUri) + "/" + Uri.EscapeDataString(propertyGroup.Key));
+                    }
+                    assigned[variable.NodeId] = nodeId;
+                    assignedIds.Add(nodeId);
                 }
             }
             var propertyNodes = properties.ToDictionary(
