@@ -37,6 +37,9 @@ The legacy adapter imports the complete produced NodeSet with the public
 `UANodeSet.Import` and parent-linking APIs. Converted action argument Properties
 retain their native types and ranks. Variables also receive the legacy
 `HasWoTComponent` relation while retaining their native hierarchy/reference facts.
+This augmentation is prepared idempotently on the detached candidate before any
+provider or old-generation effects. A native root may repeat the owner's fixed
+`HasInterface` reference or author the `HasWoTComponent` relation.
 The existing asset NodeId and placement remain stable, and automatically assigned
 property/action identities use the existing legacy conventions.
 Argument Properties use the reserved `InputArguments` / `OutputArguments` children
@@ -62,8 +65,10 @@ owner or connect a provider.
 Failed native admission leaves an existing valid asset/provider/document in
 place. Replacing a valid graph reuses the existing R43 interaction indexing and
 cleanup paths; the additional native ownership/reference augmentation is retired
-with its graph. Registry mirroring/transaction semantics and event modes are
-separate contracts and are not changed by this mapping.
+with its graph. Only root references actually added by that graph are owned and
+removed during retirement; pre-existing owner references remain. Registry
+mirroring/transaction semantics and event modes are separate contracts and are
+not changed by this mapping.
 
 ## Direct and DI configuration
 

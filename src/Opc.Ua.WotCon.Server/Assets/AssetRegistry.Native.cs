@@ -297,6 +297,13 @@ namespace Opc.Ua.WotCon.Server.Assets
                         "A native identity belongs to another published node.");
                 }
             }
+            NodeId hasWotComponent = ExpandedNodeId.ToNodeId(
+                ReferenceTypeIds.HasWoTComponent, context.NamespaceUris);
+            foreach (BaseDataVariableState variable in nodes.OfType<BaseDataVariableState>())
+            {
+                root.AddReferenceIfMissing(hasWotComponent, false, variable.NodeId);
+                variable.AddReferenceIfMissing(hasWotComponent, true, root.NodeId);
+            }
             return new WotLegacyPreparedGraph(root, nodes.ToArrayOf(), propertyNodes, actionNodes);
         }
 
@@ -313,9 +320,9 @@ namespace Opc.Ua.WotCon.Server.Assets
             graph.Root.GetReferences(context, references);
             foreach (IReference reference in references)
             {
-                if (!reference.IsInverse && reference.ReferenceTypeId != Ua.ReferenceTypeIds.HasTypeDefinition)
+                if (!reference.IsInverse && reference.ReferenceTypeId != Ua.ReferenceTypeIds.HasTypeDefinition &&
+                    entry.Asset.AddReferenceIfMissing(reference.ReferenceTypeId, false, reference.TargetId))
                 {
-                    entry.Asset.AddReference(reference.ReferenceTypeId, false, reference.TargetId);
                     graph.RootReferences.Add(reference);
                 }
             }
@@ -326,8 +333,6 @@ namespace Opc.Ua.WotCon.Server.Assets
                 graph.Root.RemoveChild(child);
                 entry.Asset.AddChild(child);
             }
-            NodeId hasWotComponent = ExpandedNodeId.ToNodeId(
-                ReferenceTypeIds.HasWoTComponent, context.NamespaceUris);
             foreach (BaseDataVariableState variable in graph.Nodes.ToList().OfType<BaseDataVariableState>())
             {
                 bool authored = graph.Properties.TryGetValue(variable, out WotProjectedAffordance? affordance);
@@ -354,9 +359,6 @@ namespace Opc.Ua.WotCon.Server.Assets
                             WriteToProviderAsync(entry, tag, value, token);
                     }
                 }
-                entry.Asset.AddReference(hasWotComponent, false, variable.NodeId);
-                variable.AddReference(hasWotComponent, true, entry.Asset.NodeId);
-                graph.RootReferences.Add(new NodeStateReference(hasWotComponent, false, variable.NodeId));
                 entry.Properties.Add(variable.NodeId, (variable, tag));
             }
             foreach (KeyValuePair<MethodState, WotProjectedAffordance> pair in graph.Actions)
