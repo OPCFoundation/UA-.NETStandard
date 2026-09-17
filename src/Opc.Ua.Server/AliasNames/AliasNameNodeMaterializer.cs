@@ -93,6 +93,11 @@ namespace Opc.Ua.Server.AliasNames
         ValueTask RegisterNodeAsync(NodeState node, CancellationToken cancellationToken);
 
         /// <summary>
+        /// Removes a previously materialized node and its references.
+        /// </summary>
+        ValueTask RemoveNodeAsync(NodeId nodeId, CancellationToken cancellationToken);
+
+        /// <summary>
         /// Mints a fresh NodeId for a node whose deterministic id
         /// collided.
         /// </summary>
@@ -260,6 +265,49 @@ namespace Opc.Ua.Server.AliasNames
                     created,
                     cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Rebuilds the alias instances beneath one category after its
+        /// backing store changes.
+        /// </summary>
+        public async ValueTask RefreshCategoryAsync(
+            IAliasNameStore store,
+            NodeId categoryId,
+            CancellationToken cancellationToken = default)
+        {
+            AliasNameCategoryState? category = m_host.FindCategoryNode(categoryId);
+            if (category == null)
+            {
+                return;
+            }
+
+            var references = new List<IReference>();
+            category.GetReferences(m_host.SystemContext, references);
+            foreach (IReference reference in references)
+            {
+                NodeId targetId = ExpandedNodeId.ToNodeId(
+                    reference.TargetId,
+                    m_host.NamespaceUris);
+                if (reference.IsInverse ||
+                    reference.ReferenceTypeId != ReferenceTypeIds.Organizes ||
+                    !m_host.TryGetNode(targetId, out NodeState? node) ||
+                    node is not AliasNameState)
+                {
+                    continue;
+                }
+
+                await m_host.RemoveNodeAsync(targetId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            await MaterializeStoreAsync(
+                store,
+                new Dictionary<NodeId, IList<IReference>>(),
+                [],
+                [],
+                materializeAliasNodes: true,
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

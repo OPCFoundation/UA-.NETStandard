@@ -160,6 +160,7 @@ namespace Opc.Ua.Server.AliasNames
                 {
                     m_aliasLogger.AliasNameStoreCouldNotBeRegisteredWithThe(ex);
                 }
+
             }
 
             Store.Changed += OnStoreChanged;
@@ -196,6 +197,12 @@ namespace Opc.Ua.Server.AliasNames
                     category.LastChange.ClearChangeMasks(SystemContext, false);
                 }
             }
+
+            if (Options.MaterializeAliasNodes &&
+                m_localCategoryDispatcher.GetStoreForCategory(e.CategoryId) is IAliasNameStore store)
+            {
+                _ = m_materializer.RefreshCategoryAsync(store, e.CategoryId).AsTask();
+            }
         }
 
         private bool AuthorizeMutation(ISystemContext context)
@@ -228,6 +235,14 @@ namespace Opc.Ua.Server.AliasNames
             NodeState node, CancellationToken cancellationToken)
         {
             return AddPredefinedNodeAsync(SystemContext, node, cancellationToken);
+        }
+
+        async ValueTask IAliasNameMaterializerHost.RemoveNodeAsync(
+            NodeId nodeId,
+            CancellationToken cancellationToken)
+        {
+            await DeleteNodeAsync(SystemContext, nodeId, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         NodeId IAliasNameMaterializerHost.MintNodeId(NodeState node)

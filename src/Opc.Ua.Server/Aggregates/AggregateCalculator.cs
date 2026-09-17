@@ -335,7 +335,27 @@ namespace Opc.Ua.Server
             m_logger.ComputingAggregateStartTimeHHMmSsFff(CurrentSlice.StartTime);
 
             // compute the value.
-            DataValue computed = ComputeValue(CurrentSlice);
+            DataValue computed;
+            try
+            {
+                computed = ComputeValue(CurrentSlice);
+            }
+            catch (OverflowException)
+            {
+                computed = new DataValue(
+                    Variant.Null,
+                    StatusCodes.BadTypeMismatch,
+                    GetTimestamp(CurrentSlice),
+                    GetTimestamp(CurrentSlice));
+            }
+            catch (InvalidCastException)
+            {
+                computed = new DataValue(
+                    Variant.Null,
+                    StatusCodes.BadTypeMismatch,
+                    GetTimestamp(CurrentSlice),
+                    GetTimestamp(CurrentSlice));
+            }
 
             // check if overlapping the start or end of data (Part 13 §5.3.3.2). Both checks
             // use the chronological interval, so they apply in either time direction.
@@ -1612,9 +1632,16 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (StatusCode.IsGood(values[ii].StatusCode))
+                if (StatusCode.IsGood(values[ii].StatusCode) ||
+                    (!Configuration.TreatUncertainAsBad &&
+                        StatusCode.IsUncertain(values[ii].StatusCode)))
                 {
                     goodCount++;
+                }
+                else if (Configuration.TreatUncertainAsBad &&
+                    StatusCode.IsUncertain(values[ii].StatusCode))
+                {
+                    badCount++;
                 }
             }
 
@@ -1626,7 +1653,7 @@ namespace Opc.Ua.Server
             else if (badCount / totalCount * 100 >= Configuration.PercentDataBad)
             {
                 // bad if the bad count is greater than or equal to the configured threshold.
-                return StatusCodes.Bad;
+                return statusCode.WithCodeBits(StatusCodes.Bad);
             }
             else
             {

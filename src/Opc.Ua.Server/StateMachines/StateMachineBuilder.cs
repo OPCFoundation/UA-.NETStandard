@@ -854,6 +854,7 @@ namespace Opc.Ua.Server.StateMachines
                     {
                         materializedChild.SetState(ctx, 0);
                     }
+                    childBuilder.m_dispatcher.SynchronizeInitialState(ctx, 0);
                     materializedChild.SetSuspended(ctx, true);
                     return;
                 }
@@ -868,7 +869,13 @@ namespace Opc.Ua.Server.StateMachines
                 if (!preserveOnReentry || !childHasState)
                 {
                     materializedChild.SetState(ctx, initialChildStateId);
+                    materializedChild.ClearChangeMasks(ctx, true);
                 }
+                childBuilder.m_dispatcher.SynchronizeInitialState(
+                    ctx,
+                    StateMachineBuilder.ResolveStateId(
+                        materializedChild,
+                        materializedChild.CurrentState?.Id?.Value ?? NodeId.Null));
             }
 
             SyncChildToParentState(m_context, ExtractCurrentStateId(m_stateMachine));
@@ -878,7 +885,11 @@ namespace Opc.Ua.Server.StateMachines
             m_dispatcher.AddEnterStateHandler(parentStateId,
                 (ctx, parent) => SyncChildToParentState(ctx, parentStateId));
             m_dispatcher.AddExitStateHandler(parentStateId,
-                (ctx, parent) => materializedChild.SetSuspended(ctx, true));
+                (ctx, parent) =>
+                {
+                    childBuilder.m_dispatcher.SynchronizeInitialState(ctx, 0);
+                    materializedChild.SetSuspended(ctx, true);
+                });
 
             return this;
         }
@@ -1902,6 +1913,10 @@ namespace Opc.Ua.Server.StateMachines
                             m_context, stateId, revision, entry.TransitionId, entry.CauseId,
                             () => !registration.IsDisposed &&
                                 ReferenceEquals(Interlocked.CompareExchange(ref entry.Active, null, registration), registration));
+                        if (ServiceResult.IsGood(result))
+                        {
+                            m_stateMachine.ClearChangeMasks(m_context, true);
+                        }
                         if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadInvalidState)
                         {
                             m_logger.TimedTransitionRejected(stateId, result);

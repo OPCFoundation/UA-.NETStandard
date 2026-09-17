@@ -223,6 +223,24 @@ namespace Opc.Ua.Server
                     lastChange.ClearChangeMasks(SystemContext, false);
                 }
             }
+
+            if (m_aliasRegistry?.GetStoreForCategory(e.CategoryId) is IAliasNameStore store)
+            {
+                _ = RefreshRegisteredAliasCategoryAsync(store, e.CategoryId);
+            }
+        }
+
+        private async Task RefreshRegisteredAliasCategoryAsync(
+            IAliasNameStore store,
+            NodeId categoryId)
+        {
+            var materializer = new AliasNameNodeMaterializer(
+                this,
+                m_aliasRegistry!,
+                AliasNameMethodDispatcher.HasSecureAdminAccess,
+                m_logger);
+            await materializer.RefreshCategoryAsync(store, categoryId)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -291,6 +309,15 @@ namespace Opc.Ua.Server
             NodeState node, CancellationToken cancellationToken)
         {
             return AddPredefinedNodeAsync(SystemContext, node, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        async ValueTask IAliasNameMaterializerHost.RemoveNodeAsync(
+            NodeId nodeId,
+            CancellationToken cancellationToken)
+        {
+            await DeleteNodeAsync(SystemContext, nodeId, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>

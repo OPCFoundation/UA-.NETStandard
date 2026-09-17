@@ -141,7 +141,10 @@ namespace Opc.Ua.Server.AliasNames
                     "Unknown category: " + categoryId,
                     nameof(categoryId));
             }
-            var key = new MappingKey(referenceTypeId, targetNode);
+            var key = new MappingKey(
+                referenceTypeId,
+                targetNode,
+                string.IsNullOrEmpty(serverUri) ? null : serverUri);
             if (!entry.Aliases.TryGetValue(name, out Dictionary<MappingKey, string?>? group))
             {
                 group = [];
@@ -293,7 +296,10 @@ namespace Opc.Ua.Server.AliasNames
                         continue;
                     }
 
-                    var key = new MappingKey(req.TargetReferenceType, req.TargetNode);
+                    var key = new MappingKey(
+                        req.TargetReferenceType,
+                        req.TargetNode,
+                        string.IsNullOrEmpty(req.TargetServer) ? null : req.TargetServer);
                     if (!entry.Aliases.TryGetValue(req.Name,
                             out Dictionary<MappingKey, string?>? group))
                     {
@@ -645,7 +651,8 @@ namespace Opc.Ua.Server.AliasNames
 
         private readonly record struct MappingKey(
             NodeId ReferenceTypeId,
-            ExpandedNodeId TargetNode);
+            ExpandedNodeId TargetNode,
+            string? TargetServer);
 
         private sealed class CategoryEntry
         {
