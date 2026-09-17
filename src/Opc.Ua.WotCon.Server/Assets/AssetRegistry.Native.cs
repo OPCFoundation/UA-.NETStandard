@@ -275,6 +275,10 @@ namespace Opc.Ua.WotCon.Server.Assets
                     method.MethodDeclarationId = Remap(method.MethodDeclarationId, remap);
                 }
             }
+            var reserved = new Dictionary<NodeId, string>();
+            // The owner root is reused; only its fixed descendants are reserved.
+            m_manager.CreateAssetNode(entry.Name).GetInstanceHierarchy(
+                m_manager.SystemContext, string.Empty, reserved);
             var unique = new HashSet<NodeId>();
             foreach (NodeState node in nodes)
             {
@@ -287,6 +291,11 @@ namespace Opc.Ua.WotCon.Server.Assets
                 {
                     throw new ServiceResultException(StatusCodes.BadNodeIdExists,
                         "Native identities collide in the legacy asset's published graph.");
+                }
+                if (reserved.ContainsKey(node.NodeId))
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdExists,
+                        "A native identity belongs to a fixed legacy asset node.");
                 }
                 NodeState? existing = m_manager.FindPredefinedNode<NodeState>(node.NodeId);
                 if (existing is not null && !ReferenceEquals(existing, entry.Asset) &&

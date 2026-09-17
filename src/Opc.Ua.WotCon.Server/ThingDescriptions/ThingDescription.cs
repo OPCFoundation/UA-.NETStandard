@@ -36,7 +36,7 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
     /// <summary>
     /// W3C WoT Thing Description root document. Only the fields consumed
     /// by the WoT Connectivity mapping (OPC 10100-1 §6) are modelled;
-    /// unknown fields are tolerated and ignored.
+    /// unmodeled members are retained for native discovery admission.
     /// </summary>
     public sealed class ThingDescription
     {
@@ -79,6 +79,13 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         /// <summary>WoT events keyed by event name (OPC 10100-1 §6.3.10).</summary>
         [JsonPropertyName("events")]
         public Dictionary<string, WotEvent>? Events { get; set; }
+
+        /// <summary>
+        /// Native identity metadata and other unmodeled root members.
+        /// </summary>
+        [JsonInclude]
+        [JsonExtensionData]
+        internal Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     /// <summary>
@@ -118,6 +125,13 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         /// <summary>Protocol binding forms.</summary>
         [JsonPropertyName("forms")]
         public List<JsonElement>? Forms { get; set; }
+
+        /// <summary>
+        /// Unmodeled event mapping metadata retained during discovery.
+        /// </summary>
+        [JsonInclude]
+        [JsonExtensionData]
+        internal Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     /// <summary>
@@ -161,6 +175,13 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         /// <summary>Forms — protocol-binding specific endpoints.</summary>
         [JsonPropertyName("forms")]
         public List<JsonElement>? Forms { get; set; }
+
+        /// <summary>
+        /// Unmodeled property mapping metadata retained during discovery.
+        /// </summary>
+        [JsonInclude]
+        [JsonExtensionData]
+        internal Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     /// <summary>
@@ -171,6 +192,13 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         /// <summary>The element JSON-schema <c>type</c>.</summary>
         [JsonPropertyName("type")]
         public string? Type { get; set; }
+
+        /// <summary>
+        /// Unmodeled item-schema metadata retained during discovery.
+        /// </summary>
+        [JsonInclude]
+        [JsonExtensionData]
+        internal Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     /// <summary>
@@ -216,6 +244,13 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         /// <summary>Forms — protocol-binding specific endpoints.</summary>
         [JsonPropertyName("forms")]
         public List<JsonElement>? Forms { get; set; }
+
+        /// <summary>
+        /// Unmodeled action mapping metadata retained during discovery.
+        /// </summary>
+        [JsonInclude]
+        [JsonExtensionData]
+        internal Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     /// <summary>
@@ -240,6 +275,13 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         /// </summary>
         [JsonPropertyName("properties")]
         public Dictionary<string, WotActionMember>? Properties { get; set; }
+
+        /// <summary>
+        /// Unmodeled payload-schema metadata retained during discovery.
+        /// </summary>
+        [JsonInclude]
+        [JsonExtensionData]
+        internal Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     /// <summary>
@@ -270,5 +312,12 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         /// <summary>Element schema for array members.</summary>
         [JsonPropertyName("items")]
         public WotPropertyItems? Items { get; set; }
+
+        /// <summary>
+        /// Unmodeled member-schema metadata retained during discovery.
+        /// </summary>
+        [JsonInclude]
+        [JsonExtensionData]
+        internal Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 }

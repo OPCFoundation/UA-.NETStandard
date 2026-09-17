@@ -57,10 +57,21 @@ including literal spellings and unknown members. The provider-facing
 `ThingDescription` is not serialized over those uploaded bytes.
 
 For endpoint discovery, the generated description is validated and prepared
-before creating its published asset owner. On restart, a persisted native
+before creating its published asset owner. Its source-generated JSON model
+retains unmodeled root, affordance and value-schema members, including native
+envelopes, projections and interaction identities, so serialization cannot
+discard those identities before admission. On restart, a persisted native
 document is likewise prepared before asset creation. An invalid persisted type
 binding leaves its source file intact and does not publish an unmaterialized
 owner or connect a provider.
+
+Admission reserves the prospective owner's complete fixed child hierarchy,
+including the `File` node and its generated properties, methods and argument
+nodes, even when the owner is not yet published. Reservation and publication
+use the same asset creation and child-identity allocation code, with
+`NodeState.GetInstanceHierarchy` enumerating the actual generated subtree.
+Only those identities are reserved, not a string prefix; the selected native
+root still reuses the owner's identity.
 
 Failed native admission leaves an existing valid asset/provider/document in
 place. Replacing a valid graph reuses the existing R43 interaction indexing and

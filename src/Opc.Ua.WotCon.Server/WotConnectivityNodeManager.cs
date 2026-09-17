@@ -173,6 +173,36 @@ namespace Opc.Ua.WotCon.Server
         }
 
         /// <summary>
+        /// Builds an unpublished asset and its fixed child hierarchy.
+        /// </summary>
+        internal IWoTAssetState CreateAssetNode(string assetName)
+        {
+            var asset = new IWoTAssetState(null)
+            {
+                NodeId = AllocateAssetNodeId(assetName),
+                SymbolicName = assetName,
+                BrowseName = new QualifiedName(assetName, AssetNamespaceIndex),
+                DisplayName = new LocalizedText(assetName),
+                ReferenceTypeId = Ua.ReferenceTypeIds.Organizes,
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            asset.Create(SystemContext, asset.NodeId, asset.BrowseName, asset.DisplayName, true);
+            asset.AddReference(Ua.ReferenceTypeIds.HasInterface, isInverse: false,
+                ExpandedNodeId.ToNodeId(ObjectTypeIds.IWoTAssetType, Server.NamespaceUris));
+
+            if (asset.WoTFile != null)
+            {
+                asset.WoTFile.NodeId = new NodeId($"Assets/{assetName}/File", AssetNamespaceIndex);
+                asset.WoTFile.BrowseName = new QualifiedName(BrowseNames.WoTFile, WotConNamespaceIndex);
+                asset.WoTFile.DisplayName = new LocalizedText("WoTFile");
+                AssignChildNodeIds(asset.WoTFile, $"Assets/{assetName}/File");
+                asset.WoTFile.CloseAndUpdate?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                    MethodIds.WoTAssetFileType_CloseAndUpdate, Server.NamespaceUris);
+            }
+            return asset;
+        }
+
+        /// <summary>
         /// Creates an asset object below the management node.
         /// </summary>
         internal async ValueTask<AssetEntry> CreateAssetNodeAsync(
@@ -182,29 +212,7 @@ namespace Opc.Ua.WotCon.Server
             await m_writeLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                var asset = new IWoTAssetState(m_managementObject)
-                {
-                    NodeId = AllocateAssetNodeId(assetName),
-                    SymbolicName = assetName,
-                    BrowseName = new QualifiedName(assetName, AssetNamespaceIndex),
-                    DisplayName = new LocalizedText(assetName),
-                    ReferenceTypeId = Ua.ReferenceTypeIds.Organizes,
-                    TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
-                };
-                asset.Create(SystemContext, asset.NodeId, asset.BrowseName, asset.DisplayName, true);
-                asset.AddReference(Ua.ReferenceTypeIds.HasInterface, isInverse: false,
-                    ExpandedNodeId.ToNodeId(ObjectTypeIds.IWoTAssetType, Server.NamespaceUris));
-
-                if (asset.WoTFile != null)
-                {
-                    asset.WoTFile.NodeId = new NodeId($"Assets/{assetName}/File", AssetNamespaceIndex);
-                    asset.WoTFile.BrowseName = new QualifiedName(BrowseNames.WoTFile, WotConNamespaceIndex);
-                    asset.WoTFile.DisplayName = new LocalizedText("WoTFile");
-                    AssignChildNodeIds(asset.WoTFile, $"Assets/{assetName}/File");
-                    asset.WoTFile.CloseAndUpdate?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
-                        MethodIds.WoTAssetFileType_CloseAndUpdate, Server.NamespaceUris);
-                }
-
+                IWoTAssetState asset = CreateAssetNode(assetName);
                 m_managementObject!.AddChild(asset);
                 m_managementObject.AddReference(Ua.ReferenceTypeIds.Organizes, isInverse: false, asset.NodeId);
                 asset.AddReference(Ua.ReferenceTypeIds.Organizes, isInverse: true, m_managementObject.NodeId);
