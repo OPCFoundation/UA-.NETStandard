@@ -77,7 +77,7 @@ namespace Opc.Ua
             m_token = new UserNameIdentityToken
             {
                 UserName = username,
-                Password = password.ToByteString()
+                Password = default
             };
             m_securityPolicies = securityPolicies ?? SecurityPolicies.Default;
         }

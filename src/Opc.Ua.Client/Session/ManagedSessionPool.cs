@@ -58,7 +58,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public Task<ManagedSession> GetOrConnectAsync(
+        public async Task<ManagedSession> GetOrConnectAsync(
             string key,
             ConfiguredEndpoint endpoint,
             Action<ManagedSessionBuilder> configure,
@@ -77,18 +77,35 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(configure));
             }
 
-            // The connect is shared by every caller for this key, so it must
-            // not run under the token of whichever caller happened to be first;
-            // each caller observes its own token while awaiting the result.
-            // The pool keeps its own token so removal and disposal can still
-            // abort a connect nobody is waiting for any more.
-            var created = new Entry(this, key, endpoint, configure);
-            Entry entry = m_sessions.GetOrAdd(key, created);
-            if (!ReferenceEquals(entry, created))
+            while (true)
             {
-                created.Dispose();
+                // The connect is shared by every caller for this key, so it must
+                // not run under the token of whichever caller happened to be first;
+                // each caller observes its own token while awaiting the result.
+                // The pool keeps its own token so removal and disposal can still
+                // abort a connect nobody is waiting for any more.
+                var created = new Entry(this, key, endpoint, configure);
+                Entry entry = m_sessions.GetOrAdd(key, created);
+                if (!ReferenceEquals(entry, created))
+                {
+                    created.Dispose();
+                }
+
+                ManagedSession session = await entry.Connect.WaitAsync(ct).ConfigureAwait(false);
+                if (!session.Disposed &&
+                    session.StateMachine.State is not ConnectionState.Closed
+                        and not ConnectionState.Closing
+                        and not ConnectionState.Disconnected)
+                {
+                    return session;
+                }
+
+                if (((ICollection<KeyValuePair<string, Entry>>)m_sessions)
+                    .Remove(new KeyValuePair<string, Entry>(key, entry)))
+                {
+                    await CloseAndDisposeAsync(entry, CancellationToken.None).ConfigureAwait(false);
+                }
             }
-            return entry.Connect.WaitAsync(ct);
         }
 
         /// <inheritdoc/>
