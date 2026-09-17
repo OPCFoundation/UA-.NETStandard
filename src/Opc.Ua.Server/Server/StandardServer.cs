@@ -37,6 +37,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
+using Opc.Ua.Identity;
 using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
 
@@ -3786,6 +3787,15 @@ namespace Opc.Ua.Server
                     TimeProvider,
                     SecurityPolicyRegistry);
 
+                foreach (IUserTokenAuthenticator authenticator in m_preStartAuthenticators)
+                {
+                    m_serverInternal.IdentityRegistry.Register(authenticator);
+                }
+                foreach (IIdentityAugmenter augmenter in m_preStartIdentityAugmenters)
+                {
+                    m_serverInternal.IdentityRegistry.RegisterAugmenter(augmenter);
+                }
+
                 m_serverInternal.SetNodeIdFactory(NodeIdFactory);
                 m_serverInternal.SetNodeIdCollisionDetection(DetectNodeIdCollisions);
                 if (NodeIdFactory is Hosting.IServerPreStartupTask factoryInitialization)
@@ -4096,6 +4106,38 @@ namespace Opc.Ua.Server
                 m_certManagerSubscription = CertificateManager.CertificateChanges
                     .Subscribe(new CertificateManagerChangeObserver(this, m_logger));
             }
+        }
+
+        internal void RegisterIdentityAuthenticator(IUserTokenAuthenticator authenticator)
+        {
+            if (authenticator == null)
+            {
+                throw new ArgumentNullException(nameof(authenticator));
+            }
+
+            if (m_serverInternal is { } serverInternal)
+            {
+                serverInternal.IdentityRegistry.Register(authenticator);
+                return;
+            }
+
+            m_preStartAuthenticators.Add(authenticator);
+        }
+
+        internal void RegisterIdentityAugmenter(IIdentityAugmenter augmenter)
+        {
+            if (augmenter == null)
+            {
+                throw new ArgumentNullException(nameof(augmenter));
+            }
+
+            if (m_serverInternal is { } serverInternal)
+            {
+                serverInternal.IdentityRegistry.RegisterAugmenter(augmenter);
+                return;
+            }
+
+            m_preStartIdentityAugmenters.Add(augmenter);
         }
 
         /// <inheritdoc/>
@@ -5096,6 +5138,8 @@ namespace Opc.Ua.Server
 
         private readonly List<Hosting.IServerPreStartupTask> m_preStartupTasks =
             [];
+        private readonly List<IUserTokenAuthenticator> m_preStartAuthenticators = [];
+        private readonly List<IIdentityAugmenter> m_preStartIdentityAugmenters = [];
 
         private IDisposable? m_certManagerSubscription;
         private ServerRateLimitOptions? m_rateLimitOptions;
