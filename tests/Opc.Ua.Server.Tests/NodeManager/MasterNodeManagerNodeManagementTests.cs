@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -1510,6 +1508,54 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task AddReferencesSameManagerLocalTargetMirrorsInverseEdgeAsync()
+        {
+            ushort namespaceIndex = GetTestNamespaceIndex();
+            NodeId sourceNodeId = new NodeId("Source", namespaceIndex);
+            NodeId targetNodeId = new NodeId("Target", namespaceIndex);
+            Mock<INodeManagerWithNodeManagement> manager = CreateSameManagerNodeManagementManager(
+                namespaceIndex,
+                sourceNodeId,
+                targetNodeId);
+
+            using MasterNodeManager sut = CreateMasterNodeManager(manager.Object);
+            OperationContext context = CreateContext();
+            var item = new AddReferencesItem
+            {
+                SourceNodeId = sourceNodeId,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                IsForward = true,
+                TargetNodeId = targetNodeId,
+                TargetNodeClass = NodeClass.Object
+            };
+
+            (ArrayOf<StatusCode> results, _) = await sut.AddReferencesAsync(
+                context,
+                new AddReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
+            manager.Verify(
+                m => m.AddReferenceAsync(
+                    context,
+                    It.Is<AddReferencesItem>(request =>
+                        request.SourceNodeId == sourceNodeId &&
+                        request.TargetNodeId == targetNodeId &&
+                        request.IsForward),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+            manager.Verify(
+                m => m.AddReferenceAsync(
+                    context,
+                    It.Is<AddReferencesItem>(request =>
+                        request.SourceNodeId == targetNodeId &&
+                        request.TargetNodeId == sourceNodeId &&
+                        !request.IsForward),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
         public async Task AddReferencesTargetOwnerNotOptedInReturnsBadUserAccessDeniedAsync()
         {
             using var harness = new AuthorizationHarness();
@@ -1735,6 +1781,56 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<DeleteReferencesItem>(),
                     It.IsAny<CancellationToken>()),
                 Times.Never);
+        }
+
+        [Test]
+        public async Task DeleteReferencesSameManagerLocalTargetDeletesInverseEdgeAsync()
+        {
+            ushort namespaceIndex = GetTestNamespaceIndex();
+            NodeId sourceNodeId = new NodeId("Source", namespaceIndex);
+            NodeId targetNodeId = new NodeId("Target", namespaceIndex);
+            Mock<INodeManagerWithNodeManagement> manager = CreateSameManagerNodeManagementManager(
+                namespaceIndex,
+                sourceNodeId,
+                targetNodeId);
+
+            using MasterNodeManager sut = CreateMasterNodeManager(manager.Object);
+            OperationContext context = CreateContext();
+            var item = new DeleteReferencesItem
+            {
+                SourceNodeId = sourceNodeId,
+                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                IsForward = true,
+                TargetNodeId = targetNodeId,
+                DeleteBidirectional = true
+            };
+
+            (ArrayOf<StatusCode> results, _) = await sut.DeleteReferencesAsync(
+                context,
+                new DeleteReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
+            manager.Verify(
+                m => m.DeleteReferenceAsync(
+                    context,
+                    It.Is<DeleteReferencesItem>(request =>
+                        request.SourceNodeId == sourceNodeId &&
+                        request.TargetNodeId == targetNodeId &&
+                        request.IsForward &&
+                        !request.DeleteBidirectional),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+            manager.Verify(
+                m => m.DeleteReferenceAsync(
+                    context,
+                    It.Is<DeleteReferencesItem>(request =>
+                        request.SourceNodeId == targetNodeId &&
+                        request.TargetNodeId == sourceNodeId &&
+                        !request.IsForward &&
+                        !request.DeleteBidirectional),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
         }
 
         [Test]
@@ -2023,6 +2119,50 @@ namespace Opc.Ua.Server.Tests
             var manager = new Mock<INodeManagerWithNodeManagement>();
             manager.Setup(m => m.NamespaceUris).Returns([TestNamespaceUri]);
             manager.Setup(m => m.AllowNodeManagement).Returns(allowNodeManagement);
+            return manager;
+        }
+
+        private static Mock<INodeManagerWithNodeManagement> CreateSameManagerNodeManagementManager(
+            ushort namespaceIndex,
+            NodeId sourceNodeId,
+            NodeId targetNodeId)
+        {
+            var manager = CreateNodeManagementManager(true);
+            var sourceHandle = new object();
+            var targetHandle = new object();
+
+            manager.Setup(m => m.GetManagerHandle(sourceNodeId)).Returns(sourceHandle);
+            manager.Setup(m => m.GetManagerHandle(targetNodeId)).Returns(targetHandle);
+            manager
+                .Setup(m => m.GetNodeMetadata(
+                    It.IsAny<OperationContext>(),
+                    sourceHandle,
+                    BrowseResultMask.NodeClass))
+                .Returns(new NodeMetadata(sourceHandle, sourceNodeId)
+                {
+                    NodeClass = NodeClass.Object
+                });
+            manager
+                .Setup(m => m.GetNodeMetadata(
+                    It.IsAny<OperationContext>(),
+                    targetHandle,
+                    BrowseResultMask.NodeClass))
+                .Returns(new NodeMetadata(targetHandle, targetNodeId)
+                {
+                    NodeClass = NodeClass.Object
+                });
+            manager
+                .Setup(m => m.AddReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<AddReferencesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ServiceResult.Good);
+            manager
+                .Setup(m => m.DeleteReferenceAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<DeleteReferencesItem>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ServiceResult.Good);
             return manager;
         }
 

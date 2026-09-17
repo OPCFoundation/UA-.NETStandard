@@ -638,15 +638,16 @@ namespace Opc.Ua.Server
                 }
             }
 
+            bool localTarget = targetOwner != null;
             bool crossManagerTarget =
-                targetOwner != null &&
+                localTarget &&
                 !ReferenceEquals(targetOwner, sourceOwner);
-            if (crossManagerTarget &&
+            if (localTarget &&
                 (sourceMetadata == null || sourceMetadata.NodeClass == NodeClass.Unspecified))
             {
                 return new ServiceResult(StatusCodes.BadSourceNodeIdInvalid);
             }
-            if (crossManagerTarget &&
+            if (localTarget &&
                 (targetMetadata == null || targetMetadata.NodeClass == NodeClass.Unspecified))
             {
                 return new ServiceResult(StatusCodes.BadTargetNodeIdInvalid);
@@ -670,7 +671,7 @@ namespace Opc.Ua.Server
 
             // Write the complementary edge into the target's owning manager when the
             // target is explicitly local. Roll back the source edge if the target mutation fails.
-            if (crossManagerTarget)
+            if (localTarget)
             {
                 var inverseItem = new AddReferencesItem
                 {
@@ -823,8 +824,7 @@ namespace Opc.Ua.Server
             }
 
             DeleteReferencesItem sourceItem = item;
-            if (item.DeleteBidirectional &&
-                (!explicitlyLocalTarget || crossManagerTarget))
+            if (item.DeleteBidirectional)
             {
                 sourceItem = new DeleteReferencesItem
                 {
@@ -855,7 +855,8 @@ namespace Opc.Ua.Server
                 return sourceResult;
             }
 
-            if (!crossManagerTarget)
+            if (!item.DeleteBidirectional ||
+                !explicitlyLocalTarget)
             {
                 return sourceResult;
             }

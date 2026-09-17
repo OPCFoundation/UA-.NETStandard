@@ -1947,6 +1947,11 @@ namespace Opc.Ua.Server
             }
 
             var typeDefinitionId = ExpandedNodeId.ToNodeId(item.TypeDefinition, Server.NamespaceUris);
+            ServiceResult typeDefinitionResult = ValidateAddNodesTypeDefinition(item.NodeClass, typeDefinitionId);
+            if (ServiceResult.IsBad(typeDefinitionResult))
+            {
+                return (typeDefinitionResult, NodeId.Null);
+            }
 
             BaseInstanceState instance;
             try
@@ -2069,19 +2074,22 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                // Publish the forward reference through the parent's owning manager, whether local or remote.
-                try
+                // Remote parents need an explicit reference added through their owning manager.
+                if (parentNode == null)
                 {
-                    var forward = new List<IReference>
+                    try
                     {
-                        new NodeStateReference(item.ReferenceTypeId, false, instance.NodeId)
-                    };
-                    await Server.NodeManager.AddReferencesAsync(
-                        parentNodeId, forward, cancellationToken).ConfigureAwait(false);
-                }
-                catch (ServiceResultException ex)
-                {
-                    return (new ServiceResult(ex), NodeId.Null);
+                        var forward = new List<IReference>
+                        {
+                            new NodeStateReference(item.ReferenceTypeId, false, instance.NodeId)
+                        };
+                        await Server.NodeManager.AddReferencesAsync(
+                            parentNodeId, forward, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException ex)
+                    {
+                        return (new ServiceResult(ex), NodeId.Null);
+                    }
                 }
 
                 await RefreshParentComponentCacheAsync(parentNodeId, cancellationToken).ConfigureAwait(false);
@@ -2515,6 +2523,34 @@ namespace Opc.Ua.Server
                 default:
                     throw new ServiceResultException(StatusCodes.BadNodeClassInvalid);
             }
+        }
+
+        private ServiceResult ValidateAddNodesTypeDefinition(
+            NodeClass nodeClass,
+            NodeId typeDefinitionId)
+        {
+            if (nodeClass != NodeClass.Object &&
+                nodeClass != NodeClass.Variable)
+            {
+                return ServiceResult.Good;
+            }
+
+            if (typeDefinitionId.IsNull ||
+                !Server.TypeTree.IsKnown(typeDefinitionId))
+            {
+                return new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
+            }
+
+            NodeId expectedBaseTypeId = nodeClass == NodeClass.Object
+                ? ObjectTypeIds.BaseObjectType
+                : VariableTypeIds.BaseVariableType;
+
+            if (!Server.TypeTree.IsTypeOf(typeDefinitionId, expectedBaseTypeId))
+            {
+                return new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
+            }
+
+            return ServiceResult.Good;
         }
 
         private static void ApplyVariableAttributes(
