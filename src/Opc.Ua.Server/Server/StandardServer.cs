@@ -603,6 +603,8 @@ namespace Opc.Ua.Server
             using IDisposable? rateLimitLease = BeginSessionEstablishmentOrThrow();
 
             ISession? session = null;
+            CertificateCollection? clientIssuerCertificates = null;
+            Certificate? parsedClientCertificate = null;
             try
             {
                 // check the server uri.
@@ -619,11 +621,7 @@ namespace Opc.Ua.Server
                     requireEncryption = true;
                 }
 
-                CertificateCollection? clientIssuerCertificates = null;
-
                 // validate client application instance certificate.
-                Certificate? parsedClientCertificate = null;
-
                 if (context.SecurityPolicyUri != SecurityPolicies.None)
                 {
                     try
@@ -705,18 +703,16 @@ namespace Opc.Ua.Server
                 }
 
                 // verify the nonce provided by the client.
-                if (!clientNonce.IsEmpty)
+                if (context.SecurityPolicyUri != SecurityPolicies.None)
                 {
-                    if (clientNonce.Length < m_minNonceLength)
+                    if (clientNonce.Length < m_minNonceLength || clientNonce.Length > 128)
                     {
                         throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                     }
-
-                    // ignore nonce if security policy set to none
-                    if (context.SecurityPolicyUri == SecurityPolicies.None)
-                    {
-                        clientNonce = default;
-                    }
+                }
+                else
+                {
+                    clientNonce = default;
                 }
 
                 // load the certificate for the security profile. The session
@@ -742,6 +738,11 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
 
                 session = result.Session;
+                ServerInternal.UpdateServerDiagnostics(diagnostics =>
+                {
+                    diagnostics.CurrentSessionCount++;
+                    diagnostics.CumulatedSessionCount++;
+                });
                 sessionId = result.SessionId;
                 authenticationToken = result.AuthenticationToken;
                 serverNonce = result.ServerNonce;
@@ -768,7 +769,7 @@ namespace Opc.Ua.Server
                         m_logger.ServerClientConnectsWithAnEndpointUrlEndpointUrl(endpointUrl);
                         ServerInternal.ReportAuditUrlMismatchEvent(
                             context.AuditEntryId!,
-                            session,
+                            session!,
                             revisedSessionTimeout,
                             endpointUrl,
                             m_logger);
@@ -813,18 +814,12 @@ namespace Opc.Ua.Server
                     clientNonce,
                     serverNonce);
 
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.CurrentSessionCount++;
-                    diagnostics.CumulatedSessionCount++;
-                });
-
                 m_logger.ServerSESSIONCREATEDSessionIdSessionId(sessionId);
 
                 // report audit for successful create session
                 ServerInternal.ReportAuditCreateSessionEvent(
                     context.AuditEntryId!,
-                    session,
+                    session!,
                     revisedSessionTimeout,
                     m_logger);
 
@@ -848,8 +843,14 @@ namespace Opc.Ua.Server
                     MaxRequestMessageSize = maxRequestMessageSize
                 };
             }
-            catch (ServiceResultException e)
+            catch (Exception exception)
             {
+                ServiceResultException e = exception as ServiceResultException
+                    ?? ServiceResultException.Create(
+                        StatusCodes.BadUnexpectedError,
+                        exception,
+                        "CreateSession failed: {0}",
+                        exception.Message);
                 m_logger.ServerSESSIONCREATEFailedErrorMessage(e.Message);
 
                 // report the failed AuditCreateSessionEvent
@@ -863,6 +864,11 @@ namespace Opc.Ua.Server
                 if (session != null)
                 {
                     await ServerInternal.SessionManager.CloseSessionAsync(session.Id, requestLifetime.CancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    parsedClientCertificate?.Dispose();
+                    clientIssuerCertificates?.Dispose();
                 }
 
                 ServerInternal.UpdateServerDiagnostics(diagnostics =>

@@ -1308,8 +1308,22 @@ namespace Opc.Ua.Server
                         identity);
                     m_securityDiagnostics.ClientUserIdOfSession = clientUserId;
                     m_securityDiagnostics.AuthenticationMechanism = identity.TokenType.ToString();
-                    m_securityDiagnostics.ClientUserIdHistory =
-                        m_securityDiagnostics.ClientUserIdHistory.AddItem(clientUserId!);
+                    ArrayOf<string> history = m_securityDiagnostics.ClientUserIdHistory;
+                    if (history.Count == 0 ||
+                        !string.Equals(
+                            history[history.Count - 1],
+                            clientUserId,
+                            StringComparison.Ordinal))
+                    {
+                        int retainedCount = Math.Min(history.Count, kMaxClientUserIdHistory - 1);
+                        string[] updatedHistory = new string[retainedCount + 1];
+                        if (retainedCount > 0)
+                        {
+                            history.Span[^retainedCount..].CopyTo(updatedHistory);
+                        }
+                        updatedHistory[retainedCount] = clientUserId!;
+                        m_securityDiagnostics.ClientUserIdHistory = updatedHistory.ToArrayOf();
+                    }
                 }
 
                 return changed;
@@ -1471,6 +1485,7 @@ namespace Opc.Ua.Server
         /// <see cref="UpdateDiagnostics"/> and <see cref="ReadDiagnostics{TResult}"/>.
         /// </summary>
         private readonly Lock m_diagnosticsLock = new();
+        private const int kMaxClientUserIdHistory = 100;
         private int m_closing;
         private readonly ILogger m_eventLogger;
         private readonly IServerInternal m_server;

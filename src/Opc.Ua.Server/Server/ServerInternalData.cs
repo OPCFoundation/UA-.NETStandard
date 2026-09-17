@@ -1216,6 +1216,11 @@ namespace Opc.Ua.Server
                     ServerObject.ServiceLevel.Value,
                     CultureInfo.InvariantCulture);
 
+                if (currentServiceLevel < ServiceLevels.HealthyMinimum)
+                {
+                    return;
+                }
+
                 if (!ServerServiceLevelCalculator.ShouldUpdate(currentServiceLevel, targetServiceLevel))
                 {
                     return;

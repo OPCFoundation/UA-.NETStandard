@@ -90,11 +90,11 @@ namespace Opc.Ua.Server
             NamespaceTable namespaceUris)
         {
             m_sessionIdProvider = sessionIdProvider ?? throw new ArgumentNullException(nameof(sessionIdProvider));
-            if (maxBrowse <= 0)
+            if (maxBrowse < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(maxBrowse));
             }
-            if (maxHistory <= 0)
+            if (maxHistory < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(maxHistory));
             }
@@ -109,6 +109,7 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Gets or sets the maximum number of browse continuation points retained before the oldest is dropped.
+        /// A value of zero means that no limit is imposed.
         /// </summary>
         public int MaxBrowse { get; set; }
 
@@ -150,7 +151,7 @@ namespace Opc.Ua.Server
                             "The session closed while the browse continuation point was being persisted.");
                     }
                     m_browse ??= [];
-                    while (m_browse.Count >= MaxBrowse)
+                    while (MaxBrowse > 0 && m_browse.Count >= MaxBrowse)
                     {
                         ContinuationPoint cp = m_browse[0];
                         m_browse.RemoveAt(0);
@@ -695,7 +696,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                while (m_history.Count >= m_maxHistory)
+                while (m_maxHistory > 0 && m_history.Count >= m_maxHistory)
                 {
                     int evictionIndex = FindEvictableHistoryIndex();
                     if (evictionIndex < 0)

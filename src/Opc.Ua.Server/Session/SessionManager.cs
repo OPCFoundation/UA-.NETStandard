@@ -1845,7 +1845,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Gets the lockout key for a client based on certificate thumbprint or application URI.
+        /// Gets the lockout key for a client without using client-controlled session metadata.
         /// </summary>
         private static string GetClientLockoutKey(ISession session)
         {
@@ -1854,13 +1854,7 @@ namespace Opc.Ua.Server
                 return session.ClientCertificate.Thumbprint;
             }
 
-            string? applicationUri = session?.ClientApplicationUri;
-            if (!string.IsNullOrEmpty(applicationUri))
-            {
-                return applicationUri!;
-            }
-
-            return session?.SecureChannelId ?? string.Empty;
+            return "unsecured-client";
         }
 
         /// <summary>
