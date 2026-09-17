@@ -778,9 +778,9 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task RecoverTransferredMessagesPreservesNewerAvailableSetAsync()
         {
             int republishCalls = 0;
-            var firstRepublishStarted = new TaskCompletionSource(
+            var firstRepublishStarted = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var releaseFirstRepublish = new TaskCompletionSource(
+            var releaseFirstRepublish = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
 
             m_mockServices
@@ -794,9 +794,9 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     if (Interlocked.Increment(ref republishCalls) == 1)
                     {
-                        firstRepublishStarted.SetResult();
+                        firstRepublishStarted.SetResult(true);
                         await releaseFirstRepublish.Task
-                            .WaitAsync(TimeSpan.FromSeconds(5));
+                            .WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
                     }
 
                     return new RepublishResponse
@@ -825,7 +825,7 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(sut.AvailableInRetransmissionQueue,
                     Is.EqualTo(new uint[] { 11, 12 }));
 
-                releaseFirstRepublish.SetResult();
+                releaseFirstRepublish.SetResult(true);
                 await recoverTask.WaitAsync(TimeSpan.FromSeconds(5));
 
                 Assert.That(sut.AvailableInRetransmissionQueue,
