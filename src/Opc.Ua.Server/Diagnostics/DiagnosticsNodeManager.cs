@@ -1128,6 +1128,10 @@ namespace Opc.Ua.Server
                 CopyPolicy = VariableCopyPolicy.Never,
                 OnBeforeRead = OnBeforeReadDiagnostics
             };
+            NodeId ownerSessionId = diagnostics.SessionId;
+            diagnosticsNode!.OnReadUserRolePermissions =
+                (ISystemContext context, NodeState node, ref ArrayOf<RolePermissionType> value) =>
+                    OnReadUserRolePermissions(context, node, ownerSessionId, ref value);
 
             // initialize security diagnostics node.
             var securityDiagnosticsNode =
@@ -1148,6 +1152,9 @@ namespace Opc.Ua.Server
                 CopyPolicy = VariableCopyPolicy.Never,
                 OnBeforeRead = OnBeforeReadDiagnostics
             };
+            securityDiagnosticsNode!.OnReadUserRolePermissions =
+                (ISystemContext context, NodeState node, ref ArrayOf<RolePermissionType> value) =>
+                    OnReadUserRolePermissions(context, node, ownerSessionId, ref value);
 
             return new SessionDiagnosticsData(
                 sessionNode,
@@ -1324,6 +1331,10 @@ namespace Opc.Ua.Server
                 Value = null!,
                 Error = StatusCodes.BadWaitingForInitialData
             };
+            NodeId ownerSessionId = diagnostics.SessionId;
+            diagnosticsNode.OnReadUserRolePermissions =
+                (ISystemContext context, NodeState node, ref ArrayOf<RolePermissionType> value) =>
+                    OnReadUserRolePermissions(context, node, ownerSessionId, ref value);
 
             return new SubscriptionDiagnosticsData(diagnosticsValue, updateCallback, diagnostics);
         }
@@ -1989,6 +2000,15 @@ namespace Opc.Ua.Server
             NodeState node,
             ref ArrayOf<RolePermissionType> value)
         {
+            return OnReadUserRolePermissions(context, node, node.NodeId, ref value);
+        }
+
+        private ServiceResult OnReadUserRolePermissions(
+            ISystemContext context,
+            NodeState node,
+            NodeId ownerSessionId,
+            ref ArrayOf<RolePermissionType> value)
+        {
             bool adminUser;
 
             if ((node.NodeId == VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary) ||
@@ -2000,7 +2020,8 @@ namespace Opc.Ua.Server
             {
                 // allow Session to see own session diagnostics
                 NodeId curSession = (context as ISessionSystemContext)?.SessionId ?? default;
-                adminUser = node.NodeId == curSession || HasApplicationSecureAdminAccess(context);
+                adminUser = ownerSessionId == curSession || node.NodeId == curSession ||
+                    HasApplicationSecureAdminAccess(context);
             }
 
             if (adminUser)

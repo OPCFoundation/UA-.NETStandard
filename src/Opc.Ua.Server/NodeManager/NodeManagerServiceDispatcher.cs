@@ -56,6 +56,8 @@ namespace Opc.Ua.Server
     /// </summary>
     internal sealed class NodeManagerServiceDispatcher
     {
+        private const int MaxRelativePathElements = 4096;
+
         /// <summary>
         /// Initializes the dispatcher over the owning master node manager's routing table.
         /// </summary>
@@ -317,6 +319,11 @@ namespace Opc.Ua.Server
             if (relativePath.Elements.IsEmpty)
             {
                 return StatusCodes.BadNothingToDo;
+            }
+
+            if (relativePath.Elements.Count > MaxRelativePathElements)
+            {
+                return StatusCodes.BadQueryTooComplex;
             }
 
             for (int ii = 0; ii < relativePath.Elements.Count; ii++)
