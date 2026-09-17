@@ -306,6 +306,50 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Replaces the ephemeral key-agreement nonces with the values negotiated by another channel.
+        /// </summary>
+        protected void ReplaceNonces(ChannelToken token)
+        {
+            SecurityPolicyInfo? securityPolicy = SecurityPolicy;
+            if (securityPolicy == null ||
+                securityPolicy.EphemeralKeyAlgorithm is not (
+                    CertificateKeyAlgorithm.RSADH or
+                    CertificateKeyAlgorithm.NistP256 or
+                    CertificateKeyAlgorithm.NistP384 or
+                    CertificateKeyAlgorithm.BrainpoolP256r1 or
+                    CertificateKeyAlgorithm.BrainpoolP384r1 or
+                    CertificateKeyAlgorithm.Curve25519 or
+                    CertificateKeyAlgorithm.Curve448))
+            {
+                return;
+            }
+
+            if (token.ServerNonce == null || token.ClientNonce == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNonceInvalid,
+                    "The channel token does not contain both key-agreement nonces.");
+            }
+
+            Nonce localNonce = Nonce.CreateNonce(securityPolicy, token.ServerNonce);
+            Nonce remoteNonce;
+            try
+            {
+                remoteNonce = Nonce.CreateNonce(securityPolicy, token.ClientNonce);
+            }
+            catch
+            {
+                localNonce.Dispose();
+                throw;
+            }
+
+            m_localNonce?.Dispose();
+            m_remoteNonce?.Dispose();
+            m_localNonce = localNonce;
+            m_remoteNonce = remoteNonce;
+        }
+
+        /// <summary>
         /// Returns the plain text block size for key in the specified certificate.
         /// </summary>
         protected int GetPlainTextBlockSize(Certificate? receiverCertificate)

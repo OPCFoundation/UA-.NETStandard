@@ -112,7 +112,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     Assert.That(opened.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
                     Assert.That(opened.SecurityToken.ChannelId, Is.EqualTo(1));
                 }
-                target.SendResponse(78, new ReadResponse { Results = [] });
+                Assert.That(
+                    target.SendResponse(78, new ReadResponse { Results = [] }),
+                    Is.False,
+                    "A response sent immediately must not be retained for reconnect.");
                 Assert.That(await sentSignal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.True);
                 Assert.That(sent.TryDequeue(out byte[]? service), Is.True);
                 Assert.That(BitConverter.ToUInt32(service!, 0), Is.EqualTo(TcpMessageType.Message | TcpMessageType.Final));

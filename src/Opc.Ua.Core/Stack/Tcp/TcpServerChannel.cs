@@ -344,6 +344,8 @@ namespace Opc.Ua.Bindings
                     // need to assign a new token id.
                     token.ChannelId = ChannelId;
                     token.TokenId = GetNewTokenId();
+                    token.PreviousSecret = CurrentToken?.Secret;
+                    ReplaceNonces(token);
 
                     // put channel back in open state.
                     ActivateToken(token);
@@ -495,7 +497,10 @@ namespace Opc.Ua.Bindings
             {
                 try
                 {
-                    SendResponse(response.Key, response.Value);
+                    if (!SendResponse(response.Key, response.Value))
+                    {
+                        (response.Value as IPooledEncodeable)?.Reuse();
+                    }
                 }
                 catch (Exception e)
                 {
@@ -1652,9 +1657,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sends the response for the specified request.
         /// </summary>
+        /// <returns><c>true</c> if the response was retained for delivery after reconnect.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="response"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public void SendResponse(uint requestId, IServiceResponse response)
+        public bool SendResponse(uint requestId, IServiceResponse response)
         {
             if (response == null)
             {
@@ -1667,7 +1673,7 @@ namespace Opc.Ua.Bindings
                 if (State == TcpChannelState.Faulted)
                 {
                     m_queuedResponses[requestId] = response;
-                    return;
+                    return true;
                 }
 
                 // if the channel is closed no response can be sent, throw exception to end processing in this specific channel.
@@ -1704,7 +1710,7 @@ namespace Opc.Ua.Bindings
                             "Could not encode outgoing message."),
                         response.ResponseHeader?.RequestHandle ?? 0);
 
-                    return;
+                    return false;
                 }
 
                 try
@@ -1717,7 +1723,7 @@ namespace Opc.Ua.Bindings
                     buffers?.Release(BufferManager, "SendResponse");
 
                     m_queuedResponses[requestId] = response;
-                    return;
+                    return true;
                 }
 
                 if (response is ActivateSessionResponse activateSessionResponse &&
@@ -1730,6 +1736,8 @@ namespace Opc.Ua.Bindings
                 {
                     RemoveSession();
                 }
+
+                return false;
             }
         }
 

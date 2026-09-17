@@ -1379,6 +1379,7 @@ namespace Opc.Ua.Bindings
             IServiceRequest request)
         {
             IServiceResponse? response = null;
+            bool responseRetained = false;
             try
             {
                 if (m_callback != null)
@@ -1397,7 +1398,7 @@ namespace Opc.Ua.Bindings
 
                     try
                     {
-                        ((TcpServerChannel)channel).SendResponse(requestId, response);
+                        responseRetained = ((TcpServerChannel)channel).SendResponse(requestId, response);
                     }
                     catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadSecureChannelClosed)
                     {
@@ -1414,7 +1415,7 @@ namespace Opc.Ua.Bindings
                             // if the channel is not the same as the one we started with, send the response over the new channel
                             if (serverChannel != channel)
                             {
-                                serverChannel.SendResponse(requestId, response);
+                                responseRetained = serverChannel.SendResponse(requestId, response);
                                 return;
                             }
                         }
@@ -1447,7 +1448,9 @@ namespace Opc.Ua.Bindings
                     try
                     {
                         ServiceFault fault = EndpointBase.CreateFault(m_logger, request, e);
-                        ((TcpServerChannel)channel).SendResponse(requestId, fault);
+                        (response as IPooledEncodeable)?.Reuse();
+                        response = fault;
+                        responseRetained = ((TcpServerChannel)channel).SendResponse(requestId, fault);
                     }
                     catch (ServiceResultException faultSre)
                         when (faultSre.StatusCode == StatusCodes.BadSecureChannelClosed)
@@ -1468,7 +1471,10 @@ namespace Opc.Ua.Bindings
                 // point: the request by the service handler and the
                 // response by the channel's wire-encode path.
                 (request as IPooledEncodeable)?.Reuse();
-                (response as IPooledEncodeable)?.Reuse();
+                if (!responseRetained)
+                {
+                    (response as IPooledEncodeable)?.Reuse();
+                }
             }
         }
 
