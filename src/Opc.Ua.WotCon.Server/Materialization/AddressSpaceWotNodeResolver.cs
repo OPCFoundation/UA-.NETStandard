@@ -876,7 +876,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <summary>
-        /// Walks the subtypes of a root type, indexing each by its
+        /// Walks a root type and its subtypes, indexing each by its
         /// NamespaceUri-qualified BrowseName.
         /// </summary>
         private async ValueTask AddSubTypesAsync(
@@ -888,6 +888,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var seen = new HashSet<NodeId>();
             pending.Enqueue(rootTypeId);
             seen.Add(rootTypeId);
+            await IndexTypeAsync(rootTypeId, index, cancellationToken).ConfigureAwait(false);
 
             while (pending.Count > 0)
             {

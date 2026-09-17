@@ -30,7 +30,9 @@
 
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Client;
+using Opc.Ua.WotCon.Server.Materialization;
 
 namespace Opc.Ua.WotCon.Tests
 {
@@ -173,6 +175,52 @@ namespace Opc.Ua.WotCon.Tests
                 Assert.That(fixture.Recorder.Calls, Is.EqualTo(binding == "valid" ? 1 : 0));
                 Assert.That(await asset.DownloadThingDescriptionAsync(), Is.EqualTo(content.Span.ToArray()));
             }
+        }
+
+        [TestCase("name")]
+        [TestCase("agree")]
+        [TestCase("conflict")]
+        public async Task RootBaseObjectTypeBindingUsesTheLoadedIdentity(string binding)
+        {
+            await using Fixture fixture = await Fixture.CreateAsync();
+            WotAssetClient asset = await fixture.Client.CreateAssetAsync("mapped");
+            string link = binding switch
+            {
+                "agree" => "\"links\":[{\"rel\":\"ua:HasTypeDefinition\",\"href\":\"i=58\"}],",
+                "conflict" => "\"links\":[{\"rel\":\"ua:HasTypeDefinition\",\"href\":\"i=61\"}],",
+                _ => string.Empty
+            };
+            ByteString content = Document(binding: "\"@type\":[\"Thing\",\"ua:BaseObjectType\"]," + link);
+            if (binding == "conflict")
+            {
+                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await asset.UploadThingDescriptionAsync(content.Span.ToArray()))!;
+                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(fixture.Provider.Connects, Is.Zero);
+            }
+            else
+            {
+                await asset.UploadThingDescriptionAsync(content.Span.ToArray());
+                Assert.That(await fixture.TypeAsync(asset.AssetId), Is.EqualTo(Ua.ObjectTypeIds.BaseObjectType));
+                Assert.That(fixture.Provider.Connects, Is.EqualTo(1));
+                Assert.That(await asset.DownloadThingDescriptionAsync(), Is.EqualTo(content.Span.ToArray()));
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LoadedTypeIndexIncludesItsTraversalRoot(bool variable)
+        {
+            await using Fixture fixture = await Fixture.CreateAsync();
+            var resolver = new AddressSpaceWotNodeResolver(fixture.Server);
+            WotExpectedNodeClass expected = variable
+                ? WotExpectedNodeClass.VariableType : WotExpectedNodeClass.ObjectType;
+            ArrayOf<WotResolvedNode> matches = await resolver.ResolveByBrowseNameAsync(
+                Namespaces.OpcUa, variable ? "BaseVariableType" : "BaseObjectType", expected);
+            Assert.That(matches.Count, Is.EqualTo(1));
+            Assert.That(matches[0].NodeClass, Is.EqualTo(expected));
+            Assert.That(matches[0].NodeId,
+                Is.EqualTo((variable ? Ua.VariableTypeIds.BaseVariableType : Ua.ObjectTypeIds.BaseObjectType).ToString()));
         }
     }
 }
