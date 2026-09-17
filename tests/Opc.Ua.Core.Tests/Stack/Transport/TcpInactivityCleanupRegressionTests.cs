@@ -100,6 +100,24 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public void OpenChannelWithValidPreviousTokenIsNotDueAfterCurrentTokenExpired()
+        {
+            // messages secured with the previous token are accepted until it expires, which
+            // can be later than the current token when the lifetimes differ.
+            var clock = new FakeTimeProvider();
+            using TestChannel channel = CreateChannel(clock);
+            channel.OpenWithToken(lifetime: 40000, previousLifetime: 90000);
+
+            clock.Advance(TimeSpan.FromSeconds(45));
+
+            Assert.That(channel.IsInactivityCleanupDue(kChannelLifetime), Is.False);
+
+            clock.Advance(TimeSpan.FromSeconds(46));
+
+            Assert.That(channel.IsInactivityCleanupDue(kChannelLifetime), Is.True);
+        }
+
+        [Test]
         public void OpenChannelUsedBySessionIsDueAfterChannelLifetimeWithValidToken()
         {
             // a silent channel that carries a Session keeps the inactivity timeout
@@ -248,20 +266,25 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// <summary>
             /// Opens the channel with a token created now.
             /// </summary>
-            public void OpenWithToken(int lifetime)
+            public void OpenWithToken(int lifetime, int? previousLifetime = null)
             {
                 State = TcpChannelState.Open;
                 ((IDiagnosticsChannelMutation)this).LoadTokensForOfflineDecode(
-                    new ChannelToken
-                    {
-                        ChannelId = 1,
-                        TokenId = 1,
-                        SecurityPolicy = SecurityPolicyInfo.None,
-                        CreatedAt = DateTime.UtcNow,
-                        CreatedAtTimestamp = TimeProvider.GetTimestamp(),
-                        Lifetime = lifetime
-                    },
-                    previous: null);
+                    CreateToken(2, lifetime),
+                    previousLifetime.HasValue ? CreateToken(1, previousLifetime.Value) : null);
+            }
+
+            private ChannelToken CreateToken(uint tokenId, int lifetime)
+            {
+                return new ChannelToken
+                {
+                    ChannelId = 1,
+                    TokenId = tokenId,
+                    SecurityPolicy = SecurityPolicyInfo.None,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedAtTimestamp = TimeProvider.GetTimestamp(),
+                    Lifetime = lifetime
+                };
             }
         }
     }
