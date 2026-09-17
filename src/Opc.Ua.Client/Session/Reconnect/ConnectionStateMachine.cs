@@ -246,14 +246,14 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Trigger a state re-evaluation (e.g., keep-alive failed).
-        /// Transitions to <see cref="ConnectionState.Reconnecting"/>
-        /// if currently connected.
+        /// Transitions to <see cref="ConnectionState.Reconnecting"/> if the
+        /// session is connected or if a prior reconnect cycle was exhausted.
         /// </summary>
         public void TriggerReconnect(ChannelStateChange? underlyingChannelState = null)
         {
             lock (m_lock)
             {
-                if (m_state == ConnectionState.Connected)
+                if (m_state is ConnectionState.Connected or ConnectionState.Disconnected)
                 {
                     TransitionTo(
                         ConnectionState.Reconnecting,
@@ -261,6 +261,7 @@ namespace Opc.Ua.Client
                         reconnectAttempt: 0,
                         underlyingChannelState);
                     m_lastError = null;
+                    ClearReconnectBudget();
                     m_settled.Reset();
                 }
             }

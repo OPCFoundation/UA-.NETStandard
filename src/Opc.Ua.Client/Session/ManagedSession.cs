@@ -1248,10 +1248,23 @@ namespace Opc.Ua.Client
                 {
                     try
                     {
-                        await session.ReconnectAsync(
-                                budget,
-                                ct)
-                            .ConfigureAwait(false);
+                        if (m_reverseConnectManager != null)
+                        {
+                            Uri endpointUrl = session.ConfiguredEndpoint.EndpointUrl
+                                ?? throw new ServiceResultException(
+                                    StatusCodes.BadInvalidState,
+                                    "A reverse-connect session requires a configured endpoint URL.");
+                            ITransportWaitingConnection connection =
+                                await m_reverseConnectManager.WaitForConnectionAsync(
+                                    endpointUrl,
+                                    session.ConfiguredEndpoint.Description.Server?.ApplicationUri,
+                                    ct).ConfigureAwait(false);
+                            await session.ReconnectAsync(connection, null, ct).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await session.ReconnectAsync(budget, ct).ConfigureAwait(false);
+                        }
                     }
                     catch (ServiceResultException sre) when (
                         sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
@@ -1292,8 +1305,28 @@ namespace Opc.Ua.Client
                         m_logger.ManagedSessionReconnectRejectedStatusRecreatingSession(
                             sre,
                             sre.StatusCode);
+                        if (RequiresEndpointRefresh(sre.StatusCode))
+                        {
+                            await RefreshEndpointAsync(session.ConfiguredEndpoint, ct)
+                                .ConfigureAwait(false);
+                        }
                         await RecreateInPlaceAndRebindAsync(session, null, budget, ct)
                             .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException sre) when (IsConnectivityFailure(sre.StatusCode))
+                    {
+                        ConfiguredEndpoint? alternateEndpoint =
+                            SelectNextNetworkEndpoint(session.ConfiguredEndpoint);
+                        if (alternateEndpoint == null)
+                        {
+                            throw;
+                        }
+
+                        await RecreateInPlaceAndRebindAsync(
+                            session,
+                            alternateEndpoint,
+                            budget,
+                            ct).ConfigureAwait(false);
                     }
                 }
 
@@ -1381,6 +1414,32 @@ namespace Opc.Ua.Client
                 statusCode == StatusCodes.BadSessionNotActivated ||
                 statusCode == StatusCodes.BadSecureChannelIdInvalid ||
                 statusCode == StatusCodes.BadIdentityTokenInvalid;
+        }
+
+        private static bool RequiresEndpointRefresh(StatusCode statusCode)
+        {
+            return statusCode == StatusCodes.BadSecurityChecksFailed ||
+                statusCode == StatusCodes.BadCertificateInvalid ||
+                statusCode == StatusCodes.BadCertificateUntrusted;
+        }
+
+        private static bool IsConnectivityFailure(StatusCode statusCode)
+        {
+            return statusCode == StatusCodes.BadTcpInternalError ||
+                statusCode == StatusCodes.BadCommunicationError ||
+                statusCode == StatusCodes.BadNotConnected ||
+                statusCode == StatusCodes.BadConnectionClosed ||
+                statusCode == StatusCodes.BadSecureChannelClosed;
+        }
+
+        private Task RefreshEndpointAsync(ConfiguredEndpoint endpoint, CancellationToken ct)
+        {
+            return endpoint.UpdateFromServerAsync(
+                endpoint.EndpointUrl!,
+                endpoint.Description.SecurityMode,
+                endpoint.Description.SecurityPolicyUri!,
+                SessionFactory.Telemetry,
+                ct);
         }
 
         /// <summary>
