@@ -167,8 +167,7 @@ jobs:
         if ($includeMac -and $relevantChanges) {
             $testOs += 'macOS-latest'
             $aotMatrix += @{ os = 'macos-15-intel'; rid = 'osx-x64'  }
-            # ARM64 NativeAOT hits Apple's "too many large addends" linker assertion.
-            # Re-enable macos-latest/osx-arm64 once dotnet/runtime#132171 ships; see #4443.
+            $aotMatrix += @{ os = 'macos-latest'; rid = 'osx-arm64' }
         }
         Write-Host "Event=$($env:EVENT_NAME); include_macos=$includeMac"
         Write-Host "test_os=$($testOs -join ', ')"
@@ -203,7 +202,7 @@ jobs:
         csproj: ${{ fromJSON(needs.discover.outputs.csprojs) }}
         include:
           - framework: 'net10.0'
-            dotnet-version: '10.0.x'
+            dotnet-version: '10.0.401'
             configuration: 'Release'
             customtesttarget: net10.0
 
@@ -449,7 +448,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '10.0.x'
+        dotnet-version: '10.0.401'
 
     - name: Download test results
       uses: actions/download-artifact@v8
@@ -611,7 +610,7 @@ jobs:
       # binary is published and run on every AOT platform.
       AOTPROJECT_HISTORIAN: './tests/Opc.Ua.Aot.Tests.Historian/Opc.Ua.Aot.Tests.Historian.csproj'
       AOTPROJECT_MCP: './tests/Opc.Ua.Aot.Tests.Mcp/Opc.Ua.Aot.Tests.Mcp.csproj'
-      DOTNET_VERSION: '10.0.x'
+      DOTNET_VERSION: '10.0.401'
       CONFIGURATION: 'Release'
 
     steps:
@@ -694,7 +693,7 @@ jobs:
         dotnet-version: |
           8.0.x
           9.0.x
-          10.0.x
+          10.0.401
 
     - name: Set Cloud Version
       shell: pwsh
@@ -741,7 +740,7 @@ jobs:
         dotnet-version: |
           8.0.x
           9.0.x
-          10.0.x
+          10.0.401
 
     - name: Set Cloud Version
       shell: pwsh
@@ -783,7 +782,7 @@ jobs:
         fetch-depth: 0
     - uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: 10.0.x
+        dotnet-version: 10.0.401
     - name: Validate manifest and negative controls
       shell: pwsh
       run: ./fuzzing/Scripts/validate-fuzz-manifest.ps1 -SelfTest
@@ -839,7 +838,7 @@ jobs:
         dotnet-version: |
           8.0.x
           9.0.x
-          10.0.x
+          10.0.401
     - name: Run fuzz regressions
       shell: pwsh
       run: ./fuzzing/Scripts/test-fuzzing.ps1 -Framework '${{ matrix.framework }}' -ResultsDirectory '${{ runner.temp }}/fuzz-results'
