@@ -53,10 +53,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
     }
 
     /// <summary>
+    /// A native EventNotifier publisher whose registering node manager exposes
+    /// generated out-of-band metadata and requires captured Condition actions.
+    /// Headless/custom consumers retain the original publisher contract.
+    /// </summary>
+    public interface IWotNativeProjectionEventPublisher : IWotProjectionEventPublisher
+    {
+    }
+
+    /// <summary>
     /// Uses the existing fluent event-source registry, including ancestor
     /// monitoring, cancellation, reporting and error telemetry.
     /// </summary>
-    public sealed class WotProjectionEventPublisher : IWotProjectionEventPublisher
+    public sealed class WotProjectionEventPublisher : IWotNativeProjectionEventPublisher
     {
         /// <inheritdoc/>
         public void Register(

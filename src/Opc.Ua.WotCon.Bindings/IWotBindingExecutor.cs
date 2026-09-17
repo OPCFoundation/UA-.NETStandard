@@ -203,6 +203,12 @@ namespace Opc.Ua.WotCon.Bindings
         public IServiceMessageContext? Context { get; private init; }
 
         /// <summary>
+        /// Gets independently captured native occurrence facts, when the
+        /// executor can retain an authenticated source binding.
+        /// </summary>
+        public WotCapturedEvent? CapturedEvent { get; private init; }
+
+        /// <summary>
         /// Returns a notification with the context of its selected values.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
@@ -214,7 +220,17 @@ namespace Opc.Ua.WotCon.Bindings
             }
             return new WotNotification(Value, EventFields, Data, context.NamespaceUris.ToArrayOf())
             {
-                Context = context
+                Context = context,
+                CapturedEvent = CapturedEvent
+            };
+        }
+
+        internal WotNotification WithCapturedEvent(WotCapturedEvent capturedEvent)
+        {
+            return new WotNotification(Value, EventFields, Data, NamespaceUris)
+            {
+                Context = Context,
+                CapturedEvent = capturedEvent
             };
         }
     }

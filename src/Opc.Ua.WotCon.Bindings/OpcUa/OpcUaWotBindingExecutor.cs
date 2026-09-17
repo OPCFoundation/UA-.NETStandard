@@ -98,19 +98,24 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             WotSecurityFloor? floor = form.SecurityFloor;
             ISession session = await ConnectAsync(
                 endpoint, floor, form, cancellationToken).ConfigureAwait(false);
+            WotEventSource? eventSource = null;
             try
             {
                 EnforceSessionSecurity(session, form);
+                eventSource = await OpcUaWotBindingChannel.CaptureEventSourceAsync(
+                    session, form, context, cancellationToken).ConfigureAwait(false);
+                return new OpcUaWotBindingChannel(
+                    session, m_options.DisposeSession, form, context, m_options, eventSource);
             }
-            catch (ServiceResultException)
+            catch
             {
+                eventSource?.DisposeBinding();
                 if (m_options.DisposeSession)
                 {
                     session.Dispose();
                 }
                 throw;
             }
-            return new OpcUaWotBindingChannel(session, m_options.DisposeSession, form, context, m_options);
         }
 
         internal static void EnforceSessionSecurity(ISession session, WotCompiledForm form)

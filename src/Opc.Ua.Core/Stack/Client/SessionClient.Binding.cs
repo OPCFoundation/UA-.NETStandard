@@ -154,7 +154,7 @@ namespace Opc.Ua
         private readonly Lock m_sessionBindingGate = new();
         private long m_sessionIncarnation;
 
-        private sealed class BoundSessionClient : SessionClient
+        private sealed class BoundSessionClient : SessionClient, ISessionBinding
         {
             internal BoundSessionClient(
                 TransportChannelBinding binding,
@@ -166,6 +166,8 @@ namespace Opc.Ua
                 m_binding = binding;
                 base.SessionCreated(sessionId, authenticationToken);
             }
+
+            public bool IsCurrent => m_binding.IsCurrent;
 
             public override void SessionCreated(NodeId sessionId, NodeId sessionCookie)
             {

@@ -34,6 +34,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.WotCon.Bindings;
@@ -66,10 +67,24 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     NodeId notifierId = ResolveLocalNodeId(local.OwnerNodeId, plan.ResourceXid, local.JsonPointer);
                     BaseObjectState notifier = m_builder.Node<BaseObjectState>(notifierId).Node;
                     ExpandedNodeId sourceCondition = FindSourceCondition(plan, local, form);
-                    ConditionState? condition = local.ConditionTypeId is null
-                        ? null
-                        : await m_conditionFactory.CreateAsync(
-                            m_builder, notifier, local, eventTypeId, cancellationToken).ConfigureAwait(false);
+                    bool isCondition = local.ConditionTypeId is not null;
+                    ConditionState? condition = null;
+                    if (isCondition && !sourceCondition.IsNull)
+                    {
+                        condition = local.IdentityMode == WoTEventIdentityModeEnum.TransparentForwarding &&
+                            m_conditionFactory is IWotProjectionConditionInstanceFactory transparentInstances
+                            ? await transparentInstances.CreateInstanceAsync(
+                                m_builder, notifier, local, eventTypeId,
+                                ExpandedNodeId.ToNodeId(sourceCondition, m_builder.Context.NamespaceUris),
+                                cancellationToken).ConfigureAwait(false)
+                            : await m_conditionFactory.CreateAsync(
+                                m_builder, notifier, local, eventTypeId, cancellationToken).ConfigureAwait(false);
+                    }
+                    Func<NodeId, CancellationToken, ValueTask<ConditionState>>? createCondition =
+                        isCondition && m_conditionFactory is IWotProjectionConditionInstanceFactory instances
+                            ? (nodeId, token) => instances.CreateInstanceAsync(
+                                m_builder, notifier, local, eventTypeId, nodeId, token)
+                            : null;
                     WotProjectedEventSource? source = m_eventSources
                         .FirstOrDefault(candidate => candidate.CanShare(form));
                     if (source is null)
@@ -83,7 +98,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     var binding = new WotProjectedEventBinding(
                         m_builder.Context, source, notifier, eventTypeId, condition,
                         sourceCondition, m_options.MaxEventRoutes, timeProvider,
-                        plan.ResourceXid, local.JsonPointer, m_eventRoutes);
+                        plan.ResourceXid, local.JsonPointer, m_eventRoutes, local.IdentityMode,
+                        isCondition, createCondition, m_eventPublisher is IWotNativeProjectionEventPublisher);
+                    if (m_eventPublisher is IWotNativeProjectionEventPublisher)
+                    {
+                        await binding.InitializeDescriptorAsync(m_builder, local.Name, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
                     m_events.Add((plan.ResourceXid, local.JsonPointer), binding);
                     m_eventRoutes.Add(binding);
                 }
@@ -246,13 +267,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
             using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken, m_generationToken);
             CancellationToken token = lifetime.Token;
-            var queue = Channel.CreateBounded<BaseEventState>(new BoundedChannelOptions(m_options.MaxQueuedEvents)
+            var queue = Channel.CreateBounded<(WotProjectedEventBinding Binding, WotNotification Notification)>(
+                new BoundedChannelOptions(m_options.MaxQueuedEvents)
             {
                 SingleReader = true,
                 SingleWriter = false,
                 FullMode = BoundedChannelFullMode.Wait
             });
             var leases = new List<IAsyncDisposable>();
+            var sourceLeases = new Dictionary<WotProjectedEventSource, IAsyncDisposable>();
             var groups = new Dictionary<WotProjectedEventSource, List<WotProjectedEventBinding>>();
             for (int i = 0; i < bindings.Count; i++)
             {
@@ -271,7 +294,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     foreach (KeyValuePair<WotProjectedEventSource, List<WotProjectedEventBinding>> group in groups)
                     {
                         ArrayOf<WotProjectedEventBinding> targets = group.Value.ToArrayOf();
-                        leases.Add(await group.Key.AttachAsync(notification =>
+                        IAsyncDisposable lease = await group.Key.AttachAsync(notification =>
                         {
                             if (token.IsCancellationRequested)
                             {
@@ -281,8 +304,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             {
                                 foreach (WotProjectedEventBinding binding in targets)
                                 {
-                                    BaseEventState? projected = binding.Project(notification);
-                                    if (projected is not null && !queue.Writer.TryWrite(projected))
+                                    if (binding.IsFaulted)
+                                    {
+                                        continue;
+                                    }
+                                    if (!queue.Writer.TryWrite((binding, notification)))
                                     {
                                         queue.Writer.TryComplete(new ServiceResultException(
                                             StatusCodes.BadTooManyOperations, "The projected event queue is full."));
@@ -294,7 +320,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             {
                                 queue.Writer.TryComplete(exception);
                             }
-                        }, token).ConfigureAwait(false));
+                        }, token).ConfigureAwait(false);
+                        leases.Add(lease);
+                        sourceLeases.Add(group.Key, lease);
                     }
                 }
                 catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -304,9 +332,39 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     throw;
                 }
                 ready.TrySetResult(true);
-                await foreach (BaseEventState notification in queue.Reader.ReadAllAsync(token).ConfigureAwait(false))
+                await foreach ((WotProjectedEventBinding binding, WotNotification notification) in
+                    queue.Reader.ReadAllAsync(token).ConfigureAwait(false))
                 {
-                    yield return notification;
+                    if (binding.IsFaulted)
+                    {
+                        continue;
+                    }
+                    BaseEventState? projected;
+                    try
+                    {
+                        projected = await binding.ProjectAsync(notification, token).ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException exception)
+                    {
+                        binding.ReportFailure(exception.StatusCode);
+                        if (bindings.Count == 1)
+                        {
+                            throw;
+                        }
+                        m_builder.Context.Telemetry.CreateLogger<WotProjectionBindingRuntime>()
+                            .EventBindingFaulted(exception, binding.ResourceXid, binding.JsonPointer);
+                        if (groups[binding.Source].All(candidate => candidate.IsFaulted) &&
+                            sourceLeases.TryGetValue(binding.Source, out IAsyncDisposable? lease))
+                        {
+                            await lease.DisposeAsync().ConfigureAwait(false);
+                            sourceLeases.Remove(binding.Source);
+                        }
+                        continue;
+                    }
+                    if (projected is not null)
+                    {
+                        yield return projected;
+                    }
                 }
             }
             finally
@@ -327,7 +385,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     throw new InvalidOperationException("A projected event activation can only be enumerated once.");
                 }
-                return owner.StreamEventsAsync(bindings, m_ready, cancellationToken).GetAsyncEnumerator(cancellationToken);
+                return owner.StreamEventsAsync(bindings, m_ready, cancellationToken)
+                    .GetAsyncEnumerator(cancellationToken);
             }
 
             public ValueTask WaitUntilReadyAsync(CancellationToken cancellationToken = default)
@@ -362,5 +421,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private readonly List<WotProjectedEventSource> m_eventSources = [];
         private readonly Dictionary<(string ResourceXid, string Pointer), WotProjectedEventBinding> m_events = [];
+    }
+
+    internal static partial class WotProjectionBindingRuntimeLog
+    {
+        [LoggerMessage(
+            EventId = WotConServerEventIds.WotProjectionBindingRuntime + 0,
+            Level = LogLevel.Error,
+            Message = "Event binding {ResourceXid} {JsonPointer} failed; unrelated admitted bindings continue.")]
+        public static partial void EventBindingFaulted(
+            this ILogger logger, Exception exception, string resourceXid, string jsonPointer);
     }
 }

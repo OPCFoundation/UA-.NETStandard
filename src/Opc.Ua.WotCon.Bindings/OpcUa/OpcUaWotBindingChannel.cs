@@ -46,14 +46,16 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
     /// preserving argument order and <see cref="DataValue"/> / <see cref="StatusCode"/>
     /// metadata.
     /// </summary>
-    internal sealed partial class OpcUaWotBindingChannel : IWotContextualBindingChannel, IWotPropertyBindingChannel
+    internal sealed partial class OpcUaWotBindingChannel :
+        IWotContextualBindingChannel, IWotPropertyBindingChannel, IWotCapturedConditionActionChannel
     {
         public OpcUaWotBindingChannel(
             ISession session,
             bool disposeSession,
             WotCompiledForm form,
             WotExecutorContext context,
-            OpcUaWotBindingOptions options)
+            OpcUaWotBindingOptions options,
+            WotEventSource? eventSource = null)
         {
             m_session = session;
             m_disposeSession = disposeSession;
@@ -62,6 +64,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             m_nodeId = form.Addressing.Target;
             m_logger = context.Telemetry.CreateLogger<OpcUaWotBindingChannel>();
             m_context = context;
+            m_eventSource = eventSource;
             if (form.Addressing.BrowsePathTarget is not null)
             {
                 m_session.SessionConfigurationChanged += OnPathConfigurationChanged;
@@ -163,7 +166,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 filter,
                 queueSize: m_options.EventQueueSize,
                 translate: (_, notificationValue, sourceContext) => notificationValue is EventFieldList eventFields
-                    ? BuildEventNotification(selection, eventFields, sourceContext)
+                    ? BuildCapturedEventNotification(selection, eventFields, sourceContext)
                     : null,
                 onEvent,
                 cancellationToken).ConfigureAwait(false);
@@ -171,6 +174,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
 
         public ValueTask DisposeAsync()
         {
+            m_eventSource?.DisposeBinding();
             if (Form.Addressing.BrowsePathTarget is not null)
             {
                 m_session.SessionConfigurationChanged -= OnPathConfigurationChanged;
@@ -906,6 +910,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         private readonly OpcUaWotBindingOptions m_options;
         private readonly string m_nodeId;
         private readonly ILogger m_logger;
+        private readonly WotEventSource? m_eventSource;
     }
 
     internal static partial class OpcUaWotBindingChannelLog

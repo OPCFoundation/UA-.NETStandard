@@ -47,7 +47,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// identities are resolved independently of those property target mappings.
     /// Event subscriptions and Condition occurrence routes share that ownership.
     /// </summary>
-    public sealed partial class WotProjectionBindingRuntime : IAsyncDisposable
+    public sealed partial class WotProjectionBindingRuntime : IAsyncDisposable, IWotPublishedProjectionRuntime
     {
         internal WotProjectionBindingRuntime(
             INodeManagerBuilder builder,
@@ -145,7 +145,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
 
             await WireProjectedEventsAsync(bindingPlans, cancellationToken).ConfigureAwait(false);
-            WireProjectedMethods(bindingPlans);
+            await WireProjectedMethodsAsync(bindingPlans, cancellationToken).ConfigureAwait(false);
             RegisterEventPublishers();
         }
 
