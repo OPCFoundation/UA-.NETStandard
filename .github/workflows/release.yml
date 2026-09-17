@@ -45,7 +45,7 @@ jobs:
       - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.401'
 
       - name: Validate selected publish run
         id: source
