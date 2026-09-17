@@ -57,13 +57,6 @@ namespace Opc.Ua
         /// </summary>
         ClientChannelCertificateSnapshot SnapshotClientCertificate();
 
-        ValueTask<ITransportChannel> CreateChannelAsync(
-            ConfiguredEndpoint endpoint,
-            Certificate? clientCertificate,
-            CertificateCollection? clientCertificateChain,
-            ITransportWaitingConnection? reverseConnection,
-            CancellationToken ct);
-
         Activity? StartReconnectActivity(ChannelEntry entry);
 
         void CompleteReconnectActivity(

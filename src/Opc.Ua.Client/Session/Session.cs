@@ -237,6 +237,35 @@ namespace Opc.Ua.Client
             }
         }
 
+        private CancellationTokenSource CreateCloseRequestCancellationTokenSource(
+            int timeout,
+            CancellationToken ct)
+        {
+            var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(GetCloseRequestTimeout(timeout));
+            return timeoutCts;
+        }
+
+        private int GetCloseRequestTimeout(int timeout)
+        {
+            if (timeout > 0)
+            {
+                return timeout;
+            }
+
+            if (OperationTimeout > 0)
+            {
+                return OperationTimeout;
+            }
+
+            if (m_keepAliveInterval > 0)
+            {
+                return m_keepAliveInterval;
+            }
+
+            return kReconnectTimeout;
+        }
+
         /// <summary>
         /// Initializes the session.
         /// </summary>
@@ -503,15 +532,17 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    if (Connected)
+                    if (Connected && CanReceiveResponses())
                     {
                         var request = new CloseSessionRequest
                         {
                             DeleteSubscriptions = DeleteSubscriptionsOnClose
                         };
                         UpdateRequestHeader(request, true, "CloseSession");
+                        using CancellationTokenSource timeoutCts =
+                            CreateCloseRequestCancellationTokenSource(timeout: 0, CancellationToken.None);
                         await TransportChannel
-                            .SendRequestAsync(request, default)
+                            .SendRequestAsync(request, timeoutCts.Token)
                             .ConfigureAwait(false);
                     }
                 }
@@ -2482,18 +2513,8 @@ namespace Opc.Ua.Client
         public async Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            if (await NodeCache.FindAsync(typeId, ct).ConfigureAwait(false) is Node node)
-            {
-                var subTypes = new List<ExpandedNodeId>();
-                foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
-                {
-                    subTypes.Add(reference.TargetId);
-                }
-                if (subTypes.Count > 0)
-                {
-                    await FetchTypeTreeAsync(subTypes, ct).ConfigureAwait(false);
-                }
-            }
+            await FetchTypeTreeAsync(typeId, new HashSet<ExpandedNodeId> { typeId }, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -2502,6 +2523,45 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
+            var visited = new HashSet<ExpandedNodeId>();
+            foreach (ExpandedNodeId typeId in typeIds)
+            {
+                visited.Add(typeId);
+            }
+
+            await FetchTypeTreeAsync(typeIds, visited, ct).ConfigureAwait(false);
+        }
+
+        private async Task FetchTypeTreeAsync(
+            ExpandedNodeId typeId,
+            HashSet<ExpandedNodeId> visited,
+            CancellationToken ct)
+        {
+            if (await NodeCache.FindAsync(typeId, ct).ConfigureAwait(false) is not Node node)
+            {
+                return;
+            }
+
+            var subTypes = new List<ExpandedNodeId>();
+            foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
+            {
+                if (visited.Add(reference.TargetId))
+                {
+                    subTypes.Add(reference.TargetId);
+                }
+            }
+
+            if (subTypes.Count > 0)
+            {
+                await FetchTypeTreeAsync(subTypes.ToArrayOf(), visited, ct).ConfigureAwait(false);
+            }
+        }
+
+        private async Task FetchTypeTreeAsync(
+            ArrayOf<ExpandedNodeId> typeIds,
+            HashSet<ExpandedNodeId> visited,
+            CancellationToken ct)
+        {
             ArrayOf<NodeId> referenceTypeIds = [ReferenceTypeIds.HasSubtype];
             ArrayOf<INode> nodes = await NodeCache
                 .FindReferencesAsync(typeIds, referenceTypeIds, false, false, ct)
@@ -2513,7 +2573,7 @@ namespace Opc.Ua.Client
                 {
                     foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
                     {
-                        if (!typeIds.Contains(reference.TargetId))
+                        if (visited.Add(reference.TargetId))
                         {
                             subTypes.Add(reference.TargetId);
                         }
@@ -3139,8 +3199,9 @@ namespace Opc.Ua.Client
                                     : null,
 #pragma warning restore CA2000
                                 messageContext,
-                                ct)
-                            .ConfigureAwait(false);
+                                    securityPolicies: m_securityPolicies,
+                                    ct)
+                                .ConfigureAwait(false);
                     }
                     else
                     {
@@ -3157,8 +3218,9 @@ namespace Opc.Ua.Client
                                     : null,
 #pragma warning restore CA2000
                                 messageContext,
-                                ct)
-                            .ConfigureAwait(false);
+                                    securityPolicies: m_securityPolicies,
+                                    ct)
+                                .ConfigureAwait(false);
                     }
 
                     TransportChannel = newChannel;
@@ -3389,20 +3451,25 @@ namespace Opc.Ua.Client
                 {
                     try
                     {
-                        // Wait for or cancel outstanding publish requests before closing session.
-                        await WaitForOrCancelOutstandingPublishRequestsAsync(ct).ConfigureAwait(false);
-
-                        // close the session and delete all subscriptions if specified.
-                        var requestHeader = new RequestHeader
+                        if (CanReceiveResponses())
                         {
-                            TimeoutHint = timeout > 0
-                                ? (uint)timeout
-                                : (uint)(OperationTimeout > 0 ? OperationTimeout : 0)
-                        };
-                        CloseSessionResponse response = await base.CloseSessionAsync(
-                            requestHeader,
-                            DeleteSubscriptionsOnClose,
-                            ct).ConfigureAwait(false);
+                            using CancellationTokenSource timeoutCts =
+                                CreateCloseRequestCancellationTokenSource(timeout, ct);
+
+                            // Wait for or cancel outstanding publish requests before closing session.
+                            await WaitForOrCancelOutstandingPublishRequestsAsync(timeoutCts.Token)
+                                .ConfigureAwait(false);
+
+                            // close the session and delete all subscriptions if specified.
+                            var requestHeader = new RequestHeader
+                            {
+                                TimeoutHint = (uint)GetCloseRequestTimeout(timeout)
+                            };
+                            CloseSessionResponse response = await base.CloseSessionAsync(
+                                requestHeader,
+                                DeleteSubscriptionsOnClose,
+                                timeoutCts.Token).ConfigureAwait(false);
+                        }
                     }
                     // don't throw errors on disconnect, but return them
                     // so the caller can log the error.
@@ -3563,19 +3630,19 @@ namespace Opc.Ua.Client
             try
             {
                 bool reconnecting = Reconnecting;
-                Reconnecting = true;
-                resetReconnect = true;
-                m_reconnectLock.Release();
-
-                // check if already connecting.
                 if (reconnecting)
                 {
+                    m_reconnectLock.Release();
                     m_logger.SessionAlreadyAttemptingReconnect();
 
                     throw ServiceResultException.Create(
                         StatusCodes.BadInvalidState,
                         "Session is already attempting to reconnect.");
                 }
+
+                Reconnecting = true;
+                resetReconnect = true;
+                m_reconnectLock.Release();
 
                 m_logger.SessionRECONNECTSessionIdStarting(SessionId);
 
@@ -3665,6 +3732,7 @@ namespace Opc.Ua.Client
                                 : null,
 #pragma warning restore CA2000
                             MessageContext,
+                            securityPolicies: m_securityPolicies,
                             ct).ConfigureAwait(false);
 
                         // disposes the existing channel.
@@ -3699,6 +3767,7 @@ namespace Opc.Ua.Client
                                 : null,
 #pragma warning restore CA2000
                             MessageContext,
+                            securityPolicies: m_securityPolicies,
                             ct).ConfigureAwait(false);
 
                         // disposes the existing channel.
@@ -3802,6 +3871,9 @@ namespace Opc.Ua.Client
                         serverNonce,
                         m_serverNonce,
                         m_endpoint.Description.SecurityMode);
+                    ProcessResponseAdditionalHeader(
+                        activateResult.ResponseHeader,
+                        m_serverCertificate);
                     ArrayOf<StatusCode> certificateResults = activateResult.Results;
                     ArrayOf<DiagnosticInfo> certificateDiagnosticInfos = activateResult.DiagnosticInfos;
 
@@ -4368,7 +4440,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            if (requestsToCancel.Count > 0)
+            if (requestsToCancel.Count > 0 && CanReceiveResponses())
             {
                 m_logger.CancellingCountOutstandingPublishRequests(requestsToCancel.Count);
 

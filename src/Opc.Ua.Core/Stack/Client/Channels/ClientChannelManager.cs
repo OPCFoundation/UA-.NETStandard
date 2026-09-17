@@ -1320,26 +1320,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a transport using certificate handles already retained by its owning channel entry.
         /// </summary>
-        ValueTask<ITransportChannel> IChannelEntryHost.CreateChannelAsync(
-            ConfiguredEndpoint endpoint,
-            Certificate? clientCertificate,
-            CertificateCollection? clientCertificateChain,
-            ITransportWaitingConnection? reverseConnection,
-            CancellationToken ct)
-        {
-            IServiceMessageContext context = Configuration.CreateMessageContext();
-
-            // The entry already owns a per-transport snapshot, distinct from the manager's handles.
-            // It also releases these handles when a custom transport does not own its settings.
-            return CreateChannelAsync(
-                endpoint,
-                context,
-                clientCertificate,
-                clientCertificateChain,
-                reverseConnection,
-                ct);
-        }
-
         Activity? IChannelEntryHost.StartReconnectActivity(ChannelEntry entry)
         {
             return m_diagnostics.StartReconnectActivity(entry);

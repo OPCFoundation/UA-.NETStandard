@@ -148,7 +148,15 @@ namespace Opc.Ua
             ArrayOf<ByteString> continuationPoints,
             CancellationToken ct)
         {
-            ushort operationLimit = ServerCapabilities.MaxBrowseContinuationPoints;
+            uint operationLimit = OperationLimits.MaxNodesPerBrowse;
+            ushort maxBrowseContinuationPoints = ServerCapabilities.MaxBrowseContinuationPoints;
+            if (maxBrowseContinuationPoints != 0)
+            {
+                operationLimit = operationLimit == 0
+                    ? maxBrowseContinuationPoints
+                    : Math.Min(operationLimit, maxBrowseContinuationPoints);
+            }
+
             if (operationLimit == 0 || operationLimit >= continuationPoints.Count)
             {
                 return base.BrowseNextAsync(
@@ -169,7 +177,7 @@ namespace Opc.Ua
                 RequestHeader? requestHeader,
                 bool releaseContinuationPoints,
                 ArrayOf<ByteString> continuationPoints,
-                ushort operationLimit,
+                uint operationLimit,
                 CancellationToken ct)
             {
                 using Activity? activity = m_telemetry.StartActivity();
@@ -181,7 +189,7 @@ namespace Opc.Ua
                     out List<string> stringTable,
                     continuationPoints.Count,
                     operationLimit);
-                foreach (ArrayOf<ByteString> continuationPointsBatch in continuationPoints.Batch(operationLimit))
+                foreach (ArrayOf<ByteString> continuationPointsBatch in continuationPoints.Batch((int)operationLimit))
                 {
                     requestHeader.RequestHandle = 0;
                     response = await base.BrowseNextAsync(

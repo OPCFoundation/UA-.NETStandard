@@ -206,7 +206,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public IServiceMessageContext MessageContext
             => Entry.Underlying?.MessageContext
-                ?? Entry.OwnerManager.Configuration.CreateMessageContext();
+                ?? Entry.MessageContext;
 
         /// <inheritdoc/>
         public int OperationTimeout

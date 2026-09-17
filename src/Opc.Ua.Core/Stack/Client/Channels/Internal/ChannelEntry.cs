@@ -51,6 +51,7 @@ namespace Opc.Ua
             Key = key;
             Endpoint = endpoint;
             ReverseConnection = reverseConnection;
+            MessageContext = host.Configuration.CreateMessageContext();
             m_lastStateChange = host.TimeProvider.GetUtcNow();
             m_readyGate = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
@@ -61,6 +62,7 @@ namespace Opc.Ua
         public ITransportWaitingConnection? ReverseConnection { get; }
 
         public IChannelEntryHost OwnerManager { get; }
+        public IServiceMessageContext MessageContext { get; }
 
         public string EndpointUrl => Key.EndpointUrl;
 
@@ -1213,6 +1215,7 @@ namespace Opc.Ua
             {
                 ITransportChannel channel = await OwnerManager.CreateChannelAsync(
                     Endpoint,
+                    MessageContext,
                     certificates.Certificate,
                     certificates.Chain,
                     ReverseConnection,
