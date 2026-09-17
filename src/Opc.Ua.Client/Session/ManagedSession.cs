@@ -123,6 +123,7 @@ namespace Opc.Ua.Client
                 logger,
                 m_maxTotalReconnectTime,
                 m_timeProvider);
+            m_serviceLock.BeforeReaderLockAsync = WaitForServiceAvailabilityAsync;
 
             WireStateMachineCallbacks();
             SubscribeCertificateChanges();
@@ -1023,6 +1024,13 @@ namespace Opc.Ua.Client
             StateMachine.FailoverWithBudgetAsync = HandleFailoverAsync;
             StateMachine.CloseSessionAsync = HandleCloseSessionAsync;
             StateMachine.StateChanged += OnStateChanged;
+        }
+
+        private ValueTask WaitForServiceAvailabilityAsync(CancellationToken ct)
+        {
+            return StateMachine.IsWorkerFlow
+                ? default
+                : StateMachine.WaitForConnectedAsync(ct);
         }
 
         private async Task<ServiceResult> HandleConnectAsync(

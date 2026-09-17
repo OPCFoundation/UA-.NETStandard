@@ -178,6 +178,11 @@ namespace Opc.Ua.Client
         public bool IsConnected => m_state == ConnectionState.Connected;
 
         /// <summary>
+        /// Whether the caller is executing from the state-machine worker.
+        /// </summary>
+        internal bool IsWorkerFlow => m_inWorkerFlow.Value;
+
+        /// <summary>
         /// Event raised when the state changes.
         /// </summary>
         public event EventHandler<ConnectionStateChangedEventArgs>?

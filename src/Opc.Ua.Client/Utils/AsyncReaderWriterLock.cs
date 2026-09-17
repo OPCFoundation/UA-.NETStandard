@@ -91,6 +91,12 @@ namespace Opc.Ua.Client
     /// </remarks>
     internal sealed class AsyncReaderWriterLock : IDisposable
     {
+        /// <summary>
+        /// Optional asynchronous operation that completes before a reader
+        /// acquires the lock.
+        /// </summary>
+        public Func<CancellationToken, ValueTask>? BeforeReaderLockAsync { get; set; }
+
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -111,6 +117,11 @@ namespace Opc.Ua.Client
         public async ValueTask<Releaser> ReaderLockAsync(
             CancellationToken ct = default)
         {
+            if (BeforeReaderLockAsync is { } beforeReaderLock)
+            {
+                await beforeReaderLock(ct).ConfigureAwait(false);
+            }
+
             await m_writer.WaitAsync(ct).ConfigureAwait(false);
             try
             {
