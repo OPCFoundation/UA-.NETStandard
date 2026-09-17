@@ -96,15 +96,17 @@ place. Replacing a valid graph reuses the existing R43 interaction indexing and
 cleanup paths; the additional native ownership/reference augmentation is retired
 with its graph. Only owner-side and peer-side references actually added by that
 graph are owned, independently at each end. Retirement preserves preexisting edges. Owner deletion
-does not let generic bidirectional node cleanup remove a preexisting peer-side
-edge of the native relation; that surviving edge can temporarily target an absent
-Node. Replacement retires the outgoing reference ownership before publishing the
-incoming generation, including when both generations use the same relation.
+and asset-manager retirement do not let generic bidirectional node cleanup remove
+a preexisting peer-side edge of the native relation; that surviving edge can
+temporarily target an absent Node. Replacement retires the outgoing reference
+ownership before publishing the incoming generation, including when both
+generations use the same relation.
 Peer ownership is recorded by NodeId rather than a captured manager handle.
 The runtime NodeSet manager's existing incoming-reference journal carries these
 edges across its reload, and cleanup resolves the current target manager.
-Asset-manager retirement releases its owned edges before restored assets acquire
-their own ownership. These are reference-level cleanup guarantees, not atomic
+Asset-manager retirement releases its owned edges and detaches native owner-side
+reference stubs before generic teardown, so restored assets do not acquire ownership
+of preserved peer edges. These are reference-level cleanup guarantees, not atomic
 publication of the whole asset graph or its persisted document. Registry
 mirroring/transaction semantics and event modes are separate contracts and are
 not changed by this mapping.

@@ -522,7 +522,7 @@ namespace Opc.Ua.WotCon.Server.Assets
         }
 
         private async ValueTask ClearNativeReferencesAsync(
-            AssetEntry entry, WotLegacyPreparedGraph graph, CancellationToken ct)
+            AssetEntry entry, WotLegacyPreparedGraph graph, bool deletingOwner, CancellationToken ct)
         {
             using var context = new OperationContext(
                 new RequestHeader(), null, RequestType.DeleteReferences, RequestLifetime.None);
@@ -555,15 +555,6 @@ namespace Opc.Ua.WotCon.Server.Assets
                 entry.Asset.RemoveReference(reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
             }
             graph.RootReferences.Clear();
-        }
-
-        private async ValueTask ClearNativeGraphAsync(AssetEntry entry, bool deletingOwner, CancellationToken ct)
-        {
-            if (entry.NativeGraph is not { } graph)
-            {
-                return;
-            }
-            await ClearNativeReferencesAsync(entry, graph, ct).ConfigureAwait(false);
             if (deletingOwner)
             {
                 // Deleting the owner must not let generic bidirectional cleanup claim a preexisting peer edge.
@@ -574,6 +565,15 @@ namespace Opc.Ua.WotCon.Server.Assets
                     entry.Asset.RemoveReference(reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
                 }
             }
+        }
+
+        private async ValueTask ClearNativeGraphAsync(AssetEntry entry, bool deletingOwner, CancellationToken ct)
+        {
+            if (entry.NativeGraph is not { } graph)
+            {
+                return;
+            }
+            await ClearNativeReferencesAsync(entry, graph, deletingOwner, ct).ConfigureAwait(false);
             foreach (NodeState node in graph.Nodes.ToList())
             {
                 if (!ReferenceEquals(node, graph.Root) &&

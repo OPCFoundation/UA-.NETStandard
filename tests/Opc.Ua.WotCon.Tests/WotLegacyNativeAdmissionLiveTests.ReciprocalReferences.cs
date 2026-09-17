@@ -41,6 +41,7 @@ using Opc.Ua.Server;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Client;
+using Opc.Ua.WotCon.Server;
 
 namespace Opc.Ua.WotCon.Tests
 {
@@ -241,6 +242,83 @@ namespace Opc.Ua.WotCon.Tests
             await AssertPeerReferenceAsync(fixture, asset.AssetId, peer, inverse: true, existingPeer);
         }
 
+        [TestCase(false, false, false)]
+        [TestCase(false, false, true)]
+        [TestCase(false, true, false)]
+        [TestCase(false, true, true)]
+        [TestCase(true, false, false)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, false)]
+        [TestCase(true, true, true)]
+        public async Task NativePeerOwnershipSurvivesRepeatedAssetManagerRetirement(
+            bool inverse, bool existingOwner, bool existingPeer)
+        {
+            await using Fixture fixture = await CreatePeerFixtureAsync();
+            var factory = new DirectAssetManagerFactory(fixture.Options);
+            await fixture.RestartManagerAsync(factory: factory);
+            WotAssetClient asset = await fixture.Client.CreateAssetAsync("mapped");
+            NodeId assetId = asset.AssetId;
+            NodeId unboundType = await fixture.TypeAsync(assetId);
+            NodeId peer = await CreatePeerAsync(fixture, sameManager: false);
+            var referenceType = new NodeId(4020u, fixture.ModelNamespaceIndex);
+            if (existingOwner)
+            {
+                await fixture.Server.NodeManager.AddReferencesAsync(assetId,
+                    [new NodeStateReference(referenceType, inverse, peer)]);
+            }
+            if (existingPeer)
+            {
+                await fixture.Server.NodeManager.AddReferencesAsync(peer,
+                    [new NodeStateReference(referenceType, !inverse, assetId)]);
+            }
+            await AssertPeerReferenceAsync(fixture, assetId, peer, inverse, existingPeer);
+            await AssertOwnerReferenceAsync(fixture, assetId, peer, inverse, existingOwner);
+            ByteString content = PeerReferenceDocument(WotNodeSetPreservationMode.Always, inverse, false);
+            ByteString replacement = Document(binding: "\"@type\":\"Thing\",");
+
+            await asset.UploadThingDescriptionAsync(content.Span.ToArray());
+
+            for (int restart = 0; restart <= 2; restart++)
+            {
+                if (restart > 0)
+                {
+                    await fixture.RestartManagerAsync(factory: factory);
+                    asset = await fixture.Client.OpenAssetAsync(assetId);
+                }
+                Assert.That(asset.AssetId, Is.EqualTo(assetId));
+                Assert.That(fixture.Provider.Connects, Is.EqualTo(restart + 1));
+                Assert.That(await fixture.TypeAsync(assetId),
+                    Is.EqualTo(new NodeId(4001u, fixture.ModelNamespaceIndex)));
+                Assert.That((await PropertiesAsync(asset)).Count, Is.EqualTo(1));
+                Assert.That(await asset.DownloadThingDescriptionAsync(), Is.EqualTo(content.Span.ToArray()));
+                Assert.That(await ReadPersistedDocumentAsync(fixture), Is.EqualTo(content));
+                await AssertPeerReferenceAsync(fixture, assetId, peer, inverse, present: true);
+                await AssertOwnerReferenceAsync(fixture, assetId, peer, inverse, present: true);
+            }
+
+            await asset.UploadThingDescriptionAsync(replacement.Span.ToArray());
+
+            Assert.That(fixture.Provider.Connects, Is.EqualTo(4));
+            Assert.That(await fixture.TypeAsync(assetId), Is.EqualTo(unboundType));
+            Assert.That((await PropertiesAsync(asset)).Count, Is.EqualTo(1));
+            Assert.That(await asset.DownloadThingDescriptionAsync(), Is.EqualTo(replacement.Span.ToArray()));
+            Assert.That(await ReadPersistedDocumentAsync(fixture), Is.EqualTo(replacement));
+            await AssertPeerReferenceAsync(fixture, assetId, peer, inverse, existingPeer);
+            await AssertOwnerReferenceAsync(fixture, assetId, peer, inverse, present: false);
+
+            await fixture.RestartManagerAsync(factory: factory);
+
+            WotAssetClient restored = await fixture.Client.OpenAssetAsync(assetId);
+            Assert.That(restored.AssetId, Is.EqualTo(assetId));
+            Assert.That(fixture.Provider.Connects, Is.EqualTo(5));
+            Assert.That(await fixture.TypeAsync(assetId), Is.EqualTo(unboundType));
+            Assert.That((await PropertiesAsync(restored)).Count, Is.EqualTo(1));
+            Assert.That(await restored.DownloadThingDescriptionAsync(), Is.EqualTo(replacement.Span.ToArray()));
+            Assert.That(await ReadPersistedDocumentAsync(fixture), Is.EqualTo(replacement));
+            await AssertPeerReferenceAsync(fixture, assetId, peer, inverse, existingPeer);
+            await AssertOwnerReferenceAsync(fixture, assetId, peer, inverse, present: false);
+        }
+
         [TestCase(true, false, TestName = "NativePeerPublicationUnsupportedIsReported")]
         [TestCase(false, false, TestName = "NativePeerPublicationRejectedIsReported")]
         [TestCase(false, true, TestName = "NativePeerPublicationExceptionIsReported")]
@@ -374,6 +452,19 @@ namespace Opc.Ua.WotCon.Tests
                 var manager = new RejectingPeerNodeManager(server, configuration, status, throws);
                 return new ValueTask<IAsyncNodeManager>(
                     adapted ? manager.SyncNodeManager.ToAsyncNodeManager() : manager);
+            }
+        }
+
+        private sealed class DirectAssetManagerFactory(WotConnectivityServerOptions options) : IAsyncNodeManagerFactory
+        {
+            public ArrayOf<string> NamespacesUris => [options.AssetNamespaceUri, Namespaces.WotCon];
+
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server, ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<IAsyncNodeManager>(new WotConnectivityNodeManager(server, configuration, options));
             }
         }
 

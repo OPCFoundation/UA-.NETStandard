@@ -227,7 +227,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
                 if (entry.NativeGraph is { } graph)
                 {
-                    await ClearNativeReferencesAsync(entry, graph, ct).ConfigureAwait(false);
+                    await ClearNativeReferencesAsync(entry, graph, deletingOwner: false, ct).ConfigureAwait(false);
                 }
                 lock (m_assetsLock)
                 {
@@ -1738,7 +1738,8 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 if (entry.NativeGraph is { } graph)
                 {
-                    await ClearNativeReferencesAsync(entry, graph, CancellationToken.None).ConfigureAwait(false);
+                    await ClearNativeReferencesAsync(entry, graph, deletingOwner: true, CancellationToken.None)
+                        .ConfigureAwait(false);
                 }
                 if (entry.Provider != null)
                 {

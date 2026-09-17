@@ -635,7 +635,8 @@ namespace Opc.Ua.WotCon.Tests
                 return arguments;
             }
 
-            public async Task RestartManagerAsync(ByteString replacement = default)
+            public async Task RestartManagerAsync(
+                ByteString replacement = default, IAsyncNodeManagerFactory? factory = null)
             {
                 await m_server.NodeManagerLifecycle.RemoveAsync(m_registration, null);
                 if (!replacement.IsNull)
@@ -653,8 +654,9 @@ namespace Opc.Ua.WotCon.Tests
                 }
                 Recorder = new RecordingConverter(this);
                 Options.DocumentConverter = Recorder;
-                m_registration = await m_server.NodeManagerLifecycle.AddAsync(
-                    new WotConnectivityNodeManagerFactory(Options), null);
+                m_registration = factory is null
+                    ? await m_server.NodeManagerLifecycle.AddAsync(new WotConnectivityNodeManagerFactory(Options), null)
+                    : await m_server.NodeManagerLifecycle.AddAsync(factory, null);
             }
 
             public async ValueTask DisposeAsync()
