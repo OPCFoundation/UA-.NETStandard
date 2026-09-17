@@ -354,8 +354,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <remarks>
         /// A channel that exchanged no message for longer than <paramref name="channelLifetime"/>
-        /// is due for cleanup, unless it is open, has no Session assigned and its current or
-        /// renewed security token has not expired yet: OPC 10000-4 §5.6.2.1 keeps a SecureChannel
+        /// is due for cleanup, unless it is open, has no Session assigned and one of its security
+        /// tokens (current, renewed, or the previous one that incoming messages may still use)
+        /// has not expired yet: OPC 10000-4 §5.6.2.1 keeps a SecureChannel
         /// until it is closed or until its last token has expired, and only lets the Server close
         /// unused Session-less SecureChannels before reaching the channel limit. A Client with a
         /// Session keeps communicating, so a silent channel that carries a Session still ends
@@ -375,7 +376,9 @@ namespace Opc.Ua.Bindings
                 return true;
             }
 
-            return !IsTokenValid(CurrentToken) && !IsTokenValid(RenewedToken);
+            return !IsTokenValid(CurrentToken) &&
+                !IsTokenValid(RenewedToken) &&
+                !IsTokenValid(PreviousToken);
         }
 
         /// <summary>
