@@ -108,46 +108,55 @@ namespace Opc.Ua.Redundancy
         /// <inheritdoc/>
         public async ValueTask<bool> TryAcquireOrRenewAsync(CancellationToken ct = default)
         {
-            long attempt;
-            lock (m_lock)
+            await m_attemptGate.WaitAsync(ct).ConfigureAwait(false);
+            try
             {
-                if (m_disposed)
+                long attempt;
+                lock (m_lock)
                 {
-                    throw new ObjectDisposedException(nameof(SharedStoreLeaseElection));
+                    if (m_disposed)
+                    {
+                        throw new ObjectDisposedException(nameof(SharedStoreLeaseElection));
+                    }
+                    ExpireLeaseIfNeeded();
+                    attempt = ++m_attempt;
                 }
-                ExpireLeaseIfNeeded();
-                attempt = ++m_attempt;
-            }
-            DispatchNotifications();
 
-            (bool found, ByteString current) = await m_store.TryGetAsync(m_leaseKey, ct).ConfigureAwait(false);
-            if (!IsCurrentAttempt(attempt))
+                (bool found, ByteString current) =
+                    await m_store.TryGetAsync(m_leaseKey, ct).ConfigureAwait(false);
+                if (!IsCurrentAttempt(attempt))
+                {
+                    return false;
+                }
+                long timestamp = m_timeProvider.GetTimestamp();
+                long nowTicks = m_timeProvider.GetUtcNow().UtcTicks;
+
+                bool canTake = !found;
+                if (found)
+                {
+                    canTake = !TryParseLease(current, out string owner, out long expiryTicks) ||
+                        nowTicks >= expiryTicks ||
+                        string.Equals(owner, m_nodeId, StringComparison.Ordinal);
+                }
+
+                if (!canTake)
+                {
+                    return CompleteAttempt(attempt, false, 0, 0);
+                }
+
+                long newExpiryTicks = nowTicks + m_leaseDuration.Ticks;
+                ByteString newLease = EncodeLease(m_nodeId, newExpiryTicks);
+                ByteString expected = found ? current : default;
+                bool acquired = await m_store
+                    .CompareAndSwapAsync(m_leaseKey, expected, newLease, ct)
+                    .ConfigureAwait(false);
+                return CompleteAttempt(attempt, acquired, timestamp, newExpiryTicks);
+            }
+            finally
             {
-                return false;
+                m_attemptGate.Release();
+                DispatchNotifications();
             }
-            long timestamp = m_timeProvider.GetTimestamp();
-            long nowTicks = m_timeProvider.GetUtcNow().UtcTicks;
-
-            bool canTake = !found;
-            if (found)
-            {
-                canTake = !TryParseLease(current, out string owner, out long expiryTicks) ||
-                    nowTicks >= expiryTicks ||
-                    string.Equals(owner, m_nodeId, StringComparison.Ordinal);
-            }
-
-            if (!canTake)
-            {
-                return CompleteAttempt(attempt, false, 0, 0);
-            }
-
-            long newExpiryTicks = nowTicks + m_leaseDuration.Ticks;
-            ByteString newLease = EncodeLease(m_nodeId, newExpiryTicks);
-            ByteString expected = found ? current : default;
-            bool acquired = await m_store
-                .CompareAndSwapAsync(m_leaseKey, expected, newLease, ct)
-                .ConfigureAwait(false);
-            return CompleteAttempt(attempt, acquired, timestamp, newExpiryTicks);
         }
 
         /// <inheritdoc/>
@@ -198,6 +207,8 @@ namespace Opc.Ua.Redundancy
                 }
             }
 
+            await m_attemptGate.WaitAsync().ConfigureAwait(false);
+            m_attemptGate.Dispose();
             await ReleaseIfOwnedAsync().ConfigureAwait(false);
             m_cts.Dispose();
         }
@@ -266,7 +277,6 @@ namespace Opc.Ua.Redundancy
                 ExpireLeaseIfNeeded();
                 current = !m_disposed && attempt == m_attempt;
             }
-            DispatchNotifications();
             return current;
         }
 
@@ -303,7 +313,6 @@ namespace Opc.Ua.Redundancy
                     }
                 }
             }
-            DispatchNotifications();
             return confirmed;
         }
 
@@ -467,6 +476,7 @@ namespace Opc.Ua.Redundancy
         /// Schedules revocation of local leadership even when a store operation is still pending.
         /// </summary>
         private readonly ITimer m_expiryTimer;
+        private readonly SemaphoreSlim m_attemptGate = new(1, 1);
         private readonly Lock m_lock = new();
         private readonly CancellationTokenSource m_cts = new();
         private Task? m_loop;

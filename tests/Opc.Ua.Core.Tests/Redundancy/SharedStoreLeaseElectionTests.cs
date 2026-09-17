@@ -196,6 +196,59 @@ namespace Opc.Ua.Core.Tests.Redundancy
         }
 
         [Test]
+        public async Task ConcurrentAcquireOrRenewCallsAreSerializedAsync()
+        {
+            var time = new FakeTimeProvider();
+            var firstCompareAndSwapStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseFirstCompareAndSwap = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondTryGetStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int tryGetCount = 0;
+            var store = new Mock<ISharedKeyValueStore>();
+            store
+                .Setup(s => s.TryGetAsync(LeaseKey, It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    if (Interlocked.Increment(ref tryGetCount) == 1)
+                    {
+                        return new ValueTask<(bool Found, ByteString Value)>(
+                            (false, default));
+                    }
+
+                    secondTryGetStarted.TrySetResult(true);
+                    return new ValueTask<(bool Found, ByteString Value)>((false, default));
+                });
+            store
+                .Setup(s => s.CompareAndSwapAsync(
+                    LeaseKey,
+                    It.IsAny<ByteString>(),
+                    It.IsAny<ByteString>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(async () =>
+                {
+                    firstCompareAndSwapStarted.TrySetResult(true);
+                    await releaseFirstCompareAndSwap.Task.ConfigureAwait(false);
+                    return true;
+                });
+
+            await using SharedStoreLeaseElection election = CreateElection(store.Object, "A", time);
+            Task<bool> first = election.TryAcquireOrRenewAsync().AsTask();
+            await firstCompareAndSwapStarted.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+
+            Task<bool> second = election.TryAcquireOrRenewAsync().AsTask();
+            await Task.Delay(TimeSpan.FromMilliseconds(50)).ConfigureAwait(false);
+            Assert.That(secondTryGetStarted.Task.IsCompleted, Is.False);
+
+            releaseFirstCompareAndSwap.TrySetResult(true);
+            Assert.That(await first.ConfigureAwait(false), Is.True);
+            Assert.That(await second.ConfigureAwait(false), Is.True);
+            Assert.That(election.IsLeader, Is.True);
+            Assert.That(tryGetCount, Is.EqualTo(2));
+        }
+
+        [Test]
         public async Task AcquireTakesOverWhenStoredLeaseIsTooShortAsync()
         {
             var time = new FakeTimeProvider();
