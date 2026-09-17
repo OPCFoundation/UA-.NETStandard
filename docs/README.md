@@ -38,6 +38,7 @@ Here is a list of available documentation for different topics:
 * [WoT / NodeSet conversion](WoTNodeSetConversion.md) - `WotNodeSetConverter` readable mapping, preservation projections, and the WoT-to-NodeSet default/failure table.
 * [Independent readable WoT models](WoTIndependentModels.md) - Explicit multi-model import, deterministic namespace normalization, typed-value codecs, and registry opt-in configuration; strict partition reconstruction remains the default.
 * [WoT Connectivity](WoTConnectivity.md) - OPC 10100-1 asset connectivity, the WoT Connectivity 1.1 registry/client, dependency-closure materialization, and runtime NodeSet projection.
+* [Legacy WoT existing-type bindings](WoTLegacyTypeBindings.md) - Shared native preparation, authoritative loaded declarations, stable legacy owner/action identities, literal source preservation and direct/DI converter configuration.
 * [WoT registry Version leases](WotRegistryVersionLeases.md) - Atomic owner-managed retention protection for exact/logical file handles, pending writes, Session cleanup, direct/DI access and optional-provider boundaries.
 * [Prepared WoT registry metadata commits](WotRegistryPreparedStore.md) - Captured validated generations, immutable content-provider leases, projection-only metadata publication, and authoritative commit outcomes.
 * [WoT dependency snapshots](WotDependencySnapshots.md) - Metadata-first selection, exact-Version capture, native committed/attempt Properties, authoritative origins, same-owner DI capability and persistence-integrity boundaries.

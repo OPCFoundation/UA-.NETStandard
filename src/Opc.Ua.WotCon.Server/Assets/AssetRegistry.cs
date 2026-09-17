@@ -50,7 +50,7 @@ namespace Opc.Ua.WotCon.Server.Assets
     /// each other. Per-asset I/O (read/write/observe via the provider)
     /// runs outside the lock.
     /// </remarks>
-    internal sealed class AssetRegistry : IAsyncDisposable
+    internal sealed partial class AssetRegistry : IAsyncDisposable
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="AssetRegistry"/> class.
@@ -241,6 +241,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
                 entry.FileManager?.Dispose();
 
+                await ClearNativeGraphAsync(entry, ct).ConfigureAwait(false);
                 await m_manager.DeleteAssetNodeAsync(entry.Asset, ct).ConfigureAwait(false);
                 DeleteTdFromDisk(entry.Name);
                 await RemoveFromRegistryAsync(entry, ct).ConfigureAwait(false);
@@ -281,12 +282,20 @@ namespace Opc.Ua.WotCon.Server.Assets
                 m_logger.CreateAssetForEndpointRejected(policyCheck.StatusCode);
                 return (policyCheck, NodeId.Null);
             }
-            (ServiceResult createResult, NodeId assetId) = await CreateAssetAsync(assetName, ct)
-                .ConfigureAwait(false);
-            if (ServiceResult.IsBad(createResult))
+            ServiceResult nameCheck = WotAssetNameValidator.Validate(assetName);
+            if (ServiceResult.IsBad(nameCheck))
             {
-                return (createResult, assetId);
+                return (nameCheck, NodeId.Null);
             }
+            lock (m_assetsLock)
+            {
+                if (m_byName.ContainsKey(assetName))
+                {
+                    return (ServiceResult.Create(StatusCodes.BadBrowseNameDuplicated,
+                        "An asset with this name already exists."), NodeId.Null);
+                }
+            }
+            NodeId assetId = NodeId.Null;
             try
             {
                 ThingDescription td = await RunWithPolicyTimeoutAsync(
@@ -302,7 +311,6 @@ namespace Opc.Ua.WotCon.Server.Assets
                 // was chosen by the caller, so neither is a trusted source.
                 if (!ThingDescriptionFormatValidator.HasIdentifyingMember(td))
                 {
-                    await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
                     m_logger.GeneratedThingDescriptionFailedFormatValidation(assetName);
                     return (ServiceResult.Create(StatusCodes.BadDecodingError,
                         "The Thing Description generated for this endpoint is not a Thing " +
@@ -310,30 +318,60 @@ namespace Opc.Ua.WotCon.Server.Assets
                         NodeId.Null);
                 }
 
+                ByteString content = ByteString.From(
+                    JsonSerializer.SerializeToUtf8Bytes(td, ThingDescriptionJsonContext.Default.ThingDescription));
+                var candidate = new AssetEntry(assetName, new IWoTAssetState(null)
+                {
+                    NodeId = m_manager.AllocateAssetNodeId(assetName)
+                });
+                WotLegacyPreparedGraph? native = await PrepareNativeGraphAsync(candidate, content, ct)
+                    .ConfigureAwait(false);
+                (ServiceResult createResult, NodeId createdId) = await CreateAssetAsync(assetName, ct)
+                    .ConfigureAwait(false);
+                if (ServiceResult.IsBad(createResult))
+                {
+                    return (createResult, NodeId.Null);
+                }
+                assetId = createdId;
                 AssetEntry entry = FindByNodeId(assetId)
                     ?? throw new InvalidOperationException("Asset disappeared after creation.");
 
-                ServiceResult rebuild = await RebuildAsync(entry, td, persistOnSuccess: true, ct)
+                ServiceResult rebuild = await RebuildPreparedAsync(entry, td, content, native, persistOnSuccess: true, ct)
                     .ConfigureAwait(false);
                 if (ServiceResult.IsBad(rebuild))
                 {
                     await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
                     return (rebuild, NodeId.Null);
                 }
-                entry.FileManager?.UpdatePersistedContent(
-                    JsonSerializer.SerializeToUtf8Bytes(td, ThingDescriptionJsonContext.Default.ThingDescription));
+                entry.FileManager?.UpdatePersistedContent(content.Span.ToArray());
                 return (ServiceResult.Good, assetId);
+            }
+            catch (ServiceResultException exception)
+            {
+                if (!assetId.IsNull)
+                {
+                    await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
+                }
+                m_logger.NativePreparationRejected(exception, assetName);
+                return (ServiceResult.Create(exception.StatusCode,
+                    "The discovered native declarations or type binding could not be prepared."), NodeId.Null);
             }
             catch (NotSupportedException ex)
             {
-                await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
+                if (!assetId.IsNull)
+                {
+                    await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
+                }
                 m_logger.CreateAssetForEndpointProviderRejected(ex, assetName);
                 return (ToClientStatus(ex, StatusCodes.BadNotSupported, "CreateAssetForEndpoint"), NodeId.Null);
             }
             catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
             {
                 // Policy timeout fired; caller's token is still alive.
-                await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
+                if (!assetId.IsNull)
+                {
+                    await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
+                }
                 m_logger.CreateAssetForEndpointTimedOut(
                     ex,
                     m_options.AssetEndpointPolicy.MaxOperationTimeout,
@@ -344,7 +382,10 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
+                if (!assetId.IsNull)
+                {
+                    await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
+                }
                 m_logger.CreateAssetForEndpointFailed(ex, assetName);
                 return (ToClientStatus(ex, MapToStatusCode(ex), "CreateAssetForEndpoint"), NodeId.Null);
             }
@@ -522,6 +563,28 @@ namespace Opc.Ua.WotCon.Server.Assets
                 content = ByteString.From(
                     JsonSerializer.SerializeToUtf8Bytes(td, ThingDescriptionJsonContext.Default.ThingDescription));
             }
+            WotLegacyPreparedGraph? native;
+            try
+            {
+                native = await PrepareNativeGraphAsync(entry, content, ct).ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception)
+            {
+                m_logger.NativePreparationRejected(exception, entry.Name);
+                return ServiceResult.Create(exception.StatusCode,
+                    "The legacy asset's native declarations or type binding could not be prepared.");
+            }
+            return await RebuildPreparedAsync(entry, td, content, native, persistOnSuccess, ct).ConfigureAwait(false);
+        }
+
+        private async ValueTask<ServiceResult> RebuildPreparedAsync(
+            AssetEntry entry,
+            ThingDescription td,
+            ByteString content,
+            WotLegacyPreparedGraph? native,
+            bool persistOnSuccess,
+            CancellationToken ct)
+        {
             IWotAssetProviderFactory? factory = null;
             foreach (IWotAssetProviderFactory candidate in m_options.Bindings)
             {
@@ -572,13 +635,21 @@ namespace Opc.Ua.WotCon.Server.Assets
                 entry.Provider = provider;
 
                 await ClearDynamicChildrenAsync(entry, ct).ConfigureAwait(false);
+                await ClearNativeGraphAsync(entry, ct).ConfigureAwait(false);
+
+                entry.Asset.TypeDefinitionId = native is null
+                    ? entry.UnboundTypeDefinitionId : native.Root.TypeDefinitionId;
+                if (native is not null)
+                {
+                    await PublishNativeGraphAsync(entry, native, td, ct).ConfigureAwait(false);
+                }
 
                 // An affordance the TD declares but this Server cannot
                 // materialise is skipped so the rest of the asset stays usable.
                 // Skipping is not the same as succeeding, though: reporting a
                 // plain Good would tell an operator the whole TD was applied
                 // while an alarm they authored had silently vanished.
-                if (td.Properties != null)
+                if (native is null && td.Properties != null)
                 {
                     var seen = new HashSet<string>(
                         StringComparer.Ordinal);
@@ -601,7 +672,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                         BuildPropertyNode(entry, kv.Key, kv.Value);
                     }
                 }
-                if (td.Actions != null)
+                if (native is null && td.Actions != null)
                 {
                     var seen = new HashSet<string>(
                         StringComparer.Ordinal);
@@ -1776,6 +1847,11 @@ namespace Opc.Ua.WotCon.Server.Assets
 
     internal static partial class AssetRegistryLog
     {
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 40, Level = LogLevel.Warning,
+            Message = "Shared native preparation rejected legacy asset {AssetName}.")]
+        public static partial void NativePreparationRejected(
+            this ILogger logger, Exception exception, string assetName);
+
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 37, Level = LogLevel.Warning,
             Message = "Skipping duplicate TD event '{ChildName}' for asset {AssetName}.")]
         public static partial void SkippingDuplicateTdEvent(this ILogger logger, string childName, string assetName);

@@ -167,6 +167,11 @@ namespace Opc.Ua.WotCon.Server
             return new NodeId($"Assets/{assetName}/{category}/{childName}", AssetNamespaceIndex);
         }
 
+        internal NodeId AllocateAssetNodeId(string assetName)
+        {
+            return new NodeId($"Assets/{assetName}", AssetNamespaceIndex);
+        }
+
         /// <summary>
         /// Creates an asset object below the management node.
         /// </summary>
@@ -179,7 +184,7 @@ namespace Opc.Ua.WotCon.Server
             {
                 var asset = new IWoTAssetState(m_managementObject)
                 {
-                    NodeId = new NodeId($"Assets/{assetName}", AssetNamespaceIndex),
+                    NodeId = AllocateAssetNodeId(assetName),
                     SymbolicName = assetName,
                     BrowseName = new QualifiedName(assetName, AssetNamespaceIndex),
                     DisplayName = new LocalizedText(assetName),
@@ -282,23 +287,11 @@ namespace Opc.Ua.WotCon.Server
             await foreach ((string name, ThingDescription td, ByteString content) in
                 m_registry.EnumeratePersistedDocumentsAsync(cancellationToken).ConfigureAwait(false))
             {
-                (ServiceResult create, NodeId assetId) = await m_registry
-                    .CreateAssetAsync(name, cancellationToken).ConfigureAwait(false);
-                if (ServiceResult.IsBad(create))
+                ServiceResult restored = await m_registry
+                    .RestoreAssetAsync(name, td, content, cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(restored))
                 {
-                    m_logger.RestoringAssetFailed(name, create);
-                    continue;
-                }
-                AssetEntry? entry = m_registry.FindByNodeId(assetId);
-                if (entry != null)
-                {
-                    ServiceResult restored = await m_registry
-                        .RebuildAsync(entry, td, content, persistOnSuccess: false, cancellationToken)
-                        .ConfigureAwait(false);
-                    if (ServiceResult.IsGood(restored))
-                    {
-                        entry.FileManager?.UpdatePersistedContent(content.Span.ToArray());
-                    }
+                    m_logger.RestoringAssetFailed(name, restored);
                 }
             }
         }
