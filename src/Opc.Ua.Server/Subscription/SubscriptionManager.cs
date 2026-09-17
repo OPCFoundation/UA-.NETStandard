@@ -745,19 +745,16 @@ namespace Opc.Ua.Server
                 {
                     NodeId sessionId = subscription.SessionId;
 
-                    if (!sessionId.IsNull)
+                    if (context != null &&
+                        !ReferenceEquals(context.Session, subscription.Session))
                     {
-                        // check that the subscription is the owner.
-                        if (context != null &&
-                            !ReferenceEquals(context.Session, subscription.Session))
-                        {
-                            throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
-                        }
+                        throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
+                    }
 
-                        if (m_publishQueues.TryGetValue(sessionId, out SessionPublishQueue? queue))
-                        {
-                            queue.Remove(subscription, true);
-                        }
+                    if (!sessionId.IsNull &&
+                        m_publishQueues.TryGetValue(sessionId, out SessionPublishQueue? queue))
+                    {
+                        queue.Remove(subscription, true);
                     }
                 }
 

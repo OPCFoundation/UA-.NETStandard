@@ -642,9 +642,14 @@ namespace Opc.Ua.Server
                         // parse the token manually if the identity is not provided.
                         if (identity == null)
                         {
-                            tempIdentity = newIdentity != null
-                                ? new UserIdentity(newIdentity)
-                                : new UserIdentity();
+                                if (newIdentity == null ||
+                                    newIdentity.TokenType != UserTokenType.Anonymous)
+                                {
+                                    throw new ServiceResultException(
+                                        StatusCodes.BadIdentityTokenRejected);
+                                }
+
+                                tempIdentity = new UserIdentity(newIdentity);
                             identity = tempIdentity;
                         }
 

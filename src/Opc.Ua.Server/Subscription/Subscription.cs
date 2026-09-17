@@ -1569,9 +1569,11 @@ namespace Opc.Ua.Server
                         m_itemsToCheck.AddLast(current);
                     }
 
-                    // check there are enough notifications for a message.
-                    if (m_maxNotificationsPerPublish > 0 &&
-                        events.Count + datachanges.Count > m_maxNotificationsPerPublish)
+                    // Construct all complete messages currently available, while retaining any
+                    // notifications that do not fit in the retransmission queue.
+                    while (m_maxNotificationsPerPublish > 0 &&
+                        events.Count + datachanges.Count >= m_maxNotificationsPerPublish &&
+                        messages.Count < m_messageQueue.MaxMessageCount)
                     {
                         // construct message.
                         int eventCount = events.Count;
@@ -1596,19 +1598,15 @@ namespace Opc.Ua.Server
                             MarkDiagnosticsDirty();
                         }
 
-                        //stop fetching messages from MIs when message queue is full to avoid discards
-                        // use MaxMessageCount - 2 to put remaining values into the last allowed message (each MI is allowed to publish 3 up to messages at once)
-                        if (messages.Count >= m_messageQueue.MaxMessageCount - 2)
-                        {
-                            break;
-                        }
+                        // Continue draining complete messages until the queue is full.
                     }
 
                     current = next;
                 }
 
                 // publish the remaining notifications.
-                while (events.Count + datachanges.Count > 0)
+                while (events.Count + datachanges.Count > 0 &&
+                    messages.Count < m_messageQueue.MaxMessageCount)
                 {
                     // construct message.
                     int eventCount = events.Count;
