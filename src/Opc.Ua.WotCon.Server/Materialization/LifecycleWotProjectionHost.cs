@@ -57,11 +57,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="runtimeFactory">
         /// The optional projection binding runtime factory. When supplied, each
         /// runtime NodeSet generation created for a document that carries
-        /// prepared <see cref="WotProjectionDocument.BindingPlans"/> owns its own
+        /// prepared binding work in <see cref="WotProjectionDocument.BindingPlans"/> owns its own
         /// binding runtime: it is created after the NodeSet is imported (via
         /// <see cref="RuntimeNodeSetOptions.ConfigureAsync"/>) and disposed with
         /// the generation. When <c>null</c>, no binding runtime is wired (the
-        /// NodeSet is materialized as data only).
+        /// NodeSet is materialized as data only). The stock factory skips data-only
+        /// plans that need no fluent configuration or default namespace. Custom
+        /// factories retain their configuration callback for every generation.
         /// </param>
         public LifecycleWotProjectionHost(
             INodeManagerLifecycle lifecycle,
@@ -193,7 +195,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 Sources = new ArrayOf<RuntimeNodeSetSource>(sources),
                 AllowLifecycleFromRequestCallback = true
             };
-            if (m_runtimeFactory is { } runtimeFactory)
+            if (m_runtimeFactory is { } runtimeFactory &&
+                (runtimeFactory is not WotProjectionBindingRuntimeFactory ||
+                 document.BindingPlans.Contains(plan => plan is not null &&
+                    (!plan.CompiledForms.IsEmpty ||
+                     !plan.ProjectedAffordances.IsEmpty ||
+                     !plan.UnsupportedForms.IsEmpty))))
             {
                 ArrayOf<WotBindingPlan> bindingPlans = document.BindingPlans;
                 options.ConfigureAsync = (builder, cancellationToken)

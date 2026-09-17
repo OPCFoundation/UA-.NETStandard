@@ -795,21 +795,29 @@ The target's own blob is the one exception: it is being removed anyway, so its r
 
 `WotMaterializationCoordinator.RefreshAsync` drives projection:
 
-1. Parses/validates each registry document with `Opc.Ua.Wot`.
-2. Builds the TD/TM dependency graph from `links` (`rel = tm:extends /
-   type / tm:submodel`), a top-level `tm:extends`, and `tm:ref` pointers,
-   resolving references against the registry by Thing id / xid / resource
-   id. It never follows an arbitrary external URL; an unresolved absolute
-   URL remains a missing dependency unless a configured xRegistry
-   federation layer has registered it.
+1. Resolves `Kind`, exact Version and optional dependent selection from registry
+   metadata before acquiring bodies. Empty selection selects enabled inputs;
+   a nonempty unmatched selection performs no materialization work.
+2. Captures the selected/required exact inputs, original context and content,
+   semantic edges and owner-issued Version leases. References resolve by exact
+   identity rather than arbitrary URL suffixes. Disabled dependencies may supply
+   definitions without becoming executing owners; individual acquisition failures
+   remain associated with their closures.
 3. Partitions the graph into **dependency closures** (weakly-connected
-   components) with Thing Models topologically ordered before the Thing
-   Descriptions that extend them; a shared model lands in a single
-   closure. Cycles and missing dependencies produce deterministic
-   diagnostics.
-4. Converts each closure to one or more NodeSet2 documents and projects
+   components), preserving legal semantic strongly connected components and
+   separately checking ordering constraints. Thing Models precede the
+   descriptions that extend them; inheritance cycles and missing dependencies
+   produce deterministic diagnostics.
+4. Validates/converts captured inputs to one or more NodeSet2 documents and projects
    the closure as one runtime NodeManager (Add, or graceful/immediate
    reload on update according to `RetirementPolicy`).
+
+The existing native `DependencySnapshot` and `LastDependencyAttempt` Properties
+distinguish committed graphs from actual attempts; dry runs update neither.
+See [selected dependencies and exact-Version snapshots](WotDependencySnapshots.md)
+for direct/DI usage, authoritative origins, native reads and the separate
+whole-manifest store-integrity boundary. Selection-scoped acquisition does not
+promise selected-only backing-store validation I/O.
 
 Behaviours:
 

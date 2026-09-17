@@ -41,6 +41,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
+using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.WotCon.Server.Registry
@@ -1051,7 +1052,11 @@ namespace Opc.Ua.WotCon.Server.Registry
                             ? version.Title
                             : dto.Title,
                         BaseUri = version.BaseUri,
-                        ModelVersion = version.ModelVersion
+                        ModelVersion = version.ModelVersion,
+                        Dependencies = FromDto(version.Dependencies, digestHex),
+                        DependencySnapshot = FromDto(version.DependencySnapshot, version.VersionId, committed: true),
+                        LastDependencyAttempt = FromDto(
+                            version.LastDependencyAttempt, version.VersionId, committed: false)
                     });
                 }
             }
@@ -1183,7 +1188,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                     DocumentId = v.DocumentId,
                     Title = v.Title,
                     BaseUri = v.BaseUri,
-                    ModelVersion = v.ModelVersion
+                    ModelVersion = v.ModelVersion,
+                    Dependencies = ToDto(v.Dependencies),
+                    DependencySnapshot = ToDto(v.DependencySnapshot),
+                    LastDependencyAttempt = ToDto(v.LastDependencyAttempt)
                 };
             }
             return new ResourceDto
@@ -1239,6 +1247,155 @@ namespace Opc.Ua.WotCon.Server.Registry
             ImmutableSortedDictionary<string, string> labels)
         {
             return labels.Count == 0 ? null : new Dictionary<string, string>(labels);
+        }
+
+        private static DependenciesDto? ToDto(WotResourceDependencies? dependencies)
+        {
+            return dependencies is null ? null : new DependenciesDto
+            {
+                ContentDigest = WotContentDigest.ToHex(dependencies.ContentDigest),
+                References = dependencies.References.ToList().Select(reference => new DependencyReferenceDto
+                {
+                    TargetUri = reference.TargetUri,
+                    LookupUri = reference.LookupUri,
+                    RefType = reference.RefType,
+                    RequiresOrdering = reference.RequiresOrdering
+                }).ToArray(),
+                OwnedModelUris = dependencies.OwnedModelUris.ToArray(),
+                RequiredModelUris = dependencies.RequiredModelUris.ToArray(),
+                DefinedNodeIds = dependencies.DefinedNodeIds.ToArray(),
+                Error = dependencies.Error
+            };
+        }
+
+        private static WotResourceDependencies? FromDto(DependenciesDto? dto, string digestHex)
+        {
+            if (dto is null)
+            {
+                return null;
+            }
+            if (dto.ContentDigest != digestHex || dto.References is null ||
+                dto.OwnedModelUris is null || dto.RequiredModelUris is null || dto.DefinedNodeIds is null ||
+                dto.Error is null)
+            {
+                throw new InvalidDataException("Dependency metadata does not identify the exact Version content.");
+            }
+            return new WotResourceDependencies(
+                FromHexDigest(digestHex),
+                dto.References.Select(reference => new WotResourceReference(
+                    reference.TargetUri ?? throw new InvalidDataException("Missing dependency target."),
+                    reference.LookupUri ?? throw new InvalidDataException("Missing contextual dependency identity."),
+                    reference.RefType ?? throw new InvalidDataException("Missing dependency relation."),
+                    reference.RequiresOrdering)).ToArrayOf(),
+                dto.OwnedModelUris.ToArrayOf(),
+                dto.RequiredModelUris.ToArrayOf(),
+                dto.DefinedNodeIds.ToArrayOf(),
+                dto.Error);
+        }
+
+        private static DependencySnapshotDto? ToDto(WotDependencySnapshot? snapshot)
+        {
+            return snapshot is null ? null : new DependencySnapshotDto
+            {
+                SourceVersionId = snapshot.SourceVersionId,
+                Generation = snapshot.Generation,
+                RequestId = snapshot.RequestId,
+                ResolvedAt = FormatDate(snapshot.ResolvedAt),
+                IsCommitted = snapshot.IsCommitted,
+                EffectiveInputDigest = snapshot.EffectiveInputDigest.Length == 0
+                    ? string.Empty : WotContentDigest.ToHex(snapshot.EffectiveInputDigest),
+                Edges = snapshot.Edges.ToList().Select(edge => new DependencyEdgeDto
+                {
+                    SourceXid = edge.SourceXid,
+                    TargetHref = edge.TargetHref,
+                    TargetXid = edge.TargetXid,
+                    RefType = edge.RefType,
+                    Resolved = edge.Resolved
+                }).ToArray(),
+                Targets = snapshot.Targets.ToList().Select(target => new DependencyTargetDto
+                {
+                    EdgeIndex = target.EdgeIndex,
+                    OriginRegistry = target.OriginRegistry is null ? null : new RegistryOriginDto
+                    {
+                        OriginUri = target.OriginRegistry.OriginUri,
+                        ServerUri = target.OriginRegistry.ServerUri,
+                        RegistryNodeId = target.OriginRegistry.RegistryNodeId.IsNull
+                            ? null : target.OriginRegistry.RegistryNodeId.ToString()
+                    },
+                    VersionXid = target.VersionXid,
+                    DocumentUri = target.DocumentUri,
+                    VersionNodeId = target.VersionNodeId.IsNull ? null : target.VersionNodeId.ToString(),
+                    ContentDigest = WotContentDigest.ToHex(target.ContentDigest)
+                }).ToArray()
+            };
+        }
+
+        private static WotDependencySnapshot? FromDto(
+            DependencySnapshotDto? dto, string versionId, bool committed)
+        {
+            if (dto is null)
+            {
+                return null;
+            }
+            if (dto.SourceVersionId != versionId || dto.RequestId is null ||
+                string.IsNullOrEmpty(dto.ResolvedAt) || dto.IsCommitted != committed ||
+                dto.EffectiveInputDigest is null || dto.Edges is null || dto.Targets is null ||
+                ((committed || dto.EffectiveInputDigest.Length != 0) && !IsSha256Hex(dto.EffectiveInputDigest)))
+            {
+                throw new InvalidDataException("A dependency observation does not identify its exact Version state.");
+            }
+            try
+            {
+                return new WotDependencySnapshot(
+                    versionId, dto.Generation, dto.RequestId, ParseDate(dto.ResolvedAt), dto.IsCommitted,
+                    dto.EffectiveInputDigest.Length == 0 ? ByteString.Empty : FromHexDigest(dto.EffectiveInputDigest),
+                    dto.Edges.Select(edge => new WotDependency(
+                        edge.SourceXid ?? throw new InvalidDataException("Missing dependency source."),
+                        edge.TargetHref ?? throw new InvalidDataException("Missing dependency target."),
+                        edge.TargetXid,
+                        edge.RefType ?? throw new InvalidDataException("Missing dependency relation."),
+                        edge.Resolved)).ToArrayOf(),
+                    dto.Targets.Select(FromDto).ToArrayOf());
+            }
+            catch (Exception exception) when (exception is ArgumentException or FormatException)
+            {
+                throw new InvalidDataException("The persisted dependency observation is invalid.", exception);
+            }
+        }
+
+        private static WotDependencyTargetPin FromDto(DependencyTargetDto dto)
+        {
+            if (dto.VersionXid is null || dto.DocumentUri is null ||
+                dto.ContentDigest is null || !IsSha256Hex(dto.ContentDigest))
+            {
+                throw new InvalidDataException("A dependency target is missing its exact content pin.");
+            }
+            WotRegistryOrigin? origin = null;
+            if (dto.OriginRegistry is { } source)
+            {
+                if (source.OriginUri is null || source.ServerUri is null)
+                {
+                    throw new InvalidDataException("The dependency target registry origin is incomplete.");
+                }
+                origin = new WotRegistryOrigin(
+                    source.OriginUri, source.ServerUri, ParseDependencyNodeId(source.RegistryNodeId));
+            }
+            return new WotDependencyTargetPin(
+                dto.EdgeIndex, origin, dto.VersionXid, dto.DocumentUri,
+                ParseDependencyNodeId(dto.VersionNodeId), FromHexDigest(dto.ContentDigest));
+        }
+
+        private static ExpandedNodeId ParseDependencyNodeId(string? value)
+        {
+            if (value is null)
+            {
+                return ExpandedNodeId.Null;
+            }
+            if (!ExpandedNodeId.TryParse(value, out ExpandedNodeId nodeId))
+            {
+                throw new InvalidDataException("A dependency observation contains an invalid portable NodeId.");
+            }
+            return nodeId;
         }
 
         private static ValidationDto? ToDto(WoTValidationOutcomeDataType? validation)
@@ -2854,6 +3011,83 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the Thing Model <c>version.model</c> value.
             /// </summary>
             public string? ModelVersion { get; set; }
+
+            /// <summary>
+            /// Gets or sets the exact content's dependency metadata.
+            /// </summary>
+            public DependenciesDto? Dependencies { get; set; }
+
+            /// <summary>
+            /// Gets or sets the last committed exact-Version dependency graph.
+            /// </summary>
+            public DependencySnapshotDto? DependencySnapshot { get; set; }
+
+            /// <summary>
+            /// Gets or sets the last actual dependency attempt, separately from the committed graph.
+            /// </summary>
+            public DependencySnapshotDto? LastDependencyAttempt { get; set; }
+        }
+
+        internal sealed class DependencySnapshotDto
+        {
+            public string? SourceVersionId { get; set; }
+            public uint Generation { get; set; }
+            public string? RequestId { get; set; }
+            public string? ResolvedAt { get; set; }
+            public bool IsCommitted { get; set; }
+            public string? EffectiveInputDigest { get; set; }
+            public DependencyEdgeDto[]? Edges { get; set; }
+            public DependencyTargetDto[]? Targets { get; set; }
+        }
+
+        internal sealed class DependencyEdgeDto
+        {
+            public string? SourceXid { get; set; }
+            public string? TargetHref { get; set; }
+            public string? TargetXid { get; set; }
+            public string? RefType { get; set; }
+            public bool Resolved { get; set; }
+        }
+
+        internal sealed class DependencyTargetDto
+        {
+            public uint EdgeIndex { get; set; }
+            public RegistryOriginDto? OriginRegistry { get; set; }
+            public string? VersionXid { get; set; }
+            public string? DocumentUri { get; set; }
+            public string? VersionNodeId { get; set; }
+            public string? ContentDigest { get; set; }
+        }
+
+        internal sealed class RegistryOriginDto
+        {
+            public string? OriginUri { get; set; }
+            public string? ServerUri { get; set; }
+            public string? RegistryNodeId { get; set; }
+        }
+
+        /// <summary>
+        /// Persists the dependency index inside its owning Version's existing manifest entry.
+        /// </summary>
+        internal sealed class DependenciesDto
+        {
+            public string? ContentDigest { get; set; }
+            public DependencyReferenceDto[]? References { get; set; }
+            public string[]? OwnedModelUris { get; set; }
+            public string[]? RequiredModelUris { get; set; }
+            public string[]? DefinedNodeIds { get; set; }
+            public string? Error { get; set; }
+        }
+
+        /// <summary>
+        /// Persists one original/contextual semantic edge.
+        /// </summary>
+        internal sealed class DependencyReferenceDto
+        {
+            public string? TargetUri { get; set; }
+            public string? LookupUri { get; set; }
+            public string? RefType { get; set; }
+            public bool RequiresOrdering { get; set; }
         }
 
         /// <summary>

@@ -265,6 +265,23 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string? ModelVersion { get; init; }
 
         /// <summary>
+        /// Gets the immutable semantic dependency index for these exact bytes.
+        /// Null denotes an older provider that has not supplied the index.
+        /// </summary>
+        public WotResourceDependencies? Dependencies { get; init; }
+
+        /// <summary>
+        /// Gets the last successfully activated dependency graph of this exact Version.
+        /// Null means no committed graph is available.
+        /// </summary>
+        public WotDependencySnapshot? DependencySnapshot { get; init; }
+
+        /// <summary>
+        /// Gets the last completed actual dependency attempt, independently of the committed graph.
+        /// </summary>
+        public WotDependencySnapshot? LastDependencyAttempt { get; init; }
+
+        /// <summary>
         /// Gets the content digest as a lowercase hexadecimal string.
         /// </summary>
         public string DigestHex => HasContent ? WotContentDigest.ToHex(Digest) : string.Empty;
@@ -283,7 +300,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             ImmutableSortedDictionary<string, string>? labels = null,
             WoTValidationOutcomeDataType? validation = null,
             bool clearValidation = false,
-            Guid? incarnationId = null)
+            Guid? incarnationId = null,
+            WotDependencySnapshot? dependencySnapshot = null,
+            WotDependencySnapshot? lastDependencyAttempt = null)
         {
             bool replacesDigest = !digest.IsNull;
             ByteString updatedDigest = replacesDigest ? digest : Digest;
@@ -311,7 +330,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                 DocumentId = DocumentId,
                 Title = Title,
                 BaseUri = BaseUri,
-                ModelVersion = ModelVersion
+                ModelVersion = ModelVersion,
+                Dependencies = Dependencies,
+                DependencySnapshot = dependencySnapshot ?? DependencySnapshot,
+                LastDependencyAttempt = lastDependencyAttempt ?? LastDependencyAttempt
             };
         }
 
@@ -319,7 +341,8 @@ namespace Opc.Ua.WotCon.Server.Registry
             string? documentId,
             string? title,
             string? baseUri,
-            string? modelVersion)
+            string? modelVersion,
+            WotResourceDependencies? dependencies = null)
         {
             return new WotResourceVersion(
                 VersionId,
@@ -338,7 +361,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                 DocumentId = documentId,
                 Title = title,
                 BaseUri = baseUri,
-                ModelVersion = modelVersion
+                ModelVersion = modelVersion,
+                Dependencies = dependencies ?? Dependencies,
+                DependencySnapshot = DependencySnapshot,
+                LastDependencyAttempt = LastDependencyAttempt
             };
         }
 

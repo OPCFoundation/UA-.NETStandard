@@ -124,7 +124,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 await ReadCapturedGenerationAsync(captured, cancellationToken, intendedSnapshot).ConfigureAwait(false);
                 if (intendedSnapshot.Generation <= captured.Snapshot.Generation)
                 {
-                    throw new InvalidOperationException("A prepared commit must advance the captured store generation.");
+                    throw new InvalidOperationException(
+                        "A prepared commit must advance the captured store generation.");
                 }
                 if (scope == WotRegistryCommitScope.ProjectionMetadata)
                 {
@@ -189,6 +190,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                             throw new InvalidDataException("Projection metadata cannot change Version identities.");
                         }
                         newVersions[versionIndex].Validation = oldVersions[versionIndex].Validation;
+                        newVersions[versionIndex].DependencySnapshot = oldVersions[versionIndex].DependencySnapshot;
+                        newVersions[versionIndex].LastDependencyAttempt =
+                            oldVersions[versionIndex].LastDependencyAttempt;
                     }
                     newResource.ActiveVersionId = oldResource.ActiveVersionId;
                     newResource.LoadState = oldResource.LoadState;

@@ -216,8 +216,12 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             await AssertStartupSensorAsync(readable: true).ConfigureAwait(false);
             CallMethodResult refreshed = await CallAsync(registryId, refreshId, inputs).ConfigureAwait(false);
             Assert.That(refreshed.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(m_coordinator.Generation, Is.EqualTo(2),
-                "Explicit Refresh must be admitted again after startup completes.");
+            Assert.That(refreshed.OutputArguments.Count, Is.EqualTo(3));
+            Assert.That(refreshed.OutputArguments[2].TryGetValue(out uint returnedGeneration), Is.True);
+            Assert.That(returnedGeneration, Is.EqualTo(m_coordinator.Generation));
+            Assert.That(m_coordinator.Generation, Is.EqualTo(1),
+                "The admitted no-op Refresh must preserve the committed startup generation.");
+            Assert.That(host.AddCalls, Is.EqualTo(1));
         }
 
         [TestCase(false)]

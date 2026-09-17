@@ -173,6 +173,10 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp.GetRequiredService<IWotRegistryService>() as IWotRegistryVersionLeaseProvider ??
                 throw new InvalidOperationException("The registered registry does not support Version leases."));
 
+            services.TryAddSingleton(sp =>
+                sp.GetRequiredService<IWotRegistryService>() as IWotRegistryDependencySnapshotProvider ??
+                throw new InvalidOperationException("The registered registry does not support dependency snapshots."));
+
             services.TryAddSingleton<IWotProjectionHost>(sp =>
                 new LifecycleWotProjectionHost(
                     sp.GetRequiredService<INodeManagerLifecycle>(),
@@ -191,6 +195,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     sp.GetRequiredService<WotRegistryServerOptions>();
                 var converterOptions = new WotNodeSetConverterOptions
                 {
+                    MaxJsonDepth = options.Bounds.MaxJsonDepth,
                     MaxJsonDocumentSize = options.Bounds.MaxDocumentBytes,
                     MaxResolverDocumentBytes = options.Bounds.MaxDocumentBytes,
                     DocumentSetMode = options.DocumentSetMode,
@@ -215,6 +220,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     sp.GetServices<IWotNodeSetContributor>(),
                     sp.GetService<IWotNodeSetResolver>(),
                     sp.GetService<IWotViewProjectionHost>()));
+
+            services.TryAddSingleton<IWotRefreshCaptureProvider>(sp =>
+                sp.GetRequiredService<WotMaterializationCoordinator>());
 
             services.TryAddSingleton(sp =>
                 new WotRegistryNodeManagerFactory(

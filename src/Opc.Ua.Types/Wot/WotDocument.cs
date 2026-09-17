@@ -152,11 +152,12 @@ namespace Opc.Ua.Wot
         /// <param name="namespaceUri">The namespace it is bound to.</param>
         /// <param name="carryingNode">The carrying object, or the document root when omitted.</param>
         /// <returns><c>true</c> when the document binds the prefix.</returns>
-        internal bool TryGetContextPrefix(
+        public bool TryGetContextPrefix(
             string prefix,
             out string namespaceUri,
             JsonElement carryingNode = default)
         {
+            _ = prefix ?? throw new ArgumentNullException(nameof(prefix));
             if (TryGetContextTerm(prefix, out JsonElement definition, carryingNode))
             {
                 namespaceUri = ReadContextPrefix(definition);
@@ -171,11 +172,16 @@ namespace Opc.Ua.Wot
             return namespaceUri.Length != 0;
         }
 
-        internal bool TryGetContextTerm(
+        /// <summary>
+        /// Looks up a term in the carrying object's original active context.
+        /// A present null definition is returned rather than replaced by a fallback.
+        /// </summary>
+        public bool TryGetContextTerm(
             string term,
             out JsonElement definition,
             JsonElement carryingNode = default)
         {
+            _ = term ?? throw new ArgumentNullException(nameof(term));
             m_contextScopes ??= CreateContextScopes();
             if (carryingNode.ValueKind == JsonValueKind.Undefined)
             {
@@ -218,7 +224,7 @@ namespace Opc.Ua.Wot
         /// Gets the carrying object's active contexts in outermost-first order.
         /// Relative base declarations compose in this order rather than replacing one another.
         /// </summary>
-        internal ArrayOf<JsonElement> GetActiveContexts(JsonElement carryingNode = default)
+        public ArrayOf<JsonElement> GetActiveContexts(JsonElement carryingNode = default)
         {
             m_contextScopes ??= CreateContextScopes();
             if (carryingNode.ValueKind == JsonValueKind.Undefined)
@@ -409,7 +415,10 @@ namespace Opc.Ua.Wot
                 }
                 """)!;
             var terms = new JsonObject();
-            foreach (string name in new[] { "properties", "input", "output", "data", "dataResponse", "subscription", "cancellation" })
+            foreach (string name in new[]
+            {
+                "properties", "input", "output", "data", "dataResponse", "subscription", "cancellation"
+            })
             {
                 var definition = new JsonObject { ["@context"] = schema.DeepClone() };
                 if (name == "properties")

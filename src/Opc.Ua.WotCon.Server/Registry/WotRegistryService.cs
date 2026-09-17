@@ -62,6 +62,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         IWotVersionedRegistryService,
         IWotTypedRegistryService,
         IWotRegistryVersionLeaseProvider,
+        IWotRegistryDependencySnapshotProvider,
         IDisposable
     {
         /// <summary>
@@ -99,6 +100,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         public WotRegistryPersistenceBounds Bounds { get; }
 
         /// <inheritdoc/>
+        public bool SupportsDependencySnapshots => true;
+
+        /// <inheritdoc/>
         public event EventHandler<WotRegistryChangedEventArgs>? Changed;
 
         /// <inheritdoc/>
@@ -115,10 +119,34 @@ namespace Opc.Ua.WotCon.Server.Registry
                 loaded = RestoreVersionIncarnations(
                     loaded,
                     m_recoverySnapshot?.Generation == loaded.Generation ? m_recoverySnapshot : m_snapshot);
+                WotRegistrySnapshot hydrated =
+                    await HydrateDependencyMetadataAsync(loaded, cancellationToken).ConfigureAwait(false);
                 await RefreshValidatedStoreGenerationAsync(cancellationToken).ConfigureAwait(false);
-                Volatile.Write(ref m_snapshot, loaded);
+                bool migrate = !ReferenceEquals(hydrated, loaded) &&
+                    m_store is IWotRegistryPreparedStore { SupportsPreparedCommits: true };
+                Volatile.Write(ref m_snapshot, migrate ? loaded : hydrated);
                 m_recoverySnapshot = null;
                 m_reloadRequired = false;
+                if (migrate)
+                {
+                    var migrated = new WotRegistrySnapshot(
+                        checked(loaded.Generation + 1), hydrated.Groups, hydrated.Labels);
+                    try
+                    {
+                        await CommitAndPublishAsync(
+                            loaded, migrated, [], projectionOnly: true, cancellationToken,
+                            WotRegistryCommitScope.Full).ConfigureAwait(false);
+                    }
+                    catch (WotRegistryCommitDurabilityUncertainException)
+                    {
+                        throw;
+                    }
+                    catch
+                    {
+                        m_reloadRequired = true;
+                        throw;
+                    }
+                }
             }
             finally
             {
@@ -824,6 +852,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             string format = request.Format ?? string.Empty;
 
             var content = ByteString.From(request.Content.Span.ToArray());
+            WotResourceDependencies dependencies = WotDependencyGraph.ReadMetadata(content, Bounds.MaxJsonDepth);
 
             // Light parse to derive the kind/id/title and to record a format
             // failure state for a document that cannot even be parsed. Full WoT
@@ -1089,7 +1118,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                         DocumentId = documentId,
                         Title = title,
                         BaseUri = baseUri,
-                        ModelVersion = modelVersion
+                        ModelVersion = modelVersion,
+                        Dependencies = dependencies
                     };
                 }
                 else if (versionChanged)
@@ -1107,7 +1137,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                             documentId,
                             title,
                             baseUri,
-                            modelVersion);
+                            modelVersion,
+                            dependencies);
                 }
                 else
                 {
@@ -2013,7 +2044,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                             versions.IndexOf(validationVersion),
                             validationVersion.With(
                                 validation: projection.Validation,
-                                clearValidation: projection.Validation is null));
+                                clearValidation: projection.Validation is null,
+                                dependencySnapshot: projection.DependencySnapshot,
+                                lastDependencyAttempt: projection.LastDependencyAttempt));
                     }
                     WotResource updated = resource.With(
                         versions: versions,

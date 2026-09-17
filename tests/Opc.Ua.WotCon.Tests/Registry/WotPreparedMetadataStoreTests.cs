@@ -747,11 +747,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
         private string m_root = null!;
 
-        private sealed class RecordingLeasedResourceStore : IWotRegistryContentLeaseProvider, IDisposable
+        internal sealed class RecordingLeasedResourceStore : IWotRegistryContentLeaseProvider, IDisposable
         {
             public bool SupportsImmutableContentLeases => true;
             public bool CorruptNextWrite { get; set; }
             public string? NextLeaseFault { get; set; }
+            public Action<string>? ReadObserved { get; set; }
 
             public int ActiveLeaseCount
             {
@@ -782,6 +783,15 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 await m_gate.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
+                    if (offset == 0 && !CorruptNextWrite &&
+                        await m_inner.GetLengthAsync(resourceKey, ct).ConfigureAwait(false) == data.Length)
+                    {
+                        ByteString current = await ReadAsync(resourceKey, 0, data.Length, ct).ConfigureAwait(false);
+                        if (current == data)
+                        {
+                            return;
+                        }
+                    }
                     EnsureUnleased(resourceKey);
                     if (CorruptNextWrite)
                     {
@@ -890,6 +900,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     m_reads.TryGetValue(key, out int count);
                     m_reads[key] = count + 1;
                 }
+                ReadObserved?.Invoke(key);
             }
 
             private void Release(string key)
