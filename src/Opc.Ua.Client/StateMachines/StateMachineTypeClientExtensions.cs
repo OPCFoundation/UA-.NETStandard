@@ -184,6 +184,10 @@ namespace Opc.Ua.Client.StateMachines
 
             StateMachineSnapshot current = await client.GetCurrentStateAsync(ct)
                 .ConfigureAwait(false);
+            if (StatusCode.IsBad(current.Status))
+            {
+                throw new ServiceResultException(current.Status);
+            }
             if (current.CurrentState == targetState)
             {
                 return;
@@ -207,6 +211,9 @@ namespace Opc.Ua.Client.StateMachines
                     return;
                 }
             }
+
+            throw new OperationCanceledException(
+                "Target state not reached before cancellation or timeout.", ct);
         }
 
         /// <summary>

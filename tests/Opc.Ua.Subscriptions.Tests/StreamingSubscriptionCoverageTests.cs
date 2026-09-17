@@ -259,6 +259,61 @@ namespace Opc.Ua.Subscriptions.Tests
             await DrainAsync(subscription, enumerator, move).ConfigureAwait(false);
         }
 
+        [TestCase(true, 2, 3)]
+        [TestCase(false, 1, 2)]
+        public async Task BoundedEventChannelHonorsDiscardOldestOptionAsync(
+            bool discardOldest,
+            int firstExpected,
+            int secondExpected)
+        {
+            var manager = new StubSubscriptionManager();
+            await using var subscription = new StreamingSubscription(manager);
+
+            var options = new MonitoredItemOptions
+            {
+                QueueSize = 2,
+                DiscardOldest = discardOldest
+            };
+            var itemReady = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseItemReady = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var readiness = (IStreamingSubscriptionReadiness)subscription;
+            IAsyncEnumerator<EventNotification> enumerator = readiness
+                .SubscribeEventsAsync(
+                    s_notifier,
+                    new EventFilter(),
+                    options,
+                    async (_, _) =>
+                    {
+                        itemReady.SetResult(true);
+                        await releaseItemReady.Task.ConfigureAwait(false);
+                    })
+                .GetAsyncEnumerator();
+            Task<bool> firstMove = Task.Run(() => enumerator.MoveNextAsync().AsTask());
+
+            await itemReady.Task.WaitAsync(s_safetyTimeout).ConfigureAwait(false);
+            StubMonitoredItem item = manager.Subscription!.Collection.Added[0];
+            await FireEventsAsync(
+                manager,
+                new EventNotification(item, ArrayOf.Wrapped(Variant.From(1))),
+                new EventNotification(item, ArrayOf.Wrapped(Variant.From(2))),
+                new EventNotification(item, ArrayOf.Wrapped(Variant.From(3))))
+                .ConfigureAwait(false);
+
+            releaseItemReady.SetResult(true);
+            Assert.That(await WithinTimeoutAsync(firstMove).ConfigureAwait(false), Is.True);
+            Assert.That(
+                enumerator.Current.Fields[0],
+                Is.EqualTo(Variant.From(firstExpected)));
+            Assert.That(await enumerator.MoveNextAsync().ConfigureAwait(false), Is.True);
+            Assert.That(
+                enumerator.Current.Fields[0],
+                Is.EqualTo(Variant.From(secondExpected)));
+
+            await enumerator.DisposeAsync().ConfigureAwait(false);
+        }
+
         [Test]
         public async Task ConcurrentSubscribersReceiveOnlyMatchingNotificationsAsync()
         {
@@ -659,6 +714,49 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
+        public async Task TakeUntilAsyncForwardsCancellationToSourceEnumeratorAsync()
+        {
+            using var cts = new CancellationTokenSource();
+            var probe = new CancellationProbeEnumerable();
+            Task consumption = ConsumeAsync(
+                probe.TakeUntilAsync(static _ => false, cts.Token));
+
+            Assert.That(probe.EnumeratorCreated.Wait(s_safetyTimeout), Is.True);
+            cts.Cancel();
+            await AwaitFaultAsync<OperationCanceledException>(consumption)
+                .ConfigureAwait(false);
+            Assert.That(probe.EnumeratorCancellationObserved, Is.True);
+        }
+
+        [Test]
+        public async Task TakeAsyncForwardsCancellationToSourceEnumeratorAsync()
+        {
+            using var cts = new CancellationTokenSource();
+            var probe = new CancellationProbeEnumerable();
+            Task consumption = ConsumeAsync(probe.TakeAsync(1, cts.Token));
+
+            Assert.That(probe.EnumeratorCreated.Wait(s_safetyTimeout), Is.True);
+            cts.Cancel();
+            await AwaitFaultAsync<OperationCanceledException>(consumption)
+                .ConfigureAwait(false);
+            Assert.That(probe.EnumeratorCancellationObserved, Is.True);
+        }
+
+        [Test]
+        public async Task BufferedAsyncForwardsCancellationToSourceEnumeratorAsync()
+        {
+            using var cts = new CancellationTokenSource();
+            var probe = new CancellationProbeEnumerable();
+            Task consumption = ConsumeBufferedAsync(probe, cts.Token);
+
+            Assert.That(probe.EnumeratorCreated.Wait(s_safetyTimeout), Is.True);
+            cts.Cancel();
+            await AwaitFaultAsync<OperationCanceledException>(consumption)
+                .ConfigureAwait(false);
+            Assert.That(probe.EnumeratorCancellationObserved, Is.True);
+        }
+
+        [Test]
         public void WithTimeoutAsyncWithNullSourceThrowsArgumentNullException()
         {
             ArgumentNullException? ex = Assert.Throws<ArgumentNullException>(
@@ -705,6 +803,16 @@ namespace Opc.Ua.Subscriptions.Tests
                 PublishState.None, s_emptyStringTable).ConfigureAwait(false);
         }
 
+        private static async Task FireEventsAsync(
+            StubSubscriptionManager manager,
+            params EventNotification[] notifications)
+        {
+            await manager.Handler!.OnEventDataNotificationAsync(
+                manager.Subscription!, 1u, s_publishTime,
+                new ReadOnlyMemory<EventNotification>(notifications),
+                PublishState.None, s_emptyStringTable).ConfigureAwait(false);
+        }
+
         private static async Task DrainAsync<T>(
             StreamingSubscription subscription, IAsyncEnumerator<T> enumerator, Task<bool> move)
         {
@@ -747,12 +855,76 @@ namespace Opc.Ua.Subscriptions.Tests
             return caught!;
         }
 
+        private static async Task ConsumeAsync(IAsyncEnumerable<int> source)
+        {
+            await foreach (int _ in source.ConfigureAwait(false))
+            {
+            }
+        }
+
+        private static async Task ConsumeBufferedAsync(
+            IAsyncEnumerable<int> source,
+            CancellationToken ct)
+        {
+            await source.BufferedAsync(1, ct).ConfigureAwait(false);
+        }
+
         private static async IAsyncEnumerable<int> RangeAsync(params int[] values)
         {
             foreach (int value in values)
             {
                 await Task.Yield();
                 yield return value;
+            }
+        }
+
+        private sealed class CancellationProbeEnumerable : IAsyncEnumerable<int>
+        {
+            public ManualResetEventSlim EnumeratorCreated { get; } = new();
+
+            public bool EnumeratorCancellationObserved { get; private set; }
+
+            public IAsyncEnumerator<int> GetAsyncEnumerator(
+                CancellationToken cancellationToken = default)
+            {
+                return new CancellationProbeEnumerator(this, cancellationToken);
+            }
+
+            private sealed class CancellationProbeEnumerator : IAsyncEnumerator<int>
+            {
+                private readonly CancellationProbeEnumerable m_owner;
+                private readonly CancellationToken m_ct;
+
+                public CancellationProbeEnumerator(
+                    CancellationProbeEnumerable owner,
+                    CancellationToken ct)
+                {
+                    m_owner = owner;
+                    m_ct = ct;
+                    owner.EnumeratorCreated.Set();
+                }
+
+                public int Current => 0;
+
+                public ValueTask DisposeAsync()
+                {
+                    return default;
+                }
+
+                public async ValueTask<bool> MoveNextAsync()
+                {
+                    try
+                    {
+                        await Task.Delay(Timeout.Infinite, m_ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        m_owner.EnumeratorCancellationObserved = true;
+                        throw;
+                    }
+
+                    return false;
+                }
             }
         }
 

@@ -135,6 +135,7 @@ namespace Opc.Ua.Client
         public virtual void Restore(MonitoredItemState state)
         {
             State = state;
+            Utils.SetIdentifierToAtLeast(ref s_globalClientHandle, state.ClientId);
             ClientHandle = state.ClientId;
             ServerId = state.ServerId;
             TriggeringItemId = state.TriggeringItemId;
@@ -543,6 +544,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void SaveValueInCache(IEncodeable newValue)
         {
+            MonitoredItemNotificationEventHandler? notification;
             lock (m_cache)
             {
                 EnsureCacheIsInitialized();
@@ -599,8 +601,10 @@ namespace Opc.Ua.Client
                 {
                     m_eventCache.OnNotification(eventchange);
                 }
-                m_Notification?.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
+                notification = m_Notification;
             }
+
+            notification?.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
         }
 
         /// <inheritdoc/>
@@ -919,14 +923,12 @@ namespace Opc.Ua.Client
         public DateTime GetEventTime(EventFieldList eventFields)
         {
             // get event time.
-            var eventTime = GetFieldValue(
+            if (GetFieldValue(
                 eventFields,
                 ObjectTypeIds.BaseEventType,
-                QualifiedName.From(BrowseNames.Time)) as DateTime?;
-
-            if (eventTime != null)
+                QualifiedName.From(BrowseNames.Time)) is DateTimeUtc eventTime)
             {
-                return eventTime.Value;
+                return eventTime.ToDateTime();
             }
 
             // no event time in event field list.

@@ -447,8 +447,15 @@ namespace Opc.Ua.Client.ComplexTypes
                 result.Add(rootNode);
             }
 
+            var visited = new HashSet<ExpandedNodeId>();
+            if (dataType != ExpandedNodeId.Null)
+            {
+                visited.Add(dataType);
+            }
+
             while (nodesToBrowse.Count > 0)
             {
+                ct.ThrowIfCancellationRequested();
 #pragma warning disable IDE0008 // Use explicit type
                 var response = await FindReferencesAsync(
                     nodesToBrowse,
@@ -459,19 +466,28 @@ namespace Opc.Ua.Client.ComplexTypes
 #pragma warning restore IDE0008 // Use explicit type
 
                 var nextNodesToBrowse = new List<ExpandedNodeId>();
-                if (nestedSubTypes)
+                foreach (INode reference in response.ToList())
                 {
-                    nextNodesToBrowse.AddRange(response.ConvertAll(r => r.NodeId).ToList());
-                }
-
-                if (filterUATypes)
-                {
-                    // filter out default namespace
-                    result.AddRange(response.Filter(rd => rd.NodeId.NamespaceIndex != 0).ToList());
-                }
-                else
-                {
-                    result.AddRange(response);
+                    if (!visited.Add(reference.NodeId))
+                    {
+                        continue;
+                    }
+                    if (nestedSubTypes)
+                    {
+                        nextNodesToBrowse.Add(reference.NodeId);
+                    }
+                    if (filterUATypes)
+                    {
+                        // filter out default namespace
+                        if (reference.NodeId.NamespaceIndex != 0)
+                        {
+                            result.Add(reference);
+                        }
+                    }
+                    else
+                    {
+                        result.Add(reference);
+                    }
                 }
                 nodesToBrowse = nextNodesToBrowse;
             }
@@ -498,12 +514,18 @@ namespace Opc.Ua.Client.ComplexTypes
                 ct)
                 .ConfigureAwait(false);
 #pragma warning restore IDE0008 // Use explicit type
-            INode? property = references.Count > 0 ? references[0] : null;
-            if (property != null)
+
+            foreach (string wellKnownName in s_enumDefinitionPropertyNames)
             {
-                // read the enum type array
-                DataValue value = await GetValueAsync(property.NodeId, ct).ConfigureAwait(false);
-                return value.IsNull ? default : value.WrappedValue;
+                foreach (INode property in references.ToList())
+                {
+                    if (property.BrowseName.Name == wellKnownName)
+                    {
+                        DataValue value = await GetValueAsync(property.NodeId, ct)
+                            .ConfigureAwait(false);
+                        return value.IsNull ? default : value.WrappedValue;
+                    }
+                }
             }
             return default;
         }
@@ -614,57 +636,77 @@ namespace Opc.Ua.Client.ComplexTypes
                 return result;
             }
 
-            // create item to read.
-            ArrayOf<ReadValueId> itemsToRead = dictionaryIds
-                .ConvertAll(nodeId => new ReadValueId
-                {
-                    NodeId = nodeId,
-                    AttributeId = Attributes.Value,
-                    IndexRange = null,
-                    DataEncoding = default
-                });
-
-            // read values.
-            ReadResponse readResponse = await m_session
-                .ReadAsync(null, 0, TimestampsToReturn.Neither, itemsToRead, ct)
-                .ConfigureAwait(false);
-
-            ArrayOf<DataValue> values = readResponse.Results;
-            ArrayOf<DiagnosticInfo> diagnosticInfos = readResponse.DiagnosticInfos;
-            ResponseHeader response = readResponse.ResponseHeader;
-            ClientBase.ValidateResponse(values, itemsToRead);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
-
-            int ii = 0;
-            foreach (NodeId nodeId in dictionaryIds.ToList())
+            try
             {
-                // check for error.
-                if (StatusCode.IsBad(values[ii].StatusCode))
-                {
-                    if (values[ii].StatusCode != StatusCodes.BadEncodingLimitsExceeded)
+                // create item to read.
+                ArrayOf<ReadValueId> itemsToRead = dictionaryIds
+                    .ConvertAll(nodeId => new ReadValueId
                     {
-                        ServiceResult sr = ClientBase.GetResult(
-                            values[ii].StatusCode,
-                            0,
-                            diagnosticInfos,
-                            response);
-                        throw new ServiceResultException(sr);
-                    }
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value,
+                        IndexRange = null,
+                        DataEncoding = default
+                    });
 
-                    // Fall back to reading the byte string in chunks.
-                    ByteString chunkedReadResult =
-                        await m_session.ReadByteStringInChunksAsync(nodeId, ct)
-                            .ConfigureAwait(false);
-                    result[nodeId] = chunkedReadResult.ToArray();
-                }
-                else
+                // read values.
+                ReadResponse readResponse = await m_session
+                    .ReadAsync(null, 0, TimestampsToReturn.Neither, itemsToRead, ct)
+                    .ConfigureAwait(false);
+
+                ArrayOf<DataValue> values = readResponse.Results;
+                ArrayOf<DiagnosticInfo> diagnosticInfos = readResponse.DiagnosticInfos;
+                ResponseHeader response = readResponse.ResponseHeader;
+                ClientBase.ValidateResponse(values, itemsToRead);
+                ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
+
+                int ii = 0;
+                foreach (NodeId nodeId in dictionaryIds.ToList())
                 {
-                    // return as a byte array.
-                    result[nodeId] = values[ii].WrappedValue.GetByteString().ToArray();
+                    // check for error.
+                    if (StatusCode.IsBad(values[ii].StatusCode))
+                    {
+                        if (values[ii].StatusCode == StatusCodes.BadEncodingLimitsExceeded)
+                        {
+                            // Fall back to reading the byte string in chunks.
+                            ByteString chunkedReadResult =
+                                await m_session.ReadByteStringInChunksAsync(nodeId, ct)
+                                    .ConfigureAwait(false);
+                            result[nodeId] = chunkedReadResult.ToArray();
+                        }
+                        else
+                        {
+                            m_logger.DictionaryLoadErrorDictionaryDitionaryIdErrorMessage(
+                                NodeId.ToExpandedNodeId(nodeId, NamespaceUris),
+                                values[ii].StatusCode.ToString());
+                        }
+                    }
+                    else
+                    {
+                        // return as a byte array.
+                        result[nodeId] = values[ii].WrappedValue.GetByteString().ToArray();
+                    }
+                    ii++;
                 }
-                ii++;
+                return result;
             }
-            return result;
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                foreach (NodeId nodeId in dictionaryIds.ToList())
+                {
+                    try
+                    {
+                        result[nodeId] = await ReadDictionaryAsync(nodeId, ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception readEx)
+                    {
+                        m_logger.DictionaryLoadErrorDictionaryDitionaryIdErrorMessage(
+                            NodeId.ToExpandedNodeId(nodeId, NamespaceUris),
+                            readEx.Message);
+                    }
+                }
+                return result;
+            }
         }
 
         /// <summary>
@@ -861,6 +903,13 @@ namespace Opc.Ua.Client.ComplexTypes
                 false,
                 ct);
         }
+
+        private static readonly string[] s_enumDefinitionPropertyNames =
+        [
+            "EnumValues",
+            "EnumStrings",
+            "OptionSetValues"
+        ];
 
         private readonly INodeCache m_nodeCache;
 

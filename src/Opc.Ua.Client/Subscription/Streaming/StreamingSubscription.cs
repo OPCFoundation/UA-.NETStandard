@@ -110,12 +110,10 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         {
             await EnsureSubscriptionAsync(ct).ConfigureAwait(false);
 
-            var channel = Channel.CreateUnbounded<DataValueChange>(new UnboundedChannelOptions
-            {
-                SingleReader = true,
-                SingleWriter = false,
-                AllowSynchronousContinuations = false
-            });
+            var channel = CreateChannel<DataValueChange>(
+                options?.QueueSize ?? 0,
+                nodeIds.Count,
+                options?.DiscardOldest ?? true);
 
             var monitoredItems = new List<IMonitoredItem>();
             uint handle = (uint)Interlocked.Increment(ref m_handleCounter);
@@ -234,12 +232,10 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
                 QueueSize = options?.QueueSize > 0 ? options.QueueSize : 10
             };
 
-            var channel = Channel.CreateUnbounded<EventNotification>(new UnboundedChannelOptions
-            {
-                SingleReader = true,
-                SingleWriter = false,
-                AllowSynchronousContinuations = false
-            });
+            var channel = CreateChannel<EventNotification>(
+                itemOptions.QueueSize,
+                itemCount: 1,
+                itemOptions.DiscardOldest);
 
             uint handle = (uint)Interlocked.Increment(ref m_handleCounter);
             var subscriber = new Subscriber(channel, isEvent: true);
@@ -390,6 +386,26 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
                     kvp.Value.WriteEvent(notification);
                 }
             }
+        }
+
+        private static Channel<T> CreateChannel<T>(
+            uint queueSize,
+            int itemCount,
+            bool discardOldest)
+        {
+            ulong capacity = (ulong)Math.Max(1u, queueSize) *
+                (ulong)Math.Max(1, itemCount);
+            int boundedCapacity = (int)Math.Min((ulong)int.MaxValue, capacity);
+
+            return Channel.CreateBounded<T>(new BoundedChannelOptions(boundedCapacity)
+            {
+                SingleReader = true,
+                SingleWriter = false,
+                AllowSynchronousContinuations = false,
+                FullMode = discardOldest
+                    ? BoundedChannelFullMode.DropOldest
+                    : BoundedChannelFullMode.DropWrite
+            });
         }
 
         private sealed class Notifier : ISubscriptionNotificationHandler

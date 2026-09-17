@@ -29,6 +29,8 @@
 
 using System;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -535,6 +537,105 @@ namespace Opc.Ua.Client.Tests
                 () => subscription.DeleteItemsAsync());
 
             Assert.That(ex.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+        }
+
+        [Test]
+        public async Task DeleteItemsAsyncRetainsItemsWhenDeleteRequestFailsAsync()
+        {
+            using Subscription subscription = CreateSubscription();
+            var session = new Mock<ISession>();
+            session
+                .Setup(s => s.CreateSubscriptionAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<double>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<byte>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateSubscriptionResponse
+                {
+                    SubscriptionId = 7,
+                    RevisedPublishingInterval = 1000,
+                    RevisedMaxKeepAliveCount = 10,
+                    RevisedLifetimeCount = 100
+                });
+            session
+                .SetupSequence(s => s.DeleteMonitoredItemsAsync(
+                    It.IsAny<RequestHeader>(),
+                    7,
+                    It.IsAny<ArrayOf<uint>>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadRequestTimeout))
+                .ReturnsAsync(new DeleteMonitoredItemsResponse
+                {
+                    Results = [StatusCodes.Good]
+                });
+            subscription.Session = session.Object;
+            await subscription.CreateAsync().ConfigureAwait(false);
+
+            MonitoredItem item = CreateItem(321u, "Created");
+            item.ServerId = 654;
+            subscription.AddItem(item);
+            subscription.RemoveItem(item);
+
+            Assert.ThrowsAsync<ServiceResultException>(
+                () => subscription.DeleteItemsAsync());
+            ArrayOf<MonitoredItem> deleted = await subscription.DeleteItemsAsync()
+                .ConfigureAwait(false);
+
+            Assert.That(deleted, Has.One.SameAs(item));
+            session.Verify(s => s.DeleteMonitoredItemsAsync(
+                It.IsAny<RequestHeader>(),
+                7,
+                It.Is<ArrayOf<uint>>(ids => ids.Count == 1 && ids[0] == 654),
+                It.IsAny<CancellationToken>()), Times.Exactly(2));
+        }
+
+        [Test]
+        public async Task ConditionRefreshMethodsReturnFalseForBadMethodResultsAsync()
+        {
+            using Subscription subscription = CreateSubscription();
+            var session = new Mock<ISession>();
+            session
+                .Setup(s => s.CreateSubscriptionAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<double>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<byte>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateSubscriptionResponse
+                {
+                    SubscriptionId = 8,
+                    RevisedPublishingInterval = 1000,
+                    RevisedMaxKeepAliveCount = 10,
+                    RevisedLifetimeCount = 100
+                });
+            session
+                .Setup(s => s.CallAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<CallMethodRequest>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CallResponse
+                {
+                    Results = [new CallMethodResult { StatusCode = StatusCodes.BadMethodInvalid }],
+                    DiagnosticInfos = [new DiagnosticInfo()]
+                });
+            subscription.Session = session.Object;
+            await subscription.CreateAsync().ConfigureAwait(false);
+
+            bool refreshResult = await subscription.ConditionRefreshAsync().ConfigureAwait(false);
+            bool refresh2Result = await subscription.ConditionRefresh2Async(123).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(refreshResult, Is.False);
+                Assert.That(refresh2Result, Is.False);
+            });
         }
 
         [Test]

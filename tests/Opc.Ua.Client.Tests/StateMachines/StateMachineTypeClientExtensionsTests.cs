@@ -158,6 +158,24 @@ namespace Opc.Ua.Client.Tests.StateMachines
             Assert.That(count, Is.Zero);
         }
 
+        [Test]
+        public void WaitForStateAsyncThrowsBadNotFoundWhenCurrentStateUnresolved()
+        {
+            var sessionMock = new Mock<ISessionClient>(MockBehavior.Loose);
+            StateMachineTypeClient client = CreateClient(sessionMock);
+            SetupTranslateEmpty(sessionMock);
+
+            Assert.That(
+                async () => await client
+                    .WaitForStateAsync(
+                        new EmptyStreamingSubscription(),
+                        new LocalizedText("Running"))
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNotFound));
+        }
+
         // Note: full happy-path coverage of GetCurrentStateAsync and
         // WaitForStateAsync (the two-call read pipeline + transition
         // observation) requires extensive ISessionClient mocking and is

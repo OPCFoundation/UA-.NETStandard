@@ -1010,13 +1010,21 @@ namespace Microsoft.Extensions.DependencyInjection
             configure(builder);
 
             ManagedSession session = await builder.ConnectAsync(ct).ConfigureAwait(false);
-            if (sessionOptions.LoadComplexTypes)
+            try
             {
-                IComplexTypeSystemFactory complexTypeSystemFactory =
-                    sp.GetService<IComplexTypeSystemFactory>() ??
-                    new DefaultComplexTypeSystemFactory(telemetry);
-                using ComplexTypeSystem complexTypeSystem = complexTypeSystemFactory.Create(session);
-                await complexTypeSystem.LoadAsync(ct: ct).ConfigureAwait(false);
+                if (sessionOptions.LoadComplexTypes)
+                {
+                    IComplexTypeSystemFactory complexTypeSystemFactory =
+                        sp.GetService<IComplexTypeSystemFactory>() ??
+                        new DefaultComplexTypeSystemFactory(telemetry);
+                    using ComplexTypeSystem complexTypeSystem = complexTypeSystemFactory.Create(session);
+                    await complexTypeSystem.LoadAsync(ct: ct).ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                await session.DisposeAsync().ConfigureAwait(false);
+                throw;
             }
 
             return session;
@@ -1560,11 +1568,33 @@ namespace Microsoft.Extensions.DependencyInjection
 
             public Task<ManagedSession> ConnectAsync(CancellationToken ct)
             {
+                Task<ManagedSession> connectTask;
                 lock (m_gate)
                 {
-                    m_connectTask ??= ConnectCoreAsync(ct);
-                    return m_connectTask;
+                    m_connectTask ??= ConnectCoreAsync(CancellationToken.None);
+                    connectTask = m_connectTask;
+                    _ = connectTask.ContinueWith(
+                        static (task, state) =>
+                        {
+                            if (task.Status == TaskStatus.RanToCompletion)
+                            {
+                                return;
+                            }
+                            var accessor = (ManagedSessionAccessor)state!;
+                            lock (accessor.m_gate)
+                            {
+                                if (ReferenceEquals(accessor.m_connectTask, task))
+                                {
+                                    accessor.m_connectTask = null;
+                                }
+                            }
+                        },
+                        this,
+                        CancellationToken.None,
+                        TaskContinuationOptions.ExecuteSynchronously,
+                        TaskScheduler.Default);
                 }
+                return connectTask.WaitAsync(ct);
             }
 
             private Task<ManagedSession> ConnectCoreAsync(CancellationToken ct)

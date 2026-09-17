@@ -906,6 +906,72 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public async Task FindReferenceTypeAsyncStopsAtHierarchyCycleAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            NodeId rootId = ReferenceTypeIds.References;
+            var childId = new NodeId("Cycle", 0);
+
+            var context = new Mock<INodeCacheContext>();
+            context.Setup(c => c.NamespaceUris).Returns(new NamespaceTable());
+            context
+                .Setup(c => c.FetchNodeAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<NodeId>(),
+                    NodeClass.Unspecified,
+                    false,
+                    It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader _, NodeId nodeId, NodeClass _, bool _, CancellationToken _) =>
+                    new ValueTask<Node>(new ReferenceTypeNode
+                    {
+                        NodeId = nodeId,
+                        BrowseName = QualifiedName.From(nodeId == rootId ? "References" : "Cycle"),
+                        NodeClass = NodeClass.ReferenceType
+                    }));
+            context
+                .Setup(c => c.FetchNodesAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.Is<ArrayOf<NodeId>>(ids => ids.Count == 1 && ids[0] == childId),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ResultSet<Node>
+                {
+                    Results =
+                    [
+                        new ReferenceTypeNode
+                        {
+                            NodeId = childId,
+                            BrowseName = QualifiedName.From("Cycle"),
+                            NodeClass = NodeClass.ReferenceType
+                        }
+                    ],
+                    Errors = [ServiceResult.Good]
+                });
+            context
+                .Setup(c => c.FetchReferencesAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((RequestHeader _, NodeId nodeId, CancellationToken _) =>
+                    (ArrayOf<ReferenceDescription>)[
+                        new ReferenceDescription
+                        {
+                            NodeId = new ExpandedNodeId(nodeId == rootId ? childId : rootId),
+                            ReferenceTypeId = ReferenceTypeIds.HasSubtype,
+                            IsForward = true
+                        }
+                    ]);
+
+            var nodeCache = new NodeCache(context.Object, telemetry);
+
+            NodeId result = await nodeCache.FindReferenceTypeAsync(
+                QualifiedName.From("Missing"),
+                default).ConfigureAwait(false);
+
+            Assert.That(result, Is.EqualTo(NodeId.Null));
+        }
+
+        [Test]
         public async Task FindDataTypeIdAsyncAndIsEncodingOfAsyncReturnMatchesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();

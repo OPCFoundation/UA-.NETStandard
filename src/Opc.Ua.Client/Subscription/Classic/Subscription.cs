@@ -46,6 +46,7 @@ namespace Opc.Ua.Client
     {
         private const int kKeepAliveTimerMargin = 1000;
         private const int kRepublishMessageExpiredTimeout = 10000;
+        private const uint kMaxSequenceNumberGap = 1024;
 
         /// <summary>
         /// Duration to wait before republishing missed notification
@@ -1337,41 +1338,69 @@ namespace Opc.Ua.Client
         {
             VerifySessionAndSubscriptionState(true);
 
-            if (m_deletedItems.Count == 0)
+            ArrayOf<MonitoredItem> itemsToDelete;
+            lock (m_cache)
             {
-                return [];
+                if (m_deletedItems.Count == 0)
+                {
+                    return [];
+                }
+
+                itemsToDelete = m_deletedItems
+                    .Where(monitoredItem => m_deletingItems.Add(monitoredItem))
+                    .ToArrayOf();
+                if (itemsToDelete.Count == 0)
+                {
+                    return [];
+                }
             }
 
             using Activity? activity = m_telemetry.StartActivity();
-            var itemsToDelete = m_deletedItems.ToArrayOf();
-            m_deletedItems = [];
-
             ArrayOf<uint> monitoredItemIds = itemsToDelete.ConvertAll(
                 monitoredItem => monitoredItem.Status.Id);
 
-            DeleteMonitoredItemsResponse response = await Session
-                .DeleteMonitoredItemsAsync(null, Id, monitoredItemIds, ct)
-                .ConfigureAwait(false);
-
-            ArrayOf<StatusCode> results = response.Results;
-            ClientBase.ValidateResponse(results, monitoredItemIds);
-            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, monitoredItemIds);
-
-            // update results.
-            for (int ii = 0; ii < results.Count; ii++)
+            bool succeeded = false;
+            try
             {
-                itemsToDelete[ii].SetDeleteResult(
-                    results[ii],
-                    ii,
-                    response.DiagnosticInfos,
-                    response.ResponseHeader);
+                DeleteMonitoredItemsResponse response = await Session
+                    .DeleteMonitoredItemsAsync(null, Id, monitoredItemIds, ct)
+                    .ConfigureAwait(false);
+
+                ArrayOf<StatusCode> results = response.Results;
+                ClientBase.ValidateResponse(results, monitoredItemIds);
+                ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, monitoredItemIds);
+
+                // update results.
+                for (int ii = 0; ii < results.Count; ii++)
+                {
+                    itemsToDelete[ii].SetDeleteResult(
+                        results[ii],
+                        ii,
+                        response.DiagnosticInfos,
+                        response.ResponseHeader);
+                }
+
+                succeeded = true;
+                m_changeMask |= SubscriptionChangeMask.ItemsDeleted;
+                ChangesCompleted();
+
+                // return the list of items affected by the change.
+                return itemsToDelete;
             }
-
-            m_changeMask |= SubscriptionChangeMask.ItemsDeleted;
-            ChangesCompleted();
-
-            // return the list of items affected by the change.
-            return itemsToDelete;
+            finally
+            {
+                lock (m_cache)
+                {
+                    foreach (MonitoredItem monitoredItem in itemsToDelete)
+                    {
+                        m_deletingItems.Remove(monitoredItem);
+                        if (succeeded)
+                        {
+                            m_deletedItems.Remove(monitoredItem);
+                        }
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -1633,8 +1662,12 @@ namespace Opc.Ua.Client
 
             try
             {
-                await Session.CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
-                return true;
+                CallResponse response = await Session.CallAsync(null, methodsToCall, ct)
+                    .ConfigureAwait(false);
+                ClientBase.ValidateResponse(response.Results, methodsToCall);
+                ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, methodsToCall);
+                return response.Results.Count > 0 &&
+                    StatusCode.IsGood(response.Results[0].StatusCode);
             }
             catch (ServiceResultException)
             {
@@ -1665,8 +1698,12 @@ namespace Opc.Ua.Client
 
             try
             {
-                await Session.CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
-                return true;
+                CallResponse response = await Session.CallAsync(null, methodsToCall, ct)
+                    .ConfigureAwait(false);
+                ClientBase.ValidateResponse(response.Results, methodsToCall);
+                ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, methodsToCall);
+                return response.Results.Count > 0 &&
+                    StatusCode.IsGood(response.Results[0].StatusCode);
             }
             catch (ServiceResultException)
             {
@@ -1826,21 +1863,33 @@ namespace Opc.Ua.Client
                 {
                     //gaps between m_lastSequenceNumberProcessed and starting node
                     LinkedListNode<IncomingMessage> currentNode = node;
-                    for (uint i = node.Value.SequenceNumber; i > (m_lastSequenceNumberProcessed + 1); i--)
+                    uint gap = node.Value.SequenceNumber - m_lastSequenceNumberProcessed - 1;
+                    if (gap > kMaxSequenceNumberGap)
                     {
-                        var placeholder = new IncomingMessage
-                        {
-                            SequenceNumber = i - 1,
-                            Timestamp = now,
-                            MonotonicTimestamp = monotonicTimestamp
-                        };
-                        currentNode = m_incomingMessages.AddBefore(currentNode, placeholder);
-
-                        m_logger.SessionSessionIdSubscriptionSubscriptionNameSubscriptionIdAdded(
-                            Session?.SessionId,
-                            DisplayName,
+                        m_lastSequenceNumberProcessed = node.Value.SequenceNumber - 1;
+                        m_logger.SubscriptionIdSubscriptionIdResyncedLastSequenceNumber(
                             Id,
-                            placeholder.SequenceNumber);
+                            m_lastSequenceNumberProcessed,
+                            Session?.SessionId);
+                    }
+                    else
+                    {
+                        for (uint i = node.Value.SequenceNumber; i > (m_lastSequenceNumberProcessed + 1); i--)
+                        {
+                            var placeholder = new IncomingMessage
+                            {
+                                SequenceNumber = i - 1,
+                                Timestamp = now,
+                                MonotonicTimestamp = monotonicTimestamp
+                            };
+                            currentNode = m_incomingMessages.AddBefore(currentNode, placeholder);
+
+                            m_logger.SessionSessionIdSubscriptionSubscriptionNameSubscriptionIdAdded(
+                                Session?.SessionId,
+                                DisplayName,
+                                Id,
+                                placeholder.SequenceNumber);
+                        }
                     }
                 }
 
@@ -1852,14 +1901,26 @@ namespace Opc.Ua.Client
 
                     if (next != null && next.Value.SequenceNumber > entry.SequenceNumber + 1)
                     {
-                        var placeholder = new IncomingMessage
+                        uint gap = next.Value.SequenceNumber - entry.SequenceNumber - 1;
+                        if (gap > kMaxSequenceNumberGap)
                         {
-                            SequenceNumber = entry.SequenceNumber + 1,
-                            Timestamp = now,
-                            MonotonicTimestamp = monotonicTimestamp
-                        };
-                        node = m_incomingMessages.AddAfter(node, placeholder);
-                        continue;
+                            m_lastSequenceNumberProcessed = next.Value.SequenceNumber - 1;
+                            m_logger.SubscriptionIdSubscriptionIdResyncedLastSequenceNumber(
+                                Id,
+                                m_lastSequenceNumberProcessed,
+                                Session?.SessionId);
+                        }
+                        else
+                        {
+                            var placeholder = new IncomingMessage
+                            {
+                                SequenceNumber = entry.SequenceNumber + 1,
+                                Timestamp = now,
+                                MonotonicTimestamp = monotonicTimestamp
+                            };
+                            node = m_incomingMessages.AddAfter(node, placeholder);
+                            continue;
+                        }
                     }
 
                     node = next;
@@ -1995,11 +2056,10 @@ namespace Opc.Ua.Client
                 }
 
                 monitoredItem.Subscription = null;
-            }
-
-            if (monitoredItem.Status.Created)
-            {
-                m_deletedItems.Add(monitoredItem);
+                if (monitoredItem.Status.Created)
+                {
+                    m_deletedItems.Add(monitoredItem);
+                }
             }
 
             m_changeMask |= SubscriptionChangeMask.ItemsRemoved;
@@ -2560,7 +2620,11 @@ namespace Opc.Ua.Client
                 }
             }
 
-            m_deletedItems.Clear();
+            lock (m_cache)
+            {
+                m_deletedItems.Clear();
+                m_deletingItems.Clear();
+            }
 
             m_changeMask |= SubscriptionChangeMask.Deleted;
         }
@@ -3349,7 +3413,8 @@ namespace Opc.Ua.Client
             }
         }
 
-        private List<MonitoredItem> m_deletedItems = [];
+        private readonly List<MonitoredItem> m_deletedItems = [];
+        private readonly HashSet<MonitoredItem> m_deletingItems = [];
         private event SubscriptionStateChangedEventHandler? m_StateChanged;
         private event PublishStateChangedEventHandler? m_PublishStatusChanged;
         private SubscriptionChangeMask m_changeMask;

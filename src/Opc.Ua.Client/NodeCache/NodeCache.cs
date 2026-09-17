@@ -1106,8 +1106,19 @@ namespace Opc.Ua.Client
         private async ValueTask<NodeId> FindReferenceTypeInHierarchyAsync(
             NodeId startNodeId,
             QualifiedName browseName,
-            CancellationToken ct)
+            CancellationToken ct,
+            HashSet<NodeId>? visited = null)
         {
+            if (startNodeId.IsNull)
+            {
+                return NodeId.Null;
+            }
+            visited ??= [];
+            if (!visited.Add(startNodeId))
+            {
+                return NodeId.Null;
+            }
+
             INode node;
             try
             {
@@ -1131,7 +1142,11 @@ namespace Opc.Ua.Client
                 {
                     continue;
                 }
-                NodeId found = await FindReferenceTypeInHierarchyAsync(subtypeId, browseName, ct)
+                NodeId found = await FindReferenceTypeInHierarchyAsync(
+                    subtypeId,
+                    browseName,
+                    ct,
+                    visited)
                     .ConfigureAwait(false);
                 if (!found.IsNull)
                 {
