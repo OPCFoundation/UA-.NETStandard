@@ -149,6 +149,20 @@ namespace Opc.Ua.Server
                 return Reject(StatusCodes.BadIdentityTokenInvalid, "JWT header does not specify an algorithm.");
             }
 
+            try
+            {
+                using var payloadDocument = JsonDocument.Parse(payloadBytes);
+                string? issuer = GetOptionalString(payloadDocument.RootElement, "iss");
+                if (!string.Equals(issuer, m_keyResolver!.IssuerUri, StringComparison.Ordinal))
+                {
+                    return AuthenticationResult.NotHandled;
+                }
+            }
+            catch (JsonException)
+            {
+                return Reject(StatusCodes.BadIdentityTokenInvalid, "JWT payload is not valid JSON.");
+            }
+
             byte[] signingInputBytes = Encoding.ASCII.GetBytes(segments[0] + "." + segments[1]);
             IReadOnlyList<IIssuerVerificationKey> keys = await m_keyResolver!
                 .GetKeysAsync(keyId, ct)

@@ -150,6 +150,9 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                     CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(createResult.ServiceResult), Is.True);
+            Assert.That(
+                createResult.CredentialNodeId.NamespaceIndex,
+                Is.EqualTo(folder.NodeId.NamespaceIndex));
 
             IList<BaseInstanceState> children = [];
             folder.GetChildren(context, children);

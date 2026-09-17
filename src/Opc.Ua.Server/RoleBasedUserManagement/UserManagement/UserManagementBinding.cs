@@ -327,6 +327,10 @@ namespace Opc.Ua.Server.UserManagement
 
             result.ServiceResult = m_userManagement.ChangePassword(
                 identity.DisplayName, oldPassword, newPassword);
+            if (ServiceResult.IsGood(result.ServiceResult))
+            {
+                SyncProperties();
+            }
             return result;
         }
 

@@ -616,7 +616,7 @@ namespace Opc.Ua.Server
             }
             if (e.Kind == RoleConfigurationChangeKind.RoleRemoved)
             {
-                m_boundRoles.TryRemove(e.RoleId, out _);
+                ScheduleDematerialize(e.RoleId);
                 return;
             }
             if (m_boundRoles.TryGetValue(e.RoleId, out RoleState? roleState))
@@ -652,6 +652,22 @@ namespace Opc.Ua.Server
                 catch (Exception ex)
                 {
                     m_logger.MaterializingRoleRoleIdFailed(ex, roleId);
+                }
+            });
+        }
+
+        private void ScheduleDematerialize(NodeId roleId)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await DematerializeDynamicRoleAsync(roleId, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.DematerializingRoleRoleIdFailed(ex, roleId);
                 }
             });
         }
@@ -1333,6 +1349,13 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.RoleStateBinding + 5, Level = LogLevel.Warning,
             Message = "Materializing role {RoleId} under the RoleSet failed.")]
         public static partial void MaterializingRoleRoleIdFailed(
+            this ILogger logger,
+            Exception ex,
+            NodeId roleId);
+
+        [LoggerMessage(EventId = ServerEventIds.RoleStateBinding + 6, Level = LogLevel.Warning,
+            Message = "Dematerializing role {RoleId} from the RoleSet failed.")]
+        public static partial void DematerializingRoleRoleIdFailed(
             this ILogger logger,
             Exception ex,
             NodeId roleId);

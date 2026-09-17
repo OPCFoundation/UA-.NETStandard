@@ -82,26 +82,9 @@ namespace Opc.Ua.Identity
             {
                 throw new ArgumentNullException(nameof(authenticator));
             }
-            string key = Key(authenticator.TokenType, authenticator.IssuedTokenProfileUri);
             lock (m_lock)
             {
-                if (m_byKey.TryGetValue(key, out IUserTokenAuthenticator? existing))
-                {
-                    int index = m_order.IndexOf(existing);
-                    if (index >= 0)
-                    {
-                        m_order[index] = authenticator;
-                    }
-                    else
-                    {
-                        m_order.Add(authenticator);
-                    }
-                }
-                else
-                {
-                    m_order.Add(authenticator);
-                }
-                m_byKey[key] = authenticator;
+                m_order.Add(authenticator);
             }
         }
 
@@ -112,17 +95,9 @@ namespace Opc.Ua.Identity
             {
                 throw new ArgumentNullException(nameof(authenticator));
             }
-            string key = Key(authenticator.TokenType, authenticator.IssuedTokenProfileUri);
             lock (m_lock)
             {
-                if (!m_byKey.TryGetValue(key, out IUserTokenAuthenticator? existing) ||
-                    !ReferenceEquals(existing, authenticator))
-                {
-                    return false;
-                }
-                m_byKey.Remove(key);
-                m_order.Remove(authenticator);
-                return true;
+                return m_order.Remove(authenticator);
             }
         }
 
@@ -229,15 +204,7 @@ namespace Opc.Ua.Identity
             return AuthenticationResult.NotHandled;
         }
 
-        private static string Key(UserTokenType type, string? profileUri)
-        {
-            return profileUri == null
-                ? type.ToString()
-                : $"{type}|{profileUri}";
-        }
-
         private readonly Lock m_lock = new();
-        private readonly Dictionary<string, IUserTokenAuthenticator> m_byKey = new(StringComparer.Ordinal);
         private readonly List<IUserTokenAuthenticator> m_order = [];
         private readonly List<IIdentityAugmenter> m_augmenters = [];
     }

@@ -45,7 +45,7 @@ namespace Opc.Ua.Server
     public sealed class KeyCredentialPushSubject
     {
         /// <summary>
-        /// Namespace URI used for dynamic credential configuration instances.
+        /// Legacy namespace URI retained for compatibility.
         /// </summary>
         public const string NamespaceUri = "urn:opcfoundation:netstandard:keycredential-push";
 
@@ -492,7 +492,7 @@ namespace Opc.Ua.Server
             string profileUri,
             IEnumerable<string> endpointUrls)
         {
-            ushort namespaceIndex = GetNamespaceIndex(context);
+            ushort namespaceIndex = folder.NodeId.NamespaceIndex;
             QualifiedName browseName = new(name, namespaceIndex);
             KeyCredentialConfigurationState state = folder.AddServiceName_Placeholder(context, browseName);
             state.NodeId = CreateCredentialNodeId(name, namespaceIndex);
@@ -571,22 +571,6 @@ namespace Opc.Ua.Server
                 }
             }
             return null;
-        }
-
-        private static ushort GetNamespaceIndex(ISystemContext context)
-        {
-            NamespaceTable? namespaces = context.NamespaceUris;
-            if (namespaces == null)
-            {
-                return 1;
-            }
-
-            int index = namespaces.GetIndex(NamespaceUri);
-            if (index < 0)
-            {
-                index = namespaces.Append(NamespaceUri);
-            }
-            return (ushort)index;
         }
 
         private static NodeId CreateCredentialNodeId(string name, ushort namespaceIndex)

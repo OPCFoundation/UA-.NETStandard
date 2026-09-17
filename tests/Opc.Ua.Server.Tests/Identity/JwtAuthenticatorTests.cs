@@ -128,7 +128,7 @@ namespace Opc.Ua.Server.Tests.Identity
         }
 
         [Test]
-        public async Task AuthenticateAsyncWrongIssuerRejected()
+        public async Task AuthenticateAsyncWrongIssuerIsNotHandled()
         {
             using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.Tests.Identity
 
             AuthenticationResult result = await AuthenticateAsync(jwt, key).ConfigureAwait(false);
 
-            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.NotHandled));
         }
 
         [Test]

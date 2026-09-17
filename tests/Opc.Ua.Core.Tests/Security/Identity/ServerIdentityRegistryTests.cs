@@ -171,7 +171,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         }
 
         [Test]
-        public void RegisterReplacesEntryWithSameKey()
+        public void UnregisterRemovesOnlyTheSpecifiedAuthenticator()
         {
             var first = new StubAuthenticator(UserTokenType.Anonymous, null);
             var second = new StubAuthenticator(UserTokenType.Anonymous, null);
@@ -179,14 +179,12 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
             registry.Register(second);
 
-            // Old instance is removed from key dispatch; only one entry of type
-            // Anonymous remains accessible.
-            Assert.That(registry.Unregister(first), Is.False);
+            Assert.That(registry.Unregister(first), Is.True);
             Assert.That(registry.Unregister(second), Is.True);
         }
 
         [Test]
-        public async Task RegisterReplacesExistingAuthenticatorWithSameTokenTypeAndProfile()
+        public async Task RegisterKeepsAuthenticatorsWithSameTokenTypeAndProfile()
         {
             var first = new StubAuthenticator(UserTokenType.UserName, null);
             var second = new StubAuthenticator(UserTokenType.UserName, null);
@@ -194,6 +192,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
             registry.Register(first);
             registry.Register(second);
+            first.ReturnOutcome = AuthenticationOutcome.NotHandled;
 
             var userNameToken = new UserNameIdentityTokenHandler("alice", [0x01]);
             AuthenticationResult result = await registry
@@ -201,7 +200,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
-            Assert.That(first.CallCount, Is.Zero);
+            Assert.That(first.CallCount, Is.EqualTo(1));
             Assert.That(second.CallCount, Is.EqualTo(1));
         }
 

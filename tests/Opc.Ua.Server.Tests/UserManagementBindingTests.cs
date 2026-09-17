@@ -413,6 +413,23 @@ namespace Opc.Ua.Server.Tests
         {
             m_userManagement.Setup(m => m.ChangePassword("alice", "old", "new"))
                 .Returns(ServiceResult.Good);
+            m_userManagement.SetupSequence(m => m.SnapshotUsers())
+                .Returns(
+                [
+                    new UserManagementDataType
+                    {
+                        UserName = "alice",
+                        UserConfiguration = (uint)UserConfigurationMask.MustChangePassword
+                    }
+                ])
+                .Returns(
+                [
+                    new UserManagementDataType
+                    {
+                        UserName = "alice",
+                        UserConfiguration = (uint)UserConfigurationMask.None
+                    }
+                ]);
             (TestableAsyncCustomNodeManager manager, UserManagementState state) =
                 CreateNodeManagerWithCreatedUserManagementNode();
 
@@ -435,6 +452,8 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
                 m_userManagement.Verify(m => m.ChangePassword("alice", "old", "new"), Times.Once);
+                Assert.That(state.Users!.Value[0].UserConfiguration,
+                    Is.EqualTo((uint)UserConfigurationMask.None));
             }
         }
 
