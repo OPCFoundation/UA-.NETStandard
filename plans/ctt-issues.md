@@ -1271,11 +1271,11 @@ it is classified as a server or CTT issue.
   `BadInvalidState` is the CTT's result for a channel the server already closed. Part 4 §5.6.2.1: *"Each
   SecureChannel exists until it is explicitly closed or until the last token has expired and the overlap period
   has elapsed"*; the Server shall close the oldest unused Session-less SecureChannel *before reaching the maximum
-  number* of SecureChannels. The inactivity cleanup now skips open channels whose current or renewed token has not
-  expired (`TcpListenerChannel.IsInactivityCleanupDue`, `TcpInactivityCleanupRegressionTests`); channels that never
-  opened, faulted channels and channels without a token keep the `ChannelLifetime` timeout, and the oldest-unused
+  number* of SecureChannels. The inactivity cleanup now skips open channels without a Session whose current or renewed
+  token has not expired (`TcpListenerChannel.IsInactivityCleanupDue`, `TcpInactivityCleanupRegressionTests`); channels with a
+  Session, channels that never opened, faulted channels and channels without a token keep the `ChannelLifetime` timeout, and the oldest-unused
   eviction at MaxChannelCount is unchanged. With the default `ChannelLifetime` of 30000 both test cases pass (only
-  the C50 warnings remain). An idle open channel now stays until its token expires (at most the configured
+  the C50 warnings remain). An idle open channel without a Session now stays until its token expires (at most the configured
   `SecurityTokenLifetime`, one hour by default) instead of 30 s.
 
 ## CTT project configuration notes

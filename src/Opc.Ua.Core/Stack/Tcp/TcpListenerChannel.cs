@@ -358,10 +358,13 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <remarks>
         /// A channel that exchanged no message for longer than <paramref name="channelLifetime"/>
-        /// is due for cleanup, unless it is open and its current or renewed security token has
-        /// not expired yet: OPC 10000-4 §5.6.2.1 keeps a SecureChannel until it is closed or
-        /// until its last token has expired. Channels that never opened, faulted channels and
-        /// channels without a token keep the plain inactivity timeout.
+        /// is due for cleanup, unless it is open, has no Session assigned and its current or
+        /// renewed security token has not expired yet: OPC 10000-4 §5.6.2.1 keeps a SecureChannel
+        /// until it is closed or until its last token has expired, and only lets the Server close
+        /// unused Session-less SecureChannels before reaching the channel limit. A Client with a
+        /// Session keeps communicating, so a silent channel that carries a Session still ends
+        /// after the inactivity timeout, as do channels that never opened, faulted channels and
+        /// channels without a token.
         /// </remarks>
         /// <param name="channelLifetime">The inactivity timeout in milliseconds.</param>
         internal bool IsInactivityCleanupDue(int channelLifetime)
@@ -371,7 +374,7 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            if (State != TcpChannelState.Open)
+            if (State != TcpChannelState.Open || UsedBySession)
             {
                 return true;
             }

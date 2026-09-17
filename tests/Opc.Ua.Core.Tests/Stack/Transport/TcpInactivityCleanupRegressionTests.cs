@@ -100,6 +100,21 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public void OpenChannelUsedBySessionIsDueAfterChannelLifetimeWithValidToken()
+        {
+            // a silent channel that carries a Session keeps the inactivity timeout
+            // (Opc.Ua.Sessions.Tests ClientTest.ConnectCloseSessionCloseChannelAsync).
+            var clock = new FakeTimeProvider();
+            using TestChannel channel = CreateChannel(clock);
+            channel.OpenWithToken(kTokenLifetime);
+            channel.AttachSession();
+
+            clock.Advance(TimeSpan.FromMilliseconds(kChannelLifetime + 1));
+
+            Assert.That(channel.IsInactivityCleanupDue(kChannelLifetime), Is.True);
+        }
+
+        [Test]
         public void OpenChannelWithoutTokenIsDueAfterChannelLifetime()
         {
             var clock = new FakeTimeProvider();
@@ -220,6 +235,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public void SetState(TcpChannelState state)
             {
                 State = state;
+            }
+
+            /// <summary>
+            /// Records a Session on the channel.
+            /// </summary>
+            public void AttachSession()
+            {
+                AddSession();
             }
 
             /// <summary>
