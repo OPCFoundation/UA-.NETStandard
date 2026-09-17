@@ -2535,17 +2535,22 @@ namespace Opc.Ua.Server
                 return ServiceResult.Good;
             }
 
-            if (typeDefinitionId.IsNull ||
-                !Server.TypeTree.IsKnown(typeDefinitionId))
-            {
-                return new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
-            }
-
             NodeId expectedBaseTypeId = nodeClass == NodeClass.Object
                 ? ObjectTypeIds.BaseObjectType
                 : VariableTypeIds.BaseVariableType;
 
-            if (!Server.TypeTree.IsTypeOf(typeDefinitionId, expectedBaseTypeId))
+            if (typeDefinitionId.IsNull)
+            {
+                return new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
+            }
+
+            if (typeDefinitionId == expectedBaseTypeId)
+            {
+                return ServiceResult.Good;
+            }
+
+            if (!Server.TypeTree.IsKnown(typeDefinitionId) ||
+                !Server.TypeTree.IsTypeOf(typeDefinitionId, expectedBaseTypeId))
             {
                 return new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
             }
