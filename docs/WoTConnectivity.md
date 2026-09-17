@@ -105,6 +105,9 @@ access. Replacing the description removes obsolete interaction subtrees and
 both directions of their explicit asset references. Removed property/action
 callbacks are detached, so old node objects cannot invoke the replacement
 provider through an obsolete interaction.
+Argument node identities live beneath their owning action's path, separately
+from authored action names such as `Reset_in` or `Reset_out`; asset and action
+identities remain unchanged.
 
 ### Mirroring assets into the WoT xRegistry
 

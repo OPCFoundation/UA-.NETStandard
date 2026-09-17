@@ -31,6 +31,8 @@ retain their native types and ranks. Variables also receive the legacy
 `HasWoTComponent` relation while retaining their native hierarchy/reference facts.
 The existing asset NodeId and placement remain stable, and automatically assigned
 property/action identities use the existing legacy conventions.
+Argument Properties use the reserved `InputArguments` / `OutputArguments` children
+of their owning action path, so authored `_in`/`_out` action names cannot alias them.
 
 An authored root NodeId or qualified BrowseName must agree with that existing
 owner. Native/archive identities are not silently rebased. A preserved graph

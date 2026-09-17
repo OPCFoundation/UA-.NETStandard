@@ -236,6 +236,72 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(await asset.DownloadThingDescriptionAsync(), Is.EqualTo(content.Span.ToArray()));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NativeActionArgumentIdentitiesDoNotAliasSuffixNamedActions(bool reverse)
+        {
+            await using Fixture fixture = await Fixture.CreateAsync();
+            WotAssetClient asset = await fixture.Client.CreateAssetAsync("mapped");
+            string[] names = reverse ? ["Reset_out", "Reset_in", "Reset"] : ["Reset", "Reset_in", "Reset_out"];
+            var actions = new JsonObject();
+            foreach (string name in names)
+            {
+                actions[name] = JsonNode.Parse("""
+                    {"input":{"type":"object","properties":{
+                       "value":{"type":"integer","uav:dataTypeId":"i=5"}}},
+                     "output":{"type":"object","properties":{
+                       "value":{"type":"integer","uav:dataTypeId":"i=5"}}},
+                     "forms":[{"href":"sim://opcua.test/wot/action"}]}
+                    """);
+            }
+            ByteString content = Document(extra: "\"actions\":" + actions.ToJsonString() + ",");
+
+            await asset.UploadThingDescriptionAsync(content.Span.ToArray());
+
+            var identities = new List<NodeId>();
+            ushort ns = fixture.Session.NamespaceUris.GetIndexOrAppend(
+                WotConnectivityServerOptions.DefaultAssetNamespaceUri);
+            var published = new List<WotAssetVariableEntry>();
+            await foreach (WotAssetVariableEntry action in asset.EnumerateActionsAsync())
+            {
+                published.Add(action);
+            }
+            Assert.That(published, Has.Count.EqualTo(3));
+            foreach (string name in names)
+            {
+                var method = new NodeId("Assets/mapped/actions/" + name, ns);
+                var input = new NodeId("Assets/mapped/actions/" + name + "/InputArguments", ns);
+                var output = new NodeId("Assets/mapped/actions/" + name + "/OutputArguments", ns);
+                identities.AddRange([method, input, output]);
+                Assert.That(published.Single(action => action.BrowseName == name).NodeId, Is.EqualTo(method));
+                await fixture.ReadAttributesAsync(input, [Attributes.NodeClass, Attributes.Value]);
+                await fixture.ReadAttributesAsync(output, [Attributes.NodeClass, Attributes.Value]);
+                CallResponse called = await fixture.Session.CallAsync(null,
+                    [new CallMethodRequest
+                    {
+                        ObjectId = asset.AssetId,
+                        MethodId = method,
+                        InputArguments = [new Variant((ushort)23)]
+                    }], default);
+                Assert.That(called.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(called.Results[0].OutputArguments[0].TryGetValue(out ushort value), Is.True);
+                Assert.That(value, Is.EqualTo(23));
+            }
+            Assert.That(identities, Is.Unique);
+            Assert.That(await asset.DownloadThingDescriptionAsync(), Is.EqualTo(content.Span.ToArray()));
+
+            await asset.UploadThingDescriptionAsync(Document().Span.ToArray());
+
+            ReadResponse removed = await fixture.Session.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                identities.Select(id => new ReadValueId { NodeId = id, AttributeId = Attributes.NodeClass })
+                    .ToArrayOf(), default);
+            Assert.That(removed.Results.Count, Is.EqualTo(9));
+            foreach (DataValue value in removed.Results)
+            {
+                Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            }
+        }
+
         [Test]
         public async Task UnknownAndLiteralSourceMembersRetainExactBytes()
         {

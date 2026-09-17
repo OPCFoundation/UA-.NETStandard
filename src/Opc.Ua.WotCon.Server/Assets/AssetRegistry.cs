@@ -922,7 +922,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
                 var inputProperty =
                     PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
-                inputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_in");
+                inputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "/InputArguments");
                 inputProperty.BrowseName = new QualifiedName(Ua.BrowseNames.InputArguments);
                 inputProperty.DisplayName = new LocalizedText(Ua.BrowseNames.InputArguments);
                 inputProperty.DataType = Ua.DataTypeIds.Argument;
@@ -942,7 +942,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
                 var outputProperty =
                     PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
-                outputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_out");
+                outputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "/OutputArguments");
                 outputProperty.BrowseName = new QualifiedName(Ua.BrowseNames.OutputArguments);
                 outputProperty.DisplayName = new LocalizedText(Ua.BrowseNames.OutputArguments);
                 outputProperty.DataType = Ua.DataTypeIds.Argument;

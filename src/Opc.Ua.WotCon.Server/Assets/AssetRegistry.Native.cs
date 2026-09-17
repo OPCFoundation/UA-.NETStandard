@@ -218,12 +218,12 @@ namespace Opc.Ua.WotCon.Server.Assets
                     if (method.InputArguments is not null)
                     {
                         assigned[method.InputArguments.NodeId] =
-                            m_manager.AllocateChildNodeId(entry.Name, "actions", affordance.Name + "_in");
+                            m_manager.AllocateChildNodeId(entry.Name, "actions", affordance.Name + "/InputArguments");
                     }
                     if (method.OutputArguments is not null)
                     {
                         assigned[method.OutputArguments.NodeId] =
-                            m_manager.AllocateChildNodeId(entry.Name, "actions", affordance.Name + "_out");
+                            m_manager.AllocateChildNodeId(entry.Name, "actions", affordance.Name + "/OutputArguments");
                     }
                 }
             }
