@@ -50,8 +50,8 @@ namespace Opc.Ua
             OwnerManager = host;
             Key = key;
             Endpoint = endpoint;
-            ReverseConnection = reverseConnection;
             MessageContext = host.Configuration.CreateMessageContext();
+            m_reverseConnection = reverseConnection;
             m_lastStateChange = host.TimeProvider.GetUtcNow();
             m_readyGate = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
@@ -59,7 +59,16 @@ namespace Opc.Ua
 
         public ManagedChannelKey Key { get; }
         public ConfiguredEndpoint Endpoint { get; }
-        public ITransportWaitingConnection? ReverseConnection { get; }
+        public ITransportWaitingConnection? ReverseConnection
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_reverseConnection;
+                }
+            }
+        }
 
         public IChannelEntryHost OwnerManager { get; }
         public IServiceMessageContext MessageContext { get; }
@@ -490,11 +499,19 @@ namespace Opc.Ua
         /// </remarks>
         public Task<bool> RequestReconnectAsync(CancellationToken ct)
         {
-            return RequestReconnectAsync(budget: null, ct);
+            return RequestReconnectAsync(null, budget: null, ct);
         }
 
         /// <inheritdoc cref="RequestReconnectAsync(CancellationToken)"/>
         public Task<bool> RequestReconnectAsync(IRetryBudget? budget, CancellationToken ct)
+        {
+            return RequestReconnectAsync(null, budget, ct);
+        }
+
+        public Task<bool> RequestReconnectAsync(
+            ITransportWaitingConnection? reverseConnection,
+            IRetryBudget? budget,
+            CancellationToken ct)
         {
             TaskCompletionSource<bool> tcs;
             bool starter;
@@ -506,6 +523,11 @@ namespace Opc.Ua
                         ServiceResultException.Create(
                             StatusCodes.BadSecureChannelClosed,
                             "Channel is {0}.", m_state));
+                }
+
+                if (reverseConnection != null)
+                {
+                    m_reverseConnection = reverseConnection;
                 }
 
                 // Coalesce budgets: every caller's budget tightens the
@@ -931,16 +953,6 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    if (!HasCurrentClientCertificate())
-                    {
-                        var error = ServiceResult.Create(
-                            StatusCodes.BadSecureChannelClosed,
-                            "Client certificate changed during transport reconnect.");
-                        OwnerManager.OnEntryReconnectFailed(this, attempt, kReconnectOutcomeTransientFailure, error);
-                        // Rotation supersedes successful work without consuming a failed-attempt retry.
-                        continue;
-                    }
-
                     TransitionTo(
                         ChannelState.TransportConnectedSessionReactivating,
                         error: null,
@@ -984,13 +996,13 @@ namespace Opc.Ua
                         return;
                     }
 
-                    if (outcome.AnyTransient || !HasCurrentClientCertificate())
+                    if (outcome.AnyTransient)
                     {
                         var error = ServiceResult.Create(
                             StatusCodes.BadSecureChannelClosed,
                             outcome.AnyTransient
                                 ? "Participant signaled transient channel reconnect failure."
-                                : "Client certificate changed during session reactivation.");
+                                : "Participant signaled transient channel reconnect failure.");
                         OwnerManager.OnEntryReconnectFailed(this, attempt, kReconnectOutcomeTransientFailure, error);
                         if (outcome.AnyTransient)
                         {
@@ -1049,78 +1061,72 @@ namespace Opc.Ua
         /// </summary>
         private async Task EnsureTransportConnectedAsync(CancellationToken ct)
         {
-            using ClientChannelCertificateSnapshot certificates = OwnerManager.SnapshotClientCertificate();
             OwnedTransport? underlying;
-            bool certificateChanged;
+            ClientChannelCertificateSnapshot certificates;
             lock (m_lock)
             {
                 underlying = m_underlying;
-                certificateChanged = m_clientCertificateVersion != certificates.Version;
+                certificates = underlying == null
+                    ? OwnerManager.SnapshotClientCertificate()
+                    : new ClientChannelCertificateSnapshot(
+                        underlying.Certificates.Certificate,
+                        underlying.Certificates.Chain,
+                        m_clientCertificateVersion);
             }
 
-            if (!certificateChanged &&
-                underlying != null &&
+            using (certificates)
+            {
+                if (underlying != null &&
                 (underlying.Channel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
-            {
-                try
                 {
-                    await underlying.Channel.ReconnectAsync(ReverseConnection, ct).ConfigureAwait(false);
-                    MarkOpened();
-                    return;
+                    try
+                    {
+                        await underlying.Channel.ReconnectAsync(ReverseConnection, ct).ConfigureAwait(false);
+                        MarkOpened();
+                        return;
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        OwnerManager.Logger?.ChannelEntryLog4(ex);
+                    }
                 }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    OwnerManager.Logger?.ChannelEntryLog4(ex);
-                }
-            }
 
-            OwnedTransport fresh = await CreateTransportChannelAsync(
-                certificates.Certificate, certificates.Chain, ct).ConfigureAwait(false);
+                OwnedTransport fresh = await CreateTransportChannelAsync(
+                    certificates.Certificate, certificates.Chain, ct).ConfigureAwait(false);
 
-            OwnedTransport? old;
-            bool entryClosed;
-            lock (m_lock)
-            {
-                entryClosed = IsClosingLocked;
+                OwnedTransport? old;
+                bool entryClosed;
+                lock (m_lock)
+                {
+                    entryClosed = IsClosingLocked;
+                    if (entryClosed)
+                    {
+                        old = null;
+                    }
+                    else
+                    {
+                        old = m_underlying;
+                        m_underlying = fresh;
+                        m_clientCertificateVersion = certificates.Version;
+                    }
+                }
                 if (entryClosed)
                 {
-                    old = null;
+                    await CloseTransportBestEffortAsync(fresh).ConfigureAwait(false);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed,
+                        "Channel is {0}.",
+                        State);
                 }
-                else
+                if (old != null)
                 {
-                    old = m_underlying;
-                    m_underlying = fresh;
-                    m_clientCertificateVersion = certificates.Version;
+                    await CloseTransportBestEffortAsync(old).ConfigureAwait(false);
+                    OwnerManager.OnEntryClosed(this, ChannelCloseReason.Faulted);
                 }
-            }
-            if (entryClosed)
-            {
-                await CloseTransportBestEffortAsync(fresh).ConfigureAwait(false);
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecureChannelClosed,
-                    "Channel is {0}.",
-                    State);
-            }
-            if (old != null)
-            {
-                await CloseTransportBestEffortAsync(old).ConfigureAwait(false);
-                OwnerManager.OnEntryClosed(this, ChannelCloseReason.Faulted);
-            }
-        }
-
-        /// <summary>
-        /// Determines whether the installed transport still uses the manager's current certificate version.
-        /// </summary>
-        private bool HasCurrentClientCertificate()
-        {
-            using ClientChannelCertificateSnapshot current = OwnerManager.SnapshotClientCertificate();
-            lock (m_lock)
-            {
-                return m_clientCertificateVersion == current.Version;
             }
         }
 
@@ -1559,6 +1565,7 @@ namespace Opc.Ua
         private ServiceResult? m_lastError;
         private ChannelState m_state = ChannelState.Disconnected;
         private bool m_closing;
+        private ITransportWaitingConnection? m_reverseConnection;
 
         /// <summary>
         /// Couples a transport with the certificate references that must remain alive until it closes.

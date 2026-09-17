@@ -154,10 +154,21 @@ namespace Opc.Ua
                 return (null, null);
             }
 
-            CertificateCollection? chain = await LoadCertificateChainAsync(certificate, ct).ConfigureAwait(false);
-            if (chain == null && evt.IssuerChain != null)
+            CertificateCollection? chain;
+            try
             {
-                chain = evt.IssuerChain.AddRef();
+                chain = await LoadCertificateChainAsync(certificate, ct).ConfigureAwait(false);
+                if (chain == null &&
+                    m_host.Configuration.SecurityConfiguration.SendCertificateChain &&
+                    evt.IssuerChain != null)
+                {
+                    chain = evt.IssuerChain.AddRef();
+                }
+            }
+            catch
+            {
+                certificate.Dispose();
+                throw;
             }
 
             return (certificate, chain);

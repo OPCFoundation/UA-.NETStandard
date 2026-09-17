@@ -220,11 +220,17 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ValueTask ReconnectAsync(
+        public async ValueTask ReconnectAsync(
             ITransportWaitingConnection? connection,
             CancellationToken ct = default)
         {
-            return new ValueTask(Entry.RequestReconnectAsync(ct));
+            bool reconnected = await Entry.RequestReconnectAsync(connection, budget: null, ct).ConfigureAwait(false);
+            if (!reconnected)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecureChannelClosed,
+                    "Channel reconnect did not complete successfully.");
+            }
         }
 
         /// <inheritdoc/>
