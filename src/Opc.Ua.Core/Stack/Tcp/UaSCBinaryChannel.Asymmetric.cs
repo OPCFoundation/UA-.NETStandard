@@ -1921,25 +1921,34 @@ namespace Opc.Ua.Bindings
             if (policy.AsymmetricSignatureAlgorithm == AsymmetricSignatureAlgorithm.None ||
                 policy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
-                byte[] decryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Decrypt");
+                byte[] decryptedBuffer = BufferManager.TakeBuffer(
+                    headerToCopy.Count + dataToDecrypt.Count,
+                    "Decrypt");
+                try
+                {
+                    Array.Copy(
+                        headerToCopy.GetArray(),
+                        headerToCopy.Offset,
+                        decryptedBuffer,
+                        0,
+                        headerToCopy.Count);
+                    Array.Copy(
+                        dataToDecrypt.GetArray(),
+                        dataToDecrypt.Offset,
+                        decryptedBuffer,
+                        headerToCopy.Count,
+                        dataToDecrypt.Count);
 
-                Array.Copy(
-                    headerToCopy.GetArray(),
-                    headerToCopy.Offset,
-                    decryptedBuffer,
-                    0,
-                    headerToCopy.Count);
-                Array.Copy(
-                    dataToDecrypt.GetArray(),
-                    dataToDecrypt.Offset,
-                    decryptedBuffer,
-                    headerToCopy.Count,
-                    dataToDecrypt.Count);
-
-                return new ArraySegment<byte>(
-                    decryptedBuffer,
-                    0,
-                    dataToDecrypt.Count + headerToCopy.Count);
+                    return new ArraySegment<byte>(
+                        decryptedBuffer,
+                        0,
+                        dataToDecrypt.Count + headerToCopy.Count);
+                }
+                catch
+                {
+                    BufferManager.ReturnBuffer(decryptedBuffer, "Decrypt");
+                    throw;
+                }
             }
 
             return Rsa_Decrypt(

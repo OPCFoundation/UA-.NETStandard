@@ -442,9 +442,7 @@ namespace Opc.Ua.Bindings
             bool isLegacy = SecurityPolicy!.LegacySequenceNumbers;
 
             long newSeqNumber = Interlocked.Increment(ref m_sequenceNumber);
-            bool maxValueOverflow = isLegacy
-                ? newSeqNumber > kMaxValueLegacyTrue
-                : newSeqNumber > kMaxValueLegacyFalse;
+            bool maxValueOverflow = newSeqNumber > uint.MaxValue;
 
             // LegacySequenceNumbers are TRUE for non ECC profiles
             // https://reference.opcfoundation.org/Core/Part6/v105/docs/6.7.2.4
@@ -1792,8 +1790,6 @@ namespace Opc.Ua.Bindings
         private ReceiveLoop? m_receiveLoop;
 
         private volatile TcpChannelStateEventHandler? m_stateChanged;
-        private const uint kMaxValueLegacyTrue = TcpMessageLimits.MinSequenceNumber;
-        private const uint kMaxValueLegacyFalse = uint.MaxValue;
     }
 
     /// <summary>

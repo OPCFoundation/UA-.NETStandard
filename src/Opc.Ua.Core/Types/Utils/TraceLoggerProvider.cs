@@ -230,31 +230,28 @@ namespace Opc.Ua
         /// <param name="logLevel">The log level.</param>
         internal static int GetTraceMask(EventId eventId, LogLevel logLevel)
         {
-            int mask = eventId.Id & Utils.TraceMasks.All;
-            if (mask == 0)
+            int mask = 0;
+            switch (logLevel)
             {
-                switch (logLevel)
-                {
-                    case LogLevel.Critical:
-                    case LogLevel.Warning:
-                    case LogLevel.Error:
-                        mask = Utils.TraceMasks.Error;
-                        break;
-                    case LogLevel.Information:
-                        mask = Utils.TraceMasks.Information;
-                        break;
+                case LogLevel.Critical:
+                case LogLevel.Warning:
+                case LogLevel.Error:
+                    mask = Utils.TraceMasks.Error;
+                    break;
+                case LogLevel.Information:
+                    mask = Utils.TraceMasks.Information;
+                    break;
 #if DEBUG
-                    case LogLevel.Debug:
+                case LogLevel.Debug:
 #endif
-                    case LogLevel.Trace:
-                        mask = Utils.TraceMasks.Operation;
-                        break;
-                    case LogLevel.None:
-                        break;
-                    default:
-                        Debug.Fail($"Unexpected log level {logLevel}.");
-                        break;
-                }
+                case LogLevel.Trace:
+                    mask = Utils.TraceMasks.Operation;
+                    break;
+                case LogLevel.None:
+                    break;
+                default:
+                    Debug.Fail($"Unexpected log level {logLevel}.");
+                    break;
             }
             return mask;
         }

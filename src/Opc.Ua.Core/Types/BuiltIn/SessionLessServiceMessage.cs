@@ -144,8 +144,26 @@ namespace Opc.Ua
             ServerUris = new StringTable();
             uris = decoder.ReadStringArray("ServerUris")!;
 
+            string? localServerUri = decoder.Context.ServerUris.GetString(0);
+            if (!string.IsNullOrEmpty(localServerUri))
+            {
+                ServerUris.Append(localServerUri);
+            }
+            else
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "The decoder context has no local server URI.");
+            }
+
             foreach (string uri in uris)
             {
+                if (string.IsNullOrEmpty(uri))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        "ServerUris contains an empty URI.");
+                }
                 ServerUris.Append(uri);
             }
 

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System;
 
 namespace Opc.Ua
 {
@@ -582,8 +583,18 @@ namespace Opc.Ua
                 return default; // not supported
             }
 
-            // convert the value.
-            return value.ConvertTo(targetType);
+            try
+            {
+                return value.ConvertTo(targetType);
+            }
+            catch (Exception ex) when (
+                ex is InvalidCastException or
+                FormatException or
+                OverflowException or
+                ServiceResultException)
+            {
+                return default;
+            }
         }
 
         /// <summary>
@@ -682,32 +693,34 @@ namespace Opc.Ua
             int? hops = 1;
 
             Variant hopsValue = GetValue(operands[3]);
-            if (!hopsValue.IsNull)
+            try
             {
-                hops = hopsValue.ConvertToInt32().GetInt32();
-            }
+                if (!hopsValue.IsNull)
+                {
+                    hops = hopsValue.ConvertToInt32().GetInt32();
+                }
 
-            // get whether to include type definition subtypes.
-            bool? includeTypeDefinitionSubtypes = true;
+                // get whether to include type definition subtypes.
+                bool? includeTypeDefinitionSubtypes = true;
 
-            Variant includeValue = GetValue(operands[4]);
+                Variant includeValue = GetValue(operands[4]);
 
-            if (!includeValue.IsNull)
-            {
-                includeTypeDefinitionSubtypes = includeValue.ConvertToBoolean().GetBoolean(true);
-            }
+                if (!includeValue.IsNull)
+                {
+                    includeTypeDefinitionSubtypes = includeValue.ConvertToBoolean().GetBoolean(true);
+                }
 
-            // get whether to include reference type subtypes.
-            bool? includeReferenceTypeSubtypes = true;
+                // get whether to include reference type subtypes.
+                bool? includeReferenceTypeSubtypes = true;
 
-            includeValue = GetValue(operands[5]);
+                includeValue = GetValue(operands[5]);
 
-            if (!includeValue.IsNull)
-            {
-                includeReferenceTypeSubtypes = includeValue.ConvertToBoolean().GetBoolean(true);
-            }
+                if (!includeValue.IsNull)
+                {
+                    includeReferenceTypeSubtypes = includeValue.ConvertToBoolean().GetBoolean(true);
+                }
 
-            NodeId targetTypeId;
+                NodeId targetTypeId;
 
             // check if elements are chained.
 
@@ -785,6 +798,15 @@ namespace Opc.Ua
                     includeReferenceTypeSubtypes.Value);
             }
             catch
+            {
+                return false;
+            }
+            }
+            catch (Exception ex) when (
+                ex is InvalidCastException or
+                FormatException or
+                OverflowException or
+                ServiceResultException)
             {
                 return false;
             }

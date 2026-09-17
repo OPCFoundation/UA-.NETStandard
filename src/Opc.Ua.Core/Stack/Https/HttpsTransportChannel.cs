@@ -332,7 +332,7 @@ namespace Opc.Ua.Bindings
             }
             catch (OperationCanceledException e)
             {
-                if (cts.IsCancellationRequested)
+                if (cts.IsCancellationRequested || !ct.IsCancellationRequested)
                 {
                     m_logger.HttpsChannelLog3(e, OperationTimeout);
                     throw ServiceResultException.Create(
@@ -640,10 +640,17 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
-                    serverCertificateCustomValidationCallback = (_, cert, chain, _) =>
+                    serverCertificateCustomValidationCallback = (_, cert, chain, sslPolicyErrors) =>
                     {
                         try
                         {
+                            if ((sslPolicyErrors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadCertificateHostNameInvalid,
+                                    "The HTTPS certificate host name does not match the endpoint.");
+                            }
+
                             if (chain != null && chain.ChainElements != null)
                             {
                                 int i = 0;
@@ -730,7 +737,10 @@ namespace Opc.Ua.Bindings
                 // of the stack, so TLS-layer revocation on the HttpClient handler is
                 // intentionally left disabled to avoid duplicate / inconsistent checks.
 #pragma warning disable CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
-                var client = new HttpClient(handler);
+                var client = new HttpClient(handler)
+                {
+                    Timeout = Timeout.InfiniteTimeSpan
+                };
 #pragma warning restore CA5400 // HttpClient is created without enabling CheckCertificateRevocationList
                 handler = null; // ownership transferred to HttpClient
 
