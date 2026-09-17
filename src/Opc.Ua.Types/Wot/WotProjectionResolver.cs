@@ -266,6 +266,24 @@ namespace Opc.Ua.Wot
                 }
 
                 CloseAffordanceDependencies(selection, diagnostics, cancellationToken);
+                bool legacyPlan = m_options.ProjectionCompatibilityMode ==
+                    WotProjectionCompatibilityMode.DraftProjection11 &&
+                    !projectionDocument.TryGetUav("projectionKind", out _);
+                if (!legacyPlan)
+                {
+                    foreach (ResolvedAffordance member in selection.Members)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (member.Enumerated &&
+                            member.Source.Source.Routing == WotProjectionRouting.Projection &&
+                            (member.Value["forms"] is not JsonArray authoredForms || authoredForms.Count == 0))
+                        {
+                            AddError(diagnostics, WotDiagnosticCode.ProjectionSourceUnresolved,
+                                "An enumerated projection-routed affordance must declare its own serving forms.",
+                                "/" + MapName(member.Kind) + "/" + EscapePointer(member.Name) + "/forms");
+                        }
+                    }
+                }
                 if (CountErrors(diagnostics) > errorsAtEntry ||
                     !await SupplyHostFormsAsync(
                         projection, selection, context, openDocuments, diagnostics, cancellationToken)
@@ -273,9 +291,6 @@ namespace Opc.Ua.Wot
                 {
                     return null;
                 }
-                bool legacyPlan = m_options.ProjectionCompatibilityMode ==
-                    WotProjectionCompatibilityMode.DraftProjection11 &&
-                    !projectionDocument.TryGetUav("projectionKind", out _);
                 bool hasDocumentContext = projectionDocument.TryGetContext(out _);
                 foreach (ResolvedAffordance member in selection.Members)
                 {
@@ -840,7 +855,7 @@ namespace Opc.Ua.Wot
             CarryProvenance(target, source, definition, pointer, diagnostics);
             selection.Add(
                 reference.AffordanceKind, reference.Name, target, source,
-                UnescapeAffordanceName(pointer[prefix.Length..]), definition);
+                UnescapeAffordanceName(pointer[prefix.Length..]), definition, enumerated: true);
         }
 
         private static void SelectBulk(
@@ -2535,6 +2550,8 @@ namespace Opc.Ua.Wot
 
             public bool Supporting { get; init; }
 
+            public bool Enumerated { get; init; }
+
             public ReferenceOwner? GeneratedFormOwner { get; set; }
         }
 
@@ -2576,7 +2593,8 @@ namespace Opc.Ua.Wot
 
             public ResolvedAffordance Add(
                 WotAffordanceKind kind, string name, JsonObject value,
-                ResolvedSource source, string sourceName, JsonElement definition, bool supporting = false)
+                ResolvedSource source, string sourceName, JsonElement definition,
+                bool supporting = false, bool enumerated = false)
             {
                 var member = new ResolvedAffordance
                 {
@@ -2587,7 +2605,8 @@ namespace Opc.Ua.Wot
                     SourceName = sourceName,
                     Pointer = "/" + MapName(kind) + "/" + EscapePointer(sourceName),
                     Definition = definition,
-                    Supporting = supporting
+                    Supporting = supporting,
+                    Enumerated = enumerated
                 };
                 List(kind).Add(member);
                 Members.Add(member);

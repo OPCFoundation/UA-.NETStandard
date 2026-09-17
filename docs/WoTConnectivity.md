@@ -1502,6 +1502,11 @@ intended order. This is an endpoint-description seam, not an endpoint publisher.
 
 Authored forms take precedence; an empty or malformed authored form declaration
 is not repaired by calling the provider. Source-routed selections never call it.
+An enumerated projection-routed member must declare its own serving forms:
+omission is invalid, not a request for provider fallback. Enumerated members are
+checked before any host-provider invocation; fallback supplies only bulk and
+supporting selections. Explicit draft compatibility retains its separately
+reported structural behavior, not provider-based repair of enumerations.
 Provider forms must be detached JSON objects. Relative hrefs use the original
 host base and become absolute; their scheme, host and port must remain in the
 host's origin. A source endpoint cannot acquire host credentials by being copied

@@ -59,6 +59,7 @@ namespace Opc.Ua.Wot
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (member.Source.Source.Routing != WotProjectionRouting.Projection ||
+                    member.Enumerated ||
                     member.Value.ContainsKey("forms"))
                 {
                     continue;

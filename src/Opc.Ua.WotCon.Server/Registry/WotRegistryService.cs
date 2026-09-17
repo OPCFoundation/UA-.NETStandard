@@ -898,7 +898,12 @@ namespace Opc.Ua.WotCon.Server.Registry
                     return Rejected(m_snapshot.Generation, projectionError);
                 }
                 documentId = WotRegistryIdentity.ReadSourceId(document.RootElement);
-                parsedKind = document.Kind;
+                // Admission checked the plan's declared result kind; its root is not an ordinary TD/TM.
+                parsedKind = projectionPlan
+                    ? request.Kind == WoTDocumentKindEnum.ThingModel
+                        ? WotDocumentKind.ThingModel
+                        : WotDocumentKind.ThingDescription
+                    : document.Kind;
                 title = document.Title;
                 baseUri = ReadString(document.RootElement, "base");
                 if (document.RootElement.TryGetProperty(
