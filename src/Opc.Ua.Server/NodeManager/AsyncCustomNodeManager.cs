@@ -5215,6 +5215,22 @@ namespace Opc.Ua.Server
             return HistorianDispatcher.ResolveProvider(Server, node, GetHistorianProvider(node));
         }
 
+        private static bool HasHistoryWritePermission(
+            ServerSystemContext context,
+            BaseVariableState variable)
+        {
+            BaseVariableState accessNode = variable;
+
+            if (HistorianDispatcher.IsAnnotationsProperty(variable))
+            {
+                accessNode = HistorianDispatcher.GetAnnotationsParent(variable) ?? variable;
+            }
+
+            byte userAccessLevel = accessNode.UserAccessLevel;
+            accessNode.OnReadUserAccessLevel?.Invoke(context, accessNode, ref userAccessLevel);
+            return (userAccessLevel & AccessLevels.HistoryWrite) != 0;
+        }
+
         /// <summary>
         /// Returns whether history services are wired for the specified node.
         /// </summary>
@@ -5942,6 +5958,12 @@ namespace Opc.Ua.Server
                     if (handle.Node is BaseVariableState variable &&
                         (variable.AccessLevel & AccessLevels.HistoryWrite) != 0)
                     {
+                        if (!HasHistoryWritePermission(systemContext, variable))
+                        {
+                            errors[ii] = StatusCodes.BadUserAccessDenied;
+                            continue;
+                        }
+
                         handle.Index = ii;
                         nodesToProcess.Add(handle);
                         continue;
@@ -7004,7 +7026,15 @@ namespace Opc.Ua.Server
                 }
 
                 // signal update.
-                await OnSubscribeToEventsAsync(context, monitoredNode!, unsubscribe, cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsGood(serviceResult) &&
+                    monitoredNode != null)
+                {
+                    await OnSubscribeToEventsAsync(
+                        context,
+                        monitoredNode,
+                        unsubscribe,
+                        cancellationToken).ConfigureAwait(false);
+                }
 
                 // all done.
                 return serviceResult;

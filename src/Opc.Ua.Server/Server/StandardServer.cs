@@ -1073,6 +1073,7 @@ namespace Opc.Ua.Server
                     m_logger,
                     context.AuditEntryId!,
                     session!,
+                    ExtractAuditUserIdentityToken(userIdentityToken),
                     e);
 
                 ServerInternal.UpdateServerDiagnostics(diagnostics =>
@@ -1133,6 +1134,26 @@ namespace Opc.Ua.Server
                 error == StatusCodes.BadCertificateHostNameInvalid ||
                 error == StatusCodes.BadCertificatePolicyCheckFailed ||
                 error == StatusCodes.BadApplicationSignatureInvalid;
+        }
+
+        private static UserIdentityToken? ExtractAuditUserIdentityToken(ExtensionObject userIdentityToken)
+        {
+            if (userIdentityToken.TryGetValue(out UserIdentityToken? decodedToken))
+            {
+                return decodedToken;
+            }
+
+            if (userIdentityToken.Encoding != ExtensionObjectEncoding.Binary ||
+                !userIdentityToken.TryGetAsBinary(out ByteString _))
+            {
+                return null;
+            }
+
+            return BaseVariableState.DecodeExtensionObject(
+                null!,
+                typeof(UserIdentityToken),
+                userIdentityToken,
+                false) as UserIdentityToken;
         }
 
         /// <summary>

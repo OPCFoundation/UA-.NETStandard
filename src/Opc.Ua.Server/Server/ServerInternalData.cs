@@ -1003,12 +1003,22 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            CancellationToken closeCancellationToken = CancellationToken.None;
+
             try
             {
-                await NodeManager.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                await NodeManager.SessionClosingAsync(
+                    context,
+                    sessionId,
+                    deleteSubscriptions,
+                    closeCancellationToken)
                     .ConfigureAwait(false);
                 await SubscriptionManager
-                    .SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken)
+                    .SessionClosingAsync(
+                        context,
+                        sessionId,
+                        deleteSubscriptions,
+                        closeCancellationToken)
                     .ConfigureAwait(false);
             }
             finally
@@ -1016,7 +1026,7 @@ namespace Opc.Ua.Server
                 // The Session is marked closing for good, so it must not be left registered and
                 // serving when a NodeManager or the SubscriptionManager fails to tear its state
                 // down. The original failure still propagates to the caller.
-                await SessionManager.CloseSessionAsync(sessionId, cancellationToken).ConfigureAwait(false);
+                await SessionManager.CloseSessionAsync(sessionId, closeCancellationToken).ConfigureAwait(false);
             }
         }
 

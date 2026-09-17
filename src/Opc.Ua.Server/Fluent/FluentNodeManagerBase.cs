@@ -997,15 +997,22 @@ namespace Opc.Ua.Server.Fluent
             bool unsubscribe,
             CancellationToken cancellationToken = default)
         {
+            if (monitoredNode is null)
+            {
+                return;
+            }
+
+            MonitoredNode2 nonNullMonitoredNode = monitoredNode;
+
             if (unsubscribe)
             {
                 EventSources.SignalReconcile();
             }
-            else
+            else if (nonNullMonitoredNode.Node is { } node)
             {
-                await EventSources.WaitUntilReadyAsync(monitoredNode.Node, cancellationToken).ConfigureAwait(false);
+                await EventSources.WaitUntilReadyAsync(node, cancellationToken).ConfigureAwait(false);
             }
-            await base.OnSubscribeToEventsAsync(context, monitoredNode, unsubscribe, cancellationToken)
+            await base.OnSubscribeToEventsAsync(context, nonNullMonitoredNode, unsubscribe, cancellationToken)
                 .ConfigureAwait(false);
         }
 

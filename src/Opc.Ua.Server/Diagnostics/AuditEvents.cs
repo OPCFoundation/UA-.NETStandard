@@ -1194,6 +1194,32 @@ namespace Opc.Ua.Server
             ISession session,
             Exception? exception = null)
         {
+            ReportAuditActivateSessionEvent(
+                server,
+                logger,
+                auditEntryId,
+                session,
+                session?.IdentityToken?.Token,
+                exception);
+        }
+
+        /// <summary>
+        /// Reports the ActivateSession audit event with an explicit request token payload.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="auditEntryId">The audit entry id.</param>
+        /// <param name="session">The session that is activated.</param>
+        /// <param name="userIdentityToken">The user identity token supplied on the request.</param>
+        /// <param name="exception">The exception received during activate session request</param>
+        public static void ReportAuditActivateSessionEvent(
+            this IAuditEventServer? server,
+            ILogger logger,
+            string auditEntryId,
+            ISession session,
+            UserIdentityToken? userIdentityToken,
+            Exception? exception = null)
+        {
             if (server?.Auditing != true)
             {
                 // current server does not support auditing
@@ -1235,11 +1261,14 @@ namespace Opc.Ua.Server
                     BrowseNames.SourceName,
                     "Session/ActivateSession",
                     false);
-                e.SetChildValue(
-                    systemContext,
-                    BrowseNames.UserIdentityToken,
-                    CoreUtils.Clone(session?.IdentityToken?.Token)!,
-                    false);
+                if (SanitizeUserIdentityToken(userIdentityToken) is { } sanitizedToken)
+                {
+                    e.SetChildValue<UserIdentityToken>(
+                        systemContext,
+                        BrowseNames.UserIdentityToken,
+                        sanitizedToken,
+                        false);
+                }
 
                 server.ReportAuditEvent(systemContext, e);
             }
@@ -1247,6 +1276,27 @@ namespace Opc.Ua.Server
             {
                 logger.ErrorWhileReportingAuditActivateSessionEventEvent(e, session?.Id);
             }
+        }
+
+        private static UserIdentityToken? SanitizeUserIdentityToken(UserIdentityToken? userIdentityToken)
+        {
+            if (CoreUtils.Clone(userIdentityToken) is not UserIdentityToken clonedToken)
+            {
+                return null;
+            }
+
+            switch (clonedToken)
+            {
+                case UserNameIdentityToken userNameToken:
+                    userNameToken.Password = ByteString.Empty;
+                    userNameToken.EncryptionAlgorithm = null;
+                    break;
+                case IssuedIdentityToken issuedIdentityToken:
+                    issuedIdentityToken.TokenData = ByteString.Empty;
+                    break;
+            }
+
+            return clonedToken;
         }
 
         /// <summary>
