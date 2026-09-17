@@ -26,6 +26,17 @@ generations and disposes it with the service. Calling `LoadAsync` again
 invalidates earlier captures; disposing all captures releases their content
 protection. A later fresh capture may need to validate content again.
 
+After a committed decision, the service completes its mandatory validated
+generation handoff before invoking external `Changed` subscribers. A throwing
+subscriber cannot strand the previous capture or prevent the next mutation.
+The callback failure remains explicit through the existing
+`WotRegistryCommitDurabilityUncertainException` committed-warning outcome; its
+`CommittedSnapshot` identifies the already-published generation and its
+`PersistenceFailure` retains the callback exception. If the store also reported
+a persistence warning, both failures are retained in an `AggregateException`.
+This post-commit warning is not a rollback or permission to retry the mutation
+as though it never committed.
+
 Only `ApplyProjectionResultsAsync` selects the `ProjectionMetadata` commit scope.
 Other mutations use `Full`, even when their change notification happens to set
 `WotRegistryChangedEventArgs.ProjectionOnly`. That notification flag is not a
@@ -123,6 +134,12 @@ prevents writes and replacement while the read lease is held. POSIX advisory
 sharing and arbitrary `IFileSystem` implementations are not advertised as
 equivalent guarantees. Other deployments can inject a provider with a genuine
 immutable-version/key lease contract.
+
+For `LocalFileSystem`, `WotBlobResourceStore` resolves its effective root to an
+absolute path once at construction. Ordinary reads, lengths, writes, deletions
+and immutable leases all use that same root-to-key mapping even if the process
+working directory subsequently changes. Custom filesystem providers retain
+their own path semantics and do not acquire local immutable-lease capability.
 
 Unsupported providers retain the existing full-validation `IWotRegistryStore`
 path. Consumers requiring isolated units must reject unsupported capability;

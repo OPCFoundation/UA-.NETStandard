@@ -58,7 +58,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Initializes the store over a directory of a file system.
         /// </summary>
-        /// <param name="rootPath">The directory that holds the document files.</param>
+        /// <param name="rootPath">
+        /// The directory that holds the document files. A local path is resolved once during construction.
+        /// </param>
         /// <param name="fileSystem">The file system to use; defaults to the local one.</param>
         /// <exception cref="ArgumentException"><paramref name="rootPath"/> is null or empty.</exception>
         public WotBlobResourceStore(string rootPath, IFileSystem? fileSystem = null)
@@ -68,8 +70,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                 throw new ArgumentException("A root path is required.", nameof(rootPath));
             }
 
-            m_rootPath = rootPath;
             m_fileSystem = fileSystem ?? LocalFileSystem.Instance;
+            m_rootPath = ReferenceEquals(m_fileSystem, LocalFileSystem.Instance)
+                ? Path.GetFullPath(rootPath)
+                : rootPath;
         }
 
         /// <inheritdoc/>

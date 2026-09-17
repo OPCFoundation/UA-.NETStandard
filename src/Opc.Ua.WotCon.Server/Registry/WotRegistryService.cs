@@ -2467,9 +2467,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                 {
                     exception.CommittedSnapshot = RestoreVersionIncarnations(exception.CommittedSnapshot, intended);
                     Volatile.Write(ref m_snapshot, exception.CommittedSnapshot);
-                    RaiseChanged(previous, exception.CommittedSnapshot, changed, projectionOnly);
                     await RefreshValidatedStoreGenerationAfterCommitAsync(
                         exception.CommittedSnapshot, exception.PersistenceFailure).ConfigureAwait(false);
+                    RaiseChanged(
+                        previous, exception.CommittedSnapshot, changed, projectionOnly, exception.PersistenceFailure);
                     throw;
                 }
                 catch (WotRegistryCommitNotCommittedException)
@@ -2484,8 +2485,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
 
                 Volatile.Write(ref m_snapshot, intended);
-                RaiseChanged(previous, intended, changed, projectionOnly);
                 await RefreshValidatedStoreGenerationAfterCommitAsync(intended).ConfigureAwait(false);
+                RaiseChanged(previous, intended, changed, projectionOnly);
             }
             finally
             {
@@ -2539,11 +2540,21 @@ namespace Opc.Ua.WotCon.Server.Registry
             WotRegistrySnapshot previous,
             WotRegistrySnapshot current,
             IReadOnlyList<string> changed,
-            bool projectionOnly)
+            bool projectionOnly,
+            Exception? priorFailure = null)
         {
-            Changed?.Invoke(
-                this,
-                new WotRegistryChangedEventArgs(previous, current, changed, projectionOnly));
+            try
+            {
+                Changed?.Invoke(
+                    this,
+                    new WotRegistryChangedEventArgs(previous, current, changed, projectionOnly));
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                throw new WotRegistryCommitDurabilityUncertainException(
+                    current,
+                    priorFailure is null ? failure : new AggregateException(priorFailure, failure));
+            }
         }
 
         private bool TryTrim(
