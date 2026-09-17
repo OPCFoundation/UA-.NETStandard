@@ -46,6 +46,52 @@ namespace Opc.Ua.Wot
     public static partial class WotNodeSetConverter
     {
         /// <summary>
+        /// Determines whether a document declares native content, an OPC UA
+        /// node annotation, or an existing-type binding requiring NodeSet mapping.
+        /// </summary>
+        /// <remarks>
+        /// This classifies mapping intent, not validity. Definitive type links
+        /// require mapping even when their target cannot resolve. Readable type
+        /// names are bindings only when the supplied local context holds their
+        /// namespace; other annotations do not require native materialization.
+        /// </remarks>
+        /// <param name="document">The document to classify without changing its content.</param>
+        /// <param name="nodeResolver">The local node context used by conversion.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
+        /// <returns>Whether the document requires native mapping admission.</returns>
+        public static async ValueTask<bool> RequiresNativeMappingAsync(
+            WotDocument document,
+            IWotNodeResolver? nodeResolver = null,
+            CancellationToken cancellationToken = default)
+        {
+            _ = document ?? throw new ArgumentNullException(nameof(document));
+            cancellationToken.ThrowIfCancellationRequested();
+            if (document.TryGetEnvelope(out _) || document.TryGetNativeProjection(out _))
+            {
+                return true;
+            }
+            foreach (string token in document.TypeTokens)
+            {
+                if (token.StartsWith(WotDocument.UavPrefix, StringComparison.Ordinal) ||
+                    string.Equals(token, "tm:ThingModel", StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            foreach (JsonElement link in document.Links)
+            {
+                if (IsTypeBindingLink(document, link))
+                {
+                    return true;
+                }
+            }
+            List<string> names = await ReadTypeBindingNamesAsync(
+                document, nodeResolver ?? NullWotNodeResolver.Instance,
+                document.RootElement, cancellationToken).ConfigureAwait(false);
+            return names.Count != 0;
+        }
+
+        /// <summary>
         /// Restores or synthesizes the NodeSet2 document described by a WoT
         /// document, throwing on any error diagnostic.
         /// </summary>

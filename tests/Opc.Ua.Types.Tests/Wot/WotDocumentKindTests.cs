@@ -32,6 +32,8 @@ using System;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Wot;
 
@@ -46,6 +48,47 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public class WotDocumentKindTests
     {
+        [TestCase("Thing")]
+        [TestCase("td:Thing")]
+        [TestCase("https://www.w3.org/2019/wot/td#Thing")]
+        public void KindIsThingDescriptionForThingAnnotation(string annotation)
+        {
+            byte[] json = Encoding.UTF8.GetBytes($$"""{"@type":"{{annotation}}","title":"T"}""");
+            using var document = WotDocument.Parse(json);
+
+            Assert.That(document.Kind, Is.EqualTo(WotDocumentKind.ThingDescription));
+        }
+
+        [TestCase("""{"@type":"Thing"}""", false)]
+        [TestCase("""{"@type":["Thing","https://saref.etsi.org/core/TemperatureSensor"]}""", false)]
+        [TestCase("""{"@type":"uav:object"}""", true)]
+        [TestCase("""{"@type":"tm:ThingModel"}""", true)]
+        [TestCase("""{"@type":"Thing","links":[{"rel":"ua:HasTypeDefinition"}]}""", true)]
+        public async Task NativeMappingClassificationDoesNotClaimValidation(string json, bool expected)
+        {
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
+
+            Assert.That(await WotNodeSetConverter.RequiresNativeMappingAsync(document), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void NativeMappingClassificationHonorsCancellation()
+        {
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes("""{"@type":"uav:object"}"""));
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await WotNodeSetConverter.RequiresNativeMappingAsync(document, cancellationToken: cancellation.Token));
+        }
+
+        [Test]
+        public void NativeMappingClassificationRejectsNullDocument()
+        {
+            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await WotNodeSetConverter.RequiresNativeMappingAsync(null!));
+        }
+
         [Test]
         public void KindIsThingDescriptionForUavObjectToken()
         {

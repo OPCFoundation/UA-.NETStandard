@@ -105,7 +105,10 @@ namespace Opc.Ua.Wot
                 }
                 foreach (string token in TypeTokens)
                 {
-                    if (string.Equals(token, UavPrefix + "object", StringComparison.Ordinal) ||
+                    if (string.Equals(token, "Thing", StringComparison.Ordinal) ||
+                        string.Equals(token, "td:Thing", StringComparison.Ordinal) ||
+                        string.Equals(token, "https://www.w3.org/2019/wot/td#Thing", StringComparison.Ordinal) ||
+                        string.Equals(token, UavPrefix + "object", StringComparison.Ordinal) ||
                         string.Equals(token, UavPrefix + "variable", StringComparison.Ordinal) ||
                         string.Equals(token, UavPrefix + "method", StringComparison.Ordinal))
                     {

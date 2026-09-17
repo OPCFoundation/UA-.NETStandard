@@ -36,6 +36,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Client;
@@ -61,7 +62,7 @@ namespace Opc.Ua.WotCon.Tests
     [Category("WotCon")]
     [Category("Integration")]
     [NonParallelizable]
-    public sealed class WotLegacyNativeAdmissionLiveTests
+    public sealed partial class WotLegacyNativeAdmissionLiveTests
     {
         [TestCase("unknown")]
         [TestCase("wrong-class")]
@@ -491,7 +492,8 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         private static ByteString NativeDocument(
-            WotNodeSetPreservationMode mode, string rootName, bool includeAuxiliary = false)
+            WotNodeSetPreservationMode mode, string rootName, bool includeAuxiliary = false,
+            Action<XDocument>? modify = null)
         {
             string auxiliary = includeAuxiliary ? $$$$"""
                 <UADataType NodeId="ns=1;s=Assets/{{{{rootName}}}}/support/LiteralType" BrowseName="1:LiteralType">
@@ -536,6 +538,12 @@ namespace Opc.Ua.WotCon.Tests
                   {{{{auxiliary}}}}
                 </UANodeSet>
                 """;
+            if (modify is not null)
+            {
+                XDocument edited = XDocument.Parse(xml);
+                modify(edited);
+                xml = edited.ToString(SaveOptions.DisableFormatting);
+            }
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
             UANodeSet nodes = UANodeSet.Read(stream) ??
                 throw new InvalidDataException("The native test NodeSet could not be read.");
@@ -557,13 +565,14 @@ namespace Opc.Ua.WotCon.Tests
             public RecordingConverter Recorder { get; private set; } = null!;
             public ushort ModelNamespaceIndex => Session.NamespaceUris.GetIndexOrAppend(ModelUri);
 
-            public static async Task<Fixture> CreateAsync(bool useDi = false)
+            public static async Task<Fixture> CreateAsync(
+                bool useDi = false, string? modelXml = null, ArrayOf<string> modelNamespaces = default)
             {
                 var fixture = new Fixture();
                 bool started = false;
                 try
                 {
-                    await fixture.StartAsync(useDi);
+                    await fixture.StartAsync(useDi, modelXml, modelNamespaces);
                     started = true;
                     return fixture;
                 }
@@ -704,7 +713,7 @@ namespace Opc.Ua.WotCon.Tests
                 }
             }
 
-            private async Task StartAsync(bool useDi)
+            private async Task StartAsync(bool useDi, string? modelXml, ArrayOf<string> modelNamespaces)
             {
                 string? expected = Environment.GetEnvironmentVariable("WOT_R42_EXPECTED_RUNTIME");
                 if (!string.IsNullOrEmpty(expected))
@@ -721,8 +730,9 @@ namespace Opc.Ua.WotCon.Tests
                 await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(new RuntimeNodeSetOptions
                 {
                     Sources = [RuntimeNodeSetSource.FromStream("R42Model",
-                        _ => new ValueTask<Stream>(new MemoryStream(Encoding.UTF8.GetBytes(s_model), false)),
-                        [ModelUri])]
+                        _ => new ValueTask<Stream>(new MemoryStream(
+                            Encoding.UTF8.GetBytes(modelXml ?? s_model), false)),
+                        modelNamespaces.IsNull ? [ModelUri] : modelNamespaces)]
                 }, null);
                 Recorder = new RecordingConverter(this);
                 Options = new WotConnectivityServerOptions

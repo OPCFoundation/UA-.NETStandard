@@ -91,9 +91,9 @@ namespace Opc.Ua.WotCon.Server.Assets
             };
             using WotDocument document = WotDocument.Parse(content.Memory, options);
             bool preserveIdentities = document.TryGetEnvelope(out _) || document.TryGetNativeProjection(out _);
-            bool native = preserveIdentities || document.Kind != WotDocumentKind.Unknown ||
-                document.TypeTokens.Any(type => type is not ("Thing" or "td:Thing" or
-                    "https://www.w3.org/2019/wot/td#Thing"));
+            var addressSpace = new AddressSpaceWotNodeResolver(m_manager.Server);
+            bool native = await WotNodeSetConverter.RequiresNativeMappingAsync(
+                document, addressSpace, cancellationToken).ConfigureAwait(false);
             if (!native)
             {
                 return null;
@@ -101,10 +101,10 @@ namespace Opc.Ua.WotCon.Server.Assets
             bool rootNameAuthored = document.TryGetUav("browseName", out JsonElement authoredName);
 
             IWotDocumentConverter converter = m_options.DocumentConverter ??
-                new WotNodeSetDocumentConverter(options, new AddressSpaceWotNodeResolver(m_manager.Server));
+                new WotNodeSetDocumentConverter(options, addressSpace);
             if (converter is WotNodeSetDocumentConverter stock)
             {
-                stock.AddressSpace = new AddressSpaceWotNodeResolver(m_manager.Server);
+                stock.AddressSpace = addressSpace;
             }
             DateTime now = DateTime.UtcNow;
             var version = new WotResourceVersion(

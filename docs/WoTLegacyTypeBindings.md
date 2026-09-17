@@ -18,6 +18,14 @@ The default path uses `WotNodeSetDocumentConverter`, including its loaded
 Missing, multiple, wrong-NodeClass and conflicting type identities fail instead
 of falling back to the legacy interface type.
 
+Standard `Thing` annotations identify a TD without requiring `uav:object`.
+Native admission uses `WotNodeSetConverter.RequiresNativeMappingAsync` with the
+same loaded node context as conversion. A definitive type link always requires
+admission, including when its target is missing. A readable type name requires
+admission when its namespace is held, even if the named type does not exist.
+Ordinary annotations in unloaded namespaces retain unbound legacy behavior.
+Classification does not validate the binding or replace the uploaded bytes.
+
 The shared declaration merge retains the loaded declaration's QName,
 ReferenceType, VariableType, DataType, ValueRank and ArrayDimensions. An
 unqualified member can populate its uniquely named declaration; an explicit
