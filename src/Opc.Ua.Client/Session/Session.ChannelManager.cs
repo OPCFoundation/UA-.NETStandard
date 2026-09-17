@@ -120,13 +120,11 @@ namespace Opc.Ua.Client
 
             try
             {
-                // Pass the wrapper back in as the "channel" so the
-                // existing legacy path hits the "set channel" no-op
-                // branch (the wrapper IS the current channel) and goes
-                // straight to ActivateSession. The wrapper's
-                // SendRequestAsync bypasses the ready-state gate while
-                // the manager is in the participant-reactivation
-                // scope, so ActivateSession can complete.
+                // Pass the reactivation view back in as the "channel" so
+                // the existing legacy path hits the "set channel" no-op
+                // branch and goes straight to ActivateSession. The view is
+                // an explicit capability and does not flow through
+                // ExecutionContext into unrelated participant workers.
                 await ReconnectAsync(connection: null, channel: channel, ct: ct)
                     .ConfigureAwait(false);
                 return ParticipantReconnectResult.Reactivated;

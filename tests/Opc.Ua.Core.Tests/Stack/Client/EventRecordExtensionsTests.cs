@@ -26,6 +26,7 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+using System.Linq;
 using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Stack.Client
@@ -42,21 +43,61 @@ namespace Opc.Ua.Core.Tests.Stack.Client
     public sealed class EventRecordExtensionsTests
     {
         [Test]
-        public void ConditionIdReturnsSourceNodeForConditionRecord()
+        public void ConditionIdReturnsConditionNodeIdForConditionRecord()
         {
             var sourceNode = new NodeId(42u);
-            var record = new ConditionTypeRecord { SourceNode = sourceNode };
+            var conditionNode = new NodeId(99u);
+            var record = new ConditionTypeRecord
+            {
+                SourceNode = sourceNode,
+                ConditionId = conditionNode
+            };
 
-            Assert.That(record.ConditionId, Is.EqualTo(sourceNode));
+            Assert.That(record.ConditionId, Is.EqualTo(conditionNode));
             Assert.That(record.ConditionId.IsNull, Is.False);
+            Assert.That(record.SourceNode, Is.EqualTo(sourceNode));
         }
 
         [Test]
-        public void ConditionIdIsNullWhenSourceNodeIsNull()
+        public void ConditionIdIsNullWhenConditionNodeIdIsNull()
         {
-            var record = new ConditionTypeRecord { SourceNode = NodeId.Null };
+            var record = new ConditionTypeRecord
+            {
+                SourceNode = new NodeId(42u),
+                ConditionId = NodeId.Null
+            };
 
             Assert.That(record.ConditionId.IsNull, Is.True);
+        }
+
+        [Test]
+        public void ConditionEventFilterSelectsConditionNodeIdAttribute()
+        {
+            EventFilter filter = ConditionTypeRecord.EventFilters.Build();
+
+            Assert.That(
+                filter.SelectClauses.ToArray().Any(static clause =>
+                    clause.TypeDefinitionId == ObjectTypeIds.ConditionType &&
+                    clause.AttributeId == Attributes.NodeId &&
+                    clause.BrowsePath.IsEmpty),
+                Is.True);
+        }
+
+        [Test]
+        public void ConditionDecoderReadsConditionNodeIdAttribute()
+        {
+            QualifiedName[][] fields = ConditionTypeRecord.Decoder.StandardFields;
+            var values = Enumerable.Repeat(default(Variant), fields.Length).ToArray();
+            int conditionIdIndex = fields
+                .Select((path, index) => (path, index))
+                .Single(value => value.path.Length == 0)
+                .index;
+            NodeId conditionId = new(99u);
+            values[conditionIdIndex] = conditionId;
+
+            ConditionTypeRecord record = ConditionTypeRecord.Decoder.Decode(values)!;
+
+            Assert.That(record.ConditionId, Is.EqualTo(conditionId));
         }
     }
 }

@@ -219,6 +219,22 @@ namespace Opc.Ua.SourceGeneration
                         typeName));
 
             List<FieldEntry> ownFields = CollectDeclaredFields(objectType);
+            if (string.Equals(
+                objectType.SymbolicName?.Name,
+                "ConditionType",
+                StringComparison.Ordinal))
+            {
+                ownFields.Add(new FieldEntry
+                {
+                    PropertyName = "ConditionId",
+                    DotNetType = "global::Opc.Ua.NodeId",
+                    Description = "The NodeId of the condition instance.",
+                    BrowseName = string.Empty,
+                    NamespaceUri = Namespaces.OpcUa,
+                    ReaderMethod = "GetNodeId",
+                    IsConditionId = true
+                });
+            }
             context.Template.AddReplacement(
                 Tokens.ListOfProperties,
                 EventRecordTemplates.FieldProperty,
@@ -229,6 +245,20 @@ namespace Opc.Ua.SourceGeneration
             // stable positions. Inherited fields come first, in
             // root-to-leaf order; own fields trail.
             List<FieldEntry> allFields = CollectAllFieldsInOrder(objectType);
+            if (IsConditionTypeOrSubtype(objectType) &&
+                !allFields.Exists(static field => field.IsConditionId))
+            {
+                allFields.Add(new FieldEntry
+                {
+                    PropertyName = "ConditionId",
+                    DotNetType = "global::Opc.Ua.NodeId",
+                    Description = "The NodeId of the condition instance.",
+                    BrowseName = string.Empty,
+                    NamespaceUri = Namespaces.OpcUa,
+                    ReaderMethod = "GetNodeId",
+                    IsConditionId = true
+                });
+            }
             // Assign stable positional indices for the decoder.
             for (int i = 0; i < allFields.Count; i++)
             {
@@ -275,6 +305,14 @@ namespace Opc.Ua.SourceGeneration
                 : CoreUtils.Format(
                     "global::{0}.BrowseNames",
                     m_context.ModelDesign.TargetNamespace.Prefix);
+            if (field.IsConditionId)
+            {
+                context.Template.AddReplacement(
+                    Tokens.ChildPath,
+                    "global::System.Array.Empty<global::Opc.Ua.QualifiedName>()");
+                return context.Template.Render();
+            }
+
             string path = field.IsTwoStateVariableId
                 ? CoreUtils.Format(
                     "global::Opc.Ua.QualifiedName.From({0}.{1}), " +
@@ -285,7 +323,9 @@ namespace Opc.Ua.SourceGeneration
                     "global::Opc.Ua.QualifiedName.From({0}.{1})",
                     browseNames,
                     field.BrowseName);
-            context.Template.AddReplacement(Tokens.ChildPath, path);
+            context.Template.AddReplacement(
+                Tokens.ChildPath,
+                CoreUtils.Format("new global::Opc.Ua.QualifiedName[] {{ {0} }}", path));
             return context.Template.Render();
         }
 
@@ -417,6 +457,23 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
             return fields;
+        }
+
+        private static bool IsConditionTypeOrSubtype(ObjectTypeDesign type)
+        {
+            for (TypeDesign? current = type;
+                current is ObjectTypeDesign objectType;
+                current = objectType.BaseTypeNode)
+            {
+                if (string.Equals(
+                    objectType.SymbolicName?.Name,
+                    "ConditionType",
+                    StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -999,6 +1056,7 @@ namespace Opc.Ua.SourceGeneration
             public string NamespaceUri { get; set; }
             public string ReaderMethod { get; set; }
             public bool IsTwoStateVariableId { get; set; }
+            public bool IsConditionId { get; set; }
             public int FieldIndex { get; set; }
         }
 

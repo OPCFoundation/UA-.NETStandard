@@ -145,6 +145,11 @@ namespace Opc.Ua
 
         internal bool IsActive => Interlocked.CompareExchange(ref m_active, 0, 0) == 1;
 
+        internal IManagedTransportChannel CreateReactivationView()
+        {
+            return new ReactivationView(this);
+        }
+
         /// <inheritdoc/>
         public ManagedChannelKey Key { get; }
 
@@ -237,15 +242,6 @@ namespace Opc.Ua
         public async ValueTask<IServiceResponse> SendRequestAsync(
             IServiceRequest request, CancellationToken ct = default)
         {
-            if (ClientChannelManager.IsReactivationInProgress)
-            {
-                ITransportChannel? bypass = Entry.Underlying
-                    ?? throw ServiceResultException.Create(
-                        StatusCodes.BadSecureChannelClosed,
-                        "Channel has no underlying transport.");
-                return await bypass.SendRequestAsync(request, ct).ConfigureAwait(false);
-            }
-
             int attempt = 0;
             while (true)
             {
@@ -398,6 +394,56 @@ namespace Opc.Ua
                 return;
             }
             await Entry.ReleaseLeaseAsync(this).ConfigureAwait(false);
+        }
+
+        private ValueTask<IServiceResponse> SendRequestDuringReactivationAsync(
+            IServiceRequest request,
+            CancellationToken ct)
+        {
+            ITransportChannel bypass = Entry.Underlying
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadSecureChannelClosed,
+                    "Channel has no underlying transport.");
+            return bypass.SendRequestAsync(request, ct);
+        }
+
+        private sealed class ReactivationView(ManagedTransportChannelLease owner)
+            : IManagedTransportChannel
+        {
+            public ManagedChannelKey Key => owner.Key;
+            public ChannelState State => owner.State;
+            public IClientChannelManager Manager => owner.Manager;
+            public event Action<IManagedTransportChannel, ChannelStateChange>? StateChanged
+            {
+                add => owner.StateChanged += value;
+                remove => owner.StateChanged -= value;
+            }
+            public TransportChannelFeatures SupportedFeatures => owner.SupportedFeatures;
+            public EndpointDescription EndpointDescription => owner.EndpointDescription;
+            public EndpointConfiguration EndpointConfiguration => owner.EndpointConfiguration;
+            public byte[] ChannelThumbprint => owner.ChannelThumbprint;
+            public byte[] ClientChannelCertificate => owner.ClientChannelCertificate;
+            public byte[] ServerChannelCertificate => owner.ServerChannelCertificate;
+            public IServiceMessageContext MessageContext => owner.MessageContext;
+            public int OperationTimeout
+            {
+                get => owner.OperationTimeout;
+                set => owner.OperationTimeout = value;
+            }
+            public ValueTask ReconnectAsync(
+                ITransportWaitingConnection? connection = null,
+                CancellationToken ct = default)
+                => owner.ReconnectAsync(connection, ct);
+            public ValueTask<IServiceResponse> SendRequestAsync(
+                IServiceRequest request,
+                CancellationToken ct = default)
+                => owner.SendRequestDuringReactivationAsync(request, ct);
+            public ValueTask CloseAsync(CancellationToken ct = default)
+                => owner.CloseAsync(ct);
+            public void Dispose()
+            {
+                owner.Dispose();
+            }
         }
 
         private ChannelEntry m_entry;

@@ -763,33 +763,6 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// AsyncLocal flag set by the manager around participant
-        /// reactivation calls. When non-zero, the channel wrapper's
-        /// <see cref="ITransportChannel.SendRequestAsync"/> bypasses the
-        /// ready-state gate so that session-service requests
-        /// (ActivateSession, CreateSession, etc.) can complete while the
-        /// channel is in
-        /// <see cref="ChannelState.TransportConnectedSessionReactivating"/>.
-        /// </summary>
-        internal static readonly AsyncLocal<int> s_reactivationDepth = new();
-
-        internal static bool IsReactivationInProgress => s_reactivationDepth.Value > 0;
-
-        internal static IDisposable EnterReactivationScope()
-        {
-            s_reactivationDepth.Value++;
-            return new ReactivationScope();
-        }
-
-        private sealed class ReactivationScope : IDisposable
-        {
-            public void Dispose()
-            {
-                s_reactivationDepth.Value--;
-            }
-        }
-
         private static async ValueTask AwaitReconnectResultAsync(
             Task<bool> reconnectTask)
         {

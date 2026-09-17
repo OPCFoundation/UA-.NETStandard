@@ -1275,11 +1275,10 @@ namespace Opc.Ua
             Task<ParticipantReconnectResult>[] tasks = [.. snapshot.Select(lease => Task.Run(
                 async () =>
                 {
-                    using IDisposable scope = ClientChannelManager.EnterReactivationScope();
                     try
                     {
                         Task<ParticipantReconnectResult> reconnectTask = lease.Participant
-                            .OnReconnectAsync(lease, attempt, ct)
+                            .OnReconnectAsync(lease.CreateReactivationView(), attempt, ct)
                             .AsTask();
                         if (participantTimeout == Timeout.InfiniteTimeSpan)
                         {
@@ -1373,7 +1372,6 @@ namespace Opc.Ua
         {
             try
             {
-                using IDisposable scope = ClientChannelManager.EnterReactivationScope();
                 ValueTask work = ResolveRecreateInvocation(
                     participant,
                     OwnerManager.ShutdownToken);
