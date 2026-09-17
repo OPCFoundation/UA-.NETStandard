@@ -47,6 +47,7 @@ namespace Opc.Ua.Bindings
         /// Binds a new transport to an existing channel.
         /// </summary>
         bool ReconnectToExistingChannel(
+            TcpListenerChannel reconnectingChannel,
             IUaSCByteTransport transport,
             uint requestId,
             uint sequenceNumber,

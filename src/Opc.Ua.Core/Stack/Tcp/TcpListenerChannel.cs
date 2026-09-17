@@ -988,6 +988,51 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Validates that this channel can accept a reconnect handoff from the
+        /// supplied source channel.
+        /// </summary>
+        /// <param name="reconnectingChannel">The channel offering the transport.</param>
+        /// <param name="requestedChannelId">The target id named by the request.</param>
+        /// <exception cref="ServiceResultException"></exception>
+        internal void ValidateReconnectTarget(
+            TcpListenerChannel reconnectingChannel,
+            uint requestedChannelId)
+        {
+            if (reconnectingChannel == null)
+            {
+                throw new ArgumentNullException(nameof(reconnectingChannel));
+            }
+
+            if (requestedChannelId == 0 ||
+                ReferenceEquals(this, reconnectingChannel))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpSecureChannelUnknown,
+                    "Could not find secure channel referenced in the OpenSecureChannel request.");
+            }
+
+            if (State is not TcpChannelState.Open and not TcpChannelState.Faulted)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpSecureChannelUnknown,
+                    "The secure channel referenced in the OpenSecureChannel request cannot accept a reconnect.");
+            }
+
+            if (SecurityMode == MessageSecurityMode.None ||
+                reconnectingChannel.DiscoveryOnly ||
+                reconnectingChannel.SecurityMode != SecurityMode ||
+                !string.Equals(
+                    reconnectingChannel.SecurityPolicyUri,
+                    SecurityPolicyUri,
+                    StringComparison.Ordinal))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpSecureChannelUnknown,
+                    "The secure channel referenced in the OpenSecureChannel request does not match the reconnecting channel security.");
+            }
+        }
+
+        /// <summary>
         /// Set the flag if a response is required for the use case of reverse connect.
         /// </summary>
         protected void SetResponseRequired(bool responseRequired)

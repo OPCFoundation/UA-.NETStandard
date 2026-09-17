@@ -322,8 +322,10 @@ namespace Opc.Ua
             }
             else
             {
-                // No asymmetric encryption is defined for this policy – return the plaintext.
-                encryptedData.Data = plainText.ToArray();
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Security policy '{0}' does not define asymmetric encryption for direct token protection.",
+                    securityPolicyUri);
             }
 
             return encryptedData;
@@ -398,7 +400,10 @@ namespace Opc.Ua
 
             if (string.IsNullOrEmpty(dataToDecrypt.Algorithm))
             {
-                return dataToDecrypt.Data;
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "Security policy '{0}' requires EncryptedSecret token protection.",
+                    securityPolicyUri);
             }
 
             throw ServiceResultException.Create(
@@ -463,7 +468,10 @@ namespace Opc.Ua
 
             if (string.IsNullOrEmpty(dataToDecrypt.Algorithm))
             {
-                return new ValueTask<byte[]?>(dataToDecrypt.Data);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "Security policy '{0}' requires EncryptedSecret token protection.",
+                    securityPolicyUri);
             }
 
             throw ServiceResultException.Create(

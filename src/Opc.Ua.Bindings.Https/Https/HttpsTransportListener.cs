@@ -808,6 +808,7 @@ namespace Opc.Ua.Bindings
             }
 
             public bool ReconnectToExistingChannel(
+                TcpListenerChannel reconnectingChannel,
                 IUaSCByteTransport transport,
                 uint requestId,
                 uint sequenceNumber,
@@ -2216,6 +2217,7 @@ namespace Opc.Ua.Bindings
             }
 
             public bool ReconnectToExistingChannel(
+                TcpListenerChannel reconnectingChannel,
                 IUaSCByteTransport transport,
                 uint requestId,
                 uint sequenceNumber,

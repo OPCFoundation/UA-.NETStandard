@@ -504,6 +504,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public bool ReconnectToExistingChannel(
+            TcpListenerChannel reconnectingChannel,
             IUaSCByteTransport transport,
             uint requestId,
             uint sequenceNumber,
@@ -512,19 +513,24 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             OpenSecureChannelRequest request)
         {
-            TcpListenerChannel? channel = null;
+            TcpListenerChannel targetChannel;
 
             lock (m_lock)
             {
-                if (m_channels?.TryGetValue(channelId, out channel) != true)
+                if (m_channels == null ||
+                    !m_channels.TryGetValue(channelId, out TcpListenerChannel? candidate) ||
+                    candidate == null)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadTcpSecureChannelUnknown,
                         "Could not find secure channel referenced in the OpenSecureChannel request.");
                 }
+
+                targetChannel = candidate;
+                targetChannel.ValidateReconnectTarget(reconnectingChannel, channelId);
             }
 
-            channel!.Reconnect(transport, requestId, sequenceNumber, clientCertificate, token, request);
+            targetChannel.Reconnect(transport, requestId, sequenceNumber, clientCertificate, token, request);
 
             m_logger.TcpTransportLog3(channelId);
             return true;

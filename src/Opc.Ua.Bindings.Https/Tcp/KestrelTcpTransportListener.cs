@@ -441,6 +441,7 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc cref="ITcpChannelListener.ReconnectToExistingChannel"/>
         public bool ReconnectToExistingChannel(
+            TcpListenerChannel reconnectingChannel,
             IUaSCByteTransport transport,
             uint requestId,
             uint sequenceNumber,

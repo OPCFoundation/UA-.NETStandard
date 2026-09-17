@@ -341,11 +341,19 @@ namespace Opc.Ua.Bindings
                         transport.RemoteEndpoint,
                         ChannelId);
 
-                    // replace the transport and (re)start the receive loop on it.
+                    // need to assign a new token id.
+                    token.ChannelId = ChannelId;
+                    token.TokenId = GetNewTokenId();
+
+                    // put channel back in open state.
+                    ActivateToken(token);
+                    State = TcpChannelState.Open;
+
                     if (transport is IUaSCByteTransportLimits transportLimits)
                     {
                         transportLimits.SetReceiveBufferSize(ReceiveBufferSize);
                     }
+
                     // Retire the old loop BEFORE closing the socket it reads
                     // from. Closing first makes that loop fail out of
                     // ReceiveChunkAsync with a socket error rather than a
@@ -355,6 +363,13 @@ namespace Opc.Ua.Bindings
                     IUaSCByteTransport? dropped = DetachTransport();
 
                     Transport = transport;
+                    StartReceiveLoop();
+
+                    // send response.
+                    SendOpenSecureChannelResponse(requestId, token, request, true);
+
+                    // send any queued responses.
+                    ResetQueuedResponses(OnChannelReconnected);
 
                     // The socket this channel used before the client dropped it
                     // is nobody's any more.
@@ -362,21 +377,6 @@ namespace Opc.Ua.Bindings
                     {
                         dropped.Close();
                     }
-                    StartReceiveLoop();
-
-                    // need to assign a new token id.
-                    token.ChannelId = ChannelId;
-                    token.TokenId = GetNewTokenId();
-
-                    // put channel back in open state.
-                    ActivateToken(token);
-                    State = TcpChannelState.Open;
-
-                    // send response.
-                    SendOpenSecureChannelResponse(requestId, token, request, true);
-
-                    // send any queued responses.
-                    ResetQueuedResponses(OnChannelReconnected);
                 }
                 catch (Exception e)
                 {
@@ -854,6 +854,13 @@ namespace Opc.Ua.Bindings
                     // may be reconnecting to a dropped channel.
                     if (State == TcpChannelState.Opening)
                     {
+                        if (channelId == 0 || channelId == ChannelId)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadTcpSecureChannelUnknown,
+                                "Do not recognize the secure channel id provided.");
+                        }
+
                         // The transport moves to the existing channel, which
                         // reads from it and answers on it from here on. Detach it
                         // first, which also stops this channel's receive loop:
@@ -876,6 +883,7 @@ namespace Opc.Ua.Bindings
                         {
                             // tell the listener to find the channel that can process the request.
                             Listener.ReconnectToExistingChannel(
+                                this,
                                 handedOver,
                                 requestId,
                                 sequenceNumber,
