@@ -102,5 +102,77 @@ namespace Opc.Ua.WotCon.Tests
                 Assert.That(await asset.DownloadThingDescriptionAsync(), Is.EqualTo(content.Span.ToArray()));
             }
         }
+
+        [TestCase("valid")]
+        [TestCase("aliased")]
+        [TestCase("missing")]
+        [TestCase("wrong-class")]
+        public async Task PropertyTypeLinksRequireNativeAdmission(string binding)
+        {
+            await using Fixture fixture = await Fixture.CreateAsync();
+            WotAssetClient asset = await fixture.Client.CreateAssetAsync("mapped");
+            string typeId = binding switch
+            {
+                "missing" => "nsu=urn:test:r42-admission;i=9999",
+                "wrong-class" => "nsu=urn:test:r42-admission;i=4001",
+                _ => "i=68"
+            };
+            string relation = binding == "aliased" ? "edge:HasTypeDefinition" : "ua:HasTypeDefinition";
+            ByteString content = Document(binding: "\"@type\":\"Thing\",", properties: $$$"""
+                {"Speed":{"@context":{"edge":"http://opcfoundation.org/UA/"},"type":"number",
+                    "links":[{"rel":"{{{relation}}}","href":"{{{typeId}}}"}],
+                    "forms":[{"href":"sim://opcua.test/wot/speed"}]}}
+                """);
+            if (binding is "missing" or "wrong-class")
+            {
+                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await asset.UploadThingDescriptionAsync(content.Span.ToArray()))!;
+                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(fixture.Provider.Connects, Is.Zero);
+                Assert.That((await PropertiesAsync(asset)).Count, Is.Zero);
+            }
+            else
+            {
+                await asset.UploadThingDescriptionAsync(content.Span.ToArray());
+                ArrayOf<WotAssetVariableEntry> properties = await PropertiesAsync(asset);
+                Assert.That(properties.Count, Is.EqualTo(1));
+                Assert.That(await fixture.TypeAsync(properties[0].NodeId), Is.EqualTo(Ua.VariableTypeIds.PropertyType));
+                Assert.That(fixture.Recorder.Calls, Is.EqualTo(1));
+                Assert.That(await asset.DownloadThingDescriptionAsync(), Is.EqualTo(content.Span.ToArray()));
+            }
+        }
+
+        [TestCase("valid")]
+        [TestCase("missing")]
+        [TestCase("unloaded")]
+        public async Task PropertyTypeNamesUseTheirAffordanceContext(string binding)
+        {
+            await using Fixture fixture = await Fixture.CreateAsync();
+            WotAssetClient asset = await fixture.Client.CreateAssetAsync("mapped");
+            string namespaceUri = binding == "unloaded" ? "urn:test:unloaded" : "http://opcfoundation.org/UA/";
+            string type = binding == "missing" ? "AbsentVariableType" : "PropertyType";
+            ByteString content = Document(binding: "\"@type\":\"Thing\",", properties: $$$"""
+                {"Speed":{"@context":{"model":"{{{namespaceUri}}}"},"@type":["model:{{{type}}}"],
+                    "type":"number","forms":[{"href":"sim://opcua.test/wot/speed"}]}}
+                """);
+            if (binding == "missing")
+            {
+                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await asset.UploadThingDescriptionAsync(content.Span.ToArray()))!;
+                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(fixture.Provider.Connects, Is.Zero);
+                Assert.That((await PropertiesAsync(asset)).Count, Is.Zero);
+            }
+            else
+            {
+                await asset.UploadThingDescriptionAsync(content.Span.ToArray());
+                ArrayOf<WotAssetVariableEntry> properties = await PropertiesAsync(asset);
+                Assert.That(properties.Count, Is.EqualTo(1));
+                Assert.That(await fixture.TypeAsync(properties[0].NodeId), Is.EqualTo(binding == "valid"
+                    ? Ua.VariableTypeIds.PropertyType : Ua.VariableTypeIds.BaseDataVariableType));
+                Assert.That(fixture.Recorder.Calls, Is.EqualTo(binding == "valid" ? 1 : 0));
+                Assert.That(await asset.DownloadThingDescriptionAsync(), Is.EqualTo(content.Span.ToArray()));
+            }
+        }
     }
 }

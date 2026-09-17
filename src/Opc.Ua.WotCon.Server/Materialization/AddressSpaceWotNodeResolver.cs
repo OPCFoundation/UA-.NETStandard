@@ -99,8 +99,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 foreach (WotResolvedNode node in nodes)
                 {
-                    if (ExpandedNodeId.TryParse(node.NodeId, out ExpandedNodeId identity) &&
-                        identity.NamespaceUri == namespaceUri &&
+                    NodeId identity = TryToLocalNodeId(node.NodeId);
+                    if (!identity.IsNull &&
+                        m_server.NamespaceUris.GetString(identity.NamespaceIndex) == namespaceUri &&
                         node.NodeClass is WotExpectedNodeClass.ObjectType or WotExpectedNodeClass.VariableType or
                             WotExpectedNodeClass.DataType or WotExpectedNodeClass.ReferenceType)
                     {

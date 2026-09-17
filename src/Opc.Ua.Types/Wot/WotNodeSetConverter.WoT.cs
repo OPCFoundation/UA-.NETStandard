@@ -54,6 +54,7 @@ namespace Opc.Ua.Wot
         /// require mapping even when their target cannot resolve. Readable type
         /// names are bindings only when the supplied local context holds their
         /// namespace; other annotations do not require native materialization.
+        /// Root and affordance bindings use their original active contexts.
         /// </remarks>
         /// <param name="document">The document to classify without changing its content.</param>
         /// <param name="nodeResolver">The local node context used by conversion.</param>
@@ -70,25 +71,25 @@ namespace Opc.Ua.Wot
             {
                 return true;
             }
-            foreach (string token in document.TypeTokens)
+            IWotNodeResolver resolver = nodeResolver ?? NullWotNodeResolver.Instance;
+            if (await HasNativeMappingIntentAsync(
+                document, document.RootElement, resolver, cancellationToken).ConfigureAwait(false))
             {
-                if (token.StartsWith(WotDocument.UavPrefix, StringComparison.Ordinal) ||
-                    string.Equals(token, "tm:ThingModel", StringComparison.Ordinal))
+                return true;
+            }
+            foreach (IReadOnlyDictionary<string, JsonElement> affordances in new[]
+                { document.Properties, document.Actions, document.Events })
+            {
+                foreach (JsonElement affordance in affordances.Values)
                 {
-                    return true;
+                    if (await HasNativeMappingIntentAsync(
+                        document, affordance, resolver, cancellationToken).ConfigureAwait(false))
+                    {
+                        return true;
+                    }
                 }
             }
-            foreach (JsonElement link in document.Links)
-            {
-                if (IsTypeBindingLink(document, link))
-                {
-                    return true;
-                }
-            }
-            List<string> names = await ReadTypeBindingNamesAsync(
-                document, nodeResolver ?? NullWotNodeResolver.Instance,
-                document.RootElement, cancellationToken).ConfigureAwait(false);
-            return names.Count != 0;
+            return false;
         }
 
         /// <summary>
@@ -4145,6 +4146,33 @@ namespace Opc.Ua.Wot
             }
 
             return names;
+        }
+
+        private static async ValueTask<bool> HasNativeMappingIntentAsync(
+            WotDocument document,
+            JsonElement carryingNode,
+            IWotNodeResolver resolver,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (string token in WotDocument.ReadStringTokens(carryingNode, "@type"))
+            {
+                if (token.StartsWith(WotDocument.UavPrefix, StringComparison.Ordinal) ||
+                    string.Equals(token, "tm:ThingModel", StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            foreach (JsonElement link in WotDocument.ReadArray(carryingNode, "links"))
+            {
+                if (IsTypeBindingLink(document, link))
+                {
+                    return true;
+                }
+            }
+            List<string> names = await ReadTypeBindingNamesAsync(
+                document, resolver, carryingNode, cancellationToken).ConfigureAwait(false);
+            return names.Count != 0;
         }
 
         /// <summary>

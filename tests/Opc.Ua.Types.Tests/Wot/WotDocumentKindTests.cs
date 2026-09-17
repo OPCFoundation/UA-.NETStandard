@@ -64,6 +64,12 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase("""{"@type":"uav:object"}""", true)]
         [TestCase("""{"@type":"tm:ThingModel"}""", true)]
         [TestCase("""{"@type":"Thing","links":[{"rel":"ua:HasTypeDefinition"}]}""", true)]
+        [TestCase(
+            """{"@type":"Thing","properties":{"p":{"links":[{"rel":"ua:HasTypeDefinition"}]}}}""", true)]
+        [TestCase("""{"@type":"Thing","properties":{"p":{"@type":"uav:variable"}}}""", true)]
+        [TestCase("""{"@type":"Thing","actions":{"a":{"@type":"uav:method"}}}""", true)]
+        [TestCase("""{"@type":"Thing","events":{"e":{"@type":"uav:eventType"}}}""", true)]
+        [TestCase("""{"@type":"Thing","properties":{"p":{"@type":"urn:test:annotation"}}}""", false)]
         public async Task NativeMappingClassificationDoesNotClaimValidation(string json, bool expected)
         {
             using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
