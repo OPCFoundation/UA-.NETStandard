@@ -186,7 +186,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ValueTask EncryptAsync(
+        public async ValueTask EncryptAsync(
             Certificate receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
@@ -197,13 +197,15 @@ namespace Opc.Ua
             bool doNotEncodeSenderCertificate = false,
             CancellationToken ct = default)
         {
+            await Task.CompletedTask.ConfigureAwait(false);
+
             // handle no encryption.
             if (string.IsNullOrEmpty(securityPolicyUri) ||
                 securityPolicyUri == SecurityPolicies.None)
             {
                 m_token.TokenData = m_decryptedTokenData.ToByteString();
                 m_token.EncryptionAlgorithm = string.Empty;
-                return default;
+                return;
             }
 
             SecurityPolicyInfo securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri)
@@ -223,7 +225,7 @@ namespace Opc.Ua
 
                 m_token.TokenData = encryptedData.Data.ToByteString();
                 m_token.EncryptionAlgorithm = encryptedData.Algorithm;
-                return default;
+                return;
             }
 
             if (senderIssuerCertificates != null &&
@@ -250,13 +252,16 @@ namespace Opc.Ua
                 senderNonce: Nonce.CreateNonce(securityPolicy)!,
                 doNotEncodeSenderCertificate: doNotEncodeSenderCertificate);
 
-            byte[] tokenData = m_decryptedTokenData ??
-                throw new ServiceResultException(
-                    StatusCodes.BadIdentityTokenInvalid,
-                    "IssuedIdentityToken does not contain token data.");
-            m_token.TokenData = secret.Encrypt(tokenData, receiverNonce).ToByteString();
-            m_token.EncryptionAlgorithm = null;
-            return default;
+            using (secret)
+            {
+                byte[] tokenData = m_decryptedTokenData ??
+                    throw new ServiceResultException(
+                        StatusCodes.BadIdentityTokenInvalid,
+                        "IssuedIdentityToken does not contain token data.");
+                m_token.TokenData = secret.Encrypt(tokenData, receiverNonce).ToByteString();
+                m_token.EncryptionAlgorithm = null;
+                return;
+            }
         }
 
         /// <inheritdoc/>
@@ -319,7 +324,7 @@ namespace Opc.Ua
                 return;
             }
 
-            var secret = EncryptedSecret.CreateForEcc(
+            using var secret = EncryptedSecret.CreateForEcc(
                 context: context,
                 securityPolicyUri: securityPolicyUri,
                 senderIssuerCertificates: senderIssuerCertificates!,
