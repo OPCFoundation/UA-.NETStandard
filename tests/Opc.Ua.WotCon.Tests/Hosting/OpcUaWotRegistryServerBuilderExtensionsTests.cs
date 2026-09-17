@@ -28,11 +28,17 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings;
+using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Tests.Materialization;
 
@@ -49,6 +55,71 @@ namespace Opc.Ua.WotCon.Tests.Hosting
     [TestFixture]
     public sealed class OpcUaWotRegistryServerBuilderExtensionsTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ExplicitProjectionCompatibilityReachesRegistryAndViewMaterialization(bool configuration)
+        {
+            var services = new ServiceCollection();
+            var host = new FakeWotProjectionHost();
+            var viewHost = new InMemoryWotViewProjectionHost();
+            services.AddSingleton<IWotProjectionHost>(host);
+            services.AddSingleton<IWotDocumentConverter>(new FakeWotDocumentConverter());
+            services.AddSingleton<IWotViewProjectionHost>(viewHost);
+            IOpcUaBuilder builder = services.AddOpcUa();
+            if (configuration)
+            {
+                IConfiguration settings = new ConfigurationBuilder().AddInMemoryCollection(
+                    new Dictionary<string, string?>
+                    {
+                        [$"{OpcUaWotRegistryServerBuilderExtensions.DefaultConfigurationSection}:" +
+                            "ProjectionCompatibilityMode"] = "DraftProjection11"
+                    }).Build();
+                builder.AddWotRegistryServer(settings);
+            }
+            else
+            {
+                builder.AddWotRegistryServer(options =>
+                    options.ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11);
+            }
+            using ServiceProvider provider = services.BuildServiceProvider();
+            IWotRegistryService registry = provider.GetRequiredService<IWotRegistryService>();
+            await registry.UpsertResourceAsync(new WotUpsertResourceRequest
+            {
+                GroupId = "plans",
+                ResourceId = "source",
+                Content = ByteString.From(TestMaterialization.Td("urn:source"))
+            }).ConfigureAwait(false);
+            WotRegistryMutationResult registered = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
+            {
+                GroupId = "plans",
+                ResourceId = "view",
+                Format = WotProjection.Format,
+                ContentType = WotProjection.ContentType,
+                Content = ByteString.From(Encoding.UTF8.GetBytes(/*lang=json,strict*/ """
+                    {
+                      "@context":"https://www.w3.org/2022/wot/td/v1.1",
+                      "@type":["Thing","uav:projection"],
+                      "id":"urn:projection","title":"Projection",
+                      "uav:scenario":"urn:scenario",
+                      "securityDefinitions":{"none":{"scheme":"nosec"}},"security":"none",
+                      "uav:projects":[
+                        {"uav:sourceName":"source","href":"urn:source","type":"application/td+json","uav:selectAll":true}
+                      ]
+                    }
+                    """))
+            }).ConfigureAwait(false);
+            Assert.That(registered.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            WotMaterializationCoordinator coordinator = provider.GetRequiredService<WotMaterializationCoordinator>();
+
+            WotRefreshResult result = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+
+            Assert.That(viewHost.Applied, Has.Count.EqualTo(1));
+            Assert.That(viewHost.Applied.Single().Plan.DocumentKind, Is.EqualTo(WotDocumentKind.ThingDescription));
+            Assert.That(host.AddCount, Is.EqualTo(1));
+            Assert.That(result.Results.Single(value => value.ResourceId == "view").LoadState,
+                Is.EqualTo(WoTLoadStateEnum.Active));
+        }
+
         [Test]
         public async Task VersionLeaseCapabilityUsesTheRegisteredRegistryOwnerAsync()
         {

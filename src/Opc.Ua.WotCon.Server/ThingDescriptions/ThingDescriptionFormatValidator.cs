@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Text.Json;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Server.ThingDescriptions
 {
@@ -58,7 +59,7 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
     {
         /// <summary>
         /// Returns <c>true</c> when the deserialized document carries an
-        /// identifying member.
+        /// identifying member and is not an unresolved projection plan.
         /// </summary>
         /// <param name="thingDescription">
         /// The document to check. A <c>null</c> reference never identifies
@@ -67,20 +68,23 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
         public static bool HasIdentifyingMember(ThingDescription? thingDescription)
         {
             return thingDescription != null &&
+                (!thingDescription.Type.HasValue || !WotProjection.IsProjectionType(thingDescription.Type.Value)) &&
                 (!string.IsNullOrEmpty(thingDescription.Name) ||
                     !string.IsNullOrEmpty(thingDescription.Title));
         }
 
         /// <summary>
         /// Returns <c>true</c> when the parsed JSON document carries an
-        /// identifying member.
+        /// identifying member and is not an unresolved projection plan.
         /// </summary>
         /// <param name="root">
         /// The root element of the parsed document.
         /// </param>
         public static bool HasIdentifyingMember(JsonElement root)
         {
-            return IsNonEmptyString(root, "name") || IsNonEmptyString(root, "title");
+            return root.ValueKind == JsonValueKind.Object &&
+                (!root.TryGetProperty("@type", out JsonElement type) || !WotProjection.IsProjectionType(type)) &&
+                (IsNonEmptyString(root, "name") || IsNonEmptyString(root, "title"));
         }
 
         private static bool IsNonEmptyString(JsonElement root, string member)

@@ -1170,14 +1170,16 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// Determines whether a value spells an EventType reference: a logical
-        /// identifier, or a document URI optionally followed by a '#' and a
-        /// non-empty RFC 6901 JSON Pointer (WoT Binding Section 6.1).
+        /// identifier, a document URI optionally followed by a '#' and a
+        /// non-empty RFC 6901 JSON Pointer, or a mapped document-local pointer.
         /// </summary>
         /// <param name="reference">The <c>tm:ref</c> value.</param>
         /// <returns><c>true</c> when the value is a well-formed reference.</returns>
         public static bool IsEventTypeReference(string? reference)
         {
             return IsLogicalFragmentReference(reference) ||
+                (reference is not null && reference.StartsWith("#/", StringComparison.Ordinal) &&
+                    IsEventTypePointer(reference.AsSpan(1))) ||
                 TrySplitEventTypeReference(reference, out _, out _);
         }
 
@@ -1212,22 +1214,9 @@ namespace Opc.Ua.Wot
                 return false;
             }
             string candidate = reference[(hash + 1)..];
-            if (candidate[0] != '/')
+            if (!IsEventTypePointer(candidate.AsSpan()))
             {
                 return false;
-            }
-            for (int ii = 0; ii < candidate.Length; ii++)
-            {
-                if (candidate[ii] != '~')
-                {
-                    continue;
-                }
-                if (ii + 1 >= candidate.Length ||
-                    (candidate[ii + 1] != '0' && candidate[ii + 1] != '1'))
-                {
-                    return false;
-                }
-                ii++;
             }
             document = reference[..hash];
             pointer = candidate;
@@ -1268,6 +1257,28 @@ namespace Opc.Ua.Wot
                 members.Add(StateNameMember);
             }
             return members.ToArray();
+        }
+
+        private static bool IsEventTypePointer(ReadOnlySpan<char> pointer)
+        {
+            if (pointer.IsEmpty || pointer[0] != '/')
+            {
+                return false;
+            }
+            for (int ii = 0; ii < pointer.Length; ii++)
+            {
+                if (pointer[ii] != '~')
+                {
+                    continue;
+                }
+                if (ii + 1 >= pointer.Length ||
+                    (pointer[ii + 1] != '0' && pointer[ii + 1] != '1'))
+                {
+                    return false;
+                }
+                ii++;
+            }
+            return true;
         }
 
         private static ArrayOf<WotResolvedEventSelectClause> BuildDefault()

@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -128,6 +127,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return new WotViewProjectionResult(null, diagnostics);
             }
 
+            var projection = WotProjection.Parse(
+                projectionDocument, diagnostics, m_options.ProjectionCompatibilityMode);
+            if (projection is null || HasErrors(diagnostics))
+            {
+                return new WotViewProjectionResult(null, diagnostics);
+            }
+
             WotResolutionContext context = resolutionContext ?? new WotResolutionContext();
             var visited = new HashSet<string>(StringComparer.Ordinal);
             var resolvedGroups = new Dictionary<string, Membership>(StringComparer.Ordinal);
@@ -152,10 +158,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return new WotViewProjectionResult(null, diagnostics);
             }
 
-            string scenario = ReadScenario(projectionDocument);
             var plan = new WotViewProjectionPlan(
-                scenario,
-                projectionDocument.Kind,
+                projection.Scenario,
+                projection.ResultKind,
                 root.Members,
                 root.Groups,
                 ComputeViewVersion(root),
@@ -200,7 +205,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
 
             var groups = new List<WotOrganizationalGroup>();
-            WotProjection? projection = WotProjection.Parse(document, diagnostics);
+            var projection = WotProjection.Parse(
+                document, diagnostics, m_options.ProjectionCompatibilityMode);
             if (projection is not null && !projection.OrganizingLinks.IsNull)
             {
                 for (int i = 0; i < projection.OrganizingLinks.Count; i++)
@@ -463,14 +469,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
-        private static string ReadScenario(WotDocument document)
-        {
-            return document.TryGetUav("scenario", out JsonElement scenario) &&
-                scenario.ValueKind == JsonValueKind.String
-                ? scenario.GetString() ?? string.Empty
-                : string.Empty;
-        }
-
         private static bool TryReadResolvedFrom(
             JsonElement affordance,
             out string href,
@@ -619,7 +617,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 WotOrganizationalGroup group = membership.Groups[i];
                 CollectPortableMembers(
-                    new Membership(group.OrganizedNodeIds, group.Groups, ArrayOf<string>.Empty),
+                    new Membership(group.OrganizedNodeIds, group.Groups, []),
                     members);
             }
         }
@@ -644,7 +642,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 // throwing during a materialization.
                 return nodeId.ToString();
             }
-            var builder = new StringBuilder("nsu=").Append(uri).Append(';');
+            StringBuilder builder = new StringBuilder("nsu=").Append(uri).Append(';');
             NodeId.Format(
                 CultureInfo.InvariantCulture,
                 builder,
@@ -652,17 +650,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 nodeId.IdType,
                 0);
             return builder.ToString();
-        }
-
-        private static byte[] Sha256(byte[] content)
-        {
-            // TODO: SHA256.HashData is only available on .NET 5+; this project
-            // also targets net472/net48/netstandard2.x, where the instance
-            // ComputeHash API is the portable equivalent.
-#pragma warning disable CA1850
-            using var sha = SHA256.Create();
-            return sha.ComputeHash(content);
-#pragma warning restore CA1850
         }
 
         private readonly IWotThingResolver m_thingResolver;
@@ -683,13 +670,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ArrayOf<WotOrganizationalGroup> groups,
                 ArrayOf<string> omissions)
             {
-                Members = members.IsNull ? ArrayOf<NodeId>.Empty : members;
-                Groups = groups.IsNull ? ArrayOf<WotOrganizationalGroup>.Empty : groups;
-                Omissions = omissions.IsNull ? ArrayOf<string>.Empty : omissions;
+                Members = members.IsNull ? [] : members;
+                Groups = groups.IsNull ? [] : groups;
+                Omissions = omissions.IsNull ? [] : omissions;
             }
 
             public static Membership Empty { get; } = new Membership(
-                ArrayOf<NodeId>.Empty, ArrayOf<WotOrganizationalGroup>.Empty, ArrayOf<string>.Empty);
+                [], [], []);
 
             public ArrayOf<NodeId> Members { get; }
 

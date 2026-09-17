@@ -321,7 +321,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                     m_logger.GeneratedThingDescriptionFailedFormatValidation(assetName);
                     return (ServiceResult.Create(StatusCodes.BadDecodingError,
                         "The Thing Description generated for this endpoint is not a Thing " +
-                        "Description: it must carry a 'name' or 'title'."),
+                        "Description: it must carry a 'name' or 'title' and must not be an unresolved projection plan."),
                         NodeId.Null);
                 }
 
@@ -550,6 +550,7 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// <summary>
         /// Rebuilds an asset while retaining its authoritative source document.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         internal async ValueTask<ServiceResult> RebuildAsync(
             AssetEntry entry,
             ThingDescription td,
@@ -835,7 +836,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             bool mapped = WotPropertyMapper.TryMap(property, out NodeId dataType, out int valueRank);
             ushort ns = m_manager.AssetNamespaceIndex;
             NodeId nodeId = m_manager.AllocateChildNodeId(entry.Name, "props", name);
-            var hasWotComponent = ExpandedNodeId.ToNodeId(
+            NodeId hasWotComponent = ExpandedNodeId.ToNodeId(
                 ReferenceTypeIds.HasWoTComponent,
                 m_manager.Server.NamespaceUris);
 
@@ -1214,10 +1215,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                     IReadOnlyList<Variant> fields,
                     LocalizedText? message,
                     ushort? severity,
-                    DateTime timestamp)
-                {
-                    ReportWotEvent(entry, generation, t, fields, message, severity, timestamp);
-                }
+                    DateTime timestamp) => ReportWotEvent(entry, generation, t, fields, message, severity, timestamp);
 
                 try
                 {
@@ -1582,6 +1580,7 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// <summary>
         /// Loads persisted descriptions together with their authoritative document bytes.
         /// </summary>
+        /// <exception cref="EndOfStreamException"></exception>
         internal async IAsyncEnumerable<(string Name, ThingDescription Description, ByteString Content)>
             EnumeratePersistedDocumentsAsync(
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)

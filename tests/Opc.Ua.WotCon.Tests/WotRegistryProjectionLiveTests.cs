@@ -1647,6 +1647,70 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(outcome, Is.Not.Null);
         }
 
+        [TestCase(WoTDocumentKindEnum.ThingDescription)]
+        [TestCase(WoTDocumentKindEnum.ThingModel)]
+        public async Task FullRegistryFileUploadStoresAnExplicitProjectionAsAPlan(WoTDocumentKindEnum kind)
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = kind == WoTDocumentKindEnum.ThingModel
+                ? await client.CreateThingModelGroupAsync().ConfigureAwait(false)
+                : await client.CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            WotRegistryResourceAllocation allocation = await group
+                .CreateDocumentResourceAsync("urn:uploaded:plan", "v1").ConfigureAwait(false);
+            WotRegistryResourceClient resource = allocation.Version;
+            string resultKind = kind == WoTDocumentKindEnum.ThingModel ? "ThingModel" : "ThingDescription";
+            string json = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "\"@type\":\"uav:projection\",\"uav:projectionKind\":\"" +
+                resultKind +
+                "\"," +
+                "\"id\":\"urn:uploaded:plan\",\"title\":\"Plan\",\"uav:scenario\":\"urn:scenario\"," +
+                "\"uav:projects\":[{\"uav:sourceName\":\"source\",\"href\":\"urn:source\"," +
+                "\"type\":\"application/td+json\",\"uav:selectAll\":true}]}";
+            var content = ByteString.From(Encoding.UTF8.GetBytes(json));
+
+            await resource.Proxy.UploadAsync(content).ConfigureAwait(false);
+
+            WotResource stored = m_registry.Current.FindResource(group.GroupId, resource.ResourceId)!;
+            WotResourceVersion version = stored.FindVersion("v1")!;
+            Assert.That(stored.SourceId, Is.EqualTo("urn:uploaded:plan"));
+            Assert.That(stored.Kind, Is.EqualTo(kind));
+            Assert.That(version.Format, Is.EqualTo(Wot.WotProjection.Format));
+            Assert.That(version.ContentType, Is.EqualTo(Wot.WotProjection.ContentType));
+            ByteString downloaded = await resource.DownloadAsync().ConfigureAwait(false);
+            Assert.That(downloaded, Is.EqualTo(content));
+            WoTValidationOutcomeDataType validation = await resource.ValidateAsync().ConfigureAwait(false);
+            Assert.That(validation.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Success));
+        }
+
+        [Test]
+        public async Task FullRegistryFileUploadDoesNotImplicitlySelectLegacyPlanProcessing()
+        {
+            WotRegistryClient client = await OpenClientAsync().ConfigureAwait(false);
+            WotRegistryGroupClient group = await client.CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            WotRegistryResourceAllocation allocation = await group
+                .CreateThingDescriptionResourceAsync("urn:draft-plan", "v1").ConfigureAwait(false);
+            WotRegistryResourceClient resource = allocation.Version;
+            var content = ByteString.From(Encoding.UTF8.GetBytes(/*lang=json,strict*/ """
+                {
+                  "@context":"https://www.w3.org/2022/wot/td/v1.1","@type":["Thing","uav:projection"],
+                  "id":"urn:draft-plan","title":"Plan","uav:scenario":"urn:scenario",
+                  "uav:projects":[
+                    {"uav:sourceName":"source","href":"urn:source","type":"application/td+json","uav:selectAll":true}
+                  ]
+                }
+                """));
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await resource.Proxy.UploadAsync(content).ConfigureAwait(false))!;
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            WotResource stored = m_registry.Current.FindResource(group.GroupId, resource.ResourceId)!;
+            Assert.That(stored.SourceId, Is.EqualTo("urn:draft-plan"));
+            WotResourceVersion version = stored.FindVersion("v1")!;
+            Assert.That(version.HasContent, Is.False);
+            Assert.That(version.Digest.IsEmpty, Is.True);
+        }
+
         [Test]
         public async Task ValidateOnConcreteNonDefaultVersionTargetsThatVersion()
         {

@@ -1219,10 +1219,10 @@ a ReferenceType — the two constructs the model already has.
 
 ### 12.4 Projection documents and the View NodeClass
 
-A **projection document** is a Thing Description or Thing Model that declares,
-rather than defines, its affordances. It names source documents and states which
-of their affordances a view is assembled from, so it carries references and
-annotations only and has nothing that can drift from its sources.
+A **projection document** is a `WoT-Projection/1.2` plan, not an already
+resolved Thing Description or Thing Model. It names source documents and
+states which of their affordances a view is assembled from. Its selectors
+are references and annotations, not executable InteractionAffordances.
 
 This completes the NodeClass binding. Seven OPC UA NodeClasses bind to a WoT
 construct that defines something; `View` is the eighth and the only one whose
@@ -1234,6 +1234,7 @@ A projection is marked by `uav:projection` in its `@type` and declares:
 
 | Term | Meaning |
 |---|---|
+| `uav:projectionKind` | required resolved result kind: `ThingDescription` or `ThingModel` |
 | `uav:scenario` | absolute IRI naming the purpose the view serves |
 | `uav:projects` | non-empty manifest of the documents it projects |
 | `uav:sourceName` | alias for a source, unique in the manifest |
@@ -1241,15 +1242,441 @@ A projection is marked by `uav:projection` in its `@type` and declares:
 | `uav:sourceDigest` | `sha-256:<hex>` pinning a source revision |
 | `uav:namePrefix` | prefix applied to bulk-selected names |
 
+The current plan root carries `uav:projection`, without `Thing`,
+`tm:ThingModel`, or an OPC UA NodeClass annotation. `WotProjection.ResultKind`
+provides its declared output kind; the View builder uses that value rather
+than classifying the unresolved root as an ordinary TD/TM. Resolution removes
+`uav:projection` and `uav:projectionKind` and supplies the ordinary result's
+`Thing` or `tm:ThingModel` marker.
+
+Use `WotProjection.Format` and `WotProjection.ContentType` for its registry
+metadata: `WoT-Projection/1.2` and
+`application/ld+json; profile="http://opcfoundation.org/UA/WoT-Binding/v1.2/projection"`.
+A source manifest accepts `application/td+json`, `application/tm+json`, or
+that projection media type for a nested plan. Its media type must describe
+the fetched source role; enabling compatibility does not disguise a modern
+plan as an ordinary TD or TM.
+
+Direct `WotRegistryService.UpsertResourceAsync` calls require the corresponding
+Format, ContentType and stored result kind. `DetectProjectionFormat`, when
+explicitly selected on an upsert request, classifies an authored projection role
+before applying plan admission. The Full-registry FileType adapter uses that
+mode, so the existing generated upload clients can store current plans without
+claiming the bytes are ordinary TD/TM documents. It never enables legacy syntax.
+The TD-only asset-upload and endpoint-generation paths reject unresolved plans,
+as does ordinary NodeSet conversion. Restored plans are revalidated before any
+runtime closure is published.
+
+`WotProjection.Parse`, `WotProjectionResolver`, and `WotProjectionViewBuilder`
+default to current-plan processing. Draft plans combining `uav:projection`
+with an old `Thing` or `tm:ThingModel` marker require explicit compatibility:
+
+```csharp
+var options = new WotNodeSetConverterOptions
+{
+    ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
+};
+var resolver = new WotProjectionResolver(thingResolver, options);
+```
+
+For standalone parsing, use the `WotProjection.Parse` overload with that
+compatibility mode. Exactly one old TD/TM marker must determine the result
+kind. An invalid explicit `uav:projectionKind` is not a request for legacy
+processing, and compatibility does not rewrite the original document bytes.
+
+Hosted deployments select compatibility through
+`WotRegistryServerOptions.ProjectionCompatibilityMode`; it reaches both registry
+admission and View materialization. Direct registry construction also has an
+explicit compatibility overload. Compatibility and format metadata participate
+in refresh fingerprints. Changing a Version's Format or ContentType invalidates
+its format validation and selected runtime admission even if its bytes did not
+change. A validation result cannot be attached to a replacement Version or to
+different format metadata.
+
+Source `href` values are resolved against the owning projection's effective
+base for retrieval. Nested projections retain their own retrieved location and
+resolve their authored base against it; source forms are not moved under the
+outer projection's base. `WotProjectionManifestSource.Href` retains the authored
+spelling, while generated `uav:resolvedFrom` uses the resolved source location.
+Relative organizing-graph links are resolved at each owning document, including
+cycle checks. Query-only references replace the previous query; fragments and
+query text never become path segments. Dot-segment removal applies to the path,
+including rooted relative paths, without rewriting opaque query values.
+
 Selection has three forms. An enumerated `tm:ref` names one affordance and is the
 only form that can annotate it; `uav:selectAll` takes every affordance of a
 source; and `uav:select` filters on affordance kind, semantic identifier and type
 tokens. The predicate set is closed — a filter carrying any other key is rejected
 rather than ignored — so a filter stays decidable by inspection.
 
+Type and semantic-ID predicates compare expanded identities in the filter's
+original context and the candidate affordance's original context. Different
+prefixes for the same namespace can match; equal spellings bound to different
+namespaces do not. Local and term-scoped contexts, definition-time mappings,
+type vocabularies and original document locations remain owner-specific.
+Predicate identities must be established before source acquisition.
+
+Constraints within one filter are conjunctive, including every listed type;
+filters are disjunctive. A definite matching type or filter is not defeated by
+an unrelated unresolved alternative. If the remaining evidence cannot determine
+membership, resolution reports `ProjectionSelectorInvalid`, rather than
+guessing a match or returning a successful partial view.
+First-selection precedence is applied in the same deterministic total order
+before evaluating later bulk candidates. An uncertain candidate cannot
+invalidate an already selected name; uncertainty that could still determine
+the winner remains an error.
+
+Present controls are validated before source acquisition, including in nested
+projections. `uav:sourceDigest`, `uav:routing`, and `uav:namePrefix` must have their
+declared string shapes; a non-string value is not treated as an omitted pin,
+route, or prefix. An explicit `uav:select` array and each filter must be non-empty.
+A type predicate contains one non-empty string or a non-empty array containing
+only non-empty strings, and a semantic predicate names an absolute IRI.
+Malformed controls produce an error rather than an unconstrained selection.
+
 Every member of `properties`, `actions` and `events` carries `tm:ref`. A member
 without one is defining an affordance, which is the one thing a projection
 document must not do.
+
+An enumerated reference identifies a direct affordance in the matching source
+map: a projected property selects `/properties/<name>`, an action selects
+`/actions/<name>`, and an event selects `/events/<name>`. Document roots,
+affordance maps, nested DataSchemas, action inputs and event payload schemas
+are not affordance selections. RFC 6901 escaping retains names containing `/`
+or `~`; it does not permit a selection to cross affordance kinds.
+
+Selections retain their source location and canonical definition pointer.
+The resolver carries the sibling string property named by `uav:unitProperty`
+and the Condition event named by an action's `uav:actsOn`, reusing a dependency's
+selected output name when it is already present. Selecting that event does not
+add the source's other actions. Invalid dependencies fail the resolution rather
+than leaving a pointer to an unrelated or missing member.
+
+A supporting affordance keeps its source name when free. On a collision it uses
+`q:d:<B64u(sourceName)>:<B64u(sourcePointer)>`, followed by the first unused
+positive `:1`, `:2`, and so on when that spelling is already occupied.
+Authored selections are not overwritten. Selected and supporting affordances
+count against `MaxNodeCount`. Literal values and opaque metadata are not searched
+for reference lookalikes.
+
+Original `uav:resolvedFrom` provenance survives selection and support carriage;
+relative provenance is resolved at the original containing document location,
+not its runtime endpoint base. Conflicting document contents fetched under the
+same source location in a plan cannot be used interchangeably.
+
+The projection keeps its own ordered root context. Each carried affordance,
+DataSchema, DataType, URI variable, security definition and form retains its
+original effective context in an isolated scope, so a same-spelled prefix in
+another source or the projection does not change its meaning. Local and
+term-scoped overrides and explicit null resets remain effective; source-only
+prefixes do not become projection-wide declarations.
+Implicit `ua` and `uav` bindings are used only when no declaration or reset
+blocks them. A total null context reset does not reintroduce those defaults;
+an explicit later prefix declaration can restore the intended binding.
+
+The known [TD 1.1 context](https://www.w3.org/2022/wot/td/v1.1) includes its
+standard vocabulary and prefix scopes: TD terms at the root, JSON Schema terms
+inside DataSchemas, hypermedia terms in forms, and security terms in security
+definitions. A root-only `@vocab` override does not replace the standard
+property-scoped vocabulary. A vocabulary-relative type such as `dataPoint`
+therefore remains resolvable without a hierarchical document identifier; a
+relative `uav:semanticId` still requires its own applicable document base.
+
+Projection-routed forms retain projection ownership even inside source-owned
+data. Host type and semantic annotations retain host meaning, while a host
+title or description override carries its own term language without retagging
+unchanged source text. Local alias and prefix chains and compact vocabulary
+declarations are resolved before an annotation crosses owners; self-dependent
+and indirect prefix cycles are rejected. Completed term, prefix and vocabulary
+mappings retain the context in which they were defined. A later redefinition
+or disabling of a dependency does not reinterpret an earlier completed mapping.
+Property-scoped contexts are instead processed when applied to their carrying
+objects, using the then-current enclosing context. Ordered redefinitions that
+refer to completed mappings are not mistaken for simultaneous definition cycles.
+The destination interpretation is checked separately before carriage.
+
+If the host identity cannot be established, depends on an unacquired context
+or import, or would be reinterpreted by the destination scope, resolution reports
+`ProjectionContextConflict` rather than borrowing a source prefix or base.
+Restoring a prefix also requires establishing its namespace dependencies;
+the spelling of a URN alone does not make an unresolved prefix authoritative.
+The same rule applies to text-predicate identities and inherited term languages.
+An explicit null text predicate cannot acquire a default predicate.
+
+A property-scoped context inherited from an earlier declaration is not assumed
+to survive a later unacquired context. A subsequent explicit scoped declaration
+can establish the facts needed by the annotations. Vocabulary fallback for a
+bare type also requires known absence of an explicit term mapping: restoring
+`@vocab` does not erase an alias an unacquired context may have introduced.
+A later explicit term declaration can establish that token's identity.
+This also applies when an example's relative context reference is supplied without its original location
+or acquired context: the filename is not treated as proof of the context's
+contents. Repeated semantic context members and invalid root or nested context
+declaration kinds produce diagnostics before mutable cloning; an invalid
+projection context is rejected before source acquisition.
+
+Context document references resolve at the original
+document location, not the device endpoint base. Ordered relative `@base`
+entries use the preceding effective base. An opaque logical identifier alone
+does not provide a hierarchical location for resolving a relative context URL.
+Nested semantic contexts follow the same rules; context-looking keys inside
+literal values or opaque metadata are not rewritten. Keys of declared JSON-LD
+index maps are names rather than context declarations, including a key named
+`@context`; a semantic object stored under such a key can still carry its own
+local context. The fixed WoT maps, including `securityDefinitions`, retain
+their map-entry interpretation even when no explicit root context is supplied.
+
+Referenced reusable schemas are carried into `schemaDefinitions` without
+overwriting the projection owner's definitions. Local references to selected
+DataSchemas follow their selected output names, and recursive schemas reuse
+the same output definition. Known DataSchema locations in otherwise unselected
+properties, action input/output, event data/subscription/cancellation/response,
+URI-variable declarations and local definition maps can supply schema-only
+dependencies. Their containing schema root is carried into `schemaDefinitions`
+with its original context and reference origin; this does not select or execute
+the source affordance. Nested schema references reuse that root, including when
+several references address different children. Literal values, opaque metadata,
+forms and other non-schema locations do not become schema targets merely because
+their containing unselected schema has already been copied. Declaration-map
+entries named `const` remain ordinary schema names.
+Reusable schemas count with affordances against
+`MaxNodeCount`. Missing or malformed known references fail rather than leaving
+a successful document with dangling local pointers.
+
+Known DataType definitions referenced by a selected schema are carried once in
+`uav:dataTypeDefinitions`. Inline full definitions become graph references;
+local field and base-type dependencies share the same closure. Native-ID and
+namespace-qualified name references also retain their known definitions.
+Base-reference objects retain every supplied graph, name and native-ID form;
+conflicting forms cannot disappear when a definition is carried. A local
+definition pointer must address an indexed semantic definition, not a literal
+lookalike. Reusing an outer definition still checks the other owner's
+transitive dependencies.
+Unreferenced source definitions are not copied merely because the source
+contains them. DataTypes participate in the same `MaxNodeCount` budget.
+
+Repeated complete definitions within one source are invalid. Across owners,
+reuse requires the same expanded graph and native identities and agreeing
+context-resolved facts. Unknown semantic terms retain captured context for a
+conservative comparison; localized text uses its original declared locale and
+known location references use their original document location. Opaque
+metadata remains literal. Distinct graph nodes cannot claim one native
+DataType identity. Malformed definition containers and reference shapes fail
+explicitly rather than disappearing during carriage.
+
+Known opaque members and literal `const`, `default`, `enum` and `examples`
+values retain their received JSON representation during projection, including
+duplicate literal keys, member order, whitespace, numeric spellings and string
+escapes. They are not materialized as mutable unique-key dictionaries or
+searched for semantic references. Comparison for definition reuse is separate
+from output preservation; an incomparable literal can be reused only when its
+received representation agrees exactly. Different opaque values are not merged.
+Semantic objects still require unique keys, and an unknown term does not
+automatically establish an opaque boundary.
+
+Native round trips also preserve the owner context of literal members directly
+on a DataType definition. Namespaced opaque keys retain their source meaning
+without changing the projection root's context or the regenerated native
+DataType identity.
+
+Definition discovery distinguishes declaration-map names from annotation
+predicates. Literal `const`, `default`, `enum` and `examples` values cannot
+declare a DataType or provide a local definition target; fields with those
+names remain valid. Repeated definition members are diagnosed before mutable
+carriage. Ambiguous qualified names require a definitive graph or native
+identity, but do not invalidate otherwise unambiguous references. An ambiguous
+base reference must identify the base itself; the subtype's own identity does
+not disambiguate it. Reuse compares known local references by their indexed
+graph targets and recognizes standard
+schema facets without treating irrelevant prefix aliases as different facts.
+Unknown semantic terms retain their context even when prefixed with `uav:`.
+When a base reference supplies both a standard DataType name and a native
+identity, they must agree unless the closure supplies a matching definitive
+custom type with that same BrowseName. Known definition identity takes
+precedence over the built-in fallback. Both native conversion and projection
+carriage use the reference's effective context and accept equivalent
+namespace-zero URI forms.
+
+Known schema references (`$ref`, a source definition's `tm:ref`, and
+`uav:externalSchema`) retain their original document location. Relative external
+references become origin-relative absolute references where that location is
+absolute; this step does not fetch external schemas. Named
+`additionalResponses[].schema` dependencies use the actual form owner's
+definitions, so a host form cannot silently select a same-named source schema,
+or vice versa.
+
+Compact Binding references in `tm:ref` and `uav:externalSchema` are expanded
+through their original owner's effective context before carriage. This does not
+reinterpret JSON Schema `$ref` strings as JSON-LD vocabulary. Explicit event
+`uav:eventSelectClauses[].tm:ref` entries participate in reference relocation;
+the clause objects are not treated as DataSchemas or searched recursively.
+When an EventType definition has been carried into the result, its mapped
+document-local JSON Pointer is resolved against that actual held document
+before any provider is consulted. The existing EventType shape, cycle and
+depth checks still apply; a local pointer does not authorize external retrieval.
+An executable source-routed TD selection requires non-empty source forms.
+An abstract source-routed TM selection may retain an affordance without forms.
+A source property with an explicit `const` is a static fact, not an executable
+endpoint, and may likewise omit forms; this includes carried engineering-unit
+properties. No form is fabricated for such facts.
+Source-only dependencies carried to close `uav:unitProperty` or `uav:actsOn`
+are supporting facts, not additional executable selections. Their carriage does
+not require inventing a source endpoint. Explicit selections remain subject to
+the executable-form check, and projection-routed support still requires actual
+host forms.
+Explicit draft-plan compatibility and context-free structural projection
+fixtures retain their earlier carriage behavior. When such processing lacks
+forms, it reports that executable forms were not established; that result is
+not executable-TD admission proof. Selecting draft compatibility does not relax
+the form checks on a current plan with its declared WoT context.
+
+External acquisition is a separate, caller-configured stage of the public
+conversion interface. `WotNodeSetConverter.ToNodeSetResultAsync` already invokes
+`WotEventSelectionResolver` when a Thing resolver is supplied, and
+`WotExternalSchemaResolver` when the caller supplies that module. The same
+modules can be called directly against a resolved projection document:
+
+```csharp
+WotConversionResult<WotEventSelectionCatalog> selections =
+    await new WotEventSelectionResolver(allowedThings, options)
+        .ResolveAsync(resolvedView, resolutionContext, cancellationToken);
+
+WotConversionResult<UANodeSet> conversion =
+    await WotNodeSetConverter.ToNodeSetResultAsync(
+        resolvedView, options, allowedThings, resolutionContext, allowedNodes,
+        new WotExternalSchemaResolver(allowedSchemas), cancellationToken);
+```
+
+The direct module call and the conversion call are alternative entry points;
+applications need not resolve the same selection twice. A required EventType
+link or explicit clause must resolve before event planning. Missing definitions,
+cycles and caller policy failures are not successful event closure. Retrieved
+TD-link hops retain their retrieval location rather than adopting that TD's
+runtime endpoint `base`; the existing Thing Model document-base/scoped-base
+resolution convention is retained.
+
+A supporting `uav:externalSchema` is not a replacement DataType authority.
+No configured provider means `NotEvaluated`; no answer means `Unresolved`;
+conflicting answers are `Ambiguous`; a compared disagreement is `Incompatible`.
+The converter reports those dispositions under its existing rules and never
+changes the canonical data to fit an external schema. An HTTP-shaped identifier
+does not itself authorize retrieval. Unselected affordances, literal instance
+values, opaque metadata and generic retained schema references are not acquisition
+requests. These distinctions are Binding checks, not a generic JSON Schema
+validation engine.
+
+For bulk-selected and supporting projection-routed affordances, an application
+can supply **`IWotProjectionFormProvider`** through
+`WotNodeSetConverterOptions.ProjectionFormProvider`. Its typed
+`WotProjectionFormContext` identifies the original projection location and
+effective endpoint base, selected source location and pointer, final affordance
+name and kind, result kind, and shared resolution context. It returns an
+`ArrayOf<JsonElement>` containing the forms the host actually serves, in their
+intended order. This is an endpoint-description seam, not an endpoint publisher.
+
+Authored forms take precedence; an empty or malformed authored form declaration
+is not repaired by calling the provider. Source-routed selections never call it.
+An enumerated projection-routed member must declare its own serving forms:
+omission is invalid, not a request for provider fallback. Enumerated members are
+checked before any host-provider invocation; fallback supplies only bulk and
+supporting selections. Explicit draft compatibility retains its separately
+reported structural behavior, not provider-based repair of enumerations.
+Provider forms must be detached JSON objects. Relative hrefs use the original
+host base and become absolute; their scheme, host and port must remain in the
+host's origin. A source endpoint cannot acquire host credentials by being copied
+into the response. Security requirements and named response schemas resolve
+against host definitions, while the selected data domain and `uav:resolvedFrom`
+remain source-owned.
+
+Generated forms are held in a separate owning document until context and
+dependency carriage completes. The original plan is not mutated, and a generated
+JSON element is never treated as an authored element of that plan. Host URI
+variables, credential-variable conflicts, form contexts and response-schema
+dependencies use the existing owner-scoped closure.
+
+Each provider request and returned payload uses the shared document/byte budget.
+Generated documents also obey the configured JSON size/depth bounds. The provider
+must bound its own I/O and honor caller cancellation, including timeout tokens.
+No provider, no forms, malformed forms, or expected I/O, invalid-operation,
+timeout, JSON and format failures produce an unsuccessful result with diagnostics
+and no value. Caller cancellation propagates without a partial view; unexpected
+programming exceptions are not swallowed.
+
+Direct construction and registry hosting use the same options:
+
+```csharp
+var options = new WotNodeSetConverterOptions
+{
+    ProjectionFormProvider = applicationHostForms
+};
+var resolver = new WotProjectionResolver(sourceResolver, options);
+WotConversionResult<WotDocument> result =
+    await resolver.ResolveAsync(plan, cancellationToken: cancellationToken);
+// Inspect result.Success and result.Diagnostics before using and disposing result.Value.
+
+services.AddSingleton<IWotProjectionFormProvider>(applicationHostForms);
+services.AddOpcUa().AddWotRegistryServer();
+// Alternatively: AddWotRegistryServer(o => o.ProjectionFormProvider = applicationHostForms).
+```
+
+A provider registered in DI takes precedence over the registry option. An
+explicitly registered `WotNodeSetConverterOptions` instance retains its own
+provider. Applications remain responsible for actual endpoint availability and
+for keeping provider output stable within a materialization generation; this
+seam does not add provider-driven registry invalidation or endpoint lifecycle
+management.
+
+**Current admission boundary:** full base TD/TM JSON Schema validation is
+deliberately deferred. The Binding-specific context, ownership, local dependency
+and URI-template guards described here are not a JSON Schema validator.
+Actual host forms require an application provider or authored forms; no
+deployment-specific endpoint provider is supplied by the resolver. Required
+Binding-reference acquisition uses the explicit public modules described above;
+`WotProjectionResolver.ResolveAsync` alone is the origin-preserving projection
+stage, not a claim that every later consumer dependency has been acquired.
+Origin-preserving external reference carriage is not proof that the referenced
+definition was acquired or resolved. A successful document-resolution result
+alone must not be treated as admission proof for an executable TD.
+
+URI-template variables required by carried forms use that form owner's
+declarations. Source-affordance declarations take precedence over the source
+root; required root declarations are carried at the resulting affordance scope.
+Variables from different sources remain distinct even when their names match.
+Projection-owned forms use the projection root's declarations, never surviving
+source declarations. The projection annotation whitelist does not permit an
+enumerated member to restate `uriVariables`.
+
+Supplied Thing-level forms use the projection owner's Thing-level declarations
+and undergo the same URI-template syntax and dependency checks as carried
+affordance forms. Percent-encoded braces remain literal characters, not variable
+references.
+
+An active API key security scheme with `in: "uri"` can also declare a URI
+placeholder through its `name`. Resolution follows the form's effective security
+requirement, including form overrides and combined schemes, within the actual
+form owner's security domain. These placeholders are not synthesized as data
+`uriVariables`; a name shared with a data-variable declaration is a conflict.
+An unrelated or inactive security scheme cannot supply a missing variable.
+
+If host routing replaces a selected source's URI-variable subtree, source data
+references into that subtree retain their original variable schemas as supporting
+`schemaDefinitions`. They do not follow the source affordance's ancestor mapping
+into the host-owned variables. These dependencies share the existing owner-scoped
+reference closure, collision-safe names, original contexts and support-node budget.
+
+Carried variables preserve their original ordered and term-scoped contexts and
+schema-reference ownership. Duplicate containers or declarations must agree;
+equivalent facts coalesce and contradictory facts fail with
+`ProjectionSourceUnresolved`. Source-local containers are checked before cloning
+enumerated, bulk-selected or supporting affordances, including under host routing.
+Variable maps are emitted in code-point order without changing the URI template.
+Retained variables count with affordances and reusable schemas against `MaxNodeCount`.
+
+Dependency discovery reads supported RFC 6570 expressions, including prefix and
+explode modifiers and literal percent-encoded variable names. Missing required
+declarations and malformed templates fail explicitly. Escaped braces and
+template-like text in defaults or opaque metadata do not create dependencies;
+this step does not expand templates or perform an interaction.
 
 An enumerated selection may annotate the affordance it names, but Section 12.5
 closes the set of members it may annotate with. Permitted beside `tm:ref` are
@@ -1270,6 +1697,28 @@ not dropped: a dropped form is one the author wrote and the consumer silently
 did not use, which reads at run time as the source endpoint answering a request
 the document appeared to address elsewhere.
 
+Copied authentication definitions keep their source ownership. With `B64u`
+denoting unpadded base64url of exact UTF-8 bytes, a source scheme is named
+`q:s:<B64u(sourceName)>:<B64u(schemeName)>`; a projection-owned scheme is named
+`q:p:<B64u(schemeName)>`. Root, affordance and form requirements and known combo
+references follow the corresponding mapping. An authored host name cannot
+impersonate a generated source name, and underscores in two source/name pairs
+cannot collapse their authentication requirements.
+
+Required security definitions must be present, and combo dependencies must be
+acyclic within the configured resolver depth. Contradictory duplicate
+definitions fail rather than replacing another authentication scheme.
+Consistent repeats may share a definition. Unrelated vendor metadata is retained,
+not rewritten by matching strings. Consumers must follow the emitted names
+rather than assuming the older underscore-concatenated spelling.
+
+Source-owned affordance requirements are qualified as well as form requirements.
+An incomplete Thing Model's affordance can retain a security-definition closure
+without forms. Repeating the `securityDefinitions` container does not permit an
+earlier policy to be replaced: repeated containers must describe equivalent
+facts. Projection-owned conflicts fail before source acquisition; source-owned
+conflicts fail before a resolved view is returned.
+
 Selections are applied in the total order of Section 12.4, and the **first**
 selection of a name wins: by the position of the source in `uav:projects`;
 within one source, every enumerated selection before every bulk one; within each
@@ -1277,13 +1726,16 @@ group, by affordance kind in the fixed order `properties`, `actions`, `events`;
 within one kind, by ascending Unicode code point of the name the selection takes
 **in the view**; and, where two selections still compare equal, by ascending
 Unicode code point of the affordance's name **in the source**. The last key is
-what makes the order total: `uav:namePrefix` upper-cases the first character of
+what makes the order total: `uav:namePrefix` upper-cases the first Unicode scalar of
 the source name, so `serialNumber` and `SerialNumber` in one source both become
 `deviceSerialNumber` in the view and nothing before it separates them. The order
 is stated over names rather than over document order because `properties`,
 `actions` and `events` are JSON objects, which RFC 8259 defines as unordered — a
 rule that ranked selections by member position would let two conforming
 consumers resolve identical bytes into different views.
+
+Prefix capitalization is culture-invariant, handles supplementary characters as
+one scalar, and preserves the remainder of the source name unchanged.
 
 Materialization produces a `View` Node that `Organizes` the Nodes already
 materialized from the sources. The View creates **no** affordance Node, so

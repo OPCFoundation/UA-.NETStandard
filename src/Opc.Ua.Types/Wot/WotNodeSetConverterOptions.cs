@@ -114,6 +114,12 @@ namespace Opc.Ua.Wot
     public sealed class WotNodeSetConverterOptions
     {
         /// <summary>
+        /// Gets or sets the provider of actual bulk projection-host forms.
+        /// An omitted provider does not permit source forms to be reused.
+        /// </summary>
+        public IWotProjectionFormProvider? ProjectionFormProvider { get; set; }
+
+        /// <summary>
         /// Gets or sets the preservation-envelope policy. The default uses
         /// readable mapping plus structured fallback and emits an opaque envelope
         /// only when required.
@@ -242,6 +248,12 @@ namespace Opc.Ua.Wot
         public int MaxResolverDepth { get; set; } = 16;
 
         /// <summary>
+        /// Gets or sets explicitly selected legacy projection-plan compatibility.
+        /// Modern plans declare their result kind; draft compatibility is never enabled implicitly.
+        /// </summary>
+        public WotProjectionCompatibilityMode ProjectionCompatibilityMode { get; set; }
+
+        /// <summary>
         /// Gets or sets the maximum number of external documents (contexts,
         /// schemas and referenced TD/TM documents combined) resolved for a
         /// single top-level conversion.
@@ -293,6 +305,13 @@ namespace Opc.Ua.Wot
                     nameof(ConformanceMode),
                     ConformanceMode,
                     "The conformance mode is not defined.");
+            }
+            if (ProjectionCompatibilityMode is not (
+                WotProjectionCompatibilityMode.None or WotProjectionCompatibilityMode.DraftProjection11))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(ProjectionCompatibilityMode), ProjectionCompatibilityMode,
+                    "The projection compatibility mode is not defined.");
             }
             foreach (string claim in RequiredConformance)
             {

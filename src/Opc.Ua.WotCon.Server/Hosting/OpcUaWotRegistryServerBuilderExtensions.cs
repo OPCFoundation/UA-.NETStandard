@@ -162,7 +162,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     : resourceStore is null
                         ? new FileWotRegistryStore(options.StorageFolder!)
                         : new FileWotRegistryStore(options.StorageFolder!, resourceStore);
-                return new WotRegistryService(store, options.Bounds, options.IdentityBindings);
+                return new WotRegistryService(
+                    store, options.Bounds, options.IdentityBindings, options.ProjectionCompatibilityMode);
             });
 
             services.TryAddSingleton(sp =>
@@ -199,6 +200,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     MaxJsonDocumentSize = options.Bounds.MaxDocumentBytes,
                     MaxResolverDocumentBytes = options.Bounds.MaxDocumentBytes,
                     DocumentSetMode = options.DocumentSetMode,
+                    ProjectionCompatibilityMode = options.ProjectionCompatibilityMode,
+                    ProjectionFormProvider = sp.GetService<IWotProjectionFormProvider>() ??
+                        options.ProjectionFormProvider,
                     ValueEncodingContext = sp.GetService<IServiceMessageContext>()
                 };
                 converterOptions.Validate();

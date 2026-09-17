@@ -532,6 +532,7 @@ namespace Opc.Ua.WotCon.Server
                 ExpectedVersionDigestHex = baselineContentKey,
                 ExpectedVersionIncarnation = baselineVersionIncarnation,
                 Kind = kind,
+                DetectProjectionFormat = true,
                 Content = ByteString.From(content),
                 ContentType = kind == WoTDocumentKindEnum.ThingModel
                     ? "application/tm+json"

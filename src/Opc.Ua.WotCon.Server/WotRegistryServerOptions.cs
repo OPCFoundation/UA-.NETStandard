@@ -85,6 +85,19 @@ namespace Opc.Ua.WotCon.Server
         public WotDocumentSetMode DocumentSetMode { get; set; } = WotDocumentSetMode.PartitionReconstruction;
 
         /// <summary>
+        /// Gets or sets explicitly permitted legacy projection-plan syntax.
+        /// Ordinary TD-only uploads never use this compatibility mode.
+        /// </summary>
+        public WotProjectionCompatibilityMode ProjectionCompatibilityMode { get; set; }
+
+        /// <summary>
+        /// Gets or sets the provider of actual projection-host forms.
+        /// A provider registered in DI takes precedence. No provider means
+        /// missing host forms fail resolution rather than borrowing source forms.
+        /// </summary>
+        public IWotProjectionFormProvider? ProjectionFormProvider { get; set; }
+
+        /// <summary>
         /// Gets or sets how a superseded projection generation is retired after
         /// a successful version switch.
         /// </summary>

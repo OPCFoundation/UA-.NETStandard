@@ -94,7 +94,7 @@ namespace Opc.Ua.Wot
                 }
                 try
                 {
-                    using JsonDocument value = JsonDocument.Parse(
+                    using var value = JsonDocument.Parse(
                         entry.Json, new JsonDocumentOptions { MaxDepth = options.MaxJsonDepth });
                     if (value.RootElement.ValueKind is JsonValueKind.String or JsonValueKind.Null)
                     {
@@ -316,11 +316,14 @@ namespace Opc.Ua.Wot
                 JsonNode? applied = entry.LinkRel is not null
                     ? ApplyLinkEntry(root, entry, value, diagnostics)
                     : ApplyEntry(root, entry.Pointer, value, diagnostics, nodeSet, generatedDocument, options);
-                using JsonDocument original = JsonDocument.Parse(
+                using var original = JsonDocument.Parse(
                     entry.Json, new JsonDocumentOptions { MaxDepth = options.MaxJsonDepth });
                 string[] entryTokens = ParsePointer(entry.Pointer);
                 bool opaque = entryTokens.Contains("@context") ||
                     WotBindingConformance.OpaqueMembers.Contains(entryTokens[^1]) ||
+                    (WotNodeSetConverter.IsLiteralSchemaMember(entryTokens[^1]) &&
+                        (entryTokens.Length == 1 ||
+                            !WotNodeSetConverter.IsSchemaDeclarationMap(entryTokens[^2]))) ||
                     (entry.Pointer == "/uav:nodes" &&
                         WotNativeProjection.HasUnsupportedProfile(original.RootElement));
                 CaptureRawValues(applied, value, original.RootElement, opaque, rawValues);
@@ -356,7 +359,8 @@ namespace Opc.Ua.Wot
             JsonNode? source,
             JsonElement original,
             bool opaque,
-            Dictionary<JsonNode, RawValue> rawValues)
+            Dictionary<JsonNode, RawValue> rawValues,
+            bool indexMap = false)
         {
             if (target is null || source is null)
             {
@@ -378,8 +382,12 @@ namespace Opc.Ua.Wot
                 {
                     CaptureRawValues(
                         targetObject[property.Name], sourceObject[property.Name], property.Value,
-                        property.Name == "@context" || WotBindingConformance.OpaqueMembers.Contains(property.Name),
-                        rawValues);
+                        !indexMap &&
+                        (property.Name == "@context" ||
+                            WotBindingConformance.OpaqueMembers.Contains(property.Name) ||
+                            WotNodeSetConverter.IsLiteralSchemaMember(property.Name)),
+                        rawValues,
+                        !indexMap && WotNodeSetConverter.IsSchemaDeclarationMap(property.Name));
                 }
             }
             else if (original.ValueKind == JsonValueKind.Array &&
@@ -413,7 +421,7 @@ namespace Opc.Ua.Wot
             }
             if (rawValues.TryGetValue(node, out RawValue raw))
             {
-                if (JsonNode.DeepEquals(node, raw.Snapshot))
+                if (JsonEquals(node, raw.Snapshot))
                 {
                     // The complete output is parsed below to enforce combined nesting depth.
                     writer.WriteRawValue(raw.Json, skipInputValidation: true);
@@ -570,6 +578,8 @@ namespace Opc.Ua.Wot
                         break;
                 }
             }
+            CaptureDataTypeLiteralMembers(
+                document, nodeSet, entries, diagnostics, resolvedDefinitionBinding ?? ResolveDefinitionBinding);
             if (WotNodeSetConverter.TryGetUnrepresentedDocumentLocale(document, nodeSet, out string? locale))
             {
                 entries.Add(new Entry
@@ -614,13 +624,71 @@ namespace Opc.Ua.Wot
             }
         }
 
+        private static void CaptureDataTypeLiteralMembers(
+            WotDocument document,
+            UANodeSet nodeSet,
+            List<Entry> entries,
+            List<WotDiagnostic> diagnostics,
+            Func<JsonElement, string?> resolveDefinitionBinding)
+        {
+            ArrayOf<UADataType> generatedTypes = WotNodeSetConverter.CollectDataTypeNodes(nodeSet);
+            foreach ((JsonElement definition, string pointer) in
+                WotNodeSetConverter.ReadDataTypeDefinitionLocations(document.RootElement))
+            {
+                JsonProperty[] literals = [.. definition.EnumerateObject().Where(property =>
+                    WotBindingConformance.OpaqueMembers.Contains(property.Name) ||
+                    WotNodeSetConverter.IsLiteralSchemaMember(property.Name))];
+                if (literals.Length == 0)
+                {
+                    continue;
+                }
+                string? identity = resolveDefinitionBinding(definition);
+                int index = -1;
+                if (identity is not null)
+                {
+                    for (int candidate = 0; candidate < generatedTypes.Count; candidate++)
+                    {
+                        if (string.Equals(
+                            WotNodeSetConverter.ToPortableNodeId(
+                                generatedTypes[candidate].NodeId, nodeSet.NamespaceUris),
+                            identity, StringComparison.Ordinal))
+                        {
+                            index = candidate;
+                            break;
+                        }
+                    }
+                }
+                if (index < 0)
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error, WotDiagnosticCode.ResidueInvalid,
+                        "A DataType literal has no corresponding generated definition.",
+                        WotLocation.FromPointer(pointer)));
+                    continue;
+                }
+                string generatedPointer = "/uav:dataTypeDefinitions/" + index.ToString(CultureInfo.InvariantCulture);
+                if (definition.TryGetProperty("@context", out JsonElement context))
+                {
+                    Add(entries, generatedPointer + "/@context", context);
+                }
+                foreach (JsonProperty literal in literals)
+                {
+                    entries.Add(new Entry
+                    {
+                        Pointer = generatedPointer + "/" + Escape(literal.Name),
+                        Json = literal.Value.GetRawText()
+                    });
+                }
+            }
+        }
+
         private static void CaptureContext(
             JsonElement owner,
             JsonElement context,
             string pointer,
             List<Entry> entries)
         {
-            if (CaptureBindingContext(context, pointer, entries))
+            if (IsGeneratedContextReference(context) || CaptureBindingContext(context, pointer, entries))
             {
                 return;
             }
@@ -638,15 +706,7 @@ namespace Opc.Ua.Wot
 
             foreach (JsonElement item in context.EnumerateArray())
             {
-                if (item.ValueKind == JsonValueKind.String &&
-                    (string.Equals(
-                            item.GetString(),
-                            WotVocabulary.WotContext,
-                            StringComparison.Ordinal) ||
-                        string.Equals(
-                            item.GetString(),
-                            WotVocabulary.BindingContext,
-                            StringComparison.Ordinal)))
+                if (IsGeneratedContextReference(item))
                 {
                     // Both context identities are re-derived by the forward
                     // direction, which names them on every document it writes.
@@ -667,6 +727,12 @@ namespace Opc.Ua.Wot
                 }
                 Add(entries, pointer + "/-", item);
             }
+        }
+
+        private static bool IsGeneratedContextReference(JsonElement context)
+        {
+            return context.ValueKind == JsonValueKind.String &&
+                context.GetString() is WotVocabulary.WotContext or WotVocabulary.BindingContext;
         }
 
         private static bool CaptureBindingContext(JsonElement context, string pointer, List<Entry> entries)
@@ -1609,7 +1675,8 @@ namespace Opc.Ua.Wot
                     }
                     foreach (JsonProperty member in value.EnumerateObject())
                     {
-                        if (nativeType is not null && member.Name == "@type" &&
+                        if (nativeType is not null &&
+                            member.Name == "@type" &&
                             (member.Value.ValueKind == JsonValueKind.String ||
                                 (member.Value.ValueKind == JsonValueKind.Array &&
                                     member.Value.EnumerateArray().All(item => item.ValueKind == JsonValueKind.String))))
@@ -1933,6 +2000,10 @@ namespace Opc.Ua.Wot
                     ApplyTypeAnnotations(targetObject, value, pointer, diagnostics);
                     return targetObject[leaf];
                 }
+                if (tokens.Length == 3 && tokens[0] == "uav:dataTypeDefinitions" && leaf == "@context")
+                {
+                    return ApplyDataTypeContext(targetObject, value, pointer, generatedDocument, diagnostics);
+                }
                 JsonNode? existing = targetObject[leaf];
                 if (existing is not null)
                 {
@@ -1946,7 +2017,8 @@ namespace Opc.Ua.Wot
                     {
                         return targetObject[leaf];
                     }
-                    if (tokens.Length == 2 && tokens[0] is "properties" or "actions" or "events" &&
+                    if (tokens.Length == 2 &&
+                        tokens[0] is "properties" or "actions" or "events" &&
                         value is JsonObject affordance &&
                         TryApplyContextualAffordance(
                             root, targetObject, tokens[0], leaf, affordance, nodeSet, options, diagnostics))
@@ -2081,6 +2153,76 @@ namespace Opc.Ua.Wot
             }
             action[member] = replacement;
             return true;
+        }
+
+        private static JsonNode? ApplyDataTypeContext(
+            JsonObject definition,
+            JsonNode? context,
+            string pointer,
+            WotDocument generatedDocument,
+            List<WotDiagnostic> diagnostics)
+        {
+            string definitionPointer = pointer[..pointer.LastIndexOf('/')];
+            if (!generatedDocument.TryEvaluatePointer(definitionPointer, out JsonElement generated))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error, WotDiagnosticCode.ResidueInvalid,
+                    "A DataType context has no corresponding generated definition.",
+                    WotLocation.FromPointer(pointer)));
+                return null;
+            }
+            string? name = GetString(generated, "uav:dataTypeName");
+            if (name is not null)
+            {
+                if (!WotPortableIdentity.TryResolveQualifiedName(
+                    name, generatedDocument, generated, out WotBrowsePathElement qualifiedName))
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error, WotDiagnosticCode.ResidueInvalid,
+                        "The generated DataType name cannot be resolved before applying its preserved context.",
+                        WotLocation.FromPointer(pointer)));
+                    return null;
+                }
+                // A preserved scope may reset or rebind the generator's namespace prefixes.
+                name = "nsu=" + CoreUtils.EscapeUri(qualifiedName.NamespaceUri!) + ";" + qualifiedName.Name;
+            }
+            bool hasGeneratedContext = generated.TryGetProperty("@context", out JsonElement originalContext);
+            JsonNode? generatedContext = hasGeneratedContext
+                ? JsonNode.Parse(originalContext.GetRawText()) : null;
+            JsonNode? restoredContext = context;
+            if (generatedContext is not null && !JsonEquals(generatedContext, context))
+            {
+                var combined = new JsonArray();
+                if (context is JsonArray entries)
+                {
+                    foreach (JsonNode? entry in entries)
+                    {
+                        combined.Add(entry?.DeepClone());
+                    }
+                }
+                else
+                {
+                    combined.Add(context?.DeepClone());
+                }
+                combined.Add(generatedContext);
+                restoredContext = combined;
+            }
+            if (definition.TryGetPropertyValue("@context", out JsonNode? existing) &&
+                (!hasGeneratedContext || !JsonEquals(existing, generatedContext)) &&
+                !JsonEquals(existing, restoredContext))
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error, WotDiagnosticCode.ResidueConflict,
+                    $"Residue at '{pointer}' conflicts with an already restored DataType context.",
+                    WotLocation.FromPointer(pointer)));
+                return null;
+            }
+            if (name is not null)
+            {
+                definition["uav:dataTypeName"] = name;
+            }
+            definition["@context"] = restoredContext;
+            return restoredContext;
         }
 
         private static bool TryApplyContextualAffordance(
@@ -2234,13 +2376,13 @@ namespace Opc.Ua.Wot
             var combined = new JsonArray();
             foreach (string token in existing)
             {
-                combined.Add(token);
+                combined.Add(JsonValue.Create(token));
             }
             foreach (string token in annotations)
             {
                 if (seen.Add(token))
                 {
-                    combined.Add(token);
+                    combined.Add(JsonValue.Create(token));
                 }
             }
             owner["@type"] = combined;

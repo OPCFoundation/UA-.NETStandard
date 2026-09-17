@@ -125,7 +125,7 @@ namespace Opc.Ua.WotCon.Tests
             });
             uint handle = 0;
             Assert.That(ServiceResult.IsGood(harness.Open(ModeWriteErase, ref handle)), Is.True);
-            harness.Write(handle, ByteString.From(Encoding.UTF8.GetBytes("""{"name":"pending"}""")));
+            harness.Write(handle, ByteString.From(Encoding.UTF8.GetBytes(/*lang=json,strict*/ """{"name":"pending"}""")));
             Task<ServiceResult> close = harness.CloseAndUpdateAsync(handle).AsTask();
             try
             {
@@ -403,11 +403,35 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(harness.File.Size!.Value, Is.Zero);
         }
 
+        [TestCase("\"uav:projection\"")]
+        [TestCase("[\"Thing\",\"uav:projection\"]")]
+        [TestCase("[\"tm:ThingModel\",\"uav:projection\"]")]
+        public async Task CloseAndUpdateRejectsProjectionPlansAtTheTdOnlyGate(string types)
+        {
+            using var harness = new Harness();
+            string payload = "{\"name\":\"projection\",\"title\":\"Projection plan\",\"@type\":" +
+                types +
+                ",\"uav:scenario\":\"urn:scenario:projection\"," +
+                "\"uav:projects\":[{\"uav:sourceName\":\"source\",\"href\":\"urn:source\"," +
+                "\"type\":\"application/td+json\",\"uav:selectAll\":true}]}";
+            uint handle = 0;
+            Assert.That(ServiceResult.IsGood(harness.Open(ModeWriteErase, ref handle)), Is.True);
+            Assert.That(ServiceResult.IsGood(harness.Write(handle, ByteString.From(Encoding.UTF8.GetBytes(payload)))),
+                Is.True);
+
+            ServiceResult result = await harness.CloseAndUpdateAsync(handle).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(harness.MaterialiseCallCount, Is.Zero);
+            Assert.That(harness.File.Size!.Value, Is.Zero);
+            Assert.That(harness.File.OpenCount!.Value, Is.Zero);
+        }
+
         [Test]
         [TestCase("[1, 2, 3]", TestName = "CloseAndUpdateRejectsJsonThatIsNotAnObject")]
         [TestCase("{}", TestName = "CloseAndUpdateRejectsAnObjectWithoutATitle")]
         [TestCase(
-            "{\"description\":\"no title here\"}",
+            /*lang=json,strict*/ "{\"description\":\"no title here\"}",
             TestName = "CloseAndUpdateRejectsAnObjectWithOnlyOptionalMembers")]
         public async Task CloseAndUpdateWithWellFormedJsonThatIsNotAThingDescriptionMaterializesNothing(
             string payload)

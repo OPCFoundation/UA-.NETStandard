@@ -632,15 +632,15 @@ namespace Opc.Ua.Wot
                         var dimensions = new JsonArray();
                         foreach (string dimension in field.ArrayDimensions.Split(','))
                         {
-                            dimensions.Add(uint.Parse(dimension, CultureInfo.InvariantCulture));
+                            dimensions.Add(JsonValue.Create(uint.Parse(dimension, CultureInfo.InvariantCulture)));
                         }
                         fieldSchema["uav:arrayDimensions"] = dimensions;
                     }
                     properties[field.Name!] = fieldSchema;
-                    order.Add(field.Name);
+                    order.Add(JsonValue.Create(field.Name));
                     if (!field.IsOptional && definition.Kind != ValidationDataTypeKind.Union)
                     {
-                        required.Add(field.Name);
+                        required.Add(JsonValue.Create(field.Name));
                     }
                 }
                 canonical["properties"] = properties;

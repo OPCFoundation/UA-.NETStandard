@@ -242,6 +242,10 @@ namespace Opc.Ua.Wot
             }
             var diagnostics = new List<WotDiagnostic>();
             WotThingCatalog? thingCatalog = null;
+            if (RejectUnresolvedProjectionPlan(document, diagnostics))
+            {
+                return new WotConversionResult<UANodeSet>(null, diagnostics);
+            }
             WotThingCatalog? parentCatalog = null;
             WotReferenceTypeCatalog? referenceTypeCatalog = null;
             WotEventSelectionCatalog? eventSelections = null;
@@ -1076,6 +1080,11 @@ namespace Opc.Ua.Wot
             options ??= new WotNodeSetConverterOptions();
             options.Validate();
 
+            if (RejectUnresolvedProjectionPlan(document, diagnostics))
+            {
+                return null;
+            }
+
             // Exactly one resolution context is created per top-level
             // conversion, seeded from the converter options, and threaded
             // through every context/schema/thing/link resolution below. It
@@ -1325,6 +1334,19 @@ namespace Opc.Ua.Wot
                     location));
             }
             return nodeSet;
+        }
+
+        private static bool RejectUnresolvedProjectionPlan(WotDocument document, List<WotDiagnostic> diagnostics)
+        {
+            if (!WotProjection.IsProjection(document))
+            {
+                return false;
+            }
+            diagnostics.Add(new WotDiagnostic(
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.ProjectionManifestInvalid,
+                "Projection plans must be resolved with WotProjectionResolver before ordinary TD/TM conversion."));
+            return true;
         }
 
         private static UANodeSet? ValidateNativeConsistency(
