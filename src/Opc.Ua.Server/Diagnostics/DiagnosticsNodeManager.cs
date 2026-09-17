@@ -265,8 +265,8 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadSubscriptionIdInvalid;
             }
 
-            if (context is ISessionSystemContext session &&
-                subscription.SessionId != null! &&
+            if (context is not ISessionSystemContext session ||
+                subscription.SessionId.IsNull ||
                 !subscription.SessionId.Equals(session.SessionId))
             {
                 // user tries to access subscription of different session
@@ -1362,28 +1362,58 @@ namespace Opc.Ua.Server
             if (!diagnostics.SessionId.IsNull)
             {
                 // add reference to session subscription array.
-                diagnosticsNode.AddReference(
-                    ReferenceTypeIds.HasComponent,
-                    true,
+                SessionDiagnosticsObjectState? sessionNode = FindPredefinedNode<SessionDiagnosticsObjectState>(
                     diagnostics.SessionId);
+                SubscriptionDiagnosticsArrayState? sessionArray = GetSessionSubscriptionDiagnosticsArray(sessionNode);
+                if (sessionArray != null)
+                {
+                    sessionArray.AddReference(ReferenceTypeIds.HasComponent, false, diagnosticsNode.NodeId);
+                    diagnosticsNode.AddReference(
+                        ReferenceTypeIds.HasComponent,
+                        true,
+                        sessionArray.NodeId);
+                }
+            }
+        }
+
+        private SubscriptionDiagnosticsArrayState? GetSessionSubscriptionDiagnosticsArray(
+            SessionDiagnosticsObjectState? sessionNode)
+        {
+            return sessionNode == null
+                ? null
+                : (SubscriptionDiagnosticsArrayState?)sessionNode.CreateChild(
+                    SystemContext,
+                    QualifiedName.From(BrowseNames.SubscriptionDiagnosticsArray))!;
+        }
+
+        internal void RelinkSubscriptionDiagnostics(
+            NodeId diagnosticsNodeId,
+            NodeId oldSessionId,
+            NodeId newSessionId)
+        {
+            SubscriptionDiagnosticsState? diagnosticsNode =
+                FindPredefinedNode<SubscriptionDiagnosticsState>(diagnosticsNodeId);
+            if (diagnosticsNode == null)
+            {
+                return;
             }
 
-            // add reference from session subscription array.
-            SessionDiagnosticsObjectState sessionNode = FindPredefinedNode<SessionDiagnosticsObjectState>(
-                diagnostics.SessionId);
+            SessionDiagnosticsObjectState? oldSession =
+                FindPredefinedNode<SessionDiagnosticsObjectState>(oldSessionId);
+            SubscriptionDiagnosticsArrayState? oldArray = GetSessionSubscriptionDiagnosticsArray(oldSession);
+            oldArray?.RemoveReference(ReferenceTypeIds.HasComponent, false, diagnosticsNodeId);
+            diagnosticsNode.RemoveReference(
+                ReferenceTypeIds.HasComponent,
+                true,
+                oldArray?.NodeId ?? oldSessionId);
 
-            if (sessionNode != null)
+            SessionDiagnosticsObjectState? newSession =
+                FindPredefinedNode<SessionDiagnosticsObjectState>(newSessionId);
+            SubscriptionDiagnosticsArrayState? newArray = GetSessionSubscriptionDiagnosticsArray(newSession);
+            newArray?.AddReference(ReferenceTypeIds.HasComponent, false, diagnosticsNodeId);
+            if (newArray != null)
             {
-                // add reference from subscription array.
-                array = (SubscriptionDiagnosticsArrayState?)
-                    sessionNode.CreateChild(
-                        SystemContext,
-                        QualifiedName.From(BrowseNames.SubscriptionDiagnosticsArray))!;
-
-                array?.AddReference(
-                    ReferenceTypeIds.HasComponent,
-                    false,
-                    diagnosticsNode.NodeId);
+                diagnosticsNode.AddReference(ReferenceTypeIds.HasComponent, true, newArray.NodeId);
             }
         }
 
@@ -2034,7 +2064,8 @@ namespace Opc.Ua.Server
                         Permissions = (uint)(
                             PermissionType.Browse |
                             PermissionType.Read |
-                            PermissionType.ReadRolePermissions)
+                            PermissionType.ReadRolePermissions |
+                            PermissionType.ReceiveEvents)
                     };
 
                 value = [.. rolePermissionTypes];

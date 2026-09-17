@@ -68,6 +68,12 @@ namespace Opc.Ua.Server
         public bool IsDurable { get; set; }
 
         /// <inheritdoc/>
+        public bool PublishingEnabled { get; set; }
+
+        /// <inheritdoc/>
+        public string? OwnerClientApplicationUri { get; set; }
+
+        /// <inheritdoc/>
         public uint SequenceNumber { get; set; }
 
         /// <inheritdoc/>

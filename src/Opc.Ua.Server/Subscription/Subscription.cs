@@ -235,7 +235,7 @@ namespace Opc.Ua.Server
             m_lifetimeCounter = storedSubscription.LifetimeCounter;
             m_maxKeepAliveCount = storedSubscription.MaxKeepaliveCount;
             m_maxNotificationsPerPublish = storedSubscription.MaxNotificationsPerPublish;
-            m_publishingEnabled = false;
+            m_publishingEnabled = storedSubscription.PublishingEnabled;
             Priority = storedSubscription.Priority;
             m_publishTimerExpiry = m_timeProvider.GetTimestampMilliseconds() +
                 (long)storedSubscription.PublishingInterval;
@@ -257,6 +257,7 @@ namespace Opc.Ua.Server
                 ? new UserIdentity(storedSubscription.UserIdentityToken)
                 : null;
             m_ownerUserTokenType = m_savedOwnerIdentity?.TokenType ?? UserTokenType.Anonymous;
+            m_ownerClientApplicationUri = storedSubscription.OwnerClientApplicationUri;
             if (m_savedOwnerIdentity != null)
             {
                 ClientUserIdResolver.TryResolveContinuityKey(
@@ -853,28 +854,45 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(targetSession));
             }
 
+            ISession? ownerSession = Session;
+            UserTokenType ownerTokenType = ownerSession?.IdentityToken.TokenType ?? m_ownerUserTokenType;
             UserTokenType targetTokenType = targetSession.IdentityToken.TokenType;
-            if (m_ownerUserTokenType == UserTokenType.Anonymous ||
+            if (ownerTokenType == UserTokenType.Anonymous ||
                 targetTokenType == UserTokenType.Anonymous)
             {
-                return m_ownerUserTokenType == UserTokenType.Anonymous &&
+                return ownerTokenType == UserTokenType.Anonymous &&
                     targetTokenType == UserTokenType.Anonymous &&
-                    !string.IsNullOrEmpty(m_ownerClientApplicationUri) &&
+                    !string.IsNullOrEmpty(ownerSession?.ClientApplicationUri ?? m_ownerClientApplicationUri) &&
                     string.Equals(
-                        m_ownerClientApplicationUri,
+                        ownerSession?.ClientApplicationUri ?? m_ownerClientApplicationUri,
                         targetSession.ClientApplicationUri,
                         StringComparison.Ordinal);
+            }
+
+            if (ownerSession != null)
+            {
+                return ClientUserIdResolver.TryResolveContinuityKey(
+                        ownerSession.IdentityToken,
+                        ownerSession.Identity,
+                        out string? ownerClientUserId) &&
+                    ownerClientUserId != null &&
+                    ClientUserIdResolver.TryResolveContinuityKey(
+                        targetSession.IdentityToken,
+                        targetSession.Identity,
+                        out string? currentTargetClientUserId) &&
+                    currentTargetClientUserId != null &&
+                    string.Equals(ownerClientUserId, currentTargetClientUserId, StringComparison.Ordinal);
             }
 
             return m_ownerClientUserId != null &&
                 ClientUserIdResolver.TryResolveContinuityKey(
                     targetSession.IdentityToken,
                     targetSession.Identity,
-                    out string? targetClientUserId) &&
-                targetClientUserId != null &&
+                    out string? restoredTargetClientUserId) &&
+                restoredTargetClientUserId != null &&
                 string.Equals(
                     m_ownerClientUserId,
-                    targetClientUserId,
+                    restoredTargetClientUserId,
                     StringComparison.Ordinal);
         }
 
@@ -1077,6 +1095,14 @@ namespace Opc.Ua.Server
                     m_subscription.Session = m_destinationSession;
                 }
 
+                if (m_subscription.m_server.DiagnosticsNodeManager is DiagnosticsNodeManager diagnosticsNodeManager)
+                {
+                    diagnosticsNodeManager.RelinkSubscriptionDiagnostics(
+                        m_subscription.m_diagnosticsId,
+                        m_sourceSession?.Id ?? default,
+                        m_destinationSession.Id);
+                }
+
                 m_subscription.UpdateDiagnostics(
                     diagnostics => diagnostics.SessionId = m_destinationSession.Id);
             }
@@ -1259,6 +1285,15 @@ namespace Opc.Ua.Server
                 }
 
                 m_savedOwnerIdentity = closingSession.EffectiveIdentity;
+                UpdateOwnerIdentity(closingSession);
+                if (!m_diagnosticsId.IsNull &&
+                    m_server.DiagnosticsNodeManager is DiagnosticsNodeManager diagnosticsNodeManager)
+                {
+                    diagnosticsNodeManager.RelinkSubscriptionDiagnostics(
+                        m_diagnosticsId,
+                        closingSession.Id,
+                        default);
+                }
                 Session = null!;
             }
 
@@ -3190,6 +3225,8 @@ namespace Opc.Ua.Server
                     Priority = Priority,
                     PublishingInterval = PublishingInterval,
                     UserIdentityToken = EffectiveIdentity?.TokenHandler.Token!,
+                    PublishingEnabled = m_publishingEnabled,
+                    OwnerClientApplicationUri = m_ownerClientApplicationUri,
                     MonitoredItems = monitoredItemsToStore,
                     IsDurable = IsDurable
                 };

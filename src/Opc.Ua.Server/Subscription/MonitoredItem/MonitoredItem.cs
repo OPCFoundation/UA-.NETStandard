@@ -1248,7 +1248,7 @@ namespace Opc.Ua.Server
         {
             if (QueueSize > 1)
             {
-                m_dataChangeQueueHandler!.QueueRequiredValue(
+                m_dataChangeQueueHandler?.QueueRequiredValue(
                     value,
                     error,
                     replaceExisting);

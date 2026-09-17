@@ -1427,12 +1427,13 @@ namespace Opc.Ua.Server
                 revisedLifetimeInHours = m_maxDurableSubscriptionLifetimeInHours;
             }
 
-            const uint hoursInSeconds = 3_600_000;
-            long lifetimeInSeconds = revisedLifetimeInHours * hoursInSeconds;
-            uint requestedLifeTimeCount = (uint)(lifetimeInSeconds /
+            const long millisecondsInHour = 3_600_000L;
+            long lifetimeInMilliseconds = (long)revisedLifetimeInHours * millisecondsInHour;
+            ulong requestedLifetimeCount = (ulong)(lifetimeInMilliseconds /
                 subscription.PublishingInterval);
 
-            return subscription.SetSubscriptionDurable(requestedLifeTimeCount);
+            return subscription.SetSubscriptionDurable(
+                (uint)Math.Min(requestedLifetimeCount, uint.MaxValue));
         }
 
         /// <summary>
@@ -1498,10 +1499,10 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                if (!diagnosticsExist)
-                {
-                    diagnosticInfoList.Clear();
-                }
+            }
+            if (!diagnosticsExist)
+            {
+                diagnosticInfoList.Clear();
             }
             results = resultList;
             diagnosticInfos = diagnosticInfoList;
@@ -1935,14 +1936,14 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                for (int i = 0; i < results.Count; i++)
-                {
-                    m_server.ReportAuditTransferSubscriptionEvent(
-                        context.AuditEntryId,
-                        context.Session,
-                        results[i].StatusCode,
-                        m_logger);
-                }
+            }
+            for (int i = 0; i < results.Count; i++)
+            {
+                m_server.ReportAuditTransferSubscriptionEvent(
+                    context.AuditEntryId,
+                    context.Session,
+                    results[i].StatusCode,
+                    m_logger);
             }
             return new TransferSubscriptionsResponse
             {

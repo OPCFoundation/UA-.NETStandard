@@ -958,6 +958,8 @@ namespace Opc.Ua.Redundancy.Server
             {
                 Id = subscription.Id,
                 IsDurable = subscription.IsDurable,
+                PublishingEnabled = subscription.PublishingEnabled,
+                OwnerClientApplicationUri = subscription.OwnerClientApplicationUri,
                 LifetimeCounter = subscription.LifetimeCounter,
                 MaxLifetimeCount = subscription.MaxLifetimeCount,
                 MaxKeepaliveCount = subscription.MaxKeepaliveCount,

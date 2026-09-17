@@ -47,6 +47,16 @@ namespace Opc.Ua.Server
         bool IsDurable { get; set; }
 
         /// <summary>
+        /// Whether publishing was enabled when the subscription was stored.
+        /// </summary>
+        bool PublishingEnabled { get; set; }
+
+        /// <summary>
+        /// The application URI of the client that owns the subscription.
+        /// </summary>
+        string? OwnerClientApplicationUri { get; set; }
+
+        /// <summary>
         /// The lifetime counter
         /// </summary>
         uint LifetimeCounter { get; set; }

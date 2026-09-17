@@ -222,10 +222,7 @@ namespace Opc.Ua.Server
                 Variant newValue;
                 if (!writeValue.ParsedIndexRange.IsNull)
                 {
-                    newValue = oldValue;
-                    writeValue.ParsedIndexRange.UpdateRange(
-                        ref newValue,
-                        writeValue.Value.WrappedValue);
+                    newValue = writeValue.Value.WrappedValue;
                 }
                 else
                 {
