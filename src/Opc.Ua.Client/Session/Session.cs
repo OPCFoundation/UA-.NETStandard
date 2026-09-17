@@ -1526,6 +1526,21 @@ namespace Opc.Ua.Client
 
                 ValidateServerEndpoints(serverEndpoints);
 
+                UserTokenPolicy? authenticatedIdentityPolicy =
+                    m_endpoint.Description.FindUserTokenPolicy(
+                        identityPolicy.PolicyId ?? string.Empty,
+                        identityPolicy.SecurityPolicyUri ?? string.Empty);
+                if (authenticatedIdentityPolicy == null ||
+                    !string.Equals(
+                        authenticatedIdentityPolicy.SecurityPolicyUri,
+                        identityPolicy.SecurityPolicyUri,
+                        StringComparison.Ordinal))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "The server returned a different security policy for the selected user identity token.");
+                }
+
                 ValidateServerCertificateApplicationUri(serverCertificate, m_endpoint);
 
                 ValidateServerSignature(
@@ -5021,6 +5036,16 @@ namespace Opc.Ua.Client
                         "Endpoint does not support the user identity type provided.");
 
                 identity.TokenHandler.UpdatePolicy(identityPolicy);
+            }
+
+            if (identity.TokenType == UserTokenType.UserName &&
+                (string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri) ||
+                    identityPolicy.SecurityPolicyUri == SecurityPolicies.None) &&
+                m_endpoint.Description.SecurityMode != MessageSecurityMode.SignAndEncrypt)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "A UserName identity token without token encryption requires a SignAndEncrypt channel.");
             }
 
             requireEncryption = securityPolicyUri != SecurityPolicies.None;

@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -136,7 +137,7 @@ namespace Opc.Ua
                 .ScanAsync(CertPrefix, ct)
                 .ConfigureAwait(false))
             {
-                if (TryDecodeCertificate(entry.Value, out Certificate? certificate))
+                if (TryDecodeCertificate(entry.Key, entry.Value, out Certificate? certificate))
                 {
                     // Add takes its own reference (AddRef); release the local one.
                     certificates.Add(certificate);
@@ -167,7 +168,7 @@ namespace Opc.Ua
             }
 
             await m_store
-                .SetAsync(key, EncodeCertificate(certificate), ct)
+                .SetAsync(key, EncodeCertificate(key, certificate), ct)
                 .ConfigureAwait(false);
             if (m_logger.IsEnabled(LogLevel.Debug))
             {
@@ -195,7 +196,10 @@ namespace Opc.Ua
             foreach (Certificate certificate in certificates)
             {
                 await m_store
-                    .SetAsync(CertKey(certificate.Thumbprint), EncodeCertificate(certificate), ct)
+                    .SetAsync(
+                        CertKey(certificate.Thumbprint),
+                        EncodeCertificate(CertKey(certificate.Thumbprint), certificate),
+                        ct)
                     .ConfigureAwait(false);
             }
 
@@ -234,7 +238,7 @@ namespace Opc.Ua
             (bool found, ByteString value) = await m_store
                 .TryGetAsync(CertKey(thumbprint), ct)
                 .ConfigureAwait(false);
-            if (found && TryDecodeCertificate(value, out Certificate? certificate))
+            if (found && TryDecodeCertificate(CertKey(thumbprint), value, out Certificate? certificate))
             {
                 // Add takes its own reference (AddRef); release the local one.
                 certificates.Add(certificate);
@@ -454,28 +458,46 @@ namespace Opc.Ua
             }
         }
 
-        private ByteString EncodeCertificate(Certificate certificate)
+        private ByteString EncodeCertificate(string recordKey, Certificate certificate)
         {
             byte[] der = certificate.RawData;
-            byte[] plaintext = new byte[TimestampLength + der.Length];
+            byte[] key = Encoding.UTF8.GetBytes(recordKey);
+            byte[] plaintext = new byte[TimestampLength + sizeof(int) + key.Length + der.Length];
             BinaryPrimitives.WriteInt64LittleEndian(plaintext, DateTime.UtcNow.Ticks);
-            der.CopyTo(plaintext.AsSpan(TimestampLength));
+            BinaryPrimitives.WriteInt32LittleEndian(plaintext.AsSpan(TimestampLength), key.Length);
+            key.CopyTo(plaintext.AsSpan(TimestampLength + sizeof(int)));
+            der.CopyTo(plaintext.AsSpan(TimestampLength + sizeof(int) + key.Length));
             return m_protector.Protect(new ByteString(plaintext));
         }
 
-        private bool TryDecodeCertificate(ByteString value, [NotNullWhen(true)] out Certificate? certificate)
+        private bool TryDecodeCertificate(
+            string recordKey,
+            ByteString value,
+            [NotNullWhen(true)] out Certificate? certificate)
         {
             certificate = null;
             if (!TryUnprotect(value, out ByteString plaintext) ||
-                plaintext.Span.Length <= TimestampLength)
+                plaintext.Span.Length <= TimestampLength + sizeof(int))
             {
                 return false;
             }
 
             try
             {
+                ReadOnlySpan<byte> data = plaintext.Span;
+                int keyLength = BinaryPrimitives.ReadInt32LittleEndian(
+                    data[TimestampLength..]);
+                byte[] expectedKey = Encoding.UTF8.GetBytes(recordKey);
+                if (keyLength != expectedKey.Length ||
+                    !CryptographicOperations.FixedTimeEquals(
+                        data.Slice(TimestampLength + sizeof(int), keyLength),
+                        expectedKey))
+                {
+                    return false;
+                }
+
                 certificate = Certificate.FromRawData(
-                    plaintext.Span[TimestampLength..].ToArray());
+                    data[(TimestampLength + sizeof(int) + keyLength)..].ToArray());
                 return true;
             }
             catch (Exception ex)

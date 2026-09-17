@@ -74,7 +74,7 @@ namespace Opc.Ua.Client
         {
             if (string.IsNullOrEmpty(serverUri))
             {
-                throw new ArgumentException("Server URI must not be empty.", nameof(serverUri));
+                return null;
             }
 
             if (currentEndpoint is null)
@@ -84,11 +84,23 @@ namespace Opc.Ua.Client
 
             foreach (string discoveryUrl in GetDiscoveryUrls(currentEndpoint))
             {
-                ConfiguredEndpoint? endpoint = await ResolveWithDiscoveryUrlAsync(
-                    serverUri,
-                    currentEndpoint,
-                    discoveryUrl,
-                    ct).ConfigureAwait(false);
+                ConfiguredEndpoint? endpoint;
+                try
+                {
+                    endpoint = await ResolveWithDiscoveryUrlAsync(
+                        serverUri,
+                        currentEndpoint,
+                        discoveryUrl,
+                        ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch
+                {
+                    continue;
+                }
                 if (endpoint != null)
                 {
                     return endpoint;

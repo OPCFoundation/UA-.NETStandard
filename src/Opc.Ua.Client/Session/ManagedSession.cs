@@ -1087,6 +1087,18 @@ namespace Opc.Ua.Client
                     // that only ever connects in reverse.
                     ITransportWaitingConnection? waitingConnection =
                         Interlocked.Exchange(ref m_initialConnection, null);
+                    IUserIdentity? initialIdentity = m_identity;
+                    if (m_identityProvider != null)
+                    {
+                        ServiceMessageContext identityContext =
+                            m_configuration.CreateMessageContext();
+                        initialIdentity = await m_identityProvider
+                            .AcquireIdentityAsync(
+                                ConfiguredEndpoint.Description,
+                                identityContext,
+                                ct)
+                            .ConfigureAwait(false);
+                    }
 
                     if (waitingConnection != null)
                     {
@@ -1098,7 +1110,7 @@ namespace Opc.Ua.Client
                             m_checkDomain,
                             m_sessionName,
                             m_sessionTimeout,
-                            m_identityProvider == null ? m_identity : null,
+                            initialIdentity,
                             m_preferredLocales,
                             ct).ConfigureAwait(false);
                     }
@@ -1115,7 +1127,7 @@ namespace Opc.Ua.Client
                             m_checkDomain,
                             m_sessionName,
                             m_sessionTimeout,
-                            m_identityProvider == null ? m_identity : null,
+                            initialIdentity,
                             m_preferredLocales,
                             ct).ConfigureAwait(false);
                     }
@@ -1135,7 +1147,7 @@ namespace Opc.Ua.Client
                             m_checkDomain,
                             m_sessionName,
                             m_sessionTimeout,
-                            m_identityProvider == null ? m_identity : null,
+                            initialIdentity,
                             m_preferredLocales,
                             ct).ConfigureAwait(false);
                     }
@@ -1148,7 +1160,7 @@ namespace Opc.Ua.Client
                             m_checkDomain,
                             m_sessionName,
                             m_sessionTimeout,
-                            m_identityProvider == null ? m_identity : null,
+                            initialIdentity,
                             m_preferredLocales,
                             ct).ConfigureAwait(false);
                     }
@@ -1165,13 +1177,6 @@ namespace Opc.Ua.Client
                 {
                     if (m_identityProvider != null)
                     {
-                        using (await m_serviceLock.WriterLockAsync(ct)
-                            .ConfigureAwait(false))
-                        {
-                            await session
-                                .UpdateIdentityAsync(m_identityProvider, ct: ct)
-                                .ConfigureAwait(false);
-                        }
                         StartIdentityRefreshLoop();
                     }
 
@@ -1204,9 +1209,21 @@ namespace Opc.Ua.Client
 
                     if (m_redundancyHandler != null)
                     {
-                        m_redundancyInfo = await m_redundancyHandler
-                            .FetchRedundancyInfoAsync(this, ct)
-                            .ConfigureAwait(false);
+                        try
+                        {
+                            m_redundancyInfo = await m_redundancyHandler
+                                .FetchRedundancyInfoAsync(this, ct)
+                                .ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                        {
+                            throw;
+                        }
+                        catch (Exception ex)
+                        {
+                            m_redundancyInfo = null;
+                            m_logger.ManagedSessionRedundancyDiscoveryFailed(ex);
+                        }
                     }
                 }
                 catch
@@ -2332,6 +2349,12 @@ namespace Opc.Ua.Client
         [LoggerMessage(EventId = ClientEventIds.ManagedSession + 26, Level = LogLevel.Error,
             Message = "ManagedSession: Disposal after initial connection failure failed.")]
         public static partial void ManagedSessionDisposalAfterConnectionFailureFailed(
+            this ILogger logger,
+            Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 27, Level = LogLevel.Warning,
+            Message = "ManagedSession: Redundancy discovery failed; continuing with the connected session.")]
+        public static partial void ManagedSessionRedundancyDiscoveryFailed(
             this ILogger logger,
             Exception? exception);
     }

@@ -254,10 +254,25 @@ namespace Opc.Ua.Client
             for (int ii = 0; ii < redundantServers.Count; ii++)
             {
                 RedundantServer server = redundantServers[ii];
-                ConfiguredEndpoint? endpoint = await ResolveEndpointAsync(
-                    server.ServerUri,
-                    currentEndpoint,
-                    ct).ConfigureAwait(false);
+                ConfiguredEndpoint? endpoint = null;
+                if (!string.IsNullOrEmpty(server.ServerUri))
+                {
+                    try
+                    {
+                        endpoint = await ResolveEndpointAsync(
+                            server.ServerUri,
+                            currentEndpoint,
+                            ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch
+                    {
+                        // A redundant peer is optional during initial connect.
+                    }
+                }
                 result.Add(new RedundantServer
                 {
                     ServerUri = server.ServerUri,
