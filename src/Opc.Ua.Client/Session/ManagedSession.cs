@@ -1330,6 +1330,13 @@ namespace Opc.Ua.Client
                     }
                 }
 
+                if (m_redundancyHandler != null)
+                {
+                    m_redundancyInfo = await m_redundancyHandler
+                        .FetchRedundancyInfoAsync(this, ct)
+                        .ConfigureAwait(false);
+                }
+
                 m_reconnectPolicy.Reset();
 
                 m_logger.ManagedSessionReconnected();
@@ -1475,7 +1482,7 @@ namespace Opc.Ua.Client
             IRetryBudget budget,
             CancellationToken ct)
         {
-            if (m_redundancyHandler == null || m_redundancyInfo == null)
+            if (m_redundancyHandler == null)
             {
                 return new ServiceResult(
                     StatusCodes.BadNotSupported);
@@ -1483,6 +1490,14 @@ namespace Opc.Ua.Client
 
             try
             {
+                m_redundancyInfo = await m_redundancyHandler
+                    .FetchRedundancyInfoAsync(this, ct)
+                    .ConfigureAwait(false);
+                if (m_redundancyInfo == null)
+                {
+                    return new ServiceResult(StatusCodes.BadNothingToDo);
+                }
+
                 ConfiguredEndpoint currentEndpoint = m_session?.ConfiguredEndpoint
                     ?? ConfiguredEndpoint;
                 ConfiguredEndpoint? failoverEndpoint =
