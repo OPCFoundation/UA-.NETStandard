@@ -365,7 +365,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public object Clone()
         {
-            return new IssuedIdentityTokenHandler(m_token)
+            return new IssuedIdentityTokenHandler(CoreUtils.Clone(m_token)!, m_securityPolicies)
             {
                 IssuedTokenTypeProfileUri = IssuedTokenTypeProfileUri,
                 DecryptedTokenData = m_decryptedTokenData

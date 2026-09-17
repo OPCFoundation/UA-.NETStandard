@@ -347,7 +347,7 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(StatusCodes.BadInvalidArgument);
                     }
                 }
-                var decryptor = EncryptedSecret.CreateForRsa(context.AsMessageContext(), policyUri, receiver);
+                using var decryptor = EncryptedSecret.CreateForRsa(context.AsMessageContext(), policyUri, receiver);
                 (bool success, byte[]? decoded) = await decryptor.TryDecryptAsync(encoded, [], ct).ConfigureAwait(false);
                 if (!success || decoded == null)
                 {

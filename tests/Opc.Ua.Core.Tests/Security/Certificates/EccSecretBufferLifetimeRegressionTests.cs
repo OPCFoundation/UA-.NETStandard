@@ -27,8 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
+// CA2000: test code manages disposable ownership explicitly in the harness.
+#pragma warning disable CA2000
 using System;
 using System.Linq;
 using System.Security.Cryptography;

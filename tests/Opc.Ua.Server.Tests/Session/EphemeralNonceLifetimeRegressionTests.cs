@@ -29,6 +29,8 @@
 
 #nullable enable
 
+// CA2000: the test harness owns or immediately tears down the disposable cryptographic helpers.
+#pragma warning disable CA2000
 using System;
 using System.Reflection;
 using System.Security.Cryptography;

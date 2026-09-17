@@ -22,14 +22,12 @@ using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Parameters;
 #endif
 
-#nullable enable
-
 namespace Opc.Ua
 {
     /// <summary>
     /// Utility class for encrypting and decrypting secrets using Elliptic Curve Cryptography (ECC).
     /// </summary>
-    public class EncryptedSecret
+    public sealed class EncryptedSecret : IDisposable
     {
         private static readonly TimeSpan s_rsaEncryptedSecretMaxClockSkew = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan s_rsaEncryptedSecretMaxTokenAge = TimeSpan.FromHours(1);
@@ -88,6 +86,13 @@ namespace Opc.Ua
             Context = context;
             m_decrypt = decrypt ?? ((data, policy, key, iv) =>
                 CryptoUtils.SymmetricDecryptAndVerify(data, policy, key, iv));
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            DisposeOwnedSenderState();
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -181,6 +186,85 @@ namespace Opc.Ua
         public IServiceMessageContext Context { get; }
 
         private static readonly byte[] s_secretLabel = System.Text.Encoding.UTF8.GetBytes("opcua-secret");
+        private bool m_ownsSenderCertificate;
+        private bool m_ownsSenderIssuerCertificates;
+        private bool m_ownsSenderNonce;
+
+        private void ReplaceSenderCertificate(Certificate? senderCertificate, bool owns)
+        {
+            if (ReferenceEquals(SenderCertificate, senderCertificate) && m_ownsSenderCertificate == owns)
+            {
+                return;
+            }
+
+            DisposeOwnedSenderCertificate();
+            SenderCertificate = senderCertificate;
+            m_ownsSenderCertificate = owns;
+        }
+
+        private void ReplaceSenderIssuerCertificates(
+            CertificateCollection? senderIssuerCertificates,
+            bool owns)
+        {
+            if (ReferenceEquals(SenderIssuerCertificates, senderIssuerCertificates) &&
+                m_ownsSenderIssuerCertificates == owns)
+            {
+                return;
+            }
+
+            DisposeOwnedSenderIssuerCertificates();
+            SenderIssuerCertificates = senderIssuerCertificates;
+            m_ownsSenderIssuerCertificates = owns;
+        }
+
+        private void ReplaceSenderNonce(Nonce? senderNonce, bool owns)
+        {
+            if (ReferenceEquals(SenderNonce, senderNonce) && m_ownsSenderNonce == owns)
+            {
+                return;
+            }
+
+            DisposeOwnedSenderNonce();
+            SenderNonce = senderNonce;
+            m_ownsSenderNonce = owns;
+        }
+
+        private void DisposeOwnedSenderState()
+        {
+            DisposeOwnedSenderNonce();
+            DisposeOwnedSenderIssuerCertificates();
+            DisposeOwnedSenderCertificate();
+        }
+
+        private void DisposeOwnedSenderCertificate()
+        {
+            if (m_ownsSenderCertificate)
+            {
+                SenderCertificate?.Dispose();
+                SenderCertificate = null;
+                m_ownsSenderCertificate = false;
+            }
+        }
+
+        private void DisposeOwnedSenderIssuerCertificates()
+        {
+            if (m_ownsSenderIssuerCertificates)
+            {
+                SenderIssuerCertificates?.Dispose();
+                SenderIssuerCertificates = null;
+                m_ownsSenderIssuerCertificates = false;
+            }
+        }
+
+        private void DisposeOwnedSenderNonce()
+        {
+            if (m_ownsSenderNonce)
+            {
+                SenderNonce?.Dispose();
+                SenderNonce = null;
+                m_ownsSenderNonce = false;
+            }
+        }
 
         /// <summary>
         /// Creates the encrypting key and initialization vector (IV) for Elliptic Curve Cryptography (ECC) encryption or decryption.
@@ -338,7 +422,6 @@ namespace Opc.Ua
             byte[] message;
             int tagLength = 0;
             int endOfSecret;
-            int outerPaddingSize = 0;
 
             // The scope opens as soon as the key and IV exist. Laying the message
             // out between here and the encryption allocates and writes, and any
@@ -378,21 +461,6 @@ namespace Opc.Ua
 
                 endOfSecret = encoder.Position;
 
-                // reserve space for the outer padding that SymmetricEncryptAndSign will add (CBC only).
-                if (SecurityPolicy.SymmetricEncryptionAlgorithm is SymmetricEncryptionAlgorithm.Aes128Cbc or SymmetricEncryptionAlgorithm.Aes256Cbc)
-                {
-                    int blockSize = SecurityPolicy.InitializationVectorLength;
-                    int paddingByteSize = blockSize > byte.MaxValue ? 2 : 1;
-                    int paddingSize = blockSize - ((endOfSecret - startOfSecret + paddingByteSize) % blockSize);
-                    paddingSize %= blockSize;
-                    outerPaddingSize = paddingSize + paddingByteSize;
-
-                    for (int ii = 0; ii < outerPaddingSize; ii++)
-                    {
-                        encoder.WriteByte(null, 0xCD);
-                    }
-                }
-
                 // save space for tag.
                 for (int ii = 0; ii < tagLength; ii++)
                 {
@@ -413,11 +481,22 @@ namespace Opc.Ua
                 message[lengthPosition++] = (byte)((length & 0xFF0000) >> 16);
                 message[lengthPosition++] = (byte)((length & 0xFF000000) >> 24);
 
-                _ = CryptoUtils.SymmetricEncryptAndSign(
-                    new ArraySegment<byte>(message, startOfSecret, endOfSecret - startOfSecret),
-                    SecurityPolicy,
-                    encryptingKey,
-                    iv);
+                if (SecurityPolicy.SymmetricEncryptionAlgorithm is
+                    SymmetricEncryptionAlgorithm.Aes128Cbc or SymmetricEncryptionAlgorithm.Aes256Cbc)
+                {
+                    EncryptCbcWithoutPadding(
+                        new ArraySegment<byte>(message, startOfSecret, endOfSecret - startOfSecret),
+                        encryptingKey,
+                        iv);
+                }
+                else
+                {
+                    _ = CryptoUtils.SymmetricEncryptAndSign(
+                        new ArraySegment<byte>(message, startOfSecret, endOfSecret - startOfSecret),
+                        SecurityPolicy,
+                        encryptingKey,
+                        iv);
+                }
             }
             finally
             {
@@ -439,7 +518,7 @@ namespace Opc.Ua
                 signature!,
                 0,
                 message,
-                endOfSecret + outerPaddingSize + tagLength,
+                endOfSecret + tagLength,
                 signatureLength);
 
             return message;
@@ -472,14 +551,15 @@ namespace Opc.Ua
                 signingKey = Nonce.CreateRandomNonceData(SecurityPolicy.DerivedSignatureKeyLength, false);
                 encryptingKey = Nonce.CreateRandomNonceData(SecurityPolicy.SymmetricEncryptionKeyLength, false);
                 iv = Nonce.CreateRandomNonceData(SecurityPolicy.InitializationVectorLength, false);
-                keyData = Utils.Append(signingKey, encryptingKey, iv);
+                using (var keyDataEncoder = new BinaryEncoder(Context))
+                {
+                    keyDataEncoder.WriteByteString(null, signingKey);
+                    keyDataEncoder.WriteByteString(null, encryptingKey);
+                    keyDataEncoder.WriteByteString(null, iv);
+                    keyData = keyDataEncoder.CloseAndReturnBuffer();
+                }
 
-                ILogger logger = Context.Telemetry.CreateLogger<EncryptedSecret>();
-                byte[]? encryptedKeyData = SecurityPolicies.Default.Encrypt(
-                    ReceiverCertificate,
-                    SecurityPolicy.Uri,
-                    keyData).Data ??
-                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to encrypt key data.");
+                byte[] encryptedKeyData = EncryptRsaRaw(keyData!);
 
                 using var payloadEncoder = new BinaryEncoder(Context);
                 payloadEncoder.WriteByteString(null, nonce ?? []);
@@ -487,11 +567,10 @@ namespace Opc.Ua
                 byte[]? payload = payloadEncoder.CloseAndReturnBuffer();
 
                 int blockSize = SecurityPolicy.InitializationVectorLength;
-                int paddingByteSize = blockSize > byte.MaxValue ? 2 : 1;
-                int paddingSize = blockSize - ((payload!.Length + paddingByteSize) % blockSize);
+                int paddingSize = blockSize - ((payload!.Length + sizeof(ushort)) % blockSize);
                 paddingSize %= blockSize;
 
-                encryptedPayload = new byte[payload.Length + paddingSize + paddingByteSize];
+                encryptedPayload = new byte[payload.Length + paddingSize + sizeof(ushort)];
                 Buffer.BlockCopy(payload, 0, encryptedPayload, 0, payload.Length);
 
                 for (int ii = payload.Length; ii < payload.Length + paddingSize; ii++)
@@ -500,29 +579,12 @@ namespace Opc.Ua
                 }
 
                 encryptedPayload[payload.Length + paddingSize] = (byte)(paddingSize & 0xFF);
-                if (paddingByteSize > 1)
-                {
-                    encryptedPayload[payload.Length + paddingSize + 1] = (byte)((paddingSize >> 8) & 0xFF);
-                }
+                encryptedPayload[payload.Length + paddingSize + 1] = (byte)((paddingSize >> 8) & 0xFF);
 
-#pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector
-                using var aes = Aes.Create();
-                aes.Mode = CipherMode.CBC;
-                aes.Padding = PaddingMode.None;
-                aes.Key = encryptingKey;
-                aes.IV = iv;
-                using ICryptoTransform encryptor = aes.CreateEncryptor();
-#pragma warning restore CA5401
-                int bytesEncrypted = encryptor.TransformBlock(
-                    encryptedPayload,
-                    0,
-                    encryptedPayload.Length,
-                    encryptedPayload,
-                    0);
-                if (bytesEncrypted != encryptedPayload.Length)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingError);
-                }
+                EncryptCbcWithoutPadding(
+                    new ArraySegment<byte>(encryptedPayload, 0, encryptedPayload.Length),
+                    encryptingKey,
+                    iv);
 
                 ZeroMemory(payload);
 
@@ -534,7 +596,7 @@ namespace Opc.Ua
                 encoder.WriteString(null, SecurityPolicy.Uri);
                 encoder.WriteByteString(null, ComputeSha1Hash(ReceiverCertificate.RawData));
                 encoder.WriteDateTime(null, DateTime.UtcNow);
-                encoder.WriteUInt16(null, (ushort)encryptedKeyData!.Length);
+                encoder.WriteUInt16(null, (ushort)encryptedKeyData.Length);
 
                 for (int ii = 0; ii < encryptedKeyData.Length; ii++)
                 {
@@ -694,40 +756,25 @@ namespace Opc.Ua
 
             try
             {
-                ILogger logger = Context.Telemetry.CreateLogger<EncryptedSecret>();
-                keyData = RsaUtils.Decrypt(
-                    new ArraySegment<byte>(encodedSecret, keyDataStart, keyDataLength),
-                    ReceiverCertificate,
-                    SecurityPolicy.AsymmetricEncryptionAlgorithm switch
+                keyData = DecryptRsaRaw(new ArraySegment<byte>(encodedSecret, keyDataStart, keyDataLength));
+
+                using (var keyDataDecoder = new BinaryDecoder(keyData, Context))
+                {
+                    signingKey = keyDataDecoder.ReadByteString(null).ToArray();
+                    encryptingKey = keyDataDecoder.ReadByteString(null).ToArray();
+                    iv = keyDataDecoder.ReadByteString(null).ToArray();
+                    if (keyDataDecoder.Position != keyData.Length)
                     {
-                        AsymmetricEncryptionAlgorithm.RsaOaepSha1 => RsaUtils.Padding.OaepSHA1,
-                        AsymmetricEncryptionAlgorithm.RsaPkcs15Sha1 => RsaUtils.Padding.Pkcs1,
-                        _ => RsaUtils.Padding.OaepSHA256
-                    },
-                    logger);
+                        throw new ServiceResultException(StatusCodes.BadDecodingError);
+                    }
+                }
 
-                int expectedKeyDataLength =
-                    SecurityPolicy.DerivedSignatureKeyLength +
-                    SecurityPolicy.SymmetricEncryptionKeyLength +
-                    SecurityPolicy.InitializationVectorLength;
-
-                if (keyData.Length < expectedKeyDataLength)
+                if (signingKey.Length != SecurityPolicy.DerivedSignatureKeyLength ||
+                    encryptingKey.Length != SecurityPolicy.SymmetricEncryptionKeyLength ||
+                    iv.Length != SecurityPolicy.InitializationVectorLength)
                 {
                     throw new ServiceResultException(StatusCodes.BadDecodingError);
                 }
-
-                signingKey = new byte[SecurityPolicy.DerivedSignatureKeyLength];
-                encryptingKey = new byte[SecurityPolicy.SymmetricEncryptionKeyLength];
-                iv = new byte[SecurityPolicy.InitializationVectorLength];
-                int keyMaterialOffset = signingKey.Length + encryptingKey.Length;
-                if (keyMaterialOffset + iv.Length > keyData.Length)
-                {
-                    throw new ServiceResultException(StatusCodes.BadDecodingError);
-                }
-
-                Buffer.BlockCopy(keyData, 0, signingKey, 0, signingKey.Length);
-                Buffer.BlockCopy(keyData, signingKey.Length, encryptingKey, 0, encryptingKey.Length);
-                Buffer.BlockCopy(keyData, keyMaterialOffset, iv, 0, iv.Length);
 
                 if (signatureLength > 0)
                 {
@@ -755,14 +802,11 @@ namespace Opc.Ua
                 int encryptedPayloadLength = signatureStart - encryptedPayloadStart;
                 encryptedPayload = new byte[encryptedPayloadLength];
                 Buffer.BlockCopy(encodedSecret, encryptedPayloadStart, encryptedPayload, 0, encryptedPayloadLength);
-                ArraySegment<byte> plainText = CryptoUtils.SymmetricDecryptAndVerify(
-                    new ArraySegment<byte>(encryptedPayload!),
-                    SecurityPolicy,
+                DecryptCbcWithoutPadding(
+                    new ArraySegment<byte>(encryptedPayload, 0, encryptedPayload.Length),
                     encryptingKey,
                     iv);
-                byte[] plainTextArray = plainText.Array ?? throw new ServiceResultException(StatusCodes.BadDecodingError);
-                payload = new byte[plainText.Count];
-                Buffer.BlockCopy(plainTextArray, plainText.Offset, payload, 0, payload.Length);
+                payload = encryptedPayload;
 
                 using var payloadDecoder = new BinaryDecoder(payload, Context);
 
@@ -773,6 +817,26 @@ namespace Opc.Ua
                 }
 
                 secret = payloadDecoder.ReadByteString(null).ToArray();
+                int paddingStart = payloadDecoder.Position;
+                if (payload.Length < paddingStart + sizeof(ushort))
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError);
+                }
+
+                int paddingCount = payload[^2] | (payload[^1] << 8);
+                if (paddingCount != payload.Length - paddingStart - sizeof(ushort))
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError);
+                }
+
+                for (int ii = 0; ii < paddingCount; ii++)
+                {
+                    if (payload[paddingStart + ii] != (byte)(paddingCount & 0xFF))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadDecodingError);
+                    }
+                }
+
                 return true;
             }
             finally
@@ -896,6 +960,127 @@ namespace Opc.Ua
             return paddingCount;
         }
 
+        private byte[] EncryptRsaRaw(byte[] plainText)
+        {
+            using RSA rsa = ReceiverCertificate.GetRSAPublicKey()
+                ?? throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
+            return TransformRsaBlocks(plainText, rsa, GetRsaEncryptionPadding(), encrypt: true);
+        }
+
+        private byte[] DecryptRsaRaw(ArraySegment<byte> cipherText)
+        {
+            using RSA rsa = ReceiverCertificate.GetRSAPrivateKey()
+                ?? throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
+            return TransformRsaBlocks(cipherText, rsa, GetRsaEncryptionPadding(), encrypt: false);
+        }
+
+        private RSAEncryptionPadding GetRsaEncryptionPadding()
+        {
+            return SecurityPolicy.AsymmetricEncryptionAlgorithm switch
+            {
+                AsymmetricEncryptionAlgorithm.RsaOaepSha1 => RSAEncryptionPadding.OaepSHA1,
+                AsymmetricEncryptionAlgorithm.RsaPkcs15Sha1 => RSAEncryptionPadding.Pkcs1,
+                _ => RSAEncryptionPadding.OaepSHA256
+            };
+        }
+
+        private static byte[] TransformRsaBlocks(
+            ReadOnlySpan<byte> input,
+            RSA rsa,
+            RSAEncryptionPadding padding,
+            bool encrypt)
+        {
+            int cipherTextBlockSize = rsa.KeySize / 8;
+            int plainTextBlockSize = padding.Mode switch
+            {
+                RSAEncryptionPaddingMode.Pkcs1 => cipherTextBlockSize - 11,
+                RSAEncryptionPaddingMode.Oaep when padding.OaepHashAlgorithm == HashAlgorithmName.SHA1 => cipherTextBlockSize - 42,
+                RSAEncryptionPaddingMode.Oaep when padding.OaepHashAlgorithm == HashAlgorithmName.SHA256 => cipherTextBlockSize - 66,
+                _ => throw new NotSupportedException($"Unsupported RSA padding mode '{padding.Mode}'.")
+            };
+            int inputBlockSize = encrypt ? plainTextBlockSize : cipherTextBlockSize;
+
+            if (!encrypt && input.Length % cipherTextBlockSize != 0)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError);
+            }
+
+            using var output = new MemoryStream();
+
+            for (int offset = 0; offset < input.Length; offset += inputBlockSize)
+            {
+                int count = Math.Min(inputBlockSize, input.Length - offset);
+                byte[] transformed = encrypt
+                    ? rsa.Encrypt(input.Slice(offset, count).ToArray(), padding)
+                    : rsa.Decrypt(input.Slice(offset, count).ToArray(), padding);
+                output.Write(transformed, 0, transformed.Length);
+                CryptoUtils.ZeroMemory(transformed);
+            }
+
+            return output.ToArray();
+        }
+
+        private static void EncryptCbcWithoutPadding(ArraySegment<byte> payload, byte[] encryptingKey, byte[] iv)
+        {
+            byte[] data = payload.Array ?? throw new ArgumentNullException(nameof(payload));
+            if (payload.Count % iv.Length != 0)
+            {
+                throw new ServiceResultException(StatusCodes.BadEncodingError);
+            }
+
+#pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector
+            using var aes = Aes.Create();
+            aes.Mode = CipherMode.CBC;
+            aes.Padding = PaddingMode.None;
+            aes.Key = encryptingKey;
+            aes.IV = iv;
+            using ICryptoTransform encryptor = aes.CreateEncryptor();
+#pragma warning restore CA5401
+            int bytesEncrypted = encryptor.TransformBlock(
+                data,
+                payload.Offset,
+                payload.Count,
+                data,
+                payload.Offset);
+            if (bytesEncrypted != payload.Count)
+            {
+                throw new ServiceResultException(StatusCodes.BadEncodingError);
+            }
+        }
+
+        private static ArraySegment<byte> DecryptCbcWithoutPadding(
+            ArraySegment<byte> cipherText,
+            byte[] encryptingKey,
+            byte[] iv)
+        {
+            byte[] data = cipherText.Array ?? throw new ArgumentNullException(nameof(cipherText));
+            if (cipherText.Count % iv.Length != 0)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError);
+            }
+
+#pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector
+            using var aes = Aes.Create();
+            aes.Mode = CipherMode.CBC;
+            aes.Padding = PaddingMode.None;
+            aes.Key = encryptingKey;
+            aes.IV = iv;
+            using ICryptoTransform decryptor = aes.CreateDecryptor();
+#pragma warning restore CA5401
+            int bytesDecrypted = decryptor.TransformBlock(
+                data,
+                cipherText.Offset,
+                cipherText.Count,
+                data,
+                cipherText.Offset);
+            if (bytesDecrypted != cipherText.Count)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError);
+            }
+
+            return new ArraySegment<byte>(data, 0, cipherText.Offset + cipherText.Count);
+        }
+
         /// <summary>
         /// Verifies the header for an ECC encrypted message and returns the encrypted data.
         /// </summary>
@@ -959,12 +1144,33 @@ namespace Opc.Ua
                     senderCertificate.ToArray(),
                     telemetry);
 
-                SenderCertificate = senderCertificateChain[0].AddRef();
-                SenderIssuerCertificates = [];
-
-                for (int ii = 1; ii < senderCertificateChain.Count; ii++)
+                Certificate? senderCertificateToReplace = senderCertificateChain[0].AddRef();
+                try
                 {
-                    SenderIssuerCertificates.Add(senderCertificateChain[ii]);
+                    ReplaceSenderCertificate(senderCertificateToReplace, owns: true);
+                    senderCertificateToReplace = null;
+                }
+                finally
+                {
+                    senderCertificateToReplace?.Dispose();
+                }
+
+                CertificateCollection? senderIssuerCertificates = null;
+                try
+                {
+                    senderIssuerCertificates = new CertificateCollection();
+
+                    for (int ii = 1; ii < senderCertificateChain.Count; ii++)
+                    {
+                        senderIssuerCertificates.Add(senderCertificateChain[ii]);
+                    }
+
+                    ReplaceSenderIssuerCertificates(senderIssuerCertificates, owns: true);
+                    senderIssuerCertificates = null;
+                }
+                finally
+                {
+                    senderIssuerCertificates?.Dispose();
                 }
 
                 // validate the sender.
@@ -1003,7 +1209,17 @@ namespace Opc.Ua
 
             int startOfEncryption = decoder.Position;
 
-            SenderNonce = Nonce.CreateNonce(SecurityPolicy, senderPublicKey.ToArray());
+            Nonce? senderNonceToReplace = null;
+            try
+            {
+                senderNonceToReplace = Nonce.CreateNonce(SecurityPolicy, senderPublicKey.ToArray());
+                ReplaceSenderNonce(senderNonceToReplace, owns: true);
+                senderNonceToReplace = null;
+            }
+            finally
+            {
+                senderNonceToReplace?.Dispose();
+            }
 
             if (!Utils.IsEqual(receiverPublicKey.ToArray(), ReceiverNonce?.Data))
             {
@@ -1013,7 +1229,7 @@ namespace Opc.Ua
             }
 
             // check the signature.
-            int signatureLength = CryptoUtils.GetSignatureLength(SenderCertificate);
+            int signatureLength = CryptoUtils.GetSignatureLength(SenderCertificate!);
 
             if (signatureLength >= length)
             {
@@ -1109,12 +1325,33 @@ namespace Opc.Ua
                     senderCertificate.ToArray(),
                     telemetry);
 
-                SenderCertificate = senderCertificateChain[0].AddRef();
-                SenderIssuerCertificates = [];
-
-                for (int ii = 1; ii < senderCertificateChain.Count; ii++)
+                Certificate? senderCertificateToReplace = senderCertificateChain[0].AddRef();
+                try
                 {
-                    SenderIssuerCertificates.Add(senderCertificateChain[ii]);
+                    ReplaceSenderCertificate(senderCertificateToReplace, owns: true);
+                    senderCertificateToReplace = null;
+                }
+                finally
+                {
+                    senderCertificateToReplace?.Dispose();
+                }
+
+                CertificateCollection? senderIssuerCertificates = null;
+                try
+                {
+                    senderIssuerCertificates = new CertificateCollection();
+
+                    for (int ii = 1; ii < senderCertificateChain.Count; ii++)
+                    {
+                        senderIssuerCertificates.Add(senderCertificateChain[ii]);
+                    }
+
+                    ReplaceSenderIssuerCertificates(senderIssuerCertificates, owns: true);
+                    senderIssuerCertificates = null;
+                }
+                finally
+                {
+                    senderIssuerCertificates?.Dispose();
                 }
 
                 // validate the sender.
@@ -1155,7 +1392,17 @@ namespace Opc.Ua
 
             int startOfEncryption = decoder.Position;
 
-            SenderNonce = Nonce.CreateNonce(SecurityPolicy, senderPublicKey.ToArray());
+            Nonce? senderNonceToReplace = null;
+            try
+            {
+                senderNonceToReplace = Nonce.CreateNonce(SecurityPolicy, senderPublicKey.ToArray());
+                ReplaceSenderNonce(senderNonceToReplace, owns: true);
+                senderNonceToReplace = null;
+            }
+            finally
+            {
+                senderNonceToReplace?.Dispose();
+            }
 
             if (!Utils.IsEqual(receiverPublicKey.ToArray(), ReceiverNonce?.Data))
             {
@@ -1165,7 +1412,7 @@ namespace Opc.Ua
             }
 
             // check the signature.
-            int signatureLength = CryptoUtils.GetSignatureLength(SenderCertificate);
+            int signatureLength = CryptoUtils.GetSignatureLength(SenderCertificate!);
 
             if (signatureLength >= length)
             {
@@ -1274,7 +1521,10 @@ namespace Opc.Ua
             try
             {
                 CreateKeysForEcc(SecurityPolicy, ReceiverNonce, SenderNonce, true, out encryptingKey, out iv);
-                ArraySegment<byte> plainText = m_decrypt(dataToDecrypt, SecurityPolicy, encryptingKey, iv);
+                ArraySegment<byte> plainText = SecurityPolicy.SymmetricEncryptionAlgorithm is
+                    SymmetricEncryptionAlgorithm.Aes128Cbc or SymmetricEncryptionAlgorithm.Aes256Cbc
+                    ? DecryptCbcWithoutPadding(dataToDecrypt, encryptingKey, iv)
+                    : m_decrypt(dataToDecrypt, SecurityPolicy, encryptingKey, iv);
                 using var decoder = new BinaryDecoder(
                     plainText.GetArray(),
                     plainText.Offset + dataToDecrypt.Offset,

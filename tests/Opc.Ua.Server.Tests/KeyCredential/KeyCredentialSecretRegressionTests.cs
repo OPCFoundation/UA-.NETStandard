@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test helpers intentionally transfer disposable ownership or use short-lived throwaway values.
+#pragma warning disable CA2000
 using System;
 using System.Linq;
 using System.Threading;

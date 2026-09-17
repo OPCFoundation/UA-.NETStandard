@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: disposable test helpers are short-lived or ownership-transferred to the fixture under test.
+#pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
 using System.IO;
