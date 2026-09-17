@@ -551,7 +551,7 @@ namespace Opc.Ua
 
             Variant rhs = GetValue(operands[0]);
 
-            return rhs.ValueIsDefaultOrNull;
+            return rhs.IsNull;
         }
 
         /// <summary>
@@ -701,7 +701,7 @@ namespace Opc.Ua
                 }
 
                 // get whether to include type definition subtypes.
-                bool? includeTypeDefinitionSubtypes = true;
+                bool? includeTypeDefinitionSubtypes = false;
 
                 Variant includeValue = GetValue(operands[4]);
 
@@ -711,7 +711,7 @@ namespace Opc.Ua
                 }
 
                 // get whether to include reference type subtypes.
-                bool? includeReferenceTypeSubtypes = true;
+                bool? includeReferenceTypeSubtypes = false;
 
                 includeValue = GetValue(operands[5]);
 

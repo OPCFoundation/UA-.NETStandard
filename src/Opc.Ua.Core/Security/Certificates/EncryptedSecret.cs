@@ -1212,7 +1212,9 @@ namespace Opc.Ua
             Nonce? senderNonceToReplace = null;
             try
             {
+#pragma warning disable CA2000 // Ownership transfers to EncryptedSecret through ReplaceSenderNonce.
                 senderNonceToReplace = Nonce.CreateNonce(SecurityPolicy, senderPublicKey.ToArray());
+#pragma warning restore CA2000
                 ReplaceSenderNonce(senderNonceToReplace, owns: true);
                 senderNonceToReplace = null;
             }
@@ -1395,7 +1397,9 @@ namespace Opc.Ua
             Nonce? senderNonceToReplace = null;
             try
             {
+#pragma warning disable CA2000 // Ownership transfers to EncryptedSecret through ReplaceSenderNonce.
                 senderNonceToReplace = Nonce.CreateNonce(SecurityPolicy, senderPublicKey.ToArray());
+#pragma warning restore CA2000
                 ReplaceSenderNonce(senderNonceToReplace, owns: true);
                 senderNonceToReplace = null;
             }

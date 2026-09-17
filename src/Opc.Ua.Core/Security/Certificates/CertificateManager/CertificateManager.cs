@@ -283,9 +283,7 @@ namespace Opc.Ua
             // Propagate to any already-created cached cores so behavior
             // changes when MapFromSecurityConfiguration is called more than
             // once on the same manager.
-            ApplyValidationFlags(m_peerCore);
-            ApplyValidationFlags(m_userCore);
-            ApplyValidationFlags(m_httpsCore);
+            ApplyValidationFlagsToCachedCores();
             lock (m_certificatesLock)
             {
                 foreach (CertificateValidationCore core in m_customCores.Values)
@@ -432,9 +430,7 @@ namespace Opc.Ua
                 lock (m_certificatesLock)
                 {
                     m_autoAcceptUntrustedCertificates = value;
-                    ApplyValidationFlags(m_peerCore);
-                    ApplyValidationFlags(m_userCore);
-                    ApplyValidationFlags(m_httpsCore);
+                    ApplyValidationFlagsToCachedCores();
                 }
             }
         }
@@ -451,9 +447,7 @@ namespace Opc.Ua
                 lock (m_certificatesLock)
                 {
                     m_rejectSHA1SignedCertificates = value;
-                    ApplyValidationFlags(m_peerCore);
-                    ApplyValidationFlags(m_userCore);
-                    ApplyValidationFlags(m_httpsCore);
+                    ApplyValidationFlagsToCachedCores();
                 }
             }
         }
@@ -1503,6 +1497,17 @@ namespace Opc.Ua
                 core.MinimumCertificateKeySize = m_minimumCertificateKeySize;
             }
             core.UseValidatedCertificates = m_useValidatedCertificates;
+        }
+
+        private void ApplyValidationFlagsToCachedCores()
+        {
+            ApplyValidationFlags(m_peerCore);
+            ApplyValidationFlags(m_userCore);
+            ApplyValidationFlags(m_httpsCore);
+            foreach (CertificateValidationCore core in m_customCores.Values)
+            {
+                ApplyValidationFlags(core);
+            }
         }
 
         /// <summary>
