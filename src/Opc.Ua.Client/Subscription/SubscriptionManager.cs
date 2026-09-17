@@ -961,42 +961,55 @@ namespace Opc.Ua.Client.Subscriptions
                 // useful when the caller wants the server to re-emit them
                 // to a fresh notification handler.
                 uint[] ids = [state.ServerId];
-                TransferSubscriptionsResponse response = await m_session
-                    .TransferSubscriptionsAsync(
-                        null,
-                        ids.ToArrayOf(),
-                        sendInitialValues: options.SendInitialValuesOnTransfer,
-                        ct)
-                    .ConfigureAwait(false);
-
                 bool transferred = false;
-                ResponseHeader responseHeader = response.ResponseHeader;
-                if (StatusCode.IsGood(responseHeader.ServiceResult))
+                try
                 {
-                    ArrayOf<TransferResult> results = response.Results;
-                    ClientBase.ValidateResponse(results, ids.ToArrayOf());
-                    if (results.Count > 0 && StatusCode.IsGood(results[0].StatusCode))
+                    TransferSubscriptionsResponse response = await m_session
+                        .TransferSubscriptionsAsync(
+                            null,
+                            ids.ToArrayOf(),
+                            sendInitialValues: options.SendInitialValuesOnTransfer,
+                            ct)
+                        .ConfigureAwait(false);
+
+                    ResponseHeader responseHeader = response.ResponseHeader;
+                    if (StatusCode.IsGood(responseHeader.ServiceResult))
                     {
-                        transferred = await subscription.TryCompleteTransferAsync(
-                            results[0].AvailableSequenceNumbers.IsNull
-                                ? []
-                                : [.. results[0].AvailableSequenceNumbers],
-                            ct).ConfigureAwait(false);
+                        ArrayOf<TransferResult> results = response.Results;
+                        ClientBase.ValidateResponse(results, ids.ToArrayOf());
+                        if (results.Count > 0 && StatusCode.IsGood(results[0].StatusCode))
+                        {
+                            transferred = await subscription.TryCompleteTransferAsync(
+                                results[0].AvailableSequenceNumbers.IsNull
+                                    ? []
+                                    : [.. results[0].AvailableSequenceNumbers],
+                                ct).ConfigureAwait(false);
+                        }
+                        else if (results.Count > 0)
+                        {
+                            m_logger.TransferPerItemResultBad(subscription.Id, results[0].StatusCode);
+                        }
                     }
-                    else if (results.Count > 0)
+                    else if (responseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
                     {
-                        m_logger.TransferPerItemResultBad(subscription.Id, results[0].StatusCode);
+                        m_logger.ServerDoesNotSupportTransfer(subscription.Id);
+                    }
+                    else
+                    {
+                        m_logger.TransferServiceLevelResultBad(
+                            subscription.Id,
+                            responseHeader.ServiceResult);
                     }
                 }
-                else if (responseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
+                catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadServiceUnsupported)
                 {
                     m_logger.ServerDoesNotSupportTransfer(subscription.Id);
                 }
-                else
+                catch (ServiceResultException ex)
                 {
                     m_logger.TransferServiceLevelResultBad(
                         subscription.Id,
-                        responseHeader.ServiceResult);
+                        ex.StatusCode);
                 }
 
                 if (!transferred && subscription is Subscription loaded)
@@ -1843,7 +1856,6 @@ namespace Opc.Ua.Client.Subscriptions
                             response.DiagnosticInfos;
                         ClientBase.ValidateResponse(acknowledgeResults, acks);
                         ClientBase.ValidateDiagnosticInfos(acknowledgeDiagnosticInfos, acks);
-                        TooManyPublishRequests = false;
 
                         // A publish completed, so the channel is healthy:
                         // clear the consecutive-error backoff state.
@@ -1991,6 +2003,7 @@ namespace Opc.Ua.Client.Subscriptions
                         if (statusCode == StatusCodes.BadTooManyPublishRequests)
                         {
                             TooManyPublishRequests = true;
+                            m_outer.m_publishControl.Set();
                         }
                         else if (statusCode == StatusCodes.BadNoSubscription ||
                             statusCode == StatusCodes.BadSessionClosed ||

@@ -424,15 +424,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 return m_partitions[0].MonitoredItems.TryRemove(clientHandle);
             }
             IManagedSubscription? owner = null;
+            string? name = null;
+            bool indexed = false;
             lock (m_partitionLock)
             {
                 if (m_byClientHandle.TryGetValue(clientHandle, out Entry entry))
                 {
                     owner = entry.Partition;
-                    string? name = entry.Item.Name;
-                    m_byClientHandle.Remove(clientHandle);
-                    m_byName.Remove(name);
-                    m_policy!.OnItemRemoved(owner);
+                    name = entry.Item.Name;
+                    indexed = true;
                 }
                 else
                 {
@@ -461,6 +461,18 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             bool removed = owner.MonitoredItems.TryRemove(clientHandle);
             if (removed)
             {
+                lock (m_partitionLock)
+                {
+                    if (indexed)
+                    {
+                        m_byClientHandle.Remove(clientHandle);
+                        if (name != null)
+                        {
+                            m_byName.Remove(name);
+                        }
+                    }
+                    m_policy?.OnItemRemoved(owner);
+                }
                 MaybeArmIdleTimer(owner);
             }
             return removed;

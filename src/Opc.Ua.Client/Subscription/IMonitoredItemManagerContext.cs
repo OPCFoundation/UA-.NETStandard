@@ -68,5 +68,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// Update
         /// </summary>
         void Update();
+
+        /// <summary>
+        /// Requests that the owning subscription recreates itself on
+        /// the next state-manager pass.
+        /// </summary>
+        void RequestRecreate();
     }
 }

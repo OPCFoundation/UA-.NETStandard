@@ -452,10 +452,11 @@ namespace Opc.Ua.Client
                 if (ContinuationPointPolicy == ContinuationPointPolicy.Balanced &&
                     MaxBrowseContinuationPoints > 0)
                 {
-                    maxNodesPerBrowse =
-                        MaxBrowseContinuationPoints < maxNodesPerBrowse
-                            ? MaxBrowseContinuationPoints
-                            : maxNodesPerBrowse;
+                    if (maxNodesPerBrowse == 0 ||
+                        MaxBrowseContinuationPoints < maxNodesPerBrowse)
+                    {
+                        maxNodesPerBrowse = MaxBrowseContinuationPoints;
+                    }
                 }
 
                 // split input into batches

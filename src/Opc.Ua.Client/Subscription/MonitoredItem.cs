@@ -897,6 +897,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             public int RetryCount { get; private set; }
 
             /// <summary>
+            /// Returns true when a successful create must replay
+            /// triggering links because the item existed on the
+            /// server before this change deleted and recreated it.
+            /// </summary>
+            public bool RequiresTriggeringReplayAfterCreate { get; }
+
+            /// <summary>
             /// Options that are the source of the change
             /// </summary>
             public MonitoredItemOptions Options { get; }
@@ -913,6 +920,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 Debug.Assert(!options.StartNodeId.IsNull);
                 Options = options;
                 Item = item;
+                RequiresTriggeringReplayAfterCreate =
+                    currentOptions != null && item.Created;
 
                 var parameters = new MonitoringParameters
                 {
@@ -951,7 +960,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 {
                     Modify = new MonitoredItemModifyRequest
                     {
-                        MonitoredItemId = item.ServerId,
                         RequestedParameters = parameters
                     };
 
@@ -968,11 +976,25 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                             Modify = null;
                         }
                     }
+
                     else
                     {
                         MonitoringModeChange = null;
                     }
                 }
+            }
+
+            /// <summary>
+            /// Binds the current server-assigned monitored-item id to
+            /// the pending modify request.
+            /// </summary>
+            internal MonitoredItemModifyRequest? BindModifyRequest()
+            {
+                if (Modify != null)
+                {
+                    Modify.MonitoredItemId = Item.ServerId;
+                }
+                return Modify;
             }
 
             /// <summary>

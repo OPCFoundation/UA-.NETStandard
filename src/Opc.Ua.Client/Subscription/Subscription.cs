@@ -478,16 +478,20 @@ namespace Opc.Ua.Client.Subscriptions
                     },
                     async token =>
                     {
-                        await CreateAsync(Options, token).ConfigureAwait(false);
-                        await RunAfterCreateHookAsync(token).ConfigureAwait(false);
-                        await m_monitoredItems.ApplyChangesAsync(true, true,
-                            token).ConfigureAwait(false);
+                        if (!Options.Disabled)
+                        {
+                            await CreateAsync(Options, token).ConfigureAwait(false);
+                            await RunAfterCreateHookAsync(token).ConfigureAwait(false);
+                            await m_monitoredItems.ApplyChangesAsync(true, true,
+                                token).ConfigureAwait(false);
+                        }
                     },
                     ct).ConfigureAwait(false);
             }
             finally
             {
                 m_stateLock.Release();
+                m_stateControl.Set();
             }
         }
 
@@ -517,12 +521,14 @@ namespace Opc.Ua.Client.Subscriptions
 
                 await m_monitoredItems.ApplyChangesAsync(true, false,
                     ct).ConfigureAwait(false);
+                await ModifyAsync(Options, ct).ConfigureAwait(false);
                 StartKeepAliveTimer();
                 return true;
             }
             finally
             {
                 m_stateLock.Release();
+                m_stateControl.Set();
             }
         }
 
@@ -685,6 +691,13 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
+        public void RequestRecreate()
+        {
+            Interlocked.Exchange(ref m_recreateRequested, 1);
+            m_stateControl.Set();
+        }
+
+        /// <inheritdoc/>
         public MonitoredItems.MonitoredItem CreateMonitoredItem(string name,
             IOptionsMonitor<MonitoredItems.MonitoredItemOptions> options, IMonitoredItemContext context)
         {
@@ -843,6 +856,17 @@ namespace Opc.Ua.Client.Subscriptions
                     async _ => await RecoverAfterUnsolicitedTransferAsync()
                         .ConfigureAwait(false));
             }
+            else if (notification.Status == StatusCodes.BadTimeout &&
+                Created &&
+                !Disposed &&
+                Interlocked.CompareExchange(
+                    ref m_recreateAfterTimeoutInProgress, 1, 0) == 0)
+            {
+                m_backgroundWork.Run(
+                    nameof(RecoverAfterSubscriptionTimeoutAsync),
+                    async _ => await RecoverAfterSubscriptionTimeoutAsync()
+                        .ConfigureAwait(false));
+            }
             return default;
         }
 
@@ -886,6 +910,21 @@ namespace Opc.Ua.Client.Subscriptions
             finally
             {
                 Interlocked.Exchange(ref m_recreateAfterTransferInProgress, 0);
+            }
+        }
+
+        private async Task RecoverAfterSubscriptionTimeoutAsync()
+        {
+            try
+            {
+                await ResetToRecreateAsync(m_cts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (m_cts.IsCancellationRequested)
+            {
+            }
+            finally
+            {
+                Interlocked.Exchange(ref m_recreateAfterTimeoutInProgress, 0);
             }
         }
 
@@ -980,6 +1019,12 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         while (!ct.IsCancellationRequested)
                         {
+                            if (Interlocked.Exchange(ref m_recreateRequested, 0) != 0)
+                            {
+                                recreateRequired = Created;
+                                break;
+                            }
+
                             if (options.Disabled)
                             {
                                 await DeleteAsync(ct).ConfigureAwait(false);
@@ -1216,6 +1261,12 @@ namespace Opc.Ua.Client.Subscriptions
                 revisedMaxKeepAliveCount, options.MaxNotificationsPerPublish,
                 options.PublishingEnabled, options.Priority, ct).ConfigureAwait(false);
 
+            RememberRequestedSettings(
+                options.PublishingInterval,
+                revisedMaxKeepAliveCount,
+                revisedLifetimeCount,
+                options.Priority,
+                options.MaxNotificationsPerPublish);
             OnSubscriptionUpdateComplete(true, response.SubscriptionId,
                 TimeSpan.FromMilliseconds(response.RevisedPublishingInterval),
                 response.RevisedMaxKeepAliveCount, response.RevisedLifetimeCount,
@@ -1234,11 +1285,12 @@ namespace Opc.Ua.Client.Subscriptions
             // modify the subscription.
             AdjustCounts(options, out uint revisedMaxKeepAliveCount, out uint revisedLifetimeCount);
 
-            if (revisedMaxKeepAliveCount != CurrentKeepAliveCount ||
-                revisedLifetimeCount != CurrentLifetimeCount ||
-                options.Priority != CurrentPriority ||
-                options.MaxNotificationsPerPublish != CurrentMaxNotificationsPerPublish ||
-                options.PublishingInterval != CurrentPublishingInterval)
+            if (ShouldModifyRequestedSettings(
+                    options.PublishingInterval,
+                    revisedMaxKeepAliveCount,
+                    revisedLifetimeCount,
+                    options.Priority,
+                    options.MaxNotificationsPerPublish))
             {
                 ModifySubscriptionResponse response = await m_context.SubscriptionServiceSet.ModifySubscriptionAsync(null, Id,
                     options.PublishingInterval.TotalMilliseconds, revisedLifetimeCount,
@@ -1250,6 +1302,12 @@ namespace Opc.Ua.Client.Subscriptions
                     await SetPublishingModeAsync(options, ct).ConfigureAwait(false);
                 }
 
+                RememberRequestedSettings(
+                    options.PublishingInterval,
+                    revisedMaxKeepAliveCount,
+                    revisedLifetimeCount,
+                    options.Priority,
+                    options.MaxNotificationsPerPublish);
                 OnSubscriptionUpdateComplete(false, 0,
                     TimeSpan.FromMilliseconds(response.RevisedPublishingInterval),
                     response.RevisedMaxKeepAliveCount, response.RevisedLifetimeCount,
@@ -1306,6 +1364,10 @@ namespace Opc.Ua.Client.Subscriptions
             byte priority, uint maxNotificationsPerPublish,
             bool publishingEnabled)
         {
+            bool keepAliveSettingsChanged =
+                CurrentKeepAliveCount != revisedKeepAliveCount ||
+                CurrentPublishingInterval != revisedPublishingInterval;
+
             if (CurrentPublishingEnabled != publishingEnabled)
             {
                 Logger.SubscriptionCreatedPublishingNew(
@@ -1357,10 +1419,23 @@ namespace Opc.Ua.Client.Subscriptions
 
             if (created)
             {
+                if (!m_requestedSettingsInitialized)
+                {
+                    RememberRequestedSettings(
+                        revisedPublishingInterval,
+                        revisedKeepAliveCount,
+                        revisedLifetimeCount,
+                        priority,
+                        maxNotificationsPerPublish);
+                }
                 Id = subscriptionId;
                 StartKeepAliveTimer();
                 NotifyManagerOfCreation();
                 m_createdEvent.Set();
+            }
+            else if (keepAliveSettingsChanged)
+            {
+                StartKeepAliveTimer();
             }
 
             // Notify all monitored items of the changes
@@ -1383,6 +1458,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             Id = 0;
             m_createdEvent.Reset();
+            m_requestedSettingsInitialized = false;
             CurrentPublishingInterval = TimeSpan.Zero;
             CurrentKeepAliveCount = 0;
             CurrentPublishingEnabled = false;
@@ -1422,7 +1498,8 @@ namespace Opc.Ua.Client.Subscriptions
             m_keepAliveInterval = CurrentPublishingInterval.Multiply(CurrentKeepAliveCount + 1);
             if (m_keepAliveInterval < s_minKeepAliveTimerInterval)
             {
-                m_keepAliveInterval = options.PublishingInterval.Multiply(options.KeepAliveCount + 1);
+                AdjustCounts(options, out uint adjustedKeepAliveCount, out _);
+                m_keepAliveInterval = options.PublishingInterval.Multiply(adjustedKeepAliveCount + 1);
             }
             if (m_keepAliveInterval > s_maxKeepAliveTimerInterval)
             {
@@ -1539,6 +1616,36 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        private void RememberRequestedSettings(
+            TimeSpan publishingInterval,
+            uint keepAliveCount,
+            uint lifetimeCount,
+            byte priority,
+            uint maxNotificationsPerPublish)
+        {
+            m_lastRequestedPublishingInterval = publishingInterval;
+            m_lastRequestedKeepAliveCount = keepAliveCount;
+            m_lastRequestedLifetimeCount = lifetimeCount;
+            m_lastRequestedPriority = priority;
+            m_lastRequestedMaxNotificationsPerPublish = maxNotificationsPerPublish;
+            m_requestedSettingsInitialized = true;
+        }
+
+        private bool ShouldModifyRequestedSettings(
+            TimeSpan publishingInterval,
+            uint keepAliveCount,
+            uint lifetimeCount,
+            byte priority,
+            uint maxNotificationsPerPublish)
+        {
+            return !m_requestedSettingsInitialized ||
+                m_lastRequestedPublishingInterval != publishingInterval ||
+                m_lastRequestedKeepAliveCount != keepAliveCount ||
+                m_lastRequestedLifetimeCount != lifetimeCount ||
+                m_lastRequestedPriority != priority ||
+                m_lastRequestedMaxNotificationsPerPublish != maxNotificationsPerPublish;
+        }
+
         private static readonly TimeSpan s_minKeepAliveTimerInterval = TimeSpan.FromSeconds(1);
         private static readonly TimeSpan s_maxKeepAliveTimerInterval =
             TimeSpan.FromMilliseconds(uint.MaxValue - 1u);
@@ -1547,6 +1654,14 @@ namespace Opc.Ua.Client.Subscriptions
         private const int kMaxApplyRetryBackoffMs = 5000;
         private TimeSpan m_keepAliveInterval;
         private int m_publishLateCount;
+        private int m_recreateRequested;
+        private int m_recreateAfterTimeoutInProgress;
+        private bool m_requestedSettingsInitialized;
+        private TimeSpan m_lastRequestedPublishingInterval;
+        private uint m_lastRequestedKeepAliveCount;
+        private uint m_lastRequestedLifetimeCount;
+        private byte m_lastRequestedPriority;
+        private uint m_lastRequestedMaxNotificationsPerPublish;
         private Func<CancellationToken, ValueTask>? m_onAfterCreateAsync;
         private readonly AsyncAutoResetEvent m_stateControl = new();
         private readonly AsyncManualResetEvent m_createdEvent = new();

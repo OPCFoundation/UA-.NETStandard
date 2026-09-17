@@ -328,16 +328,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     return;
                 }
-                bool wasDispatching = m_dispatchContext.Value;
-                m_dispatchContext.Value = true;
-                try
-                {
-                    await ProcessMessageCoreAsync(incoming, ct).ConfigureAwait(false);
-                }
-                finally
-                {
-                    m_dispatchContext.Value = wasDispatching;
-                }
+                await ProcessMessageCoreAsync(incoming, ct).ConfigureAwait(false);
             }
             finally
             {
@@ -723,7 +714,25 @@ namespace Opc.Ua.Client.Subscriptions
         /// Whether the current asynchronous flow is dispatching one of this
         /// processor's notification callbacks.
         /// </summary>
-        protected bool IsDispatchingNotification => m_dispatchContext.Value;
+        protected bool IsDispatchingNotification
+        {
+            get
+            {
+                try
+                {
+                    if (!m_messageDispatchGate.Wait(0))
+                    {
+                        return true;
+                    }
+                    m_messageDispatchGate.Release();
+                    return false;
+                }
+                catch (ObjectDisposedException)
+                {
+                    return false;
+                }
+            }
+        }
 
         private readonly ISubscriptionServiceSetClientMethods m_services;
         // CA2213: both fields are disposed in DisposeAsync(bool) — suppressed
@@ -732,7 +741,6 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly SemaphoreSlim m_messageDispatchGate = new(1, 1);
         private readonly CancellationTokenSource m_cts = new();
 #pragma warning restore CA2213
-        private readonly AsyncLocal<bool> m_dispatchContext = new();
         private long m_generation;
         private readonly Task m_messageWorkerTask;
         private readonly Channel<IncomingMessage> m_messages;
