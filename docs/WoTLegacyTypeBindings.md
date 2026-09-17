@@ -54,6 +54,13 @@ owner. Native/archive identities are not silently rebased. A preserved graph
 must use the legacy manager's owned asset namespace for its instance nodes;
 unsupported ownership is rejected rather than partially published.
 
+Native non-placement references retain both directions. Inverse hierarchical
+references must agree with the existing management parent and `Organizes`
+placement; a conflicting parent is rejected before provider effects rather
+than silently discarded. Classification uses loaded ReferenceTypes and any
+ReferenceType ancestry in the prepared native graph. Retirement removes only
+edges owned by that native generation, preserving fixed and preexisting edges.
+
 ## Upload, discovery and restart
 
 Uploaded UTF-8 bytes remain authoritative for downloads and persistence,

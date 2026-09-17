@@ -172,6 +172,15 @@ namespace Opc.Ua.WotCon.Server
             return new NodeId($"Assets/{assetName}", AssetNamespaceIndex);
         }
 
+        internal bool IsAssetParentReference(IReference reference)
+        {
+            return reference.IsInverse &&
+                reference.ReferenceTypeId == Ua.ReferenceTypeIds.Organizes &&
+                reference.TargetId.ServerIndex == 0 &&
+                m_managementObject is not null &&
+                ExpandedNodeId.ToNodeId(reference.TargetId, SystemContext.NamespaceUris) == m_managementObject.NodeId;
+        }
+
         /// <summary>
         /// Builds an unpublished asset and its fixed child hierarchy.
         /// </summary>

@@ -327,12 +327,52 @@ namespace Opc.Ua.WotCon.Server.Assets
                 root.AddReferenceIfMissing(hasWotComponent, false, variable.NodeId);
                 variable.AddReferenceIfMissing(hasWotComponent, true, root.NodeId);
             }
+            var rootReferences = new List<IReference>();
+            root.GetReferences(context, rootReferences);
+            Dictionary<NodeId, ReferenceTypeState> referenceTypes = nodes.OfType<ReferenceTypeState>()
+                .ToDictionary(node => node.NodeId);
+            foreach (IReference reference in rootReferences)
+            {
+                if (reference.IsInverse && IsHierarchicalNativeReference(reference.ReferenceTypeId, referenceTypes) &&
+                    !m_manager.IsAssetParentReference(reference))
+                {
+                    throw new ServiceResultException(StatusCodes.BadReferenceNotAllowed,
+                        "An authored native parent conflicts with the existing legacy asset placement.");
+                }
+            }
             return new WotLegacyPreparedGraph(root, nodes.ToArrayOf(), propertyNodes, actionNodes);
         }
 
         private static NodeId Remap(NodeId nodeId, Dictionary<NodeId, NodeId> mapping)
         {
             return mapping.TryGetValue(nodeId, out NodeId replacement) ? replacement : nodeId;
+        }
+
+        private bool IsHierarchicalNativeReference(
+            NodeId referenceTypeId, Dictionary<NodeId, ReferenceTypeState> declarations)
+        {
+            var visited = new HashSet<NodeId>();
+            while (visited.Add(referenceTypeId))
+            {
+                if (declarations.TryGetValue(referenceTypeId, out ReferenceTypeState? declaration))
+                {
+                    referenceTypeId = declaration.SuperTypeId;
+                    continue;
+                }
+                if (m_manager.SystemContext.TypeTable.IsTypeOf(
+                    referenceTypeId, Ua.ReferenceTypeIds.HierarchicalReferences))
+                {
+                    return true;
+                }
+                if (m_manager.SystemContext.TypeTable.IsTypeOf(
+                    referenceTypeId, Ua.ReferenceTypeIds.NonHierarchicalReferences))
+                {
+                    return false;
+                }
+                break;
+            }
+            throw new ServiceResultException(StatusCodes.BadReferenceTypeIdInvalid,
+                "A native inverse reference requires an acyclic, resolved ReferenceType hierarchy.");
         }
 
         private async ValueTask PublishNativeGraphAsync(
@@ -343,8 +383,9 @@ namespace Opc.Ua.WotCon.Server.Assets
             graph.Root.GetReferences(context, references);
             foreach (IReference reference in references)
             {
-                if (!reference.IsInverse && reference.ReferenceTypeId != Ua.ReferenceTypeIds.HasTypeDefinition &&
-                    entry.Asset.AddReferenceIfMissing(reference.ReferenceTypeId, false, reference.TargetId))
+                if (reference.ReferenceTypeId != Ua.ReferenceTypeIds.HasTypeDefinition &&
+                    entry.Asset.AddReferenceIfMissing(
+                        reference.ReferenceTypeId, reference.IsInverse, reference.TargetId))
                 {
                     graph.RootReferences.Add(reference);
                 }

@@ -47,7 +47,8 @@ namespace Opc.Ua.WotCon.Tests
             model.Root!.Element(s_nodes + "NamespaceUris")!.Add(new XElement(s_nodes + "Uri", OtherUri));
             model.Root.Element(s_nodes + "Models")!.Add(new XElement(s_nodes + "Model",
                 new XAttribute("ModelUri", OtherUri)));
-            model.Root.Elements(s_nodes + "UAObjectType").Single(node => (string?)node.Attribute("NodeId") == "ns=1;i=4001")
+            model.Root.Elements(s_nodes + "UAObjectType")
+                .Single(node => (string?)node.Attribute("NodeId") == "ns=1;i=4001")
                 .Element(s_nodes + "References")!.Add(Reference("i=46", "ns=2;i=4102"));
             XElement variable = new(model.Root.Element(s_nodes + "UAVariable")!);
             variable.SetAttributeValue("NodeId", "ns=2;i=4102");
