@@ -463,6 +463,19 @@ immutable generation. `IXRegistryVersionedProjectionStrategy` is additive and le
 explicit/server-assigned Version ids, materialize stable per-Version NodeIds, and separate Version
 labels from Resource Meta without breaking existing strategies.
 
+`XRegistryProjectionContext.ProjectionDispatcher` optionally orders current-state
+reconciliation with a domain's notification delivery. The engine uses it for
+native mutation-triggered reconciliation as well as direct
+`ReconcileProjectionAsync` calls. Each dispatched operation uses its captured
+admission-time generation rather than rereading a later snapshot when it runs,
+so an earlier operation cannot apply later removals ahead of queued notifications.
+Supplied immutable transitions retain their
+caller's existing ordering and do not recursively dispatch. Without this
+callback, the engine retains its direct reconciliation behavior. The WoT registry
+uses its existing FIFO so native deletion cannot remove a Version/notifier ahead
+of an already queued failure. This callback does not create a new durable
+transaction or generation owner.
+
 Providers that need an asynchronous owner acquisition can opt into
 `IXRegistryAsyncProjectedResourceFileHandleForwarder`,
 `IXRegistryAsyncProjectedContentlessResourceFile` and `IXRegistryPreparedResourceFile`.

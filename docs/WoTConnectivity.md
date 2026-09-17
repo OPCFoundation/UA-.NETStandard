@@ -836,10 +836,12 @@ Behaviours:
 * `Refresh` returns a detailed `WoTRefreshSummaryDataType` plus a
   per-resource `WoTResourceLoadResultDataType[]` and the new generation,
   matching the generated Method signature.
-* The coordinator's events are re-emitted by the NodeManager as the
-  generated `WoTResourceEventType` / `WoTValidationFailureEventType` /
-  `WoTLoadFailureEventType` / `WoTBindingFailureEventType` /
-  `WoTRefreshCompletedEventType`.
+* The NodeManager emits the concrete `WoTValidationFailureEventType`,
+  `WoTLoadFailureEventType`, `WoTBindingFailureEventType`, and
+  `WoTRefreshCompletedEventType`. The abstract `WoTResourceEventType` is never
+  instantiated for successful activation. The coordinator's application-level
+  `Resource` notification remains available to in-process subscribers; native
+  xRegistry events describe resource and version changes.
 
 ### 11.4 Binder integration seam
 
@@ -920,9 +922,19 @@ The stable `WoTRegistryNodeManager` materializes the registry snapshot as a brow
   timestamps and validation result. Logical non-Meta fields and new file Opens
   select the default, not the active or desired Version. `HasNotifier` references
   chain Server -> WoTRegistry -> group -> logical Resource -> exact Version.
-  Resource lifecycle events use the logical node and Version events use the
-  exact node (the registry object remains the source for the
-  refresh-completed summary event).
+  Native xRegistry Resource events use the logical node and Version events use
+  the exact node. WoT validation, load, and binding failures identify the supplied
+  exact Version, not the serving or default Version. Projection transitions and
+  WoT failure/completion delivery share one FIFO, so an earlier Version creation
+  is applied before its failure and later queued deletion follows delivery.
+  Native mutation-triggered reconciliation uses that same ordered dispatcher.
+  Cancellation can stop a caller's wait without canceling already accepted
+  projection work or preventing address-space cleanup.
+  Mutable validation and summary payloads are copied when queued. Missing or
+  invalid identities and providers without an exact-Version projection produce
+  explicit diagnostics instead of substituting a Resource or registry source.
+  Phase and generation fields come from the coordinator. The registry object
+  remains the source for refresh completion.
 * The xRegistry `CreateGroup` / `GetOrCreateGroup` (on `WoTRegistry`),
   `CreateResource` / `GetOrCreateResource` / `Delete` (on a group) and the
   document `Delete`, `Validate`, `SetEnabled` and `SetDefaultVersion` (on a

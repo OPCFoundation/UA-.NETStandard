@@ -747,5 +747,14 @@ namespace Opc.Ua.XRegistry.Server
         /// Gets optional generic xRegistry event configuration.
         /// </summary>
         public XRegistryServerOptions? EventOptions { get; }
+
+        /// <summary>
+        /// Gets an optional dispatcher that orders current-state reconciliation
+        /// with the host's domain notifications. The operation uses the generation
+        /// captured before dispatch, not later state. Immutable supplied transitions
+        /// remain ordered by their caller.
+        /// </summary>
+        public Func<Func<CancellationToken, ValueTask>, CancellationToken, ValueTask>?
+            ProjectionDispatcher { get; init; }
     }
 }

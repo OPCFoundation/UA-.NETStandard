@@ -134,12 +134,22 @@ namespace Opc.Ua.XRegistry.Server
         /// </summary>
         public ValueTask ReconcileProjectionAsync(CancellationToken ct)
         {
-            return ReconcileCoreAsync(
-                suppliedGeneration: null,
-                previousEventSnapshot: null,
-                useSuppliedTransition: false,
-                emitEvents: false,
-                ct);
+            if (m_context.ProjectionDispatcher is { } dispatch)
+            {
+                if (m_registryNode is null)
+                {
+                    return default;
+                }
+                ct.ThrowIfCancellationRequested();
+                XRegistryProjectionGeneration generation = CaptureProjectionGeneration();
+                return dispatch(token => ReconcileCoreAsync(
+                    generation,
+                    previousEventSnapshot: null,
+                    useSuppliedTransition: false,
+                    emitEvents: false,
+                    token), ct);
+            }
+            return ReconcileCurrentProjectionAsync(ct);
         }
 
         /// <summary>
@@ -282,6 +292,23 @@ namespace Opc.Ua.XRegistry.Server
             }
         }
 
+        private XRegistryProjectionGeneration CaptureProjectionGeneration()
+        {
+            return m_generationProvider is null
+                ? new XRegistryProjectionGeneration(m_strategy.Current, null)
+                : m_generationProvider.CaptureProjectionGeneration();
+        }
+
+        private ValueTask ReconcileCurrentProjectionAsync(CancellationToken ct)
+        {
+            return ReconcileCoreAsync(
+                suppliedGeneration: null,
+                previousEventSnapshot: null,
+                useSuppliedTransition: false,
+                emitEvents: false,
+                ct);
+        }
+
         private async ValueTask ReconcileCoreAsync(
             XRegistryProjectionGeneration? suppliedGeneration,
             XRegistryProjectionEventSnapshot? previousEventSnapshot,
@@ -296,10 +323,7 @@ namespace Opc.Ua.XRegistry.Server
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                XRegistryProjectionGeneration generation = suppliedGeneration ??
-                    (m_generationProvider is null
-                        ? new XRegistryProjectionGeneration(m_strategy.Current, null)
-                        : m_generationProvider.CaptureProjectionGeneration());
+                XRegistryProjectionGeneration generation = suppliedGeneration ?? CaptureProjectionGeneration();
                 IXRegistryProjectionSnapshot snapshot = generation.Projection;
                 XRegistryProjectionEventSnapshot? eventSnapshot = generation.Events;
                 if (emitEvents &&

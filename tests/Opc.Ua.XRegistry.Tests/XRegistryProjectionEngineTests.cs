@@ -31,7 +31,9 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -50,6 +52,109 @@ namespace Opc.Ua.XRegistry.Tests
     [SetUICulture("en-us")]
     public sealed class XRegistryProjectionEngineTests
     {
+        [SetUp]
+        public void RecordProjectionExecutionRuntime()
+        {
+            using Process process = Process.GetCurrentProcess();
+            TestContext.Out.WriteLine(
+                $"WOT-R34-XREG-RUNTIME;pid={process.Id};framework={RuntimeInformation.FrameworkDescription};" +
+                $"clr={Environment.Version};entry={typeof(XRegistryProjectionEngineTests).Assembly.Location};" +
+                $"core={typeof(object).Assembly.Location}");
+        }
+
+        [Test]
+        public async Task CurrentProjectionReconciliationUsesTheOptionalDispatcher()
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            ProjectionHarness harness = ProjectionHarness.Create(projectionDispatcher: async (operation, token) =>
+            {
+                calls++;
+                entered.SetResult(true);
+                await release.Task.ConfigureAwait(false);
+                await operation(token).ConfigureAwait(false);
+            });
+            using XRegistryProjectionEngine engine = harness.Engine;
+            await engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+            harness.Strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [new TestResource("schemas", "pump")])]);
+            Task reconcile = engine.ReconcileProjectionAsync(CancellationToken.None).AsTask();
+            await entered.Task.ConfigureAwait(false);
+            try
+            {
+                Assert.That(harness.Added.OfType<GroupState>(), Is.Empty);
+                release.SetResult(true);
+                await reconcile.ConfigureAwait(false);
+                Assert.That(calls, Is.EqualTo(1));
+                Assert.That(harness.Added.OfType<ResourceState>().Single().NodeId,
+                    Is.EqualTo(new NodeId("TestRegistry/groups/schemas/resources/pump", 1)));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+        }
+
+        [Test]
+        public async Task SuppliedProjectionTransitionsDoNotReenterTheDispatcher()
+        {
+            ProjectionHarness harness = ProjectionHarness.Create(projectionDispatcher: (_, _) =>
+                throw new InvalidOperationException("An already ordered transition must not dispatch again."));
+            using XRegistryProjectionEngine engine = harness.Engine;
+            await engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+            harness.Strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [new TestResource("schemas", "pump")])]);
+            harness.Strategy.EventSnapshot = SnapshotWithResource(epoch: 2, versionEpoch: 1);
+            await engine.ReconcileAsync(harness.Strategy.CaptureProjectionGeneration(), null, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(harness.Added.OfType<ResourceState>().Single().NodeId,
+                Is.EqualTo(new NodeId("TestRegistry/groups/schemas/resources/pump", 1)));
+        }
+
+        [Test]
+        public async Task DispatchedReconciliationCannotObserveLaterSnapshotRemoval()
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ProjectionHarness harness = ProjectionHarness.Create(projectionDispatcher: async (operation, token) =>
+            {
+                entered.SetResult(true);
+                await release.Task.ConfigureAwait(false);
+                await operation(token).ConfigureAwait(false);
+            });
+            using XRegistryProjectionEngine engine = harness.Engine;
+            harness.Strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas",
+                    [new TestResource("schemas", "pump"), new TestResource("schemas", "sensor")])]);
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(1);
+            await engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+            var pumpId = new NodeId("TestRegistry/groups/schemas/resources/pump", 1);
+            ResourceState pump = harness.Added.OfType<ResourceState>().Single(node => node.NodeId == pumpId);
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(2);
+            Task reconcile = engine.ReconcileProjectionAsync(CancellationToken.None).AsTask();
+            await entered.Task.ConfigureAwait(false);
+            try
+            {
+                harness.Strategy.Snapshot = new TestSnapshot(
+                    [new TestGroup("schemas", [new TestResource("schemas", "sensor")])]);
+                harness.Strategy.EventSnapshot = EmptyEventSnapshot(3);
+                release.SetResult(true);
+                await reconcile.ConfigureAwait(false);
+                Assert.That(harness.Deleted, Does.Not.Contain(pumpId),
+                    "An earlier dispatched operation must not apply a later removal ahead of pending notifications.");
+                Assert.That(engine.EventSourceFor("/groups/schemas/resources/pump"), Is.SameAs(pump));
+
+                await engine.ReconcileAsync(harness.Strategy.CaptureProjectionGeneration(), null, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(harness.Deleted, Does.Contain(pumpId));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+        }
+
         [Test]
         public async Task ReconcileCreatesStableGroupAndResourceNodeIdsAsync()
         {
@@ -2418,7 +2523,8 @@ namespace Opc.Ua.XRegistry.Tests
 
             public static ProjectionHarness Create(
                 bool eventsEnabled = false,
-                TestStrategy? suppliedStrategy = null)
+                TestStrategy? suppliedStrategy = null,
+                Func<Func<CancellationToken, ValueTask>, CancellationToken, ValueTask>? projectionDispatcher = null)
             {
                 Mock<IServerInternal> server =
                     XRegistryServerTestHarness.CreateServer(XRegistryWellKnown.XRegistryNamespaceUri);
@@ -2465,7 +2571,10 @@ namespace Opc.Ua.XRegistry.Tests
                             EventsEnabled = true,
                             EventSourceUrl = "https://registry.example.test"
                         }
-                        : null);
+                        : null)
+                {
+                    ProjectionDispatcher = projectionDispatcher
+                };
                 return new ProjectionHarness(
                     new XRegistryProjectionEngine(projectionContext, strategy, "TestRegistry"),
                     context,

@@ -61,7 +61,10 @@ namespace Opc.Ua.WotCon.Server
                 async (nodeId, ct) => await manager.DeleteNodeAsync(manager.SystemContext, nodeId, ct)
                     .ConfigureAwait(false),
                 manager.CheckManagementAccess,
-                options.XRegistryEvents);
+                options.XRegistryEvents)
+            {
+                ProjectionDispatcher = manager.DispatchProjectionAsync
+            };
             m_strategy = UsesVersionedProjection
                 ? new VersionedStrategy(this)
                 : new Strategy(this);
@@ -80,11 +83,27 @@ namespace Opc.Ua.WotCon.Server
         }
 
         /// <summary>
-        /// Finds the browseable resource node used as an event source.
+        /// Finds the exact Version used as a WoT failure source without substituting an ancestor.
         /// </summary>
-        public NodeState EventSourceFor(string? xid)
+        public NodeState EventSourceForFailure(string? xid, string? versionId)
         {
-            return m_engine.EventSourceFor(xid);
+            if (!UsesVersionedProjection)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    "WoT failure events require an exact-Version registry projection.");
+            }
+            if (string.IsNullOrEmpty(xid) || string.IsNullOrEmpty(versionId))
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument,
+                    "A WoT failure event requires both Resource Xid and VersionId.");
+            }
+            NodeState source = m_engine.EventSourceFor($"{xid}/versions/{versionId}");
+            if (source is not ResourceState)
+            {
+                throw new ServiceResultException(StatusCodes.BadNodeIdUnknown,
+                    "The exact Version for the WoT failure event is not projected.");
+            }
+            return source;
         }
 
         /// <summary>

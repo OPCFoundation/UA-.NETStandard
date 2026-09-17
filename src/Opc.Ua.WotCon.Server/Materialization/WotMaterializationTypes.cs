@@ -205,9 +205,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
     /// <summary>
     /// The payload the coordinator raises for each material event. The NodeManager
-    /// maps it to the generated <c>WoTResourceEventType</c> /
-    /// <c>WoTValidationFailureEventType</c> / <c>WoTLoadFailureEventType</c> /
-    /// <c>WoTBindingFailureEventType</c> / <c>WoTRefreshCompletedEventType</c>.
+    /// maps failures and refresh completion to their concrete generated EventTypes.
+    /// Resource notifications remain available to application subscribers without
+    /// instantiating the abstract <c>WoTResourceEventType</c> on the server.
     /// </summary>
     public sealed class WotMaterializationEventArgs : EventArgs
     {

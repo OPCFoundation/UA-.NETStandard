@@ -67,7 +67,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [NonParallelizable]
-    public sealed class WotRegistryEventIntegrationTests
+    public sealed partial class WotRegistryEventIntegrationTests
     {
         private string m_pkiRoot = null!;
         private ServerFixture<ReferenceServer> m_fixture = null!;
@@ -118,10 +118,13 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             };
             m_registry = new WotRegistryService();
             var host = new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle);
+            m_failureConverter = new SelectiveConverter();
             m_coordinator = new WotMaterializationCoordinator(
-                m_registry, host, documentConverter: new SelectiveConverter());
+                m_registry, host, documentConverter: m_failureConverter);
             var factory = new WotRegistryNodeManagerFactory(options, m_registry, m_coordinator);
-            await m_server.NodeManagerLifecycle.AddAsync(factory, callerContext: null).ConfigureAwait(false);
+            var registration = await m_server.NodeManagerLifecycle.AddAsync(factory, callerContext: null)
+                .ConfigureAwait(false);
+            m_eventManager = (WotRegistryNodeManager)registration.NodeManager;
         }
 
         [TearDown]
@@ -192,7 +195,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         }
 
         [Test]
-        public async Task ResourceEventDeliversPopulatedIdentityFieldsThroughNotifierChain()
+        public async Task SuccessfulActivationRetainsInternalIdentityWithoutAnAbstractWireEvent()
         {
             var registryNodeId = ExpandedNodeId.ToNodeId(
                 WotConModel.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
@@ -209,27 +212,38 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             uint subscriptionId = await CreateEventSubscriptionAsync(services, registryNodeId)
                 .ConfigureAwait(false);
 
+            WotMaterializationEventArgs? resourceChange = null;
+            m_coordinator.Event += (_, change) =>
+            {
+                if (change.Kind == WotMaterializationEventKind.Resource && change.ResourceId == "sensor")
+                {
+                    resourceChange = change;
+                }
+            };
             await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
             var resourceType = ExpandedNodeId.ToNodeId(
                 WotConModel.ObjectTypeIds.WoTResourceEventType, m_server.CurrentInstance.NamespaceUris);
-
+            var completedType = ExpandedNodeId.ToNodeId(
+                WotConModel.ObjectTypeIds.WoTRefreshCompletedEventType, m_server.CurrentInstance.NamespaceUris);
+            var observedTypes = new List<NodeId>();
             EventFieldList? evt = await CollectEventAsync(
                 services, subscriptionId,
-                efl => EventTypeOf(efl) == resourceType).ConfigureAwait(false);
+                efl =>
+                {
+                    NodeId type = EventTypeOf(efl);
+                    observedTypes.Add(type);
+                    return type == completedType;
+                }).ConfigureAwait(false);
 
             Assert.That(evt, Is.Not.Null,
-                "The resource activation event must be delivered through the notifier chain.");
-            ArrayOf<Variant> fields = evt!.EventFields;
-            Assert.That(AsString(fields[Field.ResourceId]), Is.EqualTo("sensor"));
-            Assert.That(AsString(fields[Field.Xid]), Does.Contain("sensor"));
-            Assert.That(
-                fields[Field.DocumentKind].TryGetValue(out WoTDocumentKindEnum kind), Is.True,
-                "DocumentKind must be populated from the resource kind.");
-            Assert.That(kind, Is.EqualTo(WoTDocumentKindEnum.ThingDescription));
-            Assert.That(
-                fields[Field.Outcome].TryGetValue(out WoTOutcomeEnum _), Is.True,
-                "Outcome must be populated for a resource lifecycle event.");
+                "The concrete refresh completion must be delivered through the notifier chain.");
+            Assert.That(observedTypes, Does.Not.Contain(resourceType));
+            Assert.That(resourceChange, Is.Not.Null);
+            Assert.That(resourceChange!.ResourceId, Is.EqualTo("sensor"));
+            Assert.That(resourceChange.Xid, Does.Contain("sensor"));
+            Assert.That(resourceChange.DocumentKind, Is.EqualTo(WoTDocumentKindEnum.ThingDescription));
+            Assert.That(resourceChange.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
 
             await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
         }
@@ -609,11 +623,12 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         }
 
         private async Task<uint> CreateEventSubscriptionAsync(
-            ServerTestServices services,
+            IServerTestServices services,
             NodeId sourceNodeId,
-            EventFilter? filter = null)
+            EventFilter? filter = null,
+            RequestHeader? suppliedHeader = null)
         {
-            RequestHeader requestHeader = m_requestHeader;
+            RequestHeader requestHeader = suppliedHeader ?? m_requestHeader;
             requestHeader.Timestamp = DateTimeUtc.Now;
             CreateSubscriptionResponse subscription = await services
                 .CreateSubscriptionAsync(requestHeader, 100, 1200, 20, 0, true, 0)
@@ -640,7 +655,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     }
                 }
             ];
-            requestHeader = m_requestHeader;
+            requestHeader = suppliedHeader ?? m_requestHeader;
             requestHeader.Timestamp = DateTimeUtc.Now;
             CreateMonitoredItemsResponse created = await services
                 .CreateMonitoredItemsAsync(
@@ -652,12 +667,15 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         }
 
         private async Task<EventFieldList?> CollectEventAsync(
-            ServerTestServices services, uint subscriptionId, Func<EventFieldList, bool> predicate)
+            IServerTestServices services,
+            uint subscriptionId,
+            Func<EventFieldList, bool> predicate,
+            RequestHeader? suppliedHeader = null)
         {
             ArrayOf<SubscriptionAcknowledgement> acks = default;
             for (int attempt = 0; attempt < 40; attempt++)
             {
-                RequestHeader requestHeader = m_requestHeader;
+                RequestHeader requestHeader = suppliedHeader ?? m_requestHeader;
                 requestHeader.Timestamp = DateTimeUtc.Now;
                 using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 PublishResponse response = await services
@@ -692,9 +710,10 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             return null;
         }
 
-        private async Task DeleteSubscriptionAsync(ServerTestServices services, uint subscriptionId)
+        private async Task DeleteSubscriptionAsync(
+            IServerTestServices services, uint subscriptionId, RequestHeader? suppliedHeader = null)
         {
-            RequestHeader requestHeader = m_requestHeader;
+            RequestHeader requestHeader = suppliedHeader ?? m_requestHeader;
             requestHeader.Timestamp = DateTimeUtc.Now;
             ArrayOf<uint> ids = [subscriptionId];
             await services.DeleteSubscriptionsAsync(requestHeader, ids).ConfigureAwait(false);
@@ -765,6 +784,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         {
             private const string ModelUri = "urn:wot:events:model";
 
+            public ByteString RejectedContent { get; set; }
+
             public static byte[] ValidTd(string id)
             {
                 return ValidTd(id, id);
@@ -789,6 +810,11 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 CancellationToken cancellationToken)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (!RejectedContent.IsNull && content == RejectedContent)
+                {
+                    return new ValueTask<WotConversionOutput>(
+                        WotConversionOutput.Failure("Injected candidate conversion failure."));
+                }
                 return new ValueTask<WotConversionOutput>(Convert(resource));
             }
 

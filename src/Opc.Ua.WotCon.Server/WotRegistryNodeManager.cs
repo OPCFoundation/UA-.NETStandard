@@ -212,6 +212,7 @@ namespace Opc.Ua.WotCon.Server
                 WotRefreshResult result = await Coordinator.RefreshAsync(
                     new WotRefreshRequest { RequestId = "startup" }, cancellationToken).ConfigureAwait(false);
                 await m_projection.ReconcileProjectionAsync(cancellationToken).ConfigureAwait(false);
+                await m_reconcileQueue.WhenIdleAsync(cancellationToken).ConfigureAwait(false);
                 if (result.Summary.Failed != 0)
                 {
                     throw new ServiceResultException(
@@ -266,6 +267,23 @@ namespace Opc.Ua.WotCon.Server
                 m_refreshGate.Dispose();
             }
             base.Dispose(disposing);
+        }
+
+        internal ValueTask DispatchProjectionAsync(
+            Func<CancellationToken, ValueTask> operation, CancellationToken cancellationToken)
+        {
+            return m_reconcileQueue.EnqueueAsync(async token =>
+            {
+                try
+                {
+                    await operation(token).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.RegistryProjectionReconcileFailed(ex);
+                    throw;
+                }
+            }, cancellationToken);
         }
 
         private void WireRefreshMethod(BaseObjectState registry)
@@ -443,6 +461,7 @@ namespace Opc.Ua.WotCon.Server
             {
                 WotRefreshResult result = await Coordinator
                     .RefreshAsync(request, cancellationToken).ConfigureAwait(false);
+                await m_reconcileQueue.WhenIdleAsync(cancellationToken).ConfigureAwait(false);
 
                 outputArguments.Clear();
                 outputArguments.Add(Variant.FromStructure(result.Summary));
@@ -472,14 +491,31 @@ namespace Opc.Ua.WotCon.Server
 
         private void OnCoordinatorEvent(object? sender, WotMaterializationEventArgs e)
         {
-            if (m_registryNode is null)
+            if (m_registryNode is null || e.Kind == WotMaterializationEventKind.Resource)
             {
                 return;
             }
             try
             {
+                WoTValidationOutcomeDataType? validation = CoreUtils.Clone(e.Validation);
+                WoTRefreshSummaryDataType? summary = CoreUtils.Clone(e.Summary);
+                m_reconcileQueue.Enqueue(() => ReportCoordinatorEventAsync(e, validation, summary));
+            }
+            catch (Exception ex)
+            {
+                m_logger.FailedToReportMaterializationEvent(ex);
+            }
+        }
+
+        private Task ReportCoordinatorEventAsync(
+            WotMaterializationEventArgs e,
+            WoTValidationOutcomeDataType? validation,
+            WoTRefreshSummaryDataType? summary)
+        {
+            try
+            {
                 NodeState source = EventSourceFor(e);
-                BaseEventState? evt = BuildEvent(e, source);
+                BaseEventState? evt = BuildEvent(e, source, validation, summary);
                 if (evt is not null)
                 {
                     source.ReportEvent(SystemContext, evt);
@@ -489,21 +525,23 @@ namespace Opc.Ua.WotCon.Server
             {
                 m_logger.FailedToReportMaterializationEvent(ex);
             }
+            return Task.CompletedTask;
         }
 
         private NodeState EventSourceFor(WotMaterializationEventArgs e)
         {
-            // Resource lifecycle failures are sourced at the specific resource
-            // node; the registry object remains the summary source for the
-            // refresh-completed event.
             if (e.Kind == WotMaterializationEventKind.RefreshCompleted)
             {
                 return m_registryNode!;
             }
-            return m_projection.EventSourceFor(e.Xid);
+            return m_projection.EventSourceForFailure(e.Xid, e.VersionId);
         }
 
-        private BaseEventState? BuildEvent(WotMaterializationEventArgs e, NodeState source)
+        private BaseEventState? BuildEvent(
+            WotMaterializationEventArgs e,
+            NodeState source,
+            WoTValidationOutcomeDataType? validation,
+            WoTRefreshSummaryDataType? summary)
         {
             switch (e.Kind)
             {
@@ -513,9 +551,9 @@ namespace Opc.Ua.WotCon.Server
                     InitializeEvent(evt, source, "RefreshCompleted");
                     // Summary/RequestId/NewGeneration come from the coordinator's
                     // refresh summary, which is produced from the registry snapshot.
-                    if (e.Summary is not null)
+                    if (summary is not null)
                     {
-                        SetEventStruct(evt, BrowseNames.Summary, e.Summary);
+                        SetEventStruct(evt, BrowseNames.Summary, summary);
                     }
                     SetEventValue(evt, BrowseNames.RequestId, new Variant(e.RequestId));
                     SetEventValue(evt, BrowseNames.Generation, new Variant(e.Generation));
@@ -526,9 +564,9 @@ namespace Opc.Ua.WotCon.Server
                     var evt = new WoTValidationFailureEventState(source);
                     InitializeEvent(evt, source, "ValidationFailure: " + e.Reason);
                     PopulateResourceEventFields(evt, e);
-                    if (e.Validation is not null)
+                    if (validation is not null)
                     {
-                        SetEventStruct(evt, BrowseNames.ValidationOutcome, e.Validation);
+                        SetEventStruct(evt, BrowseNames.ValidationOutcome, validation);
                     }
                     return evt;
                 }
@@ -552,13 +590,10 @@ namespace Opc.Ua.WotCon.Server
                     SetEventValue(evt, BrowseNames.Reason, new Variant(e.Reason));
                     return evt;
                 }
+                case WotMaterializationEventKind.Resource:
+                    return null;
                 default:
-                {
-                    var evt = new WoTResourceEventState(source);
-                    InitializeEvent(evt, source, "Resource: " + e.ResourceId);
-                    PopulateResourceEventFields(evt, e);
-                    return evt;
-                }
+                    throw new ArgumentOutOfRangeException(nameof(e), e.Kind, "Unknown materialization event kind.");
             }
         }
 
@@ -635,6 +670,7 @@ namespace Opc.Ua.WotCon.Server
             {
                 await Coordinator.RefreshAsync(new WotRefreshRequest { RequestId = reason })
                     .ConfigureAwait(false);
+                await m_reconcileQueue.WhenIdleAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -714,19 +750,46 @@ namespace Opc.Ua.WotCon.Server
 
         public void Enqueue(WotRegistryChangedEventArgs change)
         {
-            lock (m_lock)
+            Enqueue(() => m_reconcile(change));
+        }
+
+        public void Enqueue(Func<Task> operation)
+        {
+            if (operation is null)
             {
-                if (m_completed)
-                {
-                    return;
-                }
-                m_changes.Enqueue(change);
-                if (!m_running)
-                {
-                    m_running = true;
-                    m_worker = DrainAsync();
-                }
+                throw new ArgumentNullException(nameof(operation));
             }
+            TryEnqueue(new ReconcileOperation(operation));
+        }
+
+        public ValueTask EnqueueAsync(
+            Func<CancellationToken, ValueTask> operation, CancellationToken cancellationToken)
+        {
+            if (operation is null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool accepted = TryEnqueue(new ReconcileOperation(async () =>
+            {
+                try
+                {
+                    await operation(CancellationToken.None).ConfigureAwait(false);
+                    completion.TrySetResult(true);
+                }
+                catch (Exception ex)
+                {
+                    completion.TrySetException(ex);
+                    // The caller may already have canceled its wait.
+                    _ = completion.Task.Exception;
+                }
+            }, completion));
+            if (!accepted)
+            {
+                throw new ObjectDisposedException(nameof(WotRegistryReconcileQueue));
+            }
+            return new ValueTask(completion.Task.WaitAsync(cancellationToken));
         }
 
         public async ValueTask WhenIdleAsync(CancellationToken cancellationToken = default)
@@ -743,7 +806,7 @@ namespace Opc.Ua.WotCon.Server
                     }
                 }
                 cancellationToken.ThrowIfCancellationRequested();
-                await worker!.ConfigureAwait(false);
+                await worker!.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -761,7 +824,33 @@ namespace Opc.Ua.WotCon.Server
             lock (m_lock)
             {
                 m_completed = true;
+                foreach (ReconcileOperation operation in m_changes)
+                {
+                    if (operation.Completion is { } completion)
+                    {
+                        completion.TrySetException(new ObjectDisposedException(nameof(WotRegistryReconcileQueue)));
+                        _ = completion.Task.Exception;
+                    }
+                }
                 m_changes.Clear();
+            }
+        }
+
+        private bool TryEnqueue(ReconcileOperation operation)
+        {
+            lock (m_lock)
+            {
+                if (m_completed)
+                {
+                    return false;
+                }
+                m_changes.Enqueue(operation);
+                if (!m_running)
+                {
+                    m_running = true;
+                    m_worker = DrainAsync();
+                }
+                return true;
             }
         }
 
@@ -773,7 +862,7 @@ namespace Opc.Ua.WotCon.Server
                 await Task.Yield();
                 while (true)
                 {
-                    WotRegistryChangedEventArgs change;
+                    ReconcileOperation operation;
                     lock (m_lock)
                     {
                         if (m_changes.Count == 0)
@@ -784,9 +873,9 @@ namespace Opc.Ua.WotCon.Server
                             drained = true;
                             return;
                         }
-                        change = m_changes.Dequeue();
+                        operation = m_changes.Dequeue();
                     }
-                    await m_reconcile(change).ConfigureAwait(false);
+                    await operation.Execute().ConfigureAwait(false);
                 }
             }
             finally
@@ -805,8 +894,11 @@ namespace Opc.Ua.WotCon.Server
             }
         }
 
+        private readonly record struct ReconcileOperation(
+            Func<Task> Execute, TaskCompletionSource<bool>? Completion = null);
+
         private readonly Func<WotRegistryChangedEventArgs, Task> m_reconcile;
-        private readonly Queue<WotRegistryChangedEventArgs> m_changes = new();
+        private readonly Queue<ReconcileOperation> m_changes = new();
         private readonly Lock m_lock = new();
         private Task? m_worker;
         private bool m_running;

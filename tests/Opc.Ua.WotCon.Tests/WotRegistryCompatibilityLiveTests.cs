@@ -190,10 +190,14 @@ namespace Opc.Ua.WotCon.Tests
                     Assert.That(tdMetadataProjected, Is.True);
                     Assert.That(modelMetadataProjected, Is.True);
                     Assert.That(
-                        reportedEvents.Any(evt =>
-                            evt is WoTResourceEventState &&
-                            evt.SourceNode!.Value == resource.ResourceNodeId),
+                        materializationEvents.Any(evt =>
+                            evt.Kind == WotMaterializationEventKind.Resource &&
+                            evt.Xid == stored.Xid && evt.ResourceId == "legacy"),
                         Is.True);
+                    NodeId abstractResourceEvent = ExpandedNodeId.ToNodeId(
+                        ObjectTypeIds.WoTResourceEventType, server.CurrentInstance.NamespaceUris);
+                    Assert.That(reportedEvents.Any(evt =>
+                        evt.EventType!.Value == abstractResourceEvent), Is.False);
                     Assert.That(inner.Current.FindResource(
                         WotRegistryGroups.ThingDescriptions,
                         "legacy"), Is.Null);
