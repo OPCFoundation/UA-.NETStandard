@@ -663,6 +663,47 @@ namespace Opc.Ua.Server.Tests
                 Times.Never);
         }
 
+        [TestCase(0, false)]
+        [TestCase(1, false)]
+        [TestCase(2, false)]
+        [TestCase(0, true)]
+        [TestCase(1, true)]
+        [TestCase(2, true)]
+        public async Task NamespaceAddNodePermissionsFollowIdentityNotSessionOrChannelAsync(int requestKind, bool allowed)
+        {
+            using var harness = new AuthorizationHarness();
+            harness.SetAddNodePermissions(allowed ? PermissionType.AddNode : PermissionType.Browse);
+            using OperationContext context = harness.CreateIdentityContext(RequestType.AddNodes, requestKind);
+
+            (ArrayOf<AddNodesResult> results, _) = await harness.Sut.AddNodesAsync(
+                context, [harness.CreateAddNodesItem()]).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode,
+                Is.EqualTo(allowed ? StatusCodes.Good : StatusCodes.BadUserAccessDenied));
+            harness.SourceManager.Verify(
+                manager => manager.AddNodeAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<AddNodesItem>(), It.IsAny<CancellationToken>()),
+                allowed ? Times.Once() : Times.Never());
+        }
+
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task MethodPermissionsFollowIdentityNotSessionOrChannelAsync(int requestKind)
+        {
+            using var harness = new AuthorizationHarness();
+            harness.TargetMetadata.NodeClass = NodeClass.Method;
+            harness.SetTargetPermissions(PermissionType.None);
+            using OperationContext context = harness.CreateIdentityContext(RequestType.Call, requestKind);
+
+            (ArrayOf<CallMethodResult> results, _) = await harness.Sut.CallAsync(
+                context,
+                [new CallMethodRequest { ObjectId = harness.SourceNodeId, MethodId = harness.TargetNodeId }])
+                .ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
         [Test]
         public async Task AddNodesGrantedAddNodePermissionMutatesAsync()
         {
@@ -1130,6 +1171,46 @@ namespace Opc.Ua.Server.Tests
                         !rollback.DeleteBidirectional),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AddReferenceWithExistingInverseSucceedsWithoutRollbackAsync(bool throws)
+        {
+            using var harness = new AuthorizationHarness();
+            harness.TargetManager.Setup(manager => manager.AddReferenceAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<AddReferencesItem>(), It.IsAny<CancellationToken>()))
+                .Returns(() => throws
+                    ? throw new ServiceResultException(StatusCodes.BadDuplicateReferenceNotAllowed)
+                    : new ValueTask<ServiceResult>(StatusCodes.BadDuplicateReferenceNotAllowed));
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
+                harness.AddReferencesContext, [harness.CreateAddReferencesItem()]).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
+            harness.SourceManager.Verify(manager => manager.DeleteReferenceAsync(
+                It.IsAny<OperationContext>(), It.IsAny<DeleteReferencesItem>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DeleteReferenceWithMissingInverseSucceedsWithoutRollbackAsync(bool throws)
+        {
+            using var harness = new AuthorizationHarness();
+            harness.TargetManager.Setup(manager => manager.DeleteReferenceAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<DeleteReferencesItem>(), It.IsAny<CancellationToken>()))
+                .Returns(() => throws
+                    ? throw new ServiceResultException(StatusCodes.BadNoMatch)
+                    : new ValueTask<ServiceResult>(StatusCodes.BadNoMatch));
+
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
+                harness.DeleteReferencesContext, [harness.CreateDeleteReferencesItem()]).ConfigureAwait(false);
+
+            Assert.That(results[0], Is.EqualTo(StatusCodes.Good));
+            harness.SourceManager.Verify(manager => manager.AddReferenceAsync(
+                It.IsAny<OperationContext>(), It.IsAny<AddReferencesItem>(), It.IsAny<CancellationToken>()),
+                Times.Never);
         }
 
         [Test]
@@ -2558,6 +2639,18 @@ namespace Opc.Ua.Server.Tests
             {
                 SetupOptimizedPermissionMetadata(SourceManager, SourceMetadata);
                 SetupOptimizedPermissionMetadata(TargetManager, TargetMetadata);
+            }
+
+            public OperationContext CreateIdentityContext(RequestType requestType, int requestKind)
+            {
+                return requestKind == 0
+                    ? CreateContext(requestType, MessageSecurityMode.SignAndEncrypt)
+                    : new OperationContext(
+                        new RequestHeader(),
+                        requestKind == 1 ? AddNodesContext.ChannelContext : null,
+                        requestType,
+                        RequestLifetime.None,
+                        m_session.Object.EffectiveIdentity);
             }
 
             public void Dispose()

@@ -980,6 +980,48 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             Assert.That(permissions[0].Permissions, Is.Not.EqualTo((uint)PermissionType.None));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SessionlessCallerDoesNotOwnOrphanedSubscriptionDiagnosticsAsync(bool restored)
+        {
+            SetupServerMock();
+            var configuration = new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() };
+            using var manager = new DiagnosticsNodeManager(m_serverMock.Object, configuration, NullLogger.Instance);
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            NodeId owner = restored ? NodeId.Null : new NodeId("former-owner", 1);
+            NodeId id = await manager.CreateSubscriptionDiagnosticsAsync(
+                manager.SystemContext,
+                new SubscriptionDiagnosticsDataType { SubscriptionId = 123, SessionId = owner },
+                static (ISystemContext _, NodeState _, ref Variant _) => ServiceResult.Good).ConfigureAwait(false);
+            if (!restored)
+            {
+                manager.RelinkSubscriptionDiagnostics(id, owner, NodeId.Null);
+            }
+            SubscriptionDiagnosticsState node = manager.FindPredefinedNode<SubscriptionDiagnosticsState>(id);
+            using var operation = new OperationContext(
+                new RequestHeader(), null, RequestType.Read, RequestLifetime.None, new UserIdentity());
+            var context = new ServerSystemContext(m_serverMock.Object, operation);
+            ArrayOf<RolePermissionType> permissions = default;
+            node.OnReadUserRolePermissions(context, node, ref permissions);
+
+            Assert.That(permissions, Is.Not.Empty);
+            foreach (RolePermissionType permission in permissions)
+            {
+                Assert.That(permission.Permissions, Is.EqualTo((uint)PermissionType.None));
+            }
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(manager.SystemContext, children);
+            Assert.That(children, Is.Not.Empty);
+            foreach (BaseInstanceState child in children)
+            {
+                child.OnReadUserRolePermissions(context, child, ref permissions);
+                foreach (RolePermissionType permission in permissions)
+                {
+                    Assert.That(permission.Permissions, Is.EqualTo((uint)PermissionType.None));
+                }
+            }
+        }
+
         [Test]
         public async Task OnReadDiagnosticsArray_ExpectedBehaviorForDifferentTypesAsync()
         {
