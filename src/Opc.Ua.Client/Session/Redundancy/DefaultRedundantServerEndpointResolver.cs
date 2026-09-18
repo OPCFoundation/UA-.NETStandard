@@ -67,6 +67,8 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        /// <exception cref="ArgumentException"><paramref name="serverUri"/> is null or empty.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="currentEndpoint"/> is null.</exception>
         public async ValueTask<ConfiguredEndpoint?> ResolveAsync(
             string serverUri,
             ConfiguredEndpoint currentEndpoint,
@@ -74,7 +76,7 @@ namespace Opc.Ua.Client
         {
             if (string.IsNullOrEmpty(serverUri))
             {
-                return null;
+                throw new ArgumentException("The server URI cannot be null or empty.", nameof(serverUri));
             }
 
             if (currentEndpoint is null)

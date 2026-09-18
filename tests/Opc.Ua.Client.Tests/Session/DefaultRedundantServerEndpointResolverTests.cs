@@ -57,6 +57,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 async () => await resolver.ResolveAsync(string.Empty, endpoint).ConfigureAwait(false),
                 Throws.ArgumentException);
             Assert.That(
+                async () => await resolver.ResolveAsync(null!, endpoint).ConfigureAwait(false),
+                Throws.ArgumentException.With.Property(nameof(ArgumentException.ParamName)).EqualTo("serverUri"));
+            Assert.That(
                 async () => await resolver.ResolveAsync("urn:server", null!).ConfigureAwait(false),
                 Throws.ArgumentNullException);
         }
