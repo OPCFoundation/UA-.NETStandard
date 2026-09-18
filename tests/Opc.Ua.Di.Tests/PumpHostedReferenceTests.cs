@@ -84,7 +84,7 @@ namespace Opc.Ua.Di.Tests
                     {
                         NodeId = deviceSetId,
                         BrowseDirection = BrowseDirection.Forward,
-                        ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences,
+                        ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.Organizes,
                         IncludeSubtypes = true,
                         ResultMask = (uint)BrowseResultMask.All
                     }

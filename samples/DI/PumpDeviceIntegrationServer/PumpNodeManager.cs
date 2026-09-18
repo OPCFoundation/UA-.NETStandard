@@ -329,8 +329,6 @@ namespace Pumps
 
             await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
                 .ConfigureAwait(false);
-            await AddRootNotifierAsync(pump, cancellationToken)
-                .ConfigureAwait(false);
             if (onRegistered != null)
             {
                 await onRegistered(pump, cancellationToken).ConfigureAwait(false);
