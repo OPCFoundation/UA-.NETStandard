@@ -33,17 +33,41 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
+    /// <summary>
+    /// Supplies application certificates and entry recovery services to the certificate-change processor.
+    /// </summary>
     internal interface IChannelCertRotationHost
     {
+        /// <summary>
+        /// Gets the application configuration and its certificate manager.
+        /// </summary>
         ApplicationConfiguration Configuration { get; }
+
+        /// <summary>
+        /// Gets the logger used to report certificate loading and rotation failures.
+        /// </summary>
         ILogger? Logger { get; }
+
+        /// <summary>
+        /// Gets whether the channel manager has begun disposal.
+        /// </summary>
         bool IsDisposed { get; }
+
+        /// <summary>
+        /// Captures the entries currently registered with the manager.
+        /// </summary>
         ChannelEntry[] SnapshotEntries();
 
+        /// <summary>
+        /// Takes ownership of the certificate and chain and updates the matching certificate-type snapshot.
+        /// </summary>
         void ReplaceClientCertificate(
             Certificate? clientCertificate,
             CertificateCollection? clientCertificateChain);
 
+        /// <summary>
+        /// Retains the active rotation task for diagnostics and lifetime tracking.
+        /// </summary>
         void SetCertificateRotationTask(Task? task);
     }
 }

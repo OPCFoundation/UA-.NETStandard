@@ -188,7 +188,7 @@ namespace Opc.Ua
             try
             {
                 OwnedTransport channel = await CreateTransportChannelAsync(
-                    clientCertificate, clientCertificateChain, ct)
+                    clientCertificate, clientCertificateChain, clientCertificateVersion, ct)
                     .ConfigureAwait(false);
                 bool entryClosed;
                 bool channelInstalled;
@@ -1071,16 +1071,18 @@ namespace Opc.Ua
                 underlying = m_underlying;
                 certificates = underlying == null
                     ? OwnerManager.SnapshotClientCertificate()
-                    : new ClientChannelCertificateSnapshot(
-                        underlying.Certificates.Certificate,
-                        underlying.Certificates.Chain,
-                        m_clientCertificateVersion);
+                    : OwnerManager.SnapshotClientCertificate(underlying.Certificates);
             }
 
             using (certificates)
             {
                 if (underlying != null &&
-                (underlying.Channel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
+                    ClientChannelCertificateSnapshot.HaveSameMaterial(
+                        underlying.Certificates.Certificate,
+                        underlying.Certificates.Chain,
+                        certificates.Certificate,
+                        certificates.Chain) &&
+                    (underlying.Channel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
                 {
                     try
                     {
@@ -1099,7 +1101,7 @@ namespace Opc.Ua
                 }
 
                 OwnedTransport fresh = await CreateTransportChannelAsync(
-                    certificates.Certificate, certificates.Chain, ct).ConfigureAwait(false);
+                    certificates.Certificate, certificates.Chain, certificates.Version, ct).ConfigureAwait(false);
 
                 OwnedTransport? old;
                 bool entryClosed;
@@ -1215,10 +1217,11 @@ namespace Opc.Ua
         private async Task<OwnedTransport> CreateTransportChannelAsync(
             Certificate? clientCertificate,
             CertificateCollection? clientCertificateChain,
+            long certificateVersion,
             CancellationToken ct)
         {
             ClientChannelCertificateSnapshot? certificates = new(
-                clientCertificate, clientCertificateChain, version: 0);
+                clientCertificate, clientCertificateChain, certificateVersion);
             OwnedTransport? transport = null;
             try
             {

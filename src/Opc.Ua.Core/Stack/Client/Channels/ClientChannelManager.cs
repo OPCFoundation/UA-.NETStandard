@@ -1088,6 +1088,7 @@ namespace Opc.Ua
         /// </summary>
         private readonly Dictionary<ManagedChannelKey, ChannelEntry> m_entries = [];
         private readonly Lock m_certLock = new();
+        private readonly Dictionary<NodeId, ClientChannelCertificateSnapshot> m_certificatesByType = [];
         private readonly ChannelManagerOptions m_options;
         private Certificate? m_clientCertificate;
         private CertificateCollection? m_clientCertificateChain;
@@ -1112,6 +1113,11 @@ namespace Opc.Ua
                 clientCertificateChain = m_clientCertificateChain;
                 m_clientCertificate = null;
                 m_clientCertificateChain = null;
+                foreach (ClientChannelCertificateSnapshot certificate in m_certificatesByType.Values)
+                {
+                    certificate.Dispose();
+                }
+                m_certificatesByType.Clear();
             }
             clientCertificate?.Dispose();
             clientCertificateChain?.Dispose();
@@ -1252,6 +1258,20 @@ namespace Opc.Ua
                 {
                     m_clientCertificateVersion++;
                 }
+                if (clientCertificate != null)
+                {
+                    NodeId type = CertificateIdentifier.GetCertificateType(clientCertificate);
+                    if (!type.IsNull)
+                    {
+                        var replacement = new ClientChannelCertificateSnapshot(
+                            clientCertificate, clientCertificateChain, m_clientCertificateVersion);
+                        if (m_certificatesByType.TryGetValue(type, out ClientChannelCertificateSnapshot? previous))
+                        {
+                            previous.Dispose();
+                        }
+                        m_certificatesByType[type] = replacement;
+                    }
+                }
                 m_clientCertificate = clientCertificate;
                 m_clientCertificateChain = clientCertificateChain;
             }
@@ -1301,8 +1321,28 @@ namespace Opc.Ua
             return CurrentClientCertificateSnapshot;
         }
 
+        /// <inheritdoc/>
+        ClientChannelCertificateSnapshot IChannelEntryHost.SnapshotClientCertificate(
+            ClientChannelCertificateSnapshot current)
+        {
+            lock (m_certLock)
+            {
+                ThrowIfDisposed();
+                if (current.Certificate != null &&
+                    m_certificatesByType.TryGetValue(
+                        CertificateIdentifier.GetCertificateType(current.Certificate),
+                        out ClientChannelCertificateSnapshot? replacement) &&
+                    replacement.Version > current.Version)
+                {
+                    return new ClientChannelCertificateSnapshot(
+                        replacement.Certificate, replacement.Chain, replacement.Version);
+                }
+                return new ClientChannelCertificateSnapshot(current.Certificate, current.Chain, current.Version);
+            }
+        }
+
         /// <summary>
-        /// Creates a transport using certificate handles already retained by its owning channel entry.
+        /// Starts a trace for the entry's reconnect cycle.
         /// </summary>
         Activity? IChannelEntryHost.StartReconnectActivity(ChannelEntry entry)
         {
