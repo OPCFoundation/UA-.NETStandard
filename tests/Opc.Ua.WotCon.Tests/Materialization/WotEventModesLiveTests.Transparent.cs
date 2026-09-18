@@ -94,14 +94,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     upstreamSourceNode, source.Session.NamespaceUris);
                 ExpandedNodeId actualType = NodeId.ToExpandedNodeId(eventType, destination.Session.NamespaceUris);
                 ExpandedNodeId actualSource = NodeId.ToExpandedNodeId(sourceNode, destination.Session.NamespaceUris);
-                TestContext.Out.WriteLine(
-                    $"D3 corrected native mode=transparent-forwarding; managed={managed}; " +
-                    $"runtime={Environment.Version}; " +
-                    $"sourceEventId={upstreamEventId}; eventId={eventId}; sourceType={upstreamType}; " +
-                    $"eventType={actualType}; upstreamSource={upstreamSource}; sourceNode={actualSource}; " +
-                    $"sourceTime={upstreamTime:O}; sourceReceiveTime={upstreamReceived:O}; time={time:O}; " +
-                    $"receiveTime={received:O}; boundary={boundary:O}");
-
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(upstreamEventId, Is.EqualTo(originalId));

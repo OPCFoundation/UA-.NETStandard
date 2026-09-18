@@ -112,10 +112,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         ByteString.From(new byte[] { 0x00, 0x50, 0x60, 0x70 }), ct).ConfigureAwait(false);
                 });
                 Assert.That(missing!.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
-                TestContext.Out.WriteLine(
-                    $"D3 provenance mode={mode}; generation={origin.Generation}; binding={origin.BindingId}; " +
-                    $"sourceEvent={origin.SourceEventId}; sourceReceipt={origin.SourceReceiveTime}; " +
-                    $"localReceipt={origin.ReceiveTime}; runtime={Environment.Version}");
             }
             finally
             {

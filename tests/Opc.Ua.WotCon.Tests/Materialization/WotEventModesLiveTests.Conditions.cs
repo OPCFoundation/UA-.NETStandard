@@ -125,9 +125,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     conditions[index] = portableCondition;
                     branches[index] = portableBranch;
                     eventIds[index] = eventId;
-                    TestContext.Out.WriteLine(
-                        $"D3 Condition mode={mode}; condition={portableCondition}; branch={portableBranch}; " +
-                        $"event={eventId}; enabled={actualEnabled}; runtime={Environment.Version}");
                 }
                 using (Assert.EnterMultipleScope())
                 {

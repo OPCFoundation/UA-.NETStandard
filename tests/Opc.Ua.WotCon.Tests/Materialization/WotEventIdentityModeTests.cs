@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Runtime;
 using System.Text.Json;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Bindings;
@@ -38,12 +37,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [TestFixture]
     public sealed class WotEventIdentityModeTests
     {
-        [SetUp]
-        public void RecordRuntime()
-        {
-            TestContext.Out.WriteLine($"D3 runtime={Environment.Version}; serverGC={GCSettings.IsServerGC}");
-        }
-
         [Test]
         public void EventDeclarationsDefaultToLocalReEmission()
         {

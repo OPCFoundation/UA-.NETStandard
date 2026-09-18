@@ -113,8 +113,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
                 Assert.That(destination.Session.ConfiguredEndpoint.Description.SecurityMode,
                     Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
-                TestContext.Out.WriteLine(
-                    $"D3 native mode={mode}; managed={managed}; runtime={Environment.Version}; event={eventId}");
             }
             finally
             {
