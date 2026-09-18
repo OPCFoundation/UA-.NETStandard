@@ -298,7 +298,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task RegenerationWithoutResolvableSubjectRejectsBeforeCreatingOrSavingKeyAsync()
         {
-            var pending = new Mock<IMatchingPendingCertificateKeyStore>(MockBehavior.Strict);
+            var pending = new Mock<IPeekablePendingCertificateKeyStore>(MockBehavior.Strict);
             var generator = new Mock<IPushCertificateKeyGenerator>(MockBehavior.Strict);
             using Harness harness = await CreateHarnessAsync(
                 pending.Object, generator.Object, includeSubject: false).ConfigureAwait(false);

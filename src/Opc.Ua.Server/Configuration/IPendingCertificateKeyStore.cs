@@ -118,12 +118,29 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Restores a consumed key after staging fails, only if its scope is still empty.
+        /// Restores a consumed key after a claim or transaction fails, only if its scope is still empty.
         /// Returns false rather than replacing a newer signing request. The caller retains the input handle.
         /// </summary>
         ValueTask<bool> TryRestoreAsync(
             PendingCertificateKeyContext context,
             Certificate certificateWithPrivateKey,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Supports non-consuming validation before a transaction claims a pending signing key.
+    /// </summary>
+    public interface IPeekablePendingCertificateKeyStore : IMatchingPendingCertificateKeyStore
+    {
+        /// <summary>
+        /// Returns an independently owned handle only when the pending key matches the certificate.
+        /// The pending entry remains available after the caller disposes the returned handle.
+        /// Commit must still use <see cref="IMatchingPendingCertificateKeyStore.TryTakeMatchingAsync"/>
+        /// because a later signing request may replace the entry after this read.
+        /// </summary>
+        ValueTask<Certificate?> TryPeekMatchingAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificate,
             CancellationToken cancellationToken = default);
     }
 

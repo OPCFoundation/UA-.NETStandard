@@ -67,7 +67,7 @@ namespace Opc.Ua.Redundancy.Server
     /// dispose the returned <see cref="Certificate"/>.
     /// </para>
     /// </remarks>
-    public sealed class SharedKeyValuePendingCertificateKeyStore : IMatchingPendingCertificateKeyStore
+    public sealed class SharedKeyValuePendingCertificateKeyStore : IPeekablePendingCertificateKeyStore
     {
         /// <summary>
         /// Creates a distributed pending-key store over a shared key/value
@@ -232,13 +232,27 @@ namespace Opc.Ua.Redundancy.Server
             return TryTakeCoreAsync(context, certificate, cancellationToken);
         }
 
+        /// <inheritdoc/>
+        public ValueTask<Certificate?> TryPeekMatchingAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificate,
+            CancellationToken cancellationToken = default)
+        {
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+            return TryTakeCoreAsync(context, certificate, cancellationToken, consume: false);
+        }
+
         /// <summary>
-        /// Validates and optionally matches a pending key before atomically claiming the exact stored record.
+        /// Validates a pending key and optionally claims the exact stored record after matching it.
         /// </summary>
         private async ValueTask<Certificate?> TryTakeCoreAsync(
             PendingCertificateKeyContext context,
             Certificate? matchingCertificate,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool consume = true)
         {
             if (context == null)
             {
@@ -291,10 +305,8 @@ namespace Opc.Ua.Redundancy.Server
 
                 // Delete exactly the validated record, never a concurrent replacement.
                 cancellationToken.ThrowIfCancellationRequested();
-                bool claimed = await m_store
-                    .CompareAndSwapAsync(key, value, default, cancellationToken)
-                    .ConfigureAwait(false);
-                if (!claimed)
+                if (consume && !await m_store
+                    .CompareAndSwapAsync(key, value, default, cancellationToken).ConfigureAwait(false))
                 {
                     return null;
                 }

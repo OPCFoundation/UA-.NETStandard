@@ -47,6 +47,70 @@ namespace Opc.Ua.Server.Tests.Configuration
     [TestFixture]
     public sealed class PendingKeyMatchingRegressionTests
     {
+        [Test]
+        public async Task MatchingPeekRetainsAnIndependentlyOwnedPendingKeyAsync(
+            [Values("memory", "directory", "hardware")] string kind)
+        {
+            await using var harness = new StoreHarness(kind);
+            using Certificate pending = harness.CreateKey("peek");
+            using Certificate wrong = harness.CreateKey("wrong");
+            using Certificate matchingPublic = CreateUploadCertificate(pending);
+            using Certificate wrongPublic = CreateUploadCertificate(wrong);
+            using Certificate empty = await harness.Store.TryPeekMatchingAsync(harness.Context, matchingPublic)
+                .ConfigureAwait(false);
+            Assert.That(empty, Is.Null);
+            Assert.That(await harness.Store.SaveAsync(harness.Context, pending).ConfigureAwait(false), Is.True);
+            using Certificate rejected = await harness.Store.TryPeekMatchingAsync(harness.Context, wrongPublic)
+                .ConfigureAwait(false);
+            Assert.That(rejected, Is.Null);
+            using (Certificate peeked = await harness.Store.TryPeekMatchingAsync(harness.Context, matchingPublic)
+                .ConfigureAwait(false))
+            {
+                Assert.That(peeked.Thumbprint, Is.EqualTo(pending.Thumbprint));
+                AssertKeyWorks(peeked);
+            }
+            using Certificate taken = await harness.CreateReplica()
+                .TryTakeMatchingAsync(harness.Context, matchingPublic).ConfigureAwait(false);
+            Assert.That(taken.Thumbprint, Is.EqualTo(pending.Thumbprint));
+            AssertKeyWorks(taken);
+            using Certificate consumed = await harness.Store.TryPeekMatchingAsync(harness.Context, matchingPublic)
+                .ConfigureAwait(false);
+            Assert.That(consumed, Is.Null);
+        }
+
+        [Test]
+        public async Task CancelledPeekDoesNotConsumeThePendingKeyAsync(
+            [Values("memory", "directory", "hardware")] string kind)
+        {
+            await using var harness = new StoreHarness(kind);
+            using Certificate pending = harness.CreateKey("cancel-peek");
+            using Certificate matchingPublic = CreateUploadCertificate(pending);
+            Assert.That(await harness.Store.SaveAsync(harness.Context, pending).ConfigureAwait(false), Is.True);
+            using var cancelled = new CancellationTokenSource();
+            cancelled.Cancel();
+            Assert.That(() => harness.Store.TryPeekMatchingAsync(
+                harness.Context, matchingPublic, cancelled.Token).AsTask(),
+                Throws.InstanceOf<OperationCanceledException>());
+            using Certificate retained = await harness.Store.TryTakeMatchingAsync(harness.Context, matchingPublic)
+                .ConfigureAwait(false);
+            Assert.That(retained, Is.Not.Null);
+            AssertKeyWorks(retained);
+        }
+
+        [Test]
+        public async Task DirectoryPeekDeclinesAnUnsupportedBaseStoreWithoutOpeningItAsync()
+        {
+            var context = new PendingCertificateKeyContext(
+                new CertificateStoreIdentifier("unused-platform-store", CertificateStoreType.X509Store, false),
+                ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                ObjectTypeIds.RsaSha256ApplicationCertificateType, null, NUnitTelemetryContext.Create());
+            using Certificate certificate = DefaultCertificateFactory.Instance.CreateCertificate("CN=No Pending Store")
+                .CreateForRSA();
+            using Certificate pending = await new DirectoryPendingCertificateKeyStore()
+                .TryPeekMatchingAsync(context, certificate).ConfigureAwait(false);
+            Assert.That(pending, Is.Null);
+        }
+
         /// <summary>
         /// Verifies that a rejected certificate leaves the pending key available for one matching claim by a replica.
         /// </summary>
@@ -210,12 +274,12 @@ namespace Opc.Ua.Server.Tests.Configuration
             /// <summary>
             /// Gets the store under test for saving and atomically claiming pending keys.
             /// </summary>
-            public IMatchingPendingCertificateKeyStore Store { get; }
+            public IPeekablePendingCertificateKeyStore Store { get; }
 
             /// <summary>
             /// Creates another store over the same backing storage, or reuses the shared in-memory store.
             /// </summary>
-            public IMatchingPendingCertificateKeyStore CreateReplica()
+            public IPeekablePendingCertificateKeyStore CreateReplica()
             {
                 return m_kind switch
                 {
