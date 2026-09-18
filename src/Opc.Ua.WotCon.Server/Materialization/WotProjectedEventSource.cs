@@ -52,6 +52,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         public WotCompiledForm Form { get; }
 
+        public void RequireConditionFields()
+        {
+            m_captureConditionFields = true;
+        }
+
         public async ValueTask<IAsyncDisposable> AttachAsync(
             Action<WotNotification> listener, CancellationToken cancellationToken)
         {
@@ -84,8 +89,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     // The first listener owns admission, not the installed shared subscription.
                     using (admission.Token.Register(acquisition.Cancel))
                     {
-                        m_subscription = await channel.SubscribeEventAsync(Dispatch, acquisition.Token)
-                            .ConfigureAwait(false);
+                        m_subscription = channel is IWotCapturedEventChannel capturing
+                            ? await capturing.SubscribeCapturedEventAsync(
+                                m_captureConditionFields, Dispatch, acquisition.Token).ConfigureAwait(false)
+                            : await channel.SubscribeEventAsync(Dispatch, acquisition.Token).ConfigureAwait(false);
                     }
                 }
                 admission.Token.ThrowIfCancellationRequested();
@@ -344,6 +351,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private long m_nextListener;
         private int m_operationCount;
         private TaskCompletionSource<bool>? m_operationsDrained;
+        private bool m_captureConditionFields;
         private bool m_disposed;
     }
 }

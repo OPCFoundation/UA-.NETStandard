@@ -101,13 +101,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
             }
             m_fields = fields;
-            if (IsCondition && m_eventIdMemberPath.Count == 0)
+            if (IsCondition && !m_nativePublication && m_eventIdMemberPath.Count == 0)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadConfigurationError,
                     "A projected Condition must select the namespace-zero EventId.");
             }
-            if (IsCondition &&
+            if (IsCondition && !m_nativePublication &&
                 !m_fields.Contains(field => field.Path.Count == 0) &&
                 !CanIdentifyConditionWithoutField())
             {
@@ -164,9 +164,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 AdmitTransparentOccurrence(notification.CapturedEvent);
             }
             ExpandedNodeId sourceCondition = SourceCondition;
-            if (notification.CapturedEvent is { HasConditionId: true } captured)
+            if (notification.CapturedEvent is { } captured)
             {
                 captured.Source.Validate();
+                if (!captured.HasConditionId)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid, "The source did not supply its required Condition identity.");
+                }
+                if (!captured.HasEventId || captured.EventId.IsEmpty || !captured.HasBranchId)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadEventIdUnknown, "The source did not supply its required occurrence identities.");
+                }
                 sourceCondition = captured.ConditionId;
             }
             else if (TryRead(notification, ["ConditionId"], out Variant value))
@@ -207,7 +217,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     AdmitTransparentOccurrence(captured);
                 }
                 ExpandedNodeId sourceCondition = SourceCondition;
-                if (m_fields.Contains(field => field.Path.Count == 0) &&
+                if (captured is { HasConditionId: true })
+                {
+                    sourceCondition = captured.ConditionId;
+                }
+                else if (m_fields.Contains(field => field.Path.Count == 0) &&
                     TryRead(notification, ["ConditionId"], out Variant conditionId))
                 {
                     sourceCondition = ReadPortableNodeId(conditionId, notification.NamespaceUris);
@@ -220,7 +234,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
 
                 ByteString originalEventId = default;
-                if (m_eventIdMemberPath.Count != 0 &&
+                if (captured is { HasEventId: true })
+                {
+                    originalEventId = captured.EventId;
+                    if (originalEventId.IsEmpty)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadEventIdUnknown);
+                    }
+                }
+                else if (m_eventIdMemberPath.Count != 0 &&
                     TryRead(notification, m_eventIdMemberPath, out Variant eventId))
                 {
                     if (!eventId.TryGetValue(out originalEventId) || originalEventId.IsEmpty)
@@ -232,10 +254,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     throw new ServiceResultException(StatusCodes.BadEventIdUnknown);
                 }
-                ExpandedNodeId branchId = m_fields.Contains(field => field.Path.Count == 1 &&
-                    field.Path[0] == QualifiedName.From(Ua.BrowseNames.BranchId)) &&
-                    TryRead(notification, [Ua.BrowseNames.BranchId], out Variant branch)
-                    ? ReadPortableNodeId(branch, notification.NamespaceUris) : ExpandedNodeId.Null;
+                if (IsCondition && captured is not null && (!captured.HasEventId || !captured.HasBranchId))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadEventIdUnknown, "The source did not supply its required occurrence identities.");
+                }
+                ExpandedNodeId branchId = captured is { HasBranchId: true } ? captured.BranchId :
+                    m_fields.Contains(field => field.Path.Count == 1 &&
+                        field.Path[0] == QualifiedName.From(Ua.BrowseNames.BranchId)) &&
+                        TryRead(notification, [Ua.BrowseNames.BranchId], out Variant branch)
+                        ? ReadPortableNodeId(branch, notification.NamespaceUris) : ExpandedNodeId.Null;
                 var occurrence = new Occurrence(originalEventId, sourceCondition, branchId);
                 if (!m_nativePublication && !originalEventId.IsEmpty && m_occurrences.ContainsKey(occurrence))
                 {
@@ -254,7 +282,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     Origin previous = m_origins[retainedId];
                     if (m_rejectedEvents.Contains(retainedId) ||
-                        !SameCapturedSource(previous.Captured, captured) ||
+                        !SameCapturedOccurrence(previous.Captured, captured) ||
                         !SameOccurrenceFields(previous.Fields, sourceFields))
                     {
                         m_rejectedEvents.Add(retainedId);
@@ -274,29 +302,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     NodeId = condition is null ? NodeId.Null : condition.NodeId,
                     TypeDefinitionId = EventTypeId
                 };
+                if (captured is not null)
+                {
+                    PopulateCapturedFields(result, condition, captured, branchId);
+                }
                 for (int index = 0; index < m_fields.Count; index++)
                 {
                     Field field = m_fields[index];
                     DataValue value = sourceFields[index];
-                    if (field.Path.Count == 0)
+                    if (field.Path.Count == 0 || HasCapturedField(captured, field.Path))
                     {
                         continue;
                     }
-                    Variant mapped = value.WrappedValue;
-                    if (IdentityMode == WoTEventIdentityModeEnum.LocalReEmission &&
-                        field.Path.Count == 1 && field.Path[0] == QualifiedName.From(Ua.BrowseNames.BranchId))
-                    {
-                        mapped = new Variant(branchId.IsNull ? NodeId.Null :
-                            new NodeId(result.NodeId + "#Branch:" + branchId, EventTypeId.NamespaceIndex));
-                    }
-                    SetField(result, field.Path, mapped, value.StatusCode, value.SourceTimestamp);
-                    var projectedValue = new DataValue(
-                        mapped, value.StatusCode, value.SourceTimestamp, value.ServerTimestamp);
-                    result.AddField(field.Path, projectedValue);
-                    if (condition is not null && branchId.IsNull)
-                    {
-                        SetField(condition, field.Path, mapped, value.StatusCode, value.SourceTimestamp);
-                    }
+                    PopulateField(result, condition, field.Path, value, branchId);
                 }
 
                 SetIdentity(result, localEventId, now);
@@ -549,10 +567,108 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return true;
         }
 
-        private static bool SameCapturedSource(WotCapturedEvent? previous, WotCapturedEvent? current)
+        private static bool SameCapturedOccurrence(WotCapturedEvent? previous, WotCapturedEvent? current)
         {
-            return previous is null ? current is null :
-                current is not null && ReferenceEquals(previous.Source, current.Source);
+            if (previous is null)
+            {
+                return current is null;
+            }
+            if (current is null || !ReferenceEquals(previous.Source, current.Source) ||
+                previous.Clauses.Count != current.Clauses.Count)
+            {
+                return false;
+            }
+            for (int index = 0; index < previous.Clauses.Count; index++)
+            {
+                WotResolvedEventSelectClause clause = previous.Clauses[index];
+                if (!clause.Equals(current.Clauses[index]) ||
+                    (clause.BrowsePath != Ua.BrowseNames.ReceiveTime &&
+                        !previous.Fields[index].Equals(current.Fields[index])))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private void PopulateCapturedFields(
+            WotProjectedEventState result, ConditionState? condition,
+            WotCapturedEvent captured, ExpandedNodeId branchId)
+        {
+            for (int index = 0; index < captured.Clauses.Count; index++)
+            {
+                WotResolvedEventSelectClause clause = captured.Clauses[index];
+                if (clause.IsConditionIdSelection ||
+                    (!IsCondition && clause.TypeDefinitionId == WotCapturedEvent.ConditionTypeId))
+                {
+                    continue;
+                }
+                Variant value = captured.Fields[index];
+                if (value.IsNull)
+                {
+                    if (IdentityMode == WoTEventIdentityModeEnum.LocalReEmission &&
+                        clause.TypeDefinitionId == WotEventSelectClauses.BaseEventTypeId && clause.BrowsePath is
+                            Ua.BrowseNames.EventId or Ua.BrowseNames.EventType or Ua.BrowseNames.SourceNode or
+                            Ua.BrowseNames.Time or Ua.BrowseNames.ReceiveTime)
+                    {
+                        continue;
+                    }
+                    throw new ServiceResultException(
+                        StatusCodes.BadNoData, "The source did not supply a required Core event field: " + clause);
+                }
+                ArrayOf<QualifiedName> path = clause.PathElements.ConvertAll(
+                    element => WotBindingValueMapper.ResolveBrowseName(element, m_context.NamespaceUris));
+                Variant mapped = WotBindingValueMapper.Translate(
+                    value, captured.Source.Context, m_valueContext, allowNamespaceGrowth: true);
+                var field = new DataValue(mapped, StatusCodes.Good, captured.Time, captured.ReceiveTime);
+                PopulateField(result, condition, path, field, branchId);
+            }
+        }
+
+        private static bool HasCapturedField(WotCapturedEvent? captured, ArrayOf<QualifiedName> path)
+        {
+            if (captured is null || path.Contains(name => name.NamespaceIndex != 0))
+            {
+                return false;
+            }
+            for (int index = 0; index < captured.Clauses.Count; index++)
+            {
+                ArrayOf<string> capturedPath = captured.Clauses[index].PathElements;
+                if (captured.Fields[index].IsNull || path.Count != capturedPath.Count)
+                {
+                    continue;
+                }
+                int element = 0;
+                while (element < path.Count && path[element].Name == capturedPath[element])
+                {
+                    element++;
+                }
+                if (element == path.Count)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void PopulateField(
+            WotProjectedEventState result, ConditionState? condition,
+            ArrayOf<QualifiedName> path, in DataValue value, ExpandedNodeId branchId)
+        {
+            Variant mapped = value.WrappedValue;
+            if (IdentityMode == WoTEventIdentityModeEnum.LocalReEmission &&
+                path.Count == 1 && path[0] == QualifiedName.From(Ua.BrowseNames.BranchId))
+            {
+                mapped = new Variant(branchId.IsNull ? NodeId.Null :
+                    new NodeId(result.NodeId + "#Branch:" + branchId, EventTypeId.NamespaceIndex));
+            }
+            SetField(result, path, mapped, value.StatusCode, value.SourceTimestamp);
+            var projectedValue = new DataValue(mapped, value.StatusCode, value.SourceTimestamp, value.ServerTimestamp);
+            result.AddField(path, projectedValue);
+            if (condition is not null && branchId.IsNull)
+            {
+                SetField(condition, path, mapped, value.StatusCode, value.SourceTimestamp);
+            }
         }
 
         private void AdmitTransparentOccurrence(WotCapturedEvent? captured)

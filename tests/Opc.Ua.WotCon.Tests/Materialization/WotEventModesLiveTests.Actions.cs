@@ -289,9 +289,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return methodId;
         }
 
-        private static WotProjectionDocument ActionProjection(string mode, string endpoint, string methodId)
+        private static WotProjectionDocument ActionProjection(
+            string mode, string endpoint, string methodId,
+            WotEventSelection? selection = null, bool useDefaultMode = false)
         {
-            WotProjectionDocument document = ConditionProjection(mode, endpoint);
+            WotProjectionDocument document = ConditionProjection(mode, endpoint, selection, useDefaultMode);
             WotBindingPlan existing = document.BindingPlans[0];
             WotProjectedAffordance original = existing.ProjectedAffordances[0];
             WotProjectedAffordance condition = new WotProjectedAffordance(

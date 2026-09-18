@@ -430,12 +430,14 @@ source, Condition, and branch. Wrong-source, unknown, or evicted IDs fail rather
 than falling back to another source. Retired-generation routes remain usable
 only while that generation is alive and the declaration and source still match.
 
-Occurrence identity comes only from a selected one-element namespace-zero
-`EventId` path, read at that selection's materialized data-member path.
+Native occurrence capture obtains the namespace-zero `EventId` independently
+of the public field selection. Without native capture, occurrence identity comes
+only from a selected one-element namespace-zero `EventId` path, read at that
+selection's materialized data-member path.
 A vendor or nested field named `EventId` remains business data regardless of
 its value type; an unselected payload member cannot drive deduplication or
-Condition routing. Events without a selected occurrence identity still receive
-distinct local EventIds.
+Condition routing. Events without a captured or selected occurrence identity
+still receive distinct local EventIds.
 
 Condition-management actions use `uav:conditionAction` and same-document `uav:actsOn`.
 For a WoT invocation with an optional Comment, the OPC UA adapter supplies
@@ -519,7 +521,7 @@ The executable bindings fail closed and never downgrade a secure form to an inse
 | `writeproperty` | `Write` service; the mapped `StatusCode` is preserved. |
 | `observeproperty` | A native data-change `MonitoredItem` (`AttributeId = Value`, queue size 1) on a dedicated `Subscription`; no client-side polling. |
 | `invokeaction` | `Call` service; the Method is selected by its source NodeId or browse path, independently of the form's `uav:callObjectId` receiver. Legacy scalar form-scoped `uav:componentOf` remains a compatibility spelling. |
-| `subscribeevent` | A native event `MonitoredItem` (`AttributeId = EventNotifier`) whose `EventFilter` select clauses are the compiled `WotEventSelection` of WoT Binding Section 6.1: the eight mandatory `BaseEventType` fields (`EventId`, `EventType`, `SourceNode`, `SourceName`, `Time`, `ReceiveTime`, `Message`, `Severity`) when the affordance states no selection, and otherwise the selection resolved from the EventType definition it links to with `tm:ref`, overlaid by the `uav:eventSelectClauses` it states. Every selected field is delivered in `WotNotification.EventFields`, keyed by its browse path — an empty path supplies `ConditionId` — with the event's own `Time` / `ReceiveTime` as the source / server timestamp. |
+| `subscribeevent` | A native event `MonitoredItem` (`AttributeId = EventNotifier`) whose public `EventFilter` select clauses are the compiled `WotEventSelection` of WoT Binding Section 6.1: the eight mandatory `BaseEventType` fields (`EventId`, `EventType`, `SourceNode`, `SourceName`, `Time`, `ReceiveTime`, `Message`, `Severity`) when the affordance states no selection, and otherwise the selection resolved from the EventType definition it links to with `tm:ref`, overlaid by the `uav:eventSelectClauses` it states. Every public selected field is delivered in `WotNotification.EventFields`, keyed by its browse path — an empty path supplies `ConditionId` — with the event's own `Time` / `ReceiveTime` as the source / server timestamp. Capturing sources append missing private Core operands without exposing additional public members. |
 
 For local native re-emission, the projection runtime stamps the namespace-zero
 Core `ReceiveTime` from the local server's `TimeProvider` when it materializes the
@@ -588,7 +590,7 @@ capability.
 
 A verified retransmission retains the same occurrence identity and refreshes
 receipt provenance without publishing another occurrence. Only receipt facts are
-excluded from state comparison. Reusing an EventId with changed selected state,
+excluded from state comparison. Reusing an EventId with changed selected or privately captured Core state,
 identity, or source binding faults that binding's availability with
 `BadSecurityChecksFailed`, preserves the last accepted evidence, and revokes its
 occurrence action route.
@@ -601,6 +603,30 @@ generation and distinct across Conditions/branches. Transparent instances retain
 their admitted source identities. Reusing an EventType for multiple declarations
 does not reuse a mutable Condition or its local NodeId. Unbound inherited
 Condition methods are not advertised as executable.
+
+Projection uses the optional `IWotCapturedEventChannel` capability of the native
+OPC UA channel. It retains the public selection as an unchanged operand prefix,
+including authored duplicates, reuses exact equivalent operands for private
+capture, and appends only missing Core operands. Base-event projections request
+only the eight `BaseEventType` fields. Condition projections additionally request
+the common `ConditionType` fields:
+ConditionId (the empty-path NodeId Attribute), ConditionClassId/ConditionClassName,
+ConditionName, BranchId, Retain, EnabledState and its Id, Quality, LastSeverity,
+Comment, ClientUserId, and the mandatory SourceTimestamp subcomponents of
+Quality, LastSeverity, and Comment. Non-Condition occurrences do not acquire
+Condition semantics merely because these operands were requested.
+
+`WotCompiledForm.EventSelection`, `WotNotification.EventFields`, and
+`WotNotification.Data` still contain only the authored public selection. Native
+projected notifications and Condition instances receive their Core fields from
+the same captured occurrence, so native clients can select inherited fields even
+when the WoT public selection omits them. Private identity also supplies
+provenance, branch mapping, and authored action correlation in both modes.
+An absent or invalid required source identity fails rather than falling back to
+an authored action receiver or a fabricated Condition. Captured Session validity,
+namespace mapping, authentication, and generation ownership are unchanged. The
+existing `IWotBindingChannel.SubscribeEventAsync` and publisher contracts remain
+compatible; ordinary subscriptions do not request additional private operands.
 
 Declared Condition actions are captured at generation wiring time through
 `IWotCapturedConditionActionChannel`. The native adapter retains the original

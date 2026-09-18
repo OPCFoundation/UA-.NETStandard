@@ -175,12 +175,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             };
         }
 
-        private static WotProjectionDocument ConditionProjection(string mode, string endpoint)
+        private static WotProjectionDocument ConditionProjection(
+            string mode, string endpoint, WotEventSelection? selection = null, bool useDefaultMode = false)
         {
             bool transparent = mode == "transparent-forwarding";
             ExpandedNodeId type = new("ConditionEventType", transparent ? SourceNamespace : LocalNamespace);
-            using JsonDocument definition = JsonDocument.Parse(
-                $$"""{"uav:eventIdentityMode":"{{mode}}","uav:conditionTypeId":"i=2782"}""");
+            using JsonDocument definition = JsonDocument.Parse(useDefaultMode
+                ? """{"uav:conditionTypeId":"i=2782"}"""
+                : $$"""{"uav:eventIdentityMode":"{{mode}}","uav:conditionTypeId":"i=2782"}""");
             WotProjectedAffordance declaration = WotProjectedAffordance.FromConverted(new WotConvertedAffordance(
                 Wot.WotAffordanceKind.Event, "condition", "/events/condition", type,
                 new ExpandedNodeId("Owner", LocalNamespace), definition.RootElement));
@@ -192,7 +194,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 new WotAddressingDescriptor("i=2253"),
                 new WotOperationDescriptor(WoTBindingCapabilityEnum.SubscribeEvent, "subscribeevent", "Monitor"),
                 new WotPayloadDescriptor("application/opcua+uabinary", "opcua"), [], true,
-                null, s_conditionSelection, null);
+                null, selection ?? s_conditionSelection, null);
             var sourceTypes = new UANodeSet
             {
                 NamespaceUris = [SourceNamespace],
@@ -243,7 +245,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             bool retainedBranch,
             bool enabled,
             ByteString eventId,
-            CancellationToken ct)
+            CancellationToken ct,
+            Action<ConditionState>? configure = null)
         {
             var context = endpoint.Server.CurrentInstance.DefaultSystemContext;
             NodeId conditionId = ExpandedNodeId.Parse(
@@ -268,14 +271,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 : NodeId.Null;
             state.EnabledState!.Id!.Value = enabled;
             state.Retain!.Value = true;
+            configure?.Invoke(state);
             await endpoint.Server.CurrentInstance.ReportEventAsync(context, state, ct).ConfigureAwait(false);
         }
 
         private sealed class NativeConditionEvents(ISession session, Subscription subscription) : IAsyncDisposable
         {
             public static async Task<NativeConditionEvents> OpenAsync(
-                ISession session, CancellationToken ct, NodeId eventNotifier = default)
+                ISession session, CancellationToken ct, NodeId eventNotifier = default,
+                WotEventSelection? selection = null)
             {
+                selection ??= s_conditionSelection;
                 var subscription = new Subscription(session.DefaultSubscription)
                 {
                     PublishingInterval = 20,
@@ -288,7 +294,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     await subscription.CreateAsync(ct).ConfigureAwait(false);
                     var filter = new EventFilter
                     {
-                        SelectClauses = s_conditionSelection.Clauses.ConvertAll(clause =>
+                        SelectClauses = selection.Clauses.ConvertAll(clause =>
                             new SimpleAttributeOperand
                             {
                                 TypeDefinitionId = ExpandedNodeId.Parse(clause.TypeDefinitionId, session.NamespaceUris),
@@ -307,7 +313,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     item.Notification += (_, notification) =>
                     {
                         if (notification.NotificationValue is EventFieldList fields &&
-                            fields.EventFields.Count == 13 &&
+                            fields.EventFields.Count == selection.Clauses.Count &&
                             fields.EventFields[6].TryGetValue(out LocalizedText message) &&
                             message.Text == "D3 Condition occurrence" &&
                             !events.m_events.Writer.TryWrite(fields.EventFields))

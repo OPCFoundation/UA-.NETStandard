@@ -189,8 +189,9 @@ namespace Opc.Ua.WotCon.Bindings
 
     /// <summary>
     /// The immutable event field selection compiled for an event affordance:
-    /// the ordered <c>EventFilter</c> select clauses a MonitoredItem is created
-    /// with, and where they came from (WoT Binding Section 6.1).
+    /// the ordered public <c>EventFilter</c> select clauses and where they came
+    /// from (WoT Binding Section 6.1). Private source capture may append operands
+    /// without adding members to this selection or its notification data.
     /// </summary>
     /// <remarks>
     /// The clauses are the resolved form: each carries the portable

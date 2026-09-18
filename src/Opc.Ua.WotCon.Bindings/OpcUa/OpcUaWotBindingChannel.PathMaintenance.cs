@@ -267,7 +267,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                             DiscardOldest = previous.DiscardOldest,
                             MonitoringMode = MonitoringMode.Disabled,
                             Filter = previous.AttributeId == Attributes.EventNotifier
-                                ? m_owner.BuildEventFilter(current.NamespaceUris)
+                                ? m_owner.BuildEventFilter(
+                                    m_lifetime.m_captureRequirements, out _, current.NamespaceUris)
                                 : null
                         };
                         previous.Notification -= m_lifetime.m_handler;

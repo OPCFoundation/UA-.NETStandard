@@ -49,12 +49,12 @@ namespace Opc.Ua.WotCon.Bindings
         public WotEventSource Source { get; }
 
         /// <summary>
-        /// Gets the exact selected namespace-zero EventId.
+        /// Gets the exact namespace-zero EventId, captured privately or publicly.
         /// </summary>
         public ByteString EventId { get; private set; }
 
         /// <summary>
-        /// Gets whether EventId was selected and supplied.
+        /// Gets whether the source supplied the captured EventId.
         /// </summary>
         public bool HasEventId { get; private set; }
 
@@ -64,7 +64,7 @@ namespace Opc.Ua.WotCon.Bindings
         public ExpandedNodeId EventType { get; private set; }
 
         /// <summary>
-        /// Gets whether EventType was selected and supplied.
+        /// Gets whether the source supplied the captured EventType.
         /// </summary>
         public bool HasEventType { get; private set; }
 
@@ -74,12 +74,12 @@ namespace Opc.Ua.WotCon.Bindings
         public ExpandedNodeId SourceNode { get; private set; }
 
         /// <summary>
-        /// Gets whether SourceNode was selected and supplied.
+        /// Gets whether the source supplied the captured SourceNode.
         /// </summary>
         public bool HasSourceNode { get; private set; }
 
         /// <summary>
-        /// Gets the selected portable source Condition identity.
+        /// Gets the portable source Condition identity, captured privately or publicly.
         /// </summary>
         public ExpandedNodeId ConditionId { get; private set; }
 
@@ -94,7 +94,7 @@ namespace Opc.Ua.WotCon.Bindings
         public ExpandedNodeId BranchId { get; private set; }
 
         /// <summary>
-        /// Gets whether namespace-zero BranchId was selected and supplied.
+        /// Gets whether the source supplied the captured namespace-zero BranchId.
         /// </summary>
         public bool HasBranchId { get; private set; }
 
@@ -104,7 +104,7 @@ namespace Opc.Ua.WotCon.Bindings
         public DateTimeUtc Time { get; private set; }
 
         /// <summary>
-        /// Gets whether namespace-zero Time was selected and supplied.
+        /// Gets whether the source supplied the captured namespace-zero Time.
         /// </summary>
         public bool HasTime { get; private set; }
 
@@ -114,9 +114,40 @@ namespace Opc.Ua.WotCon.Bindings
         public DateTimeUtc ReceiveTime { get; private set; }
 
         /// <summary>
-        /// Gets whether namespace-zero ReceiveTime was selected and supplied.
+        /// Gets whether the source supplied the captured namespace-zero ReceiveTime.
         /// </summary>
         public bool HasReceiveTime { get; private set; }
+
+        internal ArrayOf<WotResolvedEventSelectClause> Clauses { get; private init; }
+
+        internal ArrayOf<Variant> Fields { get; private init; }
+
+        internal static string ConditionTypeId { get; } = Ua.ObjectTypeIds.ConditionType.ToString();
+
+        /// <summary>
+        /// Core BaseEventType fields and ConditionType fields, including the
+        /// NodeId Attribute and mandatory subcomponents (Part 9, 5.5.2).
+        /// These capture operands do not extend the authored public selection.
+        /// </summary>
+        internal static ArrayOf<WotResolvedEventSelectClause> RequiredSelectClauses { get; } =
+        [
+            .. WotEventSelectClauses.Default,
+            new(ConditionTypeId, string.Empty),
+            new(ConditionTypeId, Ua.BrowseNames.ConditionClassId),
+            new(ConditionTypeId, Ua.BrowseNames.ConditionClassName),
+            new(ConditionTypeId, Ua.BrowseNames.ConditionName),
+            new(ConditionTypeId, Ua.BrowseNames.BranchId),
+            new(ConditionTypeId, Ua.BrowseNames.Retain),
+            new(ConditionTypeId, Ua.BrowseNames.EnabledState),
+            new(ConditionTypeId, Ua.BrowseNames.EnabledState + "/" + Ua.BrowseNames.Id),
+            new(ConditionTypeId, Ua.BrowseNames.Quality),
+            new(ConditionTypeId, Ua.BrowseNames.Quality + "/" + Ua.BrowseNames.SourceTimestamp),
+            new(ConditionTypeId, Ua.BrowseNames.LastSeverity),
+            new(ConditionTypeId, Ua.BrowseNames.LastSeverity + "/" + Ua.BrowseNames.SourceTimestamp),
+            new(ConditionTypeId, Ua.BrowseNames.Comment),
+            new(ConditionTypeId, Ua.BrowseNames.Comment + "/" + Ua.BrowseNames.SourceTimestamp),
+            new(ConditionTypeId, Ua.BrowseNames.ClientUserId)
+        ];
 
         internal static WotCapturedEvent Capture(
             WotEventSource source,
@@ -129,11 +160,19 @@ namespace Opc.Ua.WotCon.Bindings
                 throw new ServiceResultException(
                     StatusCodes.BadDecodingError, "The source event does not match its captured selection.");
             }
-            var result = new WotCapturedEvent(source);
+            var result = new WotCapturedEvent(source)
+            {
+                Clauses = selection,
+                Fields = values
+            };
             for (int index = 0; index < selection.Count; index++)
             {
                 WotResolvedEventSelectClause clause = selection[index];
                 Variant value = values[index];
+                if (value.IsNull)
+                {
+                    continue;
+                }
                 if (clause.IsConditionIdSelection)
                 {
                     result.ConditionId = ReadNodeId(value, source.Context.NamespaceUris);

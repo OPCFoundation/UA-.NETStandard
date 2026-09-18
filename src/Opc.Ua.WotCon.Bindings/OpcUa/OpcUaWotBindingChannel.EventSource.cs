@@ -76,8 +76,46 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             }
         }
 
+        internal static ArrayOf<int> AppendRequiredEventFields(
+            EventFilter filter, ArrayOf<Wot.WotResolvedEventSelectClause> requiredSelectClauses)
+        {
+            var indexes = new int[requiredSelectClauses.Count];
+            for (int index = 0; index < indexes.Length; index++)
+            {
+                Wot.WotResolvedEventSelectClause clause = requiredSelectClauses[index];
+                var operand = new SimpleAttributeOperand
+                {
+                    TypeDefinitionId = NodeId.Parse(clause.TypeDefinitionId),
+                    AttributeId = clause.IsConditionIdSelection ? Attributes.NodeId : Attributes.Value,
+                    BrowsePath = clause.PathElements.ConvertAll(QualifiedName.From)
+                };
+                int match = -1;
+                for (int candidate = 0; candidate < filter.SelectClauses.Count; candidate++)
+                {
+                    SimpleAttributeOperand existing = filter.SelectClauses[candidate];
+                    if (existing.TypeDefinitionId == operand.TypeDefinitionId &&
+                        existing.AttributeId == operand.AttributeId && existing.IndexRange == operand.IndexRange &&
+                        existing.BrowsePath.Span.SequenceEqual(operand.BrowsePath.Span))
+                    {
+                        match = candidate;
+                        break;
+                    }
+                }
+                if (match < 0)
+                {
+                    match = filter.SelectClauses.Count;
+                    filter.SelectClauses = filter.SelectClauses.AddItem(operand);
+                }
+                indexes[index] = match;
+            }
+            return indexes;
+        }
+
         private WotNotification BuildCapturedEventNotification(
             WotEventSelection selection,
+            ArrayOf<Wot.WotResolvedEventSelectClause> captureClauses,
+            ArrayOf<int> captureIndexes,
+            int fieldCount,
             EventFieldList fields,
             IServiceMessageContext sourceContext)
         {
@@ -87,9 +125,14 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             }
             try
             {
+                if (fields.EventFields.Count != fieldCount)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError, "The source event does not match its captured selection.");
+                }
                 WotCapturedEvent captured = WotCapturedEvent.Capture(
-                    source, selection.Clauses, fields.EventFields);
-                return BuildEventNotification(selection, fields, source.Context).WithCapturedEvent(captured);
+                    source, captureClauses, captureIndexes.ConvertAll(index => fields.EventFields[index]));
+                return BuildEventNotification(selection, fields, source.Context, captured).WithCapturedEvent(captured);
             }
             catch (ServiceResultException exception)
             {

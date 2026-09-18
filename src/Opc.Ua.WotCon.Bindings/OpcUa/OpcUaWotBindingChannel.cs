@@ -47,7 +47,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
     /// metadata.
     /// </summary>
     internal sealed partial class OpcUaWotBindingChannel :
-        IWotContextualBindingChannel, IWotPropertyBindingChannel, IWotCapturedConditionActionChannel
+        IWotContextualBindingChannel, IWotPropertyBindingChannel, IWotCapturedConditionActionChannel,
+        IWotCapturedEventChannel
     {
         public OpcUaWotBindingChannel(
             ISession session,
@@ -148,28 +149,19 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 cancellationToken).ConfigureAwait(false);
         }
 
-        public async ValueTask<IWotSubscription> SubscribeEventAsync(
+        public ValueTask<IWotSubscription> SubscribeEventAsync(
             Action<WotNotification> onEvent, CancellationToken cancellationToken = default)
         {
-            if (onEvent is null)
-            {
-                throw new ArgumentNullException(nameof(onEvent));
-            }
-            ResolvedPathTarget target = await ResolveTargetAsync(NodeClass.Object | NodeClass.View, cancellationToken)
-                .ConfigureAwait(false);
-            EventFilter filter = BuildEventFilter(target.State?.NamespaceUris);
-            WotEventSelection selection = Form.EventSelection ?? WotEventSelection.Default;
-            return await CreateMonitoredSubscriptionAsync(
-                target,
-                NodeClass.Object,
-                Attributes.EventNotifier,
-                filter,
-                queueSize: m_options.EventQueueSize,
-                translate: (_, notificationValue, sourceContext) => notificationValue is EventFieldList eventFields
-                    ? BuildCapturedEventNotification(selection, eventFields, sourceContext)
-                    : null,
-                onEvent,
-                cancellationToken).ConfigureAwait(false);
+            return SubscribeEventCoreAsync(onEvent, [], cancellationToken);
+        }
+
+        public ValueTask<IWotSubscription> SubscribeCapturedEventAsync(
+            bool captureConditionFields,
+            Action<WotNotification> onEvent,
+            CancellationToken cancellationToken = default)
+        {
+            return SubscribeEventCoreAsync(onEvent, captureConditionFields
+                ? WotCapturedEvent.RequiredSelectClauses : WotEventSelectClauses.Default, cancellationToken);
         }
 
         public ValueTask DisposeAsync()
@@ -184,6 +176,43 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 m_session.Dispose();
             }
             return default;
+        }
+
+        private async ValueTask<IWotSubscription> SubscribeEventCoreAsync(
+            Action<WotNotification> onEvent,
+            ArrayOf<WotResolvedEventSelectClause> captureRequirements,
+            CancellationToken cancellationToken)
+        {
+            if (onEvent is null)
+            {
+                throw new ArgumentNullException(nameof(onEvent));
+            }
+            if (!captureRequirements.IsEmpty && m_eventSource is null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The source cannot retain a binding for private Core event capture.");
+            }
+            ResolvedPathTarget target = await ResolveTargetAsync(NodeClass.Object | NodeClass.View, cancellationToken)
+                .ConfigureAwait(false);
+            EventFilter filter = BuildEventFilter(
+                captureRequirements, out ArrayOf<int> captureIndexes, target.State?.NamespaceUris);
+            WotEventSelection selection = Form.EventSelection ?? WotEventSelection.Default;
+            ArrayOf<WotResolvedEventSelectClause> captureClauses = captureRequirements.IsEmpty
+                ? selection.Clauses : captureRequirements;
+            return await CreateMonitoredSubscriptionAsync(
+                target,
+                NodeClass.Object,
+                Attributes.EventNotifier,
+                filter,
+                queueSize: m_options.EventQueueSize,
+                translate: (_, notificationValue, sourceContext) => notificationValue is EventFieldList eventFields
+                    ? BuildCapturedEventNotification(
+                        selection, captureClauses, captureIndexes,
+                        filter.SelectClauses.Count, eventFields, sourceContext)
+                    : null,
+                onEvent,
+                cancellationToken,
+                captureRequirements).ConfigureAwait(false);
         }
 
         private async ValueTask<WotReadResult> ReadCoreAsync(
@@ -447,7 +476,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             uint queueSize,
             Func<MonitoredItem, IEncodeable, IServiceMessageContext, WotNotification?> translate,
             Action<WotNotification> onNotification,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            ArrayOf<WotResolvedEventSelectClause> captureRequirements = default)
         {
             int interval = NormalizeInterval(m_options.ObserveInterval);
             var subscription = new Subscription(m_session.DefaultSubscription)
@@ -497,7 +527,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 }
                 item.Notification += OnItemNotification;
                 lifetime = new OpcUaMonitoredItemSubscription(
-                    Form, m_session, subscription, item, OnItemNotification, this, onNotification, target.State);
+                    Form, m_session, subscription, item, OnItemNotification, this, onNotification, target.State,
+                    captureRequirements);
 
                 subscription.AddItem(item);
                 await subscription.ApplyChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -553,7 +584,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// The planner always compiles the effective selection - the eight
         /// mandatory <c>BaseEventType</c> fields when the affordance states
         /// none, the complete authored list when it states one - so this method
-        /// resolves rather than decides. Resolution is what needs a session:
+        /// retains that public prefix and appends private Core capture operands
+        /// when the source supports occurrence capture. Resolution needs a session:
         /// a portable ExpandedNodeId and a NamespaceUri-qualified path element
         /// only become a <see cref="NodeId"/> and a <see cref="QualifiedName"/>
         /// against a namespace table, and a table exists only once a session
@@ -567,7 +599,10 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// deliver an event whose <c>data</c> object the document does not
         /// describe.
         /// </exception>
-        private EventFilter BuildEventFilter(NamespaceTable? namespaceUris = null)
+        private EventFilter BuildEventFilter(
+            ArrayOf<WotResolvedEventSelectClause> captureRequirements,
+            out ArrayOf<int> captureIndexes,
+            NamespaceTable? namespaceUris = null)
         {
             namespaceUris ??= m_session.NamespaceUris;
             WotEventSelection selection = Form.EventSelection ?? WotEventSelection.Default;
@@ -590,6 +625,15 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                     BrowsePath = ResolveBrowsePath(clause, namespaceUris)
                 };
                 filter.SelectClauses = filter.SelectClauses.AddItem(operand);
+            }
+            if (captureRequirements.IsEmpty)
+            {
+                int index = 0;
+                captureIndexes = selection.Clauses.ConvertAll(_ => index++);
+            }
+            else
+            {
+                captureIndexes = AppendRequiredEventFields(filter, captureRequirements);
             }
             return filter;
         }
@@ -654,22 +698,25 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// </para>
         /// </remarks>
         private WotNotification BuildEventNotification(
-            WotEventSelection selection, EventFieldList eventFields, IServiceMessageContext sourceContext)
+            WotEventSelection selection, EventFieldList eventFields, IServiceMessageContext sourceContext,
+            WotCapturedEvent? captured = null)
         {
             ArrayOf<Variant> values = eventFields.EventFields;
             int count = Math.Min(selection.Clauses.Count, values.Count);
 
-            DateTimeUtc sourceTimestamp = DateTimeUtc.Now;
-            DateTimeUtc serverTimestamp = DateTimeUtc.Now;
+            DateTimeUtc sourceTimestamp = captured is { HasTime: true } ? captured.Time : DateTimeUtc.Now;
+            DateTimeUtc serverTimestamp = captured is { HasReceiveTime: true } ? captured.ReceiveTime : DateTimeUtc.Now;
             for (int i = 0; i < count; i++)
             {
                 string name = selection.Clauses[i].FieldName;
-                if (string.Equals(name, EventBrowseNames.Time, StringComparison.Ordinal) &&
+                if (captured is not { HasTime: true } &&
+                    string.Equals(name, EventBrowseNames.Time, StringComparison.Ordinal) &&
                     values[i].TryGetValue(out DateTimeUtc time))
                 {
                     sourceTimestamp = time;
                 }
-                else if (string.Equals(name, EventBrowseNames.ReceiveTime, StringComparison.Ordinal) &&
+                else if (captured is not { HasReceiveTime: true } &&
+                    string.Equals(name, EventBrowseNames.ReceiveTime, StringComparison.Ordinal) &&
                     values[i].TryGetValue(out DateTimeUtc receiveTime))
                 {
                     serverTimestamp = receiveTime;
@@ -861,13 +908,15 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 MonitoredItemNotificationEventHandler handler,
                 OpcUaWotBindingChannel owner,
                 Action<WotNotification> onNotification,
-                PathSessionState? sessionState)
+                PathSessionState? sessionState,
+                ArrayOf<WotResolvedEventSelectClause> captureRequirements)
             {
                 Form = form;
                 m_session = session;
                 m_subscription = subscription;
                 m_item = item;
                 m_handler = handler;
+                m_captureRequirements = captureRequirements;
                 m_pathRefresh = sessionState is null
                     ? null
                     : new PathRefresh(this, owner, onNotification, sessionState);
@@ -902,6 +951,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             private readonly Subscription m_subscription;
             private MonitoredItem m_item;
             private readonly MonitoredItemNotificationEventHandler m_handler;
+            private readonly ArrayOf<WotResolvedEventSelectClause> m_captureRequirements;
         }
 
         private readonly ISession m_session;

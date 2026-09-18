@@ -92,6 +92,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         source = new WotProjectedEventSource(form, GetOrCreateSlot(form));
                         m_eventSources.Add(source);
                     }
+                    if (isCondition)
+                    {
+                        source.RequireConditionFields();
+                    }
                     TimeProvider timeProvider = m_builder.NodeManager is AsyncCustomNodeManager manager &&
                         manager.Server is ITimeProviderProvider provider
                         ? provider.TimeProvider : TimeProvider.System;
