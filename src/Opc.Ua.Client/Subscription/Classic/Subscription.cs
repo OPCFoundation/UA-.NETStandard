@@ -1812,6 +1812,7 @@ namespace Opc.Ua.Client
             await RestoreTriggeringAsync(ct).ConfigureAwait(false);
 
             StartKeepAliveTimer();
+            m_messageWorkerEvent.Set();
 
             TraceState("TRANSFERRED ASYNC");
 
@@ -2277,7 +2278,10 @@ namespace Opc.Ua.Client
                         {
                             if (lastSequenceNumberToRepublish == sequenceNumber)
                             {
-                                FindOrCreateEntry(now, backdatedTimestamp, sequenceNumber);
+                                IncomingMessage entry = FindOrCreateEntry(now, backdatedTimestamp, sequenceNumber);
+                                entry.Republished = false;
+                                entry.RepublishStatus = default;
+                                entry.RepublishImmediately = true;
                                 found = true;
                                 break;
                             }
@@ -2301,8 +2305,6 @@ namespace Opc.Ua.Client
                         republishMessages,
                         m_lastSequenceNumberProcessed,
                         Session?.SessionId);
-
-                    availableSequenceNumbers = [];
                 }
 
                 // save available sequence numbers
@@ -2784,21 +2786,22 @@ namespace Opc.Ua.Client
                             }
                         }
                         // process keep alive messages
-                        else if (ii.Next == null && ii.Value.Message == null && !ii.Value.Processed)
+                        else if (ii.Next == null && ii.Value.Message == null && !ii.Value.Processed &&
+                            !ii.Value.RepublishImmediately)
                         {
                             (keepAliveToProcess ??= []).Add(ii.Value);
                             publishStateChangedMask |= PublishStateChangedMask.KeepAlive;
                         }
                         // check for missing messages.
-                        else if (ii.Next != null &&
+                        else if ((ii.Value.RepublishImmediately || ii.Next != null) &&
                             ii.Value.Message == null &&
                             !ii.Value.Processed &&
                             !ii.Value.Republished)
                         {
                             // tolerate if a single request was received out of order
-                            if (ii.Next.Next != null &&
+                            if (ii.Value.RepublishImmediately || (ii.Next?.Next != null &&
                                 m_timeProvider.GetElapsedTime(ii.Value.MonotonicTimestamp)
-                                    .TotalMilliseconds > RepublishMessageTimeout)
+                                    .TotalMilliseconds > RepublishMessageTimeout))
                             {
                                 ii.Value.Republished = true;
                                 publishStateChangedMask |= PublishStateChangedMask.Republish;
@@ -3495,6 +3498,7 @@ namespace Opc.Ua.Client
             public NotificationMessage? Message;
             public bool Processed;
             public bool Republished;
+            public bool RepublishImmediately;
             public StatusCode RepublishStatus;
         }
     }
