@@ -246,6 +246,7 @@ namespace Opc.Ua.Client
             return SelectBestPeer(redundancyInfo, currentEndpoint)?.Endpoint;
         }
 
+        /// <inheritdoc/>
         async ValueTask<ServerRedundancyInfo> IServerRedundancyEndpointCache.ResolveCachedEndpointsAsync(
             ServerRedundancyInfo snapshot,
             ConfiguredEndpoint currentEndpoint,
@@ -265,6 +266,7 @@ namespace Opc.Ua.Client
             };
         }
 
+        /// <inheritdoc/>
         void IServerRedundancyEndpointCache.InvalidateEndpoint(ConfiguredEndpoint endpoint)
         {
             foreach (KeyValuePair<string, ConfiguredEndpoint> cached in m_resolvedEndpoints)

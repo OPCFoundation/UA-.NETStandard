@@ -32,7 +32,6 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {

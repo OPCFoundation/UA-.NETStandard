@@ -2430,7 +2430,8 @@ namespace Opc.Ua.Client.Tests
                     typeof(IRetryBudget),
                     typeof(CancellationToken),
                     typeof(bool),
-                    typeof(bool)
+                    typeof(bool),
+                    typeof(SessionClient)
                 ],
                 null);
 
@@ -2438,7 +2439,7 @@ namespace Opc.Ua.Client.Tests
 
             var task = (Task?)method!.Invoke(
                 session,
-                [endpoint, null, channel, null, CancellationToken.None, false, requireTokenReuse]);
+                [endpoint, null, channel, null, CancellationToken.None, false, requireTokenReuse, null]);
 
             Assert.That(task, Is.Not.Null);
             return task!;

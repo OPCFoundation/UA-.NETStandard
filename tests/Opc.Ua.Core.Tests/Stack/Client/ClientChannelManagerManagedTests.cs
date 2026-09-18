@@ -1643,8 +1643,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
-        [Test]
-        public async Task RecreateParticipantTimeoutUsesInjectedClockAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RecreateParticipantTimeoutUsesInjectedClockAsync(bool scoped)
         {
             var timeProvider = new ObservableFakeTimeProvider();
             TimeSpan participantTimeout = TimeSpan.FromMilliseconds(200);
@@ -1657,6 +1658,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             };
             var recreateStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ITransportChannel? capturedView = null;
+            CancellationToken callbackToken = default;
             (ClientChannelManager manager, Certificate server, _) =
                 CreateMockedSut(reconnectPolicy: policy, timeProvider: timeProvider);
             try
@@ -1674,6 +1677,25 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                         recreateStarted.TrySetResult(true);
                         return new ValueTask(completion.Task);
                     });
+                if (scoped)
+                {
+                    Mock<IChannelRecoveryParticipant> recovery = participant.As<IChannelRecoveryParticipant>();
+                    recovery.Setup(value => value.OnReconnectAsync(
+                            It.IsAny<IManagedTransportChannel>(), It.IsAny<ITransportChannel>(),
+                            0, It.IsAny<CancellationToken>()))
+                        .Returns(new ValueTask<ParticipantReconnectResult>(
+                            ParticipantReconnectResult.RequiresSessionRecreate));
+                    recovery.Setup(value => value.RecreateAsync(
+                            It.IsAny<IManagedTransportChannel>(), It.IsAny<ITransportChannel>(),
+                            It.IsAny<CancellationToken>()))
+                        .Returns((IManagedTransportChannel _, ITransportChannel view, CancellationToken ct) =>
+                        {
+                            capturedView = view;
+                            callbackToken = ct;
+                            recreateStarted.TrySetResult(true);
+                            return new ValueTask(completion.Task);
+                        });
+                }
                 using IManagedTransportChannel lease = await manager.GetAsync(participant.Object)
                     .ConfigureAwait(false);
                 Task<bool> timerCreated = timeProvider.WaitForTimersCreatedAsync();
@@ -1691,7 +1713,22 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
                 Assert.That(lease.State, Is.EqualTo(ChannelState.Faulted));
                 Assert.That(completion.Task.IsCompleted, Is.False);
-                participant.Verify(value => value.RecreateAsync(It.IsAny<CancellationToken>()), Times.Once);
+                if (scoped)
+                {
+                    Assert.That(callbackToken.IsCancellationRequested, Is.True);
+                    ServiceResultException expired = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await capturedView!.SendRequestAsync(new ReadRequest()).ConfigureAwait(false))!;
+                    Assert.That(expired.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                    capturedView!.Dispose();
+                    Assert.That(manager.GetChannelDiagnostics().Single().Refcount, Is.EqualTo(1));
+                    participant.As<IChannelRecoveryParticipant>().Verify(value => value.RecreateAsync(
+                        It.IsAny<IManagedTransportChannel>(), It.IsAny<ITransportChannel>(),
+                        It.IsAny<CancellationToken>()), Times.Once);
+                }
+                else
+                {
+                    participant.Verify(value => value.RecreateAsync(It.IsAny<CancellationToken>()), Times.Once);
+                }
             }
             finally
             {
