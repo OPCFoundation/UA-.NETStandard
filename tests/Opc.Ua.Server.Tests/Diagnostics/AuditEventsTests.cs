@@ -209,6 +209,23 @@ namespace Opc.Ua.Server.Tests.Diagnostics
         }
 
         /// <summary>
+        /// Verifies that close-channel auditing reports a failed event when an exception has no service result.
+        /// </summary>
+        [Test]
+        public void ReportAuditCloseSecureChannelEventWithNonServiceResultExceptionReportsBadStatus()
+        {
+            CapturingAuditEventServer server = CreateAuditServer();
+
+            server.ReportAuditCloseSecureChannelEvent(
+                "channel-4",
+                new InvalidOperationException("close failed"),
+                s_logger);
+
+            var auditEvent = (AuditChannelEventState)server.Events.Single();
+            Assert.That(auditEvent.Status.Value, Is.False);
+            Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.Bad));
+        }
+        /// <summary>
         /// Verifies that session reporting methods emit failed audit events for exceptions.
         /// </summary>
         [Test]

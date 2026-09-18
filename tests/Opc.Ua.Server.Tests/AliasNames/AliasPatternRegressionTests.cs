@@ -135,5 +135,22 @@ namespace Opc.Ua.Server.Tests.AliasNames
             Assert.That(elapsed.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
             Assert.That(AliasNameWildcardMatcher.Matches(new string('a', 16384) + "b", pattern), Is.True);
         }
+
+        /// <summary>
+        /// Verifies that each alias lookup shares one deadline rather than resetting the budget per alias.
+        /// </summary>
+        [Test]
+        public void ExpiredSharedPatternDeadlineReturnsBadTimeout()
+        {
+            LikePattern pattern = AliasNameWildcardMatcher.CreatePattern("%");
+
+            ServiceResultException error = Assert.Throws<ServiceResultException>(() =>
+                AliasNameWildcardMatcher.Matches(
+                    "alias",
+                    pattern,
+                    Stopwatch.GetTimestamp() - 1));
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+        }
     }
 }

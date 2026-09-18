@@ -2130,7 +2130,8 @@ namespace Opc.Ua.Server
                         $"AuditCloseSecureChannelEvent - Exception: {exception.Message}.");
                 }
 
-                StatusCode statusCode = StatusCodes.Good;
+                bool succeeded = exception == null;
+                StatusCode statusCode = succeeded ? StatusCodes.Good : StatusCodes.Bad;
                 while (exception is not null and not ServiceResultException)
                 {
                     exception = exception.InnerException;
@@ -2147,7 +2148,7 @@ namespace Opc.Ua.Server
                     null,
                     EventSeverity.Min,
                     new LocalizedText(message),
-                    exception == null,
+                    succeeded,
                     DateTime.UtcNow
                 ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
