@@ -53,11 +53,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
     public class FileDirectoryBinderTests
     {
         [Test]
-        public async Task BindMaterialisesFilesAndDirectoriesWithoutInitialRegistrationsAsync()
+        public async Task BindRegistersTheCompletePreexistingTreeAsync()
         {
-            InMemoryFileSystemProvider provider = CreateProvider();
+            InMemoryFileSystemProvider provider = CreateProvider(isWritable: false);
             provider.AddFile("readme.txt", "hello");
             provider.AddDirectory("programs");
+            provider.AddFile("programs/main.mod", "movej");
             FileDirectoryState root = CreateRoot();
             SessionSystemContext context = CreateContext();
             var registered = new List<NodeState>();
@@ -74,9 +75,15 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             Assert.That(binding.Directory, Is.SameAs(root));
             Assert.That(binding.Provider, Is.SameAs(provider));
-            Assert.That(Find<FileState>(root, context, "readme.txt"), Is.Not.Null);
-            Assert.That(Find<FileDirectoryState>(root, context, "programs"), Is.Not.Null);
-            Assert.That(registered, Is.Empty);
+            FileState readme = Find<FileState>(root, context, "readme.txt")!;
+            FileDirectoryState programs = Find<FileDirectoryState>(root, context, "programs")!;
+            FileState main = Find<FileState>(programs, context, "main.mod")!;
+            Assert.That(registered, Is.EquivalentTo(new NodeState[] { readme, programs, main }));
+            OpenMethodStateResult opened = await main.Open!.OnCallAsync!(
+                context, main.Open, main.NodeId, 1, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(opened.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(main.Close!.OnCall!(context, main.Close, main.NodeId, opened.FileHandle).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
@@ -146,6 +153,35 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 .ConfigureAwait(false);
 
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CreateDirectoryRejectsExistingEntryWithIdempotentProviderAsync(bool existingFile)
+        {
+            InMemoryFileSystemProvider provider = CreateProvider();
+            if (existingFile)
+            {
+                provider.AddFile("existing", "payload");
+            }
+            else
+            {
+                provider.AddDirectory("existing");
+                provider.AddFile("existing/payload.txt", "payload");
+            }
+            FileDirectoryState root = CreateRoot();
+            SessionSystemContext context = CreateContext();
+            await using IFileDirectoryBinding binding = await CreateBinder().BindAsync(
+                root, provider, context).ConfigureAwait(false);
+            BaseInstanceState existing = Find<BaseInstanceState>(root, context, "existing")!;
+
+            CreateDirectoryMethodStateResult result = await root.CreateDirectory!.OnCallAsync!(
+                context, root.CreateDirectory, root.NodeId, "existing", CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
+            Assert.That(result.DirectoryNodeId.IsNull, Is.True);
+            Assert.That(Find<BaseInstanceState>(root, context, "existing"), Is.SameAs(existing));
+            Assert.That(provider.ReadText(existingFile ? "existing" : "existing/payload.txt"), Is.EqualTo("payload"));
         }
 
         [Test]
@@ -361,6 +397,48 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(provider.OpenStreamCount, Is.Zero);
             Assert.That(file.Close!.OnCall, Is.Null);
             Assert.That(root.CreateFile!.OnCallAsync!, Is.Null);
+        }
+
+        [Test]
+        public async Task DisposeDeregistersEveryRegisteredNodeAndDetachesCallbacksAsync()
+        {
+            InMemoryFileSystemProvider provider = CreateProvider();
+            provider.AddDirectory("programs");
+            provider.AddFile("programs/main.mod", "movej");
+            FileDirectoryState root = CreateRoot();
+            SessionSystemContext context = CreateContext();
+            var registered = new List<NodeState>();
+            var deregistered = new List<NodeState>();
+            IFileDirectoryBinding binding = await CreateBinder().BindAsync(
+                root, provider, context,
+                registerNode: (node, _) =>
+                {
+                    registered.Add(node);
+                    return default;
+                },
+                deregisterNode: (node, _) =>
+                {
+                    deregistered.Add(node);
+                    return default;
+                }).ConfigureAwait(false);
+            FileDirectoryState programs = Find<FileDirectoryState>(root, context, "programs")!;
+            FileState main = Find<FileState>(programs, context, "main.mod")!;
+            OpenMethodStateResult opened = await main.Open!.OnCallAsync!(
+                context, main.Open, main.NodeId, 1, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(opened.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+
+            await binding.DisposeAsync().ConfigureAwait(false);
+            await binding.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(registered, Has.Count.EqualTo(2));
+            Assert.That(deregistered, Is.EquivalentTo(registered));
+            Assert.That(deregistered[0], Is.SameAs(main));
+            Assert.That(provider.OpenStreamCount, Is.Zero);
+            Assert.That(root.CreateFile!.OnCallAsync, Is.Null);
+            Assert.That(programs.CreateFile!.OnCallAsync, Is.Null);
+            Assert.That(main.Open.OnCallAsync, Is.Null);
+            Assert.That(main.Size!.OnReadValue, Is.Null);
+            Assert.That(Find<FileDirectoryState>(root, context, "programs"), Is.Null);
         }
 
         [Test]

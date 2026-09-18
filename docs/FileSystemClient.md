@@ -318,6 +318,18 @@ slot. Lookup snapshots are published only after node registration completes.
 Teardown retires lookups and handles before provider cleanup and drains
 queued operations before disposing its synchronization resources.
 
+`IFileSystemProvider.CreateDirectoryAsync` remains idempotent, including
+package-upload retries. The OPC UA `CreateDirectory` method checks the
+provider for an existing entry and returns `BadBrowseNameDuplicated`
+without creating or replacing it, independently of the provider.
+
+`FileDirectoryBinder.BindAsync` registers the complete pre-existing tree
+before returning, including files on read-only mounts. Supply the
+`registerNode` and `deregisterNode` callbacks directly on its single
+signature. Disposal deregisters materialized nodes from leaves to roots,
+closes handles, and detaches file and directory callbacks. The supplied
+root remains owned by its original node manager.
+
 If a provider mutation commits but the subsequent refresh fails, the
 mutation remains successful and an error identifies the unsynchronized
 binding. `RefreshAsync` retries reconciliation, as does the next mutation

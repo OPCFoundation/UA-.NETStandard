@@ -67,6 +67,14 @@ namespace Opc.Ua.Server.FileSystem
             string newPath = host.CombineProviderPath(providerPath, directoryName);
             try
             {
+                if (await host.Provider.GetEntryAsync(newPath, cancellationToken).ConfigureAwait(false) != null)
+                {
+                    return new CreateDirectoryMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Create(StatusCodes.BadBrowseNameDuplicated,
+                            "Directory or file with same name exists.")
+                    };
+                }
                 await host.ApplyMutationAsync(
                     FileSystemMutationKind.CreateDirectory, newPath, string.Empty, NodeId.Null, cancellationToken)
                     .ConfigureAwait(false);

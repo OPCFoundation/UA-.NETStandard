@@ -207,10 +207,10 @@ namespace Opc.Ua.Server.FileSystem
         {
             EnsureWritable();
             string full = ResolveAbsolute(path);
-            if (File.Exists(full) || Directory.Exists(full))
+            if (File.Exists(full))
             {
                 throw new IOException(
-                    $"A file or directory already exists at '{path}'.");
+                    $"A file already exists at '{path}'.");
             }
             Directory.CreateDirectory(full);
             return default;

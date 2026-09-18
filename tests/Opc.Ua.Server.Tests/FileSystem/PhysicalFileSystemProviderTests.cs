@@ -285,6 +285,28 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
+        public async Task CreateDirectoryAsyncIsIdempotentAndPreservesContentsAsync()
+        {
+            PhysicalFileSystemProvider provider = CreateProvider();
+            await provider.CreateDirectoryAsync("packages/version", CancellationToken.None).ConfigureAwait(false);
+            await provider.CreateFileAsync("packages/version/payload.bin", CancellationToken.None).ConfigureAwait(false);
+            using (Stream stream = await provider.OpenWriteAsync(
+                "packages/version/payload.bin", FileWriteMode.Truncate, CancellationToken.None).ConfigureAwait(false))
+            {
+                await WritePayloadAsync(stream, [1, 2, 3]).ConfigureAwait(false);
+            }
+
+            await provider.CreateDirectoryAsync("packages/version", CancellationToken.None).ConfigureAwait(false);
+            await provider.CreateDirectoryAsync(string.Empty, CancellationToken.None).ConfigureAwait(false);
+
+            using Stream read = await provider.OpenReadAsync(
+                "packages/version/payload.bin", CancellationToken.None).ConfigureAwait(false);
+            using var contents = new MemoryStream();
+            await read.CopyToAsync(contents).ConfigureAwait(false);
+            Assert.That(contents.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
+        }
+
+        [Test]
         public async Task CreateDirectoryAsyncOverExistingFileThrowsAsync()
         {
             PhysicalFileSystemProvider provider = CreateProvider();

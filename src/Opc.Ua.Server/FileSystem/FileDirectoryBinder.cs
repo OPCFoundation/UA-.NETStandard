@@ -268,12 +268,7 @@ namespace Opc.Ua.Server.FileSystem
                     {
                         handle.Dispose();
                     }
-                    foreach (MaterializedNode entry in m_nodesByPath.Values)
-                    {
-                        entry.Node.Parent?.RemoveChild(entry.Node);
-                    }
-                    m_nodesByPath.Clear();
-                    m_nodesById.Clear();
+                    await RemoveStaleNodesAsync([], CancellationToken.None).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -530,6 +525,14 @@ namespace Opc.Ua.Server.FileSystem
                 await ReconcileDirectoryAsync(Directory, string.Empty, 0, seen, cancellationToken)
                     .ConfigureAwait(false);
                 await RemoveStaleNodesAsync(seen, cancellationToken).ConfigureAwait(false);
+                if (m_initializing)
+                {
+                    m_initializing = false;
+                    foreach (MaterializedNode entry in m_nodesByPath.Values)
+                    {
+                        await RegisterNodeAsync(entry, cancellationToken).ConfigureAwait(false);
+                    }
+                }
                 lock (m_lock)
                 {
                     m_lookupById = new Dictionary<NodeId, MaterializedNode>(m_nodesById);

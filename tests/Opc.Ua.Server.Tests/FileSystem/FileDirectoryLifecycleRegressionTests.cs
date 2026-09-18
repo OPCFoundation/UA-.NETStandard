@@ -371,10 +371,13 @@ namespace Opc.Ua.Server.Tests.FileSystem
             await harness.Physical.CreateFileAsync("old", CancellationToken.None).ConfigureAwait(false);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            await using IFileDirectoryBinding binding = await harness.BindAsync(2, async (_, ct) =>
+            await using IFileDirectoryBinding binding = await harness.BindAsync(2, async (node, ct) =>
             {
-                entered.TrySetResult(true);
-                await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                if (node.BrowseName.Name == "new")
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                }
             }).ConfigureAwait(false);
             var host = (IFileSystemHost)binding;
             await harness.Physical.CreateFileAsync("new", CancellationToken.None).ConfigureAwait(false);
