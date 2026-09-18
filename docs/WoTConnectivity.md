@@ -1288,7 +1288,9 @@ Hosted deployments select compatibility through
 `WotRegistryServerOptions.ProjectionCompatibilityMode`; it reaches both registry
 admission and View materialization. Direct registry construction also has an
 explicit compatibility overload. Compatibility and format metadata participate
-in refresh fingerprints. Changing a Version's Format or ContentType invalidates
+in refresh fingerprints. The compatibility mode is captured before body acquisition;
+changing it invalidates the next refresh without changing an earlier capture's
+fingerprint. Changing a Version's Format or ContentType invalidates
 its format validation and selected runtime admission even if its bytes did not
 change. A validation result cannot be attached to a replacement Version or to
 different format metadata.

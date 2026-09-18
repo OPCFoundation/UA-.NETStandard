@@ -175,6 +175,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             bool supportsDependencySnapshots,
             int maxJsonDepth,
             WotDocumentSetMode documentSetMode,
+            WotProjectionCompatibilityMode projectionCompatibilityMode,
             string binderRevision,
             bool strictBindings,
             WotProjectionRetirementPolicy retirementPolicy,
@@ -187,6 +188,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             SupportsDependencySnapshots = supportsDependencySnapshots;
             MaxJsonDepth = maxJsonDepth;
             DocumentSetMode = documentSetMode;
+            ProjectionCompatibilityMode = projectionCompatibilityMode;
             BinderRevision = binderRevision;
             StrictBindings = strictBindings;
             RetirementPolicy = retirementPolicy;
@@ -240,6 +242,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Gets the explicit import mode captured for this invocation.
         /// </summary>
         public WotDocumentSetMode DocumentSetMode { get; }
+
+        /// <summary>
+        /// Gets the projection compatibility mode captured before body acquisition.
+        /// </summary>
+        public WotProjectionCompatibilityMode ProjectionCompatibilityMode { get; }
 
         /// <summary>
         /// Gets the binder capability revision observed before acquisition.
@@ -317,6 +324,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 writer.Write(MaxJsonDepth);
                 writer.Write((int)DocumentSetMode);
+                writer.Write((int)ProjectionCompatibilityMode);
                 writer.Write(BinderRevision);
             }
             return WotContentDigest.Compute(buffer.ToArray());

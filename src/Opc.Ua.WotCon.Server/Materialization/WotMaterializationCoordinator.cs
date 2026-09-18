@@ -679,6 +679,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 m_registry is IWotRegistryVersionLeaseProvider;
             int maxJsonDepth = m_converterOptions.MaxJsonDepth;
             WotDocumentSetMode documentSetMode = m_converterOptions.DocumentSetMode;
+            WotProjectionCompatibilityMode projectionCompatibilityMode = m_converterOptions.ProjectionCompatibilityMode;
             string binderRevision = BinderVersion;
             bool strictBindings = StrictBindings;
             WotProjectionRetirementPolicy retirementPolicy = RetirementPolicy;
@@ -691,7 +692,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 var capture = new WotRefreshCapture(
                     request, generation, inputs, origin, supportsSnapshots, maxJsonDepth,
-                    documentSetMode, binderRevision, strictBindings, retirementPolicy, versionNodeIdResolver);
+                    documentSetMode, projectionCompatibilityMode, binderRevision, strictBindings, retirementPolicy,
+                    versionNodeIdResolver);
                 transferred = true;
                 return capture;
             }
