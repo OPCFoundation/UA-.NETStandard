@@ -147,6 +147,14 @@ Explicit HistoryUpdate inserts remain visible as INSERT modifications, but do no
 Retained prior versions or associated annotations set that bit consistently on raw, exact-time, and bounding values.
 The bulk auto-capture path does not create INSERT modification copies.
 
+The one-hour raw retention period and 10,000-entry modified-history capacity are in-memory provider policies,
+not OPC UA defaults. Rejection of a timestamp outside the archive's supported range follows
+[Part 11, 6.9.2.2](https://reference.opcfoundation.org/specs/OPC-10000-11/6.9.2.2).
+INSERT modification records follow
+[Part 11, 6.5.3.3](https://reference.opcfoundation.org/specs/OPC-10000-11/6.5.3.3);
+the separate `ExtraData` conditions are defined in
+[Part 11, 6.5.3.2](https://reference.opcfoundation.org/specs/OPC-10000-11/6.5.3.2).
+
 ### Fluent builder (`server.UseHistorian()…`)
 
 For the most common case — one provider per server, default fallback — use the fluent builder. It rolls up provider registration, per-variable `Historizing`/access-level flags, optional `Annotations` property creation, and asynchronous `HistoricalDataConfigurationType` installation:
@@ -356,6 +364,12 @@ resume tokens, bounded pages, and open-ended quotas. Exact-time reads return eve
 The legacy `IHistorianAnnotationProvider` remains available: writes map source time to annotation time, and reads
 order/filter by annotation time. Use the timestamped API to update annotations whose two timestamps differ.
 
+The standard-history access path is defined in
+[Part 11, 5.1.2](https://reference.opcfoundation.org/specs/OPC-10000-11/5.1.2);
+[6.6.6](https://reference.opcfoundation.org/specs/OPC-10000-11/6.6.6) distinguishes annotation creation time from
+the annotated value's source timestamp. The composite identity and tie-break ordering above are the provider's
+documented storage contract, not a claim that OPC UA mandates that exact database key.
+
 Annotation updates preserve one result for every input `DataValue`, including `BadInvalidArgument` placeholders
 for null or undecodable values. A provider response with the wrong result count becomes `BadUnexpectedError` for
 each requested item rather than shifting subsequent statuses.
@@ -550,6 +564,13 @@ For a bounded time window the client limit applies to each page, with a continua
 For an open-ended request it limits the total across all pages, so the cursor carries the remaining quota.
 Bounds count toward the raw-read quota. Portable annotation continuations retain both limits in codec version 5;
 the codec still reads earlier envelope versions.
+
+This distinction follows [Part 11, 6.5.3.1](https://reference.opcfoundation.org/specs/OPC-10000-11/6.5.3.1)
+and [6.5.3.2](https://reference.opcfoundation.org/specs/OPC-10000-11/6.5.3.2): with both endpoints and a count,
+additional values in the specified time domain require a continuation; with only one endpoint, the count defines
+the extent of that domain. [6.3](https://reference.opcfoundation.org/specs/OPC-10000-11/6.3) permits smaller server
+responses but never a response above the client maximum. The 1,000-item cap is a provider resource limit, not a
+replacement for the client's count or an OPC UA fixed page size.
 
 Read methods return `ValueTask<HistorianPage<T>>`. A page is:
 
