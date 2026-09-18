@@ -41,6 +41,11 @@ namespace Opc.Ua.Client.Subscriptions
     internal interface IManagedSubscription : ISubscription, IMessageProcessor
     {
         /// <summary>
+        /// Whether a CreateSubscription request is awaiting its server identifier.
+        /// </summary>
+        bool IsCreationInProgress { get; }
+
+        /// <summary>
         /// Called after the subscription was transferred.
         /// </summary>
         /// <param name="availableSequenceNumbers">A list of sequence number

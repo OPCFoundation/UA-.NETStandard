@@ -715,8 +715,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 foreach (IManagedSubscription subscription in m_subscriptions)
                 {
-                    if (subscription is Subscription concrete &&
-                        concrete.IsCreationInProgress)
+                    if (subscription.IsCreationInProgress)
                     {
                         return true;
                     }
@@ -965,12 +964,11 @@ namespace Opc.Ua.Client.Subscriptions
                 bool transferred = false;
                 try
                 {
-                    TransferSubscriptionsResponse response = await m_session
-                        .TransferSubscriptionsAsync(
-                            null,
-                            subscriptionIds,
-                            sendInitialValues: options.SendInitialValuesOnTransfer,
-                            ct)
+                    TransferSubscriptionsResponse response = await m_session.TransferSubscriptionsAsync(
+                        null,
+                        subscriptionIds,
+                        sendInitialValues: options.SendInitialValuesOnTransfer,
+                        ct)
                         .ConfigureAwait(false);
 
                     ResponseHeader responseHeader = response.ResponseHeader;

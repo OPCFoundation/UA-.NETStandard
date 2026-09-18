@@ -700,10 +700,11 @@ namespace Opc.Ua.Client.Subscriptions
                 if (!shouldAcknowledge)
                 {
                     publishStateMask |= PublishState.KeepAlive;
-                    await OnKeepAliveNotificationAsync(
-                        message.SequenceNumber,
-                        (DateTime)message.PublishTime,
-                        publishStateMask).ConfigureAwait(false);
+                    await DispatchCallbackAsync(
+                        () => OnKeepAliveNotificationAsync(
+                            message.SequenceNumber,
+                            (DateTime)message.PublishTime,
+                            publishStateMask)).ConfigureAwait(false);
                 }
                 else
                 {
@@ -805,29 +806,37 @@ namespace Opc.Ua.Client.Subscriptions
                     // TODO: Also complete this subscription
                     mask |= PublishState.Timeout;
                 }
-                await OnStatusChangeNotificationAsync(
-                    message.SequenceNumber,
-                    (DateTime)message.PublishTime,
-                    statusChanged,
-                    mask,
-                    stringTable).ConfigureAwait(false);
+                await DispatchCallbackAsync(
+                    () => OnStatusChangeNotificationAsync(
+                        message.SequenceNumber,
+                        (DateTime)message.PublishTime,
+                        statusChanged,
+                        mask,
+                        stringTable)).ConfigureAwait(false);
             }
         }
 
         private async ValueTask DispatchCallbackAsync(Func<ValueTask> callback)
         {
-            MessageProcessor? previous = s_dispatchingProcessor.Value;
-            s_dispatchingProcessor.Value = this;
-            Interlocked.Increment(ref m_dispatchingCallbackCount);
+            DispatchScope? previous = s_dispatchScope.Value;
+            var scope = new DispatchScope(this);
+            s_dispatchScope.Value = scope;
             try
             {
                 await callback().ConfigureAwait(false);
             }
             finally
             {
-                Interlocked.Decrement(ref m_dispatchingCallbackCount);
-                s_dispatchingProcessor.Value = previous;
+                Volatile.Write(ref scope.Active, 0);
+                s_dispatchScope.Value = previous;
             }
+        }
+
+        private sealed class DispatchScope(MessageProcessor processor)
+        {
+            public MessageProcessor Processor { get; } = processor;
+
+            public int Active = 1;
         }
 
         /// <summary>
@@ -880,11 +889,16 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         protected bool IsDispatchingNotification
         {
-            get => Volatile.Read(ref m_dispatchingCallbackCount) != 0 &&
-                ReferenceEquals(s_dispatchingProcessor.Value, this);
+            get
+            {
+                DispatchScope? scope = s_dispatchScope.Value;
+                return scope != null &&
+                    ReferenceEquals(scope.Processor, this) &&
+                    Volatile.Read(ref scope.Active) != 0;
+            }
         }
 
-        private static readonly AsyncLocal<MessageProcessor?> s_dispatchingProcessor = new();
+        private static readonly AsyncLocal<DispatchScope?> s_dispatchScope = new();
         private readonly ISubscriptionServiceSetClientMethods m_services;
         // CA2213: fields are disposed in DisposeAsync(bool) — suppressed
         // because the analyzer does not track IAsyncDisposable disposal paths.
@@ -894,7 +908,6 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly SemaphoreSlim m_messageCapacity;
 #pragma warning restore CA2213
         private long m_generation;
-        private int m_dispatchingCallbackCount;
         private readonly Task m_messageWorkerTask;
         private readonly Channel<IncomingMessage> m_messages;
         private const int kIncomingMessageCapacity = 1024;

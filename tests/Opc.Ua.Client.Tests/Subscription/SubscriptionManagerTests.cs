@@ -944,7 +944,7 @@ namespace Opc.Ua.Client.Subscriptions
                 OptionsFactory.Create<SubscriptionOptions>();
 
             var created = new FakeManagedSubscription { Id = 1u, Created = true };
-            var pending = new FakeManagedSubscription { Id = 0u };
+            var pending = new FakeManagedSubscription { Id = 0u, IsCreationInProgress = true };
 
             var sut = new SubscriptionManager(session,
                 loggerFactory, DiagnosticsMasks.None);
@@ -977,6 +977,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // Once nothing is pending creation the orphan is cleaned up.
                 pending.Id = 2u;
                 pending.Created = true;
+                pending.IsCreationInProgress = false;
                 sut.Update();
 
                 await WaitUntilAsync(() => session.DeleteCallsCount > 0, testCt)

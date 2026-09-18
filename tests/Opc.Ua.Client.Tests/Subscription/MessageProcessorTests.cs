@@ -159,6 +159,93 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        [TestCase("data")]
+        [TestCase("event")]
+        [TestCase("keepalive")]
+        [TestCase("status")]
+        public async Task NotificationCallbacksHaveActiveReentryScopeAsync(string kind)
+        {
+            var observed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.NotificationCallback = _ =>
+                {
+                    observed.TrySetResult(sut.IsDispatchingForTest);
+                    return default;
+                };
+
+                await sut.OnPublishReceivedAsync(BuildNotificationMessage(kind, 1), null, [])
+                    .ConfigureAwait(false);
+
+                Assert.That(await observed.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.True);
+            }
+        }
+
+        [TestCase("data")]
+        [TestCase("event")]
+        [TestCase("keepalive")]
+        [TestCase("status")]
+        public async Task ChildOfCompletedCallbackCanDisposeDuringLaterDispatchAsync(string kind)
+        {
+            var releaseChild = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseSecond = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var disposalStarted = new TaskCompletionSource<InvalidOperationException?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task child = Task.CompletedTask;
+            var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.NotificationCallback = async sequenceNumber =>
+                {
+                    if (sequenceNumber == 1)
+                    {
+                        child = Task.Run(async () =>
+                        {
+                            await releaseChild.Task.ConfigureAwait(false);
+                            try
+                            {
+                                ValueTask disposing = sut.DisposeAsync();
+                                disposalStarted.TrySetResult(null);
+                                await disposing.ConfigureAwait(false);
+                            }
+                            catch (InvalidOperationException exception)
+                            {
+                                disposalStarted.TrySetResult(exception);
+                            }
+                        });
+                    }
+                    else
+                    {
+                        secondEntered.TrySetResult(true);
+                        await releaseSecond.Task.ConfigureAwait(false);
+                    }
+                };
+
+                try
+                {
+                    await sut.OnPublishReceivedAsync(BuildNotificationMessage(kind, 1), null, [])
+                        .ConfigureAwait(false);
+                    await sut.OnPublishReceivedAsync(BuildNotificationMessage(kind, 2), null, [])
+                        .ConfigureAwait(false);
+                    await secondEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    releaseChild.TrySetResult(true);
+
+                    Assert.That(
+                        await disposalStarted.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false),
+                        Is.Null,
+                        "The completed callback's child is not re-entering the later callback.");
+                }
+                finally
+                {
+                    releaseChild.TrySetResult(true);
+                    releaseSecond.TrySetResult(true);
+                    await child.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+            }
+        }
+
         [Test]
         public async Task DeferredDataCallbackTaskDoesNotInheritDispatchGuardAsync()
         {
@@ -179,6 +266,7 @@ namespace Opc.Ua.Client.Subscriptions
                     []).ConfigureAwait(false);
                 await sut.DataChangeNotificationReceived.WaitAsync()
                     .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await m_completion.WaitForQueuedAckAsync(1).ConfigureAwait(false);
                 sut.CallbackReturned.TrySetResult(true);
                 Assert.That(await sut.DeferredDispatchGuard.ConfigureAwait(false), Is.False);
             }
@@ -204,6 +292,7 @@ namespace Opc.Ua.Client.Subscriptions
                     []).ConfigureAwait(false);
                 await sut.EventNotificationReceived.WaitAsync()
                     .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await m_completion.WaitForQueuedAckAsync(1).ConfigureAwait(false);
                 sut.CallbackReturned.TrySetResult(true);
                 Assert.That(await sut.DeferredDispatchGuard.ConfigureAwait(false), Is.False);
             }
@@ -235,6 +324,7 @@ namespace Opc.Ua.Client.Subscriptions
                     []).ConfigureAwait(false);
                 await sut.StatusChangeNotificationReceived.WaitAsync()
                     .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await m_completion.WaitForQueuedAckAsync(1).ConfigureAwait(false);
                 sut.CallbackReturned.TrySetResult(true);
                 Assert.That(await sut.DeferredDispatchGuard.ConfigureAwait(false), Is.False);
             }
@@ -351,16 +441,25 @@ namespace Opc.Ua.Client.Subscriptions
                 SequenceNumber = (uint)i
             })];
 
-            UnsecureRandom.Shared.Shuffle(messages);
+            Array.Reverse(messages);
 
+            var lastNotification = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var sut = new TestMessageProcessor(m_mockServices.Object,
                 m_completion, m_telemetry)
             {
-                Id = 3
+                Id = 3,
+                NotificationCallback = sequenceNumber =>
+                {
+                    if (sequenceNumber == 100)
+                    {
+                        lastNotification.TrySetResult(true);
+                    }
+                    return default;
+                }
             };
             await using (sut.ConfigureAwait(false))
             {
-                sut.Block.Wait();
+                await sut.Block.WaitAsync().ConfigureAwait(false);
                 await sut.OnPublishReceivedAsync(new NotificationMessage
                 {
                     SequenceNumber = 1u
@@ -372,7 +471,7 @@ namespace Opc.Ua.Client.Subscriptions
                 sut.Block.Release();
 
                 // Act
-                await Task.Delay(10).ConfigureAwait(false);
+                await lastNotification.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
                 Assert.That(sut.ReceivedSequenceNumbers, Is.EqualTo(
                     Enumerable.Range(1, 100).Select(i => (uint)i)));
@@ -1097,6 +1196,22 @@ namespace Opc.Ua.Client.Subscriptions
                     });
         }
 
+        private static NotificationMessage BuildNotificationMessage(string kind, uint sequenceNumber)
+        {
+            return new NotificationMessage
+            {
+                SequenceNumber = sequenceNumber,
+                NotificationData = kind switch
+                {
+                    "data" => [new ExtensionObject(new DataChangeNotification())],
+                    "event" => [new ExtensionObject(new EventNotificationList())],
+                    "status" => [new ExtensionObject(new StatusChangeNotification { Status = StatusCodes.Good })],
+                    "keepalive" => [],
+                    _ => throw new ArgumentOutOfRangeException(nameof(kind))
+                }
+            };
+        }
+
         private static NotificationMessage BuildDataChangeMessage(uint sequenceNumber)
         {
             return new NotificationMessage
@@ -1171,6 +1286,7 @@ namespace Opc.Ua.Client.Subscriptions
             public Task<bool> DeferredDispatchGuard { get; private set; } =
                 Task.FromResult(false);
             public bool IsDispatchingForTest => IsDispatchingNotification;
+            public Func<uint, ValueTask>? NotificationCallback { get; set; }
 
             private void StartDeferredProbe()
             {
@@ -1194,6 +1310,15 @@ namespace Opc.Ua.Client.Subscriptions
                 Block.Release();
             }
 
+            private async ValueTask InvokeNotificationAsync(uint sequenceNumber)
+            {
+                if (NotificationCallback != null)
+                {
+                    await NotificationCallback(sequenceNumber).ConfigureAwait(false);
+                }
+                await WaitAsync().ConfigureAwait(false);
+            }
+
             protected override ValueTask OnDataChangeNotificationAsync(uint sequenceNumber,
                 DateTime publishTime, DataChangeNotification notification,
                 PublishState publishStateMask, IReadOnlyList<string> stringTable)
@@ -1208,7 +1333,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     StartDeferredProbe();
                 }
-                return WaitAsync();
+                return InvokeNotificationAsync(sequenceNumber);
             }
 
             protected override ValueTask OnEventDataNotificationAsync(uint sequenceNumber,
@@ -1225,7 +1350,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     StartDeferredProbe();
                 }
-                return WaitAsync();
+                return InvokeNotificationAsync(sequenceNumber);
             }
 
             protected override ValueTask OnKeepAliveNotificationAsync(uint sequenceNumber,
@@ -1237,7 +1362,7 @@ namespace Opc.Ua.Client.Subscriptions
                     PublishState = publishStateMask;
                 }
                 KeepAliveNotificationReceived.Set();
-                return WaitAsync();
+                return InvokeNotificationAsync(sequenceNumber);
             }
 
             protected override void OnPublishStateChanged(PublishState stateMask)
@@ -1260,7 +1385,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     StartDeferredProbe();
                 }
-                await WaitAsync().ConfigureAwait(false);
+                await InvokeNotificationAsync(sequenceNumber).ConfigureAwait(false);
             }
         }
 

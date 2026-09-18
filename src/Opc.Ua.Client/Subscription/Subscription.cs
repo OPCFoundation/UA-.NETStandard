@@ -1307,7 +1307,8 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
-        internal bool IsCreationInProgress
+        /// <inheritdoc/>
+        public bool IsCreationInProgress
             => Volatile.Read(ref m_creationInProgress) != 0;
 
         /// <summary>

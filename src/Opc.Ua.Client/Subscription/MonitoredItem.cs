@@ -919,8 +919,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 Debug.Assert(!options.StartNodeId.IsNull);
                 Options = options;
                 Item = item;
-                RequiresTriggeringReplayAfterCreate =
-                    currentOptions != null && item.Created;
+                RequiresTriggeringReplayAfterCreate = currentOptions != null && item.Created;
 
                 var parameters = new MonitoringParameters
                 {
