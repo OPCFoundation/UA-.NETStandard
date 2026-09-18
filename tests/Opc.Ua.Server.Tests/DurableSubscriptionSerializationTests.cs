@@ -85,6 +85,46 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that the current sample format preserves publishing state and anonymous owner application URI.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RoundTripSubscriptionState(bool publishingEnabled)
+        {
+            StoredSubscription original = CreateMinimalSubscription(id: 43);
+            original.PublishingEnabled = publishingEnabled;
+            original.OwnerClientApplicationUri = "urn:test:client";
+
+            StoredSubscription result = RoundTripSubscription(original);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.PublishingEnabled, Is.EqualTo(publishingEnabled));
+                Assert.That(result.OwnerClientApplicationUri, Is.EqualTo("urn:test:client"));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that version-one sample records migrate to the safe default publishing state.
+        /// </summary>
+        [Test]
+        public void DecodeVersionOneSubscriptionDefaultsState()
+        {
+            using var encoder = new BinaryEncoder(m_context);
+            StoredSubscription original = CreateMinimalSubscription(id: 44);
+            WriteLegacySubscription(encoder, original);
+            using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer(), m_context);
+
+            StoredSubscription result = SubscriptionStore.DecodeSubscription(decoder, version: 1);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.PublishingEnabled, Is.True);
+                Assert.That(result.OwnerClientApplicationUri, Is.Null);
+            });
+        }
+
+        /// <summary>
         /// Verifies that durable subscription serialization preserves its monitored items and their identifiers.
         /// </summary>
         [Test]
@@ -194,7 +234,7 @@ namespace Opc.Ua.Server.Tests
             byte[] bytes = encoder.CloseAndReturnBuffer();
             using var decoder = new BinaryDecoder(bytes, m_context);
 
-            IStoredMonitoredItem restored = SubscriptionStore.DecodeSubscription(decoder, version: 1)
+            IStoredMonitoredItem restored = SubscriptionStore.DecodeSubscription(decoder, version: 3)
                 .MonitoredItems.Single();
 
             Assert.That(restored.Id, Is.EqualTo(item.Id));
@@ -379,6 +419,26 @@ namespace Opc.Ua.Server.Tests
                 TimestampsToReturn = TimestampsToReturn.Both,
                 DiagnosticsMasks = DiagnosticsMasks.None
             };
+        }
+
+        private static void WriteLegacySubscription(
+            BinaryEncoder encoder,
+            StoredSubscription subscription)
+        {
+            encoder.WriteUInt32(null, subscription.Id);
+            encoder.WriteBoolean(null, subscription.IsDurable);
+            encoder.WriteUInt32(null, subscription.LifetimeCounter);
+            encoder.WriteUInt32(null, subscription.MaxLifetimeCount);
+            encoder.WriteUInt32(null, subscription.MaxKeepaliveCount);
+            encoder.WriteUInt32(null, subscription.MaxMessageCount);
+            encoder.WriteUInt32(null, subscription.MaxNotificationsPerPublish);
+            encoder.WriteDouble(null, subscription.PublishingInterval);
+            encoder.WriteByte(null, subscription.Priority);
+            encoder.WriteInt32(null, subscription.LastSentMessage);
+            encoder.WriteUInt32(null, subscription.SequenceNumber);
+            encoder.WriteExtensionObject(null, ExtensionObject.Null);
+            encoder.WriteExtensionObjectArray(null, []);
+            encoder.WriteInt32(null, 0);
         }
 
         private StoredSubscription RoundTripSubscription(

@@ -1151,8 +1151,7 @@ namespace Opc.Ua.Redundancy.Server
         {
             using var decoder = new BinaryDecoder(payload.ToArray(), m_context);
             int version = decoder.ReadInt32(null);
-            if (version is < LegacyDefinitionFormatVersion or
-                > DefinitionFormatVersion)
+            if (!IsSupportedDefinitionVersion(version))
             {
                 throw new ServiceResultException(StatusCodes.BadDecodingError, "Unsupported subscription record version.");
             }
@@ -1204,6 +1203,11 @@ namespace Opc.Ua.Redundancy.Server
             encoder.WriteByte(null, subscription.Priority);
             encoder.WriteInt32(null, subscription.LastSentMessage);
             encoder.WriteUInt32(null, subscription.SequenceNumber);
+            if (version >= OwnerStateDefinitionFormatVersion)
+            {
+                encoder.WriteBoolean(null, subscription.PublishingEnabled);
+                encoder.WriteString(null, subscription.OwnerClientApplicationUri);
+            }
             encoder.WriteExtensionObject(
                 null,
                 subscription.UserIdentityToken != null
@@ -1235,8 +1239,14 @@ namespace Opc.Ua.Redundancy.Server
                 Priority = decoder.ReadByte(null),
                 LastSentMessage = decoder.ReadInt32(null),
                 SequenceNumber = decoder.ReadUInt32(null),
+                PublishingEnabled = true,
                 SentMessages = []
             };
+            if (version >= OwnerStateDefinitionFormatVersion)
+            {
+                subscription.PublishingEnabled = decoder.ReadBoolean(null);
+                subscription.OwnerClientApplicationUri = decoder.ReadString(null);
+            }
 
             ExtensionObject token = decoder.ReadExtensionObject(null);
             if (!token.IsNull &&
@@ -1413,6 +1423,14 @@ namespace Opc.Ua.Redundancy.Server
                 "/message/";
         }
 
+        private static bool IsSupportedDefinitionVersion(int version)
+        {
+            return version is LegacyDefinitionFormatVersion or
+                LifecycleStateDefinitionFormatVersion or
+                FilteredRetainDefinitionFormatVersion or
+                OwnerStateDefinitionFormatVersion;
+        }
+
         private static string ContinuationPointPrefixFor(NodeId ownerSessionId)
         {
             return ContinuationPointPrefix +
@@ -1423,9 +1441,10 @@ namespace Opc.Ua.Redundancy.Server
         private const int LegacyDefinitionFormatVersion = 1;
         private const int LifecycleStateDefinitionFormatVersion = 2;
         private const int FilteredRetainDefinitionFormatVersion = 3;
+        private const int OwnerStateDefinitionFormatVersion = 5;
 
         private const int DefinitionFormatVersion =
-            FilteredRetainDefinitionFormatVersion;
+            OwnerStateDefinitionFormatVersion;
 
         private const int DefinitionSnapshotManifestFormatVersion = 1;
         private const int ContinuationPointFormatVersion = 1;

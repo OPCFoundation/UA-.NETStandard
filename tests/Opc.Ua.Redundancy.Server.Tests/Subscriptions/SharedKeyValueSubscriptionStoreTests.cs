@@ -89,6 +89,32 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         /// <summary>
+        /// Verifies that shared definitions preserve publishing state and anonymous owner application URI.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StoreAndRestoreRoundTripsSubscriptionStateAsync(bool publishingEnabled)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore active = CreateStore(kv);
+            SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+            StoredSubscription expected = NewSubscription(107, 17);
+            expected.PublishingEnabled = publishingEnabled;
+            expected.OwnerClientApplicationUri = "urn:test:client";
+
+            await active.StoreSubscriptionsAsync([expected]).ConfigureAwait(false);
+            RestoreSubscriptionResult result = await backup.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            StoredSubscription actual = (StoredSubscription)result.Subscriptions!.Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.True);
+                Assert.That(actual.PublishingEnabled, Is.EqualTo(publishingEnabled));
+                Assert.That(actual.OwnerClientApplicationUri, Is.EqualTo("urn:test:client"));
+            });
+        }
+
+        /// <summary>
         /// Verifies that stored subscriptions preserve monitored-item lifecycle state.
         /// </summary>
         [TestCase(false, false)]
@@ -191,8 +217,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 actual.LastError.StatusCode,
                 Is.EqualTo(StatusCodes.BadCommunicationError));
             using var decoder = new BinaryDecoder(EncodeDefinition(active, expected).ToArray(), CreateContext());
-            Assert.That(decoder.ReadInt32(null), Is.EqualTo(3),
-                "New definitions must not include the version-four live notification metadata.");
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(5),
+                "New definitions must carry the owner and publishing state format.");
         }
 
         /// <summary>
@@ -300,6 +326,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Assert.That(restored.IsDeleted, Is.False);
                 Assert.That(restored.IsDetached, Is.False);
             });
+            StoredSubscription restoredSubscription = (StoredSubscription)result.Subscriptions!.Single();
+            Assert.That(restoredSubscription.PublishingEnabled, Is.True);
+            Assert.That(restoredSubscription.OwnerClientApplicationUri, Is.Null);
         }
 
         /// <summary>
