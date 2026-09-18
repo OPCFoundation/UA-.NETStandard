@@ -289,6 +289,12 @@ namespace Opc.Ua
                     "Unsupported security policy: {0}",
                     securityPolicyUri);
 
+            if (info.Uri == None)
+            {
+                encryptedData.Data = plainText.ToArray();
+                return encryptedData;
+            }
+
             // check if asymmetric encryption is possible.
             if (info.AsymmetricEncryptionAlgorithm != AsymmetricEncryptionAlgorithm.None)
             {
@@ -359,6 +365,11 @@ namespace Opc.Ua
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
                     securityPolicyUri);
+
+            if (info.Uri == None)
+            {
+                return dataToDecrypt.Data;
+            }
 
             // check if asymmetric encryption is possible.
             if (info.AsymmetricEncryptionAlgorithm != AsymmetricEncryptionAlgorithm.None)
@@ -451,6 +462,11 @@ namespace Opc.Ua
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
                     securityPolicyUri);
+
+            if (info.Uri == None)
+            {
+                return new ValueTask<byte[]?>(dataToDecrypt.Data);
+            }
 
             if (info.AsymmetricEncryptionAlgorithm != AsymmetricEncryptionAlgorithm.None &&
                 TryGetDecryptionPadding(

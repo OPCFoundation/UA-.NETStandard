@@ -31,6 +31,7 @@
 #pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
@@ -250,6 +251,26 @@ namespace Opc.Ua.Core.Tests.Security
             Assert.That(noneSignature.Algorithm, Is.Null);
             Assert.That(noneSignature.Signature.IsNull, Is.True);
             Assert.That(SecurityPolicies.Default.VerifySignatureData(noneSignature, SecurityPolicyInfo.None, certificate, plainText), Is.True);
+        }
+
+        [Test]
+        public async Task NoSecurityEncryptAndDecryptAreNoOpsAsync(
+            [Values(null, "", SecurityPolicies.None, "None")] string policyUri,
+            [Values(false, true)] bool empty)
+        {
+            byte[] plainText = empty ? [] : [1, 2, 3];
+
+            EncryptedData encrypted = SecurityPolicies.Default.Encrypt(null, policyUri, plainText);
+            Assert.That(encrypted.Algorithm, Is.Null);
+            Assert.That(encrypted.Data, Is.EqualTo(plainText));
+            Assert.That(SecurityPolicies.Default.Decrypt(null, policyUri, encrypted), Is.SameAs(encrypted.Data));
+            Assert.That(SecurityPolicies.Default.Decrypt(null, policyUri, null), Is.Null);
+            Assert.That(
+                await SecurityPolicies.Default.DecryptAsync(null, policyUri, encrypted).ConfigureAwait(false),
+                Is.SameAs(encrypted.Data));
+            Assert.That(
+                await SecurityPolicies.Default.DecryptAsync(null, policyUri, null).ConfigureAwait(false),
+                Is.Null);
         }
 
         /// <summary>

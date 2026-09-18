@@ -84,8 +84,7 @@ namespace Opc.Ua
                     $"Cannot resolve SecurityPolicy '{securityPolicyUri}'.",
                     nameof(securityPolicyUri));
             Context = context;
-            m_decrypt = decrypt ?? ((data, policy, key, iv) =>
-                CryptoUtils.SymmetricDecryptAndVerify(data, policy, key, iv));
+            m_decrypt = decrypt ?? DecryptSymmetricPayload;
         }
 
         /// <inheritdoc/>
@@ -1048,6 +1047,21 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Decrypts the payload without removing the encrypted-secret padding validated by the decoder.
+        /// </summary>
+        internal static ArraySegment<byte> DecryptSymmetricPayload(
+            ArraySegment<byte> data,
+            SecurityPolicyInfo policy,
+            byte[] encryptingKey,
+            byte[] iv)
+        {
+            return policy.SymmetricEncryptionAlgorithm is
+                SymmetricEncryptionAlgorithm.Aes128Cbc or SymmetricEncryptionAlgorithm.Aes256Cbc
+                ? DecryptCbcWithoutPadding(data, encryptingKey, iv)
+                : CryptoUtils.SymmetricDecryptAndVerify(data, policy, encryptingKey, iv);
+        }
+
         private static ArraySegment<byte> DecryptCbcWithoutPadding(
             ArraySegment<byte> cipherText,
             byte[] encryptingKey,
@@ -1525,10 +1539,7 @@ namespace Opc.Ua
             try
             {
                 CreateKeysForEcc(SecurityPolicy, ReceiverNonce, SenderNonce, true, out encryptingKey, out iv);
-                ArraySegment<byte> plainText = SecurityPolicy.SymmetricEncryptionAlgorithm is
-                    SymmetricEncryptionAlgorithm.Aes128Cbc or SymmetricEncryptionAlgorithm.Aes256Cbc
-                    ? DecryptCbcWithoutPadding(dataToDecrypt, encryptingKey, iv)
-                    : m_decrypt(dataToDecrypt, SecurityPolicy, encryptingKey, iv);
+                ArraySegment<byte> plainText = m_decrypt(dataToDecrypt, SecurityPolicy, encryptingKey, iv);
                 using var decoder = new BinaryDecoder(
                     plainText.GetArray(),
                     plainText.Offset + dataToDecrypt.Offset,
