@@ -63,8 +63,13 @@ namespace Opc.Ua.Server.Historian
 
             lock (m_lock)
             {
+                m_nodes.TryGetValue(nodeId, out IHistorianProvider? previous);
                 m_nodes[nodeId] = provider;
                 AddProvider(provider, ownsProvider: true);
+                if (previous != null)
+                {
+                    RebuildProviderSet(previous);
+                }
             }
         }
 
@@ -82,8 +87,13 @@ namespace Opc.Ua.Server.Historian
 
             lock (m_lock)
             {
+                m_namespaces.TryGetValue(namespaceUri, out IHistorianProvider? previous);
                 m_namespaces[namespaceUri] = provider;
                 AddProvider(provider, ownsProvider: true);
+                if (previous != null)
+                {
+                    RebuildProviderSet(previous);
+                }
             }
         }
 
@@ -107,8 +117,13 @@ namespace Opc.Ua.Server.Historian
 
             lock (m_lock)
             {
+                IHistorianProvider? previous = m_default;
                 m_default = provider;
                 AddProvider(provider, ownsProvider);
+                if (previous != null)
+                {
+                    RebuildProviderSet(previous);
+                }
             }
         }
 
@@ -246,7 +261,6 @@ namespace Opc.Ua.Server.Historian
             if (!ContainsProvider(candidate))
             {
                 m_providers.Remove(candidate);
-                m_ownedProviders.Remove(candidate);
             }
         }
 
