@@ -810,11 +810,27 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Reconnects the transport and its participants within the retry policy while rejecting superseded
-        /// certificates.
+        /// Publishes the reconnect result only after the completed cycle releases its coalescer and operation reference.
         /// </summary>
         private async Task RunReconnectCycleAsync(
             TaskCompletionSource<bool> tcs)
+        {
+            try
+            {
+                bool reconnected = await ReconnectCycleAsync().ConfigureAwait(false);
+                tcs.TrySetResult(reconnected);
+            }
+            catch (Exception ex)
+            {
+                tcs.TrySetException(ex);
+            }
+        }
+
+        /// <summary>
+        /// Reconnects the transport and its participants within the retry policy while rejecting superseded
+        /// certificates.
+        /// </summary>
+        private async Task<bool> ReconnectCycleAsync()
         {
             using Activity? activity = OwnerManager.StartReconnectActivity(this);
             long startingTimestamp = OwnerManager.TimeProvider.GetTimestamp();
@@ -845,13 +861,12 @@ namespace Opc.Ua
                 // Record before completing the waiters: this is a deliberate stop
                 // (the retry policy or the caller's budget said so), not a lost race
                 // against a concurrent close, and callers inspect the flag as soon
-                // as tcs completes.
+                // as the reconnect result completes.
                 Volatile.Write(ref m_reconnectStoppedByRetryPolicy, 1);
 
                 await NotifyParticipantsFinalAsync().ConfigureAwait(false);
                 finalOutcome = kReconnectOutcomePolicyExhausted;
                 OwnerManager.RecordReconnectAttempt(this, finalOutcome);
-                tcs.TrySetResult(false);
             }
 
             try
@@ -874,7 +889,7 @@ namespace Opc.Ua
                                 "Channel reconnect budget exhausted.",
                                 attempt)
                             .ConfigureAwait(false);
-                        return;
+                        return false;
                     }
 
 #if NETSTANDARD2_1 || NET8_0_OR_GREATER
@@ -903,7 +918,7 @@ namespace Opc.Ua
                                 "Channel reconnect policy exhausted.",
                                 attempt)
                             .ConfigureAwait(false);
-                        return;
+                        return false;
                     }
 
                     attemptsStarted++;
@@ -940,7 +955,7 @@ namespace Opc.Ua
                                 "Channel reconnect budget exhausted.",
                                 attempt)
                             .ConfigureAwait(false);
-                        return;
+                        return false;
                     }
 
                     try
@@ -999,8 +1014,7 @@ namespace Opc.Ua
                         await NotifyParticipantsFinalAsync().ConfigureAwait(false);
                         finalOutcome = kReconnectOutcomeFatalChannel;
                         OwnerManager.RecordReconnectAttempt(this, finalOutcome);
-                        tcs.TrySetResult(false);
-                        return;
+                        return false;
                     }
 
                     if (outcome.AnyTransient)
@@ -1050,14 +1064,13 @@ namespace Opc.Ua
                     }
                     finalOutcome = kReconnectOutcomeSuccess;
                     OwnerManager.RecordReconnectAttempt(this, finalOutcome);
-                    tcs.TrySetResult(true);
-                    return;
+                    return true;
                 }
             }
             catch (Exception ex)
             {
                 finalError = new ServiceResult(ex);
-                tcs.TrySetException(ex);
+                throw;
             }
             finally
             {

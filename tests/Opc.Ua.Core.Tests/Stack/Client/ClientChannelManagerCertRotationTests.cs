@@ -33,6 +33,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
@@ -217,6 +218,72 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
             finally
             {
+                await manager.DisposeAsync().ConfigureAwait(false);
+                DisposeOpenedCertificates(settings);
+            }
+        }
+
+        [Test]
+        public async Task ReconnectCompletionWaitsForCycleCleanupAsync()
+        {
+            using Certificate client = s_factory.CreateCertificate("CN=cleanup-client").CreateForRSA();
+            using Certificate server = s_factory.CreateCertificate("CN=cleanup-server").CreateForRSA();
+            var settings = new ConcurrentQueue<TransportChannelSettings>();
+            var changes = new TestCertificateChangeSource();
+            await using ClientChannelManager manager = CreateSut(client, changes, settings);
+            ConfiguredEndpoint endpoint = GetTestEndpoint(server);
+            endpoint.Description.EndpointUrl = "opc.tcp://localhost:4842/reconnect-cleanup";
+            var participant = new BlockingRecreateParticipant("cleanup", endpoint);
+            var completedDuringCleanup = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<bool>? reconnect = null;
+            using var listener = new MeterListener
+            {
+                InstrumentPublished = (instrument, meterListener) =>
+                {
+                    if (instrument.Name == "opc.ua.channel.reconnect.duration")
+                    {
+                        meterListener.EnableMeasurementEvents(instrument);
+                    }
+                }
+            };
+            listener.SetMeasurementEventCallback<double>((_, _, tags, _) =>
+            {
+                foreach (KeyValuePair<string, object?> tag in tags)
+                {
+                    if (tag.Key == "endpoint" &&
+                        tag.Value is string endpointUrl &&
+                        endpointUrl == endpoint.Description.EndpointUrl)
+                    {
+                        completedDuringCleanup.TrySetResult(reconnect!.IsCompleted);
+                    }
+                }
+            });
+            listener.Start();
+            ManagedTransportChannelLease? lease = null;
+            try
+            {
+                manager.UpdateClientCertificate(client.AddRef(), null);
+                lease = (ManagedTransportChannelLease)await manager.GetAsync(participant).ConfigureAwait(false);
+                reconnect = lease.Entry.RequestReconnectAsync(default);
+                await participant.RecreateStarted.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                participant.ReleaseRecreate();
+
+                Assert.That(await reconnect.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.True);
+                Assert.That(
+                    await completedDuringCleanup.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false),
+                    Is.False,
+                    "Reconnect waiters must not resume before the completed cycle releases its coalescer.");
+                Assert.That(lease.State, Is.EqualTo(ChannelState.Ready));
+                Assert.That(lease.Entry.RefCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                participant.ReleaseRecreate();
+                if (lease != null)
+                {
+                    await lease.CloseAsync().ConfigureAwait(false);
+                }
                 await manager.DisposeAsync().ConfigureAwait(false);
                 DisposeOpenedCertificates(settings);
             }

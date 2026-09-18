@@ -160,6 +160,7 @@ namespace Opc.Ua
         /// invalidates all secure channels.
         /// </summary>
         /// <param name="ct">Cancellation token.</param>
+        /// <returns>An operation that completes after all requested reconnect cycles and their cleanup finish.</returns>
         ValueTask ReconnectAllAsync(CancellationToken ct = default);
 
         /// <summary>
