@@ -42,9 +42,9 @@ namespace Opc.Ua.Identity
     /// </summary>
     /// <remarks>
     /// Consumers verify JWS signatures through this view. The concrete key
-    /// (and the underlying asymmetric algorithm) remains owned and disposed
-    /// by the resolver — which typically caches and reuses keys across calls
-    /// — so a consumer never needs, and is deliberately unable, to dispose it.
+    /// (and the underlying asymmetric algorithm) remains managed by the
+    /// resolver, which may cache keys or let them be collected after their last
+    /// reader releases them. Consumers do not dispose the returned view.
     /// </remarks>
     public interface IIssuerVerificationKey
     {
@@ -136,7 +136,9 @@ namespace Opc.Ua.Identity
             Algorithm = algorithm;
         }
 
-        /// <summary>JWK <c>kid</c> matched against the JWT header.</summary>
+        /// <summary>
+        /// JWK <c>kid</c> matched against the JWT header.
+        /// </summary>
         public string? KeyId { get; }
 
         /// <summary>
@@ -249,8 +251,8 @@ namespace Opc.Ua.Identity
         /// The returned <see cref="IIssuerVerificationKey"/> values are a
         /// non-disposable view: the resolver retains ownership of the concrete
         /// keys (and typically caches them), so callers verify signatures
-        /// through the view without managing its lifetime. The lifetime is at
-        /// least the duration of the returned <see cref="ValueTask{TResult}"/>.
+        /// through the view without managing its lifetime. Refresh must not
+        /// invalidate a previously returned key while a caller is verifying with it.
         /// </remarks>
         ValueTask<IReadOnlyList<IIssuerVerificationKey>> GetKeysAsync(
             string? keyId,

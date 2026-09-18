@@ -30,8 +30,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -174,6 +176,93 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         }
 
         [Test]
+        public async Task RetiredKeysAreCollectibleWhileResolverRemainsAliveAsync()
+        {
+            using var rsa = RSA.Create(2048);
+            using var ec = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            string jwks = CreateJwks(CreateRsaJwk(rsa, "rsa", "sig"), CreateEcJwk(ec, "ec"));
+            using var handler = new QueueMessageHandler(jwks, jwks);
+            using var httpClient = new HttpClient(handler, disposeHandler: false);
+            using var resolver = new JwksIssuerKeyResolver(
+                "https://issuer.example.test", "https://issuer.example.test/keys",
+                httpClient, new FakeTimeProvider(), TimeSpan.Zero);
+            WeakReference<IIssuerVerificationKey>[] retired = await ReadWeakKeysAsync(resolver)
+                .ConfigureAwait(false);
+
+            await resolver.GetKeysAsync("missing").ConfigureAwait(false);
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            Assert.That(handler.RequestCount, Is.EqualTo(2));
+            Assert.That(retired, Has.Length.EqualTo(2));
+            foreach (WeakReference<IIssuerVerificationKey> key in retired)
+            {
+                Assert.That(key.TryGetTarget(out _), Is.False, "The resolver must not retain retired keys.");
+            }
+            GC.KeepAlive(resolver);
+        }
+
+        [Test]
+        public async Task ReturnedKeysSurviveRepeatedRefreshAndResolverDisposalAsync()
+        {
+            using var rsa = RSA.Create(2048);
+            using var ec = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            string jwks = CreateJwks(CreateRsaJwk(rsa, "rsa", "sig"), CreateEcJwk(ec, "ec"));
+            using var handler = new QueueMessageHandler(Enumerable.Repeat(jwks, 33).ToArray());
+            using var httpClient = new HttpClient(handler, disposeHandler: false);
+            using var resolver = new JwksIssuerKeyResolver(
+                "https://issuer.example.test", "https://issuer.example.test/keys",
+                httpClient, new FakeTimeProvider(), TimeSpan.Zero);
+            IReadOnlyList<IIssuerVerificationKey> retained = await resolver.GetKeysAsync(null).ConfigureAwait(false);
+            byte[] data = Encoding.ASCII.GetBytes("retained-reader");
+            byte[] rsaSignature = rsa.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            byte[] ecSignature = ec.SignData(data, HashAlgorithmName.SHA256);
+
+            for (int i = 0; i < 32; i++)
+            {
+                await resolver.GetKeysAsync("missing").ConfigureAwait(false);
+                Assert.That(FindKey(retained, "rsa").VerifySignature(data, rsaSignature), Is.True);
+                Assert.That(FindKey(retained, "ec").VerifySignature(data, ecSignature), Is.True);
+            }
+            IReadOnlyList<IIssuerVerificationKey> current = await resolver.GetKeysAsync(null).ConfigureAwait(false);
+            resolver.Dispose();
+
+            Assert.That(handler.RequestCount, Is.EqualTo(33));
+            Assert.That(FindKey(retained, "rsa").VerifySignature(data, rsaSignature), Is.True);
+            Assert.That(FindKey(retained, "ec").VerifySignature(data, ecSignature), Is.True);
+            Assert.That(FindKey(current, "rsa").VerifySignature(data, rsaSignature), Is.True);
+            Assert.That(FindKey(current, "ec").VerifySignature(data, ecSignature), Is.True);
+            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await resolver.GetKeysAsync(null).ConfigureAwait(false));
+        }
+
+        [Test]
+        public async Task DisposeDuringFetchDoesNotDisposeAnActiveRefreshGateAsync()
+        {
+            using var rsa = RSA.Create(2048);
+            using var handler = new GatedMessageHandler(CreateJwks(CreateRsaJwk(rsa, "rsa", "sig")));
+            using var httpClient = new HttpClient(handler, disposeHandler: false);
+            using var resolver = new JwksIssuerKeyResolver(
+                "https://issuer.example.test", "https://issuer.example.test/keys",
+                httpClient, new FakeTimeProvider(), TimeSpan.Zero);
+            Task<IReadOnlyList<IIssuerVerificationKey>> pending = resolver.GetKeysAsync("rsa").AsTask();
+            try
+            {
+                await handler.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                resolver.Dispose();
+            }
+            finally
+            {
+                handler.Release.TrySetResult(true);
+            }
+
+            ObjectDisposedException error = Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await pending.ConfigureAwait(false));
+            Assert.That(error.ObjectName, Is.EqualTo(nameof(JwksIssuerKeyResolver)));
+        }
+
+        [Test]
         public async Task GetKeysAsyncSkipsMalformedKeyAndRetainsUsableKeys()
         {
             using var rsa = RSA.Create(2048);
@@ -227,6 +316,14 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             Assert.That(handler.RequestCount, Is.EqualTo(2));
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static async Task<WeakReference<IIssuerVerificationKey>[]> ReadWeakKeysAsync(
+            JwksIssuerKeyResolver resolver)
+        {
+            IReadOnlyList<IIssuerVerificationKey> keys = await resolver.GetKeysAsync(null).ConfigureAwait(false);
+            return keys.Select(key => new WeakReference<IIssuerVerificationKey>(key)).ToArray();
+        }
+
         private static IIssuerVerificationKey FindKey(IReadOnlyList<IIssuerVerificationKey> keys, string kid)
         {
             for (int i = 0; i < keys.Count; i++)
@@ -276,6 +373,27 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 .TrimEnd('=')
                 .Replace('+', '-')
                 .Replace('/', '_');
+        }
+
+        private sealed class GatedMessageHandler(string jwks) : HttpMessageHandler
+        {
+            public TaskCompletionSource<bool> Entered { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public TaskCompletionSource<bool> Release { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            protected override async Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request,
+                CancellationToken cancellationToken)
+            {
+                Entered.TrySetResult(true);
+                await Release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(jwks, Encoding.UTF8, "application/json")
+                };
+            }
         }
 
         private sealed class QueueMessageHandler : HttpMessageHandler

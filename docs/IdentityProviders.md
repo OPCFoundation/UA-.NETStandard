@@ -709,8 +709,12 @@ or a custom issuer with `WithAuthorizationService<TIssuer>(...)`; see
 
 Server-side JWT validation in the GDS `JwtAuthenticator` resolves
 verification keys through `IIssuerKeyResolver`. Consumers receive each
-key as a non-disposable `IIssuerVerificationKey` view (the resolver
-owns and disposes the concrete `IssuerVerificationKey`). The helper
+key as a non-disposable `IIssuerVerificationKey` view. `JwksIssuerKeyResolver`
+retains only its current snapshot; retired keys and their native handles are
+collected when their last reader releases them. Refresh and resolver disposal
+do not invalidate already returned JWKS keys. Other resolver owners dispose
+their concrete `IssuerVerificationKey` instances according to their lifetime.
+The helper
 deliberately uses
 `byte[]` overloads (no `System.IdentityModel.Tokens.Jwt`) so it works
 on netstandard2.1 / net472 / net48 / net8+/net9+/net10+ and is
