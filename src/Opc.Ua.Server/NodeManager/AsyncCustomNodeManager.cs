@@ -7593,8 +7593,7 @@ namespace Opc.Ua.Server
             filterResult = validateMonitoringFilterResult.FilterResult;
 
             bool componentCacheReferenceAdded =
-                m_monitoredItemManager is MonitoredNodeMonitoredItemManager &&
-                !m_monitoredItemManager.MonitoredNodes.ContainsKey(handle.NodeId);
+                m_monitoredItemManager is MonitoredNodeMonitoredItemManager;
             ISampledDataChangeMonitoredItem dataChangeMonitoredItem;
             if (decision.Kind == MonitoredItemCreateDecisionKind.Custom)
             {

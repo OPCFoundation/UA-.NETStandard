@@ -164,11 +164,10 @@ namespace Opc.Ua.Server
 
             try
             {
+                NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
+                componentCacheAdded = true;
                 if (!MonitoredNodes.TryGetValue(handle.Node.NodeId, out monitoredNode))
                 {
-                    NodeState cachedNode =
-                        addNodeToComponentCache(context, handle, handle.Node);
-                    componentCacheAdded = true;
                     MonitoredNodes[handle.Node.NodeId] = monitoredNode =
                         new MonitoredNode2(
                             m_nodeManager,
@@ -271,7 +270,8 @@ namespace Opc.Ua.Server
             if (MonitoredNodes.TryGetValue(handle.NodeId, out MonitoredNode2? monitoredNode))
             {
                 monitoredNode.Remove(monitoredItem);
-                if (!IsEventMonitoredItemLinked(monitoredItem.Id))
+                if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) == 0 ||
+                    !IsEventMonitoredItemLinked(monitoredItem.Id))
                 {
                     MonitoredItems.TryRemove(monitoredItem.Id, out _);
                 }
@@ -331,10 +331,11 @@ namespace Opc.Ua.Server
                 return false;
             }
 
+            NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
+
             // check if the node is already being monitored.
             if (!MonitoredNodes.TryGetValue(handle.Node.NodeId, out MonitoredNode2? monitoredNode))
             {
-                NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
                 MonitoredNodes[handle.Node.NodeId]
                     = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, cachedNode,
                         IsMultiConsumerNode(cachedNode.NodeId));
@@ -695,18 +696,18 @@ namespace Opc.Ua.Server
             }
         }
 
-            private bool IsEventMonitoredItemLinked(uint monitoredItemId)
+        private bool IsEventMonitoredItemLinked(uint monitoredItemId)
+        {
+            foreach (MonitoredNode2 monitoredNode in MonitoredNodes.Values)
             {
-                foreach (MonitoredNode2 monitoredNode in MonitoredNodes.Values)
+                if (monitoredNode.EventMonitoredItems.ContainsKey(monitoredItemId))
                 {
-                    if (monitoredNode.EventMonitoredItems.ContainsKey(monitoredItemId))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
-
-                return false;
             }
+
+            return false;
+        }
 
         private bool IsMultiConsumerNode(NodeId nodeId)
         {
