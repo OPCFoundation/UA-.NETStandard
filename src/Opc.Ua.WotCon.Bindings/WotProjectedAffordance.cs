@@ -108,6 +108,13 @@ namespace Opc.Ua.WotCon.Bindings
         public string? ConditionTypeId { get; }
 
         /// <summary>
+        /// Gets the explicitly selected event identity mode. Local re-emission
+        /// is the compatibility default; transparent selection still requires
+        /// successful authenticated source and identity admission.
+        /// </summary>
+        public WoTEventIdentityModeEnum IdentityMode { get; private init; }
+
+        /// <summary>
         /// Gets the captured property schema, action input/output schemas or event data
         /// together with their authored interaction and local context.
         /// </summary>
@@ -143,7 +150,32 @@ namespace Opc.Ua.WotCon.Bindings
                     (ReadString(converted.Affordance, "uav:conditionType") is null ? null : string.Empty))
             {
                 Definition = converted.Affordance,
-                PayloadSchema = converted.PayloadSchema
+                PayloadSchema = converted.PayloadSchema,
+                IdentityMode = ReadIdentityMode(converted.Affordance)
+            };
+        }
+
+        /// <summary>
+        /// Returns an event declaration with an explicit typed mode selection.
+        /// Selection does not bypass the runtime's admission requirements.
+        /// </summary>
+        public WotProjectedAffordance WithIdentityMode(WoTEventIdentityModeEnum identityMode)
+        {
+            if (Kind != WotAffordanceKind.Event)
+            {
+                throw new InvalidOperationException("Only an event declaration has an event identity mode.");
+            }
+            if (identityMode is not (WoTEventIdentityModeEnum.LocalReEmission or
+                WoTEventIdentityModeEnum.TransparentForwarding))
+            {
+                throw new ArgumentOutOfRangeException(nameof(identityMode));
+            }
+            return new WotProjectedAffordance(
+                Kind, Name, JsonPointer, NodeId, OwnerNodeId, ConditionAction, ActsOn, ConditionTypeId)
+            {
+                Definition = Definition,
+                PayloadSchema = PayloadSchema,
+                IdentityMode = identityMode
             };
         }
 
@@ -153,7 +185,8 @@ namespace Opc.Ua.WotCon.Bindings
                 Kind, Name, JsonPointer, NodeId, nodeId, ConditionAction, ActsOn, ConditionTypeId)
             {
                 Definition = Definition,
-                PayloadSchema = PayloadSchema
+                PayloadSchema = PayloadSchema,
+                IdentityMode = IdentityMode
             };
         }
 
@@ -206,11 +239,29 @@ namespace Opc.Ua.WotCon.Bindings
                             (ReadString(affordance, "uav:conditionType") is null ? null : string.Empty))
                     {
                         Definition = payload.Definition,
-                        PayloadSchema = payload
+                        PayloadSchema = payload,
+                        IdentityMode = ReadIdentityMode(affordance)
                     });
                 }
             }
             return declarations.ToArrayOf();
+        }
+
+        private static WoTEventIdentityModeEnum ReadIdentityMode(JsonElement definition)
+        {
+            if (definition.ValueKind != JsonValueKind.Object ||
+                !definition.TryGetProperty("uav:eventIdentityMode", out JsonElement value))
+            {
+                return WoTEventIdentityModeEnum.LocalReEmission;
+            }
+            return value.ValueKind == JsonValueKind.String ? value.GetString() switch
+            {
+                "local-re-emission" => WoTEventIdentityModeEnum.LocalReEmission,
+                "transparent-forwarding" => WoTEventIdentityModeEnum.TransparentForwarding,
+                _ => throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError, "The event identity mode is not supported.")
+            } : throw new ServiceResultException(
+                StatusCodes.BadConfigurationError, "The event identity mode must be a string.");
         }
 
         private static string? ReadString(JsonElement element, string name)

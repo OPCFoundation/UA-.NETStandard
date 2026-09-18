@@ -19,6 +19,7 @@ This document starts with the bindings that ship today and how to register them,
   - [Intentionally unsupported operations](#intentionally-unsupported-operations)
   - [Transport security](#transport-security)
   - [Operation coverage (OPC UA executor)](#operation-coverage-opc-ua-executor)
+  - [Projected event identity, provenance, and Conditions](#projected-event-identity-provenance-and-conditions)
   - [Portable browse-path targets](#portable-browse-path-targets)
   - [Event field selection (`tm:ref` and `uav:eventSelectClauses`)](#event-field-selection-tmref-and-uaveventselectclauses)
   - [Constraining an `auto` endpoint selection (`uav:minimumSecurity`)](#constraining-an-auto-endpoint-selection-uavminimumsecurity)
@@ -520,9 +521,120 @@ The executable bindings fail closed and never downgrade a secure form to an inse
 | `invokeaction` | `Call` service; the Method is selected by its source NodeId or browse path, independently of the form's `uav:callObjectId` receiver. Legacy scalar form-scoped `uav:componentOf` remains a compatibility spelling. |
 | `subscribeevent` | A native event `MonitoredItem` (`AttributeId = EventNotifier`) whose `EventFilter` select clauses are the compiled `WotEventSelection` of WoT Binding Section 6.1: the eight mandatory `BaseEventType` fields (`EventId`, `EventType`, `SourceNode`, `SourceName`, `Time`, `ReceiveTime`, `Message`, `Severity`) when the affordance states no selection, and otherwise the selection resolved from the EventType definition it links to with `tm:ref`, overlaid by the `uav:eventSelectClauses` it states. Every selected field is delivered in `WotNotification.EventFields`, keyed by its browse path — an empty path supplies `ConditionId` — with the event's own `Time` / `ReceiveTime` as the source / server timestamp. |
 
+For local native re-emission, the projection runtime stamps the namespace-zero
+Core `ReceiveTime` from the local server's `TimeProvider` when it materializes the
+occurrence for publication. Native event selection reads this local receipt
+stamp, not the upstream `ReceiveTime`. The selected source `Time`, captured
+upstream receipt value, and source/server timestamps remain source facts;
+stamping the local occurrence does not mutate the upstream `WotNotification`.
+Namespace-qualified fields named `ReceiveTime` retain their selected source
+values.
+
 Both subscription kinds share one code path: a dedicated `Subscription` is created per channel subscription, its `MonitoredItem` is disposed and the subscription removed from the session (`ISession.RemoveSubscriptionAsync`) when the returned `IWotSubscription` is disposed, so no session or subscription is leaked — including when creation fails partway through.
 
 A compiled form's NodeId and explicit Call receiver are resolved against the connected Session's namespace table. Portable `nsu=` identifiers retain their namespace-URI meaning; legacy plain NodeId forms remain supported where applicable.
+
+### Projected event identity, provenance, and Conditions
+
+`WotProjectedAffordance.IdentityMode` uses the generated
+`WoTEventIdentityModeEnum`. `LocalReEmission` is the compatibility default.
+An explicit `uav:eventIdentityMode` declaration accepts `local-re-emission` or
+`transparent-forwarding`; unknown values fail rather than selecting a fallback.
+Direct callers can select the mode without a JSON declaration:
+
+```csharp
+WotProjectedAffordance declaration = WotProjectedAffordance
+    .FromConverted(converted)
+    .WithIdentityMode(WoTEventIdentityModeEnum.TransparentForwarding);
+```
+
+Selection is not admission. Transparent forwarding requires typed occurrence
+facts captured from an authenticated native source, its current retained Session
+binding and namespace mapping, source EventId/EventType/SourceNode, and source
+Time/ReceiveTime. A source EventType cannot be replaced by a local overlay.
+Source and Condition identities from different authenticated authorities cannot
+alias one native NodeId; ambiguous preserved EventIds are rejected. There is no
+automatic downgrade to local re-emission.
+
+Imported namespaces must really be owned by their NodeSet sources. A multi-model
+projection also needs an unambiguous default namespace for its fluent runtime.
+For example, a local notifier that has a `GeneratesEvent` reference to an imported
+source EventType declares that source model as a `RequiredModel`. Listing a
+namespace URI alone does not establish ownership or a model dependency.
+
+The runtime publishes out-of-band `WoTEventBindingType` descriptors under the
+notifier's `EventBindings` folder. A descriptor reports its selected mode,
+binding pointer, pinned source document, actual published NodeManager generation,
+and availability. It is not an extension of the imported EventType. Source facts
+are returned by the generated `GetEventProvenance` method as
+`WoTEventOriginDataType`; absent optional facts remain absent. Source receipt time
+and the receiving server's latest receipt time are separate fields.
+
+Clients using the generated wrapper register the model's encodeables through the
+standard factory builder before decoding its structured result:
+
+```csharp
+session.Factory.Builder.AddOpcUaWotCon().Commit();
+var binding = new WoTEventBindingTypeClient(session, bindingNodeId, telemetry);
+WoTEventOriginDataType origin =
+    await binding.GetEventProvenanceAsync(eventId, cancellationToken);
+```
+
+Normal native RolePermissions apply before the method looks up an occurrence.
+Unauthorized callers receive `BadUserAccessDenied`, including for unknown
+EventIds; authorized missing or expired evidence returns `BadNoData`, never an
+empty successful record. The returned provenance is data, not an action-dispatch
+capability.
+
+A verified retransmission retains the same occurrence identity and refreshes
+receipt provenance without publishing another occurrence. Only receipt facts are
+excluded from state comparison. Reusing an EventId with changed selected state,
+identity, or source binding faults that binding's availability with
+`BadSecurityChecksFailed`, preserves the last accepted evidence, and revokes its
+occurrence action route.
+
+Notification-only Conditions do not need invented actions or a static action
+receiver. The existing injectable Condition factory creates independently
+registered instances per source Condition; main and retained branches produce
+independent snapshots. Local identities are stable within their actual
+generation and distinct across Conditions/branches. Transparent instances retain
+their admitted source identities. Reusing an EventType for multiple declarations
+does not reuse a mutable Condition or its local NodeId. Unbound inherited
+Condition methods are not advertised as executable.
+
+Declared Condition actions are captured at generation wiring time through
+`IWotCapturedConditionActionChannel`. The native adapter retains the original
+authenticated source Session, resolved Method, receiver, and namespace mapping.
+Occurrence actions use the producing generation's captured action, not a newly
+opened replacement channel. A wrong Condition is rejected before dispatch.
+Retiring generations keep captured actions only while their consumers drain;
+expired routes, reconnects, and mapping invalidation cannot dispatch on a
+replacement Session. The ordinary context-aware Call path is unchanged.
+Both authored action Methods and their inherited Core Condition counterparts
+retain native RolePermissions. Unauthorized Calls fail before occurrence-route
+lookup, including when the supplied EventId is unknown.
+Local-re-emission `Enable`/`Disable` controls on non-capturing channels retain
+their existing zero-input, generation-owned channel contract; they do not claim
+an authenticated occurrence route. Transparent controls and all native
+occurrence actions still require captured source admission. If a channel
+advertises capture but capture fails, the failure is not bypassed.
+
+The default `WotProjectionEventPublisher` advertises
+`IWotNativeProjectionEventPublisher`: native metadata registration and captured
+Condition action admission are mandatory for that path. Injected headless
+publishers retain the original callback contract and do not claim native
+metadata or authenticated occurrence dispatch. Existing custom Condition
+factories can retain a statically scoped instance; factories that support
+independent source Conditions implement `IWotProjectionConditionInstanceFactory`.
+
+`MaxEventRoutes` bounds retained occurrence evidence and routes, and bounds the
+number of independently materialized source Conditions. A declared actionable
+Condition consumes the same instance bound as a notification-only Condition;
+additional branches of that Condition do not consume another instance slot.
+Queue limits remain generation-owned. Overflow and invalid source data are
+surfaced explicitly.
+JSON Schema validation is independent of these identity/lifetime guarantees and
+is not added by this feature.
 
 ### Portable browse-path targets
 

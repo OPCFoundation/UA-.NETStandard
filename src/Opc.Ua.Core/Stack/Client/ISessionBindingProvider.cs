@@ -52,4 +52,18 @@ namespace Opc.Ua
         /// </exception>
         ValueTask<ISessionClient> CreateBindingAsync(CancellationToken ct = default);
     }
+
+    /// <summary>
+    /// A captured session client that exposes the validity of its retained
+    /// transport, authenticated session and namespace mapping.
+    /// </summary>
+    public interface ISessionBinding : ISessionClient
+    {
+        /// <summary>
+        /// Gets whether the captured binding is still current. This is an
+        /// observation, not a dispatch lease: each request also validates the
+        /// same binding when it is sent.
+        /// </summary>
+        bool IsCurrent { get; }
+    }
 }

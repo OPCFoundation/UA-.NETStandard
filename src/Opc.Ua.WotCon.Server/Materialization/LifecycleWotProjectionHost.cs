@@ -79,9 +79,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             CancellationToken cancellationToken = default)
         {
             RuntimeNodeSetOptions options = BuildOptions(document);
+            var publication = new WotProjectionRuntimePublication(options);
             NodeManagerRegistration registration = await m_lifecycle
                 .AddRuntimeNodeSetAsync(options, callerContext: null, cancellationToken)
                 .ConfigureAwait(false);
+            publication.Publish(registration.Generation);
             return new WotProjectionHandle(
                 document.ClosureKey,
                 registration.Generation,
@@ -102,6 +104,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return await AddAsync(document, cancellationToken).ConfigureAwait(false);
             }
             RuntimeNodeSetOptions options = BuildOptions(document);
+            var publication = new WotProjectionRuntimePublication(options);
             NodeManagerRegistration next;
             string warning = string.Empty;
             try
@@ -116,6 +119,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 warning = "The replacement is active, but prior-generation cleanup is pending: " +
                     ex.Message;
             }
+            publication.Publish(next.Generation);
             return new WotProjectionHandle(
                 document.ClosureKey,
                 next.Generation,
@@ -136,6 +140,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return await AddAsync(document, cancellationToken).ConfigureAwait(false);
             }
             RuntimeNodeSetOptions options = BuildOptions(document);
+            var publication = new WotProjectionRuntimePublication(options);
             NodeManagerRegistration next;
             string warning = string.Empty;
             try
@@ -150,6 +155,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 warning = "The replacement is active, but prior-generation cleanup is pending: " +
                     ex.Message;
             }
+            publication.Publish(next.Generation);
             return new WotProjectionHandle(
                 document.ClosureKey,
                 next.Generation,
