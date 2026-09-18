@@ -1623,9 +1623,10 @@ namespace Opc.Ua.Server.Tests
             publishCancellation.Cancel();
             try
             {
-                await sourcePublish.ConfigureAwait(false);
+                ISubscriptionPublishPipeline assigned = await sourcePublish.ConfigureAwait(false);
+                Assert.That(assigned, Is.Not.SameAs(subscription));
             }
-            catch (Exception)
+            catch (OperationCanceledException) when (publishCancellation.IsCancellationRequested)
             {
                 // The old session's parked Publish is cancelled or completed by
                 // the transferred-status notification, never with the subscription.
@@ -1727,11 +1728,11 @@ namespace Opc.Ua.Server.Tests
             var configurationNodeManager = new Mock<IConfigurationNodeManager>();
             configurationNodeManager
                 .SetupGet(nodeManager => nodeManager.NamespaceUris)
-                .Returns(Array.Empty<string>());
+                .Returns([]);
             var coreNodeManager = new Mock<ICoreNodeManager>();
             coreNodeManager
                 .SetupGet(nodeManager => nodeManager.NamespaceUris)
-                .Returns(Array.Empty<string>());
+                .Returns([]);
             var factory = new Mock<IMainNodeManagerFactory>();
             factory
                 .Setup(nodeManagerFactory => nodeManagerFactory.CreateConfigurationNodeManager())

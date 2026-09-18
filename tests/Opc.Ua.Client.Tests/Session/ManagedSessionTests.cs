@@ -58,7 +58,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         public async Task DisposeAsyncRetainsRevalidationWorkerUntilItCompletesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            using SessionMock inner = SessionMock.Create();
+            using var inner = SessionMock.Create();
             await using Client.ManagedSession managed = CreateManagedSessionWithInner(
                 CreateClientConfiguration(telemetry), CreateEndpoint(), inner, telemetry);
             using var cancellation = new CancellationTokenSource();
@@ -748,7 +748,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
             ConfiguredEndpoint endpoint = CreateEndpoint();
-            var configuredEngine = new Mock<ISubscriptionEngineFactory>().Object;
+            ISubscriptionEngineFactory configuredEngine = new Mock<ISubscriptionEngineFactory>().Object;
 
             var specialised = new Mock<ISessionFactory>();
             specialised.SetupGet(f => f.Telemetry).Returns(telemetry);

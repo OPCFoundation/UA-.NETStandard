@@ -2702,7 +2702,7 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(
                     newlyAdded.ToList(),
-                    Is.EquivalentTo(new[] { newIssuer.Thumbprint }),
+                    Is.EquivalentTo([newIssuer.Thumbprint]),
                     "only the issuer that was not already present must be reported as newly added");
 
                 using (ICertificateStore verifyStore = issuerStoreIdentifier.OpenStore(s_telemetry))
@@ -2870,7 +2870,7 @@ namespace Opc.Ua.Server.Tests
                     "GetFileName",
                     BindingFlags.NonPublic | BindingFlags.Static)
                     ?? throw new InvalidOperationException("Method GetFileName not found.");
-                var poisonedFileName = (string)getFileNameMethod.Invoke(null, [poisonedIssuer])!;
+                string poisonedFileName = (string)getFileNameMethod.Invoke(null, [poisonedIssuer])!;
                 string poisonedFilePath = Path.Combine(tempIssuerPki, "certs", poisonedFileName + ".der");
                 Directory.CreateDirectory(poisonedFilePath);
 

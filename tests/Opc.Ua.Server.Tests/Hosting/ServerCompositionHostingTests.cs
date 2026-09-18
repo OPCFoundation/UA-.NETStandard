@@ -2136,7 +2136,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(overrides, Is.EqualTo(1));
             Assert.That(fixture.Server, Is.InstanceOf<ReverseConnectServer>());
             var reverse = (ReverseConnectServer)fixture.Server;
-            Assert.That(reverse.GetReverseConnections().Keys, Is.EquivalentTo(new[] { enabled, disabled }));
+            Assert.That(reverse.GetReverseConnections().Keys, Is.EquivalentTo([enabled, disabled]));
             Assert.That(reverse.GetReverseConnections()[enabled].ConfigEntry, Is.True);
             Assert.That(reverse.GetReverseConnections()[enabled].Timeout, Is.EqualTo(2345));
             Assert.That(reverse.GetReverseConnections()[disabled].Enabled, Is.False);

@@ -1183,7 +1183,7 @@ namespace Opc.Ua.Server.Tests.Roles
                 var children = new List<BaseInstanceState>();
                 m_roleSet.GetChildren(m_nodeManager.SystemContext, children);
                 Assert.That(children.Where(child => child.BrowseName.Name == "StormRole"),
-                    Is.EqualTo(new[] { latest }));
+                    Is.EqualTo([latest]));
                 Assert.That(scope.PendingCount, Is.EqualTo(1));
             }
             finally
@@ -1285,7 +1285,8 @@ namespace Opc.Ua.Server.Tests.Roles
                 Assert.That(m_nodeManager.FindPredefinedNode<NodeState>(failedId), Is.Null);
                 RecordedLogRecord failure = logger.Records.ToList().Single(
                     record => record.EventId.Id == ServerEventIds.RoleStateBinding + 5 &&
-                        record.Properties["RoleId"] is NodeId roleId && roleId == failedId);
+                        record.Properties["RoleId"] is NodeId roleId &&
+                        roleId == failedId);
                 Assert.That(failure.LogLevel, Is.EqualTo(LogLevel.Warning));
                 Assert.That(failure.Exception, Is.TypeOf<InvalidOperationException>());
                 Assert.That(failure.Exception!.Message, Is.EqualTo("NodeId allocation failed."));
@@ -1358,7 +1359,7 @@ namespace Opc.Ua.Server.Tests.Roles
                 release.TrySetResult(true);
                 await drain.WaitAsync(s_workerTimeout).ConfigureAwait(false);
 
-                Assert.That(worker.IsCompletedSuccessfully, Is.True);
+                Assert.That(worker.Status, Is.EqualTo(TaskStatus.RanToCompletion));
                 Assert.That(scope.PendingCount, Is.Zero);
                 Assert.That(m_nodeManager.FindPredefinedNode<NodeState>(afterDisposalId), Is.Null);
                 Assert.Throws<ObjectDisposedException>(() => gate.Release());
@@ -1405,7 +1406,7 @@ namespace Opc.Ua.Server.Tests.Roles
                 release.TrySetResult(true);
                 await drain.WaitAsync(s_workerTimeout).ConfigureAwait(false);
 
-                Assert.That(worker.IsCompletedSuccessfully, Is.True);
+                Assert.That(worker.Status, Is.EqualTo(TaskStatus.RanToCompletion));
                 Assert.That(scope.PendingCount, Is.Zero);
                 Assert.Throws<ObjectDisposedException>(() => gate.Release());
                 Assert.That(logger.Records.ToList().Exists(record => record.Exception is ObjectDisposedException),
@@ -1426,7 +1427,7 @@ namespace Opc.Ua.Server.Tests.Roles
                 new ServerProperties(), m_configuration, ServiceMessageContext.Create(m_telemetry));
             var nodeManager = new Mock<IMasterNodeManager>();
             Mock<IAsyncDisposable> lifetime = nodeManager.As<IAsyncDisposable>();
-            lifetime.Setup(value => value.DisposeAsync()).Returns(ValueTask.CompletedTask);
+            lifetime.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
             server.SetNodeManager(nodeManager.Object);
             FieldInfo? bindingField = typeof(ServerInternalData).GetField(
                 "m_roleStateBinding", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -1443,7 +1444,7 @@ namespace Opc.Ua.Server.Tests.Roles
                 await disposal.WaitAsync(s_workerTimeout).ConfigureAwait(false);
 
                 lifetime.Verify(value => value.DisposeAsync(), Times.Once);
-                Assert.That(GetBindingField<Task>("m_reconcileTask").IsCompletedSuccessfully, Is.True);
+                Assert.That(GetBindingField<Task>("m_reconcileTask").Status, Is.EqualTo(TaskStatus.RanToCompletion));
                 Assert.That(bindingField.GetValue(server), Is.Null);
             }
             finally

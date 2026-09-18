@@ -2793,13 +2793,8 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public IServerInternal CurrentInstance
-        {
-            get
-            {
-                return Volatile.Read(ref m_serverInternal) ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
-            }
-        }
+        public IServerInternal CurrentInstance =>
+            Volatile.Read(ref m_serverInternal) ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
 
         /// <summary>
         /// Returns the current status of the server.

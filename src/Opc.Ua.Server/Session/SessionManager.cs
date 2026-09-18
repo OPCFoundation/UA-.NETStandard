@@ -1602,7 +1602,12 @@ namespace Opc.Ua.Server
         private readonly NodeIdDictionary<ISession> m_sessions;
 
         private readonly ConditionalWeakTable<ISession, SessionActivationState>
-            m_sessionActivationStates = [];
+            m_sessionActivationStates =
+#if NET8_0_OR_GREATER
+                [];
+#else
+                new();
+#endif
 
         private uint m_lastSessionId;
         private readonly ManualResetEvent m_shutdownEvent;

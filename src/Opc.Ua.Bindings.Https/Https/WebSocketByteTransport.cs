@@ -86,7 +86,8 @@ namespace Opc.Ua.Bindings
                     .ConfigureAwait(false);
 #else
                 ArraySegment<byte> segment;
-                if (MemoryMarshal.TryGetArray(chunk, out ArraySegment<byte> seg) && seg.Array != null)
+                if (System.Runtime.InteropServices.MemoryMarshal.TryGetArray(
+                    chunk, out ArraySegment<byte> seg) && seg.Array != null)
                 {
                     segment = seg;
                 }

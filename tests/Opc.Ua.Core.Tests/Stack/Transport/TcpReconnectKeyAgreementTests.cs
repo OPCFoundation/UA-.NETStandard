@@ -54,6 +54,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
         public async Task RenewHandoffRetainsPrivateKeyAndChainsPreviousSecretAsync(string policyUri)
         {
+            if (!AssertPolicyAvailability(policyUri))
+            {
+                return;
+            }
             using var harness = new HandoffHarness(policyUri);
             await harness.OpenAsync().ConfigureAwait(false);
             ChannelToken previous = harness.Target.Token;
@@ -89,6 +93,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [TestCase(SecurityPolicies.RSA_DH_AesGcm, true)]
         public async Task FailedReconnectClosesHandoffAndRethrowsToListenerAsync(string policyUri, bool afterAdoption)
         {
+            if (!AssertPolicyAvailability(policyUri))
+            {
+                return;
+            }
             using var harness = new HandoffHarness(policyUri);
             await harness.OpenAsync().ConfigureAwait(false);
             harness.NewTransport.FailNegotiation = !afterAdoption;
@@ -111,6 +119,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [Test]
         public async Task FailedEndpointReadClosesTheUnadoptedHandoffAsync()
         {
+            if (!AssertPolicyAvailability(SecurityPolicies.ECC_nistP256))
+            {
+                return;
+            }
             using var harness = new HandoffHarness(SecurityPolicies.ECC_nistP256);
             await harness.OpenAsync().ConfigureAwait(false);
             harness.NewTransport.FailEndpointRead = true;
@@ -128,6 +140,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [TestCase(true)]
         public async Task RejectedHandoffReleasesUnadoptedEccNoncesAsync(bool throwFromListener)
         {
+            if (!AssertPolicyAvailability(SecurityPolicies.ECC_nistP256))
+            {
+                return;
+            }
             using var harness = new HandoffHarness(SecurityPolicies.ECC_nistP256);
             await harness.OpenAsync().ConfigureAwait(false);
             ChannelToken previous = harness.Target.Token;
@@ -152,6 +168,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
         public async Task ReconnectRejectsPublicOnlyNonceMaterialAsync(string policyUri)
         {
+            if (!AssertPolicyAvailability(policyUri))
+            {
+                return;
+            }
             using var harness = new HandoffHarness(policyUri);
             await harness.OpenAsync().ConfigureAwait(false);
             harness.DiscardHandoffNonces = true;
@@ -171,6 +191,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
         public async Task RetainedChannelRejectsReplayedReconnectSequenceAsync(string policyUri)
         {
+            if (!AssertPolicyAvailability(policyUri))
+            {
+                return;
+            }
             using var harness = new HandoffHarness(policyUri);
             await harness.OpenAsync().ConfigureAwait(false);
             ChannelToken previous = harness.Target.Token;
@@ -191,7 +215,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
         public void ChannelTokenTransfersOriginalNonceObjectsOnce(string policyUri)
         {
-            SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(policyUri)!;
+            SecurityPolicyInfo policy = SecurityPolicies.Default.Find(policyUri)!;
             using var local = Nonce.CreateNonce(policy);
             using var remote = Nonce.CreateNonce(policy);
             using var token = new ChannelToken();
@@ -205,9 +229,30 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(transferredLocal, Is.SameAs(local));
             Assert.That(transferredRemote, Is.SameAs(remote));
             Assert.That(() => token.TakeNonces(), Throws.TypeOf<ObjectDisposedException>());
+            if (policy.CertificateKeyFamily == CertificateKeyFamily.ECC &&
+                !SecurityPolicies.SupportsRawEccSecretAgreement())
+            {
+                Assert.That(() => transferredLocal.GenerateSecret(transferredRemote, null),
+                    Throws.TypeOf<NotSupportedException>());
+                return;
+            }
             byte[]? secret = transferredLocal.GenerateSecret(transferredRemote, null);
             Assert.That(secret, Is.Not.Null.And.Not.Empty);
             Assert.That(secret, Is.EqualTo(remote.GenerateSecret(local, null)));
+        }
+
+        private static bool AssertPolicyAvailability(string policyUri)
+        {
+            if (SecurityPolicies.Default.GetInfo(policyUri) != null)
+            {
+                return true;
+            }
+
+            SecurityPolicyInfo policy = SecurityPolicies.Default.Find(policyUri)!;
+            Assert.That(policy, Is.Not.Null);
+            Assert.That(policy.PlatformSupport?.Invoke(), Is.False);
+            Assert.That(SecurityPolicies.Default.GetDisplayNames(), Does.Not.Contain(policy.Name));
+            return false;
         }
 
         private sealed class HandoffHarness : IDisposable

@@ -360,7 +360,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                 try
                 {
                     await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
-                    return Array.Empty<AliasNameVerboseDataType>();
+                    return [];
                 }
                 finally
                 {

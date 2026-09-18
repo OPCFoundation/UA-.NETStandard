@@ -130,15 +130,16 @@ namespace Opc.Ua.Client.TestFramework
 
             var configuredEndpoint = new ConfiguredEndpoint(
                 null,
-                endpoint ?? new EndpointDescription
+                endpoint ??
+                new EndpointDescription
                 {
                     SecurityMode = MessageSecurityMode.None,
                     SecurityPolicyUri = SecurityPolicies.None,
                     EndpointUrl = "opc.tcp://localhost:4840",
                     UserIdentityTokens =
-                    [
-                        new UserTokenPolicy()
-                    ]
+                        [
+                            new UserTokenPolicy()
+                        ]
                 });
 
             if (availableEndpoints.IsEmpty && discoveryProfileUris.IsEmpty)

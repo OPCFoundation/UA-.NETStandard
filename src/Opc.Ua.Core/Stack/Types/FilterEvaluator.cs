@@ -81,7 +81,7 @@ namespace Opc.Ua
                 m_evaluated = new bool[m_filter.Elements.Count];
                 m_leftValues = new Variant[m_filter.Elements.Count];
                 m_leftEvaluated = new bool[m_filter.Elements.Count];
-                var dependenciesResolved = new bool[m_filter.Elements.Count];
+                bool[] dependenciesResolved = new bool[m_filter.Elements.Count];
                 var operandsByIndex = new FilterOperand[m_filter.Elements.Count][];
                 var pending = new Stack<(int Index, int OperandIndex, bool ValueRequired)>();
                 pending.Push((0, 0, true));

@@ -2212,8 +2212,8 @@ namespace Opc.Ua.Server.Tests
             NodeId targetNodeId)
         {
             Mock<INodeManagerWithNodeManagement> manager = CreateNodeManagementManager(true);
-            var sourceHandle = new object();
-            var targetHandle = new object();
+            object sourceHandle = new();
+            object targetHandle = new();
 
             manager.Setup(m => m.GetManagerHandle(sourceNodeId)).Returns(sourceHandle);
             manager.Setup(m => m.GetManagerHandle(targetNodeId)).Returns(targetHandle);
@@ -2255,7 +2255,7 @@ namespace Opc.Ua.Server.Tests
             ushort namespaceIndex)
         {
             var parentNodeId = new NodeId("Parent", namespaceIndex);
-            var parentHandle = new object();
+            object parentHandle = new();
             manager.Setup(m => m.GetManagerHandle(parentNodeId)).Returns(parentHandle);
             manager
                 .Setup(m => m.GetNodeMetadata(
@@ -2695,7 +2695,7 @@ namespace Opc.Ua.Server.Tests
             {
                 var manager = new Mock<IAsyncNodeManager>();
                 manager.Setup(nodeManager => nodeManager.NamespaceUris)
-                    .Returns(new[] { namespaceUri });
+                    .Returns([namespaceUri]);
                 manager.Setup(nodeManager => nodeManager.AllowNodeManagement)
                     .Returns(true);
                 manager

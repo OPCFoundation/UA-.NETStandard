@@ -388,11 +388,8 @@ namespace Opc.Ua.Server.AliasNames
         {
             IReadOnlyList<AliasNameVerboseDataType> aliases = await store.FindAliasVerboseAsync(
                 categoryId, AllAliasesPattern, ReferenceTypeIds.AliasFor, m_host.TypeTree, cancellationToken)
-                .ConfigureAwait(false);
-            if (aliases == null)
-            {
+                .ConfigureAwait(false) ??
                 throw ServiceResultException.Unexpected("The alias store returned a null snapshot.");
-            }
             var result = new Dictionary<NodeId, List<AliasNameVerboseDataType>>();
             foreach (AliasNameVerboseDataType alias in aliases)
             {

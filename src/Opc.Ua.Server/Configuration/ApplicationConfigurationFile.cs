@@ -246,7 +246,7 @@ namespace Opc.Ua.Server
                 m_readAccess(context);
                 isWriteMode = false;
             }
-            else if (mode == (byte)(OpenFileMode.Read | OpenFileMode.Write))
+            else if (mode == ((byte)OpenFileMode.Read | (byte)OpenFileMode.Write))
             {
                 m_writeAccess(context);
 

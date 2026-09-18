@@ -189,7 +189,8 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             WeakReference<IIssuerVerificationKey>[] retired = await ReadWeakKeysAsync(resolver)
                 .ConfigureAwait(false);
 
-            await resolver.GetKeysAsync("missing").ConfigureAwait(false);
+            // Unwind completed resolver frames before testing which objects the resolver itself retains.
+            await Task.Yield();
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
@@ -320,7 +321,16 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         private static async Task<WeakReference<IIssuerVerificationKey>[]> ReadWeakKeysAsync(
             JwksIssuerKeyResolver resolver)
         {
-            IReadOnlyList<IIssuerVerificationKey> keys = await resolver.GetKeysAsync(null).ConfigureAwait(false);
+            WeakReference<IIssuerVerificationKey>[] retired = CreateWeakReferences(
+                await resolver.GetKeysAsync(null).ConfigureAwait(false));
+            await resolver.GetKeysAsync("missing").ConfigureAwait(false);
+            return retired;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static WeakReference<IIssuerVerificationKey>[] CreateWeakReferences(
+            IReadOnlyList<IIssuerVerificationKey> keys)
+        {
             return [.. keys.Select(key => new WeakReference<IIssuerVerificationKey>(key))];
         }
 

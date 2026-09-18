@@ -118,7 +118,12 @@ namespace Opc.Ua.Server.Fluent
             return ownership.Register(chain);
         }
 
-        private static readonly ConditionalWeakTable<IAsyncNodeManager, AlarmNotifierOwnership> s_notifierOwnership = [];
+        private static readonly ConditionalWeakTable<IAsyncNodeManager, AlarmNotifierOwnership> s_notifierOwnership =
+#if NET8_0_OR_GREATER
+            [];
+#else
+            new();
+#endif
     }
 
     /// <summary>

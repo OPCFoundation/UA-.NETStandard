@@ -368,7 +368,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                 registry.Setup(value => value.AcquireApplicationCertificateBySecurityPolicy(It.IsAny<string>()))
                     .Returns(CreateEntry);
                 var store = new Mock<IKeyCredentialStore>();
-                store.Setup(value => value.ListAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<string>());
+                store.Setup(value => value.ListAsync(It.IsAny<CancellationToken>())).ReturnsAsync([]);
                 store.Setup(value => value.UpdateAsync(
                         It.IsAny<string>(), It.IsAny<Server.KeyCredential>(), It.IsAny<CancellationToken>()))
                     .Callback<string, Server.KeyCredential, CancellationToken>((_, value, _) =>

@@ -2034,7 +2034,7 @@ namespace Opc.Ua.Server
 
                 if (!m_monitoredItems.TryGetValue(
                     triggeringItemId,
-                    out LinkedListNode<IMonitoredItem>? triggerNode))
+                    out _))
                 {
                     throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
                 }

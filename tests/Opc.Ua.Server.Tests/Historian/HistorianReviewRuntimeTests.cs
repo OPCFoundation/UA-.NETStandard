@@ -128,7 +128,7 @@ namespace Opc.Ua.Server.Tests.Historian
             sink.Enqueue(lastNode, new DataValue(3));
             await sink.DisposeAsync().ConfigureAwait(false);
 
-            Assert.That(successfulNodes, Is.EquivalentTo(new[] { firstNode, lastNode }));
+            Assert.That(successfulNodes, Is.EquivalentTo([firstNode, lastNode]));
             Assert.That(sink.DroppedSampleCount, Is.EqualTo(1));
             Assert.That(sink.RejectedSampleCount, Is.Zero);
         }

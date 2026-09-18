@@ -639,7 +639,8 @@ namespace Opc.Ua.Server
             }
 
             bool localTarget = targetOwner != null;
-            bool crossManagerTarget =
+
+            _ =
                 localTarget &&
                 !ReferenceEquals(targetOwner, sourceOwner);
             if (localTarget &&

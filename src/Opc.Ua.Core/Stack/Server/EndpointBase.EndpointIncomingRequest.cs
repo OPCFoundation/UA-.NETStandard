@@ -90,7 +90,7 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public async readonly ValueTask CallAsync(CancellationToken cancellationToken = default)
+            public readonly async ValueTask CallAsync(CancellationToken cancellationToken = default)
             {
                 using CancellationTokenSource? timeoutHintCts = (int)Request.RequestHeader.TimeoutHint > 0 ?
                     TimeProvider.System.CreateCancellationTokenSource(

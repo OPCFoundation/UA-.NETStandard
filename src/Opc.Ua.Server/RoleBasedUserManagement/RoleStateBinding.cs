@@ -1385,8 +1385,10 @@ namespace Opc.Ua.Server
         private readonly BackgroundTaskScope m_backgroundWork;
         private readonly CancellationToken m_shutdownToken;
         private readonly Task m_reconcileTask;
+
         private readonly TaskCompletionSource<bool> m_operationsDrained =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private readonly Lock m_workerLock = new();
         private readonly SemaphoreSlim m_reconcileSignal = new(0, 1);
         private readonly SemaphoreSlim m_roleSetLock = new(1, 1);

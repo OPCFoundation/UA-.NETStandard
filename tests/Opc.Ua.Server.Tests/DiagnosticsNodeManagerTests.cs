@@ -641,7 +641,7 @@ ObjectIds.Server,
             summary.GetReferences(manager.SystemContext, references, ReferenceTypeIds.HasComponent, false);
             Assert.That(
                 references.Select(r => (NodeId)r.TargetId),
-                Is.SupersetOf(new[] { liveSessionId, laterSessionId }));
+                Is.SupersetOf([liveSessionId, laterSessionId]));
             Assert.That(
                 references.Count(r => (NodeId)r.TargetId == liveSessionId),
                 Is.EqualTo(1),

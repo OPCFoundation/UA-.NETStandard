@@ -861,7 +861,7 @@ namespace Opc.Ua.Client.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var rootId = ReferenceTypeIds.References;
+            NodeId rootId = ReferenceTypeIds.References;
             var childId = new NodeId("CustomReference", 0);
 
             var context = new Mock<INodeCacheContext>();

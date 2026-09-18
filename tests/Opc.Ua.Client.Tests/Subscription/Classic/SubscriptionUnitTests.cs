@@ -498,7 +498,7 @@ namespace Opc.Ua.Client.Tests
                 },
                 mock =>
                 {
-                    mock.Setup(value => value.Subscriptions).Returns(Array.Empty<Subscription>());
+                    mock.Setup(value => value.Subscriptions).Returns([]);
                     mock.Setup(value => value.RemoveTransferredSubscription(subscription)).Returns(true);
                     mock.Setup(value => value.AddSubscription(subscription)).Returns(true);
                 });
@@ -542,7 +542,7 @@ namespace Opc.Ua.Client.Tests
             };
             ISession session = BuildSessionMock(setup: mock =>
             {
-                mock.Setup(value => value.Subscriptions).Returns(Array.Empty<Subscription>());
+                mock.Setup(value => value.Subscriptions).Returns([]);
                 mock.Setup(value => value.RemoveTransferredSubscription(subscription)).Returns(true);
                 mock.Setup(value => value.AddSubscription(subscription)).Returns(true);
             });

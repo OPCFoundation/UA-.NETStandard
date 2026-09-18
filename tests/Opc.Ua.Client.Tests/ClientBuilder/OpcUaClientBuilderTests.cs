@@ -128,7 +128,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             services.AddOpcUa().AddClient(options =>
                 options.Session = new ManagedSessionOptions { Endpoint = CreateEndpoint() });
             await using ServiceProvider provider = services.BuildServiceProvider();
-            var connect = provider.GetRequiredService<Func<CancellationToken, Task<Client.ManagedSession>>>();
+            Func<CancellationToken, Task<Client.ManagedSession>> connect = provider.GetRequiredService<Func<CancellationToken, Task<Client.ManagedSession>>>();
             using var cancellation = new CancellationTokenSource();
             var cancelledWaiters = new Task<Client.ManagedSession>[16];
             for (int ii = 0; ii < cancelledWaiters.Length; ii++)

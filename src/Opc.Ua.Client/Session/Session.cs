@@ -4543,13 +4543,15 @@ namespace Opc.Ua.Client
         private static Task WhenAllCompletedAsync(List<Task> tasks)
         {
             return Task.WhenAll(tasks).ContinueWith(
-                static completed =>
-                {
-                    _ = completed.Exception;
-                },
+                ObserveCompletedTask,
                 CancellationToken.None,
                 TaskContinuationOptions.ExecuteSynchronously,
                 TaskScheduler.Default);
+        }
+
+        private static void ObserveCompletedTask(Task completed)
+        {
+            _ = completed.Exception;
         }
 
         /// <summary>
