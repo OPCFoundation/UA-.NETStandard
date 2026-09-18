@@ -158,6 +158,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
             bool sameFile = Path.DirectorySeparatorChar == '\\';
             if (!sameFile)
             {
+                // Unix mounts can also be case-insensitive; these are deliberately distinct entries.
+                alternatePath = "distinct-" + alternatePath;
                 await m_manager.Provider.CreateFileAsync(alternatePath, CancellationToken.None).ConfigureAwait(false);
             }
             var alternate = new FileObjectState(m_context,

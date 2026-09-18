@@ -135,6 +135,35 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
+        public async Task LiteralTrailingDotsRemainDistinctWhenTheFilesystemPreservesThemAsync()
+        {
+            string root = Path.DirectorySeparatorChar == '\\' ? @"\\?\" + m_root : m_root;
+            var provider = new PhysicalFileSystemProvider(root);
+            try
+            {
+                await provider.CreateFileAsync("plain", CancellationToken.None).ConfigureAwait(false);
+                await provider.CreateFileAsync("plain.", CancellationToken.None).ConfigureAwait(false);
+                using (Stream stream = await provider.OpenWriteAsync(
+                    "plain.", FileWriteMode.Truncate, CancellationToken.None).ConfigureAwait(false))
+                {
+                    await WritePayloadAsync(stream, [42]).ConfigureAwait(false);
+                }
+
+                FileSystemEntry? plain = await provider.GetEntryAsync("plain", CancellationToken.None)
+                    .ConfigureAwait(false);
+                FileSystemEntry? dotted = await provider.GetEntryAsync("plain.", CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(plain!.Value.Length, Is.Zero);
+                Assert.That(dotted!.Value.Length, Is.EqualTo(1));
+                Assert.That(provider.GetPathIdentity("plain."), Is.Not.EqualTo(provider.GetPathIdentity("plain")));
+            }
+            finally
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+
+        [Test]
         public async Task GetEntryAsyncReturnsNullForMissingPathAsync()
         {
             PhysicalFileSystemProvider provider = CreateProvider();
