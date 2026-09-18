@@ -73,8 +73,8 @@ namespace Opc.Ua.Server.Historian
         public required DateTimeUtc EndTime { get; init; }
 
         /// <summary>
-        /// Maximum number of values to return for this node. Zero = unbounded
-        /// (return up to the time window's worth).
+        /// Client page limit for bounded ranges, or total quota across all pages for
+        /// open-ended ranges. Zero means no client limit. Bounds count toward this quota.
         /// </summary>
         public uint MaxValues { get; init; }
 

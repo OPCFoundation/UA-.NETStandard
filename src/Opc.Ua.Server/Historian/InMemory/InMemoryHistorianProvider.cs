@@ -55,20 +55,17 @@ namespace Opc.Ua.Server.Historian.InMemory
     /// use the canonical uniqueness key of their
     /// <see cref="IHistorianStructuredDataKeySelector"/> and can therefore
     /// keep several entries at the same source timestamp. Each
-    /// insert/replace is also logged into a per-NodeId modification list so
+    /// explicit update is also logged into a bounded per-NodeId modification list so
     /// <see cref="IHistorianModifiedProvider.ReadModifiedAsync"/> returns
     /// the audit trail.
     /// </para>
     /// <para>
-    /// Annotations live in a separate per-NodeId archive keyed by
-    /// <see cref="Annotation.AnnotationTime"/> (Part 11 §5.2.7).
+    /// Annotations live in a separate per-NodeId archive keyed by the annotated
+    /// value's source timestamp and <see cref="Annotation.AnnotationTime"/> (Part 11 §5.2.7).
     /// </para>
     /// <para>
-    /// Concurrency: every operation takes a per-NodeId lock for the
-    /// duration of the read or write to keep the data structure
-    /// invariants. Reads release the lock once a snapshot of the page
-    /// has been built — paginated reads do not hold the lock between
-    /// pages.
+    /// Operations are serialized while an update or page snapshot is created.
+    /// Continuations do not retain resources between requests.
     /// </para>
     /// <para>
     /// Capabilities: every registered node advertises
@@ -264,7 +261,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                     return new ValueTask<HistorianNodeCapabilities>(GetAggregateCapabilities());
                 }
 
-                HistorianNodeCapabilities caps = m_capabilities.TryGetValue(nodeId, out HistorianNodeCapabilities? value)
+                HistorianNodeCapabilities caps = m_capabilities.TryGetValue(
+                    nodeId, out HistorianNodeCapabilities? value)
                     ? value
                     : m_options.DefaultCapabilities;
                 return new ValueTask<HistorianNodeCapabilities>(caps);
@@ -1402,7 +1400,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                             }
                             archive.Raw[key] = CloneValue(value);
                             EvictRawIfNeeded(archive, key.SourceTimestamp.ToDateTime(), cutoff);
-                            LogModification(archive, key, value, HistoryUpdateType.Insert, context.DefaultModificationInfo);
+                            LogModification(
+                                archive, key, value, HistoryUpdateType.Insert, context.DefaultModificationInfo);
                             statuses[i] = StatusCodes.GoodEntryInserted;
                         }
                         break;
@@ -1427,7 +1426,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                         if (exists)
                         {
                             oldValues.Add(CloneValue(prior));
-                            LogModification(archive, key, prior, HistoryUpdateType.Update, context.DefaultModificationInfo);
+                            LogModification(
+                                archive, key, prior, HistoryUpdateType.Update, context.DefaultModificationInfo);
                             archive.Raw[key] = CloneValue(value);
                             statuses[i] = StatusCodes.GoodEntryReplaced;
                         }
@@ -1440,7 +1440,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                             }
                             archive.Raw[key] = CloneValue(value);
                             EvictRawIfNeeded(archive, key.SourceTimestamp.ToDateTime(), cutoff);
-                            LogModification(archive, key, value, HistoryUpdateType.Insert, context.DefaultModificationInfo);
+                            LogModification(
+                                archive, key, value, HistoryUpdateType.Insert, context.DefaultModificationInfo);
                             statuses[i] = StatusCodes.GoodEntryInserted;
                         }
                         break;
@@ -1449,7 +1450,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                         {
                             oldValues.Add(CloneValue(prior));
                             archive.Raw.Remove(key);
-                            LogModification(archive, key, prior, HistoryUpdateType.Delete, context.DefaultModificationInfo);
+                            LogModification(
+                                archive, key, prior, HistoryUpdateType.Delete, context.DefaultModificationInfo);
                             RefreshLatestRawTimestamp(archive);
                             statuses[i] = StatusCodes.Good;
                         }
@@ -2193,7 +2195,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                         output,
                         EncodeAnnotationCursor(lastEmittedKey, remaining > 0 ? remaining - (uint)output.Count : 0));
                 }
-                output.Add(new HistorianAnnotation(entry.Value.SourceTimestamp, CloneAnnotation(entry.Value.Annotation)));
+                output.Add(new HistorianAnnotation(
+                    entry.Value.SourceTimestamp, CloneAnnotation(entry.Value.Annotation)));
                 lastEmittedKey = position;
             }
 
@@ -2391,7 +2394,7 @@ namespace Opc.Ua.Server.Historian.InMemory
         private void LogModification(
             NodeArchive archive,
             HistoricalValueKey key,
-            DataValue prior,
+            in DataValue prior,
             HistoryUpdateType updateType,
             ModificationInfo defaultInfo)
         {
@@ -2574,7 +2577,7 @@ namespace Opc.Ua.Server.Historian.InMemory
             return CreateOutcome(statuses, oldValues);
         }
 
-        private static DataValue CloneValue(DataValue source)
+        private static DataValue CloneValue(in DataValue source)
         {
             // DataValue is a readonly struct; copy is by value.
             return source;

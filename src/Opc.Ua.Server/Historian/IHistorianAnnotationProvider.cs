@@ -49,8 +49,10 @@ namespace Opc.Ua.Server.Historian
     /// <strong>Update semantics</strong> follow the same patterns as
     /// <see cref="IHistorianDataProvider"/>: per-value best-effort with
     /// <see cref="StatusCodes.BadEntryExists"/> / <see cref="StatusCodes.BadNoEntryExists"/>
-    /// signalling. The annotation's <see cref="Annotation.AnnotationTime"/>
-    /// is the storage key.
+    /// signalling. This legacy API uses <see cref="Annotation.AnnotationTime"/>
+    /// as its timestamp. The in-memory provider maps writes to a source timestamp
+    /// equal to that timestamp. Use <see cref="IHistorianTimestampedAnnotationProvider"/>
+    /// to address annotations whose value source timestamp differs.
     /// </para>
     /// </remarks>
     public interface IHistorianAnnotationProvider
@@ -62,6 +64,7 @@ namespace Opc.Ua.Server.Historian
         /// <param name="request">Normalised annotation read request.</param>
         /// <param name="resumeToken">Page resume token; empty on first page.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <returns>A page ordered by annotation time, with a resume token when more annotations remain.</returns>
         ValueTask<HistorianPage<Annotation>> ReadAnnotationsAsync(
             HistorianOperationContext context,
             HistorianAnnotationReadRequest request,
@@ -71,6 +74,11 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Inserts new annotations.
         /// </summary>
+        /// <param name="context">The operation context used for the update.</param>
+        /// <param name="nodeId">The historizing variable, not its Annotations property.</param>
+        /// <param name="annotations">Annotations to insert, in request order.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>One insertion status per annotation, in request order.</returns>
         ValueTask<HistorianUpdateOutcome<Annotation>> InsertAnnotationsAsync(
             HistorianOperationContext context,
             NodeId nodeId,
@@ -81,6 +89,11 @@ namespace Opc.Ua.Server.Historian
         /// Replaces existing annotations matching their
         /// <see cref="Annotation.AnnotationTime"/>.
         /// </summary>
+        /// <param name="context">The operation context used for the update.</param>
+        /// <param name="nodeId">The historizing variable, not its Annotations property.</param>
+        /// <param name="annotations">Replacement annotations, in request order.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>One status per annotation and the successfully replaced prior annotations.</returns>
         ValueTask<HistorianUpdateOutcome<Annotation>> ReplaceAnnotationsAsync(
             HistorianOperationContext context,
             NodeId nodeId,
@@ -90,6 +103,11 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Upserts annotations.
         /// </summary>
+        /// <param name="context">The operation context used for the update.</param>
+        /// <param name="nodeId">The historizing variable, not its Annotations property.</param>
+        /// <param name="annotations">Annotations to insert or replace, in request order.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>One status per annotation and prior annotations for successful replacements.</returns>
         ValueTask<HistorianUpdateOutcome<Annotation>> UpdateAnnotationsAsync(
             HistorianOperationContext context,
             NodeId nodeId,
@@ -99,6 +117,11 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Deletes annotations at the specified annotation timestamps.
         /// </summary>
+        /// <param name="context">The operation context used for the deletion.</param>
+        /// <param name="nodeId">The historizing variable, not its Annotations property.</param>
+        /// <param name="annotationTimes">The legacy annotation timestamps to delete, in request order.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>One status per requested timestamp and the successfully deleted annotations.</returns>
         ValueTask<HistorianUpdateOutcome<Annotation>> DeleteAnnotationsAsync(
             HistorianOperationContext context,
             NodeId nodeId,

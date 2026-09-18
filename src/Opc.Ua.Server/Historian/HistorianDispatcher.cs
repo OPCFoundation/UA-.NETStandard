@@ -563,7 +563,8 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="systemContext"/> is <c>null</c>.</exception>
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory or disposed inline by EmitProcessedPage.")]
+            Justification = "HistorianContinuationState ownership is transferred to the session via " +
+                "ContinuationPoints.SaveHistory or disposed inline by EmitProcessedPage.")]
         public static async ValueTask<ServiceResult> DispatchProcessedReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1047,7 +1048,8 @@ namespace Opc.Ua.Server.Historian
         /// unsupported for the node.
         /// </summary>
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
-            Justification = "HistorianContinuationState ownership is transferred to the session via ContinuationPoints.SaveHistory or disposed inline by EmitProcessedPage.")]
+            Justification = "HistorianContinuationState ownership is transferred to the session via " +
+                "ContinuationPoints.SaveHistory or disposed inline by EmitProcessedPage.")]
         private static async ValueTask<ServiceResult> ComputeAnnotationCountAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1330,7 +1332,8 @@ namespace Opc.Ua.Server.Historian
         [SuppressMessage(
             "Reliability",
             "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state on invocation and either saves it to the session or disposes it.")]
+            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
+                "on invocation and either saves it to the session or disposes it.")]
         public static async ValueTask<ServiceResult> DispatchAnnotationReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -1877,7 +1880,8 @@ namespace Opc.Ua.Server.Historian
         [SuppressMessage(
             "Reliability",
             "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state on invocation and either saves it to the session or disposes it.")]
+            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
+                "on invocation and either saves it to the session or disposes it.")]
         public static async ValueTask<ServiceResult> DispatchEventReadAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -2535,7 +2539,8 @@ namespace Opc.Ua.Server.Historian
         [SuppressMessage(
             "Reliability",
             "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state on invocation and either saves it to the session or disposes it.")]
+            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
+                "on invocation and either saves it to the session or disposes it.")]
         private static async ValueTask<ServiceResult> ReadRawPageAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
@@ -2653,7 +2658,8 @@ namespace Opc.Ua.Server.Historian
         [SuppressMessage(
             "Reliability",
             "CA2000:Dispose objects before losing scope",
-            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state on invocation and either saves it to the session or disposes it.")]
+            Justification = "SaveSuccessorOrCompleteAsync takes ownership of the initial continuation state " +
+                "on invocation and either saves it to the session or disposes it.")]
         private static async ValueTask<ServiceResult> ReadModifiedPageAsync(
             ServerSystemContext systemContext,
             IHistorianProvider provider,
