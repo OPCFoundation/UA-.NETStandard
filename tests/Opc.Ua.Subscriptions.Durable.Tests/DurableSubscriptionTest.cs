@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -371,11 +372,16 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             {
                 if (transferSession != null)
                 {
-                    transferSession.DeleteSubscriptionsOnClose = true;
-
-                    TestContext.Out.WriteLine("------- Transfer session closing --------");
-                    await transferSession.CloseAsync().ConfigureAwait(false);
-                    transferSession.Dispose();
+                    try
+                    {
+                        transferSession.DeleteSubscriptionsOnClose = true;
+                        TestContext.Out.WriteLine("------- Transfer session closing --------");
+                        await transferSession.CloseAsync().ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        transferSession.Dispose();
+                    }
                 }
             }
         }
@@ -432,6 +438,10 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             var testSet = new List<NodeId>();
             testSet.AddRange(GetTestSetFullSimulation(Session.NamespaceUris));
             var valueTimeStamps = new Dictionary<NodeId, List<DateTimeUtc>>();
+            TaskCompletionSource<bool>? restartDataReceived = restartServer
+                ? new(TaskCreationOptions.RunContinuationsAsynchronously)
+                : null;
+            bool awaitingRestartData = false;
 
             var monitoredItemsList = new List<MonitoredItem>();
             foreach (NodeId nodeId in testSet)
@@ -452,6 +462,10 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                         foreach (DataValue value in item.DequeueValues())
                         {
                             list.Add(value.SourceTimestamp);
+                            if (awaitingRestartData)
+                            {
+                                restartDataReceived?.TrySetResult(true);
+                            }
                         }
                     };
 
@@ -534,6 +548,8 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 }
             }
 #endif
+            awaitingRestartData = restartServer && setSubscriptionDurable;
+            Task restartData = restartDataReceived?.Task ?? Task.CompletedTask;
             bool result = await transferSession.TransferSubscriptionsAsync(subscriptions, true)
                 .ConfigureAwait(false);
 
@@ -546,6 +562,15 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 result,
                 Is.EqualTo(expected),
                 $"SetSubscriptionDurable = {setSubscriptionDurable} => Transfer Result: {result} != Expected {expected}");
+
+            if (restartServer && setSubscriptionDurable)
+            {
+                await restartData.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(
+                    valueTimeStamps.Values.Any(values => values.Count > 0),
+                    Is.True,
+                    "A transferred subscription did not deliver queued data after restart.");
+            }
 
             if (setSubscriptionDurable && !restartServer)
             {
