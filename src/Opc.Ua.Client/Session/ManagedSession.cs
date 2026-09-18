@@ -1243,24 +1243,7 @@ namespace Opc.Ua.Client
                         }
                     }
 
-                    if (m_redundancyHandler != null)
-                    {
-                        try
-                        {
-                            m_redundancyInfo = await m_redundancyHandler
-                                .FetchRedundancyInfoAsync(this, ct)
-                                .ConfigureAwait(false);
-                        }
-                        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                        {
-                            throw;
-                        }
-                        catch (Exception ex)
-                        {
-                            m_redundancyInfo = null;
-                            m_logger.ManagedSessionRedundancyDiscoveryFailed(ex);
-                        }
-                    }
+                    await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
                 }
                 catch
                 {
@@ -1391,12 +1374,7 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                if (m_redundancyHandler != null)
-                {
-                    m_redundancyInfo = await m_redundancyHandler
-                        .FetchRedundancyInfoAsync(this, ct)
-                        .ConfigureAwait(false);
-                }
+                await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
 
                 m_reconnectPolicy.Reset();
 
@@ -1551,9 +1529,7 @@ namespace Opc.Ua.Client
 
             try
             {
-                m_redundancyInfo = await m_redundancyHandler
-                    .FetchRedundancyInfoAsync(this, ct)
-                    .ConfigureAwait(false);
+                await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
                 if (m_redundancyInfo == null)
                 {
                     return new ServiceResult(StatusCodes.BadNothingToDo);
@@ -1610,6 +1586,65 @@ namespace Opc.Ua.Client
             {
                 m_logger.ManagedSessionFailoverFailed(ex);
                 return ToAttemptFailure(ex);
+            }
+        }
+
+        private async Task RefreshRedundancyInfoBestEffortAsync(CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            Task<ServerRedundancyInfo>? previous = m_redundancyRefreshTask;
+            if (m_redundancyHandler == null || (previous != null && !previous.IsCompleted))
+            {
+                return;
+            }
+
+            Task<ServerRedundancyInfo>? refresh = null;
+            try
+            {
+                refresh = FetchRedundancySnapshotAsync(m_redundancyHandler, ct);
+                m_redundancyRefreshTask = refresh;
+                m_redundancyInfo = await refresh.WaitAsync(s_redundancyRefreshTimeout, m_timeProvider, ct)
+                    .ConfigureAwait(false)
+                    ?? throw ServiceResultException.Unexpected("The redundancy handler returned no snapshot.");
+            }
+            catch (Exception exception) when (exception is OperationCanceledException or TimeoutException)
+            {
+                if (refresh != null)
+                {
+                    _ = ObserveLateRedundancyRefreshAsync(refresh);
+                }
+                ct.ThrowIfCancellationRequested();
+                m_logger.ManagedSessionRedundancyDiscoveryFailed(exception);
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                m_logger.ManagedSessionRedundancyDiscoveryFailed(exception);
+            }
+        }
+
+        private async Task<ServerRedundancyInfo> FetchRedundancySnapshotAsync(
+            IServerRedundancyHandler handler,
+            CancellationToken ct)
+        {
+            using CancellationTokenSource timeout = m_timeProvider.CreateCancellationTokenSource(
+                s_redundancyRefreshTimeout);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
+            return await handler.FetchRedundancyInfoAsync(this, linked.Token).ConfigureAwait(false);
+        }
+
+        private async Task ObserveLateRedundancyRefreshAsync(Task<ServerRedundancyInfo> refresh)
+        {
+            try
+            {
+                await refresh.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // The bounded refresh already cancelled this operation.
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                m_logger.ManagedSessionRedundancyDiscoveryFailed(exception);
             }
         }
 
@@ -2278,6 +2313,8 @@ namespace Opc.Ua.Client
         private ISecurityPolicyRegistry? m_securityPolicies;
         private int m_channelReconnectInProgress;
         private ServerRedundancyInfo? m_redundancyInfo;
+        private Task<ServerRedundancyInfo>? m_redundancyRefreshTask;
+        private static readonly TimeSpan s_redundancyRefreshTimeout = TimeSpan.FromSeconds(2);
         private readonly Lock m_identityRefreshLock = new();
 #pragma warning disable CA2213
         // Disposed by StopIdentityRefreshLoopAsync; sync Dispose cancels because it cannot await.
@@ -2389,7 +2426,7 @@ namespace Opc.Ua.Client
             Exception? exception);
 
         [LoggerMessage(EventId = ClientEventIds.ManagedSession + 27, Level = LogLevel.Warning,
-            Message = "ManagedSession: Redundancy discovery failed; continuing with the connected session.")]
+            Message = "ManagedSession: Redundancy refresh failed; retaining the previous snapshot.")]
         public static partial void ManagedSessionRedundancyDiscoveryFailed(
             this ILogger logger,
             Exception? exception);

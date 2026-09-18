@@ -186,6 +186,11 @@ an `ISession` facade that wraps a raw `Session` and adds:
 - A **server-redundancy handler** (`IServerRedundancyHandler`,
   default: `DefaultServerRedundancyHandler`) that reads the server's
   `ServerRedundancy` object and can fail over to a backup endpoint.
+  Refresh is best effort and bounded to two seconds at connect, reconnect,
+  and failover. A failed or unresponsive refresh retains the previous
+  snapshot, so an unavailable primary cannot prevent selecting a cached
+  backup. A provider that ignores cancellation is still observed, and no
+  overlapping refresh is started while it remains in flight.
 - A **service gate** (`m_serviceLock`) that pauses caller-issued service
   calls (Read/Write/Browse/Call/...) for the duration of a reconnect or
   failover, so consumers see one transparent retry rather than a torn

@@ -376,6 +376,68 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 Times.Once);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReconnectKeepsCachedFailoverAfterBoundedRedundancyRefreshAsync(bool ignoreCancellation)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+            TimeProvider time = TimeProvider.System;
+            var channel = new Mock<IManagedTransportChannel>();
+            channel.SetupGet(value => value.MessageContext).Returns(configuration.CreateMessageContext());
+            var manager = new Mock<IClientChannelManager>();
+#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+            manager.Setup(value => value.ReconnectAsync(
+                    channel.Object, It.IsAny<IRetryBudget>(), It.IsAny<CancellationToken>()))
+#else
+            manager.Setup(value => value.ReconnectAsync(channel.Object, It.IsAny<CancellationToken>()))
+#endif
+                .Returns(new ValueTask());
+            using var inner = new Session(channel.Object, configuration, endpoint);
+            inner.BindManagedChannel(manager.Object, channel.Object);
+            var cached = new ServerRedundancyInfo { Mode = RedundancySupport.Cold };
+            var refresh = new TaskCompletionSource<ServerRedundancyInfo>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using CancellationTokenRegistration abort = deadline.Token.Register(() => refresh.TrySetCanceled());
+            var redundancy = new Mock<IServerRedundancyHandler>(MockBehavior.Strict);
+            redundancy.Setup(value => value.FetchRedundancyInfoAsync(
+                    It.IsAny<ISession>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    if (!ignoreCancellation)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadConnectionClosed);
+                    }
+                    return new ValueTask<ServerRedundancyInfo>(refresh.Task);
+                });
+            redundancy.Setup(value => value.SelectFailoverTarget(cached, endpoint))
+                .Returns((ConfiguredEndpoint?)null);
+            Client.ManagedSession managed = CreateManagedSessionWithInner(
+                configuration, endpoint, inner, telemetry, redundancyHandler: redundancy.Object, timeProvider: time);
+            typeof(Client.ManagedSession).GetField(
+                "m_redundancyInfo", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(managed, cached);
+            var budget = new RetryBudget(TimeSpan.FromSeconds(30), time);
+            try
+            {
+                ServiceResult result = await InvokeHandleReconnectAsync(managed, budget).ConfigureAwait(false);
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                redundancy.Setup(value => value.FetchRedundancyInfoAsync(
+                        It.IsAny<ISession>(), It.IsAny<CancellationToken>()))
+                    .Throws(new ServiceResultException(StatusCodes.BadConnectionClosed));
+                ServiceResult failover = await InvokeHandleFailoverAsync(managed, budget)
+                    .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(failover.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
+                redundancy.Verify(value => value.SelectFailoverTarget(cached, endpoint), Times.Once);
+            }
+            finally
+            {
+                refresh.TrySetResult(cached);
+                await managed.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public void ConnectionStateChangedEventArgsHasCorrectProperties()
         {
@@ -1040,7 +1102,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Session innerSession,
             ITelemetryContext telemetry,
             NetworkRedundancyOptions? networkRedundancy = null,
-            IServerRedundancyHandler? redundancyHandler = null)
+            IServerRedundancyHandler? redundancyHandler = null,
+            TimeProvider? timeProvider = null)
         {
             ILogger<Client.ManagedSession> logger = telemetry.CreateLogger<Client.ManagedSession>();
             var sessionFactory = new Mock<ISessionFactory>();
@@ -1088,7 +1151,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 logger,
                 null,
                 null,
-                null,
+                timeProvider,
                 default(ArrayOf<string>),
                 "TestManagedSession",
                 60000u,
