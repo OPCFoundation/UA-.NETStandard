@@ -117,7 +117,8 @@ namespace Opc.Ua.Client
         public async ValueTask<Releaser> ReaderLockAsync(
             CancellationToken ct = default)
         {
-            if (BeforeReaderLockAsync is { } beforeReaderLock)
+            Func<CancellationToken, ValueTask>? beforeReaderLock = BeforeReaderLockAsync;
+            if (beforeReaderLock != null)
             {
                 await beforeReaderLock(ct).ConfigureAwait(false);
             }

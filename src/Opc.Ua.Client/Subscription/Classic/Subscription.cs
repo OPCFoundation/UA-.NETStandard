@@ -1875,7 +1875,8 @@ namespace Opc.Ua.Client
                 {
                     //gaps between m_lastSequenceNumberProcessed and starting node
                     LinkedListNode<IncomingMessage> currentNode = node;
-                    uint gap = node.Value.SequenceNumber - m_lastSequenceNumberProcessed - 1;
+                    uint expectedSequenceNumber = m_lastSequenceNumberProcessed + 1;
+                    uint gap = node.Value.SequenceNumber - expectedSequenceNumber;
                     if (gap > kMaxSequenceNumberGap)
                     {
                         m_lastSequenceNumberProcessed = node.Value.SequenceNumber - 1;
@@ -1886,7 +1887,7 @@ namespace Opc.Ua.Client
                     }
                     else
                     {
-                        for (uint i = node.Value.SequenceNumber; i > (m_lastSequenceNumberProcessed + 1); i--)
+                        for (uint i = node.Value.SequenceNumber; i > expectedSequenceNumber; i--)
                         {
                             var placeholder = new IncomingMessage
                             {

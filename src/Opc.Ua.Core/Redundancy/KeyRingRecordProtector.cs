@@ -45,7 +45,6 @@ namespace Opc.Ua.Redundancy
     /// </summary>
     public sealed class KeyRingRecordProtector :
         IOwnedRecordProtector,
-        IContextBoundRecordProtector,
         IDisposable
     {
         /// <summary>
@@ -179,17 +178,9 @@ namespace Opc.Ua.Redundancy
         {
             foreach (IRecordProtector protector in m_all)
             {
-                if (protector is IContextBoundRecordProtector contextual &&
-                    contextual.TryUnprotect(context, protectedRecord, out ByteString unprotectedContext))
+                if (protector.TryUnprotect(context, protectedRecord, out ByteString unprotectedContext))
                 {
                     plaintext = unprotectedContext.ToArray();
-                    return true;
-                }
-
-                if (protector is not IContextBoundRecordProtector &&
-                    protector.TryUnprotect(protectedRecord, out ByteString unprotected))
-                {
-                    plaintext = unprotected.ToArray();
                     return true;
                 }
             }

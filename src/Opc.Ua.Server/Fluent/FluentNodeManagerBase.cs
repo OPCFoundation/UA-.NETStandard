@@ -1008,9 +1008,10 @@ namespace Opc.Ua.Server.Fluent
             {
                 EventSources.SignalReconcile();
             }
-            else if (nonNullMonitoredNode.Node is { } node)
+            else if (nonNullMonitoredNode.Node != null)
             {
-                await EventSources.WaitUntilReadyAsync(node, cancellationToken).ConfigureAwait(false);
+                await EventSources.WaitUntilReadyAsync(nonNullMonitoredNode.Node, cancellationToken)
+                    .ConfigureAwait(false);
             }
             await base.OnSubscribeToEventsAsync(context, nonNullMonitoredNode, unsubscribe, cancellationToken)
                 .ConfigureAwait(false);

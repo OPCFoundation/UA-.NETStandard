@@ -1455,7 +1455,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             if (created)
             {
-                if (!m_requestedSettingsInitialized)
+                if (m_lastRequestedSettings == null)
                 {
                     RememberRequestedSettings(
                         revisedPublishingInterval,
@@ -1494,7 +1494,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             Id = 0;
             m_createdEvent.Reset();
-            m_requestedSettingsInitialized = false;
+            m_lastRequestedSettings = null;
             CurrentPublishingInterval = TimeSpan.Zero;
             CurrentKeepAliveCount = 0;
             CurrentPublishingEnabled = false;
@@ -1659,12 +1659,12 @@ namespace Opc.Ua.Client.Subscriptions
             byte priority,
             uint maxNotificationsPerPublish)
         {
-            m_lastRequestedPublishingInterval = publishingInterval;
-            m_lastRequestedKeepAliveCount = keepAliveCount;
-            m_lastRequestedLifetimeCount = lifetimeCount;
-            m_lastRequestedPriority = priority;
-            m_lastRequestedMaxNotificationsPerPublish = maxNotificationsPerPublish;
-            m_requestedSettingsInitialized = true;
+            m_lastRequestedSettings = new RequestedSubscriptionSettings(
+                publishingInterval,
+                keepAliveCount,
+                lifetimeCount,
+                priority,
+                maxNotificationsPerPublish);
         }
 
         private bool ShouldModifyRequestedSettings(
@@ -1674,13 +1674,20 @@ namespace Opc.Ua.Client.Subscriptions
             byte priority,
             uint maxNotificationsPerPublish)
         {
-            return !m_requestedSettingsInitialized ||
-                m_lastRequestedPublishingInterval != publishingInterval ||
-                m_lastRequestedKeepAliveCount != keepAliveCount ||
-                m_lastRequestedLifetimeCount != lifetimeCount ||
-                m_lastRequestedPriority != priority ||
-                m_lastRequestedMaxNotificationsPerPublish != maxNotificationsPerPublish;
+            return m_lastRequestedSettings != new RequestedSubscriptionSettings(
+                publishingInterval,
+                keepAliveCount,
+                lifetimeCount,
+                priority,
+                maxNotificationsPerPublish);
         }
+
+        private readonly record struct RequestedSubscriptionSettings(
+            TimeSpan PublishingInterval,
+            uint KeepAliveCount,
+            uint LifetimeCount,
+            byte Priority,
+            uint MaxNotificationsPerPublish);
 
         private static readonly TimeSpan s_minKeepAliveTimerInterval = TimeSpan.FromSeconds(1);
         private static readonly TimeSpan s_maxKeepAliveTimerInterval =
@@ -1692,12 +1699,7 @@ namespace Opc.Ua.Client.Subscriptions
         private int m_publishLateCount;
         private int m_recreateRequested;
         private int m_recreateAfterTimeoutInProgress;
-        private bool m_requestedSettingsInitialized;
-        private TimeSpan m_lastRequestedPublishingInterval;
-        private uint m_lastRequestedKeepAliveCount;
-        private uint m_lastRequestedLifetimeCount;
-        private byte m_lastRequestedPriority;
-        private uint m_lastRequestedMaxNotificationsPerPublish;
+        private RequestedSubscriptionSettings? m_lastRequestedSettings;
         private Func<CancellationToken, ValueTask>? m_onAfterCreateAsync;
         private readonly AsyncAutoResetEvent m_stateControl = new();
         private readonly AsyncManualResetEvent m_createdEvent = new();

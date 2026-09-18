@@ -45,8 +45,32 @@ namespace Opc.Ua.Redundancy
         /// self-describing protected envelope.
         /// </summary>
         /// <param name="plaintext">The record to protect.</param>
+        /// <returns>
+        /// The protected envelope.
+        /// </returns>
         ByteString Protect(ByteString plaintext);
 
+        /// <summary>
+        /// Encrypts and authenticates <paramref name="plaintext"/> while binding the
+        /// envelope to <paramref name="context"/>.
+        /// </summary>
+        /// <param name="context">The shared-store context to authenticate.</param>
+        /// <param name="plaintext">The record to protect.</param>
+        /// <returns>
+        /// The protected envelope.
+        /// </returns>
+        ByteString Protect(ByteString context, ByteString plaintext);
+
+        /// <summary>
+        /// Encrypts and authenticates <paramref name="plaintext"/> while binding the
+        /// envelope to <paramref name="context"/>.
+        /// </summary>
+        /// <param name="context">The shared-store context to authenticate.</param>
+        /// <param name="plaintext">The record to protect.</param>
+        /// <returns>
+        /// The protected envelope.
+        /// </returns>
+        ByteString Protect(string context, ByteString plaintext);
 
         /// <summary>
         /// Verifies and decrypts a protected envelope. Returns <c>false</c>
@@ -55,28 +79,20 @@ namespace Opc.Ua.Redundancy
         /// </summary>
         /// <param name="protectedRecord">The protected envelope.</param>
         /// <param name="plaintext">The recovered plaintext on success.</param>
+        /// <returns>
+        /// <c>true</c> if the record was authenticated and decrypted; otherwise <c>false</c>.
+        /// </returns>
         bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext);
-
-    }
-
-    /// <summary>
-    /// Optional context-binding extension for record protectors.
-    /// </summary>
-    public interface IContextBoundRecordProtector : IRecordProtector
-    {
-        /// <summary>
-        /// Protects a record while authenticating its shared-store key.
-        /// </summary>
-        ByteString Protect(ByteString context, ByteString plaintext);
-
-        /// <summary>
-        /// Protects a record while authenticating its textual shared-store key.
-        /// </summary>
-        ByteString Protect(string context, ByteString plaintext);
 
         /// <summary>
         /// Unprotects a record only when its shared-store key matches.
         /// </summary>
+        /// <param name="context">The shared-store context to authenticate.</param>
+        /// <param name="protectedRecord">The protected envelope.</param>
+        /// <param name="plaintext">The recovered plaintext on success.</param>
+        /// <returns>
+        /// <c>true</c> if the record was authenticated for the context and decrypted; otherwise <c>false</c>.
+        /// </returns>
         bool TryUnprotect(
             ByteString context,
             ByteString protectedRecord,
@@ -85,83 +101,16 @@ namespace Opc.Ua.Redundancy
         /// <summary>
         /// Unprotects a record only when its textual shared-store key matches.
         /// </summary>
+        /// <param name="context">The shared-store context to authenticate.</param>
+        /// <param name="protectedRecord">The protected envelope.</param>
+        /// <param name="plaintext">The recovered plaintext on success.</param>
+        /// <returns>
+        /// <c>true</c> if the record was authenticated for the context and decrypted; otherwise <c>false</c>.
+        /// </returns>
         bool TryUnprotect(
             string context,
             ByteString protectedRecord,
             out ByteString plaintext);
-    }
-
-    /// <summary>
-    /// Context-binding operations with compatibility fallback for legacy
-    /// protectors.
-    /// </summary>
-    public static class RecordProtectorContextExtensions
-    {
-        /// <summary>
-        /// Protects a context-bound record.
-        /// </summary>
-        public static ByteString Protect(
-            this IRecordProtector protector,
-            string context,
-            ByteString plaintext)
-        {
-            if (protector is IContextBoundRecordProtector contextual)
-            {
-                return contextual.Protect(context, plaintext);
-            }
-
-            return protector.Protect(plaintext);
-        }
-
-        /// <summary>
-        /// Protects a context-bound record.
-        /// </summary>
-        public static ByteString Protect(
-            this IRecordProtector protector,
-            ByteString context,
-            ByteString plaintext)
-        {
-            if (protector is IContextBoundRecordProtector contextual)
-            {
-                return contextual.Protect(context, plaintext);
-            }
-
-            return protector.Protect(plaintext);
-        }
-
-        /// <summary>
-        /// Unprotects a context-bound record.
-        /// </summary>
-        public static bool TryUnprotect(
-            this IRecordProtector protector,
-            string context,
-            ByteString protectedRecord,
-            out ByteString plaintext)
-        {
-            if (protector is IContextBoundRecordProtector contextual)
-            {
-                return contextual.TryUnprotect(context, protectedRecord, out plaintext);
-            }
-
-            return protector.TryUnprotect(protectedRecord, out plaintext);
-        }
-
-        /// <summary>
-        /// Unprotects a context-bound record.
-        /// </summary>
-        public static bool TryUnprotect(
-            this IRecordProtector protector,
-            ByteString context,
-            ByteString protectedRecord,
-            out ByteString plaintext)
-        {
-            if (protector is IContextBoundRecordProtector contextual)
-            {
-                return contextual.TryUnprotect(context, protectedRecord, out plaintext);
-            }
-
-            return protector.TryUnprotect(protectedRecord, out plaintext);
-        }
     }
 
     /// <summary>
@@ -174,7 +123,11 @@ namespace Opc.Ua.Redundancy
         /// Verifies and decrypts a protected envelope into an independent,
         /// caller-owned plaintext buffer that is safe to wipe.
         /// </summary>
+        /// <param name="protectedRecord">The protected envelope.</param>
+        /// <param name="plaintext">The caller-owned plaintext buffer on success.</param>
+        /// <returns>
+        /// <c>true</c> if the record was authenticated and decrypted; otherwise <c>false</c>.
+        /// </returns>
         bool TryUnprotectOwned(ByteString protectedRecord, out byte[] plaintext);
-
     }
 }

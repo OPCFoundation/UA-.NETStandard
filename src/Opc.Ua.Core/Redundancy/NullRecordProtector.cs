@@ -38,8 +38,7 @@ namespace Opc.Ua.Redundancy
     /// <c>docs/HighAvailability.md</c>.
     /// </summary>
     public sealed class NullRecordProtector :
-        IOwnedRecordProtector,
-        IContextBoundRecordProtector
+        IOwnedRecordProtector
     {
         /// <summary>
         /// The shared singleton instance.

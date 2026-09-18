@@ -2037,8 +2037,8 @@ namespace Opc.Ua
                     m_valueRank,
                     context.NamespaceUris,
                     context.TypeTable);
-                if (typeInfo.IsUnknown &&
-                    !(m_dataType.IsNull && valueToWrite.IsNull))
+                if (!(m_dataType.IsNull && valueToWrite.IsNull) &&
+                    typeInfo.IsUnknown)
                 {
                     return StatusCodes.BadTypeMismatch;
                 }

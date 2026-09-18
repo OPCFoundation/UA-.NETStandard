@@ -46,7 +46,6 @@ namespace Opc.Ua.Redundancy
     /// </summary>
     public sealed class AesCbcHmacRecordProtector :
         IOwnedRecordProtector,
-        IContextBoundRecordProtector,
         IDisposable
     {
         /// <summary>

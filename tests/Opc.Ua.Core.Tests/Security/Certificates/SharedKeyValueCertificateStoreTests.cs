@@ -364,6 +364,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 return new ByteString(result);
             }
 
+            public ByteString Protect(ByteString context, ByteString plaintext)
+            {
+                return Protect(plaintext);
+            }
+
+            public ByteString Protect(string context, ByteString plaintext)
+            {
+                return Protect(plaintext);
+            }
+
             public bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext)
             {
                 ReadOnlySpan<byte> span = protectedRecord.Span;
@@ -375,6 +385,22 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
                 plaintext = new ByteString(span[s_marker.Length..].ToArray());
                 return true;
+            }
+
+            public bool TryUnprotect(
+                ByteString context,
+                ByteString protectedRecord,
+                out ByteString plaintext)
+            {
+                return TryUnprotect(protectedRecord, out plaintext);
+            }
+
+            public bool TryUnprotect(
+                string context,
+                ByteString protectedRecord,
+                out ByteString plaintext)
+            {
+                return TryUnprotect(protectedRecord, out plaintext);
             }
 
             public bool TryUnprotectOwned(ByteString protectedRecord, out byte[] plaintext)

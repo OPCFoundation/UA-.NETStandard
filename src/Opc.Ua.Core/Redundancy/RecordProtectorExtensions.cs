@@ -27,12 +27,31 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Server.Historian
+namespace Opc.Ua.Redundancy
 {
     /// <summary>
-    /// An annotation and the source timestamp of the value it annotates.
+    /// Convenience operations for record protectors.
     /// </summary>
-    public readonly record struct HistorianAnnotation(
-        DateTimeUtc SourceTimestamp,
-        Annotation Annotation);
+    public static class RecordProtectorExtensions
+    {
+        /// <summary>
+        /// Verifies and decrypts a context-bound protected envelope into an
+        /// independent, caller-owned plaintext buffer that is safe to wipe.
+        /// </summary>
+        public static bool TryUnprotectOwned(
+            this IOwnedRecordProtector protector,
+            ByteString context,
+            ByteString protectedRecord,
+            out byte[] plaintext)
+        {
+            if (!protector.TryUnprotect(context, protectedRecord, out ByteString unprotected))
+            {
+                plaintext = [];
+                return false;
+            }
+
+            plaintext = unprotected.IsNull ? [] : unprotected.ToArray();
+            return true;
+        }
+    }
 }

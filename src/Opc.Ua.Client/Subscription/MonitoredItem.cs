@@ -914,8 +914,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             /// <param name="item"></param>
             /// <param name="options"></param>
             /// <param name="currentOptions"></param>
-            public Change(MonitoredItem item, MonitoredItemOptions options,
-                MonitoredItemOptions? currentOptions)
+            public Change(MonitoredItem item, MonitoredItemOptions options, MonitoredItemOptions? currentOptions)
             {
                 Debug.Assert(!options.StartNodeId.IsNull);
                 Options = options;

@@ -371,6 +371,16 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 return new ByteString(envelope);
             }
 
+            public ByteString Protect(ByteString context, ByteString plaintext)
+            {
+                return Protect(plaintext);
+            }
+
+            public ByteString Protect(string context, ByteString plaintext)
+            {
+                return Protect(plaintext);
+            }
+
             public bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext)
             {
                 if (!TryDecode(protectedRecord, out byte[] data))
@@ -380,6 +390,22 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 }
                 plaintext = new ByteString(data);
                 return true;
+            }
+
+            public bool TryUnprotect(
+                ByteString context,
+                ByteString protectedRecord,
+                out ByteString plaintext)
+            {
+                return TryUnprotect(protectedRecord, out plaintext);
+            }
+
+            public bool TryUnprotect(
+                string context,
+                ByteString protectedRecord,
+                out ByteString plaintext)
+            {
+                return TryUnprotect(protectedRecord, out plaintext);
             }
 
             public bool TryUnprotectOwned(ByteString protectedRecord, out byte[] plaintext)

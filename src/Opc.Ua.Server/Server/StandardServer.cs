@@ -766,6 +766,7 @@ namespace Opc.Ua.Server
                     catch (ServiceResultException sre)
                         when (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
                     {
+                        Debug.Assert(session != null);
                         m_logger.ServerClientConnectsWithAnEndpointUrlEndpointUrl(endpointUrl);
                         ServerInternal.ReportAuditUrlMismatchEvent(
                             context.AuditEntryId!,
@@ -5128,8 +5129,7 @@ namespace Opc.Ua.Server
         private readonly List<HistorianProviderRegistration>
             m_historianProviders = [];
 
-        private readonly List<Hosting.IServerPreStartupTask> m_preStartupTasks =
-            [];
+        private readonly List<Hosting.IServerPreStartupTask> m_preStartupTasks = [];
         private readonly List<IUserTokenAuthenticator> m_preStartAuthenticators = [];
         private readonly List<IIdentityAugmenter> m_preStartIdentityAugmenters = [];
 

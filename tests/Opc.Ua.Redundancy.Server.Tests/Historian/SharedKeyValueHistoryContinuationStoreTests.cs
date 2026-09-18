@@ -1328,6 +1328,16 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 return ByteString.From(protectedRecord);
             }
 
+            public ByteString Protect(ByteString context, ByteString plaintext)
+            {
+                return Protect(plaintext);
+            }
+
+            public ByteString Protect(string context, ByteString plaintext)
+            {
+                return Protect(plaintext);
+            }
+
             public bool TryUnprotect(
                 ByteString protectedRecord,
                 out ByteString plaintext)
@@ -1342,6 +1352,22 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 protectedRecord.Span[1..].CopyTo(value);
                 plaintext = ByteString.From(value);
                 return true;
+            }
+
+            public bool TryUnprotect(
+                ByteString context,
+                ByteString protectedRecord,
+                out ByteString plaintext)
+            {
+                return TryUnprotect(protectedRecord, out plaintext);
+            }
+
+            public bool TryUnprotect(
+                string context,
+                ByteString protectedRecord,
+                out ByteString plaintext)
+            {
+                return TryUnprotect(protectedRecord, out plaintext);
             }
         }
     }

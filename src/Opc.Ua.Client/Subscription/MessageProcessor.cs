@@ -530,38 +530,29 @@ namespace Opc.Ua.Client.Subscriptions
                 uint[] ordered = SortAscendingWrapAware(availableSequenceNumbers);
                 Logger.SubscriptionRecoveringTransferredMessages(Id, ordered.Length);
 
-                bool wasDispatching = m_dispatchContext.Value;
-                m_dispatchContext.Value = true;
-                try
+                // Advance the dedup gate after each completed attempt so
+                // cancellation preserves progress already made and the
+                // next message is not treated as the first after create.
+                foreach (uint sequenceNumber in ordered)
                 {
-                    // Advance the dedup gate after each completed attempt so
-                    // cancellation preserves progress already made and the
-                    // next message is not treated as the first after create.
-                    foreach (uint sequenceNumber in ordered)
+                    await RepublishKnownAvailableAsync(
+                        sequenceNumber,
+                        sequenceNumber,
+                        ct)
+                        .ConfigureAwait(false);
+                    if (IsNewerSequenceNumber(
+                        sequenceNumber,
+                        LastDataSequenceNumberProcessed))
                     {
-                        await RepublishKnownAvailableAsync(
-                            sequenceNumber,
-                            sequenceNumber,
-                            ct)
-                            .ConfigureAwait(false);
-                        if (IsNewerSequenceNumber(
-                            sequenceNumber,
-                            LastDataSequenceNumberProcessed))
-                        {
-                            LastDataSequenceNumberProcessed = sequenceNumber;
-                        }
-                        if (IsNewerSequenceNumber(
-                            sequenceNumber,
-                            LastSequenceNumberProcessed))
-                        {
-                            LastSequenceNumberProcessed = sequenceNumber;
-                        }
-                        ct.ThrowIfCancellationRequested();
+                        LastDataSequenceNumberProcessed = sequenceNumber;
                     }
-                }
-                finally
-                {
-                    m_dispatchContext.Value = wasDispatching;
+                    if (IsNewerSequenceNumber(
+                        sequenceNumber,
+                        LastSequenceNumberProcessed))
+                    {
+                        LastSequenceNumberProcessed = sequenceNumber;
+                    }
+                    ct.ThrowIfCancellationRequested();
                 }
             }
             finally

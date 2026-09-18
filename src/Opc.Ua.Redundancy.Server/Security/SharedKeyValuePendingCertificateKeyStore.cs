@@ -258,8 +258,7 @@ namespace Opc.Ua.Redundancy.Server
             // would otherwise alias) and without leaving a second, unwipeable
             // copy behind.
             byte[] plainBytes;
-            if (m_protector is IContextBoundRecordProtector contextualProtector &&
-                contextualProtector.TryUnprotect(key, value, out ByteString contextualPlaintext))
+            if (m_protector.TryUnprotect(key, value, out ByteString contextualPlaintext))
             {
                 plainBytes = contextualPlaintext.ToArray();
             }

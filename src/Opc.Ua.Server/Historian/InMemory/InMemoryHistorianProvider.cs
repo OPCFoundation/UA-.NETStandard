@@ -233,7 +233,6 @@ namespace Opc.Ua.Server.Historian.InMemory
             }
         }
 
-        #pragma warning disable RCS0009, RCS1007, RCS0056, CA1725
         /// <inheritdoc/>
         public override ValueTask<bool> IsHistorizingAsync(NodeId nodeId, CancellationToken ct)
         {
@@ -242,7 +241,6 @@ namespace Opc.Ua.Server.Historian.InMemory
                 return new ValueTask<bool>(m_archives.ContainsKey(nodeId) || m_capabilities.ContainsKey(nodeId));
             }
         }
-        #pragma warning restore RCS0009, RCS1007, RCS0056, CA1725
 
         /// <inheritdoc/>
         public override ValueTask<HistorianNodeCapabilities> GetCapabilitiesAsync(NodeId nodeId, CancellationToken ct)
@@ -2429,7 +2427,10 @@ namespace Opc.Ua.Server.Historian.InMemory
             NodeId nodeId,
             ArrayOf<HistorianAnnotation> annotations,
             CancellationToken ct)
-            => new(ApplyTimestamped(nodeId, annotations, HistoryUpdateType.Insert));
+        {
+            return new ValueTask<HistorianUpdateOutcome<HistorianAnnotation>>(
+                ApplyTimestamped(nodeId, annotations, HistoryUpdateType.Insert));
+        }
 
         /// <inheritdoc/>
         public ValueTask<HistorianUpdateOutcome<HistorianAnnotation>> ReplaceAnnotationsWithTimestampsAsync(
@@ -2437,7 +2438,10 @@ namespace Opc.Ua.Server.Historian.InMemory
             NodeId nodeId,
             ArrayOf<HistorianAnnotation> annotations,
             CancellationToken ct)
-            => new(ApplyTimestamped(nodeId, annotations, HistoryUpdateType.Replace));
+        {
+            return new ValueTask<HistorianUpdateOutcome<HistorianAnnotation>>(
+                ApplyTimestamped(nodeId, annotations, HistoryUpdateType.Replace));
+        }
 
         /// <inheritdoc/>
         public ValueTask<HistorianUpdateOutcome<HistorianAnnotation>> UpdateAnnotationsWithTimestampsAsync(
@@ -2445,7 +2449,10 @@ namespace Opc.Ua.Server.Historian.InMemory
             NodeId nodeId,
             ArrayOf<HistorianAnnotation> annotations,
             CancellationToken ct)
-            => new(ApplyTimestamped(nodeId, annotations, HistoryUpdateType.Update));
+        {
+            return new ValueTask<HistorianUpdateOutcome<HistorianAnnotation>>(
+                ApplyTimestamped(nodeId, annotations, HistoryUpdateType.Update));
+        }
 
         /// <inheritdoc/>
         public ValueTask<HistorianUpdateOutcome<HistorianAnnotation>> DeleteAnnotationsWithTimestampsAsync(
@@ -2453,7 +2460,10 @@ namespace Opc.Ua.Server.Historian.InMemory
             NodeId nodeId,
             ArrayOf<HistorianAnnotation> annotations,
             CancellationToken ct)
-            => new(ApplyTimestamped(nodeId, annotations, HistoryUpdateType.Delete));
+        {
+            return new ValueTask<HistorianUpdateOutcome<HistorianAnnotation>>(
+                ApplyTimestamped(nodeId, annotations, HistoryUpdateType.Delete));
+        }
 
         // Timestamped annotation reads/writes share the SAME underlying
         // archive.Annotations store used by the legacy

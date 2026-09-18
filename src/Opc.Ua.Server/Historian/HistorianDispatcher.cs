@@ -1657,7 +1657,12 @@ namespace Opc.Ua.Server.Historian
                 result.OperationResults = adaptedOutcome.OperationResults;
                 result.DiagnosticInfos = adaptedOutcome.DiagnosticInfos;
                 ServiceResult adaptedResult = GetOperationResult(adaptedOutcome);
-                ReportAuditAnnotationUpdate(systemContext, details, parentVariable, adaptedOutcome, adaptedResult.StatusCode);
+                ReportAuditAnnotationUpdate(
+                    systemContext,
+                    details,
+                    parentVariable,
+                    adaptedOutcome,
+                    adaptedResult.StatusCode);
                 return adaptedResult;
             }
 

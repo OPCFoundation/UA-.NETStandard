@@ -102,18 +102,7 @@ namespace Opc.Ua.Server.FileSystem
             ISystemContext context,
             FileDirectoryBindingOptions? options = null,
             Func<NodeState, CancellationToken, ValueTask>? registerNode = null,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Binds a FileDirectoryType node with registration and deregistration callbacks.
-        /// </summary>
-        ValueTask<IFileDirectoryBinding> BindAsync(
-            FileDirectoryState directory,
-            IFileSystemProvider provider,
-            ISystemContext context,
-            FileDirectoryBindingOptions? options,
-            Func<NodeState, CancellationToken, ValueTask>? registerNode,
-            Func<NodeState, CancellationToken, ValueTask>? deregisterNode,
+            Func<NodeState, CancellationToken, ValueTask>? deregisterNode = null,
             CancellationToken cancellationToken = default);
     }
 
@@ -123,32 +112,13 @@ namespace Opc.Ua.Server.FileSystem
     public sealed class FileDirectoryBinder : IFileDirectoryBinder
     {
         /// <inheritdoc/>
-        public ValueTask<IFileDirectoryBinding> BindAsync(
+        public async ValueTask<IFileDirectoryBinding> BindAsync(
             FileDirectoryState directory,
             IFileSystemProvider provider,
             ISystemContext context,
             FileDirectoryBindingOptions? options = null,
             Func<NodeState, CancellationToken, ValueTask>? registerNode = null,
-            CancellationToken cancellationToken = default)
-        {
-            return BindAsync(
-                directory,
-                provider,
-                context,
-                options,
-                registerNode,
-                deregisterNode: null,
-                cancellationToken);
-        }
-
-        /// <inheritdoc/>
-        public async ValueTask<IFileDirectoryBinding> BindAsync(
-            FileDirectoryState directory,
-            IFileSystemProvider provider,
-            ISystemContext context,
-            FileDirectoryBindingOptions? options,
-            Func<NodeState, CancellationToken, ValueTask>? registerNode,
-            Func<NodeState, CancellationToken, ValueTask>? deregisterNode,
+            Func<NodeState, CancellationToken, ValueTask>? deregisterNode = null,
             CancellationToken cancellationToken = default)
         {
             if (directory == null)

@@ -961,14 +961,14 @@ namespace Opc.Ua.Client.Subscriptions
                 // emitted values, so requesting initial values is only
                 // useful when the caller wants the server to re-emit them
                 // to a fresh notification handler.
-                uint[] ids = [state.ServerId];
+                ArrayOf<uint> subscriptionIds = [state.ServerId];
                 bool transferred = false;
                 try
                 {
                     TransferSubscriptionsResponse response = await m_session
                         .TransferSubscriptionsAsync(
                             null,
-                            ids.ToArrayOf(),
+                            subscriptionIds,
                             sendInitialValues: options.SendInitialValuesOnTransfer,
                             ct)
                         .ConfigureAwait(false);
@@ -977,7 +977,7 @@ namespace Opc.Ua.Client.Subscriptions
                     if (StatusCode.IsGood(responseHeader.ServiceResult))
                     {
                         ArrayOf<TransferResult> results = response.Results;
-                        ClientBase.ValidateResponse(results, ids.ToArrayOf());
+                        ClientBase.ValidateResponse(results, subscriptionIds);
                         if (results.Count > 0 && StatusCode.IsGood(results[0].StatusCode))
                         {
                             transferred = await subscription.TryCompleteTransferAsync(
