@@ -60,7 +60,13 @@ Rotation that supersedes successful work does not consume the failed-attempt
 retry allowance. Reconnect time budgets and shutdown cancellation still apply.
 
 UA-TCP reconnect hands the new connection to the retained channel without
-closing it when the temporary handshake channel is retired. Receive loops
+closing it when the temporary handshake channel is retired. ECC and RSA-DH
+handoffs move the owned ephemeral nonce objects, including the private key;
+public nonce bytes cannot reconstruct them. The retained token's secret is
+used when deriving the replacement keys. Continued sequence numbers are
+checked against the retained channel, not treated as a new secure channel.
+A rejected or failed handoff closes the new connection and releases its
+unadopted token rather than restarting an orphaned receive loop. Receive loops
 have separate cancellation lifetimes; a retiring connection cannot stop its
 replacement. Connection admission reserves capacity before invoking channel
 callbacks, retires idle channels outside the listener lock, and closes rejected

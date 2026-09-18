@@ -344,11 +344,8 @@ namespace Opc.Ua.Bindings
                 ClientCertificate?.Dispose();
                 ClientCertificate = null;
 
-                m_localNonce?.Dispose();
-                m_localNonce = null;
-
-                m_remoteNonce?.Dispose();
-                m_remoteNonce = null;
+                Interlocked.Exchange(ref m_localNonce, null)?.Dispose();
+                Interlocked.Exchange(ref m_remoteNonce, null)?.Dispose();
             }
         }
 
@@ -483,11 +480,19 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected bool VerifySequenceNumber(uint sequenceNumber, string context)
         {
+            return VerifySequenceNumberCore(sequenceNumber, context, false);
+        }
+
+        /// <summary>
+        /// Tracks a reconnect's continued sequence until the retained channel can validate it.
+        /// </summary>
+        private protected bool VerifySequenceNumberCore(uint sequenceNumber, string context, bool reconnecting)
+        {
             // Accept the first sequence number depending on security policy
             bool usesLegacySequenceNumbers = SecurityPolicy?.LegacySequenceNumbers ?? true;
             if (m_firstReceivedSequenceNumber)
             {
-                if (usesLegacySequenceNumbers || sequenceNumber == 0)
+                if (usesLegacySequenceNumbers || sequenceNumber == 0 || reconnecting)
                 {
                     m_remoteSequenceNumber = sequenceNumber;
                     m_firstReceivedSequenceNumber = false;

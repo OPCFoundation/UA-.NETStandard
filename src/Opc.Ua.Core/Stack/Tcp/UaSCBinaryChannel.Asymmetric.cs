@@ -117,6 +117,15 @@ namespace Opc.Ua.Bindings
                 StatusCodes.BadSecurityPolicyRejected,
                 "Unsupported security policy.");
 
+        private bool UsesKeyAgreement => SecurityPolicy?.EphemeralKeyAlgorithm is
+            CertificateKeyAlgorithm.RSADH or
+            CertificateKeyAlgorithm.NistP256 or
+            CertificateKeyAlgorithm.NistP384 or
+            CertificateKeyAlgorithm.BrainpoolP256r1 or
+            CertificateKeyAlgorithm.BrainpoolP384r1 or
+            CertificateKeyAlgorithm.Curve25519 or
+            CertificateKeyAlgorithm.Curve448;
+
         /// <summary>
         /// Builds a new owned collection holding the entry's certificate
         /// followed by its issuer chain (<c>[leaf, ...issuers]</c>) for wire
@@ -318,47 +327,51 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Replaces the ephemeral key-agreement nonces with the values negotiated by another channel.
+        /// Replaces the ephemeral key-agreement nonces with the objects owned by the reconnect token.
         /// </summary>
         protected void ReplaceNonces(ChannelToken token)
         {
-            SecurityPolicyInfo? securityPolicy = SecurityPolicy;
-            if (securityPolicy == null ||
-                securityPolicy.EphemeralKeyAlgorithm is not (
-                    CertificateKeyAlgorithm.RSADH or
-                    CertificateKeyAlgorithm.NistP256 or
-                    CertificateKeyAlgorithm.NistP384 or
-                    CertificateKeyAlgorithm.BrainpoolP256r1 or
-                    CertificateKeyAlgorithm.BrainpoolP384r1 or
-                    CertificateKeyAlgorithm.Curve25519 or
-                    CertificateKeyAlgorithm.Curve448))
+            if (!UsesKeyAgreement)
             {
                 return;
             }
 
-            if (token.ServerNonce == null || token.ClientNonce == null)
+            (Nonce localNonce, Nonce remoteNonce) = token.TakeNonces();
+            Interlocked.Exchange(ref m_localNonce, localNonce)?.Dispose();
+            Interlocked.Exchange(ref m_remoteNonce, remoteNonce)?.Dispose();
+        }
+
+        /// <summary>
+        /// Moves key-agreement ownership out of a temporary channel before it is retired.
+        /// </summary>
+        private protected void TransferNonces(ChannelToken token)
+        {
+            if (!UsesKeyAgreement)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadNonceInvalid,
-                    "The channel token does not contain both key-agreement nonces.");
+                return;
             }
 
-            Nonce localNonce = Nonce.CreateNonce(securityPolicy, token.ServerNonce);
-            Nonce remoteNonce;
+            Nonce? localNonce = Interlocked.Exchange(ref m_localNonce, null);
+            Nonce? remoteNonce = Interlocked.Exchange(ref m_remoteNonce, null);
+            if (localNonce == null || remoteNonce == null)
+            {
+                localNonce?.Dispose();
+                remoteNonce?.Dispose();
+                throw new ServiceResultException(
+                    StatusCodes.BadNonceInvalid,
+                    "The reconnecting channel does not own both key-agreement nonces.");
+            }
+
             try
             {
-                remoteNonce = Nonce.CreateNonce(securityPolicy, token.ClientNonce);
+                token.SetNonces(localNonce, remoteNonce);
             }
             catch
             {
                 localNonce.Dispose();
+                remoteNonce.Dispose();
                 throw;
             }
-
-            m_localNonce?.Dispose();
-            m_remoteNonce?.Dispose();
-            m_localNonce = localNonce;
-            m_remoteNonce = remoteNonce;
         }
 
         /// <summary>

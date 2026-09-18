@@ -29,6 +29,7 @@
 
 using System;
 using System.Security.Cryptography;
+using System.Threading;
 
 namespace Opc.Ua.Bindings
 {
@@ -37,8 +38,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public sealed class ChannelToken : IDisposable
     {
-        private bool m_disposed;
-
         /// <summary>
         /// Creates an object with default values.
         /// </summary>
@@ -51,15 +50,24 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void Dispose(bool disposing)
         {
-            if (!m_disposed)
+            lock (m_nonceLock)
             {
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_disposed = true;
+
                 ServerHmac?.Dispose();
                 ServerHmac = null;
 
                 ClientHmac?.Dispose();
                 ClientHmac = null;
 
-                m_disposed = true;
+                m_localNonce?.Dispose();
+                m_localNonce = null;
+                m_remoteNonce?.Dispose();
+                m_remoteNonce = null;
             }
         }
 
@@ -192,5 +200,54 @@ namespace Opc.Ua.Bindings
         /// A pre-allocated HMAC used to improve performance for SecurityPolicies that need it.
         /// </summary>
         internal HMAC? ClientHmac { get; set; }
+
+        /// <summary>
+        /// Takes ownership of the actual key-agreement objects while a reconnect is handed off.
+        /// </summary>
+        internal void SetNonces(Nonce localNonce, Nonce remoteNonce)
+        {
+            lock (m_nonceLock)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(ChannelToken));
+                }
+                if (m_localNonce != null || m_remoteNonce != null)
+                {
+                    throw new InvalidOperationException("The channel token already owns key-agreement nonces.");
+                }
+                m_localNonce = localNonce;
+                m_remoteNonce = remoteNonce;
+            }
+        }
+
+        /// <summary>
+        /// Transfers the key-agreement objects, including the local private key, to the retained channel.
+        /// </summary>
+        internal (Nonce Local, Nonce Remote) TakeNonces()
+        {
+            lock (m_nonceLock)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(ChannelToken));
+                }
+                if (m_localNonce == null || m_remoteNonce == null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNonceInvalid,
+                        "The channel token does not own both key-agreement nonces.");
+                }
+                (Nonce Local, Nonce Remote) nonces = (m_localNonce, m_remoteNonce);
+                m_localNonce = null;
+                m_remoteNonce = null;
+                return nonces;
+            }
+        }
+
+        private readonly Lock m_nonceLock = new();
+        private Nonce? m_localNonce;
+        private Nonce? m_remoteNonce;
+        private bool m_disposed;
     }
 }

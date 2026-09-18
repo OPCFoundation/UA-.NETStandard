@@ -334,6 +334,7 @@ namespace Opc.Ua.Bindings
                     throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
                 }
 
+                IUaSCByteTransport? dropped = null;
                 try
                 {
                     m_logger.TcpServerLog0(
@@ -346,6 +347,10 @@ namespace Opc.Ua.Bindings
                     token.TokenId = GetNewTokenId();
                     token.PreviousSecret = CurrentToken?.Secret;
                     ReplaceNonces(token);
+                    if (Volatile.Read(ref m_disposed) != 0)
+                    {
+                        throw new ObjectDisposedException(nameof(TcpServerChannel));
+                    }
 
                     // put channel back in open state.
                     ActivateToken(token);
@@ -362,9 +367,13 @@ namespace Opc.Ua.Bindings
                     // cancellation, and its error path faults the channel - on
                     // the new transport, after this method has already reported
                     // the reconnect as successful.
-                    IUaSCByteTransport? dropped = DetachTransport();
+                    dropped = DetachTransport();
 
                     Transport = transport;
+                    if (Volatile.Read(ref m_disposed) != 0)
+                    {
+                        throw new ObjectDisposedException(nameof(TcpServerChannel));
+                    }
                     StartReceiveLoop();
 
                     // send response.
@@ -372,24 +381,25 @@ namespace Opc.Ua.Bindings
 
                     // send any queued responses.
                     ResetQueuedResponses(OnChannelReconnected);
-
-                    // The socket this channel used before the client dropped it
-                    // is nobody's any more.
+                }
+                catch
+                {
+                    try
+                    {
+                        ChannelClosed();
+                    }
+                    finally
+                    {
+                        Dispose();
+                    }
+                    throw;
+                }
+                finally
+                {
                     if (dropped != null && !ReferenceEquals(dropped, transport))
                     {
                         dropped.Close();
                     }
-                }
-                catch (Exception e)
-                {
-                    SendServiceFault(
-                        token,
-                        requestId,
-                        ServiceResult.Create(
-                            e,
-                            StatusCodes.BadTcpInternalError,
-                            "Unexpected error processing request."),
-                        request.RequestHeader?.RequestHandle ?? 0);
                 }
             }
         }
@@ -726,7 +736,8 @@ namespace Opc.Ua.Bindings
                     : null;
 
                 // check for replay attacks.
-                if (!VerifySequenceNumber(sequenceNumber, "ProcessOpenSecureChannelRequest"))
+                bool reconnecting = State == TcpChannelState.Opening && channelId != 0 && channelId != ChannelId;
+                if (!VerifySequenceNumberCore(sequenceNumber, "ProcessOpenSecureChannelRequest", reconnecting))
                 {
                     throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
                 }
@@ -846,6 +857,11 @@ namespace Opc.Ua.Bindings
                 // check the request type.
                 SecurityTokenRequestType requestType = request.RequestType;
 
+                if (requestType == SecurityTokenRequestType.Issue && channelId != 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadTcpSecureChannelUnknown);
+                }
+
                 if (requestType == SecurityTokenRequestType.Issue &&
                     State != TcpChannelState.Opening)
                 {
@@ -886,8 +902,9 @@ namespace Opc.Ua.Bindings
 
                         try
                         {
+                            TransferNonces(token);
                             // tell the listener to find the channel that can process the request.
-                            Listener.ReconnectToExistingChannel(
+                            if (!Listener.ReconnectToExistingChannel(
                                 this,
                                 handedOver,
                                 requestId,
@@ -895,19 +912,22 @@ namespace Opc.Ua.Bindings
                                 channelId,
                                 ClientCertificate!,
                                 token,
-                                request);
+                                request))
+                            {
+                                throw new ServiceResultException(StatusCodes.BadTcpSecureChannelUnknown);
+                            }
                         }
-                        catch
+                        catch (Exception e)
                         {
-                            // The hand-over did not happen - an unknown channel
-                            // id, or a listener that does not support it - so this
-                            // channel still owns the socket. Put it back and read
-                            // from it again: the enclosing catch only sends a
-                            // fault and returns, so without the loop the channel
-                            // would sit on an open socket nobody reads, until the
-                            // idle reclaim finally takes it.
-                            Transport = handedOver;
-                            StartReceiveLoop();
+                            m_logger.TcpServerReconnectFailed(e, channelId);
+                            try
+                            {
+                                handedOver.Close();
+                            }
+                            finally
+                            {
+                                ChannelClosed();
+                            }
                             throw;
                         }
 
@@ -1006,14 +1026,17 @@ namespace Opc.Ua.Bindings
                 // report the audit event for open secure channel
                 ReportAuditOpenSecureChannelEvent?.Invoke(this, request!, ClientCertificate, e);
 
-                SendServiceFault(
-                    requestId,
-                    State == TcpChannelState.Open,
-                    ServiceResult.Create(
-                        e,
-                        StatusCodes.BadTcpInternalError,
-                        "Unexpected error processing OpenSecureChannel request."),
-                    request?.RequestHeader?.RequestHandle ?? ReadRequestHandle(chunksToProcess));
+                if (State is not TcpChannelState.Closed and not TcpChannelState.Closing)
+                {
+                    SendServiceFault(
+                        requestId,
+                        State == TcpChannelState.Open,
+                        ServiceResult.Create(
+                            e,
+                            StatusCodes.BadTcpInternalError,
+                            "Unexpected error processing OpenSecureChannel request."),
+                        request?.RequestHeader?.RequestHandle ?? ReadRequestHandle(chunksToProcess));
+                }
 
                 CompleteReverseHello(e);
                 return false;
@@ -1949,6 +1972,13 @@ namespace Opc.Ua.Bindings
         public static partial void TcpServerLog17(
             this ILogger logger,
             global::System.Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 18, Level = LogLevel.Error,
+            Message = "ChannelId {ChannelId}: reconnect handoff failed; closing the unadopted connection.")]
+        public static partial void TcpServerReconnectFailed(
+            this ILogger logger,
+            Exception exception,
+            uint channelId);
 
         [LoggerMessage(
             EventId = CoreEventIds.CoreSendResponse,
