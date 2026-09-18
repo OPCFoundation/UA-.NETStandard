@@ -234,10 +234,7 @@ namespace Opc.Ua.Bindings
                 case CertificateKeyFamily.RSA:
                     if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.RSADH)
                     {
-                        Nonce localNonce = Nonce.CreateNonce(securityPolicy);
-                        m_localNonce?.Dispose();
-                        m_localNonce = localNonce;
-                        return m_localNonce!.Data;
+                        return CreateLocalNonce(securityPolicy);
                     }
                     // Basic128Rsa15 is the only RSA based security policy that allows nonces
                     // with a length less than 32 bytes for compatibility reasons.
@@ -248,12 +245,7 @@ namespace Opc.Ua.Bindings
                         securityPolicy.SecureChannelNonceLength,
                         enforceMinimumLength);
                 case CertificateKeyFamily.ECC:
-                    {
-                        Nonce localNonce = Nonce.CreateNonce(securityPolicy);
-                        m_localNonce?.Dispose();
-                        m_localNonce = localNonce;
-                        return m_localNonce!.Data;
-                    }
+                    return CreateLocalNonce(securityPolicy);
                 default:
                     return null;
             }
@@ -294,9 +286,7 @@ namespace Opc.Ua.Bindings
                     case CertificateKeyFamily.RSA:
                         if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.RSADH)
                         {
-                            Nonce newRemoteNonce = Nonce.CreateNonce(securityPolicy, nonce);
-                            m_remoteNonce?.Dispose();
-                            m_remoteNonce = newRemoteNonce;
+                            CreateRemoteNonce(securityPolicy, nonce);
                             return true;
                         }
 
@@ -310,12 +300,8 @@ namespace Opc.Ua.Bindings
                         }
                         break;
                     case CertificateKeyFamily.ECC:
-                        {
-                            Nonce newRemoteNonce = Nonce.CreateNonce(securityPolicy, nonce);
-                            m_remoteNonce?.Dispose();
-                            m_remoteNonce = newRemoteNonce;
-                            return true;
-                        }
+                        CreateRemoteNonce(securityPolicy, nonce);
+                        return true;
                 }
             }
             catch (ArgumentException e)
@@ -337,8 +323,19 @@ namespace Opc.Ua.Bindings
             }
 
             (Nonce localNonce, Nonce remoteNonce) = token.TakeNonces();
-            Interlocked.Exchange(ref m_localNonce, localNonce)?.Dispose();
-            Interlocked.Exchange(ref m_remoteNonce, remoteNonce)?.Dispose();
+            lock (m_nonceLock)
+            {
+                if (m_noncesDisposed)
+                {
+                    localNonce.Dispose();
+                    remoteNonce.Dispose();
+                    throw new ObjectDisposedException(nameof(UaSCUaBinaryChannel));
+                }
+                m_localNonce?.Dispose();
+                m_remoteNonce?.Dispose();
+                m_localNonce = localNonce;
+                m_remoteNonce = remoteNonce;
+            }
         }
 
         /// <summary>
@@ -351,26 +348,46 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            Nonce? localNonce = Interlocked.Exchange(ref m_localNonce, null);
-            Nonce? remoteNonce = Interlocked.Exchange(ref m_remoteNonce, null);
-            if (localNonce == null || remoteNonce == null)
+            lock (m_nonceLock)
             {
-                localNonce?.Dispose();
-                remoteNonce?.Dispose();
-                throw new ServiceResultException(
-                    StatusCodes.BadNonceInvalid,
-                    "The reconnecting channel does not own both key-agreement nonces.");
+                if (m_localNonce == null || m_remoteNonce == null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNonceInvalid,
+                        "The reconnecting channel does not own both key-agreement nonces.");
+                }
+                token.SetNonces(m_localNonce, m_remoteNonce);
+                m_localNonce = null;
+                m_remoteNonce = null;
             }
+        }
 
-            try
+        private byte[]? CreateLocalNonce(SecurityPolicyInfo securityPolicy)
+        {
+            lock (m_nonceLock)
             {
-                token.SetNonces(localNonce, remoteNonce);
+                if (m_noncesDisposed)
+                {
+                    throw new ObjectDisposedException(nameof(UaSCUaBinaryChannel));
+                }
+                Nonce localNonce = Nonce.CreateNonce(securityPolicy);
+                m_localNonce?.Dispose();
+                m_localNonce = localNonce;
+                return localNonce.Data;
             }
-            catch
+        }
+
+        private void CreateRemoteNonce(SecurityPolicyInfo securityPolicy, byte[] data)
+        {
+            lock (m_nonceLock)
             {
-                localNonce.Dispose();
-                remoteNonce.Dispose();
-                throw;
+                if (m_noncesDisposed)
+                {
+                    throw new ObjectDisposedException(nameof(UaSCUaBinaryChannel));
+                }
+                Nonce remoteNonce = Nonce.CreateNonce(securityPolicy, data);
+                m_remoteNonce?.Dispose();
+                m_remoteNonce = remoteNonce;
             }
         }
 
@@ -2096,6 +2113,8 @@ namespace Opc.Ua.Bindings
         private EndpointDescription? m_selectedEndpoint;
         private readonly ICertificateRegistry? m_serverCertificates;
         private bool m_uninitialized;
+        private readonly Lock m_nonceLock = new();
+        private bool m_noncesDisposed;
         private Nonce? m_localNonce;
         private Nonce? m_remoteNonce;
     }

@@ -344,8 +344,14 @@ namespace Opc.Ua.Bindings
                 ClientCertificate?.Dispose();
                 ClientCertificate = null;
 
-                Interlocked.Exchange(ref m_localNonce, null)?.Dispose();
-                Interlocked.Exchange(ref m_remoteNonce, null)?.Dispose();
+                lock (m_nonceLock)
+                {
+                    m_noncesDisposed = true;
+                    m_localNonce?.Dispose();
+                    m_localNonce = null;
+                    m_remoteNonce?.Dispose();
+                    m_remoteNonce = null;
+                }
             }
         }
 
