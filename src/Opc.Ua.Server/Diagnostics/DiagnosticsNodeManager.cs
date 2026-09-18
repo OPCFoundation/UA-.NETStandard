@@ -1402,11 +1402,14 @@ namespace Opc.Ua.Server
             SessionDiagnosticsObjectState? oldSession =
                 FindPredefinedNode<SessionDiagnosticsObjectState>(oldSessionId);
             SubscriptionDiagnosticsArrayState? oldArray = GetSessionSubscriptionDiagnosticsArray(oldSession);
-            oldArray?.RemoveReference(ReferenceTypeIds.HasComponent, false, diagnosticsNodeId);
-            diagnosticsNode.RemoveReference(
-                ReferenceTypeIds.HasComponent,
-                true,
-                oldArray?.NodeId ?? oldSessionId);
+            if (oldArray != null)
+            {
+                oldArray.RemoveReference(ReferenceTypeIds.HasComponent, false, diagnosticsNodeId);
+                diagnosticsNode.RemoveReference(
+                    ReferenceTypeIds.HasComponent,
+                    true,
+                    oldArray.NodeId);
+            }
 
             SessionDiagnosticsObjectState? newSession =
                 FindPredefinedNode<SessionDiagnosticsObjectState>(newSessionId);

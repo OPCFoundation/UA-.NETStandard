@@ -12,6 +12,7 @@ using System.Linq;
 using BenchmarkDotNet.Attributes;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
@@ -30,12 +31,15 @@ namespace Opc.Ua.Server.Tests
         private SystemContext m_systemContext;
         private IFilterContext m_filterContext;
         private MonitoredItemQueueFactory m_queueFactory;
+        private ResourceManager m_resourceManager;
 
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
             m_queueFactory?.Dispose();
             m_queueFactory = null;
+            m_resourceManager?.Dispose();
+            m_resourceManager = null;
         }
 
         internal static readonly LocalizedText InService = new("en", "In Service");
@@ -832,6 +836,39 @@ namespace Opc.Ua.Server.Tests
             Assert.That(PublishRetain(monitoredItem), Is.True, "back in scope: the server's value");
         }
 
+        [Test]
+        public void FilteredEventDoesNotSetOverflowOnFullQueue()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+                addFilterRetain: false,
+                filterRetainValue: false,
+                telemetry);
+            SystemContext systemContext = GetSystemContext(telemetry);
+            EventFilter highOnly = GetHighOnlyEventFilter(addClauses: true, telemetry);
+            using TestableMonitoredItem monitoredItem =
+                CreateMonitoredItem(highOnly, telemetry, queueSize: 2);
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.High);
+            monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
+            monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
+
+            alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
+            monitoredItem.QueueEvent(CreateSnapshot(alarm, telemetry));
+
+            var notifications = new Queue<EventFieldList>();
+            _ = monitoredItem.Publish(
+                new OperationContext(monitoredItem),
+                notifications,
+                10);
+
+            Assert.That(notifications, Has.Count.EqualTo(2));
+            Assert.That(
+                notifications.Any(
+                    fields => fields.Handle is EventQueueOverflowEventState),
+                Is.False);
+        }
+
         /// <summary>
         /// A select clause the wrapper cannot resolve - here Retain asked for on a type the
         /// condition is not - must stay null rather than be turned into a false.
@@ -1250,7 +1287,8 @@ namespace Opc.Ua.Server.Tests
 
         private TestableMonitoredItem CreateMonitoredItem(
             MonitoringFilter filter,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            uint queueSize = 10)
         {
             return new TestableMonitoredItem(
                 CreateServer(telemetry),
@@ -1267,7 +1305,7 @@ namespace Opc.Ua.Server.Tests
                 filter,
                 null,
                 1000.0,
-                10,
+                queueSize,
                 false,
                 1000);
         }
@@ -1291,6 +1329,10 @@ namespace Opc.Ua.Server.Tests
             serverMock.Setup(s => s.Telemetry).Returns(telemetry);
             serverMock.Setup(s => s.NamespaceUris).Returns(systemContext.NamespaceUris);
             serverMock.Setup(s => s.TypeTree).Returns((TypeTable)systemContext.TypeTable);
+            serverMock.Setup(s => s.DefaultSystemContext)
+                .Returns(new ServerSystemContext(serverMock.Object));
+            m_resourceManager ??= new ResourceManager(new ApplicationConfiguration());
+            serverMock.Setup(s => s.ResourceManager).Returns(m_resourceManager);
 
             // the factory has to outlive every item the fixture builds, so it is owned by
             // the fixture rather than by the call that hands it to a monitored item.

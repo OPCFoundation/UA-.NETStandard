@@ -160,6 +160,116 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
+        public async Task DeferredDataCallbackTaskDoesNotInheritDispatchGuardAsync()
+        {
+            var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry)
+            {
+                Id = 3,
+                DeferredCallbackMode = DeferredCallbackMode.Data
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage
+                    {
+                        SequenceNumber = 1,
+                        NotificationData = [new ExtensionObject(new DataChangeNotification())]
+                    },
+                    null,
+                    []).ConfigureAwait(false);
+                await sut.DataChangeNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                sut.CallbackReturned.TrySetResult(true);
+                Assert.That(await sut.DeferredDispatchGuard.ConfigureAwait(false), Is.False);
+            }
+        }
+
+        [Test]
+        public async Task DeferredEventCallbackTaskDoesNotInheritDispatchGuardAsync()
+        {
+            var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry)
+            {
+                Id = 3,
+                DeferredCallbackMode = DeferredCallbackMode.Event
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage
+                    {
+                        SequenceNumber = 1,
+                        NotificationData = [new ExtensionObject(new EventNotificationList())]
+                    },
+                    null,
+                    []).ConfigureAwait(false);
+                await sut.EventNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                sut.CallbackReturned.TrySetResult(true);
+                Assert.That(await sut.DeferredDispatchGuard.ConfigureAwait(false), Is.False);
+            }
+        }
+
+        [Test]
+        public async Task DeferredStatusCallbackTaskDoesNotInheritDispatchGuardAsync()
+        {
+            var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry)
+            {
+                Id = 3,
+                DeferredCallbackMode = DeferredCallbackMode.Status
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage
+                    {
+                        SequenceNumber = 1,
+                        NotificationData =
+                        [
+                            new ExtensionObject(new StatusChangeNotification
+                            {
+                                Status = StatusCodes.BadTimeout
+                            })
+                        ]
+                    },
+                    null,
+                    []).ConfigureAwait(false);
+                await sut.StatusChangeNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                sut.CallbackReturned.TrySetResult(true);
+                Assert.That(await sut.DeferredDispatchGuard.ConfigureAwait(false), Is.False);
+            }
+        }
+
+        [Test]
+        public async Task IngressBackpressureBlocksBeyondBoundedCapacityAsync()
+        {
+            var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry)
+            {
+                Id = 3
+            };
+            await sut.Block.WaitAsync().ConfigureAwait(false);
+            await using (sut.ConfigureAwait(false))
+            {
+                var writes = new List<Task>();
+                for (uint sequence = 1; sequence <= 1024; sequence++)
+                {
+                    writes.Add(sut.OnPublishReceivedAsync(
+                        new NotificationMessage { SequenceNumber = sequence },
+                        null,
+                        []).AsTask());
+                }
+                await Task.WhenAll(writes).ConfigureAwait(false);
+                Task blocked = sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 1025 },
+                    null,
+                    []).AsTask();
+                Assert.That(blocked.IsCompleted, Is.False);
+                sut.Block.Release();
+                await blocked.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task ProcessMessageAsyncShouldRepublishMissingMessagesAsync()
         {
             // Arrange
@@ -794,6 +904,21 @@ namespace Opc.Ua.Client.Subscriptions
             public PublishState PublishState { get; set; }
             public List<uint> ReceivedSequenceNumbers { get; } = [];
             public AsyncManualResetEvent StatusChangeNotificationReceived { get; } = new();
+            public DeferredCallbackMode DeferredCallbackMode { get; init; }
+            public TaskCompletionSource<bool> CallbackReturned { get; } = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            public Task<bool> DeferredDispatchGuard { get; private set; } =
+                Task.FromResult(false);
+            public bool IsDispatchingForTest => IsDispatchingNotification;
+
+            private void StartDeferredProbe()
+            {
+                DeferredDispatchGuard = Task.Run(async () =>
+                {
+                    await CallbackReturned.Task.ConfigureAwait(false);
+                    return IsDispatchingForTest;
+                });
+            }
 
             public async ValueTask WaitAsync()
             {
@@ -811,6 +936,10 @@ namespace Opc.Ua.Client.Subscriptions
                     PublishState = publishStateMask;
                 }
                 DataChangeNotificationReceived.Set();
+                if (DeferredCallbackMode == DeferredCallbackMode.Data)
+                {
+                    StartDeferredProbe();
+                }
                 return WaitAsync();
             }
 
@@ -824,6 +953,10 @@ namespace Opc.Ua.Client.Subscriptions
                     PublishState = publishStateMask;
                 }
                 EventNotificationReceived.Set();
+                if (DeferredCallbackMode == DeferredCallbackMode.Event)
+                {
+                    StartDeferredProbe();
+                }
                 return WaitAsync();
             }
 
@@ -855,8 +988,20 @@ namespace Opc.Ua.Client.Subscriptions
                     PublishState = publishStateMask;
                 }
                 StatusChangeNotificationReceived.Set();
+                if (DeferredCallbackMode == DeferredCallbackMode.Status)
+                {
+                    StartDeferredProbe();
+                }
                 await WaitAsync().ConfigureAwait(false);
             }
+        }
+
+        private enum DeferredCallbackMode
+        {
+            None,
+            Data,
+            Event,
+            Status
         }
 
         private FakeMessageAckQueue m_completion;

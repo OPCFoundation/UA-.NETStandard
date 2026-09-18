@@ -33,6 +33,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -163,6 +164,40 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 publishErrorResult.InnerStatusCode,
                 Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public void DataChangeOverflowCarrierSurvivesTooSoonOverwrite()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            var timeProvider = new FakeTimeProvider(DateTimeOffset.UnixEpoch);
+            using var handler = new DataChangeQueueHandler(
+                monitoredItemId: 1,
+                createDurable: false,
+                queueFactory,
+                telemetry,
+                timeProvider: timeProvider);
+            handler.SetQueueSize(2, discardOldest: false, DiagnosticsMasks.None);
+            handler.SetSamplingInterval(100);
+
+            handler.QueueValue(new DataValue(new Variant(1)), ServiceResult.Good);
+            timeProvider.Advance(TimeSpan.FromMilliseconds(100));
+            handler.QueueValue(new DataValue(new Variant(2)), ServiceResult.Good);
+            timeProvider.Advance(TimeSpan.FromMilliseconds(100));
+            handler.QueueValue(new DataValue(new Variant(3)), ServiceResult.Good);
+
+            handler.QueueValue(new DataValue(new Variant(4)), ServiceResult.Good);
+
+            Assert.That(handler.PublishSingleValue(
+                out DataValue first,
+                out _), Is.True);
+            Assert.That(first.WrappedValue.GetInt32(), Is.EqualTo(1));
+            Assert.That(handler.PublishSingleValue(
+                out DataValue replacement,
+                out _), Is.True);
+            Assert.That(replacement.WrappedValue.GetInt32(), Is.EqualTo(4));
+            Assert.That(replacement.StatusCode.Overflow, Is.True);
         }
 
         /// <summary>

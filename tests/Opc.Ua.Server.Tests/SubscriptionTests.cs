@@ -1075,6 +1075,39 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task ShutdownCancelsPublishWorkerBeforeWaitingForManagerSemaphoreAsync()
+        {
+            var configuration = new ApplicationConfiguration
+            {
+                ServerConfiguration = new ServerConfiguration()
+            };
+            using var manager = new SubscriptionManager(
+                m_serverMock.Object,
+                configuration);
+            await manager.StartupAsync().ConfigureAwait(false);
+
+            SemaphoreSlim semaphore = GetPrivateField<SemaphoreSlim>(
+                manager,
+                "m_semaphoreSlim");
+            await semaphore.WaitAsync().ConfigureAwait(false);
+            Task shutdown = manager.ShutdownAsync().AsTask();
+            try
+            {
+                Task publishWorker = GetPrivateField<Task>(
+                    manager,
+                    "m_publishWorkerTask");
+                await publishWorker.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(shutdown.IsCompleted, Is.False);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+
+            await shutdown.ConfigureAwait(false);
+        }
+
+        [Test]
         public void CreateSubscriptionRejectsAnImplementationNotDerivedFromSubscription()
         {
             var impostor = new Mock<ISubscription>();
