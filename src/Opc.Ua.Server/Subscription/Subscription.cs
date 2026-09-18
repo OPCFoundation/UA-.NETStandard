@@ -2410,7 +2410,7 @@ namespace Opc.Ua.Server
                     {
                         Diagnostics.DisabledMonitoredItemCount++;
                     }
-                    else
+                    else if (oldMode == MonitoringMode.Disabled)
                     {
                         Diagnostics.DisabledMonitoredItemCount--;
                     }

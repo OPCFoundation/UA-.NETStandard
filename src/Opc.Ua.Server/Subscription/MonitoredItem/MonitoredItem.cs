@@ -1378,12 +1378,6 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                // check for space in the queue.
-                if (m_eventQueueHandler.SetQueueOverflowIfFull())
-                {
-                    return;
-                }
-
                 // construct the context to use for the event filter.
                 var context = new FilterContext(
                     m_server.NamespaceUris,
@@ -1397,10 +1391,17 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadInternalError);
                 }
 
-                // apply filter.
+                // apply filter first: an event the where clause would have rejected was
+                // never going to be queued, so it must not count as a queue overflow.
                 bool overrideRetain = false;
                 if (!bypassFilter &&
                     !CanSendFilteredAlarm(context, filter, instance, out overrideRetain))
+                {
+                    return;
+                }
+
+                // check for space in the queue only for events that passed the filter.
+                if (m_eventQueueHandler.SetQueueOverflowIfFull())
                 {
                     return;
                 }

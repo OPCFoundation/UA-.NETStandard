@@ -81,7 +81,9 @@ namespace Opc.Ua.Server
                 .DurableSubscriptionsEnabled;
             m_minSubscriptionLifetime = (uint)configuration.ServerConfiguration
                 .MinSubscriptionLifetime;
-            m_maxMessageCount = (uint)configuration.ServerConfiguration.MaxMessageQueueSize;
+            m_maxMessageCount = Math.Max(
+                1u,
+                (uint)configuration.ServerConfiguration.MaxMessageQueueSize);
             m_maxNotificationsPerPublish = (uint)configuration.ServerConfiguration
                 .MaxNotificationsPerPublish;
             m_maxPublishRequestCount = configuration.ServerConfiguration.MaxPublishRequestCount;
@@ -289,30 +291,29 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual async ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
         {
+            // Stop and drain workers before taking the manager semaphore.
+            // Expiration claims performed by a publish sweep take the same
+            // semaphore synchronously.
+            SignalConditionRefreshWorkerShutdown();
+            m_workerCts?.Cancel();
+
+            Task? publishWorkerTask = m_publishWorkerTask;
+            if (publishWorkerTask is not null)
+            {
+                await publishWorkerTask.ConfigureAwait(false);
+                m_publishWorkerTask = null;
+            }
+
+            Task? conditionRefreshWorkerTask = m_conditionRefreshWorkerTask;
+            if (conditionRefreshWorkerTask is not null)
+            {
+                await conditionRefreshWorkerTask.ConfigureAwait(false);
+                m_conditionRefreshWorkerTask = null;
+            }
+
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                // stop the publishing thread and trigger the condition refresh thread.
-                SignalConditionRefreshWorkerShutdown();
-
-                // Cancel so the publish loop's inter-cycle delay is abandoned
-                // immediately instead of running to the end of its resolution.
-                m_workerCts?.Cancel();
-
-                Task? publishWorkerTask = m_publishWorkerTask;
-                if (publishWorkerTask is not null)
-                {
-                    await publishWorkerTask.ConfigureAwait(false);
-                    m_publishWorkerTask = null;
-                }
-
-                Task? conditionRefreshWorkerTask = m_conditionRefreshWorkerTask;
-                if (conditionRefreshWorkerTask is not null)
-                {
-                    await conditionRefreshWorkerTask.ConfigureAwait(false);
-                    m_conditionRefreshWorkerTask = null;
-                }
-
                 m_workerCts?.Dispose();
                 m_workerCts = null;
 
@@ -1923,7 +1924,9 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    result.StatusCode = StatusCodes.Bad;
+                    result.StatusCode = e is ServiceResultException serviceResultException
+                        ? serviceResultException.StatusCode
+                        : StatusCodes.BadUnexpectedError;
                     if (results.Count == ii)
                     {
                         results.Add(result);
@@ -1932,7 +1935,12 @@ namespace Opc.Ua.Server
                         diagnosticInfos.Count == ii)
                     {
                         diagnosticInfos.Add(
-                            new DiagnosticInfo(e, context.DiagnosticsMask, false, null!, m_logger));
+                            new DiagnosticInfo(
+                                e,
+                                context.DiagnosticsMask,
+                                false,
+                                context.StringTable,
+                                m_logger));
                     }
                 }
 

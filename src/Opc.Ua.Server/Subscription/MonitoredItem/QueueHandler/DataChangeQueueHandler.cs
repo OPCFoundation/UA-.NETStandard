@@ -288,7 +288,14 @@ namespace Opc.Ua.Server
                         now,
                         m_nextSampleTime);
 
-                    m_dataValueQueue.OverwriteLastValue(value, error);
+                    DataValue replacement = value;
+                    if (m_overflowPending)
+                    {
+                        SetOverflowBit(ref replacement, ref error);
+                        m_overflow = default;
+                        m_overflowPending = false;
+                    }
+                    m_dataValueQueue.OverwriteLastValue(replacement, error);
 
                     m_discardedValueHandler?.Invoke();
 
