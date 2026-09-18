@@ -73,15 +73,15 @@ namespace Opc.Ua.Server
             get => s_eventsEnabled;
             set
             {
-                if (s_eventsEnabled != value && !value)
+                lock (s_eventsLock)
                 {
-                    lock (s_eventsLock)
+                    if (s_eventsEnabled != value && !value)
                     {
                         s_events.Clear();
                     }
-                }
 
-                s_eventsEnabled = value;
+                    s_eventsEnabled = value;
+                }
             }
         }
 
@@ -301,6 +301,11 @@ namespace Opc.Ua.Server
 
         private static void EnqueueEvent(Event e)
         {
+            if (!s_eventsEnabled)
+            {
+                return;
+            }
+
             if (s_events.Count == MaxQueuedEvents)
             {
                 s_events.Dequeue();
