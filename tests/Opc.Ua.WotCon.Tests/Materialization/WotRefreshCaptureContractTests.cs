@@ -229,6 +229,59 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(host.AddCount, Is.Zero);
         }
 
+        [TestCase("kind")]
+        [TestCase("format")]
+        [TestCase("contentType")]
+        public async Task CapturedInputDigestDistinguishesProjectionAdmissionMetadata(string changedField)
+        {
+            using var originalRegistry = new WotRegistryService();
+            using var changedRegistry = new WotRegistryService();
+            var content = ByteString.From(Encoding.UTF8.GetBytes(
+                """{"id":"urn:selected","title":"selected"}"""));
+            WotRegistryMutationResult original = await originalRegistry.UpsertResourceAsync(
+                new WotUpsertResourceRequest
+                {
+                    GroupId = "things",
+                    ResourceId = "selected",
+                    VersionId = "v1",
+                    Kind = WoTDocumentKindEnum.ThingDescription,
+                    Format = "WoT-TD/1.1",
+                    ContentType = "application/td+json",
+                    Content = content
+                });
+            WotRegistryMutationResult changed = await changedRegistry.UpsertResourceAsync(
+                new WotUpsertResourceRequest
+                {
+                    GroupId = "things",
+                    ResourceId = "selected",
+                    VersionId = "v1",
+                    Kind = changedField == "kind"
+                        ? WoTDocumentKindEnum.ThingModel : WoTDocumentKindEnum.ThingDescription,
+                    Format = changedField == "format" ? "WoT-TD/1.0" : "WoT-TD/1.1",
+                    ContentType = changedField == "contentType"
+                        ? "application/td+json; charset=utf-8" : "application/td+json",
+                    Content = content
+                });
+            Assert.That(original.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), original.Message);
+            Assert.That(changed.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), changed.Message);
+            Assert.That(changed.Resource!.Xid, Is.EqualTo(original.Resource!.Xid));
+            Assert.That(changed.Resource.DefaultVersion!.VersionId,
+                Is.EqualTo(original.Resource.DefaultVersion!.VersionId));
+            Assert.That(changed.Resource.DefaultVersion.Digest, Is.EqualTo(original.Resource.DefaultVersion.Digest));
+            using var originalCoordinator = new WotMaterializationCoordinator(
+                originalRegistry, new FakeWotProjectionHost(), documentConverter: new FakeWotDocumentConverter());
+            using var changedCoordinator = new WotMaterializationCoordinator(
+                changedRegistry, new FakeWotProjectionHost(), documentConverter: new FakeWotDocumentConverter());
+            using WotRefreshCapture first = await originalCoordinator.CaptureAsync(new WotRefreshRequest());
+            using WotRefreshCapture second = await changedCoordinator.CaptureAsync(new WotRefreshRequest());
+            ByteString firstDigest = first.GetRegistryInputDigest(first.Inputs.Closures[0]);
+
+            Assert.That(second.GetRegistryInputDigest(second.Inputs.Closures[0]), Is.Not.EqualTo(firstDigest));
+            Assert.That(first.GetRegistryInputDigest(first.Inputs.Closures[0]), Is.EqualTo(firstDigest));
+            Assert.That(originalCoordinator.Generation, Is.Zero);
+            Assert.That(changedCoordinator.Generation, Is.Zero);
+        }
+
         [Test]
         public void CaptureProviderUsesTheRegisteredCoordinator()
         {

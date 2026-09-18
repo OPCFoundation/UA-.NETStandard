@@ -317,7 +317,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     writer.Write(member.Xid);
                     writer.Write(member.Enabled);
+                    writer.Write((int)member.Kind);
                     writer.Write(member.DefaultVersionId ?? string.Empty);
+                    writer.Write(member.DefaultVersion?.Format ?? string.Empty);
+                    writer.Write(member.DefaultVersion?.ContentType ?? string.Empty);
                     ByteString digest = member.DefaultVersion is null ? ByteString.Empty : member.DefaultVersion.Digest;
                     writer.Write(digest.Length);
                     writer.Write(digest.Span.ToArray());
