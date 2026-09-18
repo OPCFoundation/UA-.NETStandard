@@ -247,7 +247,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 return false;
             }
-            if (!m_protector.TryUnprotect(key, value, out ByteString payload) ||
+            if (!TryUnprotectContinuation(key, value, out ByteString payload) ||
                 payload.IsEmpty ||
                 payload.Length > m_maxPayloadBytes)
             {
@@ -336,7 +336,7 @@ namespace Opc.Ua.Redundancy.Server
                 .ConfigureAwait(false))
             {
                 if (pair.Value.IsEmpty ||
-                    !m_protector.TryUnprotect(pair.Key, pair.Value, out ByteString payload) ||
+                    !TryUnprotectContinuation(pair.Key, pair.Value, out ByteString payload) ||
                     payload.Length > m_maxPayloadBytes)
                 {
                     ForgetIncarnation(pair.Key, pair.Value);
@@ -596,7 +596,7 @@ namespace Opc.Ua.Redundancy.Server
                 return true;
             }
             string key = KeyFor(ownerSessionId, id);
-            if (!m_protector.TryUnprotect(key, value, out ByteString payload))
+            if (!TryUnprotectContinuation(key, value, out ByteString payload))
             {
                 return false;
             }
@@ -612,6 +612,27 @@ namespace Opc.Ua.Redundancy.Server
             return envelope == null ||
                 envelope.Id != id ||
                 envelope.OwnerSessionId != ownerSessionId;
+        }
+
+        private bool TryUnprotectContinuation(
+            string key,
+            ByteString value,
+            out ByteString payload)
+        {
+            if (m_protector.TryUnprotect(key, value, out payload))
+            {
+                return true;
+            }
+
+            if (m_protector.TryUnprotect(
+                    "history-continuation-marker",
+                    value,
+                    out payload))
+            {
+                return true;
+            }
+
+            return m_protector.TryUnprotect(value, out payload);
         }
 
         private void RememberIncarnation(string key, ByteString value)

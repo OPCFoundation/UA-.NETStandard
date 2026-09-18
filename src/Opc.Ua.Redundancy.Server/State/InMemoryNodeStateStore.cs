@@ -1116,7 +1116,7 @@ namespace Opc.Ua.Redundancy.Server
         private bool TryDecodeManifest(ByteString stored, out SnapshotManifest manifest)
         {
             manifest = default;
-            if (!m_protector.TryUnprotect("node-state-record", stored, out ByteString plaintext) || plaintext.IsNull)
+            if (!m_protector.TryUnprotect("node-state-manifest", stored, out ByteString plaintext) || plaintext.IsNull)
             {
                 return false;
             }
