@@ -785,24 +785,51 @@ namespace Opc.Ua.Server
                     .LoadContinuationPointsAsync(ownerSessionId, cancellationToken)
                     .ConfigureAwait(false);
 
+                List<ContinuationPointEnvelope>? lateEnvelopes = null;
                 lock (m_lock)
                 {
-                    foreach (ContinuationPointEnvelope envelope in envelopes)
+                    if (m_closed)
                     {
-                        switch (envelope.Kind)
+                        lateEnvelopes = [];
+                        foreach (ContinuationPointEnvelope envelope in envelopes)
                         {
-                            case ContinuationPointKind.Browse:
-                                m_mirroredBrowseOwners ??= [];
-                                m_mirroredBrowseOwners[envelope.Id] =
-                                    envelope.OwnerSessionId;
-                                break;
-                            case ContinuationPointKind.History:
-                                m_mirroredHistoryOwners ??= [];
-                                m_mirroredHistoryOwners[envelope.Id] =
-                                    envelope.OwnerSessionId;
-                                break;
+                            if (envelope.Kind is ContinuationPointKind.Browse or ContinuationPointKind.History)
+                            {
+                                lateEnvelopes.Add(envelope);
+                            }
                         }
                     }
+                    else
+                    {
+                        foreach (ContinuationPointEnvelope envelope in envelopes)
+                        {
+                            switch (envelope.Kind)
+                            {
+                                case ContinuationPointKind.Browse:
+                                    m_mirroredBrowseOwners ??= [];
+                                    m_mirroredBrowseOwners[envelope.Id] =
+                                        envelope.OwnerSessionId;
+                                    break;
+                                case ContinuationPointKind.History:
+                                    m_mirroredHistoryOwners ??= [];
+                                    m_mirroredHistoryOwners[envelope.Id] =
+                                        envelope.OwnerSessionId;
+                                    break;
+                            }
+                        }
+                    }
+                }
+
+                if (lateEnvelopes != null)
+                {
+                    foreach (ContinuationPointEnvelope envelope in lateEnvelopes)
+                    {
+                        m_store.RemoveContinuationPoint(
+                            envelope.OwnerSessionId,
+                            envelope.Kind,
+                            envelope.Id);
+                    }
+                    return;
                 }
             }
 
@@ -912,6 +939,7 @@ namespace Opc.Ua.Server
         {
             List<ContinuationPoint>? browseCPs;
             List<HistoryContinuationPoint>? historyCPs;
+            var mirrored = new List<(NodeId OwnerSessionId, ContinuationPointKind Kind, Guid Id)>();
             lock (m_lock)
             {
                 m_closed = true;
@@ -919,8 +947,27 @@ namespace Opc.Ua.Server
                 m_browse = null;
                 historyCPs = m_history;
                 m_history = null;
+                if (m_mirroredBrowseOwners != null)
+                {
+                    foreach (KeyValuePair<Guid, NodeId> pair in m_mirroredBrowseOwners)
+                    {
+                        mirrored.Add((pair.Value, ContinuationPointKind.Browse, pair.Key));
+                    }
+                }
+                if (m_mirroredHistoryOwners != null)
+                {
+                    foreach (KeyValuePair<Guid, NodeId> pair in m_mirroredHistoryOwners)
+                    {
+                        mirrored.Add((pair.Value, ContinuationPointKind.History, pair.Key));
+                    }
+                }
                 m_mirroredBrowseOwners = null;
                 m_mirroredHistoryOwners = null;
+            }
+
+            foreach ((NodeId ownerSessionId, ContinuationPointKind kind, Guid id) in mirrored)
+            {
+                m_store?.RemoveContinuationPoint(ownerSessionId, kind, id);
             }
 
             if (browseCPs != null)

@@ -257,7 +257,11 @@ namespace Opc.Ua.Redundancy
                     TryParseLease(current, out string owner, out _) &&
                     string.Equals(owner, m_nodeId, StringComparison.Ordinal))
                 {
-                    await m_store.DeleteAsync(m_leaseKey, CancellationToken.None).ConfigureAwait(false);
+                    await m_store.CompareAndSwapAsync(
+                        m_leaseKey,
+                        current,
+                        default,
+                        CancellationToken.None).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)

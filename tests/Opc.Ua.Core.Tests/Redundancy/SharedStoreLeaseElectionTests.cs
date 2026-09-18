@@ -295,6 +295,57 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(acquired, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a delayed release cannot delete a newer owner's lease.
+        /// </summary>
+        [Test]
+        public async Task DelayedReleaseCannotDeleteNewerLeaseAsync()
+        {
+            var time = new FakeTimeProvider();
+            using var inner = new InMemorySharedKeyValueStore();
+            var releaseReadStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseReadGate = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int reads = 0;
+            var store = new Mock<ISharedKeyValueStore>();
+            store
+                .Setup(s => s.TryGetAsync(LeaseKey, It.IsAny<CancellationToken>()))
+                .Returns(async () =>
+                {
+                    if (Interlocked.Increment(ref reads) == 2)
+                    {
+                        releaseReadStarted.TrySetResult(true);
+                        await releaseReadGate.Task.ConfigureAwait(false);
+                    }
+                    return await inner.TryGetAsync(LeaseKey).ConfigureAwait(false);
+                });
+            store
+                .Setup(s => s.CompareAndSwapAsync(
+                    LeaseKey,
+                    It.IsAny<ByteString>(),
+                    It.IsAny<ByteString>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((string key, ByteString expected, ByteString value, CancellationToken ct) =>
+                    inner.CompareAndSwapAsync(key, expected, value, ct));
+
+            SharedStoreLeaseElection a = CreateElection(store.Object, "A", time);
+            await a.TryAcquireOrRenewAsync().ConfigureAwait(false);
+            Task release = a.DisposeAsync().AsTask();
+            await releaseReadStarted.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+
+            time.Advance(s_leaseDuration + TimeSpan.FromSeconds(1));
+            await using SharedStoreLeaseElection b = CreateElection(store.Object, "B", time);
+            Assert.That(await b.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+
+            releaseReadGate.TrySetResult(true);
+            await release.ConfigureAwait(false);
+
+            await using SharedStoreLeaseElection c = CreateElection(store.Object, "C", time);
+            Assert.That(await c.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.False);
+            Assert.That(b.IsLeader, Is.True);
+        }
+
         [Test]
         public async Task DisposeAsyncIsIdempotentAsync()
         {
