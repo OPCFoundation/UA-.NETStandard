@@ -149,6 +149,98 @@ namespace Opc.Ua.Client.Tests
 
         [TestCase(false)]
         [TestCase(true)]
+        public async Task ManagerOpenChecksCurrentDiscoverySnapshotAsync(bool staticFactory)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            {
+                EndpointUrl = ServerUrl.ToString(),
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+            }, EndpointConfiguration.Create(ClientFixture.Config));
+            await endpoint.UpdateFromServerAsync(ClientFixture.Config, Telemetry, timeout.Token)
+                .ConfigureAwait(false);
+            EndpointDescription discovered = endpoint.DiscoveryEndpoints[0];
+            discovered.SecurityLevel = discovered.SecurityLevel == 0 ? (byte)1 : (byte)0;
+            await using var manager = new ClientChannelManager(ClientFixture.Config, Telemetry);
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                using ISession session = staticFactory
+                    ? await Opc.Ua.Client.Session.CreateAsync(
+                        manager, ClientFixture.Config, endpoint, updateBeforeConnect: false, ct: timeout.Token)
+                        .ConfigureAwait(false)
+                    : await new ChannelManagerSessionFactory(manager, Telemetry).CreateAsync(
+                        ClientFixture.Config, endpoint, false, false, "discovery-snapshot",
+                        60000, new UserIdentity(), default, timeout.Token).ConfigureAwait(false);
+            });
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(exception.Message, Does.Contain("GetEndpoints"));
+        }
+
+        [Test]
+        public async Task OpenUsesRefreshedDiscoveryInsteadOfConstructionSnapshotAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            {
+                EndpointUrl = ServerUrl.ToString(),
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+            }, EndpointConfiguration.Create(ClientFixture.Config));
+            var factory = new DefaultSessionFactory(Telemetry);
+            ITransportChannel channel = await factory.CreateChannelAsync(
+                ClientFixture.Config, null, endpoint, true, false, timeout.Token).ConfigureAwait(false);
+            using ISession session = factory.Create(
+                channel, ClientFixture.Config, endpoint, availableEndpoints: [endpoint.Description]);
+            await endpoint.UpdateFromServerAsync(ClientFixture.Config, Telemetry, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(endpoint.DiscoveryEndpoints.Count, Is.GreaterThan(1));
+
+            await session.OpenAsync(
+                "refreshed-snapshot", 60000, new UserIdentity(), default, false, timeout.Token)
+                .ConfigureAwait(false);
+
+            Assert.That(session.Connected, Is.True);
+            await session.CloseAsync(timeout.Token).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task RawRecreatePreservesMessageContextTablesAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            {
+                EndpointUrl = ServerUrl.ToString(),
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+            }, EndpointConfiguration.Create(ClientFixture.Config));
+            var factory = new DefaultSessionFactory(Telemetry);
+            using ISession created = await factory.CreateAsync(
+                ClientFixture.Config, endpoint, true, false, "persistent-context",
+                60000, new UserIdentity(), default, timeout.Token).ConfigureAwait(false);
+            var session = (Session)created;
+            IServiceMessageContext context = session.MessageContext;
+            NamespaceTable namespaces = session.NamespaceUris;
+            StringTable serverUris = session.ServerUris;
+            NodeId originalSessionId = session.SessionId;
+
+            await session.RecreateInPlaceAsync(ct: timeout.Token).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(session.SessionId, Is.Not.EqualTo(originalSessionId));
+                Assert.That(session.TransportChannel.MessageContext.NamespaceUris, Is.SameAs(namespaces));
+                Assert.That(session.TransportChannel.MessageContext.Factory, Is.SameAs(context.Factory));
+                Assert.That(session.ServerUris, Is.SameAs(serverUris));
+                Assert.That(namespaces.Count, Is.GreaterThan(1));
+            });
+            await session.CloseAsync(timeout.Token).ConfigureAwait(false);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
         public async Task UserNameOnSignUsesEffectiveTokenPolicyAsync(bool explicitNone)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));

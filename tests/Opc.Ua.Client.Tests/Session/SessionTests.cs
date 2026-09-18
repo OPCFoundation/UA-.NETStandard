@@ -1745,6 +1745,33 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public async Task RecreateInPlaceDoesNotReuseAnotherEndpointDiscoverySnapshotAsync()
+        {
+            EndpointDescription initial = CreateSessionEndpointDescription("opc.tcp://initial:4840");
+            EndpointDescription extra = CreateSessionEndpointDescription("opc.tcp://initial:4841");
+            EndpointDescription replacement = CreateSessionEndpointDescription("opc.tcp://replacement:4840");
+            using var session = SessionMock.Create(initial, [initial, extra]);
+            session.SetConnected();
+            var endpoint = new ConfiguredEndpoint(null, replacement, new EndpointConfiguration());
+            Mock<ITransportChannel> channel = CreateReconnectChannelMock(session, replacement);
+            ConfigureSuccessfulOpenResponses(
+                channel,
+                [replacement],
+                ByteString.From([1, 2, 3, 4]),
+                NodeId.Parse("s=replacement-token"));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            await session.RecreateInPlaceAsync(endpoint: endpoint, channel: channel.Object, ct: timeout.Token)
+                .ConfigureAwait(false);
+
+            Assert.That(session.Connected, Is.True);
+            Assert.That(session.ConfiguredEndpoint, Is.SameAs(endpoint));
+            channel.Verify(value => value.SendRequestAsync(
+                It.IsAny<CreateSessionRequest>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Test]
         public void OpenAsyncShouldHandleCreateSessionSuccessButActivationError()
         {
             // Arrange

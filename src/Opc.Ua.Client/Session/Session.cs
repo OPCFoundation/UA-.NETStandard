@@ -130,7 +130,9 @@ namespace Opc.Ua.Client
         /// a DER encoded blob to a X509Certificate2 will not include a private key.
         /// The <i>availableEndpoints</i> and <i>discoveryProfileUris</i> parameters are
         /// used to validate that the list of EndpointDescriptions returned at GetEndpoints
-        /// matches the list returned at CreateSession.
+        /// matches the list returned at CreateSession. Each open uses the endpoint's
+        /// latest discovery snapshot when available. Explicit constructor metadata
+        /// is a fallback only while the original endpoint description is still in use.
         /// </remarks>
         public Session(
             ITransportChannel channel,
@@ -161,6 +163,7 @@ namespace Opc.Ua.Client
             clientCertificateChain?.Dispose();
             m_discoveryServerEndpoints = availableEndpoints;
             m_discoveryProfileUris = discoveryProfileUris;
+            m_discoveryEndpointDescription = endpoint.Description;
         }
 
         /// <summary>
@@ -1341,6 +1344,18 @@ namespace Opc.Ua.Client
             ThrowIfDisposed();
             using Activity? activity = m_telemetry.StartActivity();
 
+            ArrayOf<EndpointDescription> discoveryServerEndpoints = m_endpoint.DiscoveryEndpoints;
+            ArrayOf<string> discoveryProfileUris = default;
+            if (discoveryServerEndpoints.IsEmpty &&
+                ReferenceEquals(m_endpoint.Description, m_discoveryEndpointDescription))
+            {
+                // Explicit constructor metadata only belongs to that description,
+                // not to an endpoint adopted by a later recreate or discovery.
+                discoveryServerEndpoints = m_discoveryServerEndpoints;
+                discoveryProfileUris = m_discoveryProfileUris;
+            }
+            discoveryServerEndpoints = discoveryServerEndpoints.ConvertAll(endpoint => CoreUtils.Clone(endpoint)!);
+
             uint maxMessageSize = (uint?)MessageContext?.MaxMessageSize ??
                 throw ServiceResultException.Unexpected(
                     "Transport channel is null or does not have a message context");
@@ -1524,7 +1539,8 @@ namespace Opc.Ua.Client
                 // verify that the server returned the same instance certificate.
                 ValidateServerCertificateData(serverCertificateData);
 
-                EndpointDescription authenticatedEndpoint = ValidateServerEndpoints(serverEndpoints);
+                EndpointDescription authenticatedEndpoint = ValidateServerEndpoints(
+                    serverEndpoints, discoveryServerEndpoints, discoveryProfileUris);
                 if (!authenticatedEndpoint.UserIdentityTokens.Contains(
                     policy => AreEquivalentUserTokenPolicies(policy, identityPolicy)))
                 {
@@ -3160,8 +3176,7 @@ namespace Opc.Ua.Client
                 else
                 {
                     ITransportChannel newChannel;
-                    ServiceMessageContext messageContext = m_configuration
-                        .CreateMessageContext(Factory);
+                    IServiceMessageContext messageContext = MessageContext;
 
                     if (connection != null)
                     {
@@ -5207,20 +5222,23 @@ namespace Opc.Ua.Client
         /// Validates the server endpoints returned.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private EndpointDescription ValidateServerEndpoints(ArrayOf<EndpointDescription> serverEndpoints)
+        private EndpointDescription ValidateServerEndpoints(
+            ArrayOf<EndpointDescription> serverEndpoints,
+            ArrayOf<EndpointDescription> discoveryServerEndpoints,
+            ArrayOf<string> discoveryProfileUris)
         {
-            if (!m_discoveryServerEndpoints.IsEmpty)
+            if (!discoveryServerEndpoints.IsEmpty)
             {
                 // Compare EndpointDescriptions returned at GetEndpoints with values returned at CreateSession
                 ArrayOf<EndpointDescription> expectedServerEndpoints = default;
-                if (!serverEndpoints.IsNull && !m_discoveryProfileUris.IsEmpty)
+                if (!serverEndpoints.IsNull && !discoveryProfileUris.IsEmpty)
                 {
                     // Select EndpointDescriptions with a transportProfileUri that matches the
                     // profileUris specified in the original GetEndpoints() request.
                     var expectedServerEndpointsList = new List<EndpointDescription>();
                     foreach (EndpointDescription serverEndpoint in serverEndpoints)
                     {
-                        if (m_discoveryProfileUris.Contains(uri => uri == serverEndpoint.TransportProfileUri))
+                        if (discoveryProfileUris.Contains(uri => uri == serverEndpoint.TransportProfileUri))
                         {
                             expectedServerEndpointsList.Add(serverEndpoint);
                         }
@@ -5232,7 +5250,7 @@ namespace Opc.Ua.Client
                     expectedServerEndpoints = serverEndpoints;
                 }
 
-                if (m_discoveryServerEndpoints.Count != expectedServerEndpoints.Count)
+                if (discoveryServerEndpoints.Count != expectedServerEndpoints.Count)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityChecksFailed,
@@ -5241,7 +5259,7 @@ namespace Opc.Ua.Client
 
                 if (!HaveEquivalentServerEndpoints(
                         expectedServerEndpoints,
-                        m_discoveryServerEndpoints))
+                        discoveryServerEndpoints))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityChecksFailed,
@@ -6037,6 +6055,7 @@ namespace Opc.Ua.Client
         private bool m_disposeAsyncCalled;
         private readonly ArrayOf<EndpointDescription> m_discoveryServerEndpoints;
         private readonly ArrayOf<string> m_discoveryProfileUris;
+        private readonly EndpointDescription? m_discoveryEndpointDescription;
         private new readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
         private readonly ISecurityPolicyRegistry m_securityPolicies;
