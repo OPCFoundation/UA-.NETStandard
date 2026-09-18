@@ -909,6 +909,78 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
         }
 
         [Test]
+        public async Task DiagnosticsDescendantsAndTransferredSubscriptionsUseOwningSessionAsync()
+        {
+            var config = new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() };
+            SetupServerMock();
+
+            using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
+            var externalRefs = new Dictionary<NodeId, IList<IReference>>();
+            await manager.CreateAddressSpaceAsync(externalRefs).ConfigureAwait(false);
+
+            static ServiceResult UpdateCallback(ISystemContext ctx, NodeState node, ref Variant value) => ServiceResult.Good;
+
+            NodeId sessionId = await manager.CreateSessionDiagnosticsAsync(
+                manager.SystemContext,
+                new SessionDiagnosticsDataType { SessionName = "Owner" },
+                UpdateCallback,
+                new SessionSecurityDiagnosticsDataType(),
+                UpdateCallback).ConfigureAwait(false);
+
+            var subscriptionDiagnostics = new SubscriptionDiagnosticsDataType
+            {
+                SessionId = sessionId,
+                SubscriptionId = 1
+            };
+            NodeId subscriptionId = await manager.CreateSubscriptionDiagnosticsAsync(
+                manager.SystemContext,
+                subscriptionDiagnostics,
+                UpdateCallback).ConfigureAwait(false);
+
+            SessionDiagnosticsObjectState sessionNode =
+                manager.FindPredefinedNode<SessionDiagnosticsObjectState>(sessionId);
+            SubscriptionDiagnosticsState subscriptionNode =
+                manager.FindPredefinedNode<SubscriptionDiagnosticsState>(subscriptionId);
+
+            Assert.That(sessionNode, Is.Not.Null);
+            Assert.That(subscriptionNode, Is.Not.Null);
+            var descendants = new List<BaseInstanceState>();
+            sessionNode.GetChildren(manager.SystemContext, descendants);
+            Assert.That(descendants, Is.Not.Empty);
+            foreach (BaseInstanceState descendant in descendants)
+            {
+                Assert.That(descendant.OnReadUserRolePermissions, Is.Not.Null);
+            }
+            Assert.That(subscriptionNode.OnReadUserRolePermissions, Is.Not.Null);
+
+            ServerSystemContext oldOwnerContext = CreateDiagnosticsReadContext(m_serverMock.Object, sessionId);
+            ArrayOf<RolePermissionType> permissions = default;
+            subscriptionNode.OnReadUserRolePermissions!(
+                oldOwnerContext,
+                subscriptionNode,
+                ref permissions);
+            Assert.That(permissions[0].Permissions, Is.Not.EqualTo((uint)PermissionType.None));
+
+            NodeId newSessionId = new(2, 1);
+            manager.RelinkSubscriptionDiagnostics(subscriptionId, sessionId, newSessionId);
+
+            permissions = default;
+            subscriptionNode.OnReadUserRolePermissions!(
+                oldOwnerContext,
+                subscriptionNode,
+                ref permissions);
+            Assert.That(permissions[0].Permissions, Is.EqualTo((uint)PermissionType.None));
+
+            ServerSystemContext newOwnerContext = CreateDiagnosticsReadContext(m_serverMock.Object, newSessionId);
+            permissions = default;
+            subscriptionNode.OnReadUserRolePermissions!(
+                newOwnerContext,
+                subscriptionNode,
+                ref permissions);
+            Assert.That(permissions[0].Permissions, Is.Not.EqualTo((uint)PermissionType.None));
+        }
+
+        [Test]
         public async Task OnReadDiagnosticsArray_ExpectedBehaviorForDifferentTypesAsync()
         {
             var config = new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() };
@@ -1215,6 +1287,39 @@ TimestampsToReturn.Both,
                 deleteErrors).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(deleteErrors[0]), Is.True);
+        }
+
+        private static ServerSystemContext CreateDiagnosticsReadContext(
+            IServerInternal server,
+            NodeId sessionId)
+        {
+            var namespaces = new NamespaceTable();
+            namespaces.Append(Ua.Namespaces.OpcUa);
+            var identity = new RoleBasedIdentity(
+                new UserIdentity("owner", []),
+                [Role.AuthenticatedUser],
+                namespaces);
+            var session = new Mock<ISession>();
+            session.Setup(value => value.Id).Returns(sessionId);
+            session.Setup(value => value.EffectiveIdentity).Returns(identity);
+            var endpoint = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.SignAndEncrypt
+            };
+            var channelContext = new SecureChannelContext(
+                "1",
+                endpoint,
+                RequestEncoding.Binary,
+                clientChannelCertificate: null,
+                serverChannelCertificate: null,
+                channelThumbprint: null);
+            var operationContext = new OperationContext(
+                new RequestHeader(),
+                channelContext,
+                RequestType.Read,
+                RequestLifetime.None,
+                session.Object);
+            return new ServerSystemContext(server, operationContext);
         }
     }
 }

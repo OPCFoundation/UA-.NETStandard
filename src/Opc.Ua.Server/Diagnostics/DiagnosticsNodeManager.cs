@@ -1108,9 +1108,6 @@ namespace Opc.Ua.Server
             SessionSecurityDiagnosticsDataType securityDiagnostics,
             NodeValueSimpleEventHandler updateSecurityCallback)
         {
-            // Hook the OnReadUserRolePermissions callback to control which user roles can access the services on this node
-            sessionNode.OnReadUserRolePermissions = OnReadUserRolePermissions;
-
             // initialize diagnostics node.
             var diagnosticsNode =
                 sessionNode.CreateChild(SystemContext, QualifiedName.From(BrowseNames.SessionDiagnostics)) as
@@ -1128,11 +1125,6 @@ namespace Opc.Ua.Server
                 CopyPolicy = VariableCopyPolicy.Never,
                 OnBeforeRead = OnBeforeReadDiagnostics
             };
-            NodeId ownerSessionId = diagnostics.SessionId;
-            diagnosticsNode!.OnReadUserRolePermissions =
-                (ISystemContext context, NodeState node, ref ArrayOf<RolePermissionType> value) =>
-                    OnReadUserRolePermissions(context, node, ownerSessionId, ref value);
-
             // initialize security diagnostics node.
             var securityDiagnosticsNode =
                 sessionNode.CreateChild(
@@ -1152,9 +1144,7 @@ namespace Opc.Ua.Server
                 CopyPolicy = VariableCopyPolicy.Never,
                 OnBeforeRead = OnBeforeReadDiagnostics
             };
-            securityDiagnosticsNode!.OnReadUserRolePermissions =
-                (ISystemContext context, NodeState node, ref ArrayOf<RolePermissionType> value) =>
-                    OnReadUserRolePermissions(context, node, ownerSessionId, ref value);
+            SetDiagnosticsPermissions(sessionNode, diagnostics.SessionId);
 
             return new SessionDiagnosticsData(
                 sessionNode,
@@ -1331,12 +1321,23 @@ namespace Opc.Ua.Server
                 Value = null!,
                 Error = StatusCodes.BadWaitingForInitialData
             };
-            NodeId ownerSessionId = diagnostics.SessionId;
-            diagnosticsNode.OnReadUserRolePermissions =
-                (ISystemContext context, NodeState node, ref ArrayOf<RolePermissionType> value) =>
-                    OnReadUserRolePermissions(context, node, ownerSessionId, ref value);
+            SetDiagnosticsPermissions(diagnosticsNode, diagnostics.SessionId);
 
             return new SubscriptionDiagnosticsData(diagnosticsValue, updateCallback, diagnostics);
+        }
+
+        private void SetDiagnosticsPermissions(NodeState node, NodeId ownerSessionId)
+        {
+            node.OnReadUserRolePermissions =
+                (ISystemContext context, NodeState currentNode, ref ArrayOf<RolePermissionType> value) =>
+                    OnReadUserRolePermissions(context, currentNode, ownerSessionId, ref value);
+
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(SystemContext, children);
+            foreach (BaseInstanceState child in children)
+            {
+                SetDiagnosticsPermissions(child, ownerSessionId);
+            }
         }
 
         /// <summary>
@@ -1415,6 +1416,8 @@ namespace Opc.Ua.Server
             {
                 diagnosticsNode.AddReference(ReferenceTypeIds.HasComponent, true, newArray.NodeId);
             }
+
+            SetDiagnosticsPermissions(diagnosticsNode, newSessionId);
         }
 
         /// <summary>
