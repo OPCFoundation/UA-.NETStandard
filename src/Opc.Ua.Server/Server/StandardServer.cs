@@ -864,7 +864,8 @@ namespace Opc.Ua.Server
 
                 if (session != null)
                 {
-                    await ServerInternal.SessionManager.CloseSessionAsync(session.Id, requestLifetime.CancellationToken).ConfigureAwait(false);
+                    await ServerInternal.SessionManager.CloseSessionAsync(session.Id, CancellationToken.None)
+                        .ConfigureAwait(false);
                 }
                 else
                 {
