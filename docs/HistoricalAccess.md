@@ -67,7 +67,7 @@ This release ships the following Part 11 capabilities:
 | Read modified history                  | ✅ Shipped — `HistoryClient.ReadModifiedAsync` returns each `DataValue` with its `ModificationInfo`. |
 | Read processed (aggregates)            | ✅ Shipped — the server rejects aggregate identifiers not registered with `AggregateManager` before provider execution, then uses native provider push-down or the streaming calculator fallback. All 37 Part 13 v1.05.07 functions; see the [Aggregates (Part 13)](Aggregates.md) guide. |
 | Read at-time                           | ✅ Shipped via interpolation fallback or provider push-down |
-| Insert / Replace / Update raw values   | ✅ Shipped — per-value best-effort by default, atomic via `IHistorianTransactionalProvider` |
+| Insert / Replace / Update raw values   | ✅ Shipped — providers without `IHistorianTransactionalProvider` use per-value best-effort; providers that implement it use atomic batches by default |
 | Delete raw / Delete at-time            | ✅ Shipped |
 | Annotations (read / write / delete)    | ✅ Shipped — server dispatcher routes the `Annotations` Property to the parent variable's `IHistorianAnnotationProvider`. Fluent `Historize(...)` auto-creates the Annotations property and sets its access-level bits when the provider advertises `InsertAnnotation`. Client supports single and batched writes/removes through `WriteAnnotationAsync`, `WriteAnnotationsAsync`, and `UpdateStructureDataAsync`. |
 | `HistoryServerCapabilities` population | ✅ Shipped (union of registered providers). `AggregateFunctions` folder populated by `AggregateManager.RegisterFactoryAsync` → `DiagnosticsNodeManager.AddAggregateFunctionAsync`. |
@@ -489,7 +489,7 @@ public sealed class MyTsdbProvider :
 | `IHistorianAnnotationProvider` | Annotations | Read / Insert / Replace / Update / Delete annotations keyed by `AnnotationTime`. |
 | `IHistorianEventProvider` | Event history | Read / Insert / Replace / Update / Delete events keyed by `EventId`. |
 | `IHistorianStructuredDataProvider` | StructuredHistoryData (Part 11 §6.8.3) | Update-only. Entries are keyed by the composite `HistoricalValueKey`; reads go through the raw / modified / at-time interfaces. |
-| `IHistorianTransactionalProvider` | Atomic batch updates | Optional. Per-value best-effort is the default. |
+| `IHistorianTransactionalProvider` | Atomic batch updates | Optional. The dispatcher selects the atomic operation by default when the provider implements this interface; otherwise it uses per-value best-effort. |
 
 Implement only what your backend supports. The dispatcher returns `BadHistoryOperationUnsupported` for operations the resolved provider doesn't implement.
 
@@ -595,13 +595,19 @@ for per-value failures**. Validate inputs and surface the per-value outcome:
 | Annotation variants | Same patterns, keyed by `AnnotationTime`. | Same status codes. |
 | Event variants | Same patterns, keyed by `EventId`. | `BadNoEntryExists` / `BadEntryExists`. |
 
-**`SourceTimestamp` uniqueness rule**: a historizing variable has at most one live value per source timestamp. Replace logs the prior value in modified history; subsequent replaces overwrite the live value but each Replace adds another modification entry.
+**`SourceTimestamp` uniqueness rule**: a historizing variable has at most one live value per source timestamp. Explicit
+`HistoryUpdate` Insert operations log the inserted value as an `INSERT` modified-history entry, and Update operations
+that create a new entry do the same. Replace logs the prior value in modified history; subsequent replaces overwrite the
+live value but each Replace adds another modification entry. Automatic live-value capture uses the bulk insert path and
+does not create modified-history entries.
 
 **`DeleteRaw` interval semantics**: the framework supplies a half-open interval `[startTime, endTime)`. Providers must delete every value whose `SourceTimestamp` falls in that interval. The `isDeleteModified` flag selects whether the modified-history log is cleared instead of the live values.
 
 ### Atomic batch updates (`IHistorianTransactionalProvider`)
 
-The default contract is per-value best-effort. If your backend supports atomic batch commits, additionally implement `IHistorianTransactionalProvider`. The dispatcher automatically calls the atomic Insert, Replace, or Update method when the resolved provider implements both interfaces. The atomic contract:
+Providers that do not implement `IHistorianTransactionalProvider` use per-value best-effort updates. When the resolved
+provider implements both interfaces, the dispatcher automatically calls the atomic Insert, Replace, or Update method;
+there is no separate client option or request flag for selecting the per-value path. The atomic contract:
 
 - If every input value is applicable, return one success status per value and commit.
 - If any value cannot be applied, return the per-value failure code(s) and roll back the entire batch — the archive is left in its pre-call state.
@@ -614,7 +620,10 @@ Implement `IHistorianModifiedProvider` if your backend retains prior versions of
 public readonly record struct ModifiedDataValue(DataValue Value, ModificationInfo Info);
 ```
 
-`Info.UpdateType` distinguishes replaced (`Replace`) values from deleted (`Delete`) entries; `Info.UserName` and `Info.ModificationTime` come from the original update's `HistorianOperationContext.DefaultModificationInfo`.
+`Info.UpdateType` distinguishes inserted (`Insert`), replaced (`Replace`) and deleted (`Delete`) entries. Explicit
+HistoryUpdate inserts, including Update operations that insert a missing value, carry the inserted value. Automatic
+live-value capture is not a HistoryUpdate and does not populate modified history. `Info.UserName` and
+`Info.ModificationTime` come from the original update's `HistorianOperationContext.DefaultModificationInfo`.
 
 Modified history is ordered by
 `(SourceTimestamp, ModificationTime, Sequence)`. The in-memory provider's

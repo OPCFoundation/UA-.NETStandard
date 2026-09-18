@@ -1083,6 +1083,9 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId("modified.insert", NamespaceIndex);
             HistorianOperationContext context = CreateContext();
             DateTime timestamp = BaseTime.AddSeconds(10);
+            DateTime modificationTime = BaseTime.AddMinutes(3);
+            context.DefaultModificationInfo.ModificationTime = modificationTime;
+            context.DefaultModificationInfo.UserName = "insert-user";
 
             await provider.InsertAsync(
                 context,
@@ -1105,6 +1108,8 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.Values, Has.Count.EqualTo(1));
             Assert.That(page.Values[0].Info.UpdateType, Is.EqualTo(HistoryUpdateType.Insert));
             Assert.That(page.Values[0].Value.SourceTimestamp, Is.EqualTo(timestamp));
+            Assert.That(page.Values[0].Info.UserName, Is.EqualTo("insert-user"));
+            Assert.That(page.Values[0].Info.ModificationTime, Is.EqualTo(modificationTime));
         }
 
         /// <summary>
@@ -1119,6 +1124,9 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId("modified.update-inserts", NamespaceIndex);
             HistorianOperationContext context = CreateContext();
             DateTime timestamp = BaseTime.AddSeconds(10);
+            DateTime modificationTime = BaseTime.AddMinutes(4);
+            context.DefaultModificationInfo.ModificationTime = modificationTime;
+            context.DefaultModificationInfo.UserName = "update-user";
 
             HistorianUpdateOutcome<DataValue> outcome = await provider.UpdateAsync(
                 context,
@@ -1143,6 +1151,8 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(page.Values, Has.Count.EqualTo(1));
             Assert.That(page.Values[0].Info.UpdateType, Is.EqualTo(HistoryUpdateType.Insert));
             Assert.That(page.Values[0].Value.SourceTimestamp, Is.EqualTo(timestamp));
+            Assert.That(page.Values[0].Info.UserName, Is.EqualTo("update-user"));
+            Assert.That(page.Values[0].Info.ModificationTime, Is.EqualTo(modificationTime));
         }
 
         /// <summary>
