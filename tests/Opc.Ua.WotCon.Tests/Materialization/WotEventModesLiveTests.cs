@@ -246,7 +246,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         telemetry: NUnitTelemetryContext.Create(), ct: ct).ConfigureAwait(false);
                     Session = m_managed;
                 }
-                Session.KeepAliveInterval = 60000;
+                Session.KeepAliveInterval = 1000;
             }
 
             public async Task InstallAsync(UANodeSet nodes, CancellationToken ct)
