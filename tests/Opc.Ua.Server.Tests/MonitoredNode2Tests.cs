@@ -1229,6 +1229,29 @@ namespace Opc.Ua.Server.Tests
             Assert.That(item2Count, Is.EqualTo(3), "item2 should have received 3 events");
         }
 
+        [Test]
+        public async Task FailingEventFilterDoesNotDiscardOtherMonitoredItemsAsync()
+        {
+            var owner = new Mock<IAsyncNodeManager>();
+            owner.Setup(value => value.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+            var server = new Mock<IServerInternal>();
+            var source = new BaseObjectState(null) { NodeId = new NodeId("EventIsolation", 1) };
+            using var monitored = new MonitoredNode2(owner.Object, server.Object, source);
+            monitored.Add(CreateEventMonitoredItemMock(1).Object);
+            monitored.Add(CreateEventMonitoredItemMock(2).Object);
+            IEventMonitoredItem[] order = monitored.EventMonitoredItems.Values.ToArray();
+            Mock.Get(order[0]).Setup(value => value.QueueEvent(It.IsAny<IFilterTarget>()))
+                .Callback<IFilterTarget>(filter => throw new ArgumentNullException(nameof(filter)));
+
+            await monitored.OnReportEventAsync(
+                new Mock<ISystemContext>().Object, source, new BaseEventState(null)).ConfigureAwait(false);
+            await monitored.DisposeAsync().ConfigureAwait(false);
+
+            Mock.Get(order[1]).Verify(value => value.QueueEvent(It.IsAny<IFilterTarget>()), Times.Once);
+        }
+
         /// <summary>
         /// Verifies that an event raised by one session is delivered to authorized event
         /// monitored items owned by every session.

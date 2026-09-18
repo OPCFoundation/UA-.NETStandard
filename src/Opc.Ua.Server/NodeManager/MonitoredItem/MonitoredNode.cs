@@ -584,11 +584,24 @@ namespace Opc.Ua.Server
                 }
             }
 
-            ServiceResult validationResult = await GetOrAddEventPermissionAsync(
-                monitoredItem, target, eventTypeId, sourceNodeId, cancellationToken).ConfigureAwait(false);
-            if (!ServiceResult.IsBad(validationResult))
+            try
             {
-                monitoredItem.QueueEvent(target);
+                cancellationToken.ThrowIfCancellationRequested();
+                ServiceResult validationResult = await GetOrAddEventPermissionAsync(
+                    monitoredItem, target, eventTypeId, sourceNodeId, cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsGood(validationResult))
+                {
+                    monitoredItem.QueueEvent(target);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception error) when (
+                error is not OutOfMemoryException and not StackOverflowException and not AccessViolationException)
+            {
+                m_logger?.EventReceiverFailed(error, monitoredItem.Id);
             }
         }
 
