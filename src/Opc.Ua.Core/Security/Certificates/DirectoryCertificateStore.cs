@@ -1725,16 +1725,14 @@ namespace Opc.Ua
             var administrators = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
             FileSystemRights granted = 0;
             FileSystemRights denied = 0;
-            const FileSystemRights sensitiveRights = FileSystemRights.ReadData | FileSystemRights.WriteData |
-                FileSystemRights.AppendData | FileSystemRights.ExecuteFile | FileSystemRights.Delete |
-                FileSystemRights.DeleteSubdirectoriesAndFiles | FileSystemRights.ChangePermissions |
-                FileSystemRights.TakeOwnership;
+            const FileSystemRights metadataOnlyRights =
+                FileSystemRights.ReadPermissions | FileSystemRights.Synchronize;
             foreach (FileSystemAccessRule rule in security.GetAccessRules(
                 includeExplicit: true, includeInherited: true, typeof(SecurityIdentifier)))
             {
                 bool currentUser = rule.IdentityReference == identity.User;
                 if (rule.AccessControlType == AccessControlType.Allow &&
-                    (rule.FileSystemRights & sensitiveRights) != 0 &&
+                    (rule.FileSystemRights & ~metadataOnlyRights) != 0 &&
                     !currentUser && rule.IdentityReference != system && rule.IdentityReference != administrators)
                 {
                     return false;

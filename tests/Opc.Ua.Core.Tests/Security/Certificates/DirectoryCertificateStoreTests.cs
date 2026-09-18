@@ -412,8 +412,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         [Test]
         public async Task ExistingDirectoryPermissionFailureIsAcceptedOnlyForPrivateAccessAsync(
-            [Values(false, true)] bool unsafeAccess)
+            [Values("private", "read", "write-attributes")] string access)
         {
+            bool unsafeAccess = access != "private";
             DirectoryInfo directory = Directory.CreateDirectory(Path.Combine(m_tempDir, "private"));
             using Certificate certificate = CertificateBuilder.Create("CN=Permission Upgrade").CreateForRSA();
             using var store = new DirectoryCertificateStore(m_telemetry);
@@ -436,7 +437,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 if (unsafeAccess)
                 {
                     security.AddAccessRule(new FileSystemAccessRule(
-                        new SecurityIdentifier(WellKnownSidType.WorldSid, null), FileSystemRights.Read,
+                        new SecurityIdentifier(WellKnownSidType.WorldSid, null),
+                        access == "read" ? FileSystemRights.Read : FileSystemRights.WriteAttributes,
                         InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
                         PropagationFlags.None, AccessControlType.Allow));
                 }
