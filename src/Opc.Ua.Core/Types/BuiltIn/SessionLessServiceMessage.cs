@@ -49,6 +49,10 @@ namespace Opc.Ua
         /// <summary>
         /// The server URIs referenced by the message.
         /// </summary>
+        /// <remarks>
+        /// Index zero is reserved for the local server and is not sent on the wire.
+        /// Decoding without remote server URIs does not require a local URI in the context.
+        /// </remarks>
         public StringTable? ServerUris;
 
         /// <summary>
@@ -141,21 +145,17 @@ namespace Opc.Ua
                 NamespaceUris.Append(uri);
             }
 
-            ServerUris = new StringTable();
             uris = decoder.ReadStringArray("ServerUris")!;
 
             string? localServerUri = decoder.Context.ServerUris.GetString(0);
-            if (!string.IsNullOrEmpty(localServerUri))
-            {
-                ServerUris.Append(localServerUri);
-            }
-            else
+            if (uris.Count > 0 && string.IsNullOrEmpty(localServerUri))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadDecodingError,
                     "The decoder context has no local server URI.");
             }
 
+            ServerUris = new StringTable([localServerUri ?? string.Empty]);
             foreach (string uri in uris)
             {
                 if (string.IsNullOrEmpty(uri))
@@ -174,7 +174,8 @@ namespace Opc.Ua
                 LocaleIds.Append(uri);
             }
 
-            decoder.SetMappingTables(NamespaceUris, ServerUris);
+            // Without remote URIs, index zero is already local and must not be URI-mapped.
+            decoder.SetMappingTables(NamespaceUris, ServerUris.Count > 1 ? ServerUris : new StringTable());
 
             uint typeId = decoder.ReadUInt32("ServiceId");
 
