@@ -42,7 +42,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// freshly imported NodeSet by <see cref="WotProjectionBindingRuntimeFactory"/>.
     /// It groups executable, target-mapped compiled forms by their resolved
     /// target variable, wires either a direct (whole-value) or a structured
-    /// (field-by-field) handler per group, and owns every channel it lazily
+    /// (field-by-field) handler per group, and owns every channel it
     /// opens for the lifetime of the generation. Local Method and EventType
     /// identities are resolved independently of those property target mappings.
     /// Event subscriptions and Condition occurrence routes share that ownership.
@@ -70,9 +70,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         /// <summary>
         /// Groups the closure's target-mapped, executable compiled forms by
-        /// resolved target variable and wires each group. Runs entirely
-        /// against the address space (no transport I/O); channel opens are
-        /// deferred to first use. Condition instance registration is asynchronous.
+        /// resolved target variable and wires each group. Property and local
+        /// event channels remain lazy. Native transparent events and captured
+        /// Condition actions validate their source before the generation is published.
         /// </summary>
         /// <exception cref="ServiceResultException">
         /// See <see cref="IWotProjectionBindingRuntimeFactory.CreateAsync"/>.
@@ -146,6 +146,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             await WireProjectedEventsAsync(bindingPlans, cancellationToken).ConfigureAwait(false);
             await WireProjectedMethodsAsync(bindingPlans, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (WotProjectedEventBinding binding in m_events.Values)
+            {
+                binding.ValidatePreparedSource();
+            }
             RegisterEventPublishers();
         }
 

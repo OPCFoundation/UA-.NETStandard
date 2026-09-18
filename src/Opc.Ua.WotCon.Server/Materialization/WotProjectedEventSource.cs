@@ -52,6 +52,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         public WotCompiledForm Form { get; }
 
+        public async ValueTask<WotEventSource> CaptureAsync(CancellationToken cancellationToken)
+        {
+            IWotBindingChannel channel = await m_slot.GetAsync(cancellationToken).ConfigureAwait(false);
+            if (channel is not IWotCapturedEventChannel capturing)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "Transparent activation requires a captured event channel.");
+            }
+            return await capturing.CaptureEventSourceAsync(cancellationToken).ConfigureAwait(false);
+        }
+
         public void RequireConditionFields()
         {
             m_captureConditionFields = true;

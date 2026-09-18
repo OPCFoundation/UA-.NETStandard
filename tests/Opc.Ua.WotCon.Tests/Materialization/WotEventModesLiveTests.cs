@@ -210,9 +210,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private sealed class NativeChannels(ISession session) : IWotBindingChannelFactory
         {
+            public int OpenCount { get; private set; }
+
             public ValueTask<IWotBindingChannel> OpenChannelAsync(
                 WotCompiledForm form, CancellationToken cancellationToken = default)
             {
+                OpenCount++;
                 var executor = new OpcUaWotBindingExecutor(new OpcUaWotBindingOptions
                 {
                     SessionFactory = (_, _) => new ValueTask<ISession>(session),
@@ -232,11 +235,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             public string EndpointUrl => $"opc.tcp://localhost:{m_fixture.Port}";
 
-            public async Task StartAsync(bool managed, CancellationToken ct)
+            public async Task StartAsync(
+                bool managed, CancellationToken ct, string securityPolicy = SecurityPolicies.Basic256Sha256)
             {
+                m_fixture.SecurityNone = securityPolicy == SecurityPolicies.None;
                 Server = await m_fixture.StartAsync(m_root).ConfigureAwait(false);
                 await m_client.LoadClientConfigurationAsync(m_root, "EventModesClient").ConfigureAwait(false);
-                m_session = await m_client.ConnectAsync(new Uri(EndpointUrl), SecurityPolicies.Basic256Sha256)
+                m_session = await m_client.ConnectAsync(new Uri(EndpointUrl), securityPolicy)
                     .ConfigureAwait(false);
                 Session = m_session;
                 if (managed)

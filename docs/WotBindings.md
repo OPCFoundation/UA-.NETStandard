@@ -561,6 +561,31 @@ Source and Condition identities from different authenticated authorities cannot
 alias one native NodeId; ambiguous preserved EventIds are rejected. There is no
 automatic downgrade to local re-emission.
 
+Native transparent activation opens and retains its source binding before the
+generation is published, even when no actions or subscribers exist. It uses
+`IWotCapturedEventChannel.CaptureEventSourceAsync` without creating a
+subscription. The channel owns the binding. Admission checks authentication,
+the current Session and namespace mapping, the selected Object or View's event
+subscription capability, and the host's server-wide identity admission status.
+It also checks the source and local EventType lineage. A known source Condition
+identity is reserved against conflicting authorities before publication.
+
+This admission supports Core event types and custom subtypes that add no
+instance declarations. Custom types must match their source BrowseName,
+abstractness, and parent lineage. Cyclic or missing lineages, lineages deeper
+than 64 types, custom instance declarations, and custom payload schemas are
+rejected. This is a bounded capability check, not JSON Schema validation or
+general schema equivalence.
+
+The runtime checks source validity and host identity status again before
+registering its event publishers. Failure or cancellation disposes the candidate
+channels and releases its prepared claims. A failed replacement leaves the old
+generation active. The admitted descriptor reports `Availability = Good` and
+`SourceServerUri` before the first notification. Later notifications must use
+that same captured source binding; activation does not waive occurrence checks.
+Local-re-emission event channels stay lazy unless an authored action requires
+capture. Direct construction and dependency injection use the same checks.
+
 Imported namespaces must really be owned by their NodeSet sources. A multi-model
 projection also needs an unambiguous default namespace for its fluent runtime.
 For example, a local notifier that has a `GeneratesEvent` reference to an imported
@@ -744,8 +769,9 @@ admitted by `MonitoredItem`; arbitrary fields, including a forged `Handle`, fail
 with `BadNotSupported` once admission is required. Custom/durable queues must
 preserve the admitted in-process field instances; reconstituting them does not
 establish identity continuity. Headless publishers do not advertise this native
-server-wide guarantee. This is publication-time protection, not a claim of
-complete transparent source preflight at activation.
+server-wide guarantee. These publication checks complement the bounded
+transparent activation checks; neither provides persisted identity continuity
+or general schema equivalence.
 
 `MaxEventRoutes` also separately bounds independently materialized source Conditions.
 A declared actionable Condition consumes the same instance bound as a

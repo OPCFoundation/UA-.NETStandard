@@ -37,6 +37,54 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
 {
     internal sealed partial class OpcUaWotBindingChannel
     {
+        public async ValueTask<WotEventSource> CaptureEventSourceAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            WotEventSource source = m_eventSource ??
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The channel cannot retain an event source binding.");
+            source.Validate();
+            if (!source.IsAuthenticated)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "Transparent events require an authenticated source.");
+            }
+            if (Form.Operation != WoTBindingCapabilityEnum.SubscribeEvent)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported, "The channel is not an event source.");
+            }
+            ResolvedPathTarget target = await ResolveTargetAsync(NodeClass.Object | NodeClass.View, cancellationToken)
+                .ConfigureAwait(false);
+            ArrayOf<ReadValueId> requests =
+            [
+                new ReadValueId { NodeId = target.NodeId, AttributeId = Attributes.NodeClass },
+                new ReadValueId { NodeId = target.NodeId, AttributeId = Attributes.EventNotifier }
+            ];
+            ReadResponse response = await source.Client.ReadAsync(
+                null, 0, TimestampsToReturn.Neither, requests, cancellationToken).ConfigureAwait(false);
+            ClientBase.ValidateResponse(response.Results, requests);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
+            foreach (DataValue value in response.Results)
+            {
+                if (!StatusCode.IsGood(value.StatusCode))
+                {
+                    throw new ServiceResultException(value.StatusCode, "The selected event notifier is unavailable.");
+                }
+            }
+            if (!response.Results[0].WrappedValue.TryGetValue(out int nodeClass) ||
+                nodeClass is not ((int)NodeClass.Object or (int)NodeClass.View) ||
+                !response.Results[1].WrappedValue.TryGetValue(out byte notifier) ||
+                (notifier & EventNotifiers.SubscribeToEvents) == 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The selected source does not support event subscription.");
+            }
+            ValidatePathSessionState(target.State);
+            source.Validate();
+            cancellationToken.ThrowIfCancellationRequested();
+            return source;
+        }
+
         internal static async ValueTask<WotEventSource?> CaptureEventSourceAsync(
             ISession session,
             WotCompiledForm form,

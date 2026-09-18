@@ -107,13 +107,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         isCondition, createCondition, nativePublisher,
                         (m_builder.NodeManager as AsyncCustomNodeManager)?.Server.EventManager,
                         requireServerIdentityAdmission: nativePublisher);
+                    m_events.Add((plan.ResourceXid, local.JsonPointer), binding);
+                    m_eventRoutes.Add(binding);
                     if (nativePublisher)
                     {
+                        if (local.IdentityMode == WoTEventIdentityModeEnum.TransparentForwarding)
+                        {
+                            await binding.PrepareTransparentAsync(m_builder, cancellationToken).ConfigureAwait(false);
+                        }
                         await binding.InitializeDescriptorAsync(m_builder, local.Name, cancellationToken)
                             .ConfigureAwait(false);
                     }
-                    m_events.Add((plan.ResourceXid, local.JsonPointer), binding);
-                    m_eventRoutes.Add(binding);
                 }
             }
         }

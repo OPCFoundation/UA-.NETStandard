@@ -40,6 +40,17 @@ namespace Opc.Ua.WotCon.Bindings
     public interface IWotCapturedEventChannel : IWotBindingChannel
     {
         /// <summary>
+        /// Validates the selected event notifier and returns its current,
+        /// authenticated source binding without creating a subscription.
+        /// The channel retains ownership of the captured binding.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The channel cannot prove a current authenticated source or the
+        /// selected target does not support event subscription.
+        /// </exception>
+        ValueTask<WotEventSource> CaptureEventSourceAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Subscribes with private BaseEventType capture and, when requested,
         /// common ConditionType fields including the empty-path ConditionId.
         /// The returned subscription retains the ordinary channel lifetime contract.

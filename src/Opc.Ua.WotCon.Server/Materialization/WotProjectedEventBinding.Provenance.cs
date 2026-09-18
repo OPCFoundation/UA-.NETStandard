@@ -72,9 +72,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
             descriptor.Generation!.Value = 0;
             descriptor.Generation.StatusCode = StatusCodes.BadWaitingForInitialData;
             descriptor.SourceDocumentId!.Value = ResourceXid;
-            descriptor.Availability!.Value = StatusCodes.BadWaitingForInitialData;
+            descriptor.Availability!.Value = m_preparedSource is null
+                ? StatusCodes.BadWaitingForInitialData : StatusCodes.Good;
             descriptor.AddSourceServerUri(m_context);
-            descriptor.SourceServerUri!.StatusCode = StatusCodes.BadNoData;
+            descriptor.SourceServerUri!.StatusCode = m_preparedSource is null ? StatusCodes.BadNoData : StatusCodes.Good;
+            if (m_preparedSource is not null)
+            {
+                descriptor.SourceServerUri.Value = m_preparedSource.ServerUri;
+            }
             descriptor.RolePermissions = Notifier.RolePermissions;
             descriptor.UserRolePermissions = Notifier.UserRolePermissions;
             descriptor.AccessRestrictions = Notifier.AccessRestrictions;

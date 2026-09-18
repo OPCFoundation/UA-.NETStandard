@@ -36,6 +36,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
 {
     internal sealed partial class WotProjectedEventRouteRegistry
     {
+        public void PrepareTransparentSource(WotProjectedEventBinding binding, WotEventSource source)
+        {
+            lock (m_gate)
+            {
+                ValidateNodeAuthority(binding.SourceCondition, source);
+                if (!binding.SourceCondition.IsNull && m_preparedSources.TryAdd(binding, source))
+                {
+                    if (!m_transparentNodes.TryGetValue(binding.SourceCondition, out NodeClaim? owner))
+                    {
+                        owner = new NodeClaim(source);
+                        m_transparentNodes.Add(binding.SourceCondition, owner);
+                    }
+                    owner.References++;
+                }
+            }
+        }
+
         public void ValidateTransparentSource(WotProjectedEventBinding binding, WotCapturedEvent captured)
         {
             lock (m_gate)
@@ -121,6 +138,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private void ReleaseTransparentBinding(WotProjectedEventBinding binding)
         {
+            if (m_preparedSources.Remove(binding))
+            {
+                NodeClaim owner = m_transparentNodes[binding.SourceCondition];
+                if (--owner.References == 0)
+                {
+                    m_transparentNodes.Remove(binding.SourceCondition);
+                }
+            }
             ByteString[] keys = m_transparentEvents
                 .Where(entry => entry.Value.Owners.Contains(binding))
                 .Select(entry => entry.Key).ToArray();
@@ -165,5 +190,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private readonly Dictionary<ByteString, EventClaim> m_transparentEvents = [];
         private readonly Dictionary<ExpandedNodeId, NodeClaim> m_transparentNodes = [];
+        private readonly Dictionary<WotProjectedEventBinding, WotEventSource> m_preparedSources = [];
     }
 }

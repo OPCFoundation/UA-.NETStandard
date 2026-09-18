@@ -836,6 +836,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private void AdmitTransparentOccurrence(WotCapturedEvent? captured)
         {
+            ValidatePreparedSource();
+            if (m_preparedSource is not null && !ReferenceEquals(captured?.Source, m_preparedSource))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "The event did not originate from its prepared source binding.");
+            }
             if (captured is null || !captured.Source.IsAuthenticated ||
                 !captured.HasEventId || captured.EventId.IsEmpty ||
                 !captured.HasEventType || captured.EventType.IsNull ||
