@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -42,7 +41,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
-using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
@@ -261,9 +259,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(replacement.Id, Is.EqualTo(original.Id));
                 Assert.That(replacement.Generation, Is.EqualTo(2));
                 Assert.That(
-                    m_server.CurrentInstance.NodeManager.AsyncNodeManagers.Contains(
-                        replacementManager.Object),
-                    Is.True);
+                    m_server.CurrentInstance.NodeManager.AsyncNodeManagers.ToArray(),
+                    Does.Contain(replacementManager.Object));
             });
 
             await m_server.NodeManagerLifecycle
@@ -271,9 +268,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
 
             Assert.That(
-                m_server.CurrentInstance.NodeManager.AsyncNodeManagers.Contains(
-                    replacementManager.Object),
-                Is.False);
+                m_server.CurrentInstance.NodeManager.AsyncNodeManagers.ToArray(),
+                Does.Not.Contain(replacementManager.Object));
         }
 
         /// <summary>
@@ -1299,7 +1295,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Reload waits for an in-flight monitored-item mutation before transferring ownership.
         /// </summary>
-
         /// <summary>
         /// Reload detaches a dropped NodeId, publishes BadNodeIdUnknown once, and recovers
         /// the same monitored item when a later generation restores the compatible node.
@@ -1551,6 +1546,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         RequestedNewNodeId = valueNodeId,
                         BrowseName = new QualifiedName(kValueBrowseName, ns),
                         NodeClass = NodeClass.Variable,
+                        TypeDefinition = VariableTypeIds.BaseDataVariableType,
                         NodeAttributes = new ExtensionObject(attributes)
                     }],
                     RequestLifetime.None).ConfigureAwait(false);
@@ -1569,6 +1565,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         subscriptionId,
                         acknowledgements).ConfigureAwait(false);
                 Assert.That(current.Value.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(current.Value.WrappedValue.GetInt32(), Is.EqualTo(kGeneration2Value));
             }
             finally
             {
@@ -2815,9 +2812,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new TaskCompletionSource<bool>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
             retiredManager.AllEventsCallback = async (
-                IEventMonitoredItem monitoredItem,
-                bool unsubscribe,
-                CancellationToken cancellationToken) =>
+                monitoredItem,
+                unsubscribe,
+                cancellationToken) =>
             {
                 if (unsubscribe && monitoredItem.Id == eventMonitoredItemId)
                 {
@@ -2844,12 +2841,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     original,
                     CreateTrackingNodeManagementFactory(
                         kGeneration2Value,
-                        manager =>
-                        {
-                            manager.AllEventsCallback = (
-                                IEventMonitoredItem monitoredItem,
-                                bool unsubscribe,
-                                CancellationToken _) =>
+                        manager => manager.AllEventsCallback = (
+                                monitoredItem,
+                                unsubscribe,
+                                _) =>
                             {
                                 if (!unsubscribe &&
                                     monitoredItem.Id == eventMonitoredItemId)
@@ -2857,8 +2852,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                                     replacementBound.TrySetResult(true);
                                 }
                                 return default;
-                            };
-                        }))
+                            }))
                 .AsTask();
             try
             {
@@ -2973,7 +2967,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(retiredManager.ConditionRefreshCount, Is.EqualTo(1));
             Assert.That(
                 retiredManager.LastConditionRefreshMonitoredItemIds,
-                Is.EqualTo(new[] { existingMonitoredItemId }),
+                Is.EqualTo([existingMonitoredItemId]),
                 "ConditionRefresh must use the retired manager's exact item snapshot.");
 
             await DeleteMonitoredItemAsync(
@@ -3714,7 +3708,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(
                 retiredManager.LastConditionRefreshMonitoredItemIds,
-                Is.EqualTo(new[] { retiredMonitoredItemId }),
+                Is.EqualTo([retiredMonitoredItemId]),
                 "The retired generation must receive its owned item, but not the " +
                 "replacement generation's post-retirement item.");
 
@@ -6102,7 +6096,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 () => host.Release(null!));
             Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
 
-
             Assert.That(
                 async () => await host
                     .CommitAsync(prepared)
@@ -6244,7 +6237,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Is.False);
             disposable.Verify(value => value.Dispose(), Times.Once);
         }
-
 
         [Test]
         public Task AddAsyncCleansFailedSessionActivationAsync()
@@ -6762,16 +6754,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             });
         }
 
-        private static async Task AssertLifecycleOperationStopsForShutdownAsync(
+        private static Task AssertLifecycleOperationStopsForShutdownAsync(
             Task<NodeManagerRegistration> operation)
         {
-            InvalidOperationException exception = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await operation
-                    .WaitAsync(TimeSpan.FromSeconds(10))
-                    .ConfigureAwait(false));
-            Assert.That(
-                exception.ToString(),
-                Does.Contain("shutting down"));
+            return Assert.ThatAsync(
+                () => operation.WaitAsync(TimeSpan.FromSeconds(10)),
+                Throws.TypeOf<InvalidOperationException>()
+                    .And
+                    .Matches<InvalidOperationException>(
+                        exception => exception.ToString().Contains("shutting down", StringComparison.Ordinal)));
         }
 
         private static async Task WaitForRetiredNotificationsSuspendedAsync(
@@ -7713,6 +7704,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ApplicationConfiguration,
                 CancellationToken,
                 ValueTask<IAsyncNodeManager>> m_create;
+
             private int m_createCount;
         }
 
@@ -7790,7 +7782,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         UserAccessLevel = AccessLevels.CurrentRead,
                         Value = new Variant(
                             new ExtensionObject(
-                                new Opc.Ua.Range
+                                new Range
                                 {
                                     Low = 0,
                                     High = 100
@@ -7830,7 +7822,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public ValueTask ShutdownInternalsAsync(
                 CancellationToken cancellationToken = default)
             {
-                return base.OnServerStoppingAsync(cancellationToken);
+                return OnServerStoppingAsync(cancellationToken);
             }
         }
 
@@ -7952,7 +7944,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 IEventMonitoredItem,
                 bool,
                 CancellationToken,
-                ValueTask> AllEventsCallback { get; set; }
+                ValueTask> AllEventsCallback
+            { get; set; }
 
             /// <summary>
             /// Gets or sets a callback executed before forwarding session activation.
@@ -7965,7 +7958,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public Func<
                 IList<IEventMonitoredItem>,
                 CancellationToken,
-                ValueTask> ConditionRefreshCallback { get; set; }
+                ValueTask> ConditionRefreshCallback
+            { get; set; }
 
             /// <summary>
             /// Gets or sets a callback executed before the underlying read batch.
@@ -8083,6 +8077,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Counts deletion attempts and injects configured failures before normal address-space teardown.
             /// </summary>
+            /// <exception cref="SentinelException"></exception>
             public override async ValueTask DeleteAddressSpaceAsync(
                 CancellationToken cancellationToken = default)
             {
