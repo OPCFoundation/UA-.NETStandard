@@ -140,6 +140,41 @@ namespace Opc.Ua.Server.Tests.Identity
         }
 
         [Test]
+        public async Task AuthenticateAsyncRejectsReplayOfVersionedProof()
+        {
+            using InMemoryKeyCredentialStore store = await CreateStoreAsync(DateTime.UtcNow.AddMinutes(10))
+                .ConfigureAwait(false);
+            var authenticator = new KeyCredentialBridgeAuthenticator(store);
+            byte[] token = CreateTokenData(CredentialId, s_secret, "urn:test:server");
+
+            AuthenticationResult first = await authenticator.AuthenticateAsync(
+                CreateContext(token, "urn:test:server")).ConfigureAwait(false);
+            AuthenticationResult replay = await authenticator.AuthenticateAsync(
+                CreateContext(token, "urn:test:server")).ConfigureAwait(false);
+
+            Assert.That(first.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            Assert.That(replay.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(replay.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+        }
+
+        [Test]
+        public async Task AuthenticateAsyncRejectsProofForDifferentAudience()
+        {
+            using InMemoryKeyCredentialStore store = await CreateStoreAsync(DateTime.UtcNow.AddMinutes(10))
+                .ConfigureAwait(false);
+            var authenticator = new KeyCredentialBridgeAuthenticator(store);
+
+            AuthenticationResult result = await authenticator.AuthenticateAsync(
+                CreateContext(
+                    CreateTokenData(CredentialId, s_secret, "urn:test:other-server"),
+                    "urn:test:server"))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+        }
+
+        [Test]
         public void ConstructorAndMetadataExposeConfiguredIssuedTokenProfile()
         {
             using var store = new InMemoryKeyCredentialStore();
@@ -236,7 +271,9 @@ namespace Opc.Ua.Server.Tests.Identity
             return store;
         }
 
-        private static AuthenticationContext CreateContext(byte[] tokenData)
+        private static AuthenticationContext CreateContext(
+            byte[] tokenData,
+            string audience = "urn:test:server")
         {
             return new AuthenticationContext(
                 new IssuedIdentityTokenHandler(KeyCredentialBridgeOptions.DefaultProfileUri, tokenData),
@@ -246,7 +283,11 @@ namespace Opc.Ua.Server.Tests.Identity
                     PolicyId = "keycredential",
                     IssuedTokenType = KeyCredentialBridgeOptions.DefaultProfileUri
                 },
-                new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt },
+                new EndpointDescription
+                {
+                    SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                    Server = new ApplicationDescription { ApplicationUri = audience }
+                },
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
         }
 
@@ -256,7 +297,21 @@ namespace Opc.Ua.Server.Tests.Identity
                 credentialId,
                 secret,
                 "nonce-" + Guid.NewGuid().ToString("N"),
-                DateTime.UtcNow);
+                DateTime.UtcNow,
+                "urn:test:server");
+        }
+
+        private static byte[] CreateTokenData(
+            string credentialId,
+            byte[] secret,
+            string audience)
+        {
+            return KeyCredentialBridgeAuthenticator.CreateTokenData(
+                credentialId,
+                secret,
+                "nonce-" + Guid.NewGuid().ToString("N"),
+                DateTime.UtcNow,
+                audience);
         }
     }
 }

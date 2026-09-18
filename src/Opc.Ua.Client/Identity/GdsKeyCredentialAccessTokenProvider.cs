@@ -125,9 +125,12 @@ namespace Opc.Ua.Client
                 credential.CredentialSecret,
                 credential.CredentialId,
                 nonce,
-                issuedAtSeconds);
+                issuedAtSeconds,
+                metadata.Audience ?? metadata.ResourceUri ?? string.Empty);
             byte[] tokenData = Encoding.UTF8.GetBytes(
-                "{\"credentialId\":\"" +
+                "{\"version\":2,\"aud\":\"" +
+                EscapeJson(metadata.Audience ?? metadata.ResourceUri ?? string.Empty) +
+                "\",\"credentialId\":\"" +
                 EscapeJson(credential.CredentialId) +
                 "\",\"nonce\":\"" +
                 nonce +
@@ -197,13 +200,20 @@ namespace Opc.Ua.Client
             return Base64UrlEncode(nonce);
         }
 
-        private static string CreateProof(byte[] secret, string credentialId, string nonce, long issuedAt)
+        private static string CreateProof(
+            byte[] secret,
+            string credentialId,
+            string nonce,
+            long issuedAt,
+            string audience)
         {
             string input = credentialId +
                 "\n" +
                 nonce +
                 "\n" +
-                issuedAt.ToString(CultureInfo.InvariantCulture);
+                issuedAt.ToString(CultureInfo.InvariantCulture) +
+                "\n" +
+                audience;
             using var hmac = new HMACSHA256(secret);
             return Base64UrlEncode(hmac.ComputeHash(Encoding.UTF8.GetBytes(input)));
         }

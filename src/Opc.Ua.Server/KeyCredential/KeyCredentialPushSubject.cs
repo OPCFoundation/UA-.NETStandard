@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -195,6 +196,20 @@ namespace Opc.Ua.Server
                 };
             }
 
+            IList<BaseInstanceState> existingChildren = [];
+            folder.GetChildren(context, existingChildren);
+            if (existingChildren.OfType<KeyCredentialConfigurationState>()
+                .Any(child => string.Equals(
+                    child.BrowseName.Name,
+                    browseName,
+                    StringComparison.Ordinal)))
+            {
+                return new CreateCredentialMethodStateResult
+                {
+                    ServiceResult = new ServiceResult(StatusCodes.BadNodeIdExists)
+                };
+            }
+
             KeyCredentialConfigurationState state = CreateCredentialState(
                 folder,
                 context,
@@ -254,11 +269,22 @@ namespace Opc.Ua.Server
             byte[]? secret = null;
             try
             {
+                string? previousCredentialId = null;
+                if (method.Parent is KeyCredentialConfigurationState existingState)
+                {
+                    previousCredentialId = existingState.CredentialId?.Value;
+                }
+
                 secret = await DecodeSecretAsync(
                     context, credentialSecret, certificateThumbprint, securityPolicyUri, ct).ConfigureAwait(false);
                 ct.ThrowIfCancellationRequested();
                 var credential = new KeyCredential(secret, DateTime.MaxValue, subject, []);
                 await m_store.UpdateAsync(credentialId, credential, ct).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(previousCredentialId) &&
+                    !string.Equals(previousCredentialId, credentialId, StringComparison.Ordinal))
+                {
+                    await m_store.DeleteAsync(previousCredentialId, ct).ConfigureAwait(false);
+                }
             }
             catch (ServiceResultException ex)
             {
