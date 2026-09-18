@@ -180,8 +180,305 @@ namespace Opc.Ua.Server.Tests
             Assert.That(Directory.GetFiles(files.DirectoryName), Has.Length.EqualTo(1));
         }
 
+        [Test]
+        public async Task CreateUserCommitsFlagsBeforeValidCredentialAuthenticationAsync()
+        {
+            using var files = new DatabaseFiles();
+            int writes = 0;
+            var database = new JsonUserDatabase(files.FileName, (path, bytes) =>
+            {
+                writes++;
+                File.WriteAllBytes(path, bytes);
+            });
+            using var management = new UserManagementFacade(database);
+            ServiceResult added = management.AddUser(
+                "bob",
+                "credential",
+                UserConfigurationMask.Disabled | UserConfigurationMask.MustChangePassword,
+                "Pending approval");
+            Assert.That(ServiceResult.IsGood(added), Is.True);
+            Assert.That(writes, Is.EqualTo(1));
+
+            IUserDatabase reloaded = JsonUserDatabase.Load(files.FileName, NUnitTelemetryContext.Create());
+            Assert.That(reloaded.CheckCredentials("bob", "credential"u8), Is.True);
+            Assert.That(reloaded.CheckCredentials("bob", "incorrect"u8), Is.False);
+            UserManagementDataType user = reloaded.GetUsers().Single();
+            Assert.That(user.UserName, Is.EqualTo("bob"));
+            Assert.That(user.UserConfiguration,
+                Is.EqualTo((uint)(UserConfigurationMask.Disabled | UserConfigurationMask.MustChangePassword)));
+            Assert.That(user.Description, Is.EqualTo("Pending approval"));
+            using var restarted = new UserManagementFacade(reloaded);
+            Assert.That(restarted.IsUserActive("bob"), Is.False);
+            Assert.That(restarted.MustChangePassword("bob"), Is.True);
+
+            var authenticator = new UserNamePasswordAuthenticator(reloaded, restarted, NUnitTelemetryContext.Create());
+            var handler = new UserNameIdentityTokenHandler("bob", "credential"u8);
+            try
+            {
+                var context = new AuthenticationContext(
+                    handler,
+                    new UserTokenPolicy { TokenType = UserTokenType.UserName, PolicyId = "username" },
+                    new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt },
+                    ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+                AuthenticationResult disabled = await authenticator.AuthenticateAsync(context).ConfigureAwait(false);
+                Assert.That(disabled.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+                Assert.That(disabled.Error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+
+                ServiceResult enabled = restarted.ModifyUser(
+                    "bob", false, string.Empty, true, UserConfigurationMask.None, false, string.Empty, "admin");
+                Assert.That(ServiceResult.IsGood(enabled), Is.True);
+                AuthenticationResult active = await authenticator.AuthenticateAsync(context).ConfigureAwait(false);
+                Assert.That(active.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(handler.DecryptedPassword);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void PasswordResetCommitsCredentialsAndEffectiveMetadataInOneWrite(bool modifyMetadata)
+        {
+            using var files = new DatabaseFiles();
+            var initial = new JsonUserDatabase(files.FileName);
+            Assert.That(initial.CreateUser("alice", "credential"u8, [Role.SecurityAdmin]), Is.True);
+            Assert.That(initial.UpdateUserMetadata(
+                "alice", UserConfigurationMask.MustChangePassword, "Original restriction"), Is.True);
+            int writes = 0;
+            var database = new JsonUserDatabase(files.FileName, (path, bytes) =>
+            {
+                writes++;
+                File.WriteAllBytes(path, bytes);
+            })
+            {
+                Users = initial.Users
+            };
+            using var management = new UserManagementFacade(database);
+            int deactivated = 0;
+            management.UserDeactivated += (_, _) => deactivated++;
+
+            ServiceResult result = management.ModifyUser(
+                "alice",
+                modifyPassword: true,
+                password: "replacement-credential",
+                modifyUserConfiguration: modifyMetadata,
+                userConfiguration: UserConfigurationMask.Disabled | UserConfigurationMask.MustChangePassword,
+                modifyDescription: modifyMetadata,
+                description: "Reset pending approval",
+                callingUserName: "admin");
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(writes, Is.EqualTo(1));
+            Assert.That(deactivated, Is.EqualTo(modifyMetadata ? 1 : 0));
+            Assert.That(database.Users.Single().ID, Is.EqualTo(initial.Users.Single().ID));
+
+            IUserDatabase reloaded = JsonUserDatabase.Load(files.FileName, NUnitTelemetryContext.Create());
+            Assert.That(reloaded.CheckCredentials("alice", "credential"u8), Is.False);
+            Assert.That(reloaded.CheckCredentials("alice", "replacement-credential"u8), Is.True);
+            Assert.That(reloaded.GetUserRoles("alice").Single(), Is.EqualTo(Role.SecurityAdmin));
+            UserManagementDataType user = reloaded.GetUsers().Single();
+            Assert.That(user.UserConfiguration, Is.EqualTo((uint)(modifyMetadata
+                ? UserConfigurationMask.Disabled | UserConfigurationMask.MustChangePassword
+                : UserConfigurationMask.MustChangePassword)));
+            Assert.That(user.Description,
+                Is.EqualTo(modifyMetadata ? "Reset pending approval" : "Original restriction"));
+            Assert.That(management.SnapshotUsers().Single().UserConfiguration, Is.EqualTo(user.UserConfiguration));
+            Assert.That(management.SnapshotUsers().Single().Description, Is.EqualTo(user.Description));
+        }
+
+        [Test]
+        public void PasswordChangeCommitsCredentialsAndClearsOnlyRequiredChangeFlagInOneWrite()
+        {
+            using var files = new DatabaseFiles();
+            var initial = new JsonUserDatabase(files.FileName);
+            Assert.That(initial.CreateUser("alice", "credential"u8, [Role.SecurityAdmin]), Is.True);
+            Assert.That(initial.UpdateUserMetadata(
+                "alice",
+                UserConfigurationMask.Disabled | UserConfigurationMask.NoDelete |
+                    UserConfigurationMask.MustChangePassword,
+                "Original restriction"), Is.True);
+            int writes = 0;
+            var database = new JsonUserDatabase(files.FileName, (path, bytes) =>
+            {
+                writes++;
+                File.WriteAllBytes(path, bytes);
+            })
+            {
+                Users = initial.Users
+            };
+            using var management = new UserManagementFacade(database);
+
+            ServiceResult rejected = management.ChangePassword("alice", "incorrect", "replacement-credential");
+            Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(writes, Is.Zero);
+            Assert.That(database.CheckCredentials("alice", "credential"u8), Is.True);
+            Assert.That(management.MustChangePassword("alice"), Is.True);
+
+            ServiceResult changed = management.ChangePassword("alice", "credential", "replacement-credential");
+            Assert.That(ServiceResult.IsGood(changed), Is.True);
+            Assert.That(writes, Is.EqualTo(1));
+            Assert.That(database.Users.Single().ID, Is.EqualTo(initial.Users.Single().ID));
+            Assert.That(management.IsUserActive("alice"), Is.False);
+            Assert.That(management.MustChangePassword("alice"), Is.False);
+
+            IUserDatabase reloaded = JsonUserDatabase.Load(files.FileName, NUnitTelemetryContext.Create());
+            Assert.That(reloaded.CheckCredentials("alice", "credential"u8), Is.False);
+            Assert.That(reloaded.CheckCredentials("alice", "replacement-credential"u8), Is.True);
+            Assert.That(reloaded.GetUserRoles("alice").Single(), Is.EqualTo(Role.SecurityAdmin));
+            UserManagementDataType user = reloaded.GetUsers().Single();
+            Assert.That(user.UserConfiguration,
+                Is.EqualTo((uint)(UserConfigurationMask.Disabled | UserConfigurationMask.NoDelete)));
+            Assert.That(user.Description, Is.EqualTo("Original restriction"));
+        }
+
+        [TestCase("create")]
+        [TestCase("overwrite")]
+        [TestCase("delete")]
+        [TestCase("password")]
+        [TestCase("metadata")]
+        public void FailedSaveCannotLeakIntoALaterSuccessfulWrite(string operation)
+        {
+            using var files = new DatabaseFiles();
+            var initial = new JsonUserDatabase(files.FileName);
+            Assert.That(initial.CreateUser("alice", "credential"u8, [Role.SecurityAdmin]), Is.True);
+            Assert.That(initial.UpdateUserMetadata(
+                "alice", UserConfigurationMask.MustChangePassword, "Original restriction"), Is.True);
+            byte[] committed = File.ReadAllBytes(files.FileName);
+            int writes = 0;
+            var database = new JsonUserDatabase(files.FileName, (path, bytes) =>
+            {
+                if (++writes == 1)
+                {
+                    using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                    stream.Write(bytes, 0, Math.Min(bytes.Length, 12));
+                    throw new IOException("controlled partial snapshot failure");
+                }
+                File.WriteAllBytes(path, bytes);
+            })
+            {
+                Users = initial.Users
+            };
+            Action mutate = operation switch
+            {
+                "create" => () => database.CreateUser("failed-user", "replacement-credential"u8, [Role.Operator]),
+                "overwrite" => () => database.CreateUser("alice", "replacement-credential"u8, [Role.Operator]),
+                "delete" => () => database.DeleteUser("alice"),
+                "password" => () => database.ChangePassword("alice", "credential"u8, "replacement-credential"u8),
+                "metadata" => () => database.UpdateUserMetadata("alice", UserConfigurationMask.Disabled, "Failed"),
+                _ => throw new ArgumentOutOfRangeException(nameof(operation))
+            };
+
+            IOException failure = Assert.Throws<IOException>(() => mutate());
+            Assert.That(failure.Message, Is.EqualTo("controlled partial snapshot failure"));
+            Assert.That(writes, Is.EqualTo(1));
+            Assert.That(File.ReadAllBytes(files.FileName), Is.EqualTo(committed));
+            Assert.That(database.GetUsers().Select(user => user.UserName), Is.EqualTo(s_oneUser));
+            AssertOriginalUser(database);
+            AssertOriginalUser(JsonUserDatabase.Load(files.FileName, NUnitTelemetryContext.Create()));
+
+            Assert.That(database.CreateUser("bob", "other-credential"u8, [Role.Operator]), Is.True);
+            Assert.That(writes, Is.EqualTo(2));
+            IUserDatabase reloaded = JsonUserDatabase.Load(files.FileName, NUnitTelemetryContext.Create());
+            AssertOriginalUser(reloaded);
+            Assert.That(reloaded.GetUsers().Select(user => user.UserName), Is.EquivalentTo(s_twoUsers));
+            Assert.That(reloaded.CheckCredentials("bob", "other-credential"u8), Is.True);
+            Assert.That(Directory.GetFiles(files.DirectoryName), Has.Length.EqualTo(1));
+        }
+
+        [Test]
+        public void LegacyUserDatabaseRetainsUserManagementCompatibility()
+        {
+            var database = new LegacyUserDatabase();
+            Assert.That(database.CreateUser("alice", "credential"u8, [Role.SecurityAdmin]), Is.True);
+            using var management = new UserManagementFacade(database);
+
+            ServiceResult reset = management.ModifyUser(
+                "alice", true, "replacement-credential", true, UserConfigurationMask.MustChangePassword,
+                true, "Legacy description", "admin");
+            Assert.That(ServiceResult.IsGood(reset), Is.True);
+            Assert.That(database.CheckCredentials("alice", "credential"u8), Is.False);
+            Assert.That(database.CheckCredentials("alice", "replacement-credential"u8), Is.True);
+            Assert.That(database.GetUserRoles("alice").Single(), Is.EqualTo(Role.SecurityAdmin));
+            Assert.That(management.MustChangePassword("alice"), Is.True);
+            Assert.That(management.SnapshotUsers().Single().Description, Is.EqualTo("Legacy description"));
+
+            ServiceResult changed = management.ChangePassword(
+                "alice", "replacement-credential", "third-credential");
+            Assert.That(ServiceResult.IsGood(changed), Is.True);
+            Assert.That(database.CheckCredentials("alice", "third-credential"u8), Is.True);
+            Assert.That(management.MustChangePassword("alice"), Is.False);
+            Assert.That(ServiceResult.IsGood(
+                management.AddUser("bob", "credential", UserConfigurationMask.Disabled, "Legacy user")), Is.True);
+            Assert.That(management.IsUserActive("bob"), Is.False);
+            Assert.That(ServiceResult.IsGood(management.RemoveUser("bob", "admin")), Is.True);
+            Assert.That(database.CheckCredentials("bob", "credential"u8), Is.False);
+        }
+
+        [Test]
+        public void DuplicateAtomicCreationPreservesThePreviousRecordWithoutWriting()
+        {
+            using var files = new DatabaseFiles();
+            var initial = new JsonUserDatabase(files.FileName);
+            Assert.That(initial.CreateUser("alice", "credential"u8, [Role.SecurityAdmin]), Is.True);
+            Assert.That(initial.UpdateUserMetadata(
+                "alice", UserConfigurationMask.MustChangePassword, "Original restriction"), Is.True);
+            byte[] committed = File.ReadAllBytes(files.FileName);
+            int writes = 0;
+            var database = new JsonUserDatabase(files.FileName, (path, bytes) =>
+            {
+                writes++;
+                File.WriteAllBytes(path, bytes);
+            })
+            {
+                Users = initial.Users
+            };
+            Assert.That(database.CreateUser(
+                "alice", "replacement-credential"u8, [Role.Operator],
+                UserConfigurationMask.Disabled, "Replacement"), Is.False);
+            Assert.That(writes, Is.Zero);
+            Assert.That(File.ReadAllBytes(files.FileName), Is.EqualTo(committed));
+            AssertOriginalUser(database);
+            AssertOriginalUser(JsonUserDatabase.Load(files.FileName, NUnitTelemetryContext.Create()));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RejectedUserModificationDoesNotPublishMetadata(bool resetPassword)
+        {
+            using var files = new DatabaseFiles();
+            int writes = 0;
+            var database = new JsonUserDatabase(files.FileName, (path, bytes) =>
+            {
+                writes++;
+                File.WriteAllBytes(path, bytes);
+            });
+            Assert.That(database.CreateUser("alice", "credential"u8, [Role.SecurityAdmin]), Is.True);
+            Assert.That(database.UpdateUserMetadata(
+                "alice", UserConfigurationMask.MustChangePassword, "Original restriction"), Is.True);
+            using var management = new UserManagementFacade(database);
+            Assert.That(database.DeleteUser("alice"), Is.True);
+            writes = 0;
+            byte[] committed = File.ReadAllBytes(files.FileName);
+            bool deactivated = false;
+            management.UserDeactivated += (_, _) => deactivated = true;
+
+            ServiceResult result = management.ModifyUser(
+                "alice", resetPassword, "replacement-credential", true, UserConfigurationMask.Disabled,
+                true, "Rejected update", "admin");
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
+            Assert.That(writes, Is.Zero);
+            Assert.That(deactivated, Is.False);
+            Assert.That(File.ReadAllBytes(files.FileName), Is.EqualTo(committed));
+            Assert.That(database.GetUsers(), Is.Empty);
+            Assert.That(JsonUserDatabase.Load(files.FileName, NUnitTelemetryContext.Create()).GetUsers(), Is.Empty);
+            Assert.That(management.IsUserActive("alice"), Is.True);
+            Assert.That(management.MustChangePassword("alice"), Is.True);
+            Assert.That(management.SnapshotUsers().Single().Description, Is.EqualTo("Original restriction"));
+        }
+
         /// <summary>
-        /// Verifies that a partial snapshot-write failure preserves the committed database and removes temporary files.
+        /// Verifies that a partial snapshot-write failure preserves the committed database
+        /// and removes temporary files.
         /// </summary>
         [Test]
         public void FailedSnapshotWritePreservesThePreviousCommittedDatabase()
@@ -386,7 +683,8 @@ namespace Opc.Ua.Server.Tests
             using var management = new UserManagementFacade(database);
             management.AddUser("alice", "credential",
                 state == "inactive" ? UserConfigurationMask.Disabled : UserConfigurationMask.None, string.Empty);
-            var authenticator = new UserNamePasswordAuthenticator(database, management, NUnitTelemetryContext.Create());
+            var authenticator = new UserNamePasswordAuthenticator(
+                database, management, NUnitTelemetryContext.Create());
             var handler = new UserNameIdentityTokenHandler(state == "unknown" ? "nobody" : "alice", "credential"u8);
             var context = new AuthenticationContext(
                 handler,
@@ -426,6 +724,44 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         private static readonly string[] s_twoUsers = ["alice", "bob"];
 
+        private sealed class LegacyUserDatabase : IUserDatabase
+        {
+            public bool CreateUser(string userName, ReadOnlySpan<byte> password, ICollection<Role> roles)
+            {
+                return m_database.CreateUser(userName, password, roles);
+            }
+
+            public bool DeleteUser(string userName)
+            {
+                return m_database.DeleteUser(userName);
+            }
+
+            public bool CheckCredentials(string userName, ReadOnlySpan<byte> password)
+            {
+                return m_database.CheckCredentials(userName, password);
+            }
+
+            public ICollection<Role> GetUserRoles(string userName)
+            {
+                return m_database.GetUserRoles(userName);
+            }
+
+            public IReadOnlyList<UserManagementDataType> GetUsers()
+            {
+                return m_database.GetUsers();
+            }
+
+            public bool ChangePassword(
+                string userName,
+                ReadOnlySpan<byte> oldPassword,
+                ReadOnlySpan<byte> newPassword)
+            {
+                return m_database.ChangePassword(userName, oldPassword, newPassword);
+            }
+
+            private readonly LinqUserDatabase m_database = new();
+        }
+
         /// <summary>
         /// Owns an isolated directory for the committed database and any transient snapshot files.
         /// </summary>
@@ -436,7 +772,8 @@ namespace Opc.Ua.Server.Tests
             /// </summary>
             public DatabaseFiles()
             {
-                DirectoryName = Path.Combine(Path.GetTempPath(), "UserDatabaseRegression-" + Guid.NewGuid().ToString("N"));
+                DirectoryName = Path.Combine(
+                    Path.GetTempPath(), "UserDatabaseRegression-" + Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(DirectoryName);
             }
 
