@@ -191,6 +191,10 @@ an `ISession` facade that wraps a raw `Session` and adds:
   snapshot, so an unavailable primary cannot prevent selecting a cached
   backup. A provider that ignores cancellation is still observed, and no
   overlapping refresh is started while it remains in flight.
+  The default handler can resolve cached peer URIs even when the primary is
+  unavailable, and invalidates a peer's cached endpoint after failed failover.
+  Certificate-validation reconnect failures refresh endpoint discovery before
+  recreating the session; normal certificate trust validation still applies.
 - A **service gate** (`m_serviceLock`) that pauses caller-issued service
   calls (Read/Write/Browse/Call/...) for the duration of a reconnect or
   failover, so consumers see one transparent retry rather than a torn

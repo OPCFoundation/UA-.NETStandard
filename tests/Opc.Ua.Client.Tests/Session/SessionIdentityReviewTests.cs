@@ -224,6 +224,61 @@ namespace Opc.Ua.Client.Tests
             await session.CloseAsync(timeout.Token).ConfigureAwait(false);
         }
 
+        [TestCaseSource(nameof(s_peerCertificateErrors))]
+        public async Task PeerCertificateFailureRefreshesDiscoveryBeforeRecreateAsync(StatusCode status)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            ArrayOf<EndpointDescription> endpoints = await ClientFixture.GetEndpointsAsync(ServerUrl, timeout.Token)
+                .ConfigureAwait(false);
+            ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(
+                ServerUrl, SecurityPolicies.Basic256Sha256, endpoints).ConfigureAwait(false);
+            endpoint.UpdateBeforeConnect = false;
+            var channel = new Mock<ITransportChannel>();
+            channel.SetupGet(value => value.MessageContext).Returns(ClientFixture.Config.CreateMessageContext());
+            channel.SetupGet(value => value.EndpointDescription).Returns(endpoint.Description);
+            channel.SetupGet(value => value.SupportedFeatures).Returns(TransportChannelFeatures.Reconnect);
+            channel.Setup(value => value.ReconnectAsync(
+                    It.IsAny<ITransportWaitingConnection>(), It.IsAny<CancellationToken>()))
+                .Throws(new ServiceResultException(status));
+            using var inner = new SessionMock(channel, ClientFixture.Config, endpoint);
+            inner.Restore(new SessionConfiguration
+            {
+                SessionId = NodeId.Parse("s=old-session"),
+                AuthenticationToken = NodeId.Parse("s=old-token"),
+                ServerNonce = ByteString.From(Enumerable.Range(1, 32).Select(value => (byte)value).ToArray()),
+                UserIdentityTokenPolicy = SecurityPolicies.Basic256Sha256
+            });
+            var factory = new Mock<ISessionFactory>();
+            factory.SetupGet(value => value.Telemetry).Returns(Telemetry);
+            factory.SetupGet(value => value.SubscriptionEngineFactory)
+                .Returns(DefaultSubscriptionEngineFactory.Instance);
+            factory.Setup(value => value.CreateAsync(
+                    ClientFixture.Config, endpoint, It.IsAny<bool>(), false,
+                    It.IsAny<string>(), It.IsAny<uint>(), It.IsAny<IUserIdentity>(),
+                    It.IsAny<ArrayOf<string>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(inner);
+            await using ManagedSessionType managed = await ManagedSessionType.CreateAsync(
+                ClientFixture.Config, endpoint, factory.Object,
+                reconnectPolicy: new ReconnectPolicy
+                {
+                    InitialDelay = TimeSpan.Zero,
+                    MaxRetries = 1,
+                    JitterFactor = 0
+                }, ct: timeout.Token).ConfigureAwait(false);
+            Assert.That(endpoint.DiscoveryEndpoints.IsEmpty, Is.True);
+
+            await managed.ReconnectAsync(null, null, timeout.Token).ConfigureAwait(false);
+
+            Assert.That(endpoint.DiscoveryEndpoints.IsEmpty, Is.False);
+            Assert.That(managed.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
+            Assert.That(managed.InnerSession, Is.SameAs(inner));
+            Assert.That(managed.SessionId, Is.Not.EqualTo(NodeId.Parse("s=old-session")));
+            DataValue value = await managed.ReadValueAsync(VariableIds.Server_ServerStatus_State, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            await managed.CloseAsync(timeout.Token).ConfigureAwait(false);
+        }
+
         [Test]
         public async Task OpenUsesRefreshedDiscoveryInsteadOfConstructionSnapshotAsync()
         {
@@ -328,5 +383,12 @@ namespace Opc.Ua.Client.Tests
             Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
             await session.CloseAsync(timeout.Token).ConfigureAwait(false);
         }
+
+        private static readonly StatusCode[] s_peerCertificateErrors =
+        [
+            StatusCodes.BadCertificateInvalid,
+            StatusCodes.BadCertificateUntrusted,
+            StatusCodes.BadSecurityChecksFailed
+        ];
     }
 }

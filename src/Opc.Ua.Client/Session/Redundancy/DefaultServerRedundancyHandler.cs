@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -61,7 +62,7 @@ namespace Opc.Ua.Client
     /// from the current endpoint.
     /// </para>
     /// </remarks>
-    public sealed class DefaultServerRedundancyHandler : IServerRedundancyHandler
+    public sealed class DefaultServerRedundancyHandler : IServerRedundancyHandler, IServerRedundancyEndpointCache
     {
         /// <summary>
         /// The default maintenance retry backoff when the server does not provide a future return time.
@@ -243,6 +244,37 @@ namespace Opc.Ua.Client
             // Healthy even though the endpoint is unreachable. At that point
             // target selection must use the viable peer set directly.
             return SelectBestPeer(redundancyInfo, currentEndpoint)?.Endpoint;
+        }
+
+        async ValueTask<ServerRedundancyInfo> IServerRedundancyEndpointCache.ResolveCachedEndpointsAsync(
+            ServerRedundancyInfo snapshot,
+            ConfiguredEndpoint currentEndpoint,
+            CancellationToken ct)
+        {
+            ArrayOf<RedundantServer> servers = await ResolveEndpointsAsync(
+                snapshot.RedundantServers, currentEndpoint, ct).ConfigureAwait(false);
+            return new ServerRedundancyInfo
+            {
+                Mode = snapshot.Mode,
+                RedundantServers = servers,
+                ServiceLevel = snapshot.ServiceLevel,
+                ServiceLevelAccessible = snapshot.ServiceLevelAccessible,
+                ServiceLevelSubrange = snapshot.ServiceLevelSubrange,
+                EstimatedReturnTime = snapshot.EstimatedReturnTime,
+                CurrentServerId = snapshot.CurrentServerId
+            };
+        }
+
+        void IServerRedundancyEndpointCache.InvalidateEndpoint(ConfiguredEndpoint endpoint)
+        {
+            foreach (KeyValuePair<string, ConfiguredEndpoint> cached in m_resolvedEndpoints)
+            {
+                if (ReferenceEquals(cached.Value, endpoint) ||
+                    Equals(cached.Value.EndpointUrl, endpoint.EndpointUrl))
+                {
+                    ((ICollection<KeyValuePair<string, ConfiguredEndpoint>>)m_resolvedEndpoints).Remove(cached);
+                }
+            }
         }
 
         private async ValueTask<ArrayOf<RedundantServer>> ResolveEndpointsAsync(
@@ -507,7 +539,8 @@ namespace Opc.Ua.Client
         }
 
         private readonly IRedundantServerEndpointResolver m_endpointResolver;
-        private readonly Dictionary<string, ConfiguredEndpoint> m_resolvedEndpoints = new(StringComparer.Ordinal);
+        private readonly ConcurrentDictionary<string, ConfiguredEndpoint> m_resolvedEndpoints =
+            new(StringComparer.Ordinal);
         private readonly TimeProvider m_timeProvider;
     }
 }

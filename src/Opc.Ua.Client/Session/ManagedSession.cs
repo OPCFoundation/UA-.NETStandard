@@ -1361,6 +1361,12 @@ namespace Opc.Ua.Client
                                 ct)
                             .ConfigureAwait(false);
                     }
+                    catch (ServiceResultException sre) when (RequiresEndpointRefresh(sre.StatusCode))
+                    {
+                        m_logger.ManagedSessionReconnectRejectedStatusRecreatingSession(sre, sre.StatusCode);
+                        await RefreshEndpointAsync(session.ConfiguredEndpoint, ct).ConfigureAwait(false);
+                        await RecreateInPlaceAndRebindAsync(session, null, budget, ct).ConfigureAwait(false);
+                    }
                     catch (ServiceResultException sre) when (
                         RequiresSessionRecreate(sre.StatusCode))
                     {
@@ -1376,11 +1382,6 @@ namespace Opc.Ua.Client
                         m_logger.ManagedSessionReconnectRejectedStatusRecreatingSession(
                             sre,
                             sre.StatusCode);
-                        if (RequiresEndpointRefresh(sre.StatusCode))
-                        {
-                            await RefreshEndpointAsync(session.ConfiguredEndpoint, ct)
-                                .ConfigureAwait(false);
-                        }
                         await RecreateInPlaceAndRebindAsync(session, null, budget, ct)
                             .ConfigureAwait(false);
                     }
@@ -1508,9 +1509,7 @@ namespace Opc.Ua.Client
         private Task RefreshEndpointAsync(ConfiguredEndpoint endpoint, CancellationToken ct)
         {
             return endpoint.UpdateFromServerAsync(
-                endpoint.EndpointUrl!,
-                endpoint.Description.SecurityMode,
-                endpoint.Description.SecurityPolicyUri!,
+                m_configuration,
                 SessionFactory.Telemetry,
                 ct);
         }
@@ -1554,6 +1553,7 @@ namespace Opc.Ua.Client
                     StatusCodes.BadNotSupported);
             }
 
+            ConfiguredEndpoint? failoverEndpoint = null;
             try
             {
                 await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
@@ -1564,9 +1564,8 @@ namespace Opc.Ua.Client
 
                 ConfiguredEndpoint currentEndpoint = m_session?.ConfiguredEndpoint
                     ?? ConfiguredEndpoint;
-                ConfiguredEndpoint? failoverEndpoint =
-                    m_redundancyHandler.SelectFailoverTarget(
-                        m_redundancyInfo, currentEndpoint);
+                await RefreshRedundancyInfoBestEffortAsync(ct, resolveCachedEndpoints: true).ConfigureAwait(false);
+                failoverEndpoint = m_redundancyHandler.SelectFailoverTarget(m_redundancyInfo, currentEndpoint);
 
                 if (failoverEndpoint == null)
                 {
@@ -1611,25 +1610,59 @@ namespace Opc.Ua.Client
             }
             catch (Exception ex)
             {
+                if (ex is not OperationCanceledException &&
+                    failoverEndpoint != null &&
+                    m_redundancyHandler is IServerRedundancyEndpointCache cache)
+                {
+                    cache.InvalidateEndpoint(failoverEndpoint);
+                }
                 m_logger.ManagedSessionFailoverFailed(ex);
                 return ToAttemptFailure(ex);
             }
         }
 
-        private async Task RefreshRedundancyInfoBestEffortAsync(CancellationToken ct)
+        private async Task RefreshRedundancyInfoBestEffortAsync(
+            CancellationToken ct,
+            bool resolveCachedEndpoints = false)
         {
             ct.ThrowIfCancellationRequested();
-            Task<ServerRedundancyInfo>? previous = m_redundancyRefreshTask;
-            if (m_redundancyHandler == null || (previous != null && !previous.IsCompleted))
+            IServerRedundancyHandler? handler = m_redundancyHandler;
+            Task<ServerRedundancyInfo>? previous = resolveCachedEndpoints
+                ? m_redundancyEndpointRefreshTask
+                : m_redundancyRefreshTask;
+            if (handler == null || (previous != null && !previous.IsCompleted))
             {
                 return;
+            }
+
+            Func<CancellationToken, ValueTask<ServerRedundancyInfo>> operation;
+            if (resolveCachedEndpoints)
+            {
+                ServerRedundancyInfo? snapshot = m_redundancyInfo;
+                if (handler is not IServerRedundancyEndpointCache cache || snapshot == null)
+                {
+                    return;
+                }
+                ConfiguredEndpoint current = m_session?.ConfiguredEndpoint ?? ConfiguredEndpoint;
+                operation = token => cache.ResolveCachedEndpointsAsync(snapshot, current, token);
+            }
+            else
+            {
+                operation = token => handler.FetchRedundancyInfoAsync(this, token);
             }
 
             Task<ServerRedundancyInfo>? refresh = null;
             try
             {
-                refresh = FetchRedundancySnapshotAsync(m_redundancyHandler, ct);
-                m_redundancyRefreshTask = refresh;
+                refresh = FetchRedundancySnapshotAsync(operation, ct);
+                if (resolveCachedEndpoints)
+                {
+                    m_redundancyEndpointRefreshTask = refresh;
+                }
+                else
+                {
+                    m_redundancyRefreshTask = refresh;
+                }
                 m_redundancyInfo = await refresh.WaitAsync(s_redundancyRefreshTimeout, m_timeProvider, ct)
                     .ConfigureAwait(false)
                     ?? throw ServiceResultException.Unexpected("The redundancy handler returned no snapshot.");
@@ -1650,13 +1683,13 @@ namespace Opc.Ua.Client
         }
 
         private async Task<ServerRedundancyInfo> FetchRedundancySnapshotAsync(
-            IServerRedundancyHandler handler,
+            Func<CancellationToken, ValueTask<ServerRedundancyInfo>> operation,
             CancellationToken ct)
         {
             using CancellationTokenSource timeout = m_timeProvider.CreateCancellationTokenSource(
                 s_redundancyRefreshTimeout);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
-            return await handler.FetchRedundancyInfoAsync(this, linked.Token).ConfigureAwait(false);
+            return await operation(linked.Token).ConfigureAwait(false);
         }
 
         private async Task ObserveLateRedundancyRefreshAsync(Task<ServerRedundancyInfo> refresh)
@@ -2341,6 +2374,7 @@ namespace Opc.Ua.Client
         private int m_channelReconnectInProgress;
         private ServerRedundancyInfo? m_redundancyInfo;
         private Task<ServerRedundancyInfo>? m_redundancyRefreshTask;
+        private Task<ServerRedundancyInfo>? m_redundancyEndpointRefreshTask;
         private static readonly TimeSpan s_redundancyRefreshTimeout = TimeSpan.FromSeconds(2);
         private readonly Lock m_identityRefreshLock = new();
 #pragma warning disable CA2213

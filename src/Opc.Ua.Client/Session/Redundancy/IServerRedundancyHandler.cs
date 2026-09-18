@@ -77,6 +77,16 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint currentEndpoint);
     }
 
+    internal interface IServerRedundancyEndpointCache
+    {
+        ValueTask<ServerRedundancyInfo> ResolveCachedEndpointsAsync(
+            ServerRedundancyInfo snapshot,
+            ConfiguredEndpoint currentEndpoint,
+            CancellationToken ct);
+
+        void InvalidateEndpoint(ConfiguredEndpoint endpoint);
+    }
+
     /// <summary>
     /// Extension methods for <see cref="IServerRedundancyHandler"/>.
     /// </summary>

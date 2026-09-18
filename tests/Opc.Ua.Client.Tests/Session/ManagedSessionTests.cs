@@ -37,6 +37,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Identity;
 using Opc.Ua.Tests;
 
@@ -436,6 +437,93 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 refresh.TrySetResult(cached);
                 await managed.DisposeAsync().ConfigureAwait(false);
             }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailoverResolvesCachedPeersAndInvalidatesFailedPeerAsync(bool initiallyResolved)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ConfiguredEndpoint primary = CreateEndpoint();
+            primary.UpdateBeforeConnect = false;
+            primary.Description.Server.ApplicationUri = "urn:primary";
+            ConfiguredEndpoint oldPeer = CreateEndpoint();
+            oldPeer.Description.Server.ApplicationUri = "urn:backup";
+            oldPeer.Description.EndpointUrl = "opc.tcp://backup:4840";
+            ConfiguredEndpoint refreshedPeer = CreateEndpoint();
+            refreshedPeer.Description.Server.ApplicationUri = "urn:backup";
+            refreshedPeer.Description.EndpointUrl = "opc.tcp://backup:4841";
+            var resolver = new Mock<IRedundantServerEndpointResolver>();
+            int resolutions = 0;
+            resolver.Setup(value => value.ResolveAsync(
+                    "urn:backup", It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() =>
+                {
+                    resolutions++;
+                    return resolutions == 1 ? initiallyResolved ? oldPeer : null : refreshedPeer;
+                });
+            var redundancy = new DefaultServerRedundancyHandler(resolver.Object);
+            var response = new ReadResponse
+            {
+                Results =
+                [
+                    new DataValue((int)RedundancySupport.Hot),
+                    new DataValue((byte)0),
+                    DataValue.FromStatusCode(StatusCodes.BadNodeIdUnknown),
+                    new DataValue(ArrayOf.Create(["urn:backup"])),
+                    new DataValue(new Variant(DateTime.MinValue))
+                ]
+            };
+            var channel = new Mock<ITransportChannel>();
+            channel.SetupGet(value => value.MessageContext).Returns(configuration.CreateMessageContext());
+            channel.SetupSequence(value => value.SendRequestAsync(
+                    It.IsAny<ReadRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(response)
+                .Throws(new ServiceResultException(StatusCodes.BadConnectionClosed));
+            using var inner = new SessionMock(channel, configuration, primary);
+            inner.SetConnected();
+            var lease = new Mock<IManagedTransportChannel>();
+            lease.SetupGet(value => value.MessageContext).Returns(inner.MessageContext);
+            var manager = new Mock<IClientChannelManager>();
+            ConfiguredEndpoint? attemptedPeer = null;
+            manager.Setup(value => value.GetAsync(
+                    It.IsAny<ConfiguredEndpoint>(),
+                    It.IsAny<Func<IManagedTransportChannel, IReconnectParticipant>>(),
+                    It.IsAny<ITransportWaitingConnection>(), It.IsAny<CancellationToken>()))
+                .Callback<ConfiguredEndpoint, Func<IManagedTransportChannel, IReconnectParticipant>,
+                    ITransportWaitingConnection?, CancellationToken>((endpoint, _, _, _) => attemptedPeer = endpoint)
+                .Throws(new ServiceResultException(StatusCodes.BadServerHalted));
+            inner.BindManagedChannel(manager.Object, lease.Object);
+            var factory = new Mock<ISessionFactory>();
+            factory.SetupGet(value => value.Telemetry).Returns(telemetry);
+            factory.SetupGet(value => value.SubscriptionEngineFactory)
+                .Returns(DefaultSubscriptionEngineFactory.Instance);
+            factory.Setup(value => value.CreateAsync(
+                    configuration, primary, false, false, It.IsAny<string>(), It.IsAny<uint>(),
+                    It.IsAny<IUserIdentity>(), It.IsAny<ArrayOf<string>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(inner);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await using Client.ManagedSession managed = await Client.ManagedSession.CreateAsync(
+                configuration, primary, factory.Object, redundancyHandler: redundancy, ct: timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(managed.RedundancySupport, Is.EqualTo(RedundancySupport.Hot));
+
+            ServiceResult result = await managed.StateMachine.FailoverWithBudgetAsync!(
+                new RetryBudget(TimeSpan.FromSeconds(30)), timeout.Token).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
+            Assert.That(attemptedPeer, Is.SameAs(initiallyResolved ? oldPeer : refreshedPeer));
+            var source = new Mock<ISession>();
+            source.SetupGet(value => value.ConfiguredEndpoint).Returns(primary);
+            source.Setup(value => value.ReadAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(response);
+            ServerRedundancyInfo next = await redundancy.FetchRedundancyInfoAsync(source.Object, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(next.RedundantServers[0].Endpoint, Is.SameAs(refreshedPeer));
+            Assert.That(resolutions, Is.EqualTo(initiallyResolved ? 2 : 3));
         }
 
         [Test]
