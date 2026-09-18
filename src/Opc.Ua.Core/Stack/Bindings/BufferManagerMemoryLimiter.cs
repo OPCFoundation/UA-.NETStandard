@@ -68,8 +68,11 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
-                m_disposed = true;
-                m_capacityChanged.Set();
+                if (!m_disposed)
+                {
+                    m_disposed = true;
+                    m_capacityChanged.Release();
+                }
             }
             GC.SuppressFinalize(this);
         }
@@ -122,7 +125,6 @@ namespace Opc.Ua
                             "A buffer rent cannot synchronously re-enter the same limiter during a return.");
                     }
 
-                    m_capacityChanged.Reset();
                 }
 
                 m_capacityChanged.Wait(ct);
@@ -192,7 +194,7 @@ namespace Opc.Ua
 
             if (signalCapacityChanged)
             {
-                m_capacityChanged.Set();
+                m_capacityChanged.Release();
             }
 
             return reservationFits;
@@ -227,7 +229,7 @@ namespace Opc.Ua
 
             if (signalCapacityChanged)
             {
-                m_capacityChanged.Set();
+                m_capacityChanged.Release();
             }
         }
 
@@ -315,7 +317,7 @@ namespace Opc.Ua
 
             if (signalCapacityChanged)
             {
-                m_capacityChanged.Set();
+                m_capacityChanged.Release();
             }
         }
 
@@ -448,13 +450,13 @@ namespace Opc.Ua
         private readonly Dictionary<byte[], long> m_buffers = [];
         private readonly Dictionary<long, Reservation> m_reservations = [];
 
-        // Waiters can still be unwinding when the DI-owned limiter is disposed.
-        // TODO: Replace this shared signal with a disposable waiter registry.
+        // A semaphore gives each capacity release to one waiter without allowing
+        // another waiter to reset a shared manual-reset signal after the release.
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
             "Usage",
             "CA2213:Disposable fields should be disposed",
-            Justification = "Disposing while blocked renters unwind races with Set/Wait; the signal is reclaimed with the limiter.")]
-        private readonly ManualResetEventSlim m_capacityChanged = new(initialState: true);
+            Justification = "Blocked renters may still be unwinding when the limiter is disposed.")]
+        private readonly SemaphoreSlim m_capacityChanged = new(0, int.MaxValue);
 
         private long m_nextReservationId;
         private long m_outstandingBytes;

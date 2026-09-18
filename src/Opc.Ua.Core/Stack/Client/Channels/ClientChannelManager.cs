@@ -1016,7 +1016,11 @@ namespace Opc.Ua
                     if (created)
                     {
                         await entry.OpenInitialAsync(
-                            certificates.Certificate, certificates.Chain, certificates.Version, ct)
+                                certificates.Certificate,
+                                certificates.Chain,
+                                certificates.Version,
+                                m_shutdownCts.Token)
+                            .WaitAsync(ct)
                             .ConfigureAwait(false);
                     }
                     return entry.AcquireLease(participantFactory);
@@ -1036,9 +1040,16 @@ namespace Opc.Ua
                     {
                         lock (m_entries)
                         {
-                            m_entries.Remove(key);
+                            if (m_entries.TryGetValue(key, out ChannelEntry? current) &&
+                                ReferenceEquals(current, entry))
+                            {
+                                m_entries.Remove(key);
+                            }
                         }
-                        await entry.DisposeAsync().ConfigureAwait(false);
+                        if (entry.RefCount == 0)
+                        {
+                            await entry.DisposeAsync().ConfigureAwait(false);
+                        }
                     }
                     throw;
                 }

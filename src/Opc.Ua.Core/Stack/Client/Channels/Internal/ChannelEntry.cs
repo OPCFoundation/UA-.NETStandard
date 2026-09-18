@@ -244,7 +244,10 @@ namespace Opc.Ua
                     ChannelState.Faulted,
                     new ServiceResult(ex),
                     attempt: 0);
-                FailReady(ex);
+                FailReady(ServiceResultException.Create(
+                    StatusCodes.BadSecureChannelClosed,
+                    ex,
+                    "The shared channel failed during initial opening."));
                 throw;
             }
         }

@@ -927,7 +927,8 @@ namespace Opc.Ua.Bindings
             {
                 if (state is WriteOperation operation && ServiceResult.IsBad(result))
                 {
-                    operation.Fault(new ServiceResult(StatusCodes.BadSecurityChecksFailed, result));
+                    operation.Fault(result);
+                    ForceReconnectCore(result);
                 }
             }
 

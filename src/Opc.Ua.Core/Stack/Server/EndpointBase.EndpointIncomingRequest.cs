@@ -39,7 +39,7 @@ namespace Opc.Ua
         /// <summary>
         /// An object that handles an incoming request for an endpoint.
         /// </summary>
-        protected readonly struct EndpointIncomingRequest : IParkableIncomingRequest, IEquatable<EndpointIncomingRequest>
+        protected struct EndpointIncomingRequest : IParkableIncomingRequest, IEquatable<EndpointIncomingRequest>
         {
             /// <summary>
             /// Initialize the Object with a Request
@@ -53,6 +53,7 @@ namespace Opc.Ua
                 SecureChannelContext = context;
                 Request = request;
                 m_vts = ServiceResponsePooledValueTaskSource.Create();
+                m_transportCancellationToken = default;
 
                 // Only requests that can park (currently Publish long-polls) carry a park
                 // sink; every other request uses the legacy inline path with no extra
@@ -77,6 +78,7 @@ namespace Opc.Ua
             {
                 try
                 {
+                    m_transportCancellationToken = cancellationToken;
                     m_endpoint.ServerForContext.ScheduleIncomingRequest(this, cancellationToken);
                 }
                 catch (Exception e)
@@ -96,8 +98,8 @@ namespace Opc.Ua
 
                 using var requestLifetime = new RequestLifetime(
                     timeoutHintCts != null ?
-                    [cancellationToken, timeoutHintCts.Token] :
-                    [cancellationToken]);
+                    [cancellationToken, m_transportCancellationToken, timeoutHintCts.Token] :
+                    [cancellationToken, m_transportCancellationToken]);
 
                 // Flow the park sink so a handler that parks (e.g. a held Publish
                 // waiting for notifications) can release the processing worker.
@@ -209,6 +211,7 @@ namespace Opc.Ua
             private readonly EndpointBase m_endpoint;
             private readonly ServiceResponsePooledValueTaskSource m_vts;
             private readonly RequestParkSink? m_parkSink;
+            private CancellationToken m_transportCancellationToken;
         }
     }
 }

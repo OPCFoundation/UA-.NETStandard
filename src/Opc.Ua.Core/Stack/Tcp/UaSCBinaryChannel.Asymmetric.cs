@@ -225,7 +225,9 @@ namespace Opc.Ua.Bindings
                 case CertificateKeyFamily.RSA:
                     if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.RSADH)
                     {
-                        m_localNonce = Nonce.CreateNonce(securityPolicy);
+                        Nonce localNonce = Nonce.CreateNonce(securityPolicy);
+                        m_localNonce?.Dispose();
+                        m_localNonce = localNonce;
                         return m_localNonce!.Data;
                     }
                     // Basic128Rsa15 is the only RSA based security policy that allows nonces
@@ -237,8 +239,12 @@ namespace Opc.Ua.Bindings
                         securityPolicy.SecureChannelNonceLength,
                         enforceMinimumLength);
                 case CertificateKeyFamily.ECC:
-                    m_localNonce = Nonce.CreateNonce(securityPolicy);
-                    return m_localNonce!.Data;
+                    {
+                        Nonce localNonce = Nonce.CreateNonce(securityPolicy);
+                        m_localNonce?.Dispose();
+                        m_localNonce = localNonce;
+                        return m_localNonce!.Data;
+                    }
                 default:
                     return null;
             }
@@ -279,7 +285,9 @@ namespace Opc.Ua.Bindings
                     case CertificateKeyFamily.RSA:
                         if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.RSADH)
                         {
-                            m_remoteNonce = Nonce.CreateNonce(securityPolicy, nonce);
+                            Nonce newRemoteNonce = Nonce.CreateNonce(securityPolicy, nonce);
+                            m_remoteNonce?.Dispose();
+                            m_remoteNonce = newRemoteNonce;
                             return true;
                         }
 
@@ -293,8 +301,12 @@ namespace Opc.Ua.Bindings
                         }
                         break;
                     case CertificateKeyFamily.ECC:
-                        m_remoteNonce = Nonce.CreateNonce(securityPolicy, nonce);
-                        return true;
+                        {
+                            Nonce newRemoteNonce = Nonce.CreateNonce(securityPolicy, nonce);
+                            m_remoteNonce?.Dispose();
+                            m_remoteNonce = newRemoteNonce;
+                            return true;
+                        }
                 }
             }
             catch (ArgumentException e)

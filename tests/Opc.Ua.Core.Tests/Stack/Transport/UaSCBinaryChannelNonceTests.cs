@@ -31,6 +31,7 @@
 #nullable enable
 
 using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
@@ -132,6 +133,22 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(channel.ValidateNonceForTest(new byte[NonceLength - 1]), Is.False);
         }
 
+        [Test]
+        public void CreatingANewEphemeralNonceDisposesThePreviousKey()
+        {
+            using TestChannel channel = CreateChannel();
+
+            channel.CreateNonceForTest();
+            Nonce first = channel.LocalNonceForTest!;
+
+            channel.CreateNonceForTest();
+
+            object? firstKey = typeof(Nonce)
+                .GetField("m_ecdh", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(first);
+            Assert.That(firstKey, Is.Null);
+        }
+
         private const int NonceLength = 384;
 
         private TestChannel CreateChannel()
@@ -160,6 +177,21 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public bool ValidateNonceForTest(byte[] nonce)
             {
                 return ValidateNonce(null, nonce);
+            }
+
+            public byte[] CreateNonceForTest()
+            {
+                return CreateNonce(null)!;
+            }
+
+            public Nonce? LocalNonceForTest
+            {
+                get
+                {
+                    return typeof(UaSCUaBinaryChannel)
+                        .GetField("m_localNonce", BindingFlags.Instance | BindingFlags.NonPublic)!
+                        .GetValue(this) as Nonce;
+                }
             }
         }
     }

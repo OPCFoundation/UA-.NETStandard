@@ -548,7 +548,7 @@ namespace Opc.Ua
                         statusCode.CodeBits),
                     new KeyValuePair<string, object?>(
                         "server.address",
-                        Endpoint?.EndpointUrl),
+                        m_channel?.EndpointDescription?.EndpointUrl),
                     new KeyValuePair<string, object?>(
                         "opc.ua.request.timeout",
                         NullableTransportChannel?.OperationTimeout)));

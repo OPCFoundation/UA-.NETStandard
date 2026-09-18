@@ -1477,20 +1477,14 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            int countForDisconnect = 5;
-            while (ChannelFull && countForDisconnect > 0)
+            if (ChannelFull)
             {
                 m_logger.TcpServerLog13(Id);
-
-                // delay reading from channel
-                Thread.Sleep(1000);
-
-                if (--countForDisconnect == 0 && ChannelFull)
-                {
-                    m_logger.TcpServerLog14(Id);
-                    ChannelClosed();
-                    return false;
-                }
+                m_logger.TcpServerLog14(Id);
+                ForceChannelFaultCore(
+                    StatusCodes.BadTcpNotEnoughResources,
+                    "The channel write queue is full.");
+                return false;
             }
 
             BufferCollection? chunksToProcess = null;
