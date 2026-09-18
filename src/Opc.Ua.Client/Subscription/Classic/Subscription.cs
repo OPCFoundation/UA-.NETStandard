@@ -1871,15 +1871,18 @@ namespace Opc.Ua.Client
                 // loop below would otherwise insert one placeholder per
                 // sequence number from 1 up to the server's current one -
                 // millions of them for a long-lived subscription.
-                if (node is not null && !m_resyncLastSequenceNumberProcessed)
+                if (node is not null &&
+                    !m_resyncLastSequenceNumberProcessed &&
+                    IsNewerSequenceNumber(node.Value.SequenceNumber, m_lastSequenceNumberProcessed))
                 {
-                    //gaps between m_lastSequenceNumberProcessed and starting node
                     LinkedListNode<IncomingMessage> currentNode = node;
-                    uint expectedSequenceNumber = m_lastSequenceNumberProcessed + 1;
-                    uint gap = node.Value.SequenceNumber - expectedSequenceNumber;
+                    uint expectedSequenceNumber = NextSequenceNumber(m_lastSequenceNumberProcessed);
+                    uint gap = ForwardSequenceGap(expectedSequenceNumber, node.Value.SequenceNumber);
                     if (gap > kMaxSequenceNumberGap)
                     {
-                        m_lastSequenceNumberProcessed = node.Value.SequenceNumber - 1;
+                        m_lastSequenceNumberProcessed = node.Value.SequenceNumber == 1
+                            ? uint.MaxValue
+                            : node.Value.SequenceNumber - 1;
                         m_logger.SubscriptionIdSubscriptionIdResyncedLastSequenceNumber(
                             Id,
                             m_lastSequenceNumberProcessed,
@@ -1887,11 +1890,12 @@ namespace Opc.Ua.Client
                     }
                     else
                     {
-                        for (uint i = node.Value.SequenceNumber; i > expectedSequenceNumber; i--)
+                        for (uint i = node.Value.SequenceNumber; i != expectedSequenceNumber;)
                         {
+                            i = i == 1 ? uint.MaxValue : i - 1;
                             var placeholder = new IncomingMessage
                             {
-                                SequenceNumber = i - 1,
+                                SequenceNumber = i,
                                 Timestamp = now,
                                 MonotonicTimestamp = monotonicTimestamp
                             };
@@ -1908,26 +1912,34 @@ namespace Opc.Ua.Client
 
                 while (node != null)
                 {
-                    //gaps between neighbouring nodes
                     entry = node.Value;
                     LinkedListNode<IncomingMessage>? next = node.Next;
+                    uint expectedSequenceNumber = NextSequenceNumber(entry.SequenceNumber);
 
-                    if (next != null && next.Value.SequenceNumber > entry.SequenceNumber + 1)
+                    if (next != null &&
+                        next.Value.SequenceNumber != expectedSequenceNumber &&
+                        IsNewerSequenceNumber(next.Value.SequenceNumber, entry.SequenceNumber))
                     {
-                        uint gap = next.Value.SequenceNumber - entry.SequenceNumber - 1;
+                        uint gap = ForwardSequenceGap(expectedSequenceNumber, next.Value.SequenceNumber);
                         if (gap > kMaxSequenceNumberGap)
                         {
-                            m_lastSequenceNumberProcessed = next.Value.SequenceNumber - 1;
-                            m_logger.SubscriptionIdSubscriptionIdResyncedLastSequenceNumber(
-                                Id,
-                                m_lastSequenceNumberProcessed,
-                                Session?.SessionId);
+                            uint predecessor = next.Value.SequenceNumber == 1
+                                ? uint.MaxValue
+                                : next.Value.SequenceNumber - 1;
+                            if (IsNewerSequenceNumber(predecessor, m_lastSequenceNumberProcessed))
+                            {
+                                m_lastSequenceNumberProcessed = predecessor;
+                                m_logger.SubscriptionIdSubscriptionIdResyncedLastSequenceNumber(
+                                    Id,
+                                    m_lastSequenceNumberProcessed,
+                                    Session?.SessionId);
+                            }
                         }
                         else
                         {
                             var placeholder = new IncomingMessage
                             {
-                                SequenceNumber = entry.SequenceNumber + 1,
+                                SequenceNumber = expectedSequenceNumber,
                                 Timestamp = now,
                                 MonotonicTimestamp = monotonicTimestamp
                             };
@@ -1962,7 +1974,7 @@ namespace Opc.Ua.Client
                     if (next != null)
                     {
                         //If the message being removed is supposed to be the next message, advance it to release anything waiting on it to be processed
-                        if (entry.SequenceNumber == m_lastSequenceNumberProcessed + 1)
+                        if (entry.SequenceNumber == NextSequenceNumber(m_lastSequenceNumberProcessed))
                         {
                             if (!entry.Processed)
                             {
@@ -2771,9 +2783,7 @@ namespace Opc.Ua.Client
                             ii.Value.Processed = true;
 
                             // Keep the last sequence number processed going up
-                            if (ii.Value.SequenceNumber > m_lastSequenceNumberProcessed ||
-                                (ii.Value.SequenceNumber == 1 &&
-                                    m_lastSequenceNumberProcessed == uint.MaxValue))
+                            if (IsNewerSequenceNumber(ii.Value.SequenceNumber, m_lastSequenceNumberProcessed))
                             {
                                 m_lastSequenceNumberProcessed = ii.Value.SequenceNumber;
                                 if (m_resyncLastSequenceNumberProcessed)
@@ -3366,6 +3376,22 @@ namespace Opc.Ua.Client
                 // save in cache.
                 monitoredItem.SaveValueInCache(eventFields);
             }
+        }
+
+        private static uint NextSequenceNumber(uint sequenceNumber)
+        {
+            return sequenceNumber == uint.MaxValue ? 1 : sequenceNumber + 1;
+        }
+
+        private static bool IsNewerSequenceNumber(uint sequenceNumber, uint previous)
+        {
+            return sequenceNumber != 0 &&
+                (previous == 0 || unchecked(sequenceNumber - previous) is > 0 and < (1u << 31));
+        }
+
+        private static uint ForwardSequenceGap(uint expected, uint actual)
+        {
+            return actual >= expected ? actual - expected : uint.MaxValue - expected + actual;
         }
 
         /// <summary>

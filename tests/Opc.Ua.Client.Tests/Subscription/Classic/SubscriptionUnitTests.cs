@@ -28,10 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -386,6 +388,72 @@ namespace Opc.Ua.Client.Tests
             {
                 Assert.That(subscription.Notifications, Is.EquivalentTo(messages.Skip(1)));
             }
+        }
+
+        /// <summary>
+        /// Steady delivery and sequence rollover do not resynchronize the cursor backwards.
+        /// </summary>
+        [TestCase("steady", false)]
+        [TestCase("steady", true)]
+        [TestCase("wrap", false)]
+        [TestCase("wrap", true)]
+        [TestCase("pending", false)]
+        public async Task LeadingGapDoesNotRewindOrLogDuringSteadyDeliveryAsync(
+            string scenario, bool sequentialPublishing)
+        {
+            ArrayOf<uint> sequenceNumbers = scenario switch
+            {
+                "steady" => [1, 2, 3],
+                "wrap" => [uint.MaxValue, 1, 2],
+                "pending" => [1, 4, 5],
+                _ => throw new ArgumentOutOfRangeException(nameof(scenario))
+            };
+            var logger = new Mock<ILogger>();
+            logger.Setup(value => value.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
+            var loggerFactory = new Mock<ILoggerFactory>();
+            loggerFactory.Setup(value => value.CreateLogger(It.IsAny<string>())).Returns(logger.Object);
+            var telemetry = new Mock<ITelemetryContext>();
+            telemetry.SetupGet(value => value.LoggerFactory).Returns(loggerFactory.Object);
+            var received = new ConcurrentQueue<uint>();
+            var completions = new Dictionary<uint, TaskCompletionSource<bool>>();
+            foreach (uint sequenceNumber in sequenceNumbers)
+            {
+                completions.Add(sequenceNumber,
+                    new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
+            }
+            using var subscription = new Subscription(telemetry.Object)
+            {
+                Session = BuildSessionMock(),
+                SequentialPublishing = sequentialPublishing,
+                FastDataChangeCallback = (_, notification, _) =>
+                {
+                    received.Enqueue(notification.SequenceNumber);
+                    completions[notification.SequenceNumber].TrySetResult(true);
+                }
+            };
+            await subscription.CreateAsync(CancellationToken.None).ConfigureAwait(false);
+            for (int index = 0; index < sequenceNumbers.Count; index++)
+            {
+                uint sequenceNumber = sequenceNumbers[index];
+                subscription.SaveMessageInCache([], new NotificationMessage
+                {
+                    SequenceNumber = sequenceNumber,
+                    NotificationData = [new ExtensionObject(new DataChangeNotification())]
+                });
+                await completions[sequenceNumber].Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                if (index == 0)
+                {
+                    logger.Invocations.Clear();
+                }
+            }
+
+            Assert.That(received, Is.EqualTo(sequenceNumbers.ToArray()));
+            Assert.That(logger.Invocations.Where(invocation =>
+                invocation.Method.Name == nameof(ILogger.Log) &&
+                invocation.Arguments[1] is EventId id &&
+                id.Name == "SubscriptionIdSubscriptionIdResyncedLastSequenceNumber"), Is.Empty);
+            Mock.Get(subscription.Session).Verify(value => value.RepublishAsync(
+                It.IsAny<uint>(), 0, It.IsAny<CancellationToken>()), Times.Never);
         }
 
         /// <summary>
