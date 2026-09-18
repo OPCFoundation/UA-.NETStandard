@@ -894,8 +894,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 m_backgroundWork.Run(
                     nameof(RecoverAfterSubscriptionTimeoutAsync),
-                    async _ => await RecoverAfterSubscriptionTimeoutAsync()
-                        .ConfigureAwait(false));
+                    RecoverAfterSubscriptionTimeoutAsync);
             }
             return default;
         }
@@ -943,13 +942,14 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
-        private async Task RecoverAfterSubscriptionTimeoutAsync()
+        private async ValueTask RecoverAfterSubscriptionTimeoutAsync(CancellationToken ct)
         {
             try
             {
-                await ResetToRecreateAsync(m_cts.Token).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                await ResetToRecreateAsync(ct).ConfigureAwait(false);
             }
-            catch (OperationCanceledException) when (m_cts.IsCancellationRequested)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
             }
             finally

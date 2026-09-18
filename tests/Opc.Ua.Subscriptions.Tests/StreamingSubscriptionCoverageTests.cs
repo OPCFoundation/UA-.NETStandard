@@ -281,7 +281,7 @@ namespace Opc.Ua.Subscriptions.Tests
             var releaseItemReady = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var readiness = (IStreamingSubscriptionReadiness)subscription;
-            IAsyncEnumerator<EventNotification> enumerator = readiness
+            await using IAsyncEnumerator<EventNotification> enumerator = readiness
                 .SubscribeEventsAsync(
                     s_notifier,
                     new EventFilter(),
@@ -292,28 +292,35 @@ namespace Opc.Ua.Subscriptions.Tests
                         await releaseItemReady.Task.ConfigureAwait(false);
                     })
                 .GetAsyncEnumerator();
-            Task<bool> firstMove = Task.Run(() => enumerator.MoveNextAsync().AsTask());
+            Task<bool> move = enumerator.MoveNextAsync().AsTask();
+            try
+            {
+                await itemReady.Task.WaitAsync(s_safetyTimeout).ConfigureAwait(false);
+                StubMonitoredItem item = manager.Subscription!.Collection.Added[0];
+                await FireEventsAsync(
+                    manager,
+                    new EventNotification(item, ArrayOf.Wrapped(Variant.From(1))),
+                    new EventNotification(item, ArrayOf.Wrapped(Variant.From(2))),
+                    new EventNotification(item, ArrayOf.Wrapped(Variant.From(3))))
+                    .ConfigureAwait(false);
 
-            await itemReady.Task.WaitAsync(s_safetyTimeout).ConfigureAwait(false);
-            StubMonitoredItem item = manager.Subscription!.Collection.Added[0];
-            await FireEventsAsync(
-                manager,
-                new EventNotification(item, ArrayOf.Wrapped(Variant.From(1))),
-                new EventNotification(item, ArrayOf.Wrapped(Variant.From(2))),
-                new EventNotification(item, ArrayOf.Wrapped(Variant.From(3))))
-                .ConfigureAwait(false);
-
-            releaseItemReady.SetResult(true);
-            Assert.That(await WithinTimeoutAsync(firstMove).ConfigureAwait(false), Is.True);
-            Assert.That(
-                enumerator.Current.Fields[0],
-                Is.EqualTo(Variant.From(firstExpected)));
-            Assert.That(await enumerator.MoveNextAsync().ConfigureAwait(false), Is.True);
-            Assert.That(
-                enumerator.Current.Fields[0],
-                Is.EqualTo(Variant.From(secondExpected)));
-
-            await enumerator.DisposeAsync().ConfigureAwait(false);
+                releaseItemReady.SetResult(true);
+                Assert.That(await WithinTimeoutAsync(move).ConfigureAwait(false), Is.True);
+                Assert.That(
+                    enumerator.Current.Fields[0],
+                    Is.EqualTo(Variant.From(firstExpected)));
+                move = enumerator.MoveNextAsync().AsTask();
+                Assert.That(await WithinTimeoutAsync(move).ConfigureAwait(false), Is.True);
+                Assert.That(
+                    enumerator.Current.Fields[0],
+                    Is.EqualTo(Variant.From(secondExpected)));
+            }
+            finally
+            {
+                releaseItemReady.TrySetResult(true);
+                await subscription.DisposeAsync().ConfigureAwait(false);
+                await WithinTimeoutAsync(move).ConfigureAwait(false);
+            }
         }
 
         [Test]

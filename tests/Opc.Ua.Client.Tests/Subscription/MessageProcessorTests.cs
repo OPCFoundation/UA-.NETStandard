@@ -212,7 +212,10 @@ namespace Opc.Ua.Client.Subscriptions
                             }
                             catch (InvalidOperationException exception)
                             {
-                                disposalStarted.TrySetResult(exception);
+                                if (!disposalStarted.TrySetResult(exception))
+                                {
+                                    throw;
+                                }
                             }
                         });
                     }
@@ -268,7 +271,10 @@ namespace Opc.Ua.Client.Subscriptions
                     .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 await m_completion.WaitForQueuedAckAsync(1).ConfigureAwait(false);
                 sut.CallbackReturned.TrySetResult(true);
-                Assert.That(await sut.DeferredDispatchGuard.ConfigureAwait(false), Is.False);
+                Assert.That(sut.DeferredDispatchGuard, Is.Not.Null);
+                Assert.That(
+                    await sut.DeferredDispatchGuard!.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false),
+                    Is.False);
             }
         }
 
@@ -294,7 +300,10 @@ namespace Opc.Ua.Client.Subscriptions
                     .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 await m_completion.WaitForQueuedAckAsync(1).ConfigureAwait(false);
                 sut.CallbackReturned.TrySetResult(true);
-                Assert.That(await sut.DeferredDispatchGuard.ConfigureAwait(false), Is.False);
+                Assert.That(sut.DeferredDispatchGuard, Is.Not.Null);
+                Assert.That(
+                    await sut.DeferredDispatchGuard!.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false),
+                    Is.False);
             }
         }
 
@@ -326,7 +335,10 @@ namespace Opc.Ua.Client.Subscriptions
                     .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 await m_completion.WaitForQueuedAckAsync(1).ConfigureAwait(false);
                 sut.CallbackReturned.TrySetResult(true);
-                Assert.That(await sut.DeferredDispatchGuard.ConfigureAwait(false), Is.False);
+                Assert.That(sut.DeferredDispatchGuard, Is.Not.Null);
+                Assert.That(
+                    await sut.DeferredDispatchGuard!.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false),
+                    Is.False);
             }
         }
 
@@ -1447,19 +1459,9 @@ namespace Opc.Ua.Client.Subscriptions
             public DeferredCallbackMode DeferredCallbackMode { get; init; }
             public TaskCompletionSource<bool> CallbackReturned { get; } = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            public Task<bool> DeferredDispatchGuard { get; private set; } =
-                Task.FromResult(false);
+            public Task<bool>? DeferredDispatchGuard { get; private set; }
             public bool IsDispatchingForTest => IsDispatchingNotification;
             public Func<uint, ValueTask>? NotificationCallback { get; set; }
-
-            private void StartDeferredProbe()
-            {
-                DeferredDispatchGuard = Task.Run(async () =>
-                {
-                    await CallbackReturned.Task.ConfigureAwait(false);
-                    return IsDispatchingForTest;
-                });
-            }
 
             public new ValueTask RecoverTransferredMessagesAsync(
                 IReadOnlyList<uint> availableSequenceNumbers, CancellationToken ct)
@@ -1479,13 +1481,20 @@ namespace Opc.Ua.Client.Subscriptions
                 return ResetMessageGenerationAsync(_ => default, _ => default, CancellationToken.None);
             }
 
-            private async ValueTask InvokeNotificationAsync(uint sequenceNumber)
+            protected override async ValueTask DisposeAsync(bool disposing)
             {
-                if (NotificationCallback != null)
+                CallbackReturned.TrySetResult(true);
+                try
                 {
-                    await NotificationCallback(sequenceNumber).ConfigureAwait(false);
+                    await base.DisposeAsync(disposing).ConfigureAwait(false);
                 }
-                await WaitAsync().ConfigureAwait(false);
+                finally
+                {
+                    if (DeferredDispatchGuard != null)
+                    {
+                        await DeferredDispatchGuard.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    }
+                }
             }
 
             protected override ValueTask OnDataChangeNotificationAsync(uint sequenceNumber,
@@ -1555,6 +1564,24 @@ namespace Opc.Ua.Client.Subscriptions
                     StartDeferredProbe();
                 }
                 await InvokeNotificationAsync(sequenceNumber).ConfigureAwait(false);
+            }
+
+            private void StartDeferredProbe()
+            {
+                DeferredDispatchGuard = Task.Run(async () =>
+                {
+                    await CallbackReturned.Task.ConfigureAwait(false);
+                    return IsDispatchingForTest;
+                });
+            }
+
+            private async ValueTask InvokeNotificationAsync(uint sequenceNumber)
+            {
+                if (NotificationCallback != null)
+                {
+                    await NotificationCallback(sequenceNumber).ConfigureAwait(false);
+                }
+                await WaitAsync().ConfigureAwait(false);
             }
         }
 

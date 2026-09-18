@@ -32,95 +32,113 @@ using System.Collections.Generic;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// A subscription in a format to be persited by an <see cref="ISubscriptionStore"/>
+    /// Represents subscription state persisted by an <see cref="ISubscriptionStore"/>.
     /// </summary>
     public interface IStoredSubscription
     {
         /// <summary>
-        /// The Id of the subscription
+        /// Gets or sets the server identifier of the subscription.
         /// </summary>
+        /// <value>The identifier retained across restoration.</value>
         uint Id { get; set; }
 
         /// <summary>
-        /// If the subscription is a durable susbscrition
+        /// Gets or sets whether the subscription is durable.
         /// </summary>
+        /// <value><c>true</c> for a durable subscription; otherwise, <c>false</c>.</value>
         bool IsDurable { get; set; }
 
         /// <summary>
-        /// The lifetime counter
+        /// Gets or sets the elapsed lifetime counter.
         /// </summary>
+        /// <value>The number of publishing cycles consumed from the subscription's lifetime.</value>
         uint LifetimeCounter { get; set; }
 
         /// <summary>
-        /// The max lifetime count
+        /// Gets or sets the maximum lifetime count.
         /// </summary>
+        /// <value>The lifetime limit in publishing cycles.</value>
         uint MaxLifetimeCount { get; set; }
 
         /// <summary>
-        /// the max keepalive count
+        /// Gets or sets the maximum keepalive count.
         /// </summary>
+        /// <value>The number of idle publishing cycles before a keepalive is due.</value>
         uint MaxKeepaliveCount { get; set; }
 
         /// <summary>
-        /// The max message count
+        /// Gets or sets the retransmission message capacity.
         /// </summary>
+        /// <value>The stored capacity; a zero value uses the live queue's minimum capacity of one message.</value>
         uint MaxMessageCount { get; set; }
 
         /// <summary>
-        /// The max notifications being sent to a client in a single publish message
+        /// Gets or sets the maximum notifications in a single Publish response.
         /// </summary>
+        /// <value>The notification limit, or zero for no subscription-specific limit.</value>
         uint MaxNotificationsPerPublish { get; set; }
 
         /// <summary>
-        /// The monitored items being owned by the subscription
+        /// Gets or sets the monitored items owned by the subscription.
         /// </summary>
+        /// <value>The persisted monitored-item states to restore with the subscription.</value>
         IEnumerable<IStoredMonitoredItem> MonitoredItems { get; set; }
 
         /// <summary>
-        /// The priority of the subscription
+        /// Gets or sets the subscription priority.
         /// </summary>
+        /// <value>The priority used when selecting subscriptions for publication.</value>
         byte Priority { get; set; }
 
         /// <summary>
-        /// The publishing interval
+        /// Gets or sets the publishing interval.
         /// </summary>
+        /// <value>The publishing interval in milliseconds.</value>
         double PublishingInterval { get; set; }
 
         /// <summary>
-        /// The last messages sent to the client / queued for sending
+        /// Gets or sets retained messages that have been sent or are queued for publication.
         /// </summary>
+        /// <value>The retained messages in publication order.</value>
         List<NotificationMessage> SentMessages { get; set; }
 
         /// <summary>
-        /// The last message sent by the subscription
+        /// Gets or sets the position of the next queued message to publish.
         /// </summary>
+        /// <value>The zero-based index in <see cref="SentMessages"/> immediately after the last sent message.</value>
         int LastSentMessage { get; set; }
 
         /// <summary>
-        /// The sequence number
+        /// Gets or sets the next notification sequence number.
         /// </summary>
+        /// <value>The sequence number to assign to the next newly constructed notification message.</value>
         uint SequenceNumber { get; set; }
 
         /// <summary>
-        /// The user identity of the subscription
+        /// Gets or sets the subscription owner's persisted user identity token.
         /// </summary>
+        /// <value>The owner's token, or <c>null</c> when no token was persisted.</value>
         UserIdentityToken? UserIdentityToken { get; set; }
     }
 
     /// <summary>
-    /// Optional persisted subscription fields introduced after
-    /// <see cref="IStoredSubscription"/>.
+    /// Extends persisted subscription state with publishing mode and owner application identity.
     /// </summary>
     public interface IStoredSubscriptionState : IStoredSubscription
     {
         /// <summary>
-        /// Whether publishing was enabled when the subscription was stored.
+        /// Gets or sets whether publishing was enabled when the subscription was stored.
         /// </summary>
+        /// <value><c>true</c> when publishing was enabled; otherwise, <c>false</c>.</value>
+        /// <remarks>
+        /// Stores that did not persist this field should restore it as <c>true</c> for backward compatibility.
+        /// </remarks>
         bool PublishingEnabled { get; set; }
 
         /// <summary>
-        /// The application URI of the client that owns the subscription.
+        /// Gets or sets the application URI of the client that owns the subscription.
         /// </summary>
+        /// <value>The owner application's URI, or <c>null</c> when it was not persisted.</value>
         string? OwnerClientApplicationUri { get; set; }
     }
 }

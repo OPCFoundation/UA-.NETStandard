@@ -2323,6 +2323,73 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        [Test]
+        public async Task BadTimeoutRecoveryRecreatesSubscriptionAndAcceptsRestartedSequenceAsync()
+        {
+            var created = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var delivered = new TaskCompletionSource<uint>(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_mockSubscriptionServices
+                .Setup(service => service.CreateSubscriptionAsync(
+                    It.IsAny<RequestHeader>(), TimeSpan.FromSeconds(100).TotalMilliseconds,
+                    21, 7, 10, false, 3, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateSubscriptionResponse
+                {
+                    SubscriptionId = 33,
+                    RevisedLifetimeCount = 21,
+                    RevisedMaxKeepAliveCount = 7,
+                    RevisedPublishingInterval = TimeSpan.FromSeconds(100).TotalMilliseconds
+                });
+            m_mockSubscriptionServices
+                .Setup(service => service.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse { Results = [StatusCodes.Good] });
+
+            var sut = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, m_completion, m_options, m_telemetry, 22);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.SetMessageStateForTest(4999, 4999, []);
+                sut.OnAfterCreateAsync = _ =>
+                {
+                    created.TrySetResult(true);
+                    return default;
+                };
+                sut.OnDataChangeAsync = sequenceNumber =>
+                {
+                    delivered.TrySetResult(sequenceNumber);
+                    return default;
+                };
+
+                await sut.OnPublishReceivedAsync(
+                    BuildStatusChangeMessage(5000, StatusCodes.BadTimeout), null, []).ConfigureAwait(false);
+                await created.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await m_completion.WaitForQueuedAckAsync(1).ConfigureAwait(false);
+
+                Assert.That(sut.Id, Is.EqualTo(33u));
+                Assert.That(sut.LastSequenceNumberForTest, Is.Zero);
+                Assert.That(sut.LastDataSequenceNumberForTest, Is.Zero);
+                Assert.That(m_completion.QueuedAcks[0].SubscriptionId, Is.EqualTo(22u));
+                Assert.That(m_completion.QueuedAcks[0].SequenceNumber, Is.EqualTo(5000u));
+
+                await sut.OnPublishReceivedAsync(BuildDataMessage(1), null, []).ConfigureAwait(false);
+                Assert.That(await delivered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false),
+                    Is.EqualTo(1u));
+                await m_completion.WaitForQueuedAckAsync(2).ConfigureAwait(false);
+
+                Assert.That(sut.LastDataSequenceNumberForTest, Is.EqualTo(1u));
+                Assert.That(m_completion.QueuedAcks, Has.Count.EqualTo(2));
+                Assert.That(m_completion.QueuedAcks[1].SubscriptionId, Is.EqualTo(33u));
+                Assert.That(m_completion.QueuedAcks[1].SequenceNumber, Is.EqualTo(1u));
+                m_mockSubscriptionServices.Verify(service => service.CreateSubscriptionAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<uint>(), It.IsAny<uint>(),
+                    It.IsAny<uint>(), It.IsAny<bool>(), It.IsAny<byte>(), It.IsAny<CancellationToken>()),
+                    Times.Once);
+                m_mockSubscriptionServices.Verify(service => service.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()),
+                    Times.Never);
+            }
+        }
+
         private static NotificationMessage BuildStatusChangeMessage(
             uint sequenceNumber, StatusCode status)
         {
