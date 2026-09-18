@@ -4839,6 +4839,36 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
+        public async Task ThrowingConnectionCallbackRejectsAndRestoresOnceRegistration()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20732);
+            const string serverUri = "urn:test:reverse:throwing";
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            await manager.StartServiceAsync(ConfigFor(url)).ConfigureAwait(false);
+
+            await manager.RegisterWaitingConnectionAsync(
+                url,
+                serverUri,
+                (_, _) => throw new InvalidOperationException("callback failure"),
+                ReverseConnectManager.ReverseConnectStrategy.Once).ConfigureAwait(false);
+
+            var first = new FakeConnectionWaitingEventArgs(serverUri, url);
+            Assert.That(manager.MatchWaitingConnectionForTest(first), Is.True);
+            Assert.That(first.Accepted, Is.False);
+            Assert.That(manager.WaitingConnectionCountForTest, Is.EqualTo(1));
+
+            var second = new FakeConnectionWaitingEventArgs(serverUri, url);
+            Assert.That(manager.MatchWaitingConnectionForTest(second), Is.True);
+            Assert.That(second.Accepted, Is.False);
+            Assert.That(manager.WaitingConnectionCountForTest, Is.EqualTo(1));
+        }
+
+        [Test]
         public async Task MatchingWaitClaimLosesToStopAndLeavesNoAcceptedOrphan()
         {
             ITelemetryContext telemetry = CreateTelemetry();

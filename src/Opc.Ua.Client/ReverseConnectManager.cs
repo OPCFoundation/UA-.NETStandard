@@ -4747,7 +4747,33 @@ namespace Opc.Ua.Client
                 }
             }
 
-            callbackRegistration?.OnConnectionWaiting?.Invoke(sender, e);
+            if (callbackRegistration?.OnConnectionWaiting != null)
+            {
+                try
+                {
+                    callbackRegistration.OnConnectionWaiting(sender, e);
+                }
+                catch (Exception ex)
+                {
+                    e.Accepted = false;
+                    m_logger.ReverseConnectionCallbackFailed(
+                        ex,
+                        e.ServerUri,
+                        e.EndpointUrl);
+
+                    if ((callbackRegistration.ReverseConnectStrategy & ReverseConnectStrategy.Once) != 0)
+                    {
+                        lock (m_registrationsLock)
+                        {
+                            if (Volatile.Read(ref m_disposed) == 0 &&
+                                !m_registrations.Contains(callbackRegistration))
+                            {
+                                m_registrations.Add(callbackRegistration);
+                            }
+                        }
+                    }
+                }
+            }
 
             return found;
 
@@ -5542,5 +5568,13 @@ namespace Opc.Ua.Client
             this ILogger logger,
             int watcherGeneration,
             long lifecycleVersion);
+
+        [LoggerMessage(EventId = ClientEventIds.ReverseConnectManager + 15, Level = LogLevel.Error,
+            Message = "Reverse connection callback failed for {ServerUri} {EndpointUrl}.")]
+        public static partial void ReverseConnectionCallbackFailed(
+            this ILogger logger,
+            Exception? exception,
+            string serverUri,
+            Uri endpointUrl);
     }
 }
