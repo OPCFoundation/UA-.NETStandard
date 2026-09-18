@@ -687,7 +687,8 @@ namespace Opc.Ua.Server
                 {
                     ServiceResult inverseResult = await targetOwner!.AddReferenceAsync(
                         context, inverseItem, cancellationToken).ConfigureAwait(false);
-                    if (ServiceResult.IsBad(inverseResult))
+                    if (ServiceResult.IsBad(inverseResult) &&
+                        inverseResult.StatusCode != StatusCodes.BadDuplicateReferenceNotAllowed)
                     {
                         m_logger.AddReferencesFailedToMirrorInverseEdgeRefType(
                             item.ReferenceTypeId,
@@ -700,6 +701,11 @@ namespace Opc.Ua.Server
                             item).ConfigureAwait(false);
                         return inverseResult;
                     }
+                }
+                catch (ServiceResultException ex)
+                    when (ex.StatusCode == StatusCodes.BadDuplicateReferenceNotAllowed)
+                {
+                    return sourceResult;
                 }
                 catch (Exception ex)
                 {
@@ -874,7 +880,8 @@ namespace Opc.Ua.Server
             {
                 ServiceResult inverseResult = await targetOwner!.DeleteReferenceAsync(
                     context, inverseItem, cancellationToken).ConfigureAwait(false);
-                if (ServiceResult.IsBad(inverseResult))
+                if (ServiceResult.IsBad(inverseResult) &&
+                    inverseResult.StatusCode != StatusCodes.BadNoMatch)
                 {
                     m_logger.DeleteReferencesFailedToMirrorInverseDeleteRefType(
                         item.ReferenceTypeId,
@@ -888,6 +895,10 @@ namespace Opc.Ua.Server
                         targetMetadata!.NodeClass).ConfigureAwait(false);
                     return inverseResult;
                 }
+            }
+            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadNoMatch)
+            {
+                return sourceResult;
             }
             catch (Exception ex)
             {
@@ -1017,7 +1028,8 @@ namespace Opc.Ua.Server
             ushort namespaceIndex,
             CancellationToken cancellationToken)
         {
-            if (context.Session == null || ConfigurationNodeManager == null)
+            if (ConfigurationNodeManager == null ||
+                (context.Session == null && context.UserIdentity == null && context.ChannelContext == null))
             {
                 return StatusCodes.Good;
             }

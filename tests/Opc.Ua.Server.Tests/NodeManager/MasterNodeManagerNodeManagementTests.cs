@@ -694,6 +694,9 @@ namespace Opc.Ua.Server.Tests
             using var harness = new AuthorizationHarness();
             harness.TargetMetadata.NodeClass = NodeClass.Method;
             harness.SetTargetPermissions(PermissionType.None);
+            harness.SourceManager.Setup(manager => manager.FindMethodStateAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<CallMethodRequest>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<MethodState>(new MethodState(null) { NodeId = harness.TargetNodeId }));
             using OperationContext context = harness.CreateIdentityContext(RequestType.Call, requestKind);
 
             (ArrayOf<CallMethodResult> results, _) = await harness.Sut.CallAsync(
@@ -1150,7 +1153,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<AddReferencesItem>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ServiceResult>(
-                    new ServiceResult(StatusCodes.BadDuplicateReferenceNotAllowed)));
+                    new ServiceResult(StatusCodes.BadUnexpectedError)));
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.AddReferencesAsync(
                 harness.AddReferencesContext,
@@ -1159,7 +1162,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(
                 results[0],
-                Is.EqualTo(StatusCodes.BadDuplicateReferenceNotAllowed));
+                Is.EqualTo(StatusCodes.BadUnexpectedError));
             harness.SourceManager.Verify(
                 manager => manager.DeleteReferenceAsync(
                     harness.AddReferencesContext,
@@ -1420,14 +1423,14 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<DeleteReferencesItem>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ServiceResult>(
-                    new ServiceResult(StatusCodes.BadNoMatch)));
+                    new ServiceResult(StatusCodes.BadUnexpectedError)));
 
             (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
                 harness.DeleteReferencesContext,
                 new DeleteReferencesItem[] { item }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(results[0], Is.EqualTo(StatusCodes.BadNoMatch));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadUnexpectedError));
             harness.SourceManager.Verify(
                 manager => manager.AddReferenceAsync(
                     harness.DeleteReferencesContext,
@@ -1755,7 +1758,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<AddReferencesItem>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ServiceResult>(
-                    new ServiceResult(StatusCodes.BadDuplicateReferenceNotAllowed)));
+                    new ServiceResult(StatusCodes.BadUnexpectedError)));
             harness.SourceManager
                 .Setup(manager => manager.DeleteReferenceAsync(
                     It.IsAny<OperationContext>(),
@@ -1770,7 +1773,7 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             // The original inverse failure is surfaced, not the rollback failure.
-            Assert.That(results[0], Is.EqualTo(StatusCodes.BadDuplicateReferenceNotAllowed));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadUnexpectedError));
             harness.SourceManager.Verify(
                 manager => manager.DeleteReferenceAsync(
                     It.IsAny<OperationContext>(),
@@ -1790,7 +1793,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<AddReferencesItem>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ServiceResult>(
-                    new ServiceResult(StatusCodes.BadDuplicateReferenceNotAllowed)));
+                    new ServiceResult(StatusCodes.BadUnexpectedError)));
             harness.SourceManager
                 .Setup(manager => manager.DeleteReferenceAsync(
                     It.IsAny<OperationContext>(),
@@ -1804,7 +1807,7 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             // The rollback exception is swallowed; the inverse failure is returned.
-            Assert.That(results[0], Is.EqualTo(StatusCodes.BadDuplicateReferenceNotAllowed));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadUnexpectedError));
             harness.SourceManager.Verify(
                 manager => manager.DeleteReferenceAsync(
                     It.IsAny<OperationContext>(),
@@ -2001,7 +2004,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<DeleteReferencesItem>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ServiceResult>(
-                    new ServiceResult(StatusCodes.BadNoMatch)));
+                    new ServiceResult(StatusCodes.BadUnexpectedError)));
             harness.SourceManager
                 .Setup(manager => manager.AddReferenceAsync(
                     It.IsAny<OperationContext>(),
@@ -2016,7 +2019,7 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             // The original inverse failure is surfaced, not the restore failure.
-            Assert.That(results[0], Is.EqualTo(StatusCodes.BadNoMatch));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadUnexpectedError));
             harness.SourceManager.Verify(
                 manager => manager.AddReferenceAsync(
                     It.IsAny<OperationContext>(),
@@ -2036,7 +2039,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<DeleteReferencesItem>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ServiceResult>(
-                    new ServiceResult(StatusCodes.BadNoMatch)));
+                    new ServiceResult(StatusCodes.BadUnexpectedError)));
             harness.SourceManager
                 .Setup(manager => manager.AddReferenceAsync(
                     It.IsAny<OperationContext>(),
@@ -2050,7 +2053,7 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             // The restore exception is swallowed; the inverse failure is returned.
-            Assert.That(results[0], Is.EqualTo(StatusCodes.BadNoMatch));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadUnexpectedError));
             harness.SourceManager.Verify(
                 manager => manager.AddReferenceAsync(
                     It.IsAny<OperationContext>(),

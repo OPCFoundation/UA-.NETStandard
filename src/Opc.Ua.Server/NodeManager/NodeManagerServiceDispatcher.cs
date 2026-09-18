@@ -3431,7 +3431,7 @@ namespace Opc.Ua.Server
             bool permissionsOnly = false,
             CancellationToken cancellationToken = default)
         {
-            if (context.Session != null || context.ChannelContext != null)
+            if (context.Session != null || context.UserIdentity != null || context.ChannelContext != null)
             {
                 (object? nodeHandle, IAsyncNodeManager? nodeManager) = await m_owner.GetManagerHandleAsync(nodeId, cancellationToken)
                     .ConfigureAwait(false);
@@ -3489,7 +3489,8 @@ namespace Opc.Ua.Server
         {
             if (nodeManager == null ||
                 nodeHandle == null ||
-                (context.Session == null && context.ChannelContext == null && !metadataRequired))
+                (context.Session == null && context.UserIdentity == null &&
+                    context.ChannelContext == null && !metadataRequired))
             {
                 return (StatusCodes.Good, null);
             }

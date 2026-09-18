@@ -924,6 +924,8 @@ namespace Opc.Ua.Server
         /// Completes the notification writer and asynchronously waits for all queued
         /// notifications to be delivered. No further notifications can be enqueued.
         /// </summary>
+        /// <param name="cancellationToken">Cancels waiting for queued notifications to drain.</param>
+        /// <returns>A task that completes when the notification consumer has stopped.</returns>
         public async ValueTask DrainAsync(CancellationToken cancellationToken = default)
         {
             m_channel.Writer.TryComplete();
@@ -934,6 +936,7 @@ namespace Opc.Ua.Server
         /// Drains queued notifications before releasing the consumer resources.
         /// Use <see cref="Dispose()"/> instead to cancel delivery immediately.
         /// </summary>
+        /// <returns>A task that completes after queued notifications and resource cleanup finish.</returns>
         public async ValueTask DisposeAsync()
         {
             try
@@ -943,6 +946,7 @@ namespace Opc.Ua.Server
             finally
             {
                 Dispose();
+                GC.SuppressFinalize(this);
             }
         }
 

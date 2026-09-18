@@ -2056,7 +2056,8 @@ namespace Opc.Ua.Server
             {
                 // allow Session to see own session diagnostics
                 NodeId curSession = (context as ISessionSystemContext)?.SessionId ?? default;
-                adminUser = ownerSessionId == curSession || node.NodeId == curSession ||
+                adminUser = (!ownerSessionId.IsNull && ownerSessionId == curSession) ||
+                    (!curSession.IsNull && node.NodeId == curSession) ||
                     HasApplicationSecureAdminAccess(context);
             }
 
