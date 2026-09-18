@@ -886,7 +886,7 @@ namespace Opc.Ua.Configuration.Tests
                         ],
                         m_pkiRoot)
                     .SetAutoAcceptUntrustedCertificates(true)
-                    .CreateAsync();
+                    .CreateAsync().ConfigureAwait(false);
 
                 SecurityConfiguration securityConfiguration = configuration.SecurityConfiguration;
                 Assert.That(securityConfiguration.ApplicationCertificates, Has.Count.EqualTo(1));
