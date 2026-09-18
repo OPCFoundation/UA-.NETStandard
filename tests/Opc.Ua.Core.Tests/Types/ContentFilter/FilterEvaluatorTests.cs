@@ -158,7 +158,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         public void EvaluationAndValidationRejectOversizeFilter()
         {
             var elements = new ContentFilterElement[Ua.ContentFilter.MaxElementCount + 1];
-            Array.Fill(elements, BuildBinaryElement(FilterOperator.Equals, Variant.From(1), Variant.From(1)));
+            elements.AsSpan().Fill(BuildBinaryElement(FilterOperator.Equals, Variant.From(1), Variant.From(1)));
             var filter = new Ua.ContentFilter { Elements = elements };
 
             Assert.That(filter.Validate(m_filterContext).Status.StatusCode,

@@ -174,7 +174,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queueFactory = new MonitoredItemQueueFactory(telemetry);
-            var timeProvider = new FakeTimeProvider(DateTimeOffset.UnixEpoch);
+            var timeProvider = new FakeTimeProvider(new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero));
             using var handler = new DataChangeQueueHandler(
                 monitoredItemId: 1,
                 createDurable: false,

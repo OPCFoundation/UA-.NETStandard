@@ -74,7 +74,7 @@ namespace Opc.Ua
         /// exists resolve their policies here. It carries exactly the built-in
         /// set, so behaviour is unchanged when an application registers nothing.
         /// </remarks>
-        public static SecurityPolicies Default { get; } = new();
+        public static SecurityPolicies Default => s_default.Value;
 
         /// <inheritdoc/>
         public ArrayOf<SecurityPolicyInfo> Policies => m_snapshot.Policies;
@@ -1207,6 +1207,9 @@ namespace Opc.Ua
         private readonly ILogger m_logger;
 
         private volatile SecurityPolicySnapshot m_snapshot;
+
+        // Policy metadata calls GetNameFromUri while its static fields are still being initialized.
+        private static readonly Lazy<SecurityPolicies> s_default = new(static () => new SecurityPolicies());
 
         private static readonly string[] s_defaultPolicyUris =
         [

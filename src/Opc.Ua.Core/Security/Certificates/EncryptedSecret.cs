@@ -666,6 +666,16 @@ namespace Opc.Ua
         /// <summary>
         /// Tries to decrypt an RSAEncryptedSecret payload.
         /// </summary>
+        /// <param name="encodedSecret">The encoded RSA encrypted secret.</param>
+        /// <param name="expectedNonce">
+        /// The expected nonce, or <see langword="null"/> to skip the nonce check.
+        /// An empty array requires an empty nonce.
+        /// </param>
+        /// <param name="secret">
+        /// The caller-owned plaintext buffer on success, or <see langword="null"/> on failure.
+        /// The caller must clear the buffer after use.
+        /// </param>
+        /// <returns><see langword="true"/> if the payload was decrypted; otherwise, <see langword="false"/>.</returns>
         /// <exception cref="ServiceResultException"></exception>
         public bool TryDecryptRsa(byte[] encodedSecret, byte[]? expectedNonce, out byte[]? secret)
         {
@@ -903,6 +913,16 @@ namespace Opc.Ua
         /// Async variant of <see cref="TryDecrypt"/>. Awaits the sender certificate validation
         /// rather than blocking on it inside the cryptographic decode loop.
         /// </summary>
+        /// <param name="encryptedSecret">The encoded encrypted secret.</param>
+        /// <param name="expectedNonce">
+        /// The expected nonce, or <see langword="null"/> to skip the nonce check.
+        /// For an RSA encrypted secret, an empty array requires an empty nonce.
+        /// </param>
+        /// <param name="cancellationToken">The token used to cancel certificate validation.</param>
+        /// <returns>
+        /// The success flag and a caller-owned plaintext buffer on success.
+        /// The caller must clear the buffer after use.
+        /// </returns>
         public async ValueTask<(bool Success, byte[]? Secret)> TryDecryptAsync(
             byte[] encryptedSecret,
             byte[]? expectedNonce,

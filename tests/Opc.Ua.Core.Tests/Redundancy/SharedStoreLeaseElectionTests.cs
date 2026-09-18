@@ -330,12 +330,12 @@ namespace Opc.Ua.Core.Tests.Redundancy
                 await entered.Task.WaitAsync(s_timeout).ConfigureAwait(false);
                 await election.DisposeAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
                 Assert.That(election.IsLeader, Is.False);
-                Assert.That(
+                await Assert.ThatAsync(
                     () => first.WaitAsync(s_timeout),
-                    Throws.InstanceOf<OperationCanceledException>());
-                Assert.That(
+                    Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                await Assert.ThatAsync(
                     () => second.WaitAsync(s_timeout),
-                    Throws.InstanceOf<OperationCanceledException>());
+                    Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
                 Assert.That(release.Task.IsCompleted, Is.False, "Disposal must not require the provider to reply.");
                 Assert.That(
                     async () => await election.TryAcquireOrRenewAsync().ConfigureAwait(false),
