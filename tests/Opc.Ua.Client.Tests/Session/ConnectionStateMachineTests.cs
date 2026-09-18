@@ -527,6 +527,92 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 Is.EqualTo(ConnectionState.Connected));
         }
 
+        [TestCase("success")]
+        [TestCase("failure")]
+        [TestCase("close")]
+        [TestCase("handshake-failure")]
+        public async Task RecoveryServicesOpenOnlyAfterHandshakeAndCompletionStillSettlesAsync(string outcome)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await using ConnectionStateMachine machine = CreateMachine(new ReconnectPolicy
+            {
+                InitialDelay = TimeSpan.Zero,
+                MaxRetries = 1,
+                JitterFactor = 0
+            });
+            var handshake = new TaskCompletionSource<ServiceResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var restoring = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var finish = new TaskCompletionSource<ServiceResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            machine.ConnectAsync = _ => Task.FromResult(ServiceResult.Good);
+            machine.ReconnectAsync = _ => handshake.Task;
+            machine.FailoverAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadNotSupported));
+            machine.Start();
+            machine.RequestConnect();
+            await machine.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false);
+            machine.CompleteRecoveryAsync = ct =>
+            {
+                restoring.TrySetResult(true);
+                return finish.Task.WaitAsync(ct);
+            };
+            try
+            {
+                machine.TriggerReconnect();
+                Task available = machine.WaitForServiceAvailabilityAsync(timeout.Token).AsTask();
+                Task connected = machine.WaitForConnectedAsync(timeout.Token).AsTask();
+                Assert.That(available.IsCompleted, Is.False);
+                if (outcome == "handshake-failure")
+                {
+                    handshake.TrySetResult(new ServiceResult(StatusCodes.BadSecurityChecksFailed));
+                    ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await connected.ConfigureAwait(false));
+                    Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+                    ServiceResultException serviceError = Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await available.ConfigureAwait(false));
+                    Assert.That(serviceError.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+                    Assert.That(restoring.Task.IsCompleted, Is.False);
+                    return;
+                }
+                handshake.TrySetResult(ServiceResult.Good);
+                await restoring.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await available.ConfigureAwait(false);
+                Assert.That(connected.IsCompleted, Is.False);
+                Assert.That(machine.State, Is.EqualTo(ConnectionState.Reconnecting));
+
+                if (outcome == "close")
+                {
+                    machine.RequestClose();
+                    await machine.WaitForClosedAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(async () => await connected.ConfigureAwait(false),
+                        Throws.InstanceOf<ServiceResultException>());
+                    Assert.That(async () => await machine.WaitForServiceAvailabilityAsync(timeout.Token)
+                        .ConfigureAwait(false), Throws.InstanceOf<ServiceResultException>());
+                }
+                else if (outcome == "failure")
+                {
+                    finish.TrySetResult(new ServiceResult(StatusCodes.BadResourceUnavailable));
+                    ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await connected.ConfigureAwait(false));
+                    Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
+                    Assert.That(machine.State, Is.EqualTo(ConnectionState.Disconnected));
+                    ServiceResultException serviceError = Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await machine.WaitForServiceAvailabilityAsync(timeout.Token).ConfigureAwait(false));
+                    Assert.That(serviceError.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
+                }
+                else
+                {
+                    finish.TrySetResult(ServiceResult.Good);
+                    await connected.ConfigureAwait(false);
+                    Assert.That(machine.State, Is.EqualTo(ConnectionState.Connected));
+                }
+            }
+            finally
+            {
+                handshake.TrySetResult(ServiceResult.Good);
+                finish.TrySetResult(ServiceResult.Good);
+            }
+        }
+
         [Test]
         public async Task WaitForConnectedAsyncReturnsWhenConnected()
         {

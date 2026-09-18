@@ -90,6 +90,8 @@ namespace Opc.Ua.Client
         /// instead of waiting for a state that can no longer be reached.
         /// </summary>
         private readonly AsyncManualResetEvent m_settled = new(false);
+        private readonly AsyncManualResetEvent m_servicesReady = new(false);
+        private bool m_servicesAvailable;
         private readonly Lock m_lock = new();
         private ServiceResult? m_lastError;
         private IRetryBudget? m_reconnectBudget;
@@ -130,6 +132,11 @@ namespace Opc.Ua.Client
         /// Delegate invoked to attempt failover with a shared retry budget.
         /// </summary>
         internal ConnectionStateBudgetOperation? FailoverWithBudgetAsync { get; set; }
+
+        /// <summary>
+        /// Restores callback-dependent state after a successful handshake has made ordinary services available.
+        /// </summary>
+        internal ConnectionStateOperation? CompleteRecoveryAsync { get; set; }
 
         /// <summary>
         /// Delegate invoked to close the session cleanly.
@@ -223,6 +230,28 @@ namespace Opc.Ua.Client
                 new ServiceResult(
                     StatusCodes.BadNotConnected,
                     new LocalizedText("The managed session could not be connected.")));
+        }
+
+        /// <summary>
+        /// Waits for an activated session, including the callback-dependent phase before recovery settles.
+        /// </summary>
+        internal async ValueTask WaitForServiceAvailabilityAsync(CancellationToken ct)
+        {
+            while (true)
+            {
+                await m_servicesReady.WaitAsync(ct).ConfigureAwait(false);
+                lock (m_lock)
+                {
+                    if (m_servicesAvailable)
+                    {
+                        return;
+                    }
+                    if (m_state is ConnectionState.Disconnected or ConnectionState.Closing or ConnectionState.Closed)
+                    {
+                        throw new ServiceResultException(m_lastError ?? new ServiceResult(StatusCodes.BadNotConnected));
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -914,7 +943,8 @@ namespace Opc.Ua.Client
             {
                 if (ConnectAsync != null)
                 {
-                    return await ConnectAsync(ct).ConfigureAwait(false);
+                    ServiceResult result = await ConnectAsync(ct).ConfigureAwait(false);
+                    return await CompleteRecoveryAfterHandshakeAsync(result, ct).ConfigureAwait(false);
                 }
 
                 return new ServiceResult(StatusCodes.BadInvalidState);
@@ -947,15 +977,18 @@ namespace Opc.Ua.Client
                 }
                 if (requested != null)
                 {
-                    return await requested(budget, ct).ConfigureAwait(false);
+                    ServiceResult result = await requested(budget, ct).ConfigureAwait(false);
+                    return await CompleteRecoveryAfterHandshakeAsync(result, ct).ConfigureAwait(false);
                 }
                 if (ReconnectWithBudgetAsync != null)
                 {
-                    return await ReconnectWithBudgetAsync(budget, ct).ConfigureAwait(false);
+                    ServiceResult result = await ReconnectWithBudgetAsync(budget, ct).ConfigureAwait(false);
+                    return await CompleteRecoveryAfterHandshakeAsync(result, ct).ConfigureAwait(false);
                 }
                 if (ReconnectAsync != null)
                 {
-                    return await ReconnectAsync(ct).ConfigureAwait(false);
+                    ServiceResult result = await ReconnectAsync(ct).ConfigureAwait(false);
+                    return await CompleteRecoveryAfterHandshakeAsync(result, ct).ConfigureAwait(false);
                 }
 
                 // Fall back to connect if no reconnect delegate.
@@ -983,11 +1016,13 @@ namespace Opc.Ua.Client
             {
                 if (FailoverWithBudgetAsync != null)
                 {
-                    return await FailoverWithBudgetAsync(budget, ct).ConfigureAwait(false);
+                    ServiceResult result = await FailoverWithBudgetAsync(budget, ct).ConfigureAwait(false);
+                    return await CompleteRecoveryAfterHandshakeAsync(result, ct).ConfigureAwait(false);
                 }
                 if (FailoverAsync != null)
                 {
-                    return await FailoverAsync(ct).ConfigureAwait(false);
+                    ServiceResult result = await FailoverAsync(ct).ConfigureAwait(false);
+                    return await CompleteRecoveryAfterHandshakeAsync(result, ct).ConfigureAwait(false);
                 }
 
                 return new ServiceResult(StatusCodes.BadNotSupported);
@@ -1000,6 +1035,50 @@ namespace Opc.Ua.Client
             {
                 m_logger.ConnectionStateMachineFailoverFailedException(ex);
                 return new ServiceResult(ex);
+            }
+        }
+
+        private async Task<ServiceResult> CompleteRecoveryAfterHandshakeAsync(
+            ServiceResult result,
+            CancellationToken ct)
+        {
+            if (!ServiceResult.IsGood(result))
+            {
+                return result;
+            }
+            lock (m_lock)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (m_state is ConnectionState.Closing or ConnectionState.Closed)
+                {
+                    return new ServiceResult(StatusCodes.BadSessionClosed);
+                }
+                m_servicesAvailable = true;
+                m_servicesReady.Set();
+            }
+            bool succeeded = false;
+            try
+            {
+                if (CompleteRecoveryAsync != null)
+                {
+                    result = await CompleteRecoveryAsync(ct).ConfigureAwait(false);
+                }
+                succeeded = ServiceResult.IsGood(result);
+                return result;
+            }
+            finally
+            {
+                if (!succeeded)
+                {
+                    lock (m_lock)
+                    {
+                        m_servicesAvailable = false;
+                        if (m_state is not ConnectionState.Closing and not ConnectionState.Closed)
+                        {
+                            m_servicesReady.Reset();
+                        }
+                    }
+                }
             }
         }
 
@@ -1020,6 +1099,16 @@ namespace Opc.Ua.Client
             }
 
             m_state = newState;
+            m_servicesAvailable = newState == ConnectionState.Connected;
+            if (newState is ConnectionState.Connected or ConnectionState.Disconnected or
+                ConnectionState.Closing or ConnectionState.Closed)
+            {
+                m_servicesReady.Set();
+            }
+            else
+            {
+                m_servicesReady.Reset();
+            }
             if (newState == ConnectionState.Connected)
             {
                 m_hasConnected = true;

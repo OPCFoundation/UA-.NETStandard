@@ -1027,6 +1027,7 @@ namespace Opc.Ua.Client
             StateMachine.ConnectAsync = HandleConnectAsync;
             StateMachine.ReconnectWithBudgetAsync = HandleReconnectAsync;
             StateMachine.FailoverWithBudgetAsync = HandleFailoverAsync;
+            StateMachine.CompleteRecoveryAsync = HandleCompleteRecoveryAsync;
             StateMachine.CloseSessionAsync = HandleCloseSessionAsync;
             StateMachine.StateChanged += OnStateChanged;
         }
@@ -1035,7 +1036,21 @@ namespace Opc.Ua.Client
         {
             return StateMachine.IsWorkerFlow
                 ? default
-                : StateMachine.WaitForConnectedAsync(ct);
+                : StateMachine.WaitForServiceAvailabilityAsync(ct);
+        }
+
+        private async Task<ServiceResult> HandleCompleteRecoveryAsync(CancellationToken ct)
+        {
+            try
+            {
+                await InnerSession.CompleteSessionRecoveryAsync(ct).ConfigureAwait(false);
+                return ServiceResult.Good;
+            }
+            catch (Exception exception)
+            {
+                m_logger.ManagedSessionReconnectAttemptFailed(exception);
+                return ToAttemptFailure(exception);
+            }
         }
 
         private async Task<ServiceResult> HandleConnectAsync(
@@ -1281,6 +1296,7 @@ namespace Opc.Ua.Client
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(callerToken, workerToken);
             try
             {
+                using IDisposable recovery = InnerSession.DeferSubscriptionRecovery();
                 using (await m_serviceLock.WriterLockAsync(linked.Token).ConfigureAwait(false))
                 {
                     await InnerSession.ReconnectAsync(connection, channel, linked.Token).ConfigureAwait(false);
@@ -1314,6 +1330,7 @@ namespace Opc.Ua.Client
             {
                 m_logger.ManagedSessionReconnecting();
 
+                using IDisposable recovery = session.DeferSubscriptionRecovery();
                 using (await m_serviceLock.WriterLockAsync(ct)
                     .ConfigureAwait(false))
                 {
@@ -1594,6 +1611,7 @@ namespace Opc.Ua.Client
                     // against the new endpoint and drive subscription
                     // recreate/transfer for both unamanged templates and
                     // the new engine.
+                    using IDisposable recovery = session.DeferSubscriptionRecovery();
                     await RecreateInPlaceAndRebindAsync(
                             session,
                             failoverEndpoint,

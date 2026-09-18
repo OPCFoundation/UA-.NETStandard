@@ -37,6 +37,7 @@ using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
+using Subscriptions = Opc.Ua.Client.Subscriptions;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -352,6 +353,190 @@ namespace Opc.Ua.Client.Tests
             Assert.That(manager.GetChannelDiagnostics(), Is.Empty);
         }
 
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task FullIngressCallbackRpcAndRecreationCallbackCompleteAfterSessionRecoveryAsync(
+            bool managedChannel,
+            bool failover)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            CancellationToken callbackToken = timeout.Token;
+            await using var channelManager = new ClientChannelManager(ClientFixture.Config, Telemetry);
+            ManagedSessionBuilder builder = new ManagedSessionBuilder(ClientFixture.Config, Telemetry)
+                .UseEndpoint(ServerUrl.ToString())
+                .WithReconnectPolicy(options => options with
+                {
+                    InitialDelay = TimeSpan.Zero,
+                    MaxRetries = 1,
+                    JitterFactor = 0
+                });
+            if (managedChannel)
+            {
+                builder.WithChannelManager(channelManager);
+            }
+            if (failover)
+            {
+                var redundancy = new Mock<IServerRedundancyHandler>();
+                redundancy.Setup(value => value.FetchRedundancyInfoAsync(
+                        It.IsAny<ISession>(), It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<ServerRedundancyInfo>(new ServerRedundancyInfo
+                    {
+                        Mode = RedundancySupport.Cold
+                    }));
+                redundancy.Setup(value => value.SelectFailoverTarget(
+                        It.IsAny<ServerRedundancyInfo>(), It.IsAny<ConfiguredEndpoint>()))
+                    .Returns((ServerRedundancyInfo _, ConfiguredEndpoint endpoint) => CoreUtils.Clone(endpoint)!);
+                builder.WithServerRedundancy(redundancy.Object);
+            }
+            await using ManagedSessionType session = await builder.ConnectAsync(timeout.Token).ConfigureAwait(false);
+            if (failover)
+            {
+                session.StateMachine.ReconnectWithBudgetAsync = (_, _) =>
+                    Task.FromResult(new ServiceResult(StatusCodes.BadConnectionClosed));
+            }
+            var manager = (Subscriptions.SubscriptionManager)session.RequireSubscriptionManager();
+            manager.Pause();
+            Assert.That(manager.TransferSubscriptionsOnRecreate, Is.False);
+            var created = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var callbackEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var enterRpc = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var rpcStarted = new TaskCompletionSource<Task<DataValue>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var createEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseCreate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var recreatedCallback = new TaskCompletionSource<DataValue>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            NodeId originalId = session.SessionId;
+            int notificationCalls = 0;
+            int applicationReads = 0;
+            int rejectActivation = failover && !managedChannel ? 0 : 1;
+            var handler = new Mock<Subscriptions.ISubscriptionNotificationHandler>();
+            handler.Setup(value => value.OnKeepAliveNotificationAsync(
+                    It.IsAny<Subscriptions.ISubscription>(), It.IsAny<uint>(),
+                    It.IsAny<DateTime>(), It.IsAny<Subscriptions.PublishState>()))
+                .Returns(async (Subscriptions.ISubscription _, uint _, DateTime _, Subscriptions.PublishState _) =>
+                {
+                    if (Interlocked.Increment(ref notificationCalls) == 1)
+                    {
+                        callbackEntered.TrySetResult(true);
+                        await ReadFromNotificationAsync(session, enterRpc.Task, rpcStarted, callbackToken)
+                            .ConfigureAwait(false);
+                    }
+                });
+            handler.Setup(value => value.OnSubscriptionStateChangedAsync(
+                    It.IsAny<Subscriptions.ISubscription>(), It.IsAny<Subscriptions.SubscriptionState>(),
+                    It.IsAny<Subscriptions.PublishState>(), It.IsAny<CancellationToken>()))
+                .Returns(async (Subscriptions.ISubscription _, Subscriptions.SubscriptionState state,
+                    Subscriptions.PublishState _, CancellationToken ct) =>
+                {
+                    if (state == Subscriptions.SubscriptionState.Created)
+                    {
+                        if (session.SessionId == originalId)
+                        {
+                            created.TrySetResult(true);
+                        }
+                        else
+                        {
+                            DataValue value = await session.ReadValueAsync(
+                                VariableIds.Server_ServerStatus_BuildInfo_ProductName, ct).ConfigureAwait(false);
+                            recreatedCallback.TrySetResult(value);
+                        }
+                    }
+                });
+            var subscription = (Subscriptions.LogicalSubscription)session.AddSubscription(
+                handler.Object, new Subscriptions.SubscriptionOptions
+                {
+                    DisableUnboundedItemMode = true,
+                    PublishingInterval = TimeSpan.FromMilliseconds(100),
+                    KeepAliveCount = 1,
+                    LifetimeCount = 100
+                });
+            await created.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Subscriptions.IManagedSubscription partition = subscription.Partitions.Single();
+            uint originalSubscriptionId = partition.Id;
+            var mutator = new Mock<IServiceResponseMutator>();
+            mutator.Setup(value => value.MutateResponseAsync(
+                    It.IsAny<IServiceRequest>(), It.IsAny<IServiceResponse>(), It.IsAny<CancellationToken>()))
+                .Returns(async (IServiceRequest request, IServiceResponse response, CancellationToken _) =>
+                {
+                    if (request is ActivateSessionRequest && Interlocked.Exchange(ref rejectActivation, 0) == 1)
+                    {
+                        response.ResponseHeader.ServiceResult = StatusCodes.BadSessionIdInvalid;
+                    }
+                    if (request is CreateSessionRequest)
+                    {
+                        createEntered.TrySetResult(true);
+                        await releaseCreate.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    if (request is ReadRequest read &&
+                        read.NodesToRead.Contains(
+                            node => node.NodeId == VariableIds.Server_ServerStatus_BuildInfo_ProductName))
+                    {
+                        Interlocked.Increment(ref applicationReads);
+                    }
+                    return response;
+                });
+            IServiceResponseMutator? previous = ReferenceServer.ResponseMutator;
+            Task? ingress = null;
+            try
+            {
+                for (uint sequenceNumber = 1; sequenceNumber <= 1024; sequenceNumber++)
+                {
+                    await partition.OnPublishReceivedAsync(
+                        new NotificationMessage { SequenceNumber = sequenceNumber }, null, []).ConfigureAwait(false);
+                }
+                await callbackEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                ingress = partition.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 1025 }, null, []).AsTask();
+                Assert.That(ingress.IsCompleted, Is.False, "The real bounded ingress queue must be full.");
+                ReferenceServer.ResponseMutator = mutator.Object;
+                Task recovery = session.ReconnectAsync(null, null, timeout.Token);
+                await createEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                enterRpc.TrySetResult(true);
+                Task<DataValue> callbackRpc = await rpcStarted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(callbackRpc.IsCompleted, Is.False);
+                    Assert.That(applicationReads, Is.Zero, "Ordinary RPCs must not bypass the unavailable session.");
+                    Assert.That(recovery.IsCompleted, Is.False);
+                    Assert.That(session.StateMachine.State,
+                        Is.EqualTo(failover ? ConnectionState.Failover : ConnectionState.Reconnecting));
+                });
+                releaseCreate.TrySetResult(true);
+
+                await recovery.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That((await callbackRpc.ConfigureAwait(false)).StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That((await recreatedCallback.Task.WaitAsync(timeout.Token).ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+                await ingress.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(session.SessionId, Is.Not.EqualTo(originalId));
+                Assert.That(partition.Id, Is.Not.EqualTo(originalSubscriptionId));
+                Assert.That(partition.Created, Is.True);
+                Assert.That(applicationReads, Is.EqualTo(2));
+                Assert.That(session.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
+            }
+            finally
+            {
+                releaseCreate.TrySetResult(true);
+                enterRpc.TrySetResult(true);
+                timeout.Cancel();
+                ReferenceServer.ResponseMutator = previous;
+                await session.CloseAsync(5000, true, CancellationToken.None).ConfigureAwait(false);
+                if (ingress != null)
+                {
+                    try
+                    {
+                        await ingress.ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+                    {
+                    }
+                }
+            }
+        }
+
         [Test]
         public async Task RawRecreatePreservesMessageContextTablesAsync()
         {
@@ -428,6 +613,18 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
             Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
             await session.CloseAsync(timeout.Token).ConfigureAwait(false);
+        }
+
+        private static async ValueTask ReadFromNotificationAsync(
+            ISessionClient session,
+            Task enterRpc,
+            TaskCompletionSource<Task<DataValue>> started,
+            CancellationToken ct)
+        {
+            await enterRpc.WaitAsync(ct).ConfigureAwait(false);
+            Task<DataValue> rpc = session.ReadValueAsync(VariableIds.Server_ServerStatus_BuildInfo_ProductName, ct);
+            started.TrySetResult(rpc);
+            await rpc.ConfigureAwait(false);
         }
 
         private static readonly StatusCode[] s_peerCertificateErrors =

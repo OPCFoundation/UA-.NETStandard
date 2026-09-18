@@ -3433,6 +3433,10 @@ namespace Opc.Ua.Client
         /// </summary>
         internal async Task CompleteSessionRecoveryAsync(CancellationToken ct)
         {
+            if (Volatile.Read(ref m_subscriptionRecoveryDeferrals) != 0)
+            {
+                return;
+            }
             PendingSubscriptionRecovery? pending = m_pendingSubscriptionRecovery;
             if (pending == null)
             {

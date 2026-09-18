@@ -284,6 +284,28 @@ namespace Opc.Ua.Client
 
         private sealed record PendingSubscriptionRecovery(NodeId PreviousSessionId, bool ReusedSession);
 
+        /// <summary>
+        /// Defers callback-dependent restoration to the outer session owner's completion phase.
+        /// </summary>
+        internal IDisposable DeferSubscriptionRecovery()
+        {
+            Interlocked.Increment(ref m_subscriptionRecoveryDeferrals);
+            return new SubscriptionRecoveryDeferral(this);
+        }
+
+        private sealed class SubscriptionRecoveryDeferral(Session owner) : IDisposable
+        {
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+                {
+                    Interlocked.Decrement(ref owner.m_subscriptionRecoveryDeferrals);
+                }
+            }
+
+            private int m_disposed;
+        }
+
         private static ValueTask ReconnectManagedChannelAsync(
             IClientChannelManager manager,
             IManagedTransportChannel channel,
@@ -307,6 +329,7 @@ namespace Opc.Ua.Client
         private IClientChannelManager? m_channelManager;
         private IManagedTransportChannel? m_managedChannel;
         private PendingSubscriptionRecovery? m_pendingSubscriptionRecovery;
+        private int m_subscriptionRecoveryDeferrals;
 
         /// <summary>
         /// Creates a new <see cref="Session"/> bound to a centrally
