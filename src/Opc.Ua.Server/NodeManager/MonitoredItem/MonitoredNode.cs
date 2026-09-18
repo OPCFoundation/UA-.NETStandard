@@ -45,7 +45,7 @@ namespace Opc.Ua.Server
     /// created for any attribute of a Node. The object is deleted when the last
     /// MonitoredItem is deleted.
     /// </remarks>
-    public class MonitoredNode2 : IDisposable
+    public class MonitoredNode2 : IDisposable, IAsyncDisposable
     {
         private const int k_defaultChannelCapacity = 4096;
 
@@ -920,6 +920,32 @@ namespace Opc.Ua.Server
         private readonly Lock m_rebindLock = new();
         private bool m_disposed;
 
+        /// <summary>
+        /// Completes the notification writer and asynchronously waits for all queued
+        /// notifications to be delivered. No further notifications can be enqueued.
+        /// </summary>
+        public async ValueTask DrainAsync(CancellationToken cancellationToken = default)
+        {
+            m_channel.Writer.TryComplete();
+            await m_consumerTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Drains queued notifications before releasing the consumer resources.
+        /// Use <see cref="Dispose()"/> instead to cancel delivery immediately.
+        /// </summary>
+        public async ValueTask DisposeAsync()
+        {
+            try
+            {
+                await DrainAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                Dispose();
+            }
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -940,7 +966,7 @@ namespace Opc.Ua.Server
 
             if (disposing)
             {
-                // Complete the writer; consumers drain remaining items and exit normally.
+                // Synchronous disposal must not block on an asynchronous delivery callback.
                 m_channel.Writer.TryComplete();
 
                 if (m_consumerTask != null)
