@@ -57,7 +57,9 @@ namespace Opc.Ua.Identity
         private readonly TimeSpan m_minRefreshInterval;
         private readonly HashSet<string>? m_allowedAlgorithms;
         private readonly SemaphoreSlim m_refreshLock = new(1, 1);
+        private readonly List<KeyCache> m_retiredCaches = [];
         private KeyCache m_cache = KeyCache.Empty;
+        private DateTimeOffset m_lastRefreshAttempt = DateTimeOffset.MinValue;
         private bool m_disposed;
 
         /// <summary>
@@ -183,6 +185,11 @@ namespace Opc.Ua.Identity
 
             m_disposed = true;
             m_cache.Dispose();
+            foreach (KeyCache cache in m_retiredCaches)
+            {
+                cache.Dispose();
+            }
+            m_retiredCaches.Clear();
             m_refreshLock.Dispose();
         }
 
@@ -192,9 +199,15 @@ namespace Opc.Ua.Identity
             try
             {
                 ThrowIfDisposed();
-                if (!m_cache.HasValue)
+                if (!m_cache.HasValue && CanRefresh(m_cache))
                 {
-                    await RefreshCoreAsync(ct).ConfigureAwait(false);
+                    try
+                    {
+                        await RefreshCoreAsync(ct).ConfigureAwait(false);
+                    }
+                    catch when (m_cache.HasValue)
+                    {
+                    }
                 }
             }
             finally
@@ -219,7 +232,15 @@ namespace Opc.Ua.Identity
                     return;
                 }
 
-                await RefreshCoreAsync(ct).ConfigureAwait(false);
+                try
+                {
+                    await RefreshCoreAsync(ct).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Retain the last usable snapshot after a failed refresh.
+                    // The failed attempt timestamp still throttles retries.
+                }
             }
             finally
             {
@@ -229,11 +250,16 @@ namespace Opc.Ua.Identity
 
         private async ValueTask RefreshCoreAsync(CancellationToken ct)
         {
+            m_lastRefreshAttempt = m_timeProvider.GetUtcNow();
             IReadOnlyList<IssuerVerificationKey> keys = await FetchKeysAsync(ct).ConfigureAwait(false);
-            var replacement = new KeyCache(keys, m_timeProvider.GetUtcNow(), hasValue: true);
+            DateTimeOffset refreshTime = m_timeProvider.GetUtcNow();
+            var replacement = new KeyCache(keys, refreshTime, hasValue: true);
             KeyCache previous = m_cache;
             m_cache = replacement;
-            previous.Dispose();
+            if (previous.HasValue)
+            {
+                m_retiredCaches.Add(previous);
+            }
         }
 
         private async ValueTask<IReadOnlyList<IssuerVerificationKey>> FetchKeysAsync(CancellationToken ct)
@@ -263,7 +289,25 @@ namespace Opc.Ua.Identity
             var keys = new List<IssuerVerificationKey>();
             foreach (JsonElement jwk in keysElement.EnumerateArray())
             {
-                AddJwkKeys(jwk, keys);
+                try
+                {
+                    AddJwkKeys(jwk, keys);
+                }
+                catch (ArgumentException)
+                {
+                }
+                catch (CryptographicException)
+                {
+                }
+                catch (FormatException)
+                {
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                catch (NotSupportedException)
+                {
+                }
             }
 
             return keys.AsReadOnly();
@@ -410,7 +454,10 @@ namespace Opc.Ua.Identity
 
         private bool CanRefresh(KeyCache cache)
         {
-            return !cache.HasValue || cache.RefreshTime + m_minRefreshInterval <= m_timeProvider.GetUtcNow();
+            DateTimeOffset lastAttempt = cache.HasValue && cache.RefreshTime > m_lastRefreshAttempt
+                ? cache.RefreshTime
+                : m_lastRefreshAttempt;
+            return lastAttempt + m_minRefreshInterval <= m_timeProvider.GetUtcNow();
         }
 
         private void ThrowIfDisposed()

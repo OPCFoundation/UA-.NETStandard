@@ -142,6 +142,91 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             Assert.That(keys, Is.Empty);
         }
 
+        [Test]
+        public async Task GetKeysAsyncKeepsPreviousSnapshotUsableDuringRefresh()
+        {
+            using var first = RSA.Create(2048);
+            using var second = RSA.Create(2048);
+            var timeProvider = new FakeTimeProvider();
+            using var handler = new QueueMessageHandler(
+                CreateJwks(CreateRsaJwk(first, "kid-1", "sig")),
+                CreateJwks(CreateRsaJwk(second, "kid-2", "sig")));
+            using var httpClient = new HttpClient(handler, disposeHandler: false);
+            using var resolver = new JwksIssuerKeyResolver(
+                "https://issuer.example.test",
+                "https://issuer.example.test/keys",
+                httpClient,
+                timeProvider,
+                TimeSpan.FromMinutes(5));
+
+            IReadOnlyList<IIssuerVerificationKey> previous = await resolver
+                .GetKeysAsync("kid-1")
+                .ConfigureAwait(false);
+            timeProvider.Advance(TimeSpan.FromMinutes(5));
+
+            Assert.That(
+                await resolver.GetKeysAsync("kid-2").ConfigureAwait(false),
+                Has.Count.EqualTo(1));
+
+            byte[] data = Encoding.ASCII.GetBytes("header.payload");
+            byte[] signature = first.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            Assert.That(previous[0].VerifySignature(data, signature), Is.True);
+        }
+
+        [Test]
+        public async Task GetKeysAsyncSkipsMalformedKeyAndRetainsUsableKeys()
+        {
+            using var rsa = RSA.Create(2048);
+            string malformedEc =
+                "{\"kty\":\"EC\",\"kid\":\"bad-ec\",\"use\":\"sig\",\"key_ops\":[\"verify\"]," +
+                "\"alg\":\"ES256\",\"crv\":\"secp256k1\",\"x\":\"AA\",\"y\":\"AA\"}";
+            using var handler = new QueueMessageHandler(
+                CreateJwks(malformedEc, CreateRsaJwk(rsa, "kid-rsa", "sig")));
+            using var httpClient = new HttpClient(handler, disposeHandler: false);
+            using var resolver = new JwksIssuerKeyResolver(
+                "https://issuer.example.test",
+                "https://issuer.example.test/keys",
+                httpClient,
+                new FakeTimeProvider(),
+                TimeSpan.FromMinutes(5));
+
+            IReadOnlyList<IIssuerVerificationKey> keys = await resolver
+                .GetKeysAsync(null)
+                .ConfigureAwait(false);
+
+            Assert.That(keys, Has.Count.EqualTo(1));
+            Assert.That(keys[0].KeyId, Is.EqualTo("kid-rsa"));
+        }
+
+        [Test]
+        public async Task GetKeysAsyncThrottlesFailedRefreshes()
+        {
+            using var rsa = RSA.Create(2048);
+            var timeProvider = new FakeTimeProvider();
+            using var handler = new QueueMessageHandler(
+                CreateJwks(CreateRsaJwk(rsa, "kid-rsa", "sig")),
+                HttpStatusCode.ServiceUnavailable,
+                HttpStatusCode.ServiceUnavailable);
+            using var httpClient = new HttpClient(handler, disposeHandler: false);
+            using var resolver = new JwksIssuerKeyResolver(
+                "https://issuer.example.test",
+                "https://issuer.example.test/keys",
+                httpClient,
+                timeProvider,
+                TimeSpan.FromMinutes(5));
+
+            await resolver.GetKeysAsync("kid-rsa").ConfigureAwait(false);
+            timeProvider.Advance(TimeSpan.FromMinutes(5));
+
+            Assert.That(
+                await resolver.GetKeysAsync("missing").ConfigureAwait(false),
+                Is.Empty);
+            Assert.That(
+                await resolver.GetKeysAsync("missing").ConfigureAwait(false),
+                Is.Empty);
+            Assert.That(handler.RequestCount, Is.EqualTo(2));
+        }
+
         private static IIssuerVerificationKey FindKey(IReadOnlyList<IIssuerVerificationKey> keys, string kid)
         {
             for (int i = 0; i < keys.Count; i++)
@@ -195,13 +280,38 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
         private sealed class QueueMessageHandler : HttpMessageHandler
         {
-            private readonly Queue<string> m_responses = new();
+            private readonly Queue<HttpResponseMessage> m_responses = new();
 
-            public QueueMessageHandler(params string[] responses)
+            public QueueMessageHandler(
+                params string[] responses)
             {
                 foreach (string response in responses)
                 {
-                    m_responses.Enqueue(response);
+                    m_responses.Enqueue(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent(response, Encoding.UTF8, "application/json")
+                    });
+                }
+            }
+
+            public QueueMessageHandler(params object[] responses)
+            {
+                foreach (object response in responses)
+                {
+                    if (response is HttpStatusCode statusCode)
+                    {
+                        m_responses.Enqueue(new HttpResponseMessage(statusCode));
+                    }
+                    else
+                    {
+                        m_responses.Enqueue(new HttpResponseMessage(HttpStatusCode.OK)
+                        {
+                            Content = new StringContent(
+                                (string)response,
+                                Encoding.UTF8,
+                                "application/json")
+                        });
+                    }
                 }
             }
 
@@ -212,11 +322,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 CancellationToken cancellationToken)
             {
                 RequestCount++;
-                var response = new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent(m_responses.Dequeue(), Encoding.UTF8, "application/json")
-                };
-                return Task.FromResult(response);
+                return Task.FromResult(m_responses.Dequeue());
             }
         }
     }
