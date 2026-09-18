@@ -95,6 +95,9 @@ namespace Opc.Ua.Client
         private IRetryBudget? m_reconnectBudget;
         private Task? m_worker;
         private int m_disposed;
+        private bool m_hasConnected;
+        private readonly ITimer m_recoveryTimer;
+        private ConnectionStateBudgetOperation? m_requestedReconnect;
 
         /// <summary>
         /// Delegate invoked to perform the actual session connect.
@@ -158,6 +161,11 @@ namespace Opc.Ua.Client
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_maxTotalReconnectTime = maxTotalReconnectTime
                 ?? ReconnectPolicy.DefaultMaxTotalReconnectTime;
+            m_recoveryTimer = m_timeProvider.CreateTimer(
+                static state => ((ConnectionStateMachine)state!).TriggerReconnect(),
+                this,
+                Timeout.InfiniteTimeSpan,
+                Timeout.InfiniteTimeSpan);
         }
 
         /// <summary>
@@ -256,22 +264,44 @@ namespace Opc.Ua.Client
         /// </summary>
         public void TriggerReconnect(ChannelStateChange? underlyingChannelState = null)
         {
+            RequestReconnect(underlyingChannelState: underlyingChannelState);
+        }
+
+        internal bool RequestReconnect(
+            ConnectionStateBudgetOperation? operation = null,
+            ChannelStateChange? underlyingChannelState = null)
+        {
             lock (m_lock)
             {
-                if (m_state is ConnectionState.Connected or ConnectionState.Disconnected)
+                if (m_worker == null || m_disposed != 0 ||
+                    (m_state == ConnectionState.Disconnected && !m_hasConnected))
                 {
-                    TransitionTo(
-                        ConnectionState.Reconnecting,
-                        error: underlyingChannelState?.Error,
-                        reconnectAttempt: 0,
-                        underlyingChannelState);
-                    m_lastError = null;
-                    ClearReconnectBudget();
-                    m_settled.Reset();
+                    return false;
                 }
+                if (m_state is not ConnectionState.Connected and not ConnectionState.Disconnected)
+                {
+                    return operation == null &&
+                        (m_state is ConnectionState.Reconnecting or ConnectionState.Failover);
+                }
+
+                m_recoveryTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+                if (m_state == ConnectionState.Disconnected)
+                {
+                    m_reconnectPolicy.Reset();
+                }
+                m_requestedReconnect = operation;
+                m_lastError = null;
+                ClearReconnectBudget();
+                m_settled.Reset();
+                TransitionTo(
+                    ConnectionState.Reconnecting,
+                    error: underlyingChannelState?.Error,
+                    reconnectAttempt: 0,
+                    underlyingChannelState);
             }
 
             m_trigger.Set();
+            return true;
         }
 
         /// <summary>
@@ -284,6 +314,8 @@ namespace Opc.Ua.Client
                 if (m_state is not ConnectionState.Closed
                     and not ConnectionState.Closing)
                 {
+                    m_recoveryTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+                    m_requestedReconnect = null;
                     TransitionTo(
                         ConnectionState.Closing,
                         error: null,
@@ -349,6 +381,7 @@ namespace Opc.Ua.Client
                 // sources hold no timer or wait handle, so on this path
                 // they are simply left to the GC rather than disposed out from
                 // under the exiting worker.
+                m_recoveryTimer.Dispose();
                 await m_cts.CancelAsync().ConfigureAwait(false);
                 m_trigger.Set();
                 GC.SuppressFinalize(this);
@@ -400,6 +433,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void CompleteDispose()
         {
+            m_recoveryTimer.Dispose();
             m_cts.Dispose();
             m_closeRequested.Dispose();
 
@@ -820,8 +854,20 @@ namespace Opc.Ua.Client
                         error: result,
                         reconnectAttempt: 0);
 
-                    // Reconnect and failover are exhausted; this connect cycle
-                    // is over and will not resume on its own.
+                    if (m_hasConnected)
+                    {
+                        TimeSpan delay = m_reconnectPolicy is ReconnectPolicy policy
+                            ? policy.MaxDelay
+                            : ReconnectPolicy.DefaultMaxDelay;
+                        if (delay < ReconnectPolicy.DefaultInitialDelay)
+                        {
+                            delay = ReconnectPolicy.DefaultInitialDelay;
+                        }
+                        m_recoveryTimer.Change(delay, Timeout.InfiniteTimeSpan);
+                    }
+
+                    // Initial-connect failure remains terminal. An established
+                    // session retains its identity and retries after backoff.
                     m_settled.Set();
                 }
             }
@@ -893,6 +939,16 @@ namespace Opc.Ua.Client
         {
             try
             {
+                ConnectionStateBudgetOperation? requested;
+                lock (m_lock)
+                {
+                    requested = m_requestedReconnect;
+                    m_requestedReconnect = null;
+                }
+                if (requested != null)
+                {
+                    return await requested(budget, ct).ConfigureAwait(false);
+                }
                 if (ReconnectWithBudgetAsync != null)
                 {
                     return await ReconnectWithBudgetAsync(budget, ct).ConfigureAwait(false);
@@ -964,6 +1020,10 @@ namespace Opc.Ua.Client
             }
 
             m_state = newState;
+            if (newState == ConnectionState.Connected)
+            {
+                m_hasConnected = true;
+            }
 
             m_logger.ConnectionStateMachineStateChangedOldNew(
                 previous,

@@ -669,19 +669,23 @@ namespace Opc.Ua.Client
             ITransportChannel? channel,
             CancellationToken ct = default)
         {
-            using (await m_serviceLock.ReaderLockAsync(ct)
-                .ConfigureAwait(false))
+            ct.ThrowIfCancellationRequested();
+            ConnectionStateBudgetOperation? operation = connection == null && channel == null
+                ? null
+                : (_, token) => HandleManualReconnectAsync(connection, channel, ct, token);
+            if (!StateMachine.RequestReconnect(operation))
             {
-                await InnerSession.ReconnectAsync(
-                    connection, channel, ct).ConfigureAwait(false);
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState, "The managed session cannot start the requested reconnect.");
             }
+            await StateMachine.WaitForConnectedAsync(ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public async Task ReloadInstanceCertificateAsync(
             CancellationToken ct = default)
         {
-            using (await m_serviceLock.ReaderLockAsync(ct)
+            using (await m_serviceLock.WriterLockAsync(ct)
                 .ConfigureAwait(false))
             {
                 await InnerSession.ReloadInstanceCertificateAsync(ct)
@@ -785,7 +789,7 @@ namespace Opc.Ua.Client
             ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
-            using (await m_serviceLock.ReaderLockAsync(ct)
+            using (await m_serviceLock.WriterLockAsync(ct)
                 .ConfigureAwait(false))
             {
                 await InnerSession.UpdateSessionAsync(
@@ -799,7 +803,7 @@ namespace Opc.Ua.Client
             ArrayOf<string> preferredLocales,
             CancellationToken ct = default)
         {
-            using (await m_serviceLock.ReaderLockAsync(ct)
+            using (await m_serviceLock.WriterLockAsync(ct)
                 .ConfigureAwait(false))
             {
                 await InnerSession.ChangePreferredLocalesAsync(
@@ -1265,6 +1269,29 @@ namespace Opc.Ua.Client
             {
                 m_logger.ManagedSessionConnectFailed(ex);
                 return ToAttemptFailure(ex);
+            }
+        }
+
+        private async Task<ServiceResult> HandleManualReconnectAsync(
+            ITransportWaitingConnection? connection,
+            ITransportChannel? channel,
+            CancellationToken callerToken,
+            CancellationToken workerToken)
+        {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(callerToken, workerToken);
+            try
+            {
+                using (await m_serviceLock.WriterLockAsync(linked.Token).ConfigureAwait(false))
+                {
+                    await InnerSession.ReconnectAsync(connection, channel, linked.Token).ConfigureAwait(false);
+                }
+                await RefreshRedundancyInfoBestEffortAsync(linked.Token).ConfigureAwait(false);
+                return ServiceResult.Good;
+            }
+            catch (Exception exception)
+            {
+                m_logger.ManagedSessionReconnectAttemptFailed(exception);
+                return ToAttemptFailure(exception);
             }
         }
 

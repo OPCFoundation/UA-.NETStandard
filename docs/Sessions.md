@@ -234,6 +234,29 @@ Callers that want to give up sooner than the policy does should cap the policy
 (`MaxRetries`, `MaxTotalReconnectTime`) or pass a cancellation token, which
 surfaces as an `OperationCanceledException`.
 
+### Recovery after an established connection is exhausted
+
+An established session keeps its identity and subscriptions when a reconnect
+cycle and failover are exhausted. It reports `Disconnected` and the last error,
+then starts a fresh bounded cycle after the policy's maximum backoff (at least
+one second). Closing or disposing the session cancels this recovery timer.
+This does not restart failed initial connections: `CreateAsync` still fails as
+described above.
+
+`ReconnectAsync` explicitly re-arms the state machine instead of waiting at the
+ordinary service gate. An explicitly supplied channel or reverse connection is
+used by the next attempt; concurrent ordinary reconnect requests join the active
+cycle. Certificate reload and identity/locale updates also use the exclusive
+control path, so callers can repair credentials before requesting recovery:
+
+```csharp
+await session.ReloadInstanceCertificateAsync(ct);
+await session.ReconnectAsync(connection: null, channel: null, ct);
+```
+
+Cancellation stops a caller's wait; the managed state machine still owns ongoing
+automatic recovery until the session is closed.
+
 ### `ManagedSessionFactory`
 
 `ManagedSessionFactory` (`src/Opc.Ua.Client/Session/ManagedSessionFactory.cs`)

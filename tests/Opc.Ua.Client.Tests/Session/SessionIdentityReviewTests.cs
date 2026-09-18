@@ -180,6 +180,51 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public async Task ManualReconnectRearmsExhaustedSessionWithoutReplacingItAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            await using ManagedSessionType session = await new ManagedSessionBuilder(ClientFixture.Config, Telemetry)
+                .UseEndpoint(ServerUrl.ToString())
+                .WithReconnectPolicy(options => options with
+                {
+                    InitialDelay = TimeSpan.Zero,
+                    MaxRetries = 1,
+                    JitterFactor = 0
+                })
+                .ConnectAsync(timeout.Token).ConfigureAwait(false);
+            Session inner = session.InnerSession;
+            NodeId sessionId = session.SessionId;
+            ConnectionStateBudgetOperation reconnect = session.StateMachine.ReconnectWithBudgetAsync!;
+            session.StateMachine.ReconnectWithBudgetAsync = (_, _) =>
+                Task.FromResult(new ServiceResult(StatusCodes.BadConnectionClosed));
+            session.StateMachine.FailoverWithBudgetAsync = (_, _) =>
+                Task.FromResult(new ServiceResult(StatusCodes.BadNotSupported));
+            var disconnected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            session.ConnectionStateChanged += (_, change) =>
+            {
+                if (change.NewState == ConnectionState.Disconnected)
+                {
+                    disconnected.TrySetResult(true);
+                }
+            };
+            session.StateMachine.TriggerReconnect();
+            await disconnected.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+            session.StateMachine.ReconnectWithBudgetAsync = reconnect;
+
+            await session.ReloadInstanceCertificateAsync(timeout.Token).ConfigureAwait(false);
+            await session.UpdateSessionAsync(session.Identity, default, timeout.Token).ConfigureAwait(false);
+            await session.ReconnectAsync(null, inner.TransportChannel, timeout.Token).ConfigureAwait(false);
+
+            Assert.That(session.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
+            Assert.That(session.InnerSession, Is.SameAs(inner));
+            Assert.That(session.SessionId, Is.EqualTo(sessionId));
+            DataValue value = await session.ReadValueAsync(VariableIds.Server_ServerStatus_State, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            await session.CloseAsync(timeout.Token).ConfigureAwait(false);
+        }
+
+        [Test]
         public async Task OpenUsesRefreshedDiscoveryInsteadOfConstructionSnapshotAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));

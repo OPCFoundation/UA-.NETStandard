@@ -37,6 +37,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -994,6 +995,48 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(
                 sm.State,
                 Is.EqualTo(ConnectionState.Closed));
+        }
+
+        [Test]
+        public async Task EstablishedSessionStartsAnotherCycleAfterExhaustionBackoffAsync()
+        {
+            var time = new FakeTimeProvider();
+            var policy = new ReconnectPolicy
+            {
+                InitialDelay = TimeSpan.Zero,
+                MaxDelay = TimeSpan.FromSeconds(30),
+                MaxRetries = 1,
+                JitterFactor = 0
+            };
+            await using var machine = new ConnectionStateMachine(policy, m_logger, timeProvider: time);
+            machine.ConnectAsync = _ => Task.FromResult(ServiceResult.Good);
+            int attempts = 0;
+            machine.ReconnectAsync = _ => Task.FromResult(++attempts == 1
+                ? new ServiceResult(StatusCodes.BadConnectionClosed)
+                : ServiceResult.Good);
+            machine.FailoverAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadNotSupported));
+            var disconnected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            machine.StateChanged += (_, change) =>
+            {
+                if (change.NewState == ConnectionState.Disconnected)
+                {
+                    disconnected.TrySetResult(true);
+                }
+            };
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            machine.Start();
+            machine.RequestConnect();
+            await machine.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false);
+            machine.TriggerReconnect();
+            await disconnected.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.ThrowsAsync<ServiceResultException>(
+                async () => await machine.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false));
+
+            time.Advance(TimeSpan.FromMinutes(1));
+            await machine.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false);
+
+            Assert.That(machine.State, Is.EqualTo(ConnectionState.Connected));
+            Assert.That(attempts, Is.EqualTo(2));
         }
 
         [Test]
