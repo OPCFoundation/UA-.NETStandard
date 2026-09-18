@@ -653,17 +653,18 @@ namespace Opc.Ua
                 TraceMasks.StartStop |
                 TraceMasks.Security;
             const int errorMask = TraceMasks.Error | TraceMasks.StackTrace;
+            EventId eventId = TraceLoggerProvider.CreateLegacyTraceEventId(traceMask);
             if ((traceMask & errorMask) != 0)
             {
-                LogError(traceMask, format, args);
+                LogError(eventId, format, args);
             }
             else if ((traceMask & informationMask) != 0)
             {
-                LogInfo(traceMask, format, args);
+                LogInfo(eventId, format, args);
             }
             else
             {
-                LogTrace(traceMask, format, args);
+                LogTrace(eventId, format, args);
             }
         }
 
