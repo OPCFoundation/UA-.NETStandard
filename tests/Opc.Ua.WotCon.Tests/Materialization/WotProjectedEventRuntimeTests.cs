@@ -134,12 +134,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
-        public async Task DuplicateOccurrencesAreNotDeliveredAndEvictedOccurrencesCannotBeAcknowledged()
+        public async Task DuplicateOccurrencesAreNotDeliveredAndRejectedOccurrencesCannotBeAcknowledged()
         {
             var h = new EventHarness(maxRoutes: 1);
             var (form, acknowledge, _) = h.AddAlarm("a");
             var upstream = new EventChannel(form);
             h.Nodes.ChannelFactory.SetChannel(form, upstream.Channel);
+            h.Invokes["aAcknowledge"].OnInvoke = (_, _) =>
+                new ValueTask<WotInvokeResult>(new WotInvokeResult(StatusCodes.Good));
             IAsyncDisposable runtime = await h.WireAsync().ConfigureAwait(false);
             await using var runtimeOwner = runtime.ConfigureAwait(false);
             IAsyncEnumerator<BaseEventState> events = h.Publisher.Open(h.Nodes.Root.NodeId);
@@ -149,15 +151,28 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotNotification first = Notification("a", new ByteString(new byte[] { 1 }));
             upstream.Push(first);
             Assert.That(await pending.WaitAsync(s_timeout).ConfigureAwait(false), Is.True);
-            ByteString retiredId = events.Current.EventId!.Value;
+            ByteString acceptedId = events.Current.EventId!.Value;
 
             upstream.Push(first);
             upstream.Push(Notification("a", new ByteString(new byte[] { 2 }), acked: true));
-            Assert.That(await events.MoveNextAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false), Is.True);
-            Assert.That(Read(events.Current, "AckedState", "Id").TryGetValue(out bool acked) && acked, Is.True);
-            ServiceResult result = await CallAsync(h, acknowledge, [new Variant(retiredId)]).ConfigureAwait(false);
+            ServiceResultException? capacity = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await events.MoveNextAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false));
+            Assert.That(capacity!.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+            Assert.That(Read(h.Conditions.Nodes["a"], "AckedState", "Id").TryGetValue(out bool acked), Is.True);
+            Assert.That(acked, Is.False);
+            ServiceResult accepted = await CallAsync(h, acknowledge, [new Variant(acceptedId)]).ConfigureAwait(false);
+            Assert.That(accepted.StatusCode, Is.EqualTo(StatusCodes.Good));
+            ServiceResult result = await CallAsync(
+                h, acknowledge, [new Variant(new ByteString(new byte[] { 2 }))]).ConfigureAwait(false);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadEventIdUnknown));
-            Assert.That(h.Invokes["aAcknowledge"].InvokeCount, Is.Zero);
+            Assert.That(h.Invokes["aAcknowledge"].InvokeCount, Is.EqualTo(1));
+            Assert.That(upstream.Stopped, Is.EqualTo(1));
+            IAsyncEnumerator<BaseEventState> retry = h.Publisher.Open(h.Nodes.Root.NodeId);
+            await using var retryOwner = retry.ConfigureAwait(false);
+            ServiceResultException? unavailable = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await retry.MoveNextAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false));
+            Assert.That(unavailable!.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+            Assert.That(upstream.Channel.SubscribeEventCount, Is.EqualTo(1));
         }
 
         [Test]

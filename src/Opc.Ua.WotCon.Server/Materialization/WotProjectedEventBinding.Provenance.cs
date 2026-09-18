@@ -331,7 +331,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private sealed record Origin(
-            WotCapturedEvent? Captured, DateTimeUtc ReceiveTime, ArrayOf<DataValue> Fields);
+            WotCapturedEvent? Captured, DateTimeUtc ReceiveTime, ArrayOf<DataValue> Fields, Occurrence Occurrence);
 
         private readonly Dictionary<ByteString, Origin> m_origins = [];
         private readonly List<WeakReference<WoTEventBindingState>> m_descriptorAliases = [];

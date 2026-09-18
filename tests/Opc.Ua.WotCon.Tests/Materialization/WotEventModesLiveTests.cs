@@ -329,7 +329,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 m_subscription = subscription;
             }
 
-            public static async Task<NativeEvents> OpenAsync(ISession session, CancellationToken ct)
+            public static async Task<NativeEvents> OpenAsync(
+                ISession session, CancellationToken ct, NodeId eventNotifier = default)
             {
                 var subscription = new Subscription(session.DefaultSubscription)
                 {
@@ -353,7 +354,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     };
                     var item = new MonitoredItem(subscription.DefaultItem)
                     {
-                        StartNodeId = Ua.ObjectIds.Server,
+                        StartNodeId = eventNotifier.IsNull ? Ua.ObjectIds.Server : eventNotifier,
                         AttributeId = Attributes.EventNotifier,
                         Filter = filter,
                         QueueSize = 64,

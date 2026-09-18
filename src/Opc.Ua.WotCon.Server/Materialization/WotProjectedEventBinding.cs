@@ -38,9 +38,8 @@ using Opc.Ua.WotCon.Bindings;
 namespace Opc.Ua.WotCon.Server.Materialization
 {
     /// <summary>
-    /// One local event declaration and its bounded, generation-private
-    /// occurrence routes. Neither the EventType nor the Condition instance
-    /// is used as the identity of an Event occurrence.
+    /// One local event declaration and its bounded, generation-owned occurrence
+    /// evidence. Action routability does not determine identity ownership.
     /// </summary>
     internal sealed partial class WotProjectedEventBinding
     {
@@ -146,212 +145,55 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
-        public BaseEventState? Project(WotNotification notification)
+        public void EnsureAvailable()
         {
-            return Project(notification, Condition);
+            lock (m_gate)
+            {
+                EnsureAvailableCore();
+            }
         }
 
         public async ValueTask<BaseEventState?> ProjectAsync(
             WotNotification notification, CancellationToken cancellationToken)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (StatusCode.IsBad(notification.Value.StatusCode) || !IsCondition)
+            TaskCompletionSource<bool> completion = await BeginProjectionAsync(cancellationToken).ConfigureAwait(false);
+            PreparedOccurrence? prepared = null;
+            bool committed = false;
+            try
             {
-                return Project(notification, Condition);
-            }
-            if (IdentityMode == WoTEventIdentityModeEnum.TransparentForwarding)
-            {
-                AdmitTransparentOccurrence(notification.CapturedEvent);
-            }
-            ExpandedNodeId sourceCondition = SourceCondition;
-            if (notification.CapturedEvent is { } captured)
-            {
-                captured.Source.Validate();
-                if (!captured.HasConditionId)
+                lock (m_gate)
                 {
-                    throw new ServiceResultException(
-                        StatusCodes.BadNodeIdInvalid, "The source did not supply its required Condition identity.");
+                    EnsureAvailableCore();
+                    prepared = PrepareOccurrence(notification);
                 }
-                if (!captured.HasEventId || captured.EventId.IsEmpty || !captured.HasBranchId)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadEventIdUnknown, "The source did not supply its required occurrence identities.");
-                }
-                sourceCondition = captured.ConditionId;
-            }
-            else if (TryRead(notification, ["ConditionId"], out Variant value))
-            {
-                sourceCondition = ReadPortableNodeId(value, notification.NamespaceUris);
-            }
-            if (sourceCondition.IsNull)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadNodeIdInvalid, "A Condition notification requires its source Condition identity.");
-            }
-            if (m_createCondition is null && Condition is not null &&
-                !SourceCondition.IsNull && sourceCondition != SourceCondition)
-            {
-                return null;
-            }
-            ConditionState condition = await GetConditionAsync(sourceCondition, cancellationToken)
-                .ConfigureAwait(false);
-            return Project(notification, condition);
-        }
-
-        private WotProjectedEventState? Project(WotNotification notification, ConditionState? condition)
-        {
-            if (StatusCode.IsBad(notification.Value.StatusCode))
-            {
-                throw new ServiceResultException(notification.Value.StatusCode);
-            }
-            lock (m_gate)
-            {
-                if (m_disposed)
-                {
-                    throw new ObjectDisposedException(nameof(WotProjectedEventBinding));
-                }
-                WotCapturedEvent? captured = notification.CapturedEvent;
-                captured?.Source.Validate();
-                if (IdentityMode == WoTEventIdentityModeEnum.TransparentForwarding)
-                {
-                    AdmitTransparentOccurrence(captured);
-                }
-                ExpandedNodeId sourceCondition = SourceCondition;
-                if (captured is { HasConditionId: true })
-                {
-                    sourceCondition = captured.ConditionId;
-                }
-                else if (m_fields.Contains(field => field.Path.Count == 0) &&
-                    TryRead(notification, ["ConditionId"], out Variant conditionId))
-                {
-                    sourceCondition = ReadPortableNodeId(conditionId, notification.NamespaceUris);
-                }
-                else if (IsCondition && !CanIdentifyConditionWithoutField())
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadConfigurationError,
-                        "A broad event notifier requires a selected ConditionId to route Condition actions.");
-                }
-
-                ByteString originalEventId = default;
-                if (captured is { HasEventId: true })
-                {
-                    originalEventId = captured.EventId;
-                    if (originalEventId.IsEmpty)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadEventIdUnknown);
-                    }
-                }
-                else if (m_eventIdMemberPath.Count != 0 &&
-                    TryRead(notification, m_eventIdMemberPath, out Variant eventId))
-                {
-                    if (!eventId.TryGetValue(out originalEventId) || originalEventId.IsEmpty)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadEventIdUnknown);
-                    }
-                }
-                else if (IsCondition)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEventIdUnknown);
-                }
-                if (IsCondition && captured is not null && (!captured.HasEventId || !captured.HasBranchId))
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadEventIdUnknown, "The source did not supply its required occurrence identities.");
-                }
-                ExpandedNodeId branchId = captured is { HasBranchId: true } ? captured.BranchId :
-                    m_fields.Contains(field => field.Path.Count == 1 &&
-                        field.Path[0] == QualifiedName.From(Ua.BrowseNames.BranchId)) &&
-                        TryRead(notification, [Ua.BrowseNames.BranchId], out Variant branch)
-                        ? ReadPortableNodeId(branch, notification.NamespaceUris) : ExpandedNodeId.Null;
-                var occurrence = new Occurrence(originalEventId, sourceCondition, branchId);
-                if (!m_nativePublication && !originalEventId.IsEmpty && m_occurrences.ContainsKey(occurrence))
+                if (prepared is null)
                 {
                     return null;
                 }
-                IServiceMessageContext sourceContext = captured?.Source.Context ?? notification.Context ??
-                    new ServiceMessageContext(m_context.Telemetry, m_context.EncodeableFactory)
-                    {
-                        NamespaceUris = notification.NamespaceUris.IsEmpty
-                            ? new NamespaceTable() : new NamespaceTable(notification.NamespaceUris.Span.ToArray())
-                    };
-                ArrayOf<DataValue> sourceFields = CaptureFields(notification, sourceContext);
-                DateTimeUtc now = m_timeProvider.GetUtcNow().UtcDateTime;
-                if (m_nativePublication && !originalEventId.IsEmpty &&
-                    m_sourceEventIds.TryGetValue(originalEventId, out ByteString retainedId))
+                ConditionState? condition = IsCondition
+                    ? await GetConditionAsync(prepared.Occurrence.ConditionId, cancellationToken).ConfigureAwait(false)
+                    : Condition;
+                lock (m_gate)
                 {
-                    Origin previous = m_origins[retainedId];
-                    if (m_rejectedEvents.Contains(retainedId) ||
-                        !SameCapturedOccurrence(previous.Captured, captured) ||
-                        !SameOccurrenceFields(previous.Fields, sourceFields))
+                    EnsureAvailableCore();
+                    cancellationToken.ThrowIfCancellationRequested();
+                    prepared.Captured?.Source.Validate();
+                    WotProjectedEventState result = CommitOccurrence(prepared, condition);
+                    committed = true;
+                    return result;
+                }
+            }
+            finally
+            {
+                lock (m_gate)
+                {
+                    if (!committed && prepared is { OwnsTransparentReservation: true })
                     {
-                        m_rejectedEvents.Add(retainedId);
-                        throw new ServiceResultException(
-                            StatusCodes.BadSecurityChecksFailed,
-                            "The source reused an EventId for a different occurrence or state.");
+                        m_routeRegistry.ReleaseTransparentEvent(this, prepared.Occurrence.EventId);
                     }
-                    m_origins[retainedId] = new Origin(captured, now, previous.Fields);
-                    UpdateDescriptor(captured);
-                    return null;
+                    m_pendingProjection = null;
                 }
-
-                ByteString localEventId = IdentityMode == WoTEventIdentityModeEnum.TransparentForwarding
-                    ? captured!.EventId : Uuid.NewUuid().ToByteString();
-                var result = new WotProjectedEventState
-                {
-                    NodeId = condition is null ? NodeId.Null : condition.NodeId,
-                    TypeDefinitionId = EventTypeId
-                };
-                if (captured is not null)
-                {
-                    PopulateCapturedFields(result, condition, captured, branchId);
-                }
-                for (int index = 0; index < m_fields.Count; index++)
-                {
-                    Field field = m_fields[index];
-                    DataValue value = sourceFields[index];
-                    if (field.Path.Count == 0 || HasCapturedField(captured, field.Path))
-                    {
-                        continue;
-                    }
-                    PopulateField(result, condition, field.Path, value, branchId);
-                }
-
-                SetIdentity(result, localEventId, now);
-                if (condition is not null && branchId.IsNull)
-                {
-                    SetIdentity(condition, localEventId, now);
-                }
-                while (m_order.Count >= m_maxRoutes)
-                {
-                    ByteString expired = m_order.Dequeue();
-                    m_origins.Remove(expired);
-                    m_rejectedEvents.Remove(expired);
-                    if (m_routes.TryGetValue(expired, out Occurrence previous))
-                    {
-                        m_routes.Remove(expired);
-                        m_occurrences.Remove(previous);
-                        m_sourceEventIds.Remove(previous.EventId);
-                        m_routeRegistry.ReleaseTransparentEvent(this, previous.EventId);
-                    }
-                }
-                if (!originalEventId.IsEmpty)
-                {
-                    if (IdentityMode == WoTEventIdentityModeEnum.TransparentForwarding)
-                    {
-                        m_routeRegistry.AdmitTransparentEvent(this, captured!);
-                    }
-                    m_routes.Add(localEventId, occurrence);
-                    m_occurrences.Add(occurrence, localEventId);
-                    if (m_nativePublication)
-                    {
-                        m_sourceEventIds.Add(originalEventId, localEventId);
-                    }
-                }
-                m_order.Enqueue(localEventId);
-                m_origins[localEventId] = new Origin(captured, now, sourceFields);
-                UpdateDescriptor(captured);
-                return result;
+                completion.TrySetResult(true);
             }
         }
 
@@ -432,8 +274,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 m_disposed = true;
                 m_routes.Clear();
-                m_occurrences.Clear();
-                m_order.Clear();
                 m_conditions.Clear();
                 m_origins.Clear();
                 m_sourceEventIds.Clear();
@@ -441,6 +281,204 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 m_actions.Clear();
                 MarkDescriptorRetired();
             }
+        }
+
+        private async ValueTask<TaskCompletionSource<bool>> BeginProjectionAsync(CancellationToken cancellationToken)
+        {
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Task pending;
+                lock (m_gate)
+                {
+                    EnsureAvailableCore();
+                    if (m_pendingProjection is null)
+                    {
+                        m_pendingProjection = new TaskCompletionSource<bool>(
+                            TaskCreationOptions.RunContinuationsAsynchronously);
+                        return m_pendingProjection;
+                    }
+                    pending = m_pendingProjection.Task;
+                }
+                await pending.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private void EnsureAvailableCore()
+        {
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(nameof(WotProjectedEventBinding));
+            }
+            if (StatusCode.IsBad(m_failureStatus))
+            {
+                throw new ServiceResultException(
+                    m_failureStatus, "The event binding is unavailable; replace and drain its owning generation.");
+            }
+        }
+
+        private PreparedOccurrence? PrepareOccurrence(WotNotification notification)
+        {
+            if (StatusCode.IsBad(notification.Value.StatusCode))
+            {
+                throw new ServiceResultException(notification.Value.StatusCode);
+            }
+            WotCapturedEvent? captured = notification.CapturedEvent;
+            captured?.Source.Validate();
+            if (IdentityMode == WoTEventIdentityModeEnum.TransparentForwarding)
+            {
+                AdmitTransparentOccurrence(captured);
+            }
+            ExpandedNodeId sourceCondition = SourceCondition;
+            if (captured is { HasConditionId: true })
+            {
+                sourceCondition = captured.ConditionId;
+            }
+            else if (IsCondition && captured is not null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdInvalid, "The source did not supply its required Condition identity.");
+            }
+            else if (m_fields.Contains(field => field.Path.Count == 0) &&
+                TryRead(notification, ["ConditionId"], out Variant conditionId))
+            {
+                sourceCondition = ReadPortableNodeId(conditionId, notification.NamespaceUris);
+            }
+            else if (IsCondition && !CanIdentifyConditionWithoutField())
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "A broad event notifier requires a selected ConditionId to route Condition actions.");
+            }
+            if (IsCondition)
+            {
+                if (sourceCondition.IsNull)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid,
+                        "A Condition notification requires its source Condition identity.");
+                }
+                if (m_createCondition is null && Condition is not null &&
+                    !SourceCondition.IsNull && sourceCondition != SourceCondition)
+                {
+                    return null;
+                }
+            }
+            ByteString originalEventId = default;
+            if (captured is { HasEventId: true })
+            {
+                originalEventId = captured.EventId;
+                if (originalEventId.IsEmpty)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEventIdUnknown);
+                }
+            }
+            else if (m_eventIdMemberPath.Count != 0 &&
+                TryRead(notification, m_eventIdMemberPath, out Variant eventId))
+            {
+                if (!eventId.TryGetValue(out originalEventId) || originalEventId.IsEmpty)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEventIdUnknown);
+                }
+            }
+            else if (IsCondition)
+            {
+                throw new ServiceResultException(StatusCodes.BadEventIdUnknown);
+            }
+            if (IsCondition && captured is not null && (!captured.HasEventId || !captured.HasBranchId))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadEventIdUnknown, "The source did not supply its required occurrence identities.");
+            }
+            ExpandedNodeId branchId = captured is { HasBranchId: true } ? captured.BranchId :
+                m_fields.Contains(field => field.Path.Count == 1 &&
+                    field.Path[0] == QualifiedName.From(Ua.BrowseNames.BranchId)) &&
+                    TryRead(notification, [Ua.BrowseNames.BranchId], out Variant branch)
+                    ? ReadPortableNodeId(branch, notification.NamespaceUris) : ExpandedNodeId.Null;
+            var occurrence = new Occurrence(originalEventId, sourceCondition, branchId);
+            if (!m_nativePublication && captured is null && !originalEventId.IsEmpty &&
+                m_sourceEventIds.TryGetValue(originalEventId, out ByteString legacyId) &&
+                !m_rejectedEvents.Contains(legacyId) &&
+                m_origins[legacyId] is { Captured: null } legacy && legacy.Occurrence == occurrence)
+            {
+                return null;
+            }
+            IServiceMessageContext sourceContext = captured?.Source.Context ?? notification.Context ??
+                new ServiceMessageContext(m_context.Telemetry, m_context.EncodeableFactory)
+                {
+                    NamespaceUris = notification.NamespaceUris.IsEmpty
+                        ? new NamespaceTable() : new NamespaceTable(notification.NamespaceUris.Span.ToArray())
+                };
+            ArrayOf<DataValue> sourceFields = CaptureFields(notification, sourceContext);
+            DateTimeUtc now = m_timeProvider.GetUtcNow().UtcDateTime;
+            if (!originalEventId.IsEmpty && m_sourceEventIds.TryGetValue(originalEventId, out ByteString retainedId))
+            {
+                Origin previous = m_origins[retainedId];
+                if (m_rejectedEvents.Contains(retainedId) || previous.Occurrence != occurrence ||
+                    !SameCapturedOccurrence(previous.Captured, captured) ||
+                    !SameOccurrenceFields(previous.Fields, sourceFields))
+                {
+                    m_rejectedEvents.Add(retainedId);
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "The source reused an EventId for a different occurrence or state.");
+                }
+                m_origins[retainedId] = new Origin(captured, now, previous.Fields, occurrence);
+                UpdateDescriptor(captured);
+                return null;
+            }
+            if (m_origins.Count >= m_maxRoutes)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadTooManyOperations,
+                    "The generation's occurrence evidence capacity was reached; replace and drain the generation.");
+            }
+            ByteString localEventId = IdentityMode == WoTEventIdentityModeEnum.TransparentForwarding
+                ? captured!.EventId : Uuid.NewUuid().ToByteString();
+            var prepared = new PreparedOccurrence(occurrence, localEventId, captured, sourceFields, now);
+            if (IdentityMode == WoTEventIdentityModeEnum.TransparentForwarding)
+            {
+                prepared.OwnsTransparentReservation = m_routeRegistry.AdmitTransparentEvent(this, captured!);
+            }
+            return prepared;
+        }
+
+        private WotProjectedEventState CommitOccurrence(PreparedOccurrence prepared, ConditionState? condition)
+        {
+            Occurrence occurrence = prepared.Occurrence;
+            var result = new WotProjectedEventState
+            {
+                NodeId = condition is null ? NodeId.Null : condition.NodeId,
+                TypeDefinitionId = EventTypeId
+            };
+            if (prepared.Captured is { } captured)
+            {
+                PopulateCapturedFields(result, condition, captured, occurrence.BranchId);
+            }
+            for (int index = 0; index < m_fields.Count; index++)
+            {
+                Field field = m_fields[index];
+                DataValue value = prepared.Fields[index];
+                if (field.Path.Count == 0 || HasCapturedField(prepared.Captured, field.Path))
+                {
+                    continue;
+                }
+                PopulateField(result, condition, field.Path, value, occurrence.BranchId);
+            }
+            SetIdentity(result, prepared.LocalEventId, prepared.ReceiveTime);
+            if (condition is not null && occurrence.BranchId.IsNull)
+            {
+                SetIdentity(condition, prepared.LocalEventId, prepared.ReceiveTime);
+            }
+            if (!occurrence.EventId.IsEmpty)
+            {
+                m_routes.Add(prepared.LocalEventId, occurrence);
+                m_sourceEventIds.Add(occurrence.EventId, prepared.LocalEventId);
+            }
+            m_origins.Add(prepared.LocalEventId,
+                new Origin(prepared.Captured, prepared.ReceiveTime, prepared.Fields, occurrence));
+            UpdateDescriptor(prepared.Captured);
+            return result;
         }
 
         private async ValueTask<ConditionState> GetConditionAsync(
@@ -511,6 +549,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 catch (Exception exception) when (exception is not OutOfMemoryException)
                 {
+                    lock (m_gate)
+                    {
+                        if (m_conditions.TryGetValue(sourceCondition, out Task<ConditionState>? current) &&
+                            ReferenceEquals(current, pending.Task))
+                        {
+                            m_conditions.Remove(sourceCondition);
+                        }
+                    }
                     pending.TrySetException(exception);
                     _ = pending.Task.Exception;
                     throw;
@@ -817,6 +863,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly record struct Occurrence(
             ByteString EventId, ExpandedNodeId ConditionId, ExpandedNodeId BranchId);
 
+        private sealed record PreparedOccurrence(
+            Occurrence Occurrence,
+            ByteString LocalEventId,
+            WotCapturedEvent? Captured,
+            ArrayOf<DataValue> Fields,
+            DateTimeUtc ReceiveTime)
+        {
+            public bool OwnsTransparentReservation { get; set; }
+        }
+
         private readonly ISystemContext m_context;
         private readonly int m_maxRoutes;
         private readonly TimeProvider m_timeProvider;
@@ -829,11 +885,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly Lock m_gate = new();
         private readonly Dictionary<ExpandedNodeId, Task<ConditionState>> m_conditions = [];
         private readonly Dictionary<ByteString, Occurrence> m_routes = [];
-        private readonly Dictionary<Occurrence, ByteString> m_occurrences = [];
         private readonly Dictionary<ByteString, ByteString> m_sourceEventIds = [];
         private readonly HashSet<ByteString> m_rejectedEvents = [];
         private readonly Dictionary<string, WotCapturedConditionAction> m_actions = [];
-        private readonly Queue<ByteString> m_order = [];
+        private TaskCompletionSource<bool>? m_pendingProjection;
         private bool m_disposed;
         private static readonly ArrayOf<string> s_conditionMethods =
             ["Enable", "Disable", "AddComment", "Acknowledge", "Confirm"];

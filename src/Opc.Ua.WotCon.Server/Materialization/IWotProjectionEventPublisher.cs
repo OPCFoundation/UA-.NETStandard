@@ -114,9 +114,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public int MaxQueuedPropertyValues { get; init; } = 1024;
 
         /// <summary>
-        /// Gets the maximum retained occurrence routes per event declaration.
-        /// An evicted occurrence fails subsequent actions with BadEventIdUnknown.
+        /// Gets the maximum accepted occurrences per event declaration in one
+        /// generation, including private identity, provenance and action routes.
+        /// Exhaustion faults availability with BadTooManyOperations rather than
+        /// evicting evidence. Exact replays do not consume another slot.
         /// </summary>
+        /// <remarks>
+        /// Evidence remains owned until generation disposal after lifecycle drain.
+        /// Recovery requires explicit generation replacement or removal; restarting
+        /// a subscription does not reset the budget. The same limit separately
+        /// bounds the number of materialized source Condition instances.
+        /// </remarks>
         public int MaxEventRoutes { get; init; } = 4096;
     }
 }

@@ -137,14 +137,28 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             NodeId methodId = await InstallActionSourceAsync(source, calls.Writer, ct).ConfigureAwait(false);
             await source.RefreshNamespaceTableAsync(ct).ConfigureAwait(false);
             string method = NodeId.ToExpandedNodeId(methodId, source.Session.NamespaceUris).ToString();
+            var publisher = new CapacityObservedPublisher();
             var factory = new WotProjectionBindingRuntimeFactory(
-                new NativeChannels(source.Session), null, new WotProjectionEventPublisher(),
+                new NativeChannels(source.Session), null, publisher,
                 new WotProjectionConditionFactory(), new WotProjectionBindingRuntimeOptions { MaxEventRoutes = 1 });
             var host = new LifecycleWotProjectionHost(destination.Server.NodeManagerLifecycle, factory);
-            WotProjectionHandle handle = await host.AddAsync(
-                ActionProjection(mode, source.EndpointUrl, method), ct).ConfigureAwait(false);
+            WotProjectionDocument document = ActionProjection(mode, source.EndpointUrl, method);
+            WotProjectionHandle handle = await host.AddAsync(document, ct).ConfigureAwait(false);
             try
             {
+                await destination.RefreshNamespaceTableAsync(ct).ConfigureAwait(false);
+                await using (NativeConditionEvents probe = await NativeConditionEvents.OpenAsync(
+                    destination.Session, ct).ConfigureAwait(false))
+                {
+                    await ReportConditionAsync(source, "ConditionB", "PumpB", false, true,
+                        ByteString.From(new byte[] { 0xD3, 0xB0, 0x02, 0x00 }), ct).ConfigureAwait(false);
+                    ProjectionObservation rejected = await publisher.ReadAsync(ct).ConfigureAwait(false);
+                    Assert.That(rejected.Status, Is.EqualTo(StatusCodes.BadTooManyOperations),
+                        "The declared Condition consumes the instance bound before any occurrence consumes capacity.");
+                    Assert.That(calls.Reader.TryRead(out _), Is.False);
+                }
+                await host.RemoveAsync(handle, ct).ConfigureAwait(false);
+                handle = await host.AddAsync(document, ct).ConfigureAwait(false);
                 await destination.RefreshNamespaceTableAsync(ct).ConfigureAwait(false);
                 await using NativeConditionEvents events = await NativeConditionEvents.OpenAsync(
                     destination.Session, ct).ConfigureAwait(false);
@@ -161,21 +175,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     new QualifiedName("Availability", metadata), ct).ConfigureAwait(false);
                 var client = new WoTEventBindingTypeClient(
                     destination.Session, descriptor, NUnitTelemetryContext.Create());
-                ByteString mainSourceId = ByteString.From(new byte[] { 0xD3, 0xB0, 0x01, 0x01 });
-                await ReportConditionAsync(source, "ConditionA", "PumpA", false, true, mainSourceId, ct)
-                    .ConfigureAwait(false);
-                ArrayOf<Variant> main = await events.ReadAsync(ct).ConfigureAwait(false);
-                Assert.That(main[0].TryGetValue(out ByteString mainEventId), Is.True);
-                Assert.That(main[8].TryGetValue(out NodeId mainCondition), Is.True);
-
                 ByteString branchSourceId = ByteString.From(new byte[] { 0xD3, 0xB0, 0x01, 0x02 });
                 await ReportConditionAsync(source, "ConditionA", "PumpA", true, false, branchSourceId, ct)
                     .ConfigureAwait(false);
+                Assert.That((await publisher.ReadAsync(ct).ConfigureAwait(false)).Status, Is.EqualTo(StatusCodes.Good));
                 ArrayOf<Variant> retained = await events.ReadAsync(ct).ConfigureAwait(false);
                 Assert.That(retained[0].TryGetValue(out ByteString branchEventId), Is.True);
                 Assert.That(retained[8].TryGetValue(out NodeId branchCondition), Is.True);
                 Assert.That(retained[9].TryGetValue(out NodeId branch), Is.True);
-                Assert.That(branchCondition, Is.EqualTo(mainCondition));
+                Assert.That(branchCondition.IsNull, Is.False);
                 Assert.That(branch.IsNull, Is.False);
                 var comment = new LocalizedText("Bounded retained branch");
                 CallMethodResult accepted = await InvokeNativeActionAsync(
@@ -186,29 +194,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(call.ObjectId, Is.EqualTo(new ExpandedNodeId("ConditionA", SourceNamespace)));
                 Assert.That(call.SessionId, Is.EqualTo(source.Session.SessionId));
                 Assert.That(calls.Reader.TryRead(out _), Is.False);
-                CallMethodResult evicted = await InvokeNativeActionAsync(
-                    destination.Session, owner, action, mainEventId, comment, ct).ConfigureAwait(false);
-                Assert.That(evicted.StatusCode, Is.EqualTo(StatusCodes.BadEventIdUnknown));
-                ServiceResultException? expired = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                {
-                    _ = await client.GetEventProvenanceAsync(mainEventId, ct).ConfigureAwait(false);
-                });
-                Assert.That(expired!.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
-
                 ByteString excessId = ByteString.From(new byte[] { 0xD3, 0xB0, 0x02, 0x01 });
                 await ReportConditionAsync(source, "ConditionB", "PumpB", false, true, excessId, ct)
                     .ConfigureAwait(false);
-                StatusCode status = StatusCodes.Good;
-                for (int attempt = 0; attempt < 80; attempt++)
-                {
-                    DataValue value = await destination.Session.ReadValueAsync(availability, ct).ConfigureAwait(false);
-                    Assert.That(value.WrappedValue.TryGetValue(out status), Is.True);
-                    if (StatusCode.IsBad(status))
-                    {
-                        break;
-                    }
-                    await Task.Delay(25, ct).ConfigureAwait(false);
-                }
+                Assert.That((await publisher.ReadAsync(ct).ConfigureAwait(false)).Status,
+                    Is.EqualTo(StatusCodes.BadTooManyOperations));
+                DataValue value = await destination.Session.ReadValueAsync(availability, ct).ConfigureAwait(false);
+                Assert.That(value.WrappedValue.TryGetValue(out StatusCode status), Is.True);
                 Assert.That(status, Is.EqualTo(StatusCodes.BadTooManyOperations),
                     "The declared actionable instance already consumes the one-Condition bound.");
                 WoTEventOriginDataType origin = await client.GetEventProvenanceAsync(branchEventId, ct)

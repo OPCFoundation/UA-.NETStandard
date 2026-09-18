@@ -44,7 +44,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
-        public void AdmitTransparentEvent(WotProjectedEventBinding binding, WotCapturedEvent captured)
+        public bool AdmitTransparentEvent(WotProjectedEventBinding binding, WotCapturedEvent captured)
         {
             lock (m_gate)
             {
@@ -64,18 +64,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     claim = new EventClaim(captured, nodes.ToArrayOf());
                     m_transparentEvents.Add(captured.EventId, claim);
                 }
-                if (claim.Owners.Add(binding))
+                if (!claim.Owners.Add(binding))
                 {
-                    foreach (ExpandedNodeId node in claim.Nodes)
-                    {
-                        if (!m_transparentNodes.TryGetValue(node, out NodeClaim? owner))
-                        {
-                            owner = new NodeClaim(captured.Source);
-                            m_transparentNodes.Add(node, owner);
-                        }
-                        owner.References++;
-                    }
+                    return false;
                 }
+                foreach (ExpandedNodeId node in claim.Nodes)
+                {
+                    if (!m_transparentNodes.TryGetValue(node, out NodeClaim? owner))
+                    {
+                        owner = new NodeClaim(captured.Source);
+                        m_transparentNodes.Add(node, owner);
+                    }
+                    owner.References++;
+                }
+                return true;
             }
         }
 

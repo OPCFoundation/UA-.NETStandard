@@ -278,6 +278,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 SingleWriter = false,
                 FullMode = BoundedChannelFullMode.Wait
             });
+            Exception? queueFailure = null;
             var leases = new List<IAsyncDisposable>();
             var sourceLeases = new Dictionary<WotProjectedEventSource, IAsyncDisposable>();
             var groups = new Dictionary<WotProjectedEventSource, List<WotProjectedEventBinding>>();
@@ -295,9 +296,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 try
                 {
+                    if (!bindings.IsEmpty && !bindings.Contains(static binding => !binding.IsFaulted))
+                    {
+                        bindings[0].EnsureAvailable();
+                    }
                     foreach (KeyValuePair<WotProjectedEventSource, List<WotProjectedEventBinding>> group in groups)
                     {
                         ArrayOf<WotProjectedEventBinding> targets = group.Value.ToArrayOf();
+                        if (!targets.Contains(static binding => !binding.IsFaulted))
+                        {
+                            continue;
+                        }
                         IAsyncDisposable lease = await group.Key.AttachAsync(notification =>
                         {
                             if (token.IsCancellationRequested)
@@ -314,7 +323,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                                     }
                                     if (!queue.Writer.TryWrite((binding, notification)))
                                     {
-                                        queue.Writer.TryComplete(new ServiceResultException(
+                                        FailQueue(new ServiceResultException(
                                             StatusCodes.BadTooManyOperations, "The projected event queue is full."));
                                         return;
                                     }
@@ -322,7 +331,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             }
                             catch (Exception exception) when (exception is not OutOfMemoryException)
                             {
-                                queue.Writer.TryComplete(exception);
+                                FailQueue(exception);
                             }
                         }, token).ConfigureAwait(false);
                         leases.Add(lease);
@@ -351,12 +360,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     catch (ServiceResultException exception)
                     {
                         binding.ReportFailure(exception.StatusCode);
+                        m_builder.Context.Telemetry.CreateLogger<WotProjectionBindingRuntime>()
+                            .EventBindingFaulted(exception, binding.ResourceXid, binding.JsonPointer);
                         if (bindings.Count == 1)
                         {
                             throw;
                         }
-                        m_builder.Context.Telemetry.CreateLogger<WotProjectionBindingRuntime>()
-                            .EventBindingFaulted(exception, binding.ResourceXid, binding.JsonPointer);
                         if (groups[binding.Source].All(candidate => candidate.IsFaulted) &&
                             sourceLeases.TryGetValue(binding.Source, out IAsyncDisposable? lease))
                         {
@@ -375,7 +384,27 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 ready.TrySetCanceled(token);
                 queue.Writer.TryComplete();
+                if (Volatile.Read(ref queueFailure) is { } failure)
+                {
+                    StatusCode status = failure is ServiceResultException service
+                        ? service.StatusCode : StatusCodes.BadUnexpectedError;
+                    foreach (WotProjectedEventBinding binding in bindings)
+                    {
+                        if (!binding.IsFaulted)
+                        {
+                            binding.ReportFailure(status);
+                            m_builder.Context.Telemetry.CreateLogger<WotProjectionBindingRuntime>()
+                                .EventBindingFaulted(failure, binding.ResourceXid, binding.JsonPointer);
+                        }
+                    }
+                }
                 await DisposeEventLeasesAsync(leases).ConfigureAwait(false);
+            }
+
+            void FailQueue(Exception error)
+            {
+                Exception failure = Interlocked.CompareExchange(ref queueFailure, error, null) ?? error;
+                queue.Writer.TryComplete(failure);
             }
         }
 

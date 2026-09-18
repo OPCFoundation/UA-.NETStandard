@@ -425,8 +425,8 @@ notification arrives. A startup failure is returned to the subscriber.
 An event declaration identifies an EventType, not mutable Condition state.
 `IWotProjectionConditionFactory` creates separate local Condition instances.
 Selected fields are translated through their message-context namespace tables,
-and a bounded occurrence-route table maps local EventIds back to the selected
-source, Condition, and branch. Wrong-source, unknown, or evicted IDs fail rather
+and a bounded occurrence table maps local EventIds back to the selected
+source, Condition, and branch. Wrong-source, unknown, or revoked IDs fail rather
 than falling back to another source. Retired-generation routes remain usable
 only while that generation is alive and the declaration and source still match.
 
@@ -455,15 +455,18 @@ before proxy wiring. Application-installed handlers are not cleared: a conflicti
 handler still prevents activation rather than being silently replaced.
 
 `WotProjectionBindingRuntimeOptions` limits pending notifications per local
-notifier (`MaxQueuedEvents`) and retained occurrence routes per event declaration
-(`MaxEventRoutes`). If the notification queue fills, the producer finishes
+notifier (`MaxQueuedEvents`) and accepted occurrence evidence per event declaration
+and generation (`MaxEventRoutes`). If the notification queue fills, the producer finishes
 delivering already queued events, then stops with a `BadTooManyOperations`
-error and releases its upstream subscription leases. The monitored-source
-lifecycle logs the failure; other event sources continue running. This is a
+error, marks the affected bindings unavailable, and releases its upstream
+subscription leases. Generated telemetry logs the failure; other event sources continue running. This is a
 server-side producer failure, not an `EventQueueOverflowEventType` notification
-or termination of the client's entire subscription. Evicting an occurrence route
-has a different result: a later action using that EventId fails with
-`BadEventIdUnknown`. The event publisher, Condition factory, runtime factory,
+or termination of the client's entire subscription. Exhausting occurrence
+capacity rejects the excess event before it changes Condition state or is
+published. Previously accepted identities, provenance, reservations, and
+eligible action routes remain owned; no FIFO eviction makes an old ID reusable.
+A revoked action route still fails with `BadEventIdUnknown` without releasing
+the occurrence's identity evidence. The event publisher, Condition factory, runtime factory,
 and options are injectable as well as available for direct construction. The
 [two-pump aggregation sample](../samples/WotCon/README.md) demonstrates
 source-specific management actions and acknowledgement/confirmation without
@@ -584,7 +587,7 @@ WoTEventOriginDataType origin =
 
 Normal native RolePermissions apply before the method looks up an occurrence.
 Unauthorized callers receive `BadUserAccessDenied`, including for unknown
-EventIds; authorized missing or expired evidence returns `BadNoData`, never an
+EventIds; authorized unknown or disposed-generation evidence returns `BadNoData`, never an
 empty successful record. The returned provenance is data, not an action-dispatch
 capability.
 
@@ -652,13 +655,44 @@ publishers retain the original callback contract and do not claim native
 metadata or authenticated occurrence dispatch. Existing custom Condition
 factories can retain a statically scoped instance; factories that support
 independent source Conditions implement `IWotProjectionConditionInstanceFactory`.
+Non-capturing headless publishers keep their legacy selected-identity
+deduplication; this does not exempt them from the generation's evidence budget.
 
-`MaxEventRoutes` bounds retained occurrence evidence and routes, and bounds the
-number of independently materialized source Conditions. A declared actionable
-Condition consumes the same instance bound as a notification-only Condition;
-additional branches of that Condition do not consume another instance slot.
-Queue limits remain generation-owned. Overflow and invalid source data are
-surfaced explicitly.
+`MaxEventRoutes` is a finite **per-declaration, per-generation occurrence
+budget**, not a rolling action-route cache. Every accepted occurrence, including
+an ordinary non-Condition event with no source EventId, consumes a slot. A
+verified replay refreshes provenance without consuming another slot. Admission
+and transparent reservations precede Condition creation and publication;
+rejected or cancelled admission releases only its uncommitted reservation.
+Failed Condition creation does not leave a failed task consuming an instance slot.
+
+The generation conservatively owns all accepted occurrence evidence until its
+existing lifecycle drain and disposal. Native queues, retransmission buffers,
+retained main/branch state, provenance requests and in-flight actions therefore
+do not depend on an action-route expiry timer or garbage collection to preserve
+identity. Capacity exhaustion sets the binding descriptor's `Availability` to
+`BadTooManyOperations` and ends that binding's event delivery. Restarting its
+subscription does not reset the budget or make the binding available again.
+Already accepted action routes remain subject to their original source,
+generation and authorization checks.
+
+Recovery is explicit: use the existing host `ShadowReloadAsync` to install a
+replacement generation, or remove a drained generation and add a replacement.
+The new generation has its own bounded budget; an old generation's subscribed
+consumers and bound work retain its original provenance and actual producing
+`NodeManagerRegistration.Generation` until they drain. Replacement does not
+authorize a collision with a reservation still owned by an older generation.
+Applications must size the budget for their intended generation lifetime and
+perform this lifecycle transition rather than expecting an unlimited ordinary
+event stream from a finite generation.
+
+The same option separately bounds independently materialized source Conditions.
+A declared actionable Condition consumes the same instance bound as a
+notification-only Condition. Branches do not consume additional **instance**
+slots, but each distinct branch occurrence consumes an **occurrence** slot.
+Queue limits remain separate. This is an in-process, generation-lifetime
+contract, not persisted historical replay, restart/HA continuity, or a durable
+publication transaction.
 JSON Schema validation is independent of these identity/lifetime guarantees and
 is not added by this feature.
 
