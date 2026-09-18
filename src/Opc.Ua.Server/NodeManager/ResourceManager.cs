@@ -502,10 +502,10 @@ namespace Opc.Ua.Server
 
                     // all done if exact match found.
                     if (translationTable!.Locale!.Name == preferredLocales[jj] &&
-                        translationTable.Translations.TryGetValue(key, out translatedText))
+                        translationTable.Translations.TryGetValue(key, out string? exactMatch))
                     {
                         culture = translationTable.Locale;
-                        return translatedText;
+                        return exactMatch;
                     }
 
                     // check for matching language but different region.

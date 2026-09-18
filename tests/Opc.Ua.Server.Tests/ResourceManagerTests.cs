@@ -276,6 +276,23 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void TranslateUsesPartialLocaleWhenExactLocaleHasNoTranslation()
+        {
+            var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create());
+            using var resources = new ResourceManager(configuration);
+            resources.Add("greeting", "de-AT", "Servus");
+            resources.Add("other", "de-DE", "Andere");
+
+            LocalizedText translated = resources.Translate(
+                ["de-DE"],
+                "greeting",
+                "Hello");
+
+            Assert.That(translated.Locale, Is.EqualTo("de-AT"));
+            Assert.That(translated.Text, Is.EqualTo("Servus"));
+        }
+
+        [Test]
         public void TranslateRetainsOriginalFallbackForAnotherLocale()
         {
             var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create());

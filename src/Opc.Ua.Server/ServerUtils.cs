@@ -454,7 +454,7 @@ namespace Opc.Ua.Server
             }
 
             // only generate diagnostics if errors exist.
-            if (noErrors)
+            if (!noErrors)
             {
                 diagnosticInfos = CreateDiagnosticInfoCollection(context, errors, logger)!;
             }
