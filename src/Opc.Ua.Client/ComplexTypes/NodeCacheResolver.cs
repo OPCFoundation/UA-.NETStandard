@@ -198,12 +198,23 @@ namespace Opc.Ua.Client.ComplexTypes
             var namespaceOwners = new List<NodeId>(referenceNodeIds.Count);
             foreach (ExpandedNodeId dictionaryNodeId in referenceNodeIds.ToList())
             {
-                ArrayOf<INode> properties = await FindReferencesAsync(
+                ArrayOf<INode> properties;
+                try
+                {
+                    properties = await FindReferencesAsync(
                         dictionaryNodeId,
                         ReferenceTypeIds.HasProperty,
                         false,
                         ct)
-                    .ConfigureAwait(false);
+                        .ConfigureAwait(false);
+                }
+                catch (ServiceResultException exception)
+                {
+                    m_logger.DictionaryLoadErrorDictionaryDitionaryIdErrorMessage(
+                        dictionaryNodeId, exception.Message);
+                    references = references.Filter(reference => reference.NodeId != dictionaryNodeId);
+                    continue;
+                }
                 foreach (INode property in properties.ToList())
                 {
                     if (property.BrowseName == BrowseNames.NamespaceUri)
