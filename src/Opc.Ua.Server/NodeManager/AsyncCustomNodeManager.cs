@@ -6903,6 +6903,14 @@ namespace Opc.Ua.Server
             return !nodeId.IsNull && RootNotifiers.TryGetValue(nodeId, out _);
         }
 
+        internal ValueTask RemoveAlarmRootNotifierAsync(NodeState notifier)
+        {
+            return RootNotifiers.TryGetValue(notifier.NodeId, out NodeState? current) &&
+                ReferenceEquals(current, notifier)
+                    ? RemoveRootNotifierAsync(notifier, CancellationToken.None)
+                    : default;
+        }
+
         /// <summary>
         /// Synchronously registers a root event notifier owned by this node manager.
         /// </summary>
