@@ -99,12 +99,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     TimeProvider timeProvider = m_builder.NodeManager is AsyncCustomNodeManager manager &&
                         manager.Server is ITimeProviderProvider provider
                         ? provider.TimeProvider : TimeProvider.System;
+                    bool nativePublisher = m_eventPublisher is IWotNativeProjectionEventPublisher;
                     var binding = new WotProjectedEventBinding(
                         m_builder.Context, source, notifier, eventTypeId, condition,
                         sourceCondition, m_options.MaxEventRoutes, timeProvider,
                         plan.ResourceXid, local.JsonPointer, m_eventRoutes, local.IdentityMode,
-                        isCondition, createCondition, m_eventPublisher is IWotNativeProjectionEventPublisher);
-                    if (m_eventPublisher is IWotNativeProjectionEventPublisher)
+                        isCondition, createCondition, nativePublisher,
+                        (m_builder.NodeManager as AsyncCustomNodeManager)?.Server.EventManager,
+                        requireServerIdentityAdmission: nativePublisher);
+                    if (nativePublisher)
                     {
                         await binding.InitializeDescriptorAsync(m_builder, local.Name, cancellationToken)
                             .ConfigureAwait(false);

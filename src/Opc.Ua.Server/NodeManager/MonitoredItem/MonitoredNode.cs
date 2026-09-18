@@ -341,10 +341,12 @@ namespace Opc.Ua.Server
             }
 
             IFilterTarget eventTarget = e;
+            m_server.EventManager?.AdmitEvent(context, e);
             // Build snapshot so the original event state is preserved when the consumer processes it.
             if (e is NodeState eventState)
             {
                 eventTarget = (IFilterTarget)eventState.Clone();
+                m_server.EventManager?.TransferEventIdentity(e, eventTarget);
             }
 
             var notification = new EventSnapshot

@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Server;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings;
 
@@ -58,7 +59,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WoTEventIdentityModeEnum identityMode = WoTEventIdentityModeEnum.LocalReEmission,
             bool isCondition = false,
             Func<NodeId, CancellationToken, ValueTask<ConditionState>>? createCondition = null,
-            bool nativePublication = true)
+            bool nativePublication = true,
+            EventManager? eventManager = null,
+            bool requireServerIdentityAdmission = false)
         {
             if (identityMode is not (WoTEventIdentityModeEnum.LocalReEmission or
                 WoTEventIdentityModeEnum.TransparentForwarding))
@@ -73,6 +76,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             IsCondition = isCondition || condition is not null;
             m_createCondition = createCondition;
             m_nativePublication = nativePublication;
+            m_eventManager = eventManager ?? (context as ServerSystemContext)?.Server.EventManager;
+            m_requireServerIdentityAdmission = requireServerIdentityAdmission;
             SourceCondition = sourceCondition;
             m_maxRoutes = maxRoutes;
             m_timeProvider = timeProvider;
@@ -187,9 +192,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 lock (m_gate)
                 {
-                    if (!committed && prepared is { OwnsTransparentReservation: true })
+                    if (!committed && prepared is not null)
                     {
-                        m_routeRegistry.ReleaseTransparentEvent(this, prepared.Occurrence.EventId);
+                        prepared.IdentityReservation?.Dispose();
+                        if (prepared.OwnsTransparentReservation)
+                        {
+                            m_routeRegistry.ReleaseTransparentEvent(this, prepared.Occurrence.EventId);
+                        }
                     }
                     m_pendingProjection = null;
                 }
@@ -273,6 +282,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             lock (m_gate)
             {
                 m_disposed = true;
+                foreach (Origin origin in m_origins.Values)
+                {
+                    origin.IdentityReservation?.Dispose();
+                }
                 m_routes.Clear();
                 m_conditions.Clear();
                 m_origins.Clear();
@@ -423,7 +436,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         StatusCodes.BadSecurityChecksFailed,
                         "The source reused an EventId for a different occurrence or state.");
                 }
-                m_origins[retainedId] = new Origin(captured, now, previous.Fields, occurrence);
+                m_origins[retainedId] = new Origin(
+                    captured, now, previous.Fields, occurrence, previous.IdentityReservation);
                 UpdateDescriptor(captured);
                 return null;
             }
@@ -436,11 +450,30 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ByteString localEventId = IdentityMode == WoTEventIdentityModeEnum.TransparentForwarding
                 ? captured!.EventId : Uuid.NewUuid().ToByteString();
             var prepared = new PreparedOccurrence(occurrence, localEventId, captured, sourceFields, now);
-            if (IdentityMode == WoTEventIdentityModeEnum.TransparentForwarding)
+            try
             {
-                prepared.OwnsTransparentReservation = m_routeRegistry.AdmitTransparentEvent(this, captured!);
+                if (m_requireServerIdentityAdmission)
+                {
+                    if (m_eventManager?.SupportsEventIdentityAdmission != true)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNotSupported,
+                            "Native event projection requires the host's server-wide event admission pipeline.");
+                    }
+                    prepared.IdentityReservation = m_eventManager.ReserveEventIdentity(localEventId,
+                        new ProjectedIdentitySource(
+                            captured, IdentityMode == WoTEventIdentityModeEnum.TransparentForwarding));
+                }
+                if (IdentityMode == WoTEventIdentityModeEnum.TransparentForwarding)
+                {
+                    prepared.OwnsTransparentReservation = m_routeRegistry.AdmitTransparentEvent(this, captured!);
+                }
+                return prepared;
             }
-            return prepared;
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                prepared.IdentityReservation?.Dispose();
+                throw;
+            }
         }
 
         private WotProjectedEventState CommitOccurrence(PreparedOccurrence prepared, ConditionState? condition)
@@ -466,9 +499,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 PopulateField(result, condition, field.Path, value, occurrence.BranchId);
             }
             SetIdentity(result, prepared.LocalEventId, prepared.ReceiveTime);
+            prepared.IdentityReservation?.Attach(m_context, result);
             if (condition is not null && occurrence.BranchId.IsNull)
             {
                 SetIdentity(condition, prepared.LocalEventId, prepared.ReceiveTime);
+                prepared.IdentityReservation?.Attach(m_context, condition);
             }
             if (!occurrence.EventId.IsEmpty)
             {
@@ -476,7 +511,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 m_sourceEventIds.Add(occurrence.EventId, prepared.LocalEventId);
             }
             m_origins.Add(prepared.LocalEventId,
-                new Origin(prepared.Captured, prepared.ReceiveTime, prepared.Fields, occurrence));
+                new Origin(prepared.Captured, prepared.ReceiveTime, prepared.Fields, occurrence,
+                    prepared.IdentityReservation));
             UpdateDescriptor(prepared.Captured);
             return result;
         }
@@ -871,6 +907,24 @@ namespace Opc.Ua.WotCon.Server.Materialization
             DateTimeUtc ReceiveTime)
         {
             public bool OwnsTransparentReservation { get; set; }
+
+            public EventManager.EventIdentityReservation? IdentityReservation { get; set; }
+        }
+
+        private sealed class ProjectedIdentitySource(WotCapturedEvent? captured, bool transparent)
+            : IEventIdentitySource
+        {
+            private WotCapturedEvent? Captured { get; } = captured;
+
+            private bool Transparent { get; } = transparent;
+
+            public bool IsSameOccurrence(IEventIdentitySource other)
+            {
+                return ReferenceEquals(this, other) ||
+                    (Transparent && Captured is not null &&
+                        other is ProjectedIdentitySource { Transparent: true } projected &&
+                        ReferenceEquals(Captured, projected.Captured));
+            }
         }
 
         private readonly ISystemContext m_context;
@@ -882,6 +936,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly ArrayOf<string> m_eventIdMemberPath;
         private readonly Func<NodeId, CancellationToken, ValueTask<ConditionState>>? m_createCondition;
         private readonly bool m_nativePublication;
+        private readonly EventManager? m_eventManager;
+        private readonly bool m_requireServerIdentityAdmission;
         private readonly Lock m_gate = new();
         private readonly Dictionary<ExpandedNodeId, Task<ConditionState>> m_conditions = [];
         private readonly Dictionary<ByteString, Occurrence> m_routes = [];

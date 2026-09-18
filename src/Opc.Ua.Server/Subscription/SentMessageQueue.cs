@@ -60,12 +60,14 @@ namespace Opc.Ua.Server
         /// server is not distributed.
         /// </param>
         /// <param name="logger">The logger used to report queue overflow.</param>
+        /// <param name="eventManager">Releases occurrence references before notification payloads are pooled.</param>
         public SentMessageQueue(
             Func<uint> subscriptionIdProvider,
             uint maxMessageCount,
             ISubscriptionRetransmissionStore? retransmissionStore,
-            ILogger logger)
-            : this(subscriptionIdProvider, maxMessageCount, retransmissionStore, logger, [], 1, 0)
+            ILogger logger,
+            EventManager? eventManager = null)
+            : this(subscriptionIdProvider, maxMessageCount, retransmissionStore, logger, [], 1, 0, eventManager)
         {
         }
 
@@ -76,7 +78,8 @@ namespace Opc.Ua.Server
             ILogger logger,
             List<NotificationMessage> sentMessages,
             uint nextSequenceNumber,
-            int lastSentMessage)
+            int lastSentMessage,
+            EventManager? eventManager)
         {
             m_subscriptionIdProvider = subscriptionIdProvider
                 ?? throw new ArgumentNullException(nameof(subscriptionIdProvider));
@@ -86,6 +89,7 @@ namespace Opc.Ua.Server
             SentMessages = sentMessages;
             m_sequenceNumber = nextSequenceNumber;
             m_lastSentMessage = lastSentMessage;
+            m_eventManager = eventManager;
         }
 
         /// <summary>
@@ -98,7 +102,8 @@ namespace Opc.Ua.Server
             ILogger logger,
             List<NotificationMessage> sentMessages,
             uint nextSequenceNumber,
-            int lastSentMessage)
+            int lastSentMessage,
+            EventManager? eventManager = null)
         {
             return new SentMessageQueue(
                 subscriptionIdProvider,
@@ -107,7 +112,8 @@ namespace Opc.Ua.Server
                 logger,
                 sentMessages,
                 nextSequenceNumber,
-                lastSentMessage);
+                lastSentMessage,
+                eventManager);
         }
 
         /// <summary>
@@ -394,7 +400,7 @@ namespace Opc.Ua.Server
             return new ArrayOf<uint>(sequenceNumbers);
         }
 
-        private static void ReuseNotificationPayloads(NotificationMessage message)
+        private void ReuseNotificationPayloads(NotificationMessage message)
         {
             ReadOnlySpan<ExtensionObject> data = message.NotificationData.Span;
             for (int i = 0; i < data.Length; i++)
@@ -414,6 +420,7 @@ namespace Opc.Ua.Server
                     ReadOnlySpan<EventFieldList> events = enl.Events.Span;
                     for (int j = 0; j < events.Length; j++)
                     {
+                        m_eventManager?.ReleaseEventFields(events[j]);
                         (events[j] as IPooledEncodeable)?.Reuse();
                     }
                     (enl as IPooledEncodeable)?.Reuse();
@@ -427,6 +434,7 @@ namespace Opc.Ua.Server
         private readonly Func<uint> m_subscriptionIdProvider;
         private readonly ISubscriptionRetransmissionStore? m_retransmissionStore;
         private readonly ILogger m_logger;
+        private readonly EventManager? m_eventManager;
         private uint m_sequenceNumber;
         private int m_lastSentMessage;
     }

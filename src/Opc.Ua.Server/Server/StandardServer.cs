@@ -4603,8 +4603,15 @@ namespace Opc.Ua.Server
             return new EventManager(
                 server,
                 (uint)configuration.ServerConfiguration!.MaxEventQueueSize,
-                (uint)configuration.ServerConfiguration.MaxDurableEventQueueSize);
+                (uint)configuration.ServerConfiguration.MaxDurableEventQueueSize,
+                EventIdentityAdmissionOptions);
         }
+
+        /// <summary>
+        /// Gets or sets the bounded event identity policy used when creating the
+        /// server's event manager. Set before startup, or register the options in DI.
+        /// </summary>
+        public EventIdentityAdmissionOptions EventIdentityAdmissionOptions { get; set; } = new();
 
         /// <summary>
         /// An optional factory used to build the server's session manager. When

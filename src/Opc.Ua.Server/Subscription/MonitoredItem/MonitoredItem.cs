@@ -1283,6 +1283,7 @@ namespace Opc.Ua.Server
             result.ClientHandle = ClientHandle;
             result.Handle = instance;
             result.EventFields = eventFieldValues;
+            m_server.EventManager?.RegisterEventFields(result, instance);
             return result;
         }
 
@@ -1305,6 +1306,7 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(instance));
             }
+            m_server.EventManager?.AdmitEvent(m_server.DefaultSystemContext, instance);
 
             lock (m_lock)
             {
@@ -1362,6 +1364,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void QueueEvent(EventFieldList fields)
         {
+            m_server.EventManager?.AdmitEventFields(fields);
             lock (m_lock)
             {
                 m_eventQueueHandler!.QueueEvent(fields);

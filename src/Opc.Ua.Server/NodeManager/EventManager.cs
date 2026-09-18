@@ -38,14 +38,35 @@ namespace Opc.Ua.Server
     /// <summary>
     /// An object that manages all events raised within the server.
     /// </summary>
-    public class EventManager : IDisposable
+    public partial class EventManager : IDisposable
     {
         /// <summary>
         /// Creates a new instance of a sampling group.
         /// </summary>
         public EventManager(IServerInternal server, uint maxQueueSize, uint maxDurableQueueSize)
+            : this(server, maxQueueSize, maxDurableQueueSize, new EventIdentityAdmissionOptions())
+        {
+        }
+
+        /// <summary>
+        /// Creates an event manager with a bounded server-wide occurrence admission domain.
+        /// </summary>
+        public EventManager(
+            IServerInternal server,
+            uint maxQueueSize,
+            uint maxDurableQueueSize,
+            EventIdentityAdmissionOptions identityOptions)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            if (identityOptions is null)
+            {
+                throw new ArgumentNullException(nameof(identityOptions));
+            }
+            if (identityOptions.MaxEventIdentities <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(identityOptions));
+            }
+            m_maxEventIdentities = identityOptions.MaxEventIdentities;
             m_monitoredItems = [];
             m_maxEventQueueSize = maxQueueSize;
             m_maxDurableEventQueueSize = maxDurableQueueSize;
@@ -73,6 +94,7 @@ namespace Opc.Ua.Server
                     monitoredItems = [.. m_monitoredItems.Values];
                     m_monitoredItems.Clear();
                 }
+                DisposeIdentityAdmission();
 
                 foreach (IEventMonitoredItem monitoredItem in monitoredItems)
                 {

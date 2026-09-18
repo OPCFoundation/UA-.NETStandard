@@ -686,7 +686,62 @@ Applications must size the budget for their intended generation lifetime and
 perform this lifecycle transition rather than expecting an unlimited ordinary
 event stream from a finite generation.
 
-The same option separately bounds independently materialized source Conditions.
+Native projection also reserves each output EventId with the host's existing
+`EventManager`, before Condition creation or delivery. This is one server-scoped
+admission domain shared by independently constructed runtime factories, both
+projection modes, and ordinary native events. A native publisher cannot acquire
+a forwarded or locally projected ID by copying its fields, nor can forwarding
+acquire an ID already owned by native publication. Only bilateral trusted
+occurrence evidence permits shared reservations. An authenticated source's bytes
+alone, or an ApplicationUri alias, cannot establish a shared physical occurrence.
+Collisions return `BadSecurityChecksFailed`; projection failures set the existing
+binding `Availability` without replacing the original owner or its provenance.
+
+`EventIdentityAdmissionOptions.MaxEventIdentities` separately bounds this shared
+domain (default 65,536 identities). Set `StandardServer.EventIdentityAdmissionOptions`
+before startup, inject these options through server hosting DI, or pass them to
+the `EventManager` constructor. No live identity is evicted at this limit:
+new admission fails with `BadTooManyOperations`. Projected reservations follow
+their producing generation. Event targets and the original selected
+`EventFieldList` additionally keep their admitted identity alive through native
+fanout, monitored-item queues and the server's Publish/retransmission buffers.
+The existing sent-message queue releases field ownership on acknowledgment,
+discard or subscription cleanup, before returning those payloads to their pools.
+Disposing a generation does not release these remaining references. Once all
+references drain, garbage collection makes the shared entry reclaimable on a
+subsequent admission. An unattached, rejected reservation is released immediately.
+This conservative reclamation can lag generation disposal; subscription restart
+or action-route expiry is not a reset of either budget.
+
+Ordinary native APIs have no explicit producing-generation release contract, so
+their bounded identity evidence remains until server disposal. The manager
+records this evidence from startup. The first projected reservation requests
+strict admission for the remaining server lifetime, including subsequent native
+publication. Before that request, legacy native publication remains compatible;
+an unidentifiable or conflicting native occurrence is reported through warning
+telemetry and `EventIdentityAdmissionStatus = BadNotSupported`. It permanently
+prevents claiming the optional guarantee in that server lifetime, rather than
+silently forgetting earlier output. After the guarantee is requested, native
+collisions, unsupported shapes and exhaustion throw before queueing or delivery.
+Exact native retransmissions and same retained-Condition refresh preserve their
+EventId; changed ReceiveTime or non-state alarm limits do not require a new ID.
+
+The supported host uses the built-in subscription manager and native publication
+pipeline without a persisted/replicated retransmission store.
+Server `ReportEvent`/`ReportEventAsync`, node-manager notifier sinks,
+`MonitoredItem.QueueEvent(IFilterTarget)` (including refresh and the event-manager
+report helpers), and the final subscription Publish path all participate.
+Custom subscription managers or publishers which override/bypass these paths
+are not an admitted native capability. Direct preselected
+`QueueEvent(EventFieldList)` is supported only for fields already selected and
+admitted by `MonitoredItem`; arbitrary fields, including a forged `Handle`, fail
+with `BadNotSupported` once admission is required. Custom/durable queues must
+preserve the admitted in-process field instances; reconstituting them does not
+establish identity continuity. Headless publishers do not advertise this native
+server-wide guarantee. This is publication-time protection, not a claim of
+complete transparent source preflight at activation.
+
+`MaxEventRoutes` also separately bounds independently materialized source Conditions.
 A declared actionable Condition consumes the same instance bound as a
 notification-only Condition. Branches do not consume additional **instance**
 slots, but each distinct branch occurrence consumes an **occurrence** slot.

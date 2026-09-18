@@ -53,6 +53,7 @@ namespace Opc.Ua
         public const int DataChangeMonitoredItemQueue = 110;
         public const int DataChangeQueueHandler = 120;
         public const int DiagnosticsNodeManager = 130;
+        public const int EventManager = 590;
         public const int EventMonitoredItemQueue = 140;
         public const int EventSourceRegistry = 150;
         public const int HistorianCaptureSink = 170;
