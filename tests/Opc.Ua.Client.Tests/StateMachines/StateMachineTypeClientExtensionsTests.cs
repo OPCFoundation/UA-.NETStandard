@@ -29,6 +29,7 @@
 
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -158,6 +159,49 @@ namespace Opc.Ua.Client.Tests.StateMachines
             Assert.That(count, Is.Zero);
         }
 
+        [TestCaseSource(nameof(s_initialValueFailures))]
+        public async Task WaitForStateObservesResolvedChildWithBadInitialValueAsync(StatusCode initialStatus)
+        {
+            var session = new Mock<ISessionClient>();
+            StateMachineTypeClient client = CreateClient(session);
+            var currentStateId = new NodeId(8u, 2);
+            session.Setup(value => value.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
+                {
+                    Results =
+                    [
+                        new BrowsePathResult
+                        {
+                            Targets = [new BrowsePathTarget { TargetId = new ExpandedNodeId(currentStateId) }]
+                        }
+                    ]
+                });
+            session.Setup(value => value.ReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ReadResponse
+                {
+                    Results = [new DataValue(LocalizedText.From("Running")).WithStatus(initialStatus)]
+                });
+            await using var streaming = new EmptyStreamingSubscription
+            {
+                Changes = [new DataValueChange(null, new DataValue(LocalizedText.From("Running")), null)]
+            };
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+            await client.WaitForStateAsync(streaming, LocalizedText.From("Running"), ct: timeout.Token)
+                .ConfigureAwait(false);
+
+            Assert.That(streaming.SubscribedNodeId, Is.EqualTo(currentStateId));
+            Assert.That(streaming.DeliveredChanges, Is.EqualTo(1));
+        }
+
         [Test]
         public void WaitForStateAsyncThrowsBadNotFoundWhenCurrentStateUnresolved()
         {
@@ -175,13 +219,6 @@ namespace Opc.Ua.Client.Tests.StateMachines
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadNotFound));
         }
-
-        // Note: full happy-path coverage of GetCurrentStateAsync and
-        // WaitForStateAsync (the two-call read pipeline + transition
-        // observation) requires extensive ISessionClient mocking and is
-        // exercised end-to-end by the conformance / integration suites
-        // (see AlarmClientIntegrationTests). The mock-driven coverage
-        // here focuses on the early-exit and null-guard contracts.
 
         private static void SetupTranslateEmpty(Mock<ISessionClient> sessionMock)
         {
@@ -207,13 +244,25 @@ namespace Opc.Ua.Client.Tests.StateMachines
 
         private sealed class EmptyStreamingSubscription : IStreamingSubscription
         {
+            public ArrayOf<DataValueChange> Changes { get; init; }
+
+            public NodeId SubscribedNodeId { get; private set; }
+
+            public int DeliveredChanges { get; private set; }
+
             public async IAsyncEnumerable<DataValueChange> SubscribeDataChangesAsync(
                 NodeId nodeId,
                 MonitoringOptions? options = null,
                 [EnumeratorCancellation] CancellationToken ct = default)
             {
+                SubscribedNodeId = nodeId;
                 await Task.Yield();
-                yield break;
+                foreach (DataValueChange change in Changes.ToList())
+                {
+                    ct.ThrowIfCancellationRequested();
+                    DeliveredChanges++;
+                    yield return change;
+                }
             }
 
             public async IAsyncEnumerable<DataValueChange> SubscribeDataChangesAsync(
@@ -240,5 +289,12 @@ namespace Opc.Ua.Client.Tests.StateMachines
                 return default;
             }
         }
+
+        private static readonly StatusCode[] s_initialValueFailures =
+        [
+            StatusCodes.BadWaitingForInitialData,
+            StatusCodes.BadCommunicationError,
+            StatusCodes.BadNotFound
+        ];
     }
 }

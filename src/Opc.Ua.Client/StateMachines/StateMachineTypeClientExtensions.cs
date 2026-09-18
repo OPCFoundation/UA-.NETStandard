@@ -87,15 +87,7 @@ namespace Opc.Ua.Client.StateMachines
                     StatusCodes.BadNotFound);
             }
 
-            DataValue dv = await ReadValueAsync(client, currentStateNodeId, ct)
-                .ConfigureAwait(false);
-            LocalizedText currentState = dv.WrappedValue.TryGetValue(
-                out LocalizedText name) ? name : LocalizedText.Null;
-            return new StateMachineSnapshot(
-                client.ObjectId,
-                currentState,
-                ToTimestamp(dv.SourceTimestamp),
-                dv.StatusCode);
+            return await ReadCurrentStateAsync(client, currentStateNodeId, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -182,13 +174,15 @@ namespace Opc.Ua.Client.StateMachines
                 throw new ArgumentNullException(nameof(streaming));
             }
 
-            StateMachineSnapshot current = await client.GetCurrentStateAsync(ct)
-                .ConfigureAwait(false);
-            if (StatusCode.IsBad(current.Status))
+            NodeId currentStateNodeId = await ResolveChildNodeIdAsync(
+                client, BrowseNames.CurrentState, ct).ConfigureAwait(false);
+            if (currentStateNodeId.IsNull)
             {
-                throw new ServiceResultException(current.Status);
+                throw new ServiceResultException(StatusCodes.BadNotFound);
             }
-            if (current.CurrentState == targetState)
+            StateMachineSnapshot current = await ReadCurrentStateAsync(client, currentStateNodeId, ct)
+                .ConfigureAwait(false);
+            if (StatusCode.IsGood(current.Status) && current.CurrentState == targetState)
             {
                 return;
             }
@@ -312,6 +306,19 @@ namespace Opc.Ua.Client.StateMachines
             return ExpandedNodeId.ToNodeId(
                 response.Results[0].Targets[0].TargetId,
                 client.Session.MessageContext.NamespaceUris);
+        }
+
+        private static async ValueTask<StateMachineSnapshot> ReadCurrentStateAsync(
+            StateMachineTypeClient client,
+            NodeId currentStateNodeId,
+            CancellationToken ct)
+        {
+            DataValue value = await ReadValueAsync(client, currentStateNodeId, ct).ConfigureAwait(false);
+            LocalizedText currentState = value.WrappedValue.TryGetValue(out LocalizedText name)
+                ? name
+                : LocalizedText.Null;
+            return new StateMachineSnapshot(
+                client.ObjectId, currentState, ToTimestamp(value.SourceTimestamp), value.StatusCode);
         }
 
         /// <summary>
