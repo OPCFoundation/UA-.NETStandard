@@ -31,6 +31,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server.FileSystem;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.Robotics.Server.Builders
 {
@@ -111,10 +112,13 @@ namespace Opc.Ua.Robotics.Server.Builders
                 context.Context,
                 m_options,
                 (node, ct) => context.Manager.AddPredefinedNodeAsync(node, ct),
-                (node, ct) => context.Manager.DeleteNodeAsync(
-                    (ServerSystemContext)context.Context,
-                    node.NodeId,
-                    ct),
+                async (node, ct) =>
+                {
+                    await context.Manager.DeleteNodeAsync(
+                        (ServerSystemContext)context.Context,
+                        node.NodeId,
+                        ct).ConfigureAwait(false);
+                },
                 cancellationToken).ConfigureAwait(false);
 
             m_scope.RegisteredResources.Add(binding);

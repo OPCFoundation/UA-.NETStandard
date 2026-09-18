@@ -393,6 +393,17 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             int itemCount,
             bool discardOldest)
         {
+            if (queueSize == 0)
+            {
+                return Channel.CreateUnbounded<T>(
+                    new UnboundedChannelOptions
+                    {
+                        SingleReader = true,
+                        SingleWriter = false,
+                        AllowSynchronousContinuations = false
+                    });
+            }
+
             ulong capacity = (ulong)Math.Max(1u, queueSize) *
                 (ulong)Math.Max(1, itemCount);
             int boundedCapacity = (int)Math.Min((ulong)int.MaxValue, capacity);

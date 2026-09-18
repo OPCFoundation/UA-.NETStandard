@@ -235,7 +235,9 @@ namespace Opc.Ua.Server
             m_lifetimeCounter = storedSubscription.LifetimeCounter;
             m_maxKeepAliveCount = storedSubscription.MaxKeepaliveCount;
             m_maxNotificationsPerPublish = storedSubscription.MaxNotificationsPerPublish;
-            m_publishingEnabled = storedSubscription.PublishingEnabled;
+            m_publishingEnabled = storedSubscription is IStoredSubscriptionState storedState
+                ? storedState.PublishingEnabled
+                : true;
             Priority = storedSubscription.Priority;
             m_publishTimerExpiry = m_timeProvider.GetTimestampMilliseconds() +
                 (long)storedSubscription.PublishingInterval;
@@ -257,7 +259,9 @@ namespace Opc.Ua.Server
                 ? new UserIdentity(storedSubscription.UserIdentityToken)
                 : null;
             m_ownerUserTokenType = m_savedOwnerIdentity?.TokenType ?? UserTokenType.Anonymous;
-            m_ownerClientApplicationUri = storedSubscription.OwnerClientApplicationUri;
+            m_ownerClientApplicationUri = storedSubscription is IStoredSubscriptionState ownerState
+                ? ownerState.OwnerClientApplicationUri
+                : null;
             if (m_savedOwnerIdentity != null)
             {
                 ClientUserIdResolver.TryResolveContinuityKey(

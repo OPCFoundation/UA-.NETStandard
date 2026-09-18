@@ -954,12 +954,13 @@ namespace Opc.Ua.Redundancy.Server
 
         private static StoredSubscription CloneSubscription(IStoredSubscription subscription)
         {
+            IStoredSubscriptionState? state = subscription as IStoredSubscriptionState;
             return new StoredSubscription
             {
                 Id = subscription.Id,
                 IsDurable = subscription.IsDurable,
-                PublishingEnabled = subscription.PublishingEnabled,
-                OwnerClientApplicationUri = subscription.OwnerClientApplicationUri,
+                PublishingEnabled = state?.PublishingEnabled ?? true,
+                OwnerClientApplicationUri = state?.OwnerClientApplicationUri,
                 LifetimeCounter = subscription.LifetimeCounter,
                 MaxLifetimeCount = subscription.MaxLifetimeCount,
                 MaxKeepaliveCount = subscription.MaxKeepaliveCount,

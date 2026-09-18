@@ -147,7 +147,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     {
                         ServiceResultException error = Assert.Throws<ServiceResultException>(() =>
                             harness.Listener.ReconnectToExistingChannel(
-                                Mock.Of<IUaSCByteTransport>(), 1, 1, 99, null!, null!,
+                                idle, Mock.Of<IUaSCByteTransport>(), 1, 1, 99, null!, null!,
                                 new OpenSecureChannelRequest { RequestType = SecurityTokenRequestType.Renew }))!;
                         Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTcpSecureChannelUnknown));
                     });

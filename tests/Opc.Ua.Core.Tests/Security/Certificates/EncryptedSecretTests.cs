@@ -1007,11 +1007,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             byte[] receiverNonce = receiverEphemeralKey.Data ?? throw new InvalidOperationException("Missing receiver nonce.");
             byte[] secretMaterial = senderEphemeralKey.GenerateSecret(receiverEphemeralKey, null)
                 ?? throw new InvalidOperationException("Failed to derive the shared secret.");
-            byte[]? derivedKeyData = null;
-            byte[]? encryptingKey = null;
-            byte[]? iv = null;
-            byte[]? payload = null;
-            byte[]? encryptedPayload = null;
+            byte[] derivedKeyData = null;
+            byte[] encryptingKey = null;
+            byte[] iv = null;
+            byte[] payload = null;
+            byte[] encryptedPayload = null;
 
             try
             {

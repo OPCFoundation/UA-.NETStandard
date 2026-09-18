@@ -32,7 +32,7 @@ using System.Collections.Generic;
 namespace Opc.Ua.Server
 {
     /// <inheritdoc/>
-    public class StoredSubscription : IStoredSubscription
+    public class StoredSubscription : IStoredSubscriptionState
     {
         /// <inheritdoc/>
         public uint Id { get; set; }

@@ -83,10 +83,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             temporary.Attach(2, transport.Object);
             temporary.CurrentState = TcpChannelState.Opening;
             listener.Setup(value => value.ReconnectToExistingChannel(
-                    transport.Object, 77, 5, 1, It.IsAny<Certificate>(),
+                    temporary, transport.Object, 77, 5, 1, It.IsAny<Certificate>(),
                     It.IsAny<ChannelToken>(), It.IsAny<OpenSecureChannelRequest>()))
-                .Callback<IUaSCByteTransport, uint, uint, uint, Certificate, ChannelToken, OpenSecureChannelRequest>(
-                    (adopted, requestId, sequence, _, certificate, token, request) =>
+                .Callback<TcpListenerChannel, IUaSCByteTransport, uint, uint, uint, Certificate, ChannelToken, OpenSecureChannelRequest>(
+                    (_, adopted, requestId, sequence, _, certificate, token, request) =>
                         target.Reconnect(adopted, requestId, sequence, certificate, token, request))
                 .Returns(true);
             listener.Setup(value => value.ChannelClosed(2)).Callback(temporary.Dispose);

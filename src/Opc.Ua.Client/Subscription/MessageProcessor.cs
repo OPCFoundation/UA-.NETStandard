@@ -624,22 +624,24 @@ namespace Opc.Ua.Client.Subscriptions
             if (notificationData.Value.TryGetValue(
                 out DataChangeNotification? datachange))
             {
-                await OnDataChangeNotificationAsync(
-                    message.SequenceNumber,
-                    (DateTime)message.PublishTime,
-                    datachange,
-                    publishStateMask,
-                    stringTable).ConfigureAwait(false);
+                await DispatchCallbackAsync(
+                    () => OnDataChangeNotificationAsync(
+                        message.SequenceNumber,
+                        (DateTime)message.PublishTime,
+                        datachange,
+                        publishStateMask,
+                        stringTable)).ConfigureAwait(false);
             }
             else if (notificationData.Value.TryGetValue(
                 out EventNotificationList? events))
             {
-                await OnEventDataNotificationAsync(
-                    message.SequenceNumber,
-                    (DateTime)message.PublishTime,
-                    events,
-                    publishStateMask,
-                    stringTable).ConfigureAwait(false);
+                await DispatchCallbackAsync(
+                    () => OnEventDataNotificationAsync(
+                        message.SequenceNumber,
+                        (DateTime)message.PublishTime,
+                        events,
+                        publishStateMask,
+                        stringTable)).ConfigureAwait(false);
             }
             else if (notificationData.Value.TryGetValue(
                 out StatusChangeNotification? statusChanged))
@@ -663,6 +665,20 @@ namespace Opc.Ua.Client.Subscriptions
                     statusChanged,
                     mask,
                     stringTable).ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask DispatchCallbackAsync(Func<ValueTask> callback)
+        {
+            MessageProcessor? previous = s_dispatchingProcessor.Value;
+            s_dispatchingProcessor.Value = this;
+            try
+            {
+                await callback().ConfigureAwait(false);
+            }
+            finally
+            {
+                s_dispatchingProcessor.Value = previous;
             }
         }
 
@@ -716,24 +732,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         protected bool IsDispatchingNotification
         {
-            get
-            {
-                try
-                {
-                    if (!m_messageDispatchGate.Wait(0))
-                    {
-                        return true;
-                    }
-                    m_messageDispatchGate.Release();
-                    return false;
-                }
-                catch (ObjectDisposedException)
-                {
-                    return false;
-                }
-            }
+            get => ReferenceEquals(s_dispatchingProcessor.Value, this);
         }
 
+        private static readonly AsyncLocal<MessageProcessor?> s_dispatchingProcessor = new();
         private readonly ISubscriptionServiceSetClientMethods m_services;
         // CA2213: both fields are disposed in DisposeAsync(bool) — suppressed
         // because the analyzer does not track IAsyncDisposable disposal paths.

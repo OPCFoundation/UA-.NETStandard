@@ -1854,7 +1854,10 @@ namespace Opc.Ua.Server
                 return session.ClientCertificate.Thumbprint;
             }
 
-            return "unsecured-client";
+            // No stable authenticated peer identity is available for an
+            // unsecured channel. Scope the lockout to this session rather
+            // than sharing one bucket across every unsecured client.
+            return session?.Id.ToString() ?? string.Empty;
         }
 
         /// <summary>

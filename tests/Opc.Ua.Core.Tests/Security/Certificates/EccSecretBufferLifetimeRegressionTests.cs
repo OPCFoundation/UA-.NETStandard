@@ -70,10 +70,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             byte[] encoded = encryptor.Encrypt(s_secret, s_nonce);
             byte[] buffer = Enumerable.Repeat((byte)0x7A, offset + encoded.Length + 13).ToArray();
             encoded.CopyTo(buffer, offset);
-            byte[]? key = null;
-            byte[]? iv = null;
-            byte[]? prefix = null;
-            byte[]? suffix = null;
+            byte[] key = null;
+            byte[] iv = null;
+            byte[] prefix = null;
+            byte[] suffix = null;
             ArraySegment<byte> working = default;
             var decryptor = new EncryptedSecret(
                 context, policy, issuers, receiver, receiverNonce, sender, null, null, false,

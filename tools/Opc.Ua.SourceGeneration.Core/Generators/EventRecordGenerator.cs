@@ -461,7 +461,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static bool IsConditionTypeOrSubtype(ObjectTypeDesign type)
         {
-            for (TypeDesign? current = type;
+            for (TypeDesign current = type;
                 current is ObjectTypeDesign objectType;
                 current = objectType.BaseTypeNode)
             {

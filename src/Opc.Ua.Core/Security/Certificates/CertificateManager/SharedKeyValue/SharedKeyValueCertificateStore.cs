@@ -496,7 +496,7 @@ namespace Opc.Ua
                     data[TimestampLength..]);
                 byte[] expectedKey = Encoding.UTF8.GetBytes(recordKey);
                 if (keyLength != expectedKey.Length ||
-                    !CryptographicOperations.FixedTimeEquals(
+                    !CryptoUtils.FixedTimeEquals(
                         data.Slice(TimestampLength + sizeof(int), keyLength),
                         expectedKey))
                 {
