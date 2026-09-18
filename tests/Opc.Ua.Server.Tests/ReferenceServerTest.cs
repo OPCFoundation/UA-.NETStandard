@@ -803,7 +803,7 @@ namespace Opc.Ua.Server.Tests
 
             DataValue range = response.Results[arrayItems.Length + 1];
             Assert.That(range.WrappedValue.TryGetValue(out ExtensionObject rangeExtension), Is.True);
-            Assert.That(rangeExtension.TryGetValue(out Opc.Ua.Range euRange), Is.True);
+            Assert.That(rangeExtension.TryGetValue(out Range euRange), Is.True);
             Assert.That(euRange.High, Is.GreaterThan(euRange.Low));
         }
 
@@ -852,7 +852,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good), suffixes[ii]);
                 Assert.That(value.WrappedValue.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.TwoDimensions), suffixes[ii]);
                 Assert.That(value.WrappedValue.AsBoxedObject(), Is.InstanceOf<IConvertableToMatrix>(), suffixes[ii]);
-                Matrix matrix = ((IConvertableToMatrix)value.WrappedValue.AsBoxedObject())
+                var matrix = ((IConvertableToMatrix)value.WrappedValue.AsBoxedObject())
                     .ToMatrix(value.WrappedValue.TypeInfo.BuiltInType);
                 Assert.That(matrix.Dimensions, Is.EqualTo(s_staticMatrixDimensions), suffixes[ii]);
             }
@@ -1027,6 +1027,7 @@ namespace Opc.Ua.Server.Tests
                 references.Count(r => r.ReferenceTypeId == ReferenceTypeIds.HasAddIn),
                 Is.GreaterThanOrEqualTo(1));
         }
+
         /// <summary>
         /// The Method and View node class sample nodes reference at least two nodes of their
         /// own NodeClass (CTT View Minimum Continuation Point 01 012.js, View Basic 2 018.js).
@@ -3193,6 +3194,9 @@ namespace Opc.Ua.Server.Tests
         /// 6. Session B publishes: no DataChangeNotification for the restricted node should
         ///    be present, proving that permissions were correctly re-evaluated.
         /// </remarks>
+        /// <exception cref="AssertionException">
+        /// The fixture has no TCP or HTTPS endpoint, or the selected endpoint has no Username token policy.
+        /// </exception>
         [Test]
         public async Task PermissionsRevalidatedAfterTransferSubscriptionsAndReactivationAsync()
         {
@@ -3202,8 +3206,7 @@ namespace Opc.Ua.Server.Tests
             var restrictedNodeId = new NodeId("AccessRights_RolePermissions_AuthenticatedUser", 2);
 
             EndpointDescription endpoint = m_server.GetEndpoints().Find(e =>
-                e.TransportProfileUri == Profiles.UaTcpTransport ||
-                e.TransportProfileUri == Profiles.HttpsBinaryTransport)
+                e.TransportProfileUri is Profiles.UaTcpTransport or Profiles.HttpsBinaryTransport)
                 ?? throw new AssertionException("The fixture requires a TCP or HTTPS endpoint.");
             UserTokenPolicy userNamePolicy = endpoint.UserIdentityTokens.Find(
                 policy => policy.TokenType == UserTokenType.UserName)

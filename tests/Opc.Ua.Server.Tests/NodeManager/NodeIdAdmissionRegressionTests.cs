@@ -55,7 +55,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
             using (var manager = new AdmissionHooks(server.Object))
-            using (var context = CreateContext())
+            using (OperationContext context = CreateContext())
             {
                 AddNodesItem first = manager.CreateItem("First", ReferenceTypeIds.Organizes);
                 (ServiceResult initial, NodeId id) = await manager.AddNodeAsync(context, first).ConfigureAwait(false);
@@ -99,7 +99,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
             using (var manager = new AdmissionHooks(server.Object) { PauseNextRegistration = true })
-            using (var context = CreateContext())
+            using (OperationContext context = CreateContext())
             {
                 manager.ForcedId = new NodeId(101, manager.NamespaceIndexes[0]);
                 AddNodesItem firstItem = manager.CreateItem("First", ReferenceTypeIds.Organizes);
@@ -150,7 +150,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
             using (var manager = new AdmissionHooks(server.Object))
-            using (var context = CreateContext())
+            using (OperationContext context = CreateContext())
             {
                 ushort ns = manager.NamespaceIndexes[0];
                 NodeId[] occupied = [new NodeId(101, ns), new NodeId(102, ns), new NodeId(103, ns)];
@@ -206,7 +206,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
             using (var manager = new AdmissionHooks(server.Object))
-            using (var context = CreateContext())
+            using (OperationContext context = CreateContext())
             {
                 ushort ns = manager.NamespaceIndexes[0];
                 var occupied = new NodeId(101, ns);
@@ -275,7 +275,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
             using (var manager = new AdmissionHooks(server.Object))
-            using (var context = CreateContext())
+            using (OperationContext context = CreateContext())
             using (var cancellation = new CancellationTokenSource())
             {
                 ushort ns = manager.NamespaceIndexes[0];
@@ -416,7 +416,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
             using (var manager = new AdmissionHooks(server.Object))
-            using (var context = CreateContext())
+            using (OperationContext context = CreateContext())
             {
                 (ServiceResult status, NodeId id) = await manager.AddNodeAsync(
                     context, manager.CreateItem("First", ReferenceTypeIds.Organizes)).ConfigureAwait(false);

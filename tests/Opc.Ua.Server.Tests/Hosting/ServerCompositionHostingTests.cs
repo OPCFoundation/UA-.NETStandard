@@ -247,7 +247,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             var observations = new CompositionObservations();
             TaskCompletionSource<bool> entered = NewSignal<bool>();
             TaskCompletionSource<bool> release = NewSignal<bool>();
-            var fixture = HostedFixture.Create(builder =>
+            HostedFixture fixture = HostedFixture.Create(builder =>
             {
                 builder.Services.AddSingleton(observations);
                 builder.Services.AddSingleton<IServerStartupTask>(new ExistingStartupTask(observations));
@@ -602,7 +602,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             var failure = new InvalidOperationException("composition-startup-failure");
             var observations = new CompositionObservations();
             using var factory = new MarkerNodeManagerFactory("urn:composition:failing-startup", 18);
-            var fixture = HostedFixture.Create(builder =>
+            HostedFixture fixture = HostedFixture.Create(builder =>
             {
                 builder.Services.AddSingleton(observations);
                 builder.AddNodeManager(factory);
@@ -872,7 +872,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         {
             var seen = new List<ResourceManager>();
             var observations = new CompositionObservations();
-            var fixture = HostedFixture.Create(builder =>
+            HostedFixture fixture = HostedFixture.Create(builder =>
             {
                 builder.Services.AddSingleton(observations);
                 builder.ConfigureResources(resources =>
@@ -2087,7 +2087,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             var expected = new InvalidOperationException("reverse-startup-failure");
             var clock = new FakeTimeProvider();
             var client = new Uri("opc.tcp://localhost:0/startup-failure");
-            var fixture = HostedFixture.Create(
+            HostedFixture fixture = HostedFixture.Create(
                 builder =>
                 {
                     builder.Services.AddSingleton<TimeProvider>(clock);
