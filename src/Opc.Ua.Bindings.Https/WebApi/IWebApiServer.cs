@@ -35,17 +35,16 @@ using Opc.Ua;
 namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// Per-request context handed to the OPC UA REST server dispatcher
-    /// (<see cref="IWebApiServer"/>). Captures the transport-layer
-    /// information the underlying
-    /// <see cref="ITransportListenerCallback.ProcessRequestAsync(SecureChannelContext, IServiceRequest, System.Threading.CancellationToken)"/>
-    /// needs to build a <see cref="SecureChannelContext"/>.
+    /// Per-request transport context supplied to the OPC UA REST dispatcher.
+    /// The dispatcher uses it to build the <see cref="SecureChannelContext"/>
+    /// passed to <see cref="ITransportListenerCallback.ProcessRequestAsync"/>.
     /// </summary>
     public sealed class WebApiInvocationContext
     {
         /// <summary>
-        /// Synthetic secure-channel identifier representing the inbound HTTPS
-        /// connection. Generated per-request by the endpoint pipeline.
+        /// Request identifier supplied by the endpoint pipeline.
+        /// The built-in dispatcher uses the listener's stable channel identifier
+        /// for service dispatch rather than this per-request value.
         /// </summary>
         public required string SecureChannelId { get; init; }
 
@@ -71,36 +70,30 @@ namespace Opc.Ua.Bindings
         public byte[]? ServerCertificate { get; init; }
 
         /// <summary>
-        /// The observed network address of the REST peer.
+        /// The listener's observed peer IP address, or <c>null</c> when unavailable.
+        /// The dispatcher forwards it for client lockout accounting.
         /// </summary>
         public IPAddress? PeerAddress { get; init; }
 
         /// <summary>
         /// The authenticated user identity resolved by the ASP.NET Core
         /// authentication pipeline (Anonymous / Bearer / Basic / MTLS), or
-        /// <c>null</c> when no identity provider produced one. Sessionless
-        /// services rely on this to evaluate role-based access; session
-        /// services flow the identity through the
-        /// <see cref="RequestHeader.AuthenticationToken"/> instead.
+        /// <c>null</c> when no identity was supplied. The dispatcher forwards
+        /// it as the upstream identity for the OPC UA service pipeline.
         /// </summary>
         public IUserIdentity? Identity { get; init; }
     }
 
     /// <summary>
-    /// Server-side dispatcher used by the OPC UA REST Minimal-API
-    /// endpoints (OPC UA Part 6 §G.3 "OpenAPI Mapping") to flow a
-    /// decoded request through the same pipeline as the binary and
-    /// <c>opcua+uajson</c> transports.
+    /// Dispatches decoded OPC UA REST requests through the host server's service pipeline.
+    /// Used by the Minimal-API endpoints for OPC UA Part 6, G.3, "OpenAPI Mapping".
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Implementations bridge the endpoint layer to
-    /// <see cref="ITransportListenerCallback.ProcessRequestAsync(SecureChannelContext, IServiceRequest, System.Threading.CancellationToken)"/>:
-    /// they translate the
-    /// <see cref="WebApiInvocationContext"/> into a
-    /// <see cref="SecureChannelContext"/>, invoke the callback registered
-    /// by the host server, and return the resulting service response (or
-    /// a fault response if the callback throws).
+    /// Implementations translate <see cref="WebApiInvocationContext"/> into a
+    /// <see cref="SecureChannelContext"/> and call
+    /// <see cref="ITransportListenerCallback.ProcessRequestAsync"/>.
+    /// OPC UA service errors become fault responses. Other errors propagate to the caller.
     /// </para>
     /// <para>
     /// The interface is intentionally narrow so the same endpoint
@@ -131,15 +124,23 @@ namespace Opc.Ua.Bindings
         bool IsReady { get; }
 
         /// <summary>
-        /// Invokes the server dispatcher for the supplied request and
-        /// returns its response. Faults raised by the dispatcher are
-        /// returned as <see cref="ServiceFault"/> bodies; never as
-        /// exceptions thrown to the caller.
+        /// Dispatches a request and returns its service response or an OPC UA service fault.
         /// </summary>
         /// <param name="request">The decoded service request.</param>
         /// <param name="context">The per-request transport context.</param>
-        /// <param name="ct">Cancellation token.</param>
-        /// <returns>The resulting service response.</returns>
+        /// <param name="ct">Cancellation token passed to the host callback.</param>
+        /// <returns>
+        /// The service response, or a <see cref="ServiceFault"/> for an OPC UA service error.
+        /// A dispatcher without a host callback returns <see cref="StatusCodes.BadServerHalted"/>.
+        /// </returns>
+        /// <remarks>
+        /// <see cref="ServiceResultException"/> is converted to a fault response.
+        /// Cancellation and unexpected callback exceptions propagate to the caller.
+        /// </remarks>
+        /// <exception cref="System.ArgumentNullException">
+        /// <paramref name="request"/> or <paramref name="context"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="System.OperationCanceledException">The host callback was canceled.</exception>
         System.Threading.Tasks.ValueTask<IServiceResponse> InvokeAsync(
             IServiceRequest request,
             WebApiInvocationContext context,

@@ -39,7 +39,7 @@ using System.Threading;
 namespace Opc.Ua.Server.UserDatabase
 {
     /// <summary>
-    /// Implementation of a serializable user database using a concurrent dictionary for users.
+    /// An in-memory user database with serializable snapshots and transactional user updates.
     /// </summary>
     [DataContract(Namespace = Namespaces.UserDatabase)]
     public class LinqUserDatabase : IUserDatabase, IUserMetadataDatabase
@@ -374,8 +374,13 @@ namespace Opc.Ua.Server.UserDatabase
         }
 
         /// <summary>
-        /// Persists the changes to the users database.
+        /// Persists the current database snapshot when a subclass provides storage.
         /// </summary>
+        /// <remarks>
+        /// This base implementation keeps records only in memory.
+        /// An override must commit one complete snapshot or leave the previous stored snapshot unchanged and throw.
+        /// The caller restores the previous in-memory record if this method throws.
+        /// </remarks>
         protected virtual void Save()
         {
         }

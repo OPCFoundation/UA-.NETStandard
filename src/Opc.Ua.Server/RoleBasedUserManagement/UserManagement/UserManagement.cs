@@ -42,8 +42,16 @@ namespace Opc.Ua.Server.UserManagement
     /// optional metadata capability when the database supports it.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// Databases that implement <see cref="IUserMetadataDatabase"/> commit credentials and metadata together.
+    /// This manager publishes its metadata only after the database mutation succeeds.
+    /// </para>
+    /// <para>
     /// Databases that do not implement <see cref="IUserMetadataDatabase"/>
-    /// retain the historical in-memory metadata behavior.
+    /// retain historical in-memory metadata and the legacy delete-and-create password reset.
+    /// That reset is not atomic: if recreation fails, the user account can be lost.
+    /// Implement the optional capability when flags must survive a restart or resets must be atomic.
+    /// </para>
     /// </remarks>
     public sealed class UserManagement : IUserManagement, IDisposable
     {
