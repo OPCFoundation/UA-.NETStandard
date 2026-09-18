@@ -122,6 +122,10 @@ namespace Opc.Ua
         /// <param name="channel">The channel to reconnect. The caller
         /// must hold a lease on <paramref name="channel"/>.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <returns>
+        /// An operation that completes when the reconnect cycle finishes. Completion does not guarantee that the
+        /// channel reconnected successfully.
+        /// </returns>
         ValueTask ReconnectAsync(
             IManagedTransportChannel channel,
             CancellationToken ct = default);
@@ -160,7 +164,9 @@ namespace Opc.Ua
         /// invalidates all secure channels.
         /// </summary>
         /// <param name="ct">Cancellation token.</param>
-        /// <returns>An operation that completes after all requested reconnect cycles and their cleanup finish.</returns>
+        /// <returns>
+        /// An operation that completes after all requested reconnect cycles and their cleanup finish.
+        /// </returns>
         ValueTask ReconnectAllAsync(CancellationToken ct = default);
 
         /// <summary>
@@ -169,6 +175,10 @@ namespace Opc.Ua
         /// endpoints, debug UIs). The snapshot is a single, allocation-once
         /// list; no continuous subscription required.
         /// </summary>
+        /// <returns>
+        /// A snapshot with one diagnostic record per registered managed channel,
+        /// or an empty list if none are registered.
+        /// </returns>
         IReadOnlyList<ManagedChannelDiagnostic> GetChannelDiagnostics();
 
         /// <summary>
