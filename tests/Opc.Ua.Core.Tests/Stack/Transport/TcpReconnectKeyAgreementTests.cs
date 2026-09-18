@@ -105,6 +105,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(harness.Temporary.CurrentState, Is.EqualTo(TcpChannelState.Closed));
             Assert.That(harness.NewTransport.SentCount, Is.Zero);
             Assert.That(() => harness.HandedOffToken!.TakeNonces(), Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(harness.FailureAuditSubject, Is.EqualTo("CN=ReconnectClient"));
+        }
+
+        [Test]
+        public async Task FailedEndpointReadClosesTheUnadoptedHandoffAsync()
+        {
+            using var harness = new HandoffHarness(SecurityPolicies.ECC_nistP256);
+            await harness.OpenAsync().ConfigureAwait(false);
+            harness.NewTransport.FailEndpointRead = true;
+
+            await harness.RenewAsync().ConfigureAwait(false);
+
+            Assert.That(harness.HandoffCount, Is.Zero);
+            Assert.That(harness.NewTransport.IsClosed, Is.True);
+            Assert.That(harness.Temporary.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+            Assert.That(harness.Target.CurrentState, Is.EqualTo(TcpChannelState.Faulted));
+            Assert.That(harness.FailureAuditSubject, Is.EqualTo("CN=ReconnectClient"));
         }
 
         [TestCase(false)]
@@ -238,6 +255,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Temporary.CurrentState = TcpChannelState.Opening;
                 listener.Setup(value => value.ChannelClosed(1)).Callback(Target.Dispose);
                 listener.Setup(value => value.ChannelClosed(2)).Callback(Temporary.Dispose);
+                Temporary.SetReportOpenSecureChannelAuditCallback((_, _, certificate, exception) =>
+                {
+                    if (exception != null)
+                    {
+                        FailureAuditSubject = certificate?.Subject;
+                    }
+                });
                 listener.Setup(value => value.ReconnectToExistingChannel(
                         Temporary, NewTransport, It.IsAny<uint>(), It.IsAny<uint>(), 1,
                         It.IsAny<Certificate>(), It.IsAny<ChannelToken>(), It.IsAny<OpenSecureChannelRequest>()))
@@ -297,6 +321,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public CancellationToken CancellationToken => m_timeout.Token;
             public int HandoffCount { get; private set; }
             public Exception? HandoffError { get; private set; }
+            public string? FailureAuditSubject { get; private set; }
             public ChannelToken? HandedOffToken { get; private set; }
             public Nonce? HandedOffLocal { get; private set; }
             public Nonce? HandedOffRemote { get; private set; }
@@ -509,12 +534,15 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         private sealed class RecordingTransport : IUaSCByteTransport, IUaSCByteTransportLimits
         {
             public EndPoint? LocalEndpoint => null;
-            public EndPoint? RemoteEndpoint => null;
+            public EndPoint? RemoteEndpoint => FailEndpointRead
+                ? throw new InvalidOperationException("Injected endpoint failure.")
+                : null;
             public TransportChannelFeatures Features => TransportChannelFeatures.None;
             public string Implementation => "ReconnectTest";
             public bool IsClosed => Volatile.Read(ref m_closed) != 0;
             public int SentCount => Volatile.Read(ref m_sentCount);
             public bool FailNegotiation { get; set; }
+            public bool FailEndpointRead { get; set; }
             public InvalidOperationException NegotiationError { get; } = new("Injected handoff failure.");
 
             public ValueTask ConnectAsync(Uri url, CancellationToken ct)

@@ -66,7 +66,8 @@ public nonce bytes cannot reconstruct them. The retained token's secret is
 used when deriving the replacement keys. Continued sequence numbers are
 checked against the retained channel, not treated as a new secure channel.
 A rejected or failed handoff closes the new connection and releases its
-unadopted token rather than restarting an orphaned receive loop. Receive loops
+unadopted token rather than restarting an orphaned receive loop. The peer
+certificate remains available through failure auditing. Receive loops
 have separate cancellation lifetimes; a retiring connection cannot stop its
 replacement. Connection admission reserves capacity before invoking channel
 callbacks, retires idle channels outside the listener lock, and closes rejected

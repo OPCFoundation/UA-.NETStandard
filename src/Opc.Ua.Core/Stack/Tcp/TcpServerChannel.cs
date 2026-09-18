@@ -898,10 +898,12 @@ namespace Opc.Ua.Bindings
                                 StatusCodes.BadConnectionClosed,
                                 "The transport was closed while reconnecting to an existing channel.");
 
-                        System.Net.EndPoint? remoteEndpoint = handedOver.RemoteEndpoint;
+                        System.Net.EndPoint? remoteEndpoint;
 
                         try
                         {
+                            clientCertificate = ClientCertificate?.AddRef();
+                            remoteEndpoint = handedOver.RemoteEndpoint;
                             TransferNonces(token);
                             // tell the listener to find the channel that can process the request.
                             if (!Listener.ReconnectToExistingChannel(
@@ -910,7 +912,7 @@ namespace Opc.Ua.Bindings
                                 requestId,
                                 sequenceNumber,
                                 channelId,
-                                ClientCertificate!,
+                                clientCertificate!,
                                 token,
                                 request))
                             {
@@ -1024,7 +1026,7 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 // report the audit event for open secure channel
-                ReportAuditOpenSecureChannelEvent?.Invoke(this, request!, ClientCertificate, e);
+                ReportAuditOpenSecureChannelEvent?.Invoke(this, request!, clientCertificate ?? ClientCertificate, e);
 
                 if (State is not TcpChannelState.Closed and not TcpChannelState.Closing)
                 {
