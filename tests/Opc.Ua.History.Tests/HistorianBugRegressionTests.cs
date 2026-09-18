@@ -622,6 +622,7 @@ namespace Opc.Ua.History.Tests
             /// <summary>
             /// Rejects insertion because the controlled raw points are immutable.
             /// </summary>
+            /// <exception cref="NotSupportedException"></exception>
             public ValueTask<HistorianUpdateOutcome<DataValue>> InsertAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,
@@ -634,6 +635,7 @@ namespace Opc.Ua.History.Tests
             /// <summary>
             /// Rejects replacement of the controlled raw points.
             /// </summary>
+            /// <exception cref="NotSupportedException"></exception>
             public ValueTask<HistorianUpdateOutcome<DataValue>> ReplaceAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,
@@ -646,6 +648,7 @@ namespace Opc.Ua.History.Tests
             /// <summary>
             /// Rejects updates to the fixed output-limit scenario.
             /// </summary>
+            /// <exception cref="NotSupportedException"></exception>
             public ValueTask<HistorianUpdateOutcome<DataValue>> UpdateAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,
@@ -658,6 +661,7 @@ namespace Opc.Ua.History.Tests
             /// <summary>
             /// Rejects deletion of the controlled raw-history range.
             /// </summary>
+            /// <exception cref="NotSupportedException"></exception>
             public ValueTask<HistorianUpdateOutcome<DataValue>> DeleteRawAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,
@@ -672,6 +676,7 @@ namespace Opc.Ua.History.Tests
             /// <summary>
             /// Rejects timestamp-based deletion from the fixed raw-history scenario.
             /// </summary>
+            /// <exception cref="NotSupportedException"></exception>
             public ValueTask<HistorianUpdateOutcome<DataValue>> DeleteAtTimeAsync(
                 HistorianOperationContext context,
                 NodeId nodeId,

@@ -76,15 +76,15 @@ namespace Opc.Ua.Di.Tests
                     Is.True);
                 IServerInternal server = CaptureServer.StartedInstance!;
                 ushort diNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(
-                    Opc.Ua.Di.Namespaces.OpcUaDi);
-                var deviceSetId = new NodeId(Opc.Ua.Di.Objects.DeviceSet, diNamespaceIndex);
+                    Namespaces.OpcUaDi);
+                var deviceSetId = new NodeId(Objects.DeviceSet, diNamespaceIndex);
                 ArrayOf<BrowseDescription> nodesToBrowse =
                 [
                     new BrowseDescription
                     {
                         NodeId = deviceSetId,
                         BrowseDirection = BrowseDirection.Forward,
-                        ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.Organizes,
+                        ReferenceTypeId = Types.ReferenceTypeIds.Organizes,
                         IncludeSubtypes = true,
                         ResultMask = (uint)BrowseResultMask.All
                     }
@@ -117,7 +117,7 @@ namespace Opc.Ua.Di.Tests
                     Has.All.Matches<ReferenceDescription>(reference =>
                         ExpandedNodeId.ToNodeId(
                             reference.ReferenceTypeId,
-                            server.NamespaceUris) == Opc.Ua.Types.ReferenceTypeIds.Organizes));
+                            server.NamespaceUris) == Types.ReferenceTypeIds.Organizes));
 
                 using var clientFixture = new ClientFixture(
                     NUnitTelemetryContext.Create());
@@ -127,7 +127,7 @@ namespace Opc.Ua.Di.Tests
                     "client-pki");
                 await clientFixture.LoadClientConfigurationAsync(clientPkiRoot)
                     .ConfigureAwait(false);
-                using Opc.Ua.Client.ISession session = await clientFixture.ConnectAsync(
+                using Ua.Client.ISession session = await clientFixture.ConnectAsync(
                     new Uri(s_endpointUrl),
                     SecurityPolicies.None).ConfigureAwait(false);
                 BrowseResponse clientBrowse = await session.BrowseAsync(
@@ -152,12 +152,12 @@ namespace Opc.Ua.Di.Tests
                     Has.All.Matches<ReferenceDescription>(reference =>
                         ExpandedNodeId.ToNodeId(
                             reference.ReferenceTypeId,
-                            session.NamespaceUris) == Opc.Ua.Types.ReferenceTypeIds.Organizes));
+                            session.NamespaceUris) == Types.ReferenceTypeIds.Organizes));
 
-                NodeId pump1Id = ExpandedNodeId.ToNodeId(
+                var pump1Id = ExpandedNodeId.ToNodeId(
                     clientPumpReferences.Single(reference => reference.BrowseName.Name == "Pump_1").NodeId,
                     session.NamespaceUris);
-                NodeId pump2Id = ExpandedNodeId.ToNodeId(
+                var pump2Id = ExpandedNodeId.ToNodeId(
                     clientPumpReferences.Single(reference => reference.BrowseName.Name == "Pump_2").NodeId,
                     session.NamespaceUris);
                 NodeId pump1PressureId = await ResolveBrowsePathAsync(
@@ -190,7 +190,7 @@ namespace Opc.Ua.Di.Tests
                     Assert.That(pump2Value, Is.Not.EqualTo(pump1Value));
                 });
 
-                using var subscription = new Opc.Ua.Client.Subscription(
+                using var subscription = new Ua.Client.Subscription(
                     session.DefaultSubscription)
                 {
                     DisplayName = "Pump simulation and events",
@@ -211,7 +211,7 @@ namespace Opc.Ua.Di.Tests
                 var eventReceived = new TaskCompletionSource<EventFieldList>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
 
-                var pump1Item = new Opc.Ua.Client.MonitoredItem(subscription.DefaultItem)
+                var pump1Item = new Ua.Client.MonitoredItem(subscription.DefaultItem)
                 {
                     StartNodeId = pump1PressureId,
                     AttributeId = Attributes.Value,
@@ -234,7 +234,7 @@ namespace Opc.Ua.Di.Tests
                     }
                 };
 
-                var pump2Item = new Opc.Ua.Client.MonitoredItem(subscription.DefaultItem)
+                var pump2Item = new Ua.Client.MonitoredItem(subscription.DefaultItem)
                 {
                     StartNodeId = pump2PressureId,
                     AttributeId = Attributes.Value,
@@ -259,9 +259,9 @@ namespace Opc.Ua.Di.Tests
 
                 var eventFilter = new EventFilter();
                 eventFilter.AddSelectClause(
-                    Opc.Ua.Types.ObjectTypeIds.BaseEventType,
+                    Types.ObjectTypeIds.BaseEventType,
                     QualifiedName.From("Message"));
-                var eventItem = new Opc.Ua.Client.MonitoredItem(subscription.DefaultItem)
+                var eventItem = new Ua.Client.MonitoredItem(subscription.DefaultItem)
                 {
                     StartNodeId = pump2Id,
                     AttributeId = Attributes.EventNotifier,
@@ -360,15 +360,15 @@ namespace Opc.Ua.Di.Tests
                 IServerInternal server = CaptureServer.StartedInstance!;
 
                 ushort diNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(
-                    Opc.Ua.Di.Namespaces.OpcUaDi);
-                var deviceSetId = new NodeId(Opc.Ua.Di.Objects.DeviceSet, diNamespaceIndex);
+                    Namespaces.OpcUaDi);
+                var deviceSetId = new NodeId(Objects.DeviceSet, diNamespaceIndex);
                 ArrayOf<BrowseDescription> nodesToBrowse =
                 [
                     new BrowseDescription
                     {
                         NodeId = deviceSetId,
                         BrowseDirection = BrowseDirection.Forward,
-                        ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences,
+                        ReferenceTypeId = Types.ReferenceTypeIds.HierarchicalReferences,
                         IncludeSubtypes = true,
                         ResultMask = (uint)BrowseResultMask.All
                     }
@@ -381,7 +381,7 @@ namespace Opc.Ua.Di.Tests
                     "client-pki");
                 await clientFixture.LoadClientConfigurationAsync(clientPkiRoot)
                     .ConfigureAwait(false);
-                using Opc.Ua.Client.ISession session = await clientFixture.ConnectAsync(
+                using Ua.Client.ISession session = await clientFixture.ConnectAsync(
                     new Uri(s_endpointUrl),
                     SecurityPolicies.None).ConfigureAwait(false);
 
@@ -407,7 +407,7 @@ namespace Opc.Ua.Di.Tests
                     Is.Not.Null,
                     "The pump created after startup was not organized by DeviceSet.");
 
-                NodeId dynamicPumpId = ExpandedNodeId.ToNodeId(
+                var dynamicPumpId = ExpandedNodeId.ToNodeId(
                     dynamicPump!.NodeId,
                     session.NamespaceUris);
                 NodeId pressureId = await ResolveBrowsePathAsync(
@@ -460,7 +460,7 @@ namespace Opc.Ua.Di.Tests
 
         private static void ConfigureServer(OpcUaServerOptions options)
         {
-            string applicationName = nameof(PumpHostedReferenceTests);
+            const string applicationName = nameof(PumpHostedReferenceTests);
             string testRoot = System.IO.Path.Combine(
                 TestContext.CurrentContext.WorkDirectory,
                 applicationName,
@@ -504,7 +504,7 @@ namespace Opc.Ua.Di.Tests
         /// translate the browse path, as a real client would.
         /// </remarks>
         private static async Task<NodeId> ResolveBrowsePathAsync(
-            Opc.Ua.Client.ISession session,
+            Ua.Client.ISession session,
             NodeId startNodeId,
             params string[] browseNames)
         {
@@ -517,7 +517,7 @@ namespace Opc.Ua.Di.Tests
                     {
                         NodeId = current,
                         BrowseDirection = BrowseDirection.Forward,
-                        ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences,
+                        ReferenceTypeId = Types.ReferenceTypeIds.HierarchicalReferences,
                         IncludeSubtypes = true,
                         ResultMask = (uint)BrowseResultMask.All
                     }
@@ -574,7 +574,7 @@ namespace Opc.Ua.Di.Tests
         }
 
         private static async Task<DataValue> ReadGoodValueAsync(
-            Opc.Ua.Client.ISession session,
+            Ua.Client.ISession session,
             NodeId nodeId,
             TimeSpan timeout)
         {

@@ -218,7 +218,8 @@ namespace Opc.Ua.History.Tests
                 await collector.WaitForEventAsync(
                     alarmId,
                     e => AlarmEventCollector.TryGetBoolean(
-                        e, AlarmEventCollector.FieldIndex.EnabledStateId, out bool enabled) && !enabled,
+                        e, AlarmEventCollector.FieldIndex.EnabledStateId, out bool enabled) &&
+                        !enabled,
                     DefaultEventWaitTimeout).ConfigureAwait(false);
 
                 collector.Reset();
@@ -230,7 +231,8 @@ namespace Opc.Ua.History.Tests
                 EventFieldList enabledEvent = await collector.WaitForEventAsync(
                     alarmId,
                     e => AlarmEventCollector.TryGetBoolean(
-                        e, AlarmEventCollector.FieldIndex.EnabledStateId, out bool enabled) && enabled,
+                        e, AlarmEventCollector.FieldIndex.EnabledStateId, out bool enabled) &&
+                        enabled,
                     DefaultEventWaitTimeout).ConfigureAwait(false);
                 Assert.That(AlarmEventCollector.TryGetConditionId(enabledEvent, out NodeId conditionId), Is.True);
                 Assert.That(conditionId, Is.EqualTo(alarmId));

@@ -39,8 +39,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Client.Alarms;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Pumps;
 using Opc.Ua.Server;
@@ -76,7 +76,7 @@ namespace Opc.Ua.Di.Tests
             {
                 IReadOnlyList<ReferenceDescription> references = await BrowseAsync(
                     server,
-                    Opc.Ua.ObjectIds.Server_Namespaces).ConfigureAwait(false);
+                    Ua.ObjectIds.Server_Namespaces).ConfigureAwait(false);
 
                 var described = new HashSet<string>(StringComparer.Ordinal);
                 foreach (ReferenceDescription reference in references)
@@ -104,16 +104,16 @@ namespace Opc.Ua.Di.Tests
             {
                 string[] expectedModelNamespaces =
                 [
-                    Opc.Ua.Di.Namespaces.OpcUaDi,
-                    global::Opc.Ua.Machinery.Namespaces.Machinery,
-                    global::Opc.Ua.Pumps.Namespaces.Pumps
+                    Namespaces.OpcUaDi,
+                    Machinery.Namespaces.Machinery,
+                    Pumps.Namespaces.Pumps
                 ];
 
                 foreach (string namespaceUri in expectedModelNamespaces)
                 {
                     NodeId metadata = await ResolveAsync(
                         server,
-                        Opc.Ua.ObjectIds.Server_Namespaces,
+                        Ua.ObjectIds.Server_Namespaces,
                         [namespaceUri]).ConfigureAwait(false);
                     Assert.That(metadata.IsNull, Is.False, "NamespaceMetadata was not found for " + namespaceUri);
 
@@ -153,7 +153,7 @@ namespace Opc.Ua.Di.Tests
                 IReadOnlyList<ReferenceDescription> references = await BrowseAsync(
                     server,
                     events,
-                    Opc.Ua.Types.ReferenceTypeIds.References,
+                    Types.ReferenceTypeIds.References,
                     BrowseDirection.Both).ConfigureAwait(false);
 
                 Assert.That(
@@ -181,9 +181,9 @@ namespace Opc.Ua.Di.Tests
                 Assert.That(alarm.IsNull, Is.False, "OverTempAlarm was not found.");
 
                 var deviceSet = new NodeId(
-                    Opc.Ua.Di.Objects.DeviceSet,
-                    (ushort)server.NamespaceUris.GetIndex(Opc.Ua.Di.Namespaces.OpcUaDi));
-                NodeId[] path = [Opc.Ua.ObjectIds.Server, deviceSet, pump, events];
+                    Objects.DeviceSet,
+                    (ushort)server.NamespaceUris.GetIndex(Namespaces.OpcUaDi));
+                NodeId[] path = [Ua.ObjectIds.Server, deviceSet, pump, events];
                 foreach (NodeId notifier in path)
                 {
                     await AssertSubscribeToEventsAsync(server, notifier).ConfigureAwait(false);
@@ -191,29 +191,29 @@ namespace Opc.Ua.Di.Tests
                 for (int i = 1; i < path.Length; i++)
                 {
                     IReadOnlyList<ReferenceDescription> forward = await BrowseAsync(
-                        server, path[i - 1], Opc.Ua.Types.ReferenceTypeIds.HasNotifier).ConfigureAwait(false);
+                        server, path[i - 1], Types.ReferenceTypeIds.HasNotifier).ConfigureAwait(false);
                     Assert.That(
                         forward.Count(reference =>
                             ExpandedNodeId.ToNodeId(reference.NodeId, server.NamespaceUris) == path[i]),
                         Is.EqualTo(1),
                         $"Expected one HasNotifier edge from {path[i - 1]} to {path[i]}.");
                     IReadOnlyList<ReferenceDescription> inverse = await BrowseAsync(
-                        server, path[i], Opc.Ua.Types.ReferenceTypeIds.HasNotifier,
+                        server, path[i], Types.ReferenceTypeIds.HasNotifier,
                         BrowseDirection.Inverse).ConfigureAwait(false);
                     Assert.That(
                         inverse.Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, server.NamespaceUris)),
-                        Is.EquivalentTo(new[] { path[i - 1] }),
+                        Is.EquivalentTo([path[i - 1]]),
                         $"Notifier {path[i]} has a missing or redundant parent.");
                 }
 
                 IReadOnlyList<ReferenceDescription> devices = await BrowseAsync(
-                    server, deviceSet, Opc.Ua.Types.ReferenceTypeIds.Organizes).ConfigureAwait(false);
+                    server, deviceSet, Types.ReferenceTypeIds.Organizes).ConfigureAwait(false);
                 Assert.That(
                     devices.Count(reference =>
                         ExpandedNodeId.ToNodeId(reference.NodeId, server.NamespaceUris) == pump),
                     Is.EqualTo(1));
                 IReadOnlyList<ReferenceDescription> components = await BrowseAsync(
-                    server, pump, Opc.Ua.Types.ReferenceTypeIds.HasComponent).ConfigureAwait(false);
+                    server, pump, Types.ReferenceTypeIds.HasComponent).ConfigureAwait(false);
                 Assert.That(
                     components.Count(reference =>
                         ExpandedNodeId.ToNodeId(reference.NodeId, server.NamespaceUris) == events),
@@ -234,9 +234,9 @@ namespace Opc.Ua.Di.Tests
                 NodeId pump = PumpNodeId(server, "Pump_1");
                 NodeId events = await ResolveAsync(server, pump, ["Events"]).ConfigureAwait(false);
                 var deviceSet = new NodeId(
-                    Opc.Ua.Di.Objects.DeviceSet,
-                    (ushort)server.NamespaceUris.GetIndex(Opc.Ua.Di.Namespaces.OpcUaDi));
-                NodeId[] path = [Opc.Ua.ObjectIds.Server, deviceSet, pump, events];
+                    Objects.DeviceSet,
+                    (ushort)server.NamespaceUris.GetIndex(Namespaces.OpcUaDi));
+                NodeId[] path = [Ua.ObjectIds.Server, deviceSet, pump, events];
                 var notifiers = new NodeState[path.Length];
                 for (int i = 0; i < path.Length; i++)
                 {
@@ -251,7 +251,7 @@ namespace Opc.Ua.Di.Tests
                     notifiers[^1],
                     EventSeverity.Medium,
                     new LocalizedText("Notifier route regression"));
-                var counts = new int[path.Length];
+                int[] counts = new int[path.Length];
                 var observers = new NodeStateReportEventHandler[path.Length];
                 for (int i = 0; i < path.Length; i++)
                 {
@@ -329,11 +329,11 @@ namespace Opc.Ua.Di.Tests
             {
                 DataValue profilesValue = await ReadAttributeAsync(
                     server,
-                    global::Opc.Ua.VariableIds.Server_ServerCapabilities_ServerProfileArray,
+                    Ua.VariableIds.Server_ServerCapabilities_ServerProfileArray,
                     Attributes.Value).ConfigureAwait(false);
                 DataValue unitsValue = await ReadAttributeAsync(
                     server,
-                    global::Opc.Ua.VariableIds.Server_ServerCapabilities_ConformanceUnits,
+                    Ua.VariableIds.Server_ServerCapabilities_ConformanceUnits,
                     Attributes.Value).ConfigureAwait(false);
 
                 Assert.That(TryGetStringArray(profilesValue.WrappedValue, out List<string> profiles), Is.True);
@@ -360,11 +360,11 @@ namespace Opc.Ua.Di.Tests
                 ushort instanceNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(
                     "urn:localhost:" + nameof(PumpAddressSpaceComplianceTests));
                 ushort diNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(
-                    Opc.Ua.Di.Namespaces.OpcUaDi);
+                    Namespaces.OpcUaDi);
                 ushort pumpsNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(
-                    global::Opc.Ua.Pumps.Namespaces.Pumps);
+                    Pumps.Namespaces.Pumps);
                 ushort machineryNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(
-                    global::Opc.Ua.Machinery.Namespaces.Machinery);
+                    Machinery.Namespaces.Machinery);
 
                 List<ReferenceDescription> reachable = await BrowseReachableAsync(
                     server,
@@ -374,13 +374,13 @@ namespace Opc.Ua.Di.Tests
                     reachable,
                     Has.None.Matches<ReferenceDescription>(reference =>
                     {
-                        NodeId nodeId = ExpandedNodeId.ToNodeId(
+                        var nodeId = ExpandedNodeId.ToNodeId(
                             reference.NodeId,
                             server.NamespaceUris);
                         return nodeId.IdType == IdType.String &&
                             (nodeId.NamespaceIndex == diNamespaceIndex ||
-                            nodeId.NamespaceIndex == pumpsNamespaceIndex ||
-                            nodeId.NamespaceIndex == machineryNamespaceIndex);
+                                nodeId.NamespaceIndex == pumpsNamespaceIndex ||
+                                nodeId.NamespaceIndex == machineryNamespaceIndex);
                     }),
                     "Runtime-created instances under DeviceSet must not use companion-spec NodeId namespaces.");
 
@@ -472,8 +472,12 @@ namespace Opc.Ua.Di.Tests
                     Assert.That(
                         historyStatus.Code,
                         Is.Not.EqualTo(StatusCodes.BadHistoryOperationUnsupported),
-                        "Node " + cavitation + " advertises history (Historizing=" + historizing +
-                        ", AccessLevel=0x" + accessLevel.ToString("X2", CultureInfo.InvariantCulture) +
+                        "Node " +
+                        cavitation +
+                        " advertises history (Historizing=" +
+                        historizing +
+                        ", AccessLevel=0x" +
+                        accessLevel.ToString("X2", CultureInfo.InvariantCulture) +
                         ") but HistoryRead reports the operation is unsupported.");
                 }
                 else
@@ -504,8 +508,8 @@ namespace Opc.Ua.Di.Tests
                 IReadOnlyList<ReferenceDescription> deviceSetChildren = await BrowseAsync(
                     server,
                     DeviceSetNodeId(server),
-                    Opc.Ua.Types.ReferenceTypeIds.Organizes).ConfigureAwait(false);
-                List<ReferenceDescription> pumps = deviceSetChildren
+                    Types.ReferenceTypeIds.Organizes).ConfigureAwait(false);
+                var pumps = deviceSetChildren
                     .Where(reference => reference.BrowseName.Name != null &&
                         reference.BrowseName.Name.StartsWith("Pump_", StringComparison.Ordinal))
                     .ToList();
@@ -584,14 +588,14 @@ namespace Opc.Ua.Di.Tests
             {
                 NodeId machines = await ResolveAsync(
                     server,
-                    Opc.Ua.ObjectIds.ObjectsFolder,
+                    Ua.ObjectIds.ObjectsFolder,
                     ["Machines"]).ConfigureAwait(false);
                 Assert.That(machines.IsNull, Is.False, "Machines folder was not found.");
 
                 IReadOnlyList<ReferenceDescription> references = await BrowseAsync(
                     server,
                     machines,
-                    Opc.Ua.Types.ReferenceTypeIds.Organizes).ConfigureAwait(false);
+                    Types.ReferenceTypeIds.Organizes).ConfigureAwait(false);
                 var organized = new HashSet<NodeId>(references.Select(
                     reference => ExpandedNodeId.ToNodeId(reference.NodeId, server.NamespaceUris)));
 
@@ -608,7 +612,7 @@ namespace Opc.Ua.Di.Tests
                 IReadOnlyList<ReferenceDescription> references = await BrowseAsync(
                     server,
                     DeviceSetNodeId(server),
-                    Opc.Ua.Types.ReferenceTypeIds.Organizes).ConfigureAwait(false);
+                    Types.ReferenceTypeIds.Organizes).ConfigureAwait(false);
 
                 foreach (ReferenceDescription reference in references.Where(
                     reference => reference.BrowseName.Name?.StartsWith("Pump", StringComparison.Ordinal) == true))
@@ -616,7 +620,7 @@ namespace Opc.Ua.Di.Tests
                     Assert.That(reference.BrowseName.Name, Does.Not.Contain(" "));
                     Assert.That(reference.BrowseName.Name, Does.Not.Contain("#"));
 
-                    NodeId pump = ExpandedNodeId.ToNodeId(reference.NodeId, server.NamespaceUris);
+                    var pump = ExpandedNodeId.ToNodeId(reference.NodeId, server.NamespaceUris);
                     DataValue displayName = await ReadAttributeAsync(
                         server,
                         pump,
@@ -669,9 +673,7 @@ namespace Opc.Ua.Di.Tests
                     Is.AnyOf(StatusCodes.BadWaitingForInitialData, StatusCodes.UncertainInitialValue));
             }, simulationInterval: TimeSpan.FromDays(1)).ConfigureAwait(false);
 
-            await RunServerAsync(async server =>
-            {
-                Assert.That(
+            await RunServerAsync(async server => Assert.That(
                     await WaitForAsync(
                         async () =>
                         {
@@ -683,8 +685,8 @@ namespace Opc.Ua.Di.Tests
                         },
                         TimeSpan.FromSeconds(5)).ConfigureAwait(false),
                     Is.True,
-                    "Measurement did not become Good after the first simulation tick.");
-            }, simulationInterval: TimeSpan.FromMilliseconds(50)).ConfigureAwait(false);
+                    "Measurement did not become Good after the first simulation tick."), simulationInterval: TimeSpan
+                        .FromMilliseconds(50)).ConfigureAwait(false);
         }
 
         private static async Task<StatusCode> HistoryReadAsync(
@@ -749,8 +751,8 @@ namespace Opc.Ua.Di.Tests
         private static NodeId DeviceSetNodeId(IServerInternal server)
         {
             ushort diNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(
-                Opc.Ua.Di.Namespaces.OpcUaDi);
-            return new NodeId(Opc.Ua.Di.Objects.DeviceSet, diNamespaceIndex);
+                Namespaces.OpcUaDi);
+            return new NodeId(Objects.DeviceSet, diNamespaceIndex);
         }
 
         /// <summary>
@@ -789,7 +791,7 @@ namespace Opc.Ua.Di.Tests
             return BrowseAsync(
                 server,
                 nodeId,
-                Opc.Ua.Types.ReferenceTypeIds.References);
+                Types.ReferenceTypeIds.References);
         }
 
         private static Task<IReadOnlyList<ReferenceDescription>> BrowseHierarchicalAsync(
@@ -799,7 +801,7 @@ namespace Opc.Ua.Di.Tests
             return BrowseAsync(
                 server,
                 nodeId,
-                Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences);
+                Types.ReferenceTypeIds.HierarchicalReferences);
         }
 
         private static Task<IReadOnlyList<ReferenceDescription>> BrowseAsync(
@@ -833,7 +835,7 @@ namespace Opc.Ua.Di.Tests
             ];
 
             var identity = new Mock<IUserIdentity>();
-            identity.SetupGet(value => value.GrantedRoleIds).Returns([Opc.Ua.ObjectIds.WellKnownRole_Anonymous]);
+            identity.SetupGet(value => value.GrantedRoleIds).Returns([Ua.ObjectIds.WellKnownRole_Anonymous]);
             using var context = new OperationContext(
                 new RequestHeader(),
                 null,
@@ -894,7 +896,7 @@ namespace Opc.Ua.Di.Tests
             await clientFixture.LoadClientConfigurationAsync(clientRoot).ConfigureAwait(false);
             clientFixture.OperationTimeout = 15_000;
 
-            Opc.Ua.Client.ISession session = await clientFixture.ConnectAsync(
+            Ua.Client.ISession session = await clientFixture.ConnectAsync(
                 server.EndpointAddresses.First().ToString()).ConfigureAwait(false);
             try
             {
@@ -920,7 +922,7 @@ namespace Opc.Ua.Di.Tests
                             {
                                 ItemToMonitor = new ReadValueId
                                 {
-                                    NodeId = Opc.Ua.ObjectIds.Server,
+                                    NodeId = Ua.ObjectIds.Server,
                                     AttributeId = Attributes.EventNotifier
                                 },
                                 MonitoringMode = MonitoringMode.Reporting,
@@ -976,10 +978,10 @@ namespace Opc.Ua.Di.Tests
             {
                 SelectClauses =
                 [
-                    SelectEventField(global::Opc.Ua.ObjectTypeIds.ConditionType, Attributes.NodeId),
-                    SelectEventField(global::Opc.Ua.ObjectTypeIds.BaseEventType, Attributes.Value, "SourceName"),
+                    SelectEventField(Ua.ObjectTypeIds.ConditionType, Attributes.NodeId),
+                    SelectEventField(Ua.ObjectTypeIds.BaseEventType, Attributes.Value, "SourceName"),
                     SelectEventField(
-                        global::Opc.Ua.ObjectTypeIds.AlarmConditionType,
+                        Ua.ObjectTypeIds.AlarmConditionType,
                         Attributes.Value,
                         "ActiveState",
                         "Id")
@@ -1002,7 +1004,7 @@ namespace Opc.Ua.Di.Tests
         }
 
         private static async Task<bool> WaitForAlarmEventAsync(
-            Opc.Ua.Client.ISession session,
+            Ua.Client.ISession session,
             uint subscriptionId,
             NodeId alarmNodeId,
             TimeSpan timeout)
@@ -1115,7 +1117,7 @@ namespace Opc.Ua.Di.Tests
                     current).ConfigureAwait(false);
                 foreach (ReferenceDescription reference in references)
                 {
-                    NodeId target = ExpandedNodeId.ToNodeId(reference.NodeId, server.NamespaceUris);
+                    var target = ExpandedNodeId.ToNodeId(reference.NodeId, server.NamespaceUris);
                     if (target.IsNull)
                     {
                         continue;
@@ -1320,7 +1322,7 @@ namespace Opc.Ua.Di.Tests
 
         private static void ConfigureServer(OpcUaServerOptions options)
         {
-            string applicationName = nameof(PumpAddressSpaceComplianceTests);
+            const string applicationName = nameof(PumpAddressSpaceComplianceTests);
             string testRoot = System.IO.Path.Combine(
                 TestContext.CurrentContext.WorkDirectory,
                 applicationName,
