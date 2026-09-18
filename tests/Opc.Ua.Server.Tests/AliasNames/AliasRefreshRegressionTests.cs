@@ -59,9 +59,9 @@ namespace Opc.Ua.Server.Tests.AliasNames
             Exception failure = timeout
                 ? new ServiceResultException(StatusCodes.BadTimeout)
                 : new IOException("Remote alias store unavailable.");
-            harness.Store.Setup(store => store.FindAliasVerboseAsync(
-                It.IsAny<NodeId>(), It.IsAny<string>(), It.IsAny<NodeId>(), It.IsAny<ITypeTable>(),
-                It.IsAny<CancellationToken>())).ThrowsAsync(failure);
+            harness.Query = (_, _, _, _, _) =>
+                new ValueTask<IReadOnlyList<AliasNameVerboseDataType>>(
+                    Task.FromException<IReadOnlyList<AliasNameVerboseDataType>>(failure));
 
             Exception actual = Assert.ThrowsAsync(failure.GetType(), async () =>
                 await harness.Materializer.RefreshCategoryAsync(
@@ -78,25 +78,26 @@ namespace Opc.Ua.Server.Tests.AliasNames
         [Test]
         public async Task NullStoreSnapshotPreservesAliasesAndAllowsLiveRetryAsync()
         {
-            await using var harness = new RefreshHarness(refreshOnChange: true);
+            await using var harness = new RefreshHarness();
             await harness.InitializeAsync().ConfigureAwait(false);
             AliasNameState original = harness.FindAlias("Alpha");
             var queried = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             int calls = 0;
-            harness.Store.Setup(store => store.FindAliasVerboseAsync(
-                It.IsAny<NodeId>(), It.IsAny<string>(), It.IsAny<NodeId>(), It.IsAny<ITypeTable>(),
-                It.IsAny<CancellationToken>()))
-                .Returns((NodeId id, string pattern, NodeId reference, ITypeTable types, CancellationToken ct) =>
+            harness.Query = (id, pattern, reference, types, ct) =>
+            {
+                if (Interlocked.Increment(ref calls) == 1)
                 {
-                    if (Interlocked.Increment(ref calls) == 1)
-                    {
-                        queried.TrySetResult(true);
-                        return new ValueTask<IReadOnlyList<AliasNameVerboseDataType>>(
-                            (IReadOnlyList<AliasNameVerboseDataType>)null!);
-                    }
-                    return harness.Data.FindAliasVerboseAsync(id, pattern, reference, types, ct);
-                });
+                    queried.TrySetResult(true);
+                    return new ValueTask<IReadOnlyList<AliasNameVerboseDataType>>(
+                        (IReadOnlyList<AliasNameVerboseDataType>)null!);
+                }
+                return harness.Data.FindAliasVerboseAsync(id, pattern, reference, types, ct);
+            };
+            await using var coordinator = new AliasNameRefreshCoordinator(
+                "NullAliasSnapshot", NUnitTelemetryContext.Create(),
+                (_, ct) => harness.Materializer.RefreshCategoryAsync(
+                    harness.Store.Object, harness.CategoryId, materializeAliasNodes: true, cancellationToken: ct));
             harness.Category.OnStateChanged += (_, _, _) =>
             {
                 if (harness.FindAlias("Gamma") != null)
@@ -108,11 +109,13 @@ namespace Opc.Ua.Server.Tests.AliasNames
             await harness.Data.AddAliasesAsync(harness.CategoryId,
                 [new AliasAddRequest("Beta", harness.Target.NodeId, null, ReferenceTypeIds.AliasFor)])
                 .ConfigureAwait(false);
+            coordinator.RequestRefresh();
             await queried.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
             Assert.That(harness.FindAlias("Alpha"), Is.SameAs(original));
             await harness.Data.AddAliasesAsync(harness.CategoryId,
                 [new AliasAddRequest("Gamma", harness.Target.NodeId, null, ReferenceTypeIds.AliasFor)])
                 .ConfigureAwait(false);
+            coordinator.RequestRefresh();
             await published.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
 
             Assert.That(calls, Is.EqualTo(2));
@@ -351,22 +354,19 @@ namespace Opc.Ua.Server.Tests.AliasNames
             await harness.InitializeAsync().ConfigureAwait(false);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var stopped = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            harness.Store.Setup(store => store.FindAliasVerboseAsync(
-                It.IsAny<NodeId>(), It.IsAny<string>(), It.IsAny<NodeId>(), It.IsAny<ITypeTable>(),
-                It.IsAny<CancellationToken>()))
-                .Returns(async (NodeId _, string _, NodeId _, ITypeTable _, CancellationToken ct) =>
+            harness.Query = async (_, _, _, _, ct) =>
+            {
+                entered.TrySetResult(true);
+                try
                 {
-                    entered.TrySetResult(true);
-                    try
-                    {
-                        await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
-                        return Array.Empty<AliasNameVerboseDataType>();
-                    }
-                    finally
-                    {
-                        stopped.TrySetResult(true);
-                    }
-                });
+                    await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                    return Array.Empty<AliasNameVerboseDataType>();
+                }
+                finally
+                {
+                    stopped.TrySetResult(true);
+                }
+            };
             await harness.Data.AddAliasesAsync(harness.CategoryId,
                 [new AliasAddRequest("Beta", harness.Target.NodeId, null, ReferenceTypeIds.AliasFor)])
                 .ConfigureAwait(false);
@@ -399,26 +399,23 @@ namespace Opc.Ua.Server.Tests.AliasNames
             var observedConcurrency = new ConcurrentQueue<int>();
             var publishedCounts = new ConcurrentQueue<int>();
             int active = 0;
-            harness.Store.Setup(store => store.FindAliasVerboseAsync(
-                It.IsAny<NodeId>(), It.IsAny<string>(), It.IsAny<NodeId>(), It.IsAny<ITypeTable>(),
-                It.IsAny<CancellationToken>()))
-                .Returns(async (NodeId id, string pattern, NodeId reference, ITypeTable types, CancellationToken ct) =>
+            harness.Query = async (id, pattern, reference, types, ct) =>
+            {
+                queried.Enqueue(id);
+                observedConcurrency.Enqueue(Interlocked.Increment(ref active));
+                try
                 {
-                    queried.Enqueue(id);
-                    observedConcurrency.Enqueue(Interlocked.Increment(ref active));
-                    try
-                    {
-                        IReadOnlyList<AliasNameVerboseDataType> snapshot = await harness.Data.FindAliasVerboseAsync(
-                            id, pattern, reference, types, ct).ConfigureAwait(false);
-                        entered.TrySetResult(true);
-                        await release.Task.WaitAsync(ct).ConfigureAwait(false);
-                        return snapshot;
-                    }
-                    finally
-                    {
-                        Interlocked.Decrement(ref active);
-                    }
-                });
+                    IReadOnlyList<AliasNameVerboseDataType> snapshot = await harness.Data.FindAliasVerboseAsync(
+                        id, pattern, reference, types, ct).ConfigureAwait(false);
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                    return snapshot;
+                }
+                finally
+                {
+                    Interlocked.Decrement(ref active);
+                }
+            };
             child.OnStateChanged += (_, _, _) =>
             {
                 if (harness.FindAlias("Nested", harness.ChildCategoryId) != null)
@@ -459,6 +456,13 @@ namespace Opc.Ua.Server.Tests.AliasNames
 
         private sealed class RefreshHarness : IAsyncDisposable
         {
+            public delegate ValueTask<IReadOnlyList<AliasNameVerboseDataType>> AliasQuery(
+                NodeId categoryId,
+                string pattern,
+                NodeId referenceType,
+                ITypeTable typeTable,
+                CancellationToken cancellationToken);
+
             public RefreshHarness(bool refreshOnChange = false, bool nested = false)
             {
                 Mock<IServerInternal> server = DeterministicServerMock.Create(out m_queues);
@@ -481,7 +485,12 @@ namespace Opc.Ua.Server.Tests.AliasNames
                     It.IsAny<NodeId>(), It.IsAny<string>(), It.IsAny<NodeId>(), It.IsAny<ITypeTable>(),
                     It.IsAny<CancellationToken>()))
                     .Returns((NodeId id, string pattern, NodeId reference, ITypeTable types, CancellationToken ct) =>
-                        Data.FindAliasVerboseAsync(id, pattern, reference, types, ct));
+                    {
+                        AliasQuery query = Query;
+                        return query != null
+                            ? query(id, pattern, reference, types, ct)
+                            : Data.FindAliasVerboseAsync(id, pattern, reference, types, ct);
+                    });
                 Data.Changed += (_, args) => Store.Raise(store => store.Changed += null, args);
                 Manager = new AliasNameNodeManager(server.Object, new ApplicationConfiguration(), Store.Object,
                     new AliasNameNodeManagerOptions
@@ -511,6 +520,12 @@ namespace Opc.Ua.Server.Tests.AliasNames
             public InMemoryAliasNameStore Data { get; }
 
             public Mock<IAliasNameStore> Store { get; } = new(MockBehavior.Strict);
+
+            public AliasQuery Query
+            {
+                get => Volatile.Read(ref m_query);
+                set => Volatile.Write(ref m_query, value);
+            }
 
             public AliasNameNodeManager Manager { get; }
 
@@ -549,6 +564,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
 
             private readonly AliasNameStoreRegistry m_registry = new();
             private readonly MonitoredItemQueueFactory m_queues;
+            private AliasQuery m_query;
         }
     }
 }
