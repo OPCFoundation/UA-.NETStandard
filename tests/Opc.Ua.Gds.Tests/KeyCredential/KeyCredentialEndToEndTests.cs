@@ -33,6 +33,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -88,29 +89,51 @@ namespace Opc.Ua.Gds.Tests.KeyCredential
                     CancellationToken.None)
                 .ConfigureAwait(false);
 
-            var provider = new GdsKeyCredentialAccessTokenProvider(
+            using var provider = new GdsKeyCredentialAccessTokenProvider(
                 _ => new ValueTask<GdsIssuedKeyCredential>(new GdsIssuedKeyCredential(
                     credentialId,
                     credentialSecret.ToArray(),
                     DateTime.UtcNow.AddMinutes(5),
                     [securityPolicyUri])),
                 "urn:test:gds");
-            AccessToken accessToken = await provider.AcquireAsync(
-                    new AuthorizationServerMetadata { AuthorityUri = "urn:test:gds" },
-                    CancellationToken.None)
+            var policy = new UserTokenPolicy
+            {
+                TokenType = UserTokenType.IssuedToken,
+                PolicyId = "keycredential",
+                IssuedTokenType = KeyCredentialBridgeOptions.DefaultProfileUri,
+                IssuerEndpointUrl = "{\"authorityUri\":\"urn:test:gds\"}"
+            };
+            var endpoint = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                Server = new ApplicationDescription { ApplicationUri = "urn:test:resource-server" },
+                UserIdentityTokens = [policy]
+            };
+            var identityProvider = new IssuedTokenIdentityProvider(provider, KeyCredentialBridgeOptions.DefaultProfileUri);
+            IUserIdentity clientIdentity = await identityProvider.GetIdentityAsync(
+                policy,
+                new IdentitySelectionContext(
+                    endpoint, [policy], ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create())))
                 .ConfigureAwait(false);
             AuthenticationResult result;
             try
             {
+                var tokenHandler = (IssuedIdentityTokenHandler)clientIdentity.TokenHandler;
+                using var payload = JsonDocument.Parse(tokenHandler.DecryptedTokenData);
+                Assert.That(payload.RootElement.GetProperty("version").GetInt32(), Is.EqualTo(2));
+                Assert.That(payload.RootElement.GetProperty("aud").GetString(), Is.EqualTo("urn:test:resource-server"));
                 var authenticator = new KeyCredentialBridgeAuthenticator(resourceStore);
+                AuthenticationResult wrongTarget = await authenticator.AuthenticateAsync(
+                    CreateContext(tokenHandler, "urn:test:another-server")).ConfigureAwait(false);
+                Assert.That(wrongTarget.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+                Assert.That(wrongTarget.Error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
                 result = await authenticator.AuthenticateAsync(
-                        CreateContext(accessToken.TokenData.ToArray()))
+                        CreateContext(tokenHandler, endpoint.Server.ApplicationUri))
                     .ConfigureAwait(false);
             }
             finally
             {
-                accessToken.Dispose();
-                provider.Dispose();
+                (clientIdentity as IDisposable)?.Dispose();
             }
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
@@ -120,17 +143,23 @@ namespace Opc.Ua.Gds.Tests.KeyCredential
             Assert.That(claims.Roles, Does.Contain("operator"));
         }
 
-        private static AuthenticationContext CreateContext(byte[] tokenData)
+        private static AuthenticationContext CreateContext(
+            IssuedIdentityTokenHandler tokenHandler,
+            string targetApplicationUri)
         {
             return new AuthenticationContext(
-                new IssuedIdentityTokenHandler(KeyCredentialBridgeOptions.DefaultProfileUri, tokenData),
+                tokenHandler,
                 new UserTokenPolicy
                 {
                     TokenType = UserTokenType.IssuedToken,
                     PolicyId = "keycredential",
                     IssuedTokenType = KeyCredentialBridgeOptions.DefaultProfileUri
                 },
-                new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt },
+                new EndpointDescription
+                {
+                    SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                    Server = new ApplicationDescription { ApplicationUri = targetApplicationUri }
+                },
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
         }
     }

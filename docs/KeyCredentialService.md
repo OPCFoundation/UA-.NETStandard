@@ -281,6 +281,32 @@ Client-side, `GdsKeyCredentialAccessTokenProvider` adapts a
 `IssuedTokenIdentityProvider` can materialize a UA `IssuedIdentityToken`
 for the bridge profile.
 
+The bridge requires version-2 proofs. Their HMAC covers a non-empty `aud` that
+must exactly match the resource server's `ApplicationUri`; version-1 proofs
+and proofs for another server are rejected. Client and server must therefore
+be upgraded together.
+
+The provider implements `IEndpointAccessTokenProvider`. Normal identity
+selection forwards the selected endpoint automatically, including for the
+vendor bridge profile. The audience is the first non-blank value of metadata
+`Audience`, metadata `ResourceUri`, or `endpoint.Server.ApplicationUri`.
+Thus a policy containing only `{"authorityUri":"urn:example:gds"}` still binds
+the proof to the target resource server, never to the GDS authority or client
+application. Explicit audience/resource metadata must identify that same server.
+
+```csharp
+var identities = new IssuedTokenIdentityProvider(
+    keyCredentialProvider, GdsKeyCredentialAccessTokenProvider.ProfileUri);
+
+// Direct acquisition outside normal identity selection also supplies the target.
+using AccessToken token = await keyCredentialProvider.AcquireAsync(
+    metadata, targetEndpoint, cancellationToken);
+```
+
+The metadata-only acquisition overload requires an explicit non-blank audience
+or resource URI. If none is available, acquisition fails before requesting or
+reading credential secrets instead of emitting an unusable unbound token.
+
 ## Audit Events
 
 All KeyCredentialService operations emit audit events automatically:

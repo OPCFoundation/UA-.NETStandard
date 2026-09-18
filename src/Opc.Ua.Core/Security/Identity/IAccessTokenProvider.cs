@@ -93,4 +93,19 @@ namespace Opc.Ua.Identity
             AuthorizationServerMetadata metadata,
             CancellationToken ct = default);
     }
+
+    /// <summary>
+    /// Acquires an access token whose proof also depends on the selected resource-server endpoint.
+    /// </summary>
+    public interface IEndpointAccessTokenProvider : IAccessTokenProvider
+    {
+        /// <summary>
+        /// Acquires a token using the endpoint's server identity as well as its authorization metadata.
+        /// The caller owns and disposes the returned token.
+        /// </summary>
+        ValueTask<AccessToken> AcquireAsync(
+            AuthorizationServerMetadata metadata,
+            EndpointDescription endpoint,
+            CancellationToken ct = default);
+    }
 }

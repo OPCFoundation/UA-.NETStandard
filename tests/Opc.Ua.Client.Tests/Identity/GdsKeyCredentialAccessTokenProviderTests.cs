@@ -30,10 +30,14 @@
 using System;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Identity;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests.Identity
 {
@@ -42,6 +46,110 @@ namespace Opc.Ua.Client.Tests.Identity
     [Category("Identity")]
     public sealed class GdsKeyCredentialAccessTokenProviderTests
     {
+        [TestCase(null, null, "urn:target-server")]
+        [TestCase("urn:explicit", "urn:resource", "urn:explicit")]
+        [TestCase(null, "urn:resource", "urn:resource")]
+        [TestCase(" ", "", "urn:target-server")]
+        public async Task IssuedIdentityAcquisitionBindsProofToSelectedAudienceAsync(
+            string? audience,
+            string? resource,
+            string expectedAudience)
+        {
+            var clock = new FakeTimeProvider();
+            using var accessTokens = new GdsKeyCredentialAccessTokenProvider(
+                _ => new ValueTask<GdsIssuedKeyCredential>(new GdsIssuedKeyCredential(
+                    "credential", [1, 2, 3, 4], clock.GetUtcNow().UtcDateTime.AddMinutes(10))),
+                "urn:authority", timeProvider: clock);
+            var provider = new IssuedTokenIdentityProvider(accessTokens, GdsKeyCredentialAccessTokenProvider.ProfileUri);
+            var metadata = new JsonObject
+            {
+                ["authorityUri"] = "urn:authority",
+                ["audience"] = audience,
+                ["ua:resourceUri"] = resource
+            };
+            var policy = new UserTokenPolicy
+            {
+                PolicyId = "keycredential",
+                TokenType = UserTokenType.IssuedToken,
+                IssuedTokenType = GdsKeyCredentialAccessTokenProvider.ProfileUri,
+                IssuerEndpointUrl = metadata.ToJsonString()
+            };
+            var endpoint = new EndpointDescription
+            {
+                Server = new ApplicationDescription { ApplicationUri = "urn:target-server" },
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                UserIdentityTokens = [policy]
+            };
+            var context = new IdentitySelectionContext(
+                endpoint, [policy], ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+
+            IUserIdentity identity = await provider.GetIdentityAsync(policy, context).ConfigureAwait(false);
+            try
+            {
+                var handler = (IssuedIdentityTokenHandler)identity.TokenHandler;
+                using var payload = JsonDocument.Parse(handler.DecryptedTokenData);
+                Assert.That(identity.PolicyId, Is.EqualTo("keycredential"));
+                Assert.That(payload.RootElement.GetProperty("version").GetInt32(), Is.EqualTo(2));
+                Assert.That(payload.RootElement.GetProperty("aud").GetString(), Is.EqualTo(expectedAudience));
+                Assert.That(payload.RootElement.GetProperty("issuedAt").GetInt64(),
+                    Is.EqualTo(clock.GetUtcNow().ToUnixTimeSeconds()));
+            }
+            finally
+            {
+                (identity as IDisposable)?.Dispose();
+            }
+        }
+
+        [Test]
+        public async Task EndpointAudienceIsNotCachedWithTheCredentialAsync()
+        {
+            int acquisitions = 0;
+            using var provider = new GdsKeyCredentialAccessTokenProvider(
+                _ =>
+                {
+                    acquisitions++;
+                    return new ValueTask<GdsIssuedKeyCredential>(
+                        new GdsIssuedKeyCredential("credential", [1, 2, 3], DateTime.MaxValue));
+                }, "urn:authority");
+            var metadata = new AuthorizationServerMetadata { AuthorityUri = "urn:authority" };
+            using AccessToken first = await provider.AcquireAsync(metadata, new EndpointDescription
+            {
+                Server = new ApplicationDescription { ApplicationUri = "urn:first-server" }
+            }).ConfigureAwait(false);
+            using AccessToken second = await provider.AcquireAsync(metadata, new EndpointDescription
+            {
+                Server = new ApplicationDescription { ApplicationUri = "urn:second-server" }
+            }).ConfigureAwait(false);
+            using var firstPayload = JsonDocument.Parse(first.TokenData.ToArray());
+            using var secondPayload = JsonDocument.Parse(second.TokenData.ToArray());
+
+            Assert.That(acquisitions, Is.EqualTo(1));
+            Assert.That(firstPayload.RootElement.GetProperty("aud").GetString(), Is.EqualTo("urn:first-server"));
+            Assert.That(secondPayload.RootElement.GetProperty("aud").GetString(), Is.EqualTo("urn:second-server"));
+            Assert.That(firstPayload.RootElement.GetProperty("nonce").GetString(),
+                Is.Not.EqualTo(secondPayload.RootElement.GetProperty("nonce").GetString()));
+        }
+
+        [Test]
+        public void MissingAudienceIsRejectedBeforeAcquiringCredential()
+        {
+            int acquisitions = 0;
+            using var provider = new GdsKeyCredentialAccessTokenProvider(
+                _ =>
+                {
+                    acquisitions++;
+                    return new ValueTask<GdsIssuedKeyCredential>(
+                        new GdsIssuedKeyCredential("credential", [1], DateTime.MaxValue));
+                }, "urn:authority");
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await provider.AcquireAsync(new AuthorizationServerMetadata { AuthorityUri = "urn:authority" })
+                    .ConfigureAwait(false));
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(acquisitions, Is.Zero);
+        }
+
         [Test]
         public async Task AcquireAsyncBuildsProofTokenAndCachesCredentialAsync()
         {
@@ -58,7 +166,7 @@ namespace Opc.Ua.Client.Tests.Identity
                             ["scope-a"]));
                 },
                 "urn:authority");
-            var metadata = new AuthorizationServerMetadata { AuthorityUri = "urn:authority" };
+            var metadata = new AuthorizationServerMetadata { AuthorityUri = "urn:authority", Audience = "urn:target" };
 
             AccessToken first = await provider.AcquireAsync(metadata).ConfigureAwait(false);
             AccessToken second = await provider.AcquireAsync(metadata).ConfigureAwait(false);
@@ -81,7 +189,7 @@ namespace Opc.Ua.Client.Tests.Identity
                     new GdsIssuedKeyCredential("cred", [1, 2, 3], DateTime.MinValue)),
                 "urn:authority",
                 TimeSpan.FromMinutes(1));
-            var metadata = new AuthorizationServerMetadata { AuthorityUri = "urn:authority" };
+            var metadata = new AuthorizationServerMetadata { AuthorityUri = "urn:authority", Audience = "urn:target" };
 
             AccessToken token = await provider.AcquireAsync(metadata).ConfigureAwait(false);
 
@@ -118,7 +226,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 _ => new ValueTask<GdsIssuedKeyCredential>(
                     new GdsIssuedKeyCredential("cred", [1, 2, 3], DateTime.UtcNow.AddMinutes(10))),
                 "urn:authority");
-            var metadata = new AuthorizationServerMetadata { AuthorityUri = "urn:authority" };
+            var metadata = new AuthorizationServerMetadata { AuthorityUri = "urn:authority", Audience = "urn:target" };
 
             await provider.AcquireAsync(metadata).ConfigureAwait(false);
             FieldInfo cachedCredentialField = typeof(GdsKeyCredentialAccessTokenProvider).GetField(
@@ -147,7 +255,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 (ByteString)"public-key"u8.ToArray(),
                 SecurityPolicies.Basic256Sha256,
                 [ObjectIds.WellKnownRole_AuthenticatedUser]);
-            var metadata = new AuthorizationServerMetadata { AuthorityUri = "urn:authority" };
+            var metadata = new AuthorizationServerMetadata { AuthorityUri = "urn:authority", Audience = "urn:target" };
 
             AccessToken token = await provider.AcquireAsync(metadata).ConfigureAwait(false);
 
