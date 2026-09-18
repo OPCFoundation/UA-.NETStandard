@@ -1390,7 +1390,8 @@ namespace Opc.Ua.Bindings
                         RequestEncoding.Binary,
                         channel.ClientCertificate?.RawData,
                         channel.ServerCertificate?.RawData,
-                        channel.ChannelThumbprint);
+                        channel.ChannelThumbprint,
+                        (channel.Transport?.RemoteEndpoint as System.Net.IPEndPoint)?.Address);
 
                     response = await m_callback.ProcessRequestAsync(
                         context,

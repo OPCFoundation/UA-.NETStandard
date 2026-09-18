@@ -198,6 +198,40 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        [Test]
+        public async Task TryRefreshEffectiveIdentityRejectsAnObsoleteIdentityGenerationAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
+            await fixture.StartAsync().ConfigureAwait(false);
+            StandardServer server = null;
+            SecureChannelContext secureChannelContext = null;
+            RequestHeader requestHeader = null;
+            try
+            {
+                server = fixture.Server;
+                (requestHeader, secureChannelContext) =
+                    await server.CreateAndActivateSessionAsync("IdentityGeneration").ConfigureAwait(false);
+
+                ISession session = server.CurrentInstance.SessionManager
+                    .GetSession(requestHeader.AuthenticationToken);
+                IdentityRefreshSnapshot snapshot = session.CaptureIdentityRefreshSnapshot();
+                session.MarkIdentityStale();
+
+                bool refreshed = session.TryRefreshEffectiveIdentity(
+                    snapshot.Identity,
+                    snapshot.Generation,
+                    new UserIdentity());
+
+                Assert.That(refreshed, Is.False);
+                Assert.That(session.IsIdentityStale, Is.True);
+            }
+            finally
+            {
+                await CloseSessionAsync(server, secureChannelContext, requestHeader).ConfigureAwait(false);
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
         private static async Task CloseSessionAsync(
             StandardServer server,
             SecureChannelContext secureChannelContext,

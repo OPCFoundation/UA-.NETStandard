@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Net;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
@@ -183,6 +184,7 @@ namespace Opc.Ua.Server.Tests
                         null,
                         RequestLifetime.None).ConfigureAwait(false);
                 }
+
                 catch (ServiceResultException)
                 {
                 }
@@ -222,6 +224,100 @@ namespace Opc.Ua.Server.Tests
                 requestHeader,
                 true,
                 RequestLifetime.None).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task UnsecuredLockoutUsesObservedPeerInsteadOfApplicationUriAsync()
+        {
+            const string sessionName = nameof(UnsecuredLockoutUsesObservedPeerInsteadOfApplicationUriAsync);
+            ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
+            EndpointDescription endpoint = FindTcpEndpoint(endpoints);
+            var invalidToken = new UserNameIdentityToken
+            {
+                UserName = "peer-lockout",
+                Password = System.Text.Encoding.UTF8.GetBytes("wrongpassword").ToByteString(),
+                PolicyId = "0"
+            };
+
+            for (int i = 0; i < 5; i++)
+            {
+                SecureChannelContext firstContext = CreateSecureChannelContext(
+                    sessionName + i,
+                    endpoint,
+                    IPAddress.Loopback);
+                var firstHeader = new RequestHeader();
+                CreateSessionResponse firstSession = await m_server.CreateSessionAsync(
+                    firstContext,
+                    firstHeader,
+                    new ApplicationDescription { ApplicationUri = "urn:attacker:" + i },
+                    null,
+                    null,
+                    sessionName + i,
+                    default,
+                    default,
+                    ServerFixtureUtils.DefaultSessionTimeout,
+                    ServerFixtureUtils.DefaultMaxResponseMessageSize,
+                    RequestLifetime.None).ConfigureAwait(false);
+                firstHeader.AuthenticationToken = firstSession.AuthenticationToken;
+                try
+                {
+                    await m_server.ActivateSessionAsync(
+                        firstContext,
+                        firstHeader,
+                        firstSession.ServerSignature,
+                        [],
+                        [],
+                        new ExtensionObject(invalidToken),
+                        null,
+                        RequestLifetime.None).ConfigureAwait(false);
+                }
+                catch (ServiceResultException)
+                {
+                }
+                await m_server.CloseSessionAsync(
+                    firstContext,
+                    firstHeader,
+                    true,
+                    RequestLifetime.None).ConfigureAwait(false);
+            }
+
+            SecureChannelContext victimContext = CreateSecureChannelContext(
+                sessionName + "-victim",
+                endpoint,
+                IPAddress.Loopback);
+            var victimHeader = new RequestHeader();
+            CreateSessionResponse victimSession = await m_server.CreateSessionAsync(
+                victimContext,
+                victimHeader,
+                new ApplicationDescription { ApplicationUri = "urn:legitimate-client" },
+                null,
+                null,
+                sessionName + "-victim",
+                default,
+                default,
+                ServerFixtureUtils.DefaultSessionTimeout,
+                ServerFixtureUtils.DefaultMaxResponseMessageSize,
+                RequestLifetime.None).ConfigureAwait(false);
+            victimHeader.AuthenticationToken = victimSession.AuthenticationToken;
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_server.ActivateSessionAsync(
+                    victimContext,
+                    victimHeader,
+                    victimSession.ServerSignature,
+                    [],
+                    [],
+                    new ExtensionObject(invalidToken),
+                    null,
+                    RequestLifetime.None).ConfigureAwait(false));
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            await m_server.CloseSessionAsync(
+                victimContext,
+                victimHeader,
+                true,
+                RequestLifetime.None).ConfigureAwait(false);
+            m_server.CurrentInstance.SessionManager.ClearAuthenticationLockouts();
         }
 
         /// <summary>
@@ -465,7 +561,10 @@ namespace Opc.Ua.Server.Tests
             return endpoint;
         }
 
-        private static SecureChannelContext CreateSecureChannelContext(string sessionName, EndpointDescription endpoint)
+        private static SecureChannelContext CreateSecureChannelContext(
+            string sessionName,
+            EndpointDescription endpoint,
+            IPAddress peerAddress = null)
         {
             return new SecureChannelContext(
                 sessionName,
@@ -473,7 +572,8 @@ namespace Opc.Ua.Server.Tests
                 RequestEncoding.Binary,
                 clientChannelCertificate: null,
                 serverChannelCertificate: null,
-                channelThumbprint: null);
+                channelThumbprint: null,
+                peerAddress: peerAddress);
         }
     }
 }

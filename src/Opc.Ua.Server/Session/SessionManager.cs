@@ -497,7 +497,7 @@ namespace Opc.Ua.Server
                     }
 
                     // get client lockout key.
-                    clientKey = GetClientLockoutKey(session);
+                    clientKey = GetClientLockoutKey(session, context.ChannelContext);
 
                     // check if client is locked out due to too many failed authentication attempts.
                     if (IsClientLockedOut(clientKey, out long remainingLockoutTicks))
@@ -1273,10 +1273,9 @@ namespace Opc.Ua.Server
         /// outcome is deterministic and idempotent.
         /// </para>
         /// <para>
-        /// Multiple concurrent requests racing through this method may each
-        /// compute the same refresh; the last writer wins. This is acceptable
-        /// because the computation is pure with respect to the current
-        /// RoleManager state.
+        /// The identity and generation are captured before the role computation
+        /// and committed conditionally, so a concurrent activation or role
+        /// change cannot be overwritten by an older refresh.
         /// </para>
         /// </remarks>
         protected virtual void ReevaluateIdentityIfStale(
@@ -1290,6 +1289,12 @@ namespace Opc.Ua.Server
 
             try
             {
+                IdentityRefreshSnapshot snapshot = session.CaptureIdentityRefreshSnapshot();
+                if (!session.IsIdentityStale)
+                {
+                    return;
+                }
+
                 // Build a minimal OperationContext to satisfy the
                 // AddMandatoryRoles signature; only ChannelContext is
                 // consulted (for the endpoint).
@@ -1298,14 +1303,17 @@ namespace Opc.Ua.Server
                     secureChannelContext,
                     RequestType.Unknown,
                     RequestLifetime.None,
-                    session.EffectiveIdentity);
+                    snapshot.Identity);
 
                 IUserIdentity refreshed = AddMandatoryRoles(
                     session,
                     refreshContext,
-                    session.Identity);
+                    snapshot.Identity);
 
-                session.RefreshEffectiveIdentity(refreshed);
+                _ = session.TryRefreshEffectiveIdentity(
+                    snapshot.Identity,
+                    snapshot.Generation,
+                    refreshed);
             }
             catch (Exception ex)
             {
@@ -1847,17 +1855,24 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the lockout key for a client without using client-controlled session metadata.
         /// </summary>
-        private static string GetClientLockoutKey(ISession session)
+        private static string GetClientLockoutKey(
+            ISession session,
+            SecureChannelContext? channelContext)
         {
             if (session?.ClientCertificate != null)
             {
                 return session.ClientCertificate.Thumbprint;
             }
 
-            // No stable authenticated peer identity is available for an
-            // unsecured channel. Scope the lockout to this session rather
-            // than sharing one bucket across every unsecured client.
-            return session?.Id.ToString() ?? string.Empty;
+            if (channelContext?.PeerAddress != null)
+            {
+                return "peer:" + channelContext.PeerAddress;
+            }
+
+            // If the transport cannot expose a peer address, use the
+            // server-assigned channel id rather than trusting client-controlled
+            // metadata. Real listeners always provide a channel id.
+            return "channel:" + (channelContext?.SecureChannelId ?? "unknown");
         }
 
         /// <summary>

@@ -117,20 +117,25 @@ namespace Opc.Ua.Server
         /// rules) and should be recomputed on the next request.
         /// </summary>
         /// <remarks>
-        /// The flag is set by <see cref="MarkIdentityStale"/> and cleared by
-        /// <see cref="RefreshEffectiveIdentity"/>. Per OPC UA Part 18 §4.4.1
+        /// A generation is advanced by <see cref="MarkIdentityStale"/> and
+        /// captured refreshes clear only their own generation. Per OPC UA Part 18 §4.4.1
         /// role grants must reflect the live RoleSet without forcing the
         /// client to re-activate.
         /// </remarks>
         bool IsIdentityStale { get; }
 
         /// <summary>
+        /// Captures the identity and generation used for a conditional role refresh.
+        /// </summary>
+        IdentityRefreshSnapshot CaptureIdentityRefreshSnapshot();
+
+        /// <summary>
         /// Marks the session's <see cref="EffectiveIdentity"/> as stale so
         /// the next request triggers a re-evaluation of the role mapping.
         /// </summary>
         /// <remarks>
-        /// Safe to call from any thread. Multiple concurrent calls are
-        /// idempotent — the flag is sticky until a refresh clears it.
+        /// Safe to call from any thread. Multiple concurrent calls advance
+        /// the generation so no stale refresh can clear a newer change.
         /// </remarks>
         void MarkIdentityStale();
 
@@ -144,6 +149,14 @@ namespace Opc.Ua.Server
         /// on by mandatory-role assignment and the live RoleSet).
         /// </param>
         void RefreshEffectiveIdentity(IUserIdentity effectiveIdentity);
+
+        /// <summary>
+        /// Replaces the effective identity only when the captured identity generation is current.
+        /// </summary>
+        bool TryRefreshEffectiveIdentity(
+            IUserIdentity expectedIdentity,
+            long expectedGeneration,
+            IUserIdentity effectiveIdentity);
 
         /// <summary>
         /// Returns the session's endpoint
@@ -269,4 +282,11 @@ namespace Opc.Ua.Server
         /// </summary>
         void ValidateRequest(RequestHeader requestHeader, SecureChannelContext secureChannelContext, RequestType requestType);
     }
+
+    /// <summary>
+    /// An atomic snapshot of the identity state used for lazy role re-evaluation.
+    /// </summary>
+    public readonly record struct IdentityRefreshSnapshot(
+        IUserIdentity Identity,
+        long Generation);
 }

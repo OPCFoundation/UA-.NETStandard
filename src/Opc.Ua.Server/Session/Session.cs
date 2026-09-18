@@ -307,12 +307,33 @@ namespace Opc.Ua.Server
         public IUserIdentity EffectiveIdentity { get; private set; } = null!;
 
         /// <inheritdoc/>
-        public bool IsIdentityStale => Volatile.Read(ref m_identityStale) != 0;
+        public bool IsIdentityStale
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_identityRefreshGeneration != m_identityGeneration;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public IdentityRefreshSnapshot CaptureIdentityRefreshSnapshot()
+        {
+            lock (m_lock)
+            {
+                return new IdentityRefreshSnapshot(Identity, m_identityGeneration);
+            }
+        }
 
         /// <inheritdoc/>
         public void MarkIdentityStale()
         {
-            Volatile.Write(ref m_identityStale, 1);
+            lock (m_lock)
+            {
+                m_identityGeneration++;
+            }
         }
 
         /// <inheritdoc/>
@@ -326,10 +347,37 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 EffectiveIdentity = effectiveIdentity;
-                // Clearing the stale flag while holding the session lock
-                // ensures any subsequent IsIdentityStale read observes a
-                // consistent (refreshed identity, cleared flag) pair.
-                Volatile.Write(ref m_identityStale, 0);
+                m_identityRefreshGeneration = m_identityGeneration;
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool TryRefreshEffectiveIdentity(
+            IUserIdentity expectedIdentity,
+            long expectedGeneration,
+            IUserIdentity effectiveIdentity)
+        {
+            if (expectedIdentity == null)
+            {
+                throw new ArgumentNullException(nameof(expectedIdentity));
+            }
+            if (effectiveIdentity == null)
+            {
+                throw new ArgumentNullException(nameof(effectiveIdentity));
+            }
+
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(Identity, expectedIdentity) ||
+                    m_identityGeneration != expectedGeneration ||
+                    m_identityRefreshGeneration == m_identityGeneration)
+                {
+                    return false;
+                }
+
+                EffectiveIdentity = effectiveIdentity;
+                m_identityRefreshGeneration = m_identityGeneration;
+                return true;
             }
         }
 
@@ -1298,6 +1346,8 @@ namespace Opc.Ua.Server
                 // always save the new identity since it may have additional information that does not affect equality.
                 IdentityToken = identityToken;
                 Identity = identity;
+                m_identityGeneration++;
+                m_identityRefreshGeneration = m_identityGeneration;
                 EffectiveIdentity = effectiveIdentity!;
 
                 // update diagnostics.
@@ -1514,7 +1564,8 @@ namespace Opc.Ua.Server
         private readonly SessionContinuationPoints m_continuationPoints;
         private readonly SessionSecurityDiagnosticsDataType m_securityDiagnostics;
         private long m_lastContactTickCount;
-        private int m_identityStale;
+        private long m_identityGeneration;
+        private long m_identityRefreshGeneration;
     }
 
     /// <summary>

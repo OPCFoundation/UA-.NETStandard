@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 #if NET8_0_OR_GREATER
+using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using Opc.Ua;
 
@@ -68,6 +69,11 @@ namespace Opc.Ua.Bindings
         /// carried this request, or <c>null</c> when not available.
         /// </summary>
         public byte[]? ServerCertificate { get; init; }
+
+        /// <summary>
+        /// The observed network address of the REST peer.
+        /// </summary>
+        public IPAddress? PeerAddress { get; init; }
 
         /// <summary>
         /// The authenticated user identity resolved by the ASP.NET Core

@@ -1332,7 +1332,8 @@ namespace Opc.Ua.Bindings
                     endpoint,
                     RequestEncoding.Binary,
                     context.Connection.ClientCertificate?.RawData,
-                    ServerChannelCertificate);
+                    ServerChannelCertificate,
+                    peerAddress: context.Connection.RemoteIpAddress);
 
                 IServiceResponse output =
                     await m_callback.ProcessRequestAsync(
