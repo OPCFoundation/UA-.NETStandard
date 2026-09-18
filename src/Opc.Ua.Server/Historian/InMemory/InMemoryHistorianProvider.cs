@@ -387,9 +387,19 @@ namespace Opc.Ua.Server.Historian.InMemory
                     return new ValueTask<HistorianPage<HistoricalDataValue>>(HistorianPage<HistoricalDataValue>.Empty);
                 }
 
-                bool hasResume = TryDecodeCursor(resumeToken, out HistoricalValueKey resumeKey);
+                bool hasResume = TryDecodeCursor(
+                    resumeToken,
+                    out HistoricalValueKey resumeKey,
+                    out uint remainingValues);
+                bool isOpenEnded = request.MaxValues > 0 &&
+                    (request.StartTime == DateTimeUtc.MinValue || request.EndTime == DateTimeUtc.MaxValue);
+                if (isOpenEnded && hasResume && (remainingValues == 0 || remainingValues > request.MaxValues))
+                {
+                    throw new ServiceResultException(StatusCodes.BadContinuationPointInvalid);
+                }
+                remainingValues = isOpenEnded ? hasResume ? remainingValues : request.MaxValues : 0;
                 return new ValueTask<HistorianPage<HistoricalDataValue>>(
-                    ReadRawPage(archive, request, hasResume, resumeKey));
+                    ReadRawPage(archive, request, hasResume, resumeKey, remainingValues));
             }
         }
 
@@ -1670,7 +1680,8 @@ namespace Opc.Ua.Server.Historian.InMemory
             NodeArchive archive,
             HistorianRawReadRequest request,
             bool hasResume,
-            HistoricalValueKey resumeKey)
+            HistoricalValueKey resumeKey,
+            uint remainingValues)
         {
             var start = request.StartTime.ToDateTime();
             var end = request.EndTime.ToDateTime();
@@ -1683,9 +1694,11 @@ namespace Opc.Ua.Server.Historian.InMemory
             DateTime windowMin = lo;
             DateTime windowMax = hi;
 
-            uint cap = request.PageLimit > 0
-                ? Math.Min(request.PageLimit, kMaxValuesPerPage)
-                : request.MaxValues > 0 ? request.MaxValues : kMaxValuesPerPage;
+            uint cap = GetPageLimit(request.MaxValues, request.PageLimit);
+            if (remainingValues > 0)
+            {
+                cap = Math.Min(cap, remainingValues);
+            }
             var output = new List<HistoricalDataValue>((int)Math.Min(cap, kMaxValuesPerPage));
             HistoricalValueKey lastEmitted = default;
 
@@ -1705,9 +1718,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         }
                         if (output.Count >= cap)
                         {
-                            return new HistorianPage<HistoricalDataValue>(
-                                output,
-                                EncodeCursor(lastEmitted));
+                            return CreateRawPage(output, lastEmitted, remainingValues);
                         }
                         output.Add(new HistoricalDataValue(
                             CloneValue(archive.Raw[key]),
@@ -1726,9 +1737,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         {
                             if (output.Count >= cap)
                             {
-                                return new HistorianPage<HistoricalDataValue>(
-                                    output,
-                                    EncodeCursor(lastEmitted));
+                                return CreateRawPage(output, lastEmitted, remainingValues);
                             }
                             output.Add(new HistoricalDataValue(CloneValue(entry.Value), IsBound: true));
                             break;
@@ -1796,9 +1805,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         {
                             if (capReached)
                             {
-                                return new HistorianPage<HistoricalDataValue>(
-                                    output,
-                                    EncodeCursor(lastEmitted));
+                                return CreateRawPage(output, lastEmitted, remainingValues);
                             }
                             output.Add(new HistoricalDataValue(CloneValue(entry.Value), IsBound: true));
                         }
@@ -1817,9 +1824,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         {
                             if (capReached)
                             {
-                                return new HistorianPage<HistoricalDataValue>(
-                                    output,
-                                    EncodeCursor(lastEmitted));
+                                return CreateRawPage(output, lastEmitted, remainingValues);
                             }
                             output.Add(new HistoricalDataValue(CloneValue(entry.Value), IsBound: true));
                         }
@@ -1833,11 +1838,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 // ContinuationPoint on the final page (OPC UA Part 11; CTT HA Read Raw 008/009).
                 if (capReached)
                 {
-                    if (isOpenEnded && cap == request.MaxValues)
-                    {
-                        return new HistorianPage<HistoricalDataValue>(output);
-                    }
-                    return new HistorianPage<HistoricalDataValue>(output, EncodeCursor(lastEmitted));
+                    return CreateRawPage(output, lastEmitted, remainingValues);
                 }
 
                 DataValue value = CloneValue(entry.Value);
@@ -1855,9 +1856,7 @@ namespace Opc.Ua.Server.Historian.InMemory
             {
                 if (capReached)
                 {
-                    return new HistorianPage<HistoricalDataValue>(
-                        output,
-                        EncodeCursor(lastEmitted));
+                    return CreateRawPage(output, lastEmitted, remainingValues);
                 }
                 output.Add(CreateMissingBound(request.IsForward ? windowMax : windowMin));
             }
@@ -1868,6 +1867,34 @@ namespace Opc.Ua.Server.Historian.InMemory
             }
 
             return new HistorianPage<HistoricalDataValue>(output);
+        }
+
+        private static uint GetPageLimit(uint maxValues, uint pageLimit)
+        {
+            uint cap = kMaxValuesPerPage;
+            if (maxValues > 0)
+            {
+                cap = Math.Min(cap, maxValues);
+            }
+            if (pageLimit > 0)
+            {
+                cap = Math.Min(cap, pageLimit);
+            }
+            return cap;
+        }
+
+        private static HistorianPage<HistoricalDataValue> CreateRawPage(
+            List<HistoricalDataValue> output,
+            HistoricalValueKey lastEmitted,
+            uint remainingValues)
+        {
+            if (remainingValues > 0 && output.Count >= remainingValues)
+            {
+                return new HistorianPage<HistoricalDataValue>(output);
+            }
+            return new HistorianPage<HistoricalDataValue>(
+                output,
+                EncodeCursor(lastEmitted, remainingValues > 0 ? remainingValues - (uint)output.Count : 0));
         }
 
         private static bool TryComputeLeadingBound(
@@ -2595,26 +2622,29 @@ namespace Opc.Ua.Server.Historian.InMemory
         /// after this key, so entries that share a source timestamp are
         /// neither lost nor repeated across a page boundary.
         /// </summary>
-        private static HistorianResumeToken EncodeCursor(HistoricalValueKey key)
+        private static HistorianResumeToken EncodeCursor(HistoricalValueKey key, uint remainingValues)
         {
             return HistorianResumeToken.FromCursor(
-                new HistorianResumeCursor(key.SourceTimestamp, key.UniquenessKey, 1));
+                new HistorianResumeCursor(key.SourceTimestamp, key.UniquenessKey, remainingValues));
         }
 
         private static bool TryDecodeCursor(
             HistorianResumeToken token,
-            out HistoricalValueKey key)
+            out HistoricalValueKey key,
+            out uint remainingValues)
         {
+            remainingValues = 0;
             if (token.IsEmpty)
             {
                 key = default;
                 return false;
             }
-            if (!token.TryGetCursor(out HistorianResumeCursor cursor))
+            if (!token.TryGetCursor(out HistorianResumeCursor cursor) || cursor.Sequence > uint.MaxValue)
             {
                 throw new ServiceResultException(StatusCodes.BadContinuationPointInvalid);
             }
             key = new HistoricalValueKey(cursor.Timestamp, cursor.Key);
+            remainingValues = (uint)cursor.Sequence;
             return true;
         }
 
