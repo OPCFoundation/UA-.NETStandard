@@ -1683,6 +1683,67 @@ namespace Opc.Ua.Client.Tests
             sut.Channel.Verify();
         }
 
+        [TestCase(null, "", null, "")]
+        [TestCase("", null, "", null)]
+        [TestCase(null, null, null, null)]
+        [TestCase("", "", "", "")]
+        public async Task OpenAsyncAcceptsNullAndEmptyTokenFieldsAsync(
+            string? discoveryPolicyId,
+            string? authenticatedPolicyId,
+            string? discoveryPolicyUri,
+            string? authenticatedPolicyUri)
+        {
+            EndpointDescription discovery = CreateSessionEndpointDescription("opc.tcp://localhost:4840");
+            discovery.UserIdentityTokens[0].PolicyId = discoveryPolicyId;
+            discovery.UserIdentityTokens[0].SecurityPolicyUri = discoveryPolicyUri;
+            EndpointDescription authenticated = CreateSessionEndpointDescription("opc.tcp://localhost:4840");
+            authenticated.UserIdentityTokens[0].PolicyId = authenticatedPolicyId;
+            authenticated.UserIdentityTokens[0].SecurityPolicyUri = authenticatedPolicyUri;
+            using var session = SessionMock.Create(discovery, [discovery]);
+            ConfigureSuccessfulOpenResponses(
+                session.Channel,
+                [authenticated],
+                ByteString.From([1, 2, 3, 4]),
+                NodeId.Parse("s=token"));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            await session.OpenAsync("test", new UserIdentity(), timeout.Token).ConfigureAwait(false);
+
+            Assert.That(session.Connected, Is.True);
+            session.Channel.Verify(
+                channel => channel.SendRequestAsync(
+                    It.IsAny<ActivateSessionRequest>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
+        public void OpenAsyncRejectsChangedAuthenticatedTokenType()
+        {
+            EndpointDescription discovery = CreateSessionEndpointDescription("opc.tcp://localhost:4840");
+            discovery.UserIdentityTokens = [CreateUserTokenPolicy("identity", UserTokenType.Anonymous)];
+            EndpointDescription authenticated = CreateSessionEndpointDescription("opc.tcp://localhost:4840");
+            authenticated.UserIdentityTokens = [CreateUserTokenPolicy("identity", UserTokenType.UserName)];
+            using var session = SessionMock.Create(discovery);
+            ConfigureSuccessfulOpenResponses(
+                session.Channel,
+                [authenticated],
+                ByteString.From([1, 2, 3, 4]),
+                NodeId.Parse("s=token"));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.OpenAsync("test", new UserIdentity(), timeout.Token)
+                    .ConfigureAwait(false));
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            session.Channel.Verify(
+                channel => channel.SendRequestAsync(
+                    It.IsAny<ActivateSessionRequest>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
         [Test]
         public void OpenAsyncShouldHandleCreateSessionSuccessButActivationError()
         {

@@ -1524,22 +1524,15 @@ namespace Opc.Ua.Client
                 // verify that the server returned the same instance certificate.
                 ValidateServerCertificateData(serverCertificateData);
 
-                ValidateServerEndpoints(serverEndpoints);
-
-                UserTokenPolicy? authenticatedIdentityPolicy =
-                    m_endpoint.Description.FindUserTokenPolicy(
-                        identityPolicy.PolicyId ?? string.Empty,
-                        identityPolicy.SecurityPolicyUri ?? string.Empty);
-                if (authenticatedIdentityPolicy == null ||
-                    !string.Equals(
-                        authenticatedIdentityPolicy.SecurityPolicyUri,
-                        identityPolicy.SecurityPolicyUri,
-                        StringComparison.Ordinal))
+                EndpointDescription authenticatedEndpoint = ValidateServerEndpoints(serverEndpoints);
+                if (!authenticatedEndpoint.UserIdentityTokens.Contains(
+                    policy => AreEquivalentUserTokenPolicies(policy, identityPolicy)))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadSecurityChecksFailed,
                         "The server returned a different security policy for the selected user identity token.");
                 }
+                UpdateDescription(m_endpoint.Description, authenticatedEndpoint);
 
                 ValidateServerCertificateApplicationUri(serverCertificate, m_endpoint);
 
@@ -5203,7 +5196,7 @@ namespace Opc.Ua.Client
         /// Validates the server endpoints returned.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void ValidateServerEndpoints(ArrayOf<EndpointDescription> serverEndpoints)
+        private EndpointDescription ValidateServerEndpoints(ArrayOf<EndpointDescription> serverEndpoints)
         {
             if (!m_discoveryServerEndpoints.IsEmpty)
             {
@@ -5246,39 +5239,26 @@ namespace Opc.Ua.Client
             }
 
             // find the matching description (TBD - check domains against certificate).
-            bool found = false;
-
             EndpointDescription? foundDescription = FindMatchingDescription(
                 serverEndpoints,
                 m_endpoint.Description,
                 true);
-            if (foundDescription != null)
-            {
-                found = true;
-                // ensure endpoint has up to date information.
-                UpdateDescription(m_endpoint.Description, foundDescription);
-            }
-            else
+            if (foundDescription == null)
             {
                 foundDescription = FindMatchingDescription(
                     serverEndpoints,
                     m_endpoint.Description,
                     false);
-                if (foundDescription != null)
-                {
-                    found = true;
-                    // ensure endpoint has up to date information.
-                    UpdateDescription(m_endpoint.Description, foundDescription);
-                }
             }
 
             // could be a security risk.
-            if (!found)
+            if (foundDescription == null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
                     "Server did not return an EndpointDescription that matched the one used to create the secure channel.");
             }
+            return foundDescription;
         }
 
         private static bool HaveEquivalentServerEndpoints(
@@ -5343,7 +5323,7 @@ namespace Opc.Ua.Client
             foreach (UserTokenPolicy serverToken in serverTokens)
             {
                 int matchIndex = unmatchedDiscoveryTokens.FindIndex(
-                    discoveryToken => serverToken.IsEqual(discoveryToken));
+                    discoveryToken => AreEquivalentUserTokenPolicies(serverToken, discoveryToken));
 
                 if (matchIndex < 0)
                 {
@@ -5354,6 +5334,24 @@ namespace Opc.Ua.Client
             }
 
             return unmatchedDiscoveryTokens.Count == 0;
+        }
+
+        private static bool AreEquivalentUserTokenPolicies(UserTokenPolicy first, UserTokenPolicy second)
+        {
+            return first.TokenType == second.TokenType &&
+                string.Equals(first.PolicyId ?? string.Empty, second.PolicyId ?? string.Empty, StringComparison.Ordinal) &&
+                string.Equals(
+                    first.SecurityPolicyUri ?? string.Empty,
+                    second.SecurityPolicyUri ?? string.Empty,
+                    StringComparison.Ordinal) &&
+                string.Equals(
+                    first.IssuedTokenType ?? string.Empty,
+                    second.IssuedTokenType ?? string.Empty,
+                    StringComparison.Ordinal) &&
+                string.Equals(
+                    first.IssuerEndpointUrl ?? string.Empty,
+                    second.IssuerEndpointUrl ?? string.Empty,
+                    StringComparison.Ordinal);
         }
 
         /// <summary>
