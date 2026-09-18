@@ -139,6 +139,9 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             };
 
             var tokenHandler = new UserNameIdentityTokenHandler(token);
+            StatusCode expected = SecurityPolicies.Default.GetInfo(SecurityPolicies.ECC_nistP256) == null
+                ? StatusCodes.BadSecurityPolicyRejected
+                : StatusCodes.BadIdentityTokenInvalid;
             Assert.That(
                 async () => await tokenHandler.DecryptAsync(
                     certificate: null,
@@ -150,7 +153,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                     senderIssuerCertificates: null,
                     validator: null).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
-                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadIdentityTokenInvalid));
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(expected));
         }
 
         [Test]
