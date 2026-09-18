@@ -88,6 +88,11 @@ namespace Opc.Ua.Server.UserDatabase
     /// <summary>
     /// Optional user database capability for persisting UserManagement metadata.
     /// </summary>
+    /// <remarks>
+    /// Implement this capability alongside <see cref="IUserDatabase"/>. Its
+    /// <see cref="IUserDatabase.ChangePassword"/> operation must commit the password and clear
+    /// <see cref="UserConfigurationMask.MustChangePassword"/> together, preserving all other metadata.
+    /// </remarks>
     public interface IUserMetadataDatabase
     {
         /// <summary>

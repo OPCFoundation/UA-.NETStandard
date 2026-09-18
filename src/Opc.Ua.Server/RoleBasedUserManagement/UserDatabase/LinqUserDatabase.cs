@@ -367,6 +367,7 @@ namespace Opc.Ua.Server.UserDatabase
 
                 var replacement = SnapshotUser(user);
                 replacement.Hash = Hash(newPassword);
+                replacement.UserConfiguration &= ~(uint)UserConfigurationMask.MustChangePassword;
                 SaveUserChange(userName, user, replacement);
                 return true;
             }

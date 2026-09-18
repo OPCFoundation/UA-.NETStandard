@@ -352,7 +352,7 @@ namespace Opc.Ua.Server.UserManagement
                     new LocalizedText("New password matches the old password."));
             }
 
-            m_lock.EnterReadLock();
+            m_lock.EnterWriteLock();
             try
             {
                 if (!m_metadata.TryGetValue(userName, out UserMetadata? metadata))
@@ -364,33 +364,16 @@ namespace Opc.Ua.Server.UserManagement
                     return new ServiceResult(StatusCodes.BadNotSupported,
                         new LocalizedText($"User '{userName}' is marked NoChangeByUser."));
                 }
-            }
-            finally
-            {
-                m_lock.ExitReadLock();
-            }
-
-            if (!m_userDatabase.ChangePassword(userName,
+                if (!m_userDatabase.ChangePassword(userName,
                     GetPasswordBytes(oldPassword), GetPasswordBytes(newPassword)))
-            {
-                return new ServiceResult(StatusCodes.BadIdentityTokenInvalid,
-                    new LocalizedText("Old password does not match."));
-            }
-
-            m_lock.EnterWriteLock();
-            try
-            {
-                if (m_metadata.TryGetValue(userName, out UserMetadata? current))
                 {
-                    // Successful change clears the MustChangePassword bit.
-                    m_metadata[userName] = new UserMetadata(
-                        current.Configuration & ~UserConfigurationMask.MustChangePassword,
-                        current.Description);
-                    _ = PersistUserMetadata(
-                        userName,
-                        current.Configuration & ~UserConfigurationMask.MustChangePassword,
-                        current.Description);
+                    return new ServiceResult(StatusCodes.BadIdentityTokenInvalid,
+                        new LocalizedText("Old password does not match."));
                 }
+
+                m_metadata[userName] = new UserMetadata(
+                    metadata.Configuration & ~UserConfigurationMask.MustChangePassword,
+                    metadata.Description);
             }
             finally
             {

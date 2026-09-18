@@ -142,6 +142,44 @@ namespace Opc.Ua.Server.Tests
             Assert.That(Directory.GetFiles(files.DirectoryName), Has.Length.EqualTo(1));
         }
 
+        [Test]
+        public void FailedPasswordChangePreservesPasswordAndRequiredChangeFlagAfterRestart()
+        {
+            using var files = new DatabaseFiles();
+            var initial = new JsonUserDatabase(files.FileName);
+            Assert.That(initial.CreateUser("alice", "credential"u8, [Role.SecurityAdmin]), Is.True);
+            Assert.That(initial.UpdateUserMetadata(
+                "alice", UserConfigurationMask.MustChangePassword, "Original restriction"), Is.True);
+            byte[] committed = File.ReadAllBytes(files.FileName);
+            var database = new JsonUserDatabase(files.FileName, (path, bytes) =>
+            {
+                File.WriteAllBytes(path, bytes);
+                using JsonDocument snapshot = JsonDocument.Parse(bytes);
+                if (snapshot.RootElement.GetProperty("users").EnumerateArray().Any(user =>
+                    user.GetProperty("UserName").GetString() == "alice" &&
+                    user.GetProperty("UserConfiguration").GetUInt32() == 0))
+                {
+                    throw new IOException("controlled password change failure");
+                }
+            })
+            {
+                Users = initial.Users
+            };
+            using var management = new UserManagementFacade(database);
+
+            IOException failure = Assert.Throws<IOException>(() =>
+                management.ChangePassword("alice", "credential", "replacement-credential"));
+            Assert.That(failure.Message, Is.EqualTo("controlled password change failure"));
+
+            AssertOriginalUser(JsonUserDatabase.Load(files.FileName, NUnitTelemetryContext.Create()));
+            Assert.That(File.ReadAllBytes(files.FileName), Is.EqualTo(committed));
+            AssertOriginalUser(database);
+            Assert.That(management.MustChangePassword("alice"), Is.True);
+            Assert.That(management.IsUserActive("alice"), Is.True);
+            Assert.That(management.SnapshotUsers().Single().Description, Is.EqualTo("Original restriction"));
+            Assert.That(Directory.GetFiles(files.DirectoryName), Has.Length.EqualTo(1));
+        }
+
         /// <summary>
         /// Verifies that a partial snapshot-write failure preserves the committed database and removes temporary files.
         /// </summary>
