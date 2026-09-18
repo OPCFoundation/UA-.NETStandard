@@ -161,8 +161,7 @@ namespace Opc.Ua.Redundancy
                     return true;
                 }
 
-                if (protector is not IContextBoundRecordProtector &&
-                    protector.TryUnprotect(protectedRecord, out ByteString unprotected))
+                if (protector.TryUnprotect(protectedRecord, out ByteString unprotected))
                 {
                     plaintext = unprotected.ToArray();
                     return true;
@@ -187,7 +186,8 @@ namespace Opc.Ua.Redundancy
                     return true;
                 }
 
-                if (protector.TryUnprotect(protectedRecord, out ByteString unprotected))
+                if (protector is not IContextBoundRecordProtector &&
+                    protector.TryUnprotect(protectedRecord, out ByteString unprotected))
                 {
                     plaintext = unprotected.ToArray();
                     return true;

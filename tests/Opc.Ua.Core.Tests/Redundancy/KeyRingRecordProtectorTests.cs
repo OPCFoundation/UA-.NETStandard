@@ -29,6 +29,7 @@
 
 #nullable enable
 
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 
@@ -120,6 +121,78 @@ namespace Opc.Ua.Core.Tests.Redundancy
 
             Assert.That(ok, Is.False);
             Assert.That(recovered.IsNull, Is.True);
+        }
+
+        [Test]
+        public void OwnedContextRejectionDoesNotUseUnboundFallback()
+        {
+            var member = new Mock<IContextBoundRecordProtector>();
+            ByteString rejected = default;
+            ByteString unbound = s_plaintext;
+            member.Setup(value => value.TryUnprotect(
+                    It.IsAny<ByteString>(), It.IsAny<ByteString>(), out rejected))
+                .Returns(false);
+            member.Setup(value => value.TryUnprotect(It.IsAny<ByteString>(), out unbound))
+                .Returns(true);
+            using var ring = new KeyRingRecordProtector(member.Object);
+
+            bool accepted = ring.TryUnprotectOwned(
+                ByteString.From(new byte[] { 1 }), s_plaintext, out byte[] recovered);
+
+            Assert.That(accepted, Is.False);
+            Assert.That(recovered, Is.Empty);
+            member.Verify(value => value.TryUnprotect(It.IsAny<ByteString>(), out unbound), Times.Never);
+        }
+
+        [Test]
+        public void UnboundOwnedReadSupportsContextualMemberWithoutOwnedCapability()
+        {
+            var member = new Mock<IContextBoundRecordProtector>();
+            ByteString plaintext = s_plaintext;
+            member.Setup(value => value.TryUnprotect(s_plaintext, out plaintext)).Returns(true);
+            using var ring = new KeyRingRecordProtector(member.Object);
+
+            bool accepted = ring.TryUnprotectOwned(s_plaintext, out byte[] recovered);
+
+            Assert.That(accepted, Is.True);
+            Assert.That(recovered, Is.EqualTo(s_plaintext.ToArray()));
+            member.Verify(value => value.TryUnprotect(s_plaintext, out plaintext), Times.Once);
+        }
+
+        [Test]
+        public void OwnedContextReadRetainsLegacyMemberCompatibility()
+        {
+            var member = new Mock<IRecordProtector>();
+            ByteString plaintext = s_plaintext;
+            member.Setup(value => value.TryUnprotect(s_plaintext, out plaintext)).Returns(true);
+            using var ring = new KeyRingRecordProtector(member.Object);
+
+            bool accepted = ring.TryUnprotectOwned(
+                ByteString.From(new byte[] { 1 }), s_plaintext, out byte[] recovered);
+
+            Assert.That(accepted, Is.True);
+            Assert.That(recovered, Is.EqualTo(s_plaintext.ToArray()));
+            member.Verify(value => value.TryUnprotect(s_plaintext, out plaintext), Times.Once);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void OwnedContextReadAuthenticatesActiveAndRetiredRecords(bool useRetiredKey)
+        {
+            using var active = new AesCbcHmacRecordProtector(s_masterKeyA, keyId: 1);
+            using var retired = new AesCbcHmacRecordProtector(s_masterKeyB, keyId: 2);
+            using var ring = new KeyRingRecordProtector(active, retired);
+            ByteString context = ByteString.From(new byte[] { 1, 2, 3 });
+            ByteString wrongContext = ByteString.From(new byte[] { 1, 2, 4 });
+            ByteString record = (useRetiredKey ? retired : active).Protect(context, s_plaintext);
+
+            Assert.That(ring.TryUnprotectOwned(context, record, out byte[] recovered), Is.True);
+            Assert.That(recovered, Is.EqualTo(s_plaintext.ToArray()));
+            recovered[0] = 0;
+            Assert.That(ring.TryUnprotect(context, record, out ByteString secondRead), Is.True);
+            Assert.That(secondRead.ToArray(), Is.EqualTo(s_plaintext.ToArray()));
+            Assert.That(ring.TryUnprotectOwned(wrongContext, record, out byte[] rejected), Is.False);
+            Assert.That(rejected, Is.Empty);
         }
 
         [Test]
