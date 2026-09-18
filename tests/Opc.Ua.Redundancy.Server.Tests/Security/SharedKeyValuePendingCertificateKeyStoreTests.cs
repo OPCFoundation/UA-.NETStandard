@@ -37,8 +37,11 @@
 #nullable enable
 
 using System;
+using System.Buffers.Binary;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
@@ -227,12 +230,15 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(winners, Is.EqualTo(1), "exactly one replica may consume the pending key");
         }
 
-        [Test]
-        public async Task TryTakeWipesDecryptedBackingBufferAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task TryTakeWipesDecryptedBackingBufferAsync(bool useKeyRing)
         {
             using var kv = new InMemorySharedKeyValueStore();
             var protector = new InstrumentedRecordProtector();
-            var store = new SharedKeyValuePendingCertificateKeyStore(kv, NewOptions(), protector);
+            using var ring = new KeyRingRecordProtector(protector);
+            var store = new SharedKeyValuePendingCertificateKeyStore(
+                kv, NewOptions(), useKeyRing ? ring : protector);
             PendingCertificateKeyContext context = NewContext();
             using Certificate original = NewCertificateWithKey();
 
@@ -250,6 +256,157 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(decrypted!, Has.Length.GreaterThan(0));
             Assert.That(Array.TrueForAll(decrypted, b => b == 0), Is.True,
                 "TryTakeAsync must wipe the real protector's distinct decrypted backing buffer");
+            Assert.That(protector.ImmutableReads, Is.Zero);
+            Assert.That(protector.LastProtectedPlaintext.ToArray(), Is.All.Zero);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PendingKeyRejectsWrongOrEmptyContextAsync(bool emptyContext)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(MakeKey(19));
+            var store = new SharedKeyValuePendingCertificateKeyStore(kv, NewOptions(), protector);
+            PendingCertificateKeyContext source = NewContext();
+            PendingCertificateKeyContext target = emptyContext ? source : NewContext();
+            using Certificate original = NewCertificateWithKey();
+            Assert.That(await store.SaveAsync(source, original).ConfigureAwait(false), Is.True);
+            string sourceKey = store.KeyFor(source);
+            string targetKey = store.KeyFor(target);
+            (bool found, ByteString record) = await kv.TryGetAsync(sourceKey).ConfigureAwait(false);
+            Assert.That(found, Is.True);
+            ByteString transplanted = record;
+            if (emptyContext)
+            {
+                Assert.That(protector.TryUnprotectOwned(
+                    RecordProtectionContext.Create("pending-certificate-key", sourceKey), record, out byte[] owned),
+                    Is.True);
+                try
+                {
+                    transplanted = protector.Protect(default(ByteString), ByteString.From(owned));
+                }
+                finally
+                {
+                    CryptoUtils.ZeroMemory(owned);
+                }
+            }
+            await kv.SetAsync(targetKey, transplanted).ConfigureAwait(false);
+
+            using Certificate? rejected = await store.TryTakeAsync(target).ConfigureAwait(false);
+
+            Assert.That(rejected, Is.Null);
+            (found, ByteString retained) = await kv.TryGetAsync(targetKey).ConfigureAwait(false);
+            Assert.That(found, Is.True, "Authentication failure must not consume the stored record.");
+            Assert.That(retained, Is.EqualTo(transplanted));
+            await kv.SetAsync(sourceKey, record).ConfigureAwait(false);
+            using Certificate? accepted = await store.TryTakeAsync(source).ConfigureAwait(false);
+            Assert.That(accepted, Is.Not.Null);
+            Assert.That(accepted!.Thumbprint, Is.EqualTo(original.Thumbprint));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InvalidPendingKeyWipesOriginalOwnedBufferAsync(bool invalidCertificate)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var protector = new InstrumentedRecordProtector();
+            var store = new SharedKeyValuePendingCertificateKeyStore(kv, NewOptions(), protector);
+            PendingCertificateKeyContext context = NewContext();
+            string key = store.KeyFor(context);
+            byte[] malformed = invalidCertificate ? [0, 0, 0, 0, 1, 0, 0, 0, 0xFF] : [1, 2, 3];
+            ByteString record = protector.Protect(
+                RecordProtectionContext.Create("pending-certificate-key", key), ByteString.From(malformed));
+            await kv.SetAsync(key, record).ConfigureAwait(false);
+
+            if (invalidCertificate)
+            {
+                Assert.That(
+                    async () => await store.TryTakeAsync(context).ConfigureAwait(false),
+                    Throws.InstanceOf<CryptographicException>());
+            }
+            else
+            {
+                using Certificate? taken = await store.TryTakeAsync(context).ConfigureAwait(false);
+                Assert.That(taken, Is.Null);
+            }
+
+            Assert.That(protector.LastOwnedPlaintext, Is.Not.Null);
+            Assert.That(protector.LastOwnedPlaintext, Has.Length.EqualTo(malformed.Length));
+            Assert.That(protector.LastOwnedPlaintext, Is.All.Zero);
+            Assert.That(protector.ImmutableReads, Is.Zero);
+            (_, ByteString retained) = await kv.TryGetAsync(key).ConfigureAwait(false);
+            Assert.That(retained, Is.EqualTo(record));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedPendingKeyClaimWipesOriginalOwnedBufferAsync(bool canceled)
+        {
+            using var backend = new InMemorySharedKeyValueStore();
+            var protector = new InstrumentedRecordProtector();
+            var writer = new SharedKeyValuePendingCertificateKeyStore(backend, NewOptions(), protector);
+            PendingCertificateKeyContext context = NewContext();
+            using Certificate original = NewCertificateWithKey();
+            Assert.That(await writer.SaveAsync(context, original).ConfigureAwait(false), Is.True);
+            (_, ByteString record) = await backend.TryGetAsync(writer.KeyFor(context)).ConfigureAwait(false);
+            var kv = new Mock<ISharedKeyValueStore>(MockBehavior.Strict);
+            kv.Setup(value => value.TryGetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns((string key, CancellationToken ct) => backend.TryGetAsync(key, ct));
+            kv.Setup(value => value.CompareAndSwapAsync(
+                    It.IsAny<string>(), It.IsAny<ByteString>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns(() => canceled
+                    ? throw new OperationCanceledException()
+                    : new ValueTask<bool>(false));
+            var reader = new SharedKeyValuePendingCertificateKeyStore(kv.Object, NewOptions(), protector);
+
+            if (canceled)
+            {
+                Assert.That(
+                    async () => await reader.TryTakeAsync(context).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>());
+            }
+            else
+            {
+                using Certificate? taken = await reader.TryTakeAsync(context).ConfigureAwait(false);
+                Assert.That(taken, Is.Null);
+            }
+
+            Assert.That(protector.LastOwnedPlaintext, Is.Not.Null.And.Not.Empty);
+            Assert.That(protector.LastOwnedPlaintext, Is.All.Zero);
+            Assert.That(protector.ImmutableReads, Is.Zero);
+            (_, ByteString retained) = await backend.TryGetAsync(writer.KeyFor(context)).ConfigureAwait(false);
+            Assert.That(retained, Is.EqualTo(record));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SaveWipesWorkingRecordWhenProtectionOrStoreFailsAsync(bool failProtection)
+        {
+            var kv = new Mock<ISharedKeyValueStore>(MockBehavior.Strict);
+            kv.Setup(value => value.SetAsync(
+                    It.IsAny<string>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Throws(new InvalidOperationException("Store write failed."));
+            var protector = new InstrumentedRecordProtector { RejectProtection = failProtection };
+            var store = new SharedKeyValuePendingCertificateKeyStore(kv.Object, NewOptions(), protector);
+            using Certificate original = NewCertificateWithKey();
+
+            Assert.That(
+                async () => await store.SaveAsync(NewContext(), original).ConfigureAwait(false),
+                Throws.InvalidOperationException);
+
+            Assert.That(protector.LastProtectedPlaintext.IsEmpty, Is.False);
+            Assert.That(protector.LastProtectedPlaintext.ToArray(), Is.All.Zero);
+        }
+
+        [Test]
+        public void PendingKeyStoreRejectsProtectorWithoutOwnedBuffers()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var protector = new Mock<IRecordProtector>(MockBehavior.Strict);
+
+            Assert.That(
+                () => new SharedKeyValuePendingCertificateKeyStore(kv, NewOptions(), protector.Object),
+                Throws.ArgumentException.With.Property(nameof(ArgumentException.ParamName)).EqualTo("protector"));
         }
 
         [Test]
@@ -358,59 +515,46 @@ namespace Opc.Ua.Server.Tests.Redundancy
         /// </summary>
         private sealed class InstrumentedRecordProtector : IOwnedRecordProtector
         {
-            private const byte Marker = 0xC3;
-
             public byte[]? LastOwnedPlaintext { get; private set; }
 
-            public ByteString Protect(ByteString plaintext)
-            {
-                ReadOnlySpan<byte> source = plaintext.Span;
-                byte[] envelope = new byte[1 + source.Length];
-                envelope[0] = Marker;
-                source.CopyTo(envelope.AsSpan(1));
-                return new ByteString(envelope);
-            }
+            public ByteString LastProtectedPlaintext { get; private set; }
+
+            public int ImmutableReads { get; private set; }
+
+            public bool RejectProtection { get; set; }
 
             public ByteString Protect(ByteString context, ByteString plaintext)
             {
-                return Protect(plaintext);
-            }
-
-            public ByteString Protect(string context, ByteString plaintext)
-            {
-                return Protect(plaintext);
-            }
-
-            public bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext)
-            {
-                if (!TryDecode(protectedRecord, out byte[] data))
+                LastProtectedPlaintext = plaintext;
+                if (RejectProtection)
                 {
-                    plaintext = ByteString.Empty;
+                    throw new InvalidOperationException("Protection failed.");
+                }
+                ReadOnlySpan<byte> source = plaintext.Span;
+                int headerLength = 1 + sizeof(int) + context.Length;
+                byte[] envelope = new byte[headerLength + source.Length];
+                envelope[0] = Marker;
+                BinaryPrimitives.WriteInt32LittleEndian(envelope.AsSpan(1), context.Length);
+                context.Span.CopyTo(envelope.AsSpan(1 + sizeof(int)));
+                source.CopyTo(envelope.AsSpan(headerLength));
+                return new ByteString(envelope);
+            }
+
+            public bool TryUnprotect(ByteString context, ByteString protectedRecord, out ByteString plaintext)
+            {
+                ImmutableReads++;
+                if (!TryDecode(context, protectedRecord, out byte[] data))
+                {
+                    plaintext = default;
                     return false;
                 }
                 plaintext = new ByteString(data);
                 return true;
             }
 
-            public bool TryUnprotect(
-                ByteString context,
-                ByteString protectedRecord,
-                out ByteString plaintext)
+            public bool TryUnprotectOwned(ByteString context, ByteString protectedRecord, out byte[] plaintext)
             {
-                return TryUnprotect(protectedRecord, out plaintext);
-            }
-
-            public bool TryUnprotect(
-                string context,
-                ByteString protectedRecord,
-                out ByteString plaintext)
-            {
-                return TryUnprotect(protectedRecord, out plaintext);
-            }
-
-            public bool TryUnprotectOwned(ByteString protectedRecord, out byte[] plaintext)
-            {
-                if (!TryDecode(protectedRecord, out byte[] data))
+                if (!TryDecode(context, protectedRecord, out byte[] data))
                 {
                     plaintext = [];
                     return false;
@@ -422,17 +566,22 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 return true;
             }
 
-            private static bool TryDecode(ByteString protectedRecord, out byte[] data)
+            private static bool TryDecode(ByteString context, ByteString protectedRecord, out byte[] data)
             {
                 ReadOnlySpan<byte> span = protectedRecord.Span;
-                if (span.Length < 1 || span[0] != Marker)
+                int headerLength = 1 + sizeof(int) + context.Length;
+                if (span.Length < headerLength || span[0] != Marker ||
+                    BinaryPrimitives.ReadInt32LittleEndian(span[1..]) != context.Length ||
+                    !span.Slice(1 + sizeof(int), context.Length).SequenceEqual(context.Span))
                 {
                     data = [];
                     return false;
                 }
-                data = span[1..].ToArray();
+                data = span[headerLength..].ToArray();
                 return true;
             }
+
+            private const byte Marker = 0xC3;
         }
     }
 }

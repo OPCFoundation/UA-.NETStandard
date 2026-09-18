@@ -46,43 +46,14 @@ namespace Opc.Ua.Redundancy
         public static NullRecordProtector Instance { get; } = new();
 
         /// <inheritdoc/>
-        public ByteString Protect(ByteString plaintext)
-        {
-            return plaintext;
-        }
-
-        /// <inheritdoc/>
         public ByteString Protect(ByteString context, ByteString plaintext)
         {
             return plaintext;
         }
 
         /// <inheritdoc/>
-        public ByteString Protect(string context, ByteString plaintext)
-        {
-            return plaintext;
-        }
-
-        /// <inheritdoc/>
-        public bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext)
-        {
-            plaintext = protectedRecord;
-            return true;
-        }
-
-        /// <inheritdoc/>
         public bool TryUnprotect(
             ByteString context,
-            ByteString protectedRecord,
-            out ByteString plaintext)
-        {
-            plaintext = protectedRecord;
-            return true;
-        }
-
-        /// <inheritdoc/>
-        public bool TryUnprotect(
-            string context,
             ByteString protectedRecord,
             out ByteString plaintext)
         {
@@ -95,13 +66,6 @@ namespace Opc.Ua.Redundancy
             ByteString context,
             ByteString protectedRecord,
             out byte[] plaintext)
-        {
-            plaintext = protectedRecord.IsNull ? [] : protectedRecord.ToArray();
-            return true;
-        }
-
-        /// <inheritdoc/>
-        public bool TryUnprotectOwned(ByteString protectedRecord, out byte[] plaintext)
         {
             // Pass-through: hand back an independent copy so the caller can wipe
             // it without ever mutating the shared-store input buffer this

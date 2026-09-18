@@ -74,7 +74,8 @@ namespace Opc.Ua.Redundancy.Server
                 .ConfigureAwait(false);
 
             if (found &&
-                m_protector.TryUnprotect(key, value, out ByteString payload) &&
+                m_protector.TryUnprotect(
+                    RecordProtectionContext.Create("peer-endpoint", key), value, out ByteString payload) &&
                 PeerEndpointCodec.TryDecode(payload, m_context, out ArrayOf<EndpointDescription> endpoints))
             {
                 return endpoints;

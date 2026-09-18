@@ -86,7 +86,7 @@ namespace Opc.Ua.Redundancy.Server
             long ticks = m_timeProvider.GetUtcNow().UtcDateTime.Ticks;
             string key = keyPrefix + m_localServerUri;
             ByteString payload = m_protector.Protect(
-                key,
+                RecordProtectionContext.Create("peer-direction", key),
                 PeerDirectionCodec.Encode(m_localServerUri, value, ticks, m_context));
             return m_store.SetAsync(key, payload, cancellationToken);
         }

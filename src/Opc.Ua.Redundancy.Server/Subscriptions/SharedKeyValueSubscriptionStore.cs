@@ -128,7 +128,8 @@ namespace Opc.Ua.Redundancy.Server
                     await m_store
                         .SetAsync(
                             key,
-                            m_protector.Protect(key, Encode(subscription)),
+                            m_protector.Protect(
+                                RecordProtectionContext.Create("subscription", key), Encode(subscription)),
                             cancellationToken)
                         .ConfigureAwait(false);
                 }
@@ -138,7 +139,7 @@ namespace Opc.Ua.Redundancy.Server
                     .SetAsync(
                         manifestKey,
                         m_protector.Protect(
-                            manifestKey,
+                            RecordProtectionContext.Create("subscription-manifest", manifestKey),
                             EncodeSnapshotManifest(generation, (uint)snapshot.Count)),
                         cancellationToken)
                     .ConfigureAwait(false);
@@ -171,7 +172,7 @@ namespace Opc.Ua.Redundancy.Server
             if (foundManifest)
             {
                 if (!m_protector.TryUnprotect(
-                        manifestKey,
+                        RecordProtectionContext.Create("subscription-manifest", manifestKey),
                         protectedManifest,
                         out ByteString manifestPayload) ||
                     manifestPayload.IsNull)
@@ -267,7 +268,9 @@ namespace Opc.Ua.Redundancy.Server
             (bool found, ByteString value) = await m_store
                 .TryGetAsync(stateKey, cancellationToken)
                 .ConfigureAwait(false);
-            if (!found || !m_protector.TryUnprotect(stateKey, value, out ByteString payload))
+            if (!found || !m_protector.TryUnprotect(
+                RecordProtectionContext.Create("subscription-retransmission-state", stateKey),
+                value, out ByteString payload))
             {
                 return null;
             }
@@ -296,7 +299,9 @@ namespace Opc.Ua.Redundancy.Server
                 .ScanAsync(RetransmissionMessagePrefixFor(subscriptionId), cancellationToken)
                 .ConfigureAwait(false))
             {
-                if (m_protector.TryUnprotect(pair.Key, pair.Value, out ByteString messagePayload))
+                if (m_protector.TryUnprotect(
+                    RecordProtectionContext.Create("subscription-retransmission-message", pair.Key),
+                    pair.Value, out ByteString messagePayload))
                 {
                     NotificationMessage message = DecodeNotificationMessage(messagePayload, namespaceUris, serverUris);
                     messages.Add(message);
@@ -479,7 +484,10 @@ namespace Opc.Ua.Redundancy.Server
                 .ScanAsync(ContinuationPointPrefixFor(ownerSessionId), cancellationToken)
                 .ConfigureAwait(false))
             {
-                if (m_protector.TryUnprotect(pair.Key, pair.Value, out ByteString payload))
+                if (m_protector.TryUnprotect(
+                    RecordProtectionContext.Create("subscription-continuation", pair.Key),
+                    pair.Value,
+                    out ByteString payload))
                 {
                     ContinuationPointEnvelope? envelope = DecodeContinuationPointEnvelope(payload);
                     if (envelope != null)
@@ -575,7 +583,7 @@ namespace Opc.Ua.Redundancy.Server
                         await m_store.SetAsync(
                                 key,
                                 m_protector.Protect(
-                                    key,
+                                    RecordProtectionContext.Create("subscription-retransmission-state", key),
                                     EncodeRetransmissionState(batch.NextSequenceNumber)),
                                 cancellationToken)
                             .ConfigureAwait(false);
@@ -589,7 +597,9 @@ namespace Opc.Ua.Redundancy.Server
                             message.SequenceNumber);
                         operations.Add(m_store.SetAsync(
                                 key,
-                                m_protector.Protect(key, EncodeNotificationMessage(message)),
+                                m_protector.Protect(
+                                    RecordProtectionContext.Create("subscription-retransmission-message", key),
+                                    EncodeNotificationMessage(message)),
                                 cancellationToken)
                             .AsTask());
                     }
@@ -622,7 +632,7 @@ namespace Opc.Ua.Redundancy.Server
                     await m_store.SetAsync(
                             key,
                             m_protector.Protect(
-                                key,
+                                RecordProtectionContext.Create("subscription-continuation", key),
                                 EncodeContinuationPointEnvelope(envelope)),
                             cancellationToken)
                         .ConfigureAwait(false);
@@ -848,7 +858,9 @@ namespace Opc.Ua.Redundancy.Server
                         StatusCodes.BadDecodingError,
                         "The persisted subscription key is malformed.");
                 }
-                if (!m_protector.TryUnprotect(pair.Key, pair.Value, out ByteString payload) || payload.IsNull)
+                if (!m_protector.TryUnprotect(
+                        RecordProtectionContext.Create("subscription", pair.Key), pair.Value, out ByteString payload) ||
+                    payload.IsNull)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadSecurityChecksFailed,

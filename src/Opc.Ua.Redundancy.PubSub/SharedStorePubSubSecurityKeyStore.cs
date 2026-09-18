@@ -88,8 +88,9 @@ namespace Opc.Ua.PubSub.Security.Sks
                 throw new ArgumentNullException(nameof(securityGroupId));
             }
 
+            string key = GetSecurityGroupKey(securityGroupId);
             (bool found, ByteString protectedRecord) = await m_store
-                .TryGetAsync(GetSecurityGroupKey(securityGroupId), cancellationToken)
+                .TryGetAsync(key, cancellationToken)
                 .ConfigureAwait(false);
             if (!found)
             {
@@ -101,7 +102,10 @@ namespace Opc.Ua.PubSub.Security.Sks
                 return null;
             }
 
-            if (!m_protector.TryUnprotect(protectedPayload, out ByteString plaintext))
+            if (!m_protector.TryUnprotect(
+                RecordProtectionContext.Create("pubsub-security-group", key),
+                protectedPayload,
+                out ByteString plaintext))
             {
                 m_logger.UnableToUnprotectSharedPubSubSecurityGroupRecord(securityGroupId);
                 return null;
@@ -138,10 +142,12 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
 
             ByteString plaintext = SerializeSecurityGroup(group);
-            ByteString protectedRecord = m_protector.Protect(plaintext);
+            string key = GetSecurityGroupKey(group.SecurityGroupId);
+            ByteString protectedRecord = m_protector.Protect(
+                RecordProtectionContext.Create("pubsub-security-group", key), plaintext);
             await FencedSharedStoreValue.StoreAsync(
                 m_store,
-                GetSecurityGroupKey(group.SecurityGroupId),
+                key,
                 protectedRecord,
                 fencingToken,
                 cancellationToken).ConfigureAwait(false);

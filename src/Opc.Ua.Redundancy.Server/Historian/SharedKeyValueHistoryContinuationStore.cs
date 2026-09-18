@@ -181,7 +181,8 @@ namespace Opc.Ua.Redundancy.Server
                     "History continuation payload exceeds the configured limit.");
             }
             string key = KeyFor(envelope.OwnerSessionId, envelope.Id);
-            ByteString protectedPayload = m_protector.Protect(key, payload);
+            ByteString protectedPayload = m_protector.Protect(
+                RecordProtectionContext.Create("history-continuation", key), payload);
             if (protectedPayload.IsEmpty ||
                 protectedPayload.Length > m_maxPayloadBytes)
             {
@@ -274,7 +275,7 @@ namespace Opc.Ua.Redundancy.Server
                 return false;
             }
             RememberIncarnation(key, value);
-            ByteString claimMarker = CreateMarker(MarkerKind.Claim);
+            ByteString claimMarker = CreateMarker(key, MarkerKind.Claim);
             bool claimed = await CompareAndSwapClaimResolvedAsync(
                     key,
                     value,
@@ -619,20 +620,8 @@ namespace Opc.Ua.Redundancy.Server
             ByteString value,
             out ByteString payload)
         {
-            if (m_protector.TryUnprotect(key, value, out payload))
-            {
-                return true;
-            }
-
-            if (m_protector.TryUnprotect(
-                    "history-continuation-marker",
-                    value,
-                    out payload))
-            {
-                return true;
-            }
-
-            return m_protector.TryUnprotect(value, out payload);
+            return m_protector.TryUnprotect(
+                RecordProtectionContext.Create("history-continuation", key), value, out payload);
         }
 
         private void RememberIncarnation(string key, ByteString value)
@@ -755,7 +744,7 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
-        private ByteString CreateMarker(MarkerKind markerKind)
+        private ByteString CreateMarker(string key, MarkerKind markerKind)
         {
             byte[] marker = new byte[kMarkerLength];
             marker[0] = (byte)'H';
@@ -765,7 +754,7 @@ namespace Opc.Ua.Redundancy.Server
             marker[4] = (byte)markerKind;
             Guid.NewGuid().ToByteArray().CopyTo(marker, kMarkerHeaderLength);
             return m_protector.Protect(
-                "history-continuation-marker",
+                RecordProtectionContext.Create("history-continuation", key),
                 ByteString.From(marker));
         }
 

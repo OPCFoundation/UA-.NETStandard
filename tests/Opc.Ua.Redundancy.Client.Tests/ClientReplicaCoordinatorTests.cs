@@ -40,6 +40,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -164,16 +165,26 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(() => builder.Build(), Throws.InvalidOperationException);
         }
 
-        [Test]
-        public async Task LeaderPromotionReusesMirroredTokenAndReportsFastActivationAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LeaderPromotionReusesMirroredTokenAndReportsFastActivationAsync(bool authenticated)
         {
             using var store = new InMemorySharedKeyValueStore();
+            using var random = RandomNumberGenerator.Create();
+            byte[] key = new byte[32];
+            random.GetBytes(key);
+            using var encryption = new AesCbcHmacRecordProtector(key);
+            IRecordProtector protector = authenticated ? encryption : NullRecordProtector.Instance;
             using var seedSession = SessionMock.Create();
             seedSession.SetConnected();
             SetServerNonce(seedSession, [1, 2, 3, 4]);
             using var stream = new MemoryStream();
             seedSession.SaveSessionConfiguration(stream);
-            await store.SetAsync("client-replica/session", new ByteString(stream.ToArray())).ConfigureAwait(false);
+            await store.SetAsync(
+                "client-replica/session",
+                protector.Protect(
+                    RecordProtectionContext.Create("client-replica-session", "client-replica/session"),
+                    new ByteString(stream.ToArray()))).ConfigureAwait(false);
 
             ConfiguredEndpoint expectedEndpoint = seedSession.ConfiguredEndpoint;
             var expectedAuthenticationToken = NodeId.Parse("s=auth");
@@ -195,7 +206,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 options,
                 new StaticLeaderElection(true),
                 store,
-                NullRecordProtector.Instance,
+                protector,
                 m_telemetry);
 
             await coordinator.StartAsync().ConfigureAwait(false);

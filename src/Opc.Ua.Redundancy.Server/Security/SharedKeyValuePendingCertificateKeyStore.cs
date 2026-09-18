@@ -79,8 +79,12 @@ namespace Opc.Ua.Redundancy.Server
         /// Optional record protector applied to every stored pending key
         /// (authenticated encryption); defaults to a no-op pass-through.
         /// Configure an <see cref="AesCbcHmacRecordProtector"/> in production so
-        /// the shared store can be treated as untrusted.
+        /// the shared store can be treated as untrusted. A supplied protector must implement
+        /// <see cref="IOwnedRecordProtector"/> so decrypted private-key buffers can be erased without copying.
         /// </param>
+        /// <exception cref="ArgumentException">
+        /// The protector cannot transfer ownership of decrypted plaintext.
+        /// </exception>
         public SharedKeyValuePendingCertificateKeyStore(
             ISharedKeyValueStore store,
             DistributedPushConfigurationOptions options,
@@ -92,7 +96,13 @@ namespace Opc.Ua.Redundancy.Server
                 throw new ArgumentNullException(nameof(options));
             }
             m_prefix = options.PendingKeyPrefix;
-            m_protector = protector ?? NullRecordProtector.Instance;
+            m_protector = protector switch
+            {
+                null => NullRecordProtector.Instance,
+                IOwnedRecordProtector owned => owned,
+                _ => throw new ArgumentException(
+                    "Pending certificate keys require an IOwnedRecordProtector.", nameof(protector))
+            };
         }
 
         /// <inheritdoc/>
@@ -161,34 +171,34 @@ namespace Opc.Ua.Redundancy.Server
 
                 var plaintext = new ByteString(blob);
                 string recordKey = KeyFor(context);
-                ByteString payload = m_protector.Protect(recordKey, plaintext);
+                ByteString payload = m_protector.Protect(
+                    RecordProtectionContext.Create("pending-certificate-key", recordKey), plaintext);
+                if (payload.Equals(plaintext))
+                {
+                    // Keep the pass-through store's buffer independent of the working plaintext.
+                    payload = ByteString.From(payload.ToArray());
+                }
                 bool stored = true;
                 if (onlyIfAbsent)
                 {
-                    string key = KeyFor(context);
-                    (bool found, ByteString current) = await m_store.TryGetAsync(key, cancellationToken)
+                    (bool found, ByteString current) = await m_store.TryGetAsync(recordKey, cancellationToken)
                         .ConfigureAwait(false);
                     stored = (!found || current.IsNull || current.IsEmpty) &&
-                        await m_store.CompareAndSwapAsync(key, found ? current : default, payload, cancellationToken)
-                            .ConfigureAwait(false);
+                        await m_store.CompareAndSwapAsync(
+                            recordKey, found ? current : default, payload, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
-                    await m_store.SetAsync(KeyFor(context), payload, cancellationToken).ConfigureAwait(false);
-                }
-
-                // The no-op protector stores the plaintext buffer verbatim, so
-                // wiping it here would corrupt the stored record; a real
-                // protector produces an independent ciphertext envelope, so the
-                // plaintext buffer can (and must) be wiped.
-                if (!stored || !payload.Equals(plaintext))
-                {
-                    CryptoUtils.ZeroMemory(blob);
+                    await m_store.SetAsync(recordKey, payload, cancellationToken).ConfigureAwait(false);
                 }
                 return stored;
             }
             finally
             {
+                if (blob != null)
+                {
+                    CryptoUtils.ZeroMemory(blob);
+                }
                 if (pkcs12 != null)
                 {
                     CryptoUtils.ZeroMemory(pkcs12);
@@ -257,23 +267,8 @@ namespace Opc.Ua.Redundancy.Server
             // mutating the store's input buffer (which the pass-through protector
             // would otherwise alias) and without leaving a second, unwipeable
             // copy behind.
-            byte[] plainBytes;
-            if (m_protector.TryUnprotect(key, value, out ByteString contextualPlaintext))
-            {
-                plainBytes = contextualPlaintext.ToArray();
-            }
-            else if (m_protector is IOwnedRecordProtector ownedProtector)
-            {
-                if (!ownedProtector.TryUnprotectOwned(value, out plainBytes))
-                {
-                    return null;
-                }
-            }
-            else if (m_protector.TryUnprotect(key, value, out ByteString plaintext))
-            {
-                plainBytes = plaintext.ToArray();
-            }
-            else
+            if (!m_protector.TryUnprotectOwned(
+                RecordProtectionContext.Create("pending-certificate-key", key), value, out byte[] plainBytes))
             {
                 return null;
             }
@@ -458,6 +453,6 @@ namespace Opc.Ua.Redundancy.Server
 
         private readonly ISharedKeyValueStore m_store;
         private readonly string m_prefix;
-        private readonly IRecordProtector m_protector;
+        private readonly IOwnedRecordProtector m_protector;
     }
 }

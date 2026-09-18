@@ -201,7 +201,7 @@ namespace Opc.Ua.Client.Redundancy
                     .TryGetAsync(m_options.SessionRecordKey, ct).ConfigureAwait(false);
                 if (found &&
                     m_protector.TryUnprotect(
-                        m_options.SessionRecordKey,
+                        RecordProtectionContext.Create("client-replica-session", m_options.SessionRecordKey),
                         stored,
                         out ByteString plaintext) &&
                     !plaintext.IsNull)
@@ -267,7 +267,7 @@ namespace Opc.Ua.Client.Redundancy
             using var stream = new System.IO.MemoryStream();
             m_session.SaveSessionConfiguration(stream);
             ByteString protectedRecord = m_protector.Protect(
-                m_options.SessionRecordKey,
+                RecordProtectionContext.Create("client-replica-session", m_options.SessionRecordKey),
                 new ByteString(stream.ToArray()));
             await m_store.SetAsync(m_options.SessionRecordKey, protectedRecord, ct).ConfigureAwait(false);
         }

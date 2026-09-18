@@ -77,38 +77,9 @@ namespace Opc.Ua.Redundancy
         }
 
         /// <inheritdoc/>
-        public ByteString Protect(ByteString plaintext)
-        {
-            return m_active.Protect(plaintext);
-        }
-
-        /// <inheritdoc/>
         public ByteString Protect(ByteString context, ByteString plaintext)
         {
             return m_active.Protect(context, plaintext);
-        }
-
-        /// <inheritdoc/>
-        public ByteString Protect(string context, ByteString plaintext)
-        {
-            return m_active.Protect(context, plaintext);
-        }
-
-        /// <inheritdoc/>
-        public bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext)
-        {
-            // A record carries the key-id of the key that produced it; each
-            // member rejects (fail-closed) any record it did not produce, so the
-            // first success is unambiguous.
-            foreach (IRecordProtector protector in m_all)
-            {
-                if (protector.TryUnprotect(protectedRecord, out plaintext))
-                {
-                    return true;
-                }
-            }
-            plaintext = default;
-            return false;
         }
 
         /// <inheritdoc/>
@@ -130,47 +101,9 @@ namespace Opc.Ua.Redundancy
         }
 
         /// <inheritdoc/>
-        public bool TryUnprotect(
-            string context,
-            ByteString protectedRecord,
-            out ByteString plaintext)
-        {
-            foreach (IRecordProtector protector in m_all)
-            {
-                if (protector.TryUnprotect(context, protectedRecord, out plaintext))
-                {
-                    return true;
-                }
-            }
-
-            plaintext = default;
-            return false;
-        }
-
-        /// <inheritdoc/>
-        public bool TryUnprotectOwned(ByteString protectedRecord, out byte[] plaintext)
-        {
-            // As with TryUnprotect, each member fails closed on a record it did
-            // not produce, so the first member that accepts owns the plaintext.
-            foreach (IRecordProtector protector in m_all)
-            {
-                if (protector is IOwnedRecordProtector ownedProtector &&
-                    ownedProtector.TryUnprotectOwned(protectedRecord, out plaintext))
-                {
-                    return true;
-                }
-
-                if (protector.TryUnprotect(protectedRecord, out ByteString unprotected))
-                {
-                    plaintext = unprotected.ToArray();
-                    return true;
-                }
-            }
-            plaintext = [];
-            return false;
-        }
-
-        /// <inheritdoc/>
+        /// <exception cref="NotSupportedException">
+        /// A member needed for the read cannot transfer ownership of its plaintext.
+        /// </exception>
         public bool TryUnprotectOwned(
             ByteString context,
             ByteString protectedRecord,
@@ -178,9 +111,13 @@ namespace Opc.Ua.Redundancy
         {
             foreach (IRecordProtector protector in m_all)
             {
-                if (protector.TryUnprotect(context, protectedRecord, out ByteString unprotectedContext))
+                if (protector is not IOwnedRecordProtector ownedProtector)
                 {
-                    plaintext = unprotectedContext.ToArray();
+                    throw new NotSupportedException(
+                        "Owned reads require each consulted key-ring member to implement IOwnedRecordProtector.");
+                }
+                if (ownedProtector.TryUnprotectOwned(context, protectedRecord, out plaintext))
+                {
                     return true;
                 }
             }

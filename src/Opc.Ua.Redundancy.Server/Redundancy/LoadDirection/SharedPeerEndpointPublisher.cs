@@ -73,7 +73,7 @@ namespace Opc.Ua.Redundancy.Server
         {
             string key = m_options.EndpointKeyPrefix + m_localServerUri;
             ByteString payload = m_protector.Protect(
-                key,
+                RecordProtectionContext.Create("peer-endpoint", key),
                 PeerEndpointCodec.Encode(endpoints, m_context));
             return m_store.SetAsync(key, payload, cancellationToken);
         }

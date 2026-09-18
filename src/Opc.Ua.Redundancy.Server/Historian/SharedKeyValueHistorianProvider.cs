@@ -896,7 +896,7 @@ namespace Opc.Ua.Redundancy.Server
                 await foreach (KeyValuePair<string, ByteString> entry in m_store
                     .ScanAsync(kManifestPrefix, ct).ConfigureAwait(false))
                 {
-                    Manifest manifest = DecodeManifest(Unprotect(entry.Value));
+                    Manifest manifest = DecodeManifest(Unprotect(entry.Key, entry.Value));
                     foreach (string segment in manifest.Segments)
                     {
                         reachableSegments.Add(segment);
@@ -925,7 +925,7 @@ namespace Opc.Ua.Redundancy.Server
                 {
                     string id = entry.Key[kSegmentPrefix.Length..];
                     if (!reachableSegments.Contains(id) &&
-                        DecodeSegmentCreatedAt(entry.Value).Add(
+                        DecodeSegmentCreatedAt(entry.Key, entry.Value).Add(
                             m_options.GarbageCollectionGraceTime) <= now)
                     {
                         await DeleteWithRetriesAsync(
@@ -946,7 +946,7 @@ namespace Opc.Ua.Redundancy.Server
                     {
                         continue;
                     }
-                    if (DecodeGenerationPin(entry.Value) <= now)
+                    if (DecodeGenerationPin(entry.Key, entry.Value) <= now)
                     {
                         await DeleteWithRetriesAsync(
                             entry.Key,
@@ -1780,12 +1780,13 @@ namespace Opc.Ua.Redundancy.Server
                     CreatedAt = m_timeProvider.GetUtcNow().UtcDateTime,
                     Segments = publishedSegments
                 };
-                ByteString manifestRecord = Protect(EncodeManifest(manifest));
+                ByteString manifestPayload = EncodeManifest(manifest);
+                ByteString manifestRecord = Protect(kCurrentManifestKey, manifestPayload);
                 generationKey = ManifestGenerationKey(manifest.Generation);
                 bool generationStored = await CompareAndSwapResolvedAsync(
                     generationKey,
                     default,
-                    manifestRecord,
+                    Protect(generationKey, manifestPayload),
                     ct).ConfigureAwait(false);
                 if (!generationStored)
                 {
@@ -1904,15 +1905,15 @@ namespace Opc.Ua.Redundancy.Server
                         Segments =
                             [.. current.Manifest.Segments]
                     };
-                    ByteString record = Protect(
-                        EncodeManifest(fenced));
+                    ByteString manifestPayload = EncodeManifest(fenced);
+                    ByteString record = Protect(kCurrentManifestKey, manifestPayload);
                     string generationKey =
                         ManifestGenerationKey(fenced.Generation);
                     bool generationStored =
                         await CompareAndSwapResolvedAsync(
                             generationKey,
                             default,
-                            record,
+                            Protect(generationKey, manifestPayload),
                             ct).ConfigureAwait(false);
                     if (!generationStored)
                     {
@@ -2078,9 +2079,9 @@ namespace Opc.Ua.Redundancy.Server
                         records,
                         offset,
                         count);
-                    ByteString protectedRecord = Protect(plaintext);
                     string id = Guid.NewGuid().ToString("N");
                     string key = SegmentKey(id);
+                    ByteString protectedRecord = Protect(key, plaintext);
                     if (!await m_store.CompareAndSwapAsync(
                         key,
                         default,
@@ -2141,7 +2142,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 return new StoredManifest(new Manifest(), default);
             }
-            Manifest manifest = DecodeManifest(Unprotect(record));
+            Manifest manifest = DecodeManifest(Unprotect(kCurrentManifestKey, record));
             return new StoredManifest(manifest, record);
         }
 
@@ -2149,8 +2150,9 @@ namespace Opc.Ua.Redundancy.Server
             Guid generation,
             CancellationToken ct)
         {
+            string key = ManifestGenerationKey(generation);
             (bool found, ByteString record) = await m_store.TryGetAsync(
-                ManifestGenerationKey(generation),
+                key,
                 ct).ConfigureAwait(false);
             if (!found)
             {
@@ -2158,7 +2160,7 @@ namespace Opc.Ua.Redundancy.Server
                     StatusCodes.BadContinuationPointInvalid,
                     "The pinned historian generation has expired.");
             }
-            Manifest manifest = DecodeManifest(Unprotect(record));
+            Manifest manifest = DecodeManifest(Unprotect(key, record));
             if (manifest.Generation != generation)
             {
                 throw CorruptRecord("The historian generation identity is invalid.");
@@ -2173,15 +2175,16 @@ namespace Opc.Ua.Redundancy.Server
             var state = new ArchiveState();
             foreach (string id in manifest.Segments)
             {
+                string key = SegmentKey(id);
                 (bool found, ByteString record) = await m_store.TryGetAsync(
-                    SegmentKey(id),
+                    key,
                     ct).ConfigureAwait(false);
                 if (!found)
                 {
                     throw CorruptRecord(
                         "A segment referenced by the historian manifest is missing.");
                 }
-                DecodeAndApplySegment(Unprotect(record), state);
+                DecodeAndApplySegment(Unprotect(key, record), state);
             }
             return state;
         }
@@ -2492,7 +2495,7 @@ namespace Opc.Ua.Redundancy.Server
             }
             DateTimeOffset expiresAt = m_timeProvider.GetUtcNow()
                 .Add(m_options.ContinuationRetentionTime);
-            ByteString record = EncodeGenerationPin(expiresAt);
+            ByteString record = EncodeGenerationPin(key, expiresAt);
             bool pinned = false;
             for (int attempt = 0; attempt < kMaxPublishAttempts; attempt++)
             {
@@ -2500,7 +2503,7 @@ namespace Opc.Ua.Redundancy.Server
                     key,
                     ct).ConfigureAwait(false);
                 if (found &&
-                    DecodeGenerationPin(current) >= expiresAt)
+                    DecodeGenerationPin(key, current) >= expiresAt)
                 {
                     pinned = true;
                     break;
@@ -2534,7 +2537,7 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
-        private ByteString EncodeGenerationPin(DateTimeOffset expiresAt)
+        private ByteString EncodeGenerationPin(string key, DateTimeOffset expiresAt)
         {
             byte[] payload = new byte[sizeof(int) + sizeof(long)];
             BinaryPrimitives.WriteInt32LittleEndian(
@@ -2543,12 +2546,12 @@ namespace Opc.Ua.Redundancy.Server
             BinaryPrimitives.WriteInt64LittleEndian(
                 payload.AsSpan(sizeof(int)),
                 expiresAt.UtcTicks);
-            return Protect(ByteString.From(payload));
+            return Protect(key, ByteString.From(payload));
         }
 
-        private DateTimeOffset DecodeGenerationPin(ByteString record)
+        private DateTimeOffset DecodeGenerationPin(string key, ByteString record)
         {
-            ByteString plaintext = Unprotect(record);
+            ByteString plaintext = Unprotect(key, record);
             byte[] payload = plaintext.ToArray();
             if (payload.Length != sizeof(int) + sizeof(long) ||
                 BinaryPrimitives.ReadInt32LittleEndian(payload.AsSpan()) !=
@@ -3149,7 +3152,7 @@ namespace Opc.Ua.Redundancy.Server
                 key.IndexRange);
         }
 
-        private ByteString Protect(ByteString plaintext)
+        private ByteString Protect(string key, ByteString plaintext)
         {
             if (plaintext.IsEmpty ||
                 plaintext.Length > m_options.MaxRecordBytes)
@@ -3157,7 +3160,8 @@ namespace Opc.Ua.Redundancy.Server
                 throw new ServiceResultException(
                     StatusCodes.BadEncodingLimitsExceeded);
             }
-            ByteString record = m_protector.Protect("historian-record", plaintext);
+            ByteString record = m_protector.Protect(
+                RecordProtectionContext.Create("historian-record", key), plaintext);
             if (record.IsEmpty || record.Length > m_options.MaxRecordBytes)
             {
                 throw new ServiceResultException(
@@ -3167,11 +3171,12 @@ namespace Opc.Ua.Redundancy.Server
             return record;
         }
 
-        private ByteString Unprotect(ByteString record)
+        private ByteString Unprotect(string key, ByteString record)
         {
             if (record.IsEmpty ||
                 record.Length > m_options.MaxRecordBytes ||
-                !m_protector.TryUnprotect("historian-record", record, out ByteString plaintext) ||
+                !m_protector.TryUnprotect(
+                    RecordProtectionContext.Create("historian-record", key), record, out ByteString plaintext) ||
                 plaintext.IsEmpty ||
                 plaintext.Length > m_options.MaxRecordBytes)
             {
@@ -3378,7 +3383,7 @@ namespace Opc.Ua.Redundancy.Server
                     : TimeSpan.FromSeconds(1);
                 if (!intentFound)
                 {
-                    ByteString created = EncodeGenerationPin(now);
+                    ByteString created = EncodeGenerationPin(intentKey, now);
                     _ = await CompareAndSwapResolvedAsync(
                         intentKey,
                         default,
@@ -3388,7 +3393,7 @@ namespace Opc.Ua.Redundancy.Server
                     return;
                 }
                 DateTimeOffset intentCreated =
-                    DecodeGenerationPin(intentRecord);
+                    DecodeGenerationPin(intentKey, intentRecord);
                 if (intentCreated.Add(intentGrace) > now)
                 {
                     ScheduleCleanup(
@@ -3463,7 +3468,7 @@ namespace Opc.Ua.Redundancy.Server
             await foreach (KeyValuePair<string, ByteString> entry in m_store
                 .ScanAsync(kManifestPrefix, ct).ConfigureAwait(false))
             {
-                Manifest manifest = DecodeManifest(Unprotect(entry.Value));
+                Manifest manifest = DecodeManifest(Unprotect(entry.Key, entry.Value));
                 if (!manifest.Segments.Contains(segmentId))
                 {
                     continue;
@@ -3482,10 +3487,11 @@ namespace Opc.Ua.Redundancy.Server
             {
                 return null;
             }
+            string key = GenerationPinKey(generation);
             (bool found, ByteString record) = await m_store.TryGetAsync(
-                GenerationPinKey(generation),
+                key,
                 ct).ConfigureAwait(false);
-            return found ? DecodeGenerationPin(record) : null;
+            return found ? DecodeGenerationPin(key, record) : null;
         }
 
         private async ValueTask<bool> DeleteWithRetriesAsync(
@@ -3589,9 +3595,9 @@ namespace Opc.Ua.Redundancy.Server
             }
         }
 
-        private DateTimeOffset DecodeSegmentCreatedAt(ByteString record)
+        private DateTimeOffset DecodeSegmentCreatedAt(string key, ByteString record)
         {
-            ByteString plaintext = Unprotect(record);
+            ByteString plaintext = Unprotect(key, record);
             try
             {
                 using var decoder = new BinaryDecoder(

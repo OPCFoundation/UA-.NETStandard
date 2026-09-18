@@ -182,7 +182,8 @@ namespace Opc.Ua.Redundancy.Server
             (bool found, ByteString value) = await m_store
                 .TryGetAsync(key, cancellationToken)
                 .ConfigureAwait(false);
-            if (!found || !m_protector.TryUnprotect(key, value, out ByteString payload))
+            if (!found || !m_protector.TryUnprotect(
+                RecordProtectionContext.Create("monitored-data-queue", key), value, out ByteString payload))
             {
                 return null;
             }
@@ -212,7 +213,8 @@ namespace Opc.Ua.Redundancy.Server
             (bool found, ByteString value) = await m_store
                 .TryGetAsync(key, cancellationToken)
                 .ConfigureAwait(false);
-            if (!found || !m_protector.TryUnprotect(key, value, out ByteString payload))
+            if (!found || !m_protector.TryUnprotect(
+                RecordProtectionContext.Create("monitored-event-queue", key), value, out ByteString payload))
             {
                 return null;
             }
@@ -412,7 +414,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 string key = DataChangeKeyFor(entry.Key);
                 ByteString payload = m_protector.Protect(
-                    key,
+                    RecordProtectionContext.Create("monitored-data-queue", key),
                     EncodeDataChangeSnapshot(entry.Value));
                 operations.Add(m_store.SetAsync(key, payload, cancellationToken).AsTask());
             }
@@ -420,7 +422,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 string key = EventKeyFor(entry.Key);
                 ByteString payload = m_protector.Protect(
-                    key,
+                    RecordProtectionContext.Create("monitored-event-queue", key),
                     EncodeEventSnapshot(entry.Value));
                 operations.Add(m_store.SetAsync(key, payload, cancellationToken).AsTask());
             }

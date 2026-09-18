@@ -388,7 +388,7 @@ namespace Opc.Ua
                 .SetAsync(
                     CrlKey(crl.RawData),
                     m_protector.Protect(
-                        ByteString.From(Encoding.UTF8.GetBytes(CrlKey(crl.RawData))),
+                        RecordProtectionContext.Create("certificate-store", CrlKey(crl.RawData)),
                         new ByteString(crl.RawData)),
                     ct)
                 .ConfigureAwait(false);
@@ -473,7 +473,7 @@ namespace Opc.Ua
             key.CopyTo(plaintext.AsSpan(TimestampLength + sizeof(int)));
             der.CopyTo(plaintext.AsSpan(TimestampLength + sizeof(int) + key.Length));
             return m_protector.Protect(
-                ByteString.From(Encoding.UTF8.GetBytes(recordKey)),
+                RecordProtectionContext.Create("certificate-store", recordKey),
                 new ByteString(plaintext));
         }
 
@@ -546,7 +546,7 @@ namespace Opc.Ua
         private bool TryUnprotect(string recordKey, ByteString value, out ByteString plaintext)
         {
             if (m_protector.TryUnprotect(
-                ByteString.From(Encoding.UTF8.GetBytes(recordKey)),
+                RecordProtectionContext.Create("certificate-store", recordKey),
                 value,
                 out plaintext))
             {

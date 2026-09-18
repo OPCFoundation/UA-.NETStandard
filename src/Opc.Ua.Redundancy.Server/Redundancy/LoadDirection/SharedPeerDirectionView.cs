@@ -106,7 +106,10 @@ namespace Opc.Ua.Redundancy.Server
                 .ScanAsync(keyPrefix, cancellationToken)
                 .ConfigureAwait(false))
             {
-                if (!m_protector.TryUnprotect(entry.Key, entry.Value, out ByteString payload) ||
+                if (!m_protector.TryUnprotect(
+                        RecordProtectionContext.Create("peer-direction", entry.Key),
+                        entry.Value,
+                        out ByteString payload) ||
                     !PeerDirectionCodec.TryDecode(
                         payload, m_context, out string serverUri, out byte value, out long ticks))
                 {

@@ -88,6 +88,89 @@ namespace Opc.Ua.Server.Tests.Redundancy
             AssertMonitoredItem((StoredMonitoredItem)actual.MonitoredItems.Single(), NewItem(100, 10));
         }
 
+        [Test]
+        public async Task SubscriptionSnapshotCannotReplaySameIdFromOlderGenerationAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(MakeKey(41));
+            await using var store = new SharedKeyValueSubscriptionStore(kv, CreateContext(), protector);
+            StoredSubscription initial = NewSubscription(101, 11);
+            await store.StoreSubscriptionsAsync([initial]).ConfigureAwait(false);
+            KeyValuePair<string, ByteString> source = await GetSingleGenerationRecordAsync(kv).ConfigureAwait(false);
+            StoredSubscription replacement = NewSubscription(101, 11);
+            replacement.PublishingInterval = initial.PublishingInterval + 100;
+            await store.StoreSubscriptionsAsync([replacement]).ConfigureAwait(false);
+            var records = new List<KeyValuePair<string, ByteString>>();
+            await foreach (KeyValuePair<string, ByteString> entry in kv.ScanAsync(
+                SharedKeyValueSubscriptionStore.SnapshotGenerationRootPrefix()).ConfigureAwait(false))
+            {
+                if (entry.Key != source.Key)
+                {
+                    records.Add(entry);
+                }
+            }
+            Assert.That(records, Has.Count.EqualTo(1));
+            KeyValuePair<string, ByteString> target = records[0];
+            await kv.SetAsync(target.Key, source.Value).ConfigureAwait(false);
+
+            Assert.That(
+                async () => await store.RestoreSubscriptionsAsync().ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+            await kv.SetAsync(target.Key, target.Value).ConfigureAwait(false);
+            RestoreSubscriptionResult restored = await store.RestoreSubscriptionsAsync().ConfigureAwait(false);
+            Assert.That(restored.Success, Is.True);
+            Assert.That(
+                restored.Subscriptions!.Single().PublishingInterval, Is.EqualTo(replacement.PublishingInterval));
+        }
+
+        [Test]
+        public async Task SubscriptionManifestRejectsEmptyContextAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(MakeKey(42));
+            await using var store = new SharedKeyValueSubscriptionStore(kv, CreateContext(), protector);
+            await store.StoreSubscriptionsAsync([NewSubscription(102, 12)]).ConfigureAwait(false);
+            string key = SharedKeyValueSubscriptionStore.SnapshotManifestKey();
+            (_, ByteString record) = await kv.TryGetAsync(key).ConfigureAwait(false);
+            Assert.That(protector.TryUnprotect(
+                RecordProtectionContext.Create("subscription-manifest", key), record, out ByteString plaintext),
+                Is.True);
+            await kv.SetAsync(key, protector.Protect(default(ByteString), plaintext)).ConfigureAwait(false);
+
+            Assert.That(
+                async () => await store.RestoreSubscriptionsAsync().ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        [Test]
+        public async Task RetransmissionStateAndMessagesRejectDifferentKeysAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(MakeKey(43));
+            await using var store = new SharedKeyValueSubscriptionStore(kv, CreateContext(), protector);
+            store.StoreRetransmissionState(703, 2, [NewNotification(1)]);
+            await store.FlushAsync().ConfigureAwait(false);
+            (_, ByteString stateRecord) = await kv.TryGetAsync(
+                SharedKeyValueSubscriptionStore.RetransmissionStateKeyFor(703)).ConfigureAwait(false);
+            (_, ByteString messageRecord) = await kv.TryGetAsync(
+                SharedKeyValueSubscriptionStore.RetransmissionMessageKeyFor(703, 1)).ConfigureAwait(false);
+            await kv.SetAsync(SharedKeyValueSubscriptionStore.RetransmissionStateKeyFor(704), stateRecord)
+                .ConfigureAwait(false);
+            await kv.SetAsync(SharedKeyValueSubscriptionStore.RetransmissionMessageKeyFor(703, 2), messageRecord)
+                .ConfigureAwait(false);
+
+            Assert.That(await store.LoadRetransmissionStateAsync(704).ConfigureAwait(false), Is.Null);
+            SubscriptionRetransmissionState? state = await store.LoadRetransmissionStateAsync(703)
+                .ConfigureAwait(false);
+            Assert.That(state, Is.Not.Null);
+            Assert.That(state!.NextSequenceNumber, Is.EqualTo(2));
+            Assert.That(state.SentMessages.Memory.ToArray().Single().SequenceNumber, Is.EqualTo(1));
+        }
+
         /// <summary>
         /// Verifies that shared definitions preserve publishing state and anonymous owner application URI.
         /// </summary>

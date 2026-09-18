@@ -40,7 +40,8 @@ namespace Opc.Ua.Redundancy
     /// is verified before any decryption (no padding-oracle exposure), so a
     /// tampered or forged record is rejected fail-closed. The envelope is
     /// <c>[version:1][keyId:4 LE][IV:16][ciphertext][HMAC:32]</c>; the MAC
-    /// covers the header + ciphertext. Distinct AES and MAC subkeys are
+    /// covers <c>[contextLength:4 LE][context][header][ciphertext]</c>.
+    /// Null and empty contexts both encode a zero length. Distinct AES and MAC subkeys are
     /// derived from the supplied master key. Cross-target-framework safe
     /// (no AES-GCM dependency).
     /// </summary>
@@ -55,7 +56,7 @@ namespace Opc.Ua.Redundancy
         /// <param name="masterKey">The master key (at least 32 bytes).</param>
         /// <param name="keyId">
         /// Identifies the key version; only records carrying the same id are
-        /// accepted by <see cref="TryUnprotect(ByteString, out ByteString)"/>.
+        /// accepted by <see cref="TryUnprotect(ByteString, ByteString, out ByteString)"/>.
         /// </param>
         public AesCbcHmacRecordProtector(ReadOnlySpan<byte> masterKey, uint keyId = 1)
         {
@@ -78,20 +79,15 @@ namespace Opc.Ua.Redundancy
         }
 
         /// <inheritdoc/>
-        public ByteString Protect(ByteString plaintext)
-        {
-            return Protect(default(ByteString), plaintext);
-        }
-
-        /// <inheritdoc/>
         public ByteString Protect(ByteString context, ByteString plaintext)
         {
             byte[] data = plaintext.IsNull ? [] : plaintext.ToArray();
 
             byte[] cipher;
             byte[] iv;
-            using (var aes = Aes.Create())
+            try
             {
+                using var aes = Aes.Create();
                 aes.Mode = CipherMode.CBC;
                 aes.Padding = PaddingMode.PKCS7;
                 aes.Key = m_aesKey;
@@ -102,6 +98,10 @@ namespace Opc.Ua.Redundancy
                 iv = aes.IV;
                 using ICryptoTransform encryptor = aes.CreateEncryptor();
                 cipher = encryptor.TransformFinalBlock(data, 0, data.Length);
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(data);
             }
 
             const int headerLength = HeaderLength;
@@ -114,20 +114,6 @@ namespace Opc.Ua.Redundancy
             byte[] tag = ComputeTag(context, envelope, headerLength + cipher.Length);
             Buffer.BlockCopy(tag, 0, envelope, headerLength + cipher.Length, TagLength);
             return new ByteString(envelope);
-        }
-
-        /// <inheritdoc/>
-        public ByteString Protect(string context, ByteString plaintext)
-        {
-            return Protect(
-                ByteString.From(System.Text.Encoding.UTF8.GetBytes(context ?? string.Empty)),
-                plaintext);
-        }
-
-        /// <inheritdoc/>
-        public bool TryUnprotect(ByteString protectedRecord, out ByteString plaintext)
-        {
-            return TryUnprotect(default(ByteString), protectedRecord, out plaintext);
         }
 
         /// <inheritdoc/>
@@ -146,36 +132,6 @@ namespace Opc.Ua.Redundancy
         }
 
         /// <inheritdoc/>
-        public bool TryUnprotect(
-            string context,
-            ByteString protectedRecord,
-            out ByteString plaintext)
-        {
-            return TryUnprotect(
-                ByteString.From(System.Text.Encoding.UTF8.GetBytes(context ?? string.Empty)),
-                protectedRecord,
-                out plaintext);
-        }
-
-        /// <inheritdoc/>
-        public bool TryUnprotectOwned(ByteString protectedRecord, out byte[] plaintext)
-        {
-            // The decrypted buffer is a fresh allocation distinct from the
-            // protected input, so it is handed back directly as the caller-owned
-            // plaintext (no second copy). The caller is responsible for wiping it.
-            if (!TryDecrypt(default, protectedRecord, out byte[] data))
-            {
-                plaintext = [];
-                return false;
-            }
-            plaintext = data;
-            return true;
-        }
-
-        /// <summary>
-        /// Verifies and decrypts a context-bound envelope into caller-owned
-        /// plaintext.
-        /// </summary>
         public bool TryUnprotectOwned(
             ByteString context,
             ByteString protectedRecord,
