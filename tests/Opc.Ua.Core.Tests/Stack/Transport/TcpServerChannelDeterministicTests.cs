@@ -444,7 +444,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 channel.SetTransport(transport);
                 channel.StartReceiveLoopForTest();
 
-                Assert.That(channel.DetachTransportForTest(), Is.SameAs(transport));
+                // Reusing the same transport requires its cancelled reader to finish first.
+                Assert.That(
+                    await channel.DetachTransportAsync().ConfigureAwait(false),
+                    Is.SameAs(transport));
 
                 channel.SetTransport(transport);
                 channel.StartReceiveLoopForTest();
@@ -637,11 +640,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public void StartReceiveLoopForTest()
             {
                 StartReceiveLoop();
-            }
-
-            public IUaSCByteTransport? DetachTransportForTest()
-            {
-                return DetachTransport();
             }
 
             protected override ValueTask OnChunkReceivedAsync(
