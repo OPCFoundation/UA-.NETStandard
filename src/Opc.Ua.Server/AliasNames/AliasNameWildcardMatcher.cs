@@ -135,9 +135,11 @@ namespace Opc.Ua.Server.AliasNames
                     throw new TimeoutException();
                 }
 
+                // FromSeconds rounds a sub-millisecond remainder to zero on .NET Framework.
                 return pattern.IsMatch(
                     target,
-                    TimeSpan.FromSeconds((double)remaining / Stopwatch.Frequency));
+                    TimeSpan.FromTicks(Math.Max(
+                        1, remaining * TimeSpan.TicksPerSecond / Stopwatch.Frequency)));
             }
             catch (TimeoutException ex)
             {
@@ -147,7 +149,7 @@ namespace Opc.Ua.Server.AliasNames
         }
 
         /// <summary>
-        /// Limits the time spent evaluating one alias-name match.
+        /// Limits the total pattern-matching time of one alias search.
         /// </summary>
         private static readonly TimeSpan s_matchTimeout = TimeSpan.FromMilliseconds(100);
     }

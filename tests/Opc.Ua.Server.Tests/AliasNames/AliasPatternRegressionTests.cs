@@ -152,5 +152,25 @@ namespace Opc.Ua.Server.Tests.AliasNames
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
         }
+
+        [Test]
+        public void SubMillisecondDeadlinesNeverBecomeInvalidTimeoutArguments()
+        {
+            LikePattern pattern = AliasNameWildcardMatcher.CreatePattern("alias");
+            long budget = Math.Max(1, Stopwatch.Frequency / 10000);
+            for (int ii = 0; ii < 256; ii++)
+            {
+                long deadline = Stopwatch.GetTimestamp() + budget;
+                try
+                {
+                    Assert.That(AliasNameWildcardMatcher.Matches("alias", pattern, deadline), Is.True);
+                }
+                catch (ServiceResultException ex)
+                {
+                    Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+                    Assert.That(ex.InnerException, Is.TypeOf<TimeoutException>());
+                }
+            }
+        }
     }
 }
