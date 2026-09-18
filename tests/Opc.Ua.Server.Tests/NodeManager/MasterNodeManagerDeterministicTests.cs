@@ -320,15 +320,15 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task BrowseAsync_WhenNoContinuationPointCanBeAssigned_ReturnsBadNoContinuationPointsWithoutContinuationPointAsync()
+        public async Task BrowseAsyncWhenPositiveContinuationQuotaIsExhaustedReturnsBadNoContinuationPointsAsync()
         {
             var sut = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
-            OperationContext ctx = CreateContextWithContinuationStore();
+            using OperationContext ctx = CreateContextWithContinuationStore();
             uint originalLimit = GetMaxBrowseContinuationPointsPerBrowse(sut);
 
             try
             {
-                SetMaxBrowseContinuationPointsPerBrowse(sut, 0u);
+                SetMaxBrowseContinuationPointsPerBrowse(sut, 1u);
 
                 var nodeToBrowse = new BrowseDescription
                 {
@@ -340,12 +340,19 @@ namespace Opc.Ua.Server.Tests
                     ctx,
                     new ViewDescription(),
                     1u,
-                    new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
+                    [nodeToBrowse, nodeToBrowse],
                     cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
-                Assert.That(results.Count, Is.EqualTo(1));
-                Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
-                Assert.That(results[0].ContinuationPoint.IsEmpty, Is.True);
+                Assert.That(results.Count, Is.EqualTo(2));
+                Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(results[0].References, Has.Count.EqualTo(1));
+                Assert.That(results[0].ContinuationPoint.IsEmpty, Is.False);
+                Assert.That(results[1].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+                Assert.That(results[1].ContinuationPoint.IsEmpty, Is.True);
+
+                (ArrayOf<BrowseResult> released, _) = await sut.BrowseNextAsync(
+                    ctx, true, [results[0].ContinuationPoint]).ConfigureAwait(false);
+                Assert.That(released[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             }
             finally
             {
@@ -428,14 +435,15 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task BrowseNextAsync_WhenNoContinuationPointCanBeAssigned_ReturnsBadNoContinuationPointsWithoutContinuationPointAsync()
+        public async Task BrowseNextAsyncWhenPositiveContinuationQuotaIsExhaustedReturnsBadNoContinuationPointsAsync()
         {
             var sut = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
-            OperationContext ctx = CreateContextWithContinuationStore();
+            using OperationContext ctx = CreateContextWithContinuationStore();
             uint originalLimit = GetMaxBrowseContinuationPointsPerBrowse(sut);
 
             try
             {
+                SetMaxBrowseContinuationPointsPerBrowse(sut, 2u);
                 var nodeToBrowse = new BrowseDescription
                 {
                     NodeId = ObjectIds.RootFolder,
@@ -446,34 +454,35 @@ namespace Opc.Ua.Server.Tests
                     ctx,
                     new ViewDescription(),
                     1u,
-                    new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
+                    [nodeToBrowse, nodeToBrowse],
                     cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
-                Assert.That(firstResults.Count, Is.EqualTo(1));
-                Assert.That(firstResults[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(firstResults[0].ContinuationPoint.IsEmpty, Is.False);
+                Assert.That(firstResults.Count, Is.EqualTo(2));
+                foreach (BrowseResult result in firstResults)
+                {
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(result.References, Has.Count.EqualTo(1));
+                    Assert.That(result.ContinuationPoint.IsEmpty, Is.False);
+                }
 
-                (ArrayOf<BrowseResult> nextResults, _) = await sut.BrowseNextAsync(
-                    ctx,
-                    false,
-                    new ByteString[] { firstResults[0].ContinuationPoint }.ToArrayOf(),
-                    cancellationToken: CancellationToken.None).ConfigureAwait(false);
-
-                Assert.That(nextResults.Count, Is.EqualTo(1));
-                Assert.That(nextResults[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(nextResults[0].ContinuationPoint.IsEmpty, Is.False);
-
-                SetMaxBrowseContinuationPointsPerBrowse(sut, 0u);
+                SetMaxBrowseContinuationPointsPerBrowse(sut, 1u);
 
                 (ArrayOf<BrowseResult> finalResults, _) = await sut.BrowseNextAsync(
                     ctx,
                     false,
-                    new ByteString[] { nextResults[0].ContinuationPoint }.ToArrayOf(),
+                    [firstResults[0].ContinuationPoint, firstResults[1].ContinuationPoint],
                     cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
-                Assert.That(finalResults.Count, Is.EqualTo(1));
-                Assert.That(finalResults[0].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
-                Assert.That(finalResults[0].ContinuationPoint.IsEmpty, Is.True);
+                Assert.That(finalResults.Count, Is.EqualTo(2));
+                Assert.That(finalResults[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(finalResults[0].References, Has.Count.EqualTo(1));
+                Assert.That(finalResults[0].ContinuationPoint.IsEmpty, Is.False);
+                Assert.That(finalResults[1].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+                Assert.That(finalResults[1].ContinuationPoint.IsEmpty, Is.True);
+
+                (ArrayOf<BrowseResult> released, _) = await sut.BrowseNextAsync(
+                    ctx, true, [finalResults[0].ContinuationPoint]).ConfigureAwait(false);
+                Assert.That(released[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             }
             finally
             {

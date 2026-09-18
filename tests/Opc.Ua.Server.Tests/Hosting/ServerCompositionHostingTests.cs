@@ -609,6 +609,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 builder.AddStartupTask((_, context, _) =>
                 {
                     observations.Context = context;
+                    Assert.That(context.CurrentState, Is.EqualTo(ServerState.Running));
                     AssertMarker(context, factory.NamespacesUris[0], 18);
                     throw failure;
                 });
@@ -682,25 +683,44 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         [Test]
-        public async Task NullAuthenticatorResultFaultsHostedStartupAndCleansUpRunningServerAsync()
+        public async Task NullAuthenticatorResultFaultsBeforeOpeningTransportAndDisposesServerAsync()
         {
+            using var server = new DisposalTrackingServer(NUnitTelemetryContext.Create(isServer: true));
+            var serverFactory = new Mock<IOpcUaServerFactory>();
+            serverFactory.Setup(factory => factory.CreateServer(
+                It.IsAny<ITelemetryContext>(), It.IsAny<TimeProvider>())).Returns(server);
+            int authenticatorCalls = 0;
             int starts = 0;
-            var fixture = HostedFixture.Create(builder => builder
-                .AddIdentityAuthenticator((_, _) => null!)
-                .AddStartupTask((_, _, _) =>
-                {
-                    starts++;
-                    return default;
-                }));
+            var fixture = HostedFixture.Create(builder =>
+            {
+                builder.Services.AddSingleton(serverFactory.Object);
+                builder.AddIdentityAuthenticator((_, _) =>
+                    {
+                        authenticatorCalls++;
+                        return null!;
+                    })
+                    .AddStartupTask((_, _, _) =>
+                    {
+                        starts++;
+                        return default;
+                    });
+            });
             await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
 
             Exception failure = await fixture.StartAndCaptureFailureAsync().ConfigureAwait(false);
 
             Assert.That(failure, Is.TypeOf<InvalidOperationException>());
             Assert.That(failure.Message, Does.Contain("authenticator factory returned null"));
+            Assert.That(fixture.ExecuteTask.IsFaulted, Is.True);
+            Assert.That(authenticatorCalls, Is.EqualTo(1));
             Assert.That(starts, Is.Zero);
-            fixture.Transport.Listener.Verify(listener => listener.CloseAsync(
-                It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            serverFactory.Verify(factory => factory.CreateServer(
+                It.IsAny<ITelemetryContext>(), It.IsAny<TimeProvider>()), Times.Once);
+            Assert.That(fixture.Transport.Server, Is.Null,
+                "Authentication registration must succeed before transport startup.");
+            fixture.Transport.Listener.VerifyNoOtherCalls();
+            Assert.That(server.DisposeCount, Is.EqualTo(1),
+                "The constructed server must be disposed before ExecuteTask reports the startup failure.");
         }
 
         [Test]
@@ -1774,6 +1794,20 @@ namespace Opc.Ua.Server.Tests.Hosting
             public ResourceManager CreateResources(ApplicationConfiguration configuration)
             {
                 return CreateResourceManager(Mock.Of<IServerInternal>(), configuration);
+            }
+        }
+
+        private sealed class DisposalTrackingServer(ITelemetryContext telemetry) : StandardServer(telemetry)
+        {
+            public int DisposeCount { get; private set; }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    DisposeCount++;
+                }
+                base.Dispose(disposing);
             }
         }
 

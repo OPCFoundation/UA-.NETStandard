@@ -1417,7 +1417,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Create multiple sessions, each with a subscription.
         /// Close all sessions without deleting subscriptions (abandoning them).
-        /// Concurrently delete the abandoned subscriptions from the main session.
+        /// Concurrently delete the abandoned subscriptions through server-owned cleanup.
         /// Verifies that the concurrent dictionary backing abandoned subscriptions
         /// handles parallel access correctly (fix for issue #3612).
         /// </summary>
@@ -1426,6 +1426,8 @@ namespace Opc.Ua.Server.Tests
         {
             const int sessionCount = 5;
             var subscriptionIds = new List<uint>();
+            var subscriptionManager = (SubscriptionManager)m_server.CurrentInstance.SubscriptionManager;
+            int originalSubscriptionCount = subscriptionManager.GetSubscriptions().Count;
 
             NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
             NodeId[] testSet =
@@ -1454,28 +1456,39 @@ namespace Opc.Ua.Server.Tests
                     .ConfigureAwait(false);
             }
 
-            // Concurrently delete all abandoned subscriptions from the main session.
-            var mainServices = new ServerTestServices(m_server, m_secureChannelContext);
-            var deleteTasks = new List<Task<DeleteSubscriptionsResponse>>();
+            Assert.That(subscriptionIds, Has.Count.EqualTo(sessionCount));
+            Assert.That(subscriptionIds, Is.Unique);
             foreach (uint id in subscriptionIds)
             {
-                ArrayOf<uint> singleId = [id];
-                m_requestHeader.Timestamp = DateTimeUtc.Now;
-                deleteTasks.Add(
-                    mainServices.DeleteSubscriptionsAsync(m_requestHeader, singleId)
-                        .AsTask());
+                Assert.That(subscriptionManager.TryGetSubscription(id, out ISubscription subscription), Is.True);
+                Assert.That(subscription.Session, Is.Null);
             }
+            Assert.That(subscriptionManager.CaptureAbandonedPublishTimerSnapshot()
+                .Select(subscription => subscription.Id), Is.SupersetOf(subscriptionIds));
 
-            DeleteSubscriptionsResponse[] responses = await Task.WhenAll(deleteTasks)
-                .ConfigureAwait(false);
-
-            // All deletions should succeed.
-            foreach (DeleteSubscriptionsResponse response in responses)
+            // A session cannot delete another session's abandoned subscription.
+            // Server-owned cleanup uses the same null context as ServerInternalData.
+            var deleteStart = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<StatusCode>[] deleteTasks = subscriptionIds.Select(async id =>
             {
-                Assert.AreEqual(StatusCodes.Good, response.ResponseHeader.ServiceResult);
-                Assert.AreEqual(1, response.Results.Count);
-                Assert.AreEqual(StatusCodes.Good, (uint)response.Results[0]);
+                await deleteStart.Task.ConfigureAwait(false);
+                return await subscriptionManager.DeleteSubscriptionAsync(null!, id).ConfigureAwait(false);
+            }).ToArray();
+            deleteStart.SetResult(true);
+            StatusCode[] results = await Task.WhenAll(deleteTasks).ConfigureAwait(false);
+
+            Assert.That(results, Has.Length.EqualTo(sessionCount));
+            foreach (StatusCode result in results)
+            {
+                Assert.That(result, Is.EqualTo(StatusCodes.Good));
             }
+            foreach (uint id in subscriptionIds)
+            {
+                Assert.That(subscriptionManager.TryGetSubscription(id, out _), Is.False);
+            }
+            Assert.That(subscriptionManager.GetSubscriptions(), Has.Count.EqualTo(originalSubscriptionCount));
+            Assert.That(subscriptionManager.CaptureAbandonedPublishTimerSnapshot()
+                .Select(subscription => subscription.Id).Intersect(subscriptionIds), Is.Empty);
         }
 
         /// <summary>
