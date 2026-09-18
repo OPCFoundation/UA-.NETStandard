@@ -1015,13 +1015,16 @@ namespace Opc.Ua
                 {
                     if (created)
                     {
-                        await entry.OpenInitialAsync(
-                                certificates.Certificate,
-                                certificates.Chain,
-                                certificates.Version,
-                                m_shutdownCts.Token)
-                            .WaitAsync(ct)
-                            .ConfigureAwait(false);
+                        Task opening = entry.OpenInitialAsync(
+                            certificates.Certificate,
+                            certificates.Chain,
+                            certificates.Version,
+                            m_shutdownCts.Token);
+                        if (!BackgroundWork.Run("OpenChannel", async _ => await opening.ConfigureAwait(false)))
+                        {
+                            await opening.ConfigureAwait(false);
+                        }
+                        await opening.WaitAsync(ct).ConfigureAwait(false);
                     }
                     return entry.AcquireLease(participantFactory);
                 }

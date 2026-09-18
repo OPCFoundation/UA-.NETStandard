@@ -1014,8 +1014,36 @@ namespace Opc.Ua
                         continue;
                     }
 
+                    using (ClientChannelCertificateSnapshot installed = SnapshotClientCertificate())
+                    using (ClientChannelCertificateSnapshot current = OwnerManager.SnapshotClientCertificate(installed))
+                    {
+                        if (!ClientChannelCertificateSnapshot.HaveSameMaterial(
+                            installed.Certificate, installed.Chain, current.Certificate, current.Chain))
+                        {
+                            continue;
+                        }
+                    }
+
+                    shutdownToken.ThrowIfCancellationRequested();
                     TransitionTo(ChannelState.Ready, error: null, attempt);
                     SignalReady();
+                    try
+                    {
+                        await CompleteParticipantRecoveryAsync(shutdownToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (shutdownToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        ResetReadyGate();
+                        OwnerManager.Logger?.ChannelEntryLog3(ex, attempt);
+                        OwnerManager.OnEntryReconnectFailed(
+                            this, attempt, kReconnectOutcomeTransientFailure, new ServiceResult(ex));
+                        attempt++;
+                        continue;
+                    }
                     finalOutcome = kReconnectOutcomeSuccess;
                     OwnerManager.RecordReconnectAttempt(this, finalOutcome);
                     tcs.TrySetResult(true);
@@ -1281,11 +1309,14 @@ namespace Opc.Ua
             Task<ParticipantReconnectResult>[] tasks = [.. snapshot.Select(lease => Task.Run(
                 async () =>
                 {
+                    using var callback = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    using ITransportChannel view = lease.CreateReactivationView(callback.Token);
                     try
                     {
-                        Task<ParticipantReconnectResult> reconnectTask = lease.Participant
-                            .OnReconnectAsync(lease.CreateReactivationView(), attempt, ct)
-                            .AsTask();
+                        Task<ParticipantReconnectResult> reconnectTask =
+                            lease.Participant is IChannelRecoveryParticipant recovery
+                                ? recovery.OnReconnectAsync(lease, view, attempt, callback.Token).AsTask()
+                                : lease.Participant.OnReconnectAsync(lease, attempt, callback.Token).AsTask();
                         if (participantTimeout == Timeout.InfiniteTimeSpan)
                         {
                             return await reconnectTask.ConfigureAwait(false);
@@ -1305,6 +1336,10 @@ namespace Opc.Ua
                         OwnerManager.RecordParticipantTimeout(this, lease.Participant.Id);
                         return ParticipantReconnectResult.TransientFailure;
                     }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        throw;
+                    }
                     catch (Exception ex)
                     {
                         OwnerManager.Logger
@@ -1312,6 +1347,10 @@ namespace Opc.Ua
                                 ex,
                                 lease.Participant.Id);
                         return ParticipantReconnectResult.TransientFailure;
+                    }
+                    finally
+                    {
+                        callback.Cancel();
                     }
                 }, ct))];
 
@@ -1357,7 +1396,7 @@ namespace Opc.Ua
                     case ParticipantReconnectResult.RequiresSessionRecreate:
                         recreateTasks ??= [];
                         recreateTasks.Add(
-                            RecreateParticipantAsync(snapshot[i].Participant));
+                            RecreateParticipantAsync(snapshot[i], participantTimeout, ct));
                         break;
                 }
             }
@@ -1374,19 +1413,31 @@ namespace Opc.Ua
         }
 
         private async Task<bool> RecreateParticipantAsync(
-            IReconnectParticipant participant)
+            ManagedTransportChannelLease lease,
+            TimeSpan timeout,
+            CancellationToken ct)
         {
+            IReconnectParticipant participant = lease.Participant;
+            using var callback = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            using ITransportChannel view = lease.CreateReactivationView(callback.Token);
             try
             {
-                ValueTask work = ResolveRecreateInvocation(
-                    participant,
-                    OwnerManager.ShutdownToken);
-                await work.ConfigureAwait(false);
+                Task work = participant is IChannelRecoveryParticipant recovery
+                    ? recovery.RecreateAsync(lease, view, callback.Token).AsTask()
+                    : ResolveRecreateInvocation(participant, callback.Token).AsTask();
+                await AwaitParticipantWorkAsync(work, timeout, ct).ConfigureAwait(false);
                 OwnerManager.RecordParticipantRecreate(this, participant.Id, success: true);
                 return true;
             }
-            catch (OperationCanceledException) when (OwnerManager.ShutdownToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
+                throw;
+            }
+            catch (TimeoutException ex)
+            {
+                OwnerManager.RecordParticipantTimeout(this, participant.Id);
+                OwnerManager.Logger?.ChannelEntryLog7(ex, participant.Id);
+                OwnerManager.RecordParticipantRecreate(this, participant.Id, success: false);
                 return false;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -1394,6 +1445,47 @@ namespace Opc.Ua
                 OwnerManager.Logger?.ChannelEntryLog7(ex, participant.Id);
                 OwnerManager.RecordParticipantRecreate(this, participant.Id, success: false);
                 return false;
+            }
+            finally
+            {
+                callback.Cancel();
+            }
+        }
+
+        private async Task CompleteParticipantRecoveryAsync(CancellationToken ct)
+        {
+            IChannelRecoveryParticipant[] participants;
+            lock (m_lock)
+            {
+                participants = [.. m_leases.Where(lease => lease.IsActive)
+                    .Select(lease => lease.Participant).OfType<IChannelRecoveryParticipant>()];
+            }
+            TimeSpan timeout = ResolveParticipantTimeout(OwnerManager.ReconnectPolicy);
+            await Task.WhenAll(participants.Select(async participant =>
+            {
+                using var callback = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                try
+                {
+                    await AwaitParticipantWorkAsync(
+                        participant.CompleteRecoveryAsync(callback.Token).AsTask(), timeout, ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    callback.Cancel();
+                }
+            })).ConfigureAwait(false);
+        }
+
+        private async Task AwaitParticipantWorkAsync(Task work, TimeSpan timeout, CancellationToken ct)
+        {
+            ObserveFaultedParticipantTask(work);
+            if (timeout == Timeout.InfiniteTimeSpan)
+            {
+                await work.WaitAsync(ct).ConfigureAwait(false);
+            }
+            else
+            {
+                await work.WaitAsync(timeout, OwnerManager.TimeProvider, ct).ConfigureAwait(false);
             }
         }
 

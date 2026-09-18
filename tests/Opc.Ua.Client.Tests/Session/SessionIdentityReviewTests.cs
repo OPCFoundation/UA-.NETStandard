@@ -306,6 +306,52 @@ namespace Opc.Ua.Client.Tests
             await session.CloseAsync(timeout.Token).ConfigureAwait(false);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SharedLeaseSurvivesRepeatedSessionRecoveryAsync(bool anonymousSign)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            {
+                EndpointUrl = ServerUrl.ToString(),
+                SecurityMode = anonymousSign ? MessageSecurityMode.Sign : MessageSecurityMode.SignAndEncrypt,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+            }, EndpointConfiguration.Create(ClientFixture.Config));
+            await using var manager = new ClientChannelManager(ClientFixture.Config, Telemetry);
+            using Session session = await Opc.Ua.Client.Session.CreateAsync(
+                manager, ClientFixture.Config, endpoint, ct: timeout.Token).ConfigureAwait(false);
+            IManagedTransportChannel lease = session.ManagedChannel!;
+            int readyEvents = 0;
+            lease.StateChanged += (_, change) =>
+            {
+                if (change.NewState == ChannelState.Ready)
+                {
+                    Interlocked.Increment(ref readyEvents);
+                }
+            };
+            NodeId previousId = session.SessionId;
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                await manager.ReconnectAsync(lease, timeout.Token).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(session.TransportChannel, Is.SameAs(lease));
+                    Assert.That(session.ManagedChannel, Is.SameAs(lease));
+                    Assert.That(manager.GetChannelDiagnostics().Single().Refcount, Is.EqualTo(1));
+                    Assert.That(manager.GetChannelDiagnostics().Single().ParticipantCount, Is.EqualTo(1));
+                    Assert.That(lease.State, Is.EqualTo(ChannelState.Ready));
+                    Assert.That(readyEvents, Is.EqualTo(attempt + 1));
+                    Assert.That(session.SessionId, anonymousSign ? Is.Not.EqualTo(previousId) : Is.EqualTo(previousId));
+                });
+                DataValue value = await session.ReadValueAsync(VariableIds.Server_ServerStatus_State, timeout.Token)
+                    .ConfigureAwait(false);
+                Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+                previousId = session.SessionId;
+            }
+            await session.CloseAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(manager.GetChannelDiagnostics(), Is.Empty);
+        }
+
         [Test]
         public async Task RawRecreatePreservesMessageContextTablesAsync()
         {

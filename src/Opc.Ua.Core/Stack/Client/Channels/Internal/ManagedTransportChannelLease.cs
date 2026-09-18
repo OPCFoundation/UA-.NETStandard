@@ -145,9 +145,12 @@ namespace Opc.Ua
 
         internal bool IsActive => Interlocked.CompareExchange(ref m_active, 0, 0) == 1;
 
-        internal IManagedTransportChannel CreateReactivationView()
+        internal ITransportChannel CreateReactivationView(CancellationToken ct)
         {
-            return new ReactivationView(this);
+            ChannelEntry entry = Entry;
+            ITransportChannel transport = entry.Underlying
+                ?? throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
+            return new ReactivationView(this, entry, transport, entry.ReconnectGeneration, ct);
         }
 
         /// <inheritdoc/>
@@ -396,54 +399,66 @@ namespace Opc.Ua
             await Entry.ReleaseLeaseAsync(this).ConfigureAwait(false);
         }
 
-        private ValueTask<IServiceResponse> SendRequestDuringReactivationAsync(
-            IServiceRequest request,
-            CancellationToken ct)
+        private sealed class ReactivationView(
+            ManagedTransportChannelLease owner,
+            ChannelEntry entry,
+            ITransportChannel transport,
+            long generation,
+            CancellationToken scopeToken) : ITransportChannel
         {
-            ITransportChannel bypass = Entry.Underlying
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadSecureChannelClosed,
-                    "Channel has no underlying transport.");
-            return bypass.SendRequestAsync(request, ct);
-        }
-
-        private sealed class ReactivationView(ManagedTransportChannelLease owner)
-            : IManagedTransportChannel
-        {
-            public ManagedChannelKey Key => owner.Key;
-            public ChannelState State => owner.State;
-            public IClientChannelManager Manager => owner.Manager;
-            public event Action<IManagedTransportChannel, ChannelStateChange>? StateChanged
-            {
-                add => owner.StateChanged += value;
-                remove => owner.StateChanged -= value;
-            }
-            public TransportChannelFeatures SupportedFeatures => owner.SupportedFeatures;
-            public EndpointDescription EndpointDescription => owner.EndpointDescription;
-            public EndpointConfiguration EndpointConfiguration => owner.EndpointConfiguration;
-            public byte[] ChannelThumbprint => owner.ChannelThumbprint;
-            public byte[] ClientChannelCertificate => owner.ClientChannelCertificate;
-            public byte[] ServerChannelCertificate => owner.ServerChannelCertificate;
-            public IServiceMessageContext MessageContext => owner.MessageContext;
+            public TransportChannelFeatures SupportedFeatures => transport.SupportedFeatures;
+            public EndpointDescription EndpointDescription => transport.EndpointDescription;
+            public EndpointConfiguration EndpointConfiguration => transport.EndpointConfiguration;
+            public byte[] ChannelThumbprint => transport.ChannelThumbprint;
+            public byte[] ClientChannelCertificate => transport.ClientChannelCertificate;
+            public byte[] ServerChannelCertificate => transport.ServerChannelCertificate;
+            public IServiceMessageContext MessageContext => transport.MessageContext;
             public int OperationTimeout
             {
-                get => owner.OperationTimeout;
-                set => owner.OperationTimeout = value;
+                get => transport.OperationTimeout;
+                set => transport.OperationTimeout = value;
             }
+
             public ValueTask ReconnectAsync(
                 ITransportWaitingConnection? connection = null,
                 CancellationToken ct = default)
-                => owner.ReconnectAsync(connection, ct);
-            public ValueTask<IServiceResponse> SendRequestAsync(
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState, "A recovery send channel cannot start another reconnect.");
+            }
+
+            public async ValueTask<IServiceResponse> SendRequestAsync(
                 IServiceRequest request,
                 CancellationToken ct = default)
-                => owner.SendRequestDuringReactivationAsync(request, ct);
+            {
+                if (Volatile.Read(ref m_disposed) != 0 ||
+                    !owner.IsActive ||
+                    !ReferenceEquals(owner.Entry, entry) ||
+                    entry.ReconnectGeneration != generation)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState, "The recovery send channel has expired.");
+                }
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(scopeToken, ct);
+                linked.Token.ThrowIfCancellationRequested();
+                IServiceResponse response = await transport.SendRequestAsync(request, linked.Token)
+                    .ConfigureAwait(false);
+                linked.Token.ThrowIfCancellationRequested();
+                return response;
+            }
+
             public ValueTask CloseAsync(CancellationToken ct = default)
-                => owner.CloseAsync(ct);
+            {
+                Dispose();
+                return default;
+            }
+
             public void Dispose()
             {
-                owner.Dispose();
+                Interlocked.Exchange(ref m_disposed, 1);
             }
+
+            private int m_disposed;
         }
 
         private ChannelEntry m_entry;

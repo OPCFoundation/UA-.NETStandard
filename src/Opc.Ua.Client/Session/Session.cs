@@ -1332,7 +1332,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task OpenAsync(
+        public Task OpenAsync(
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
@@ -1341,10 +1341,27 @@ namespace Opc.Ua.Client
             bool closeChannel,
             CancellationToken ct)
         {
+            return OpenCoreAsync(
+                this, sessionName, sessionTimeout, identity, preferredLocales, checkDomain, closeChannel, ct);
+        }
+
+        private async Task OpenCoreAsync(
+            SessionClient serviceClient,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            ArrayOf<string> preferredLocales,
+            bool checkDomain,
+            bool closeChannel,
+            CancellationToken ct,
+            ArrayOf<EndpointDescription> refreshedEndpoints = default)
+        {
             ThrowIfDisposed();
             using Activity? activity = m_telemetry.StartActivity();
 
-            ArrayOf<EndpointDescription> discoveryServerEndpoints = m_endpoint.DiscoveryEndpoints;
+            ArrayOf<EndpointDescription> discoveryServerEndpoints = refreshedEndpoints.IsEmpty
+                ? m_endpoint.DiscoveryEndpoints
+                : refreshedEndpoints;
             ArrayOf<string> discoveryProfileUris = default;
             if (discoveryServerEndpoints.IsEmpty &&
                 ReferenceEquals(m_endpoint.Description, m_discoveryEndpointDescription))
@@ -1462,7 +1479,7 @@ namespace Opc.Ua.Client
                     // should ignore it.
                     try
                     {
-                        response = await base.CreateSessionAsync(
+                        response = await serviceClient.CreateSessionAsync(
                             requestHeader,
                             clientDescription,
                             m_endpoint.Description.Server.ApplicationUri,
@@ -1485,7 +1502,7 @@ namespace Opc.Ua.Client
 
                 if (!successCreateSession)
                 {
-                    response = await base.CreateSessionAsync(
+                    response = await serviceClient.CreateSessionAsync(
                         requestHeader,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
@@ -1647,7 +1664,7 @@ namespace Opc.Ua.Client
 
                 // activate session.
                 ByteString activationRequestNonce = serverNonce;
-                ActivateSessionResponse activateResponse = await ActivateSessionAsync(
+                ActivateSessionResponse activateResponse = await serviceClient.ActivateSessionAsync(
                     header,
                     clientSignature,
                     [],
@@ -1677,7 +1694,7 @@ namespace Opc.Ua.Client
                 }
 
                 // fetch namespaces.
-                await FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
+                await FetchNamespaceTablesAsync(serviceClient, ct).ConfigureAwait(false);
 
                 lock (m_lock)
                 {
@@ -1697,7 +1714,7 @@ namespace Opc.Ua.Client
                 }
 
                 // fetch operation limits
-                await FetchOperationLimitsAsync(ct).ConfigureAwait(false);
+                await FetchOperationLimitsAsync(serviceClient, ct).ConfigureAwait(false);
 
                 // start keep alive thread.
                 await StartKeepAliveTimerAsync().ConfigureAwait(false);
@@ -1711,7 +1728,7 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    await base.CloseSessionAsync(null, false, CancellationToken.None)
+                    await serviceClient.CloseSessionAsync(null, false, CancellationToken.None)
                         .ConfigureAwait(false);
                 }
                 catch (Exception e)
@@ -1991,12 +2008,14 @@ namespace Opc.Ua.Client
         /// computed over it and the current channel.
         /// </param>
         /// <param name="ct">A cancellation token.</param>
+        /// <param name="recoveryClient">An optional client bound to this recovery callback's send channel.</param>
         /// <exception cref="ServiceResultException"></exception>
         private async Task ReactivateExistingSessionAsync(
             IUserIdentity? identity,
             ArrayOf<string> preferredLocales,
             ByteString serverNonce,
-            CancellationToken ct)
+            CancellationToken ct,
+            SessionClient? recoveryClient = null)
         {
             // get the identity token.
             string securityPolicyUri =
@@ -2115,7 +2134,7 @@ namespace Opc.Ua.Client
                 RequestHeader? requestHeader = CreateRequestHeaderForActivateSession(
                     tokenSecurityPolicyUri!);
 
-                response = await ActivateSessionAsync(
+                response = await (recoveryClient ?? this).ActivateSessionAsync(
                     requestHeader,
                     clientSignature,
                     [],
@@ -2481,13 +2500,18 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task FetchNamespaceTablesAsync(CancellationToken ct = default)
+        public Task FetchNamespaceTablesAsync(CancellationToken ct = default)
+        {
+            return FetchNamespaceTablesAsync(this, ct);
+        }
+
+        private async Task FetchNamespaceTablesAsync(ISessionClient serviceClient, CancellationToken ct)
         {
             using Activity? activity = m_telemetry.StartActivity();
             ArrayOf<ReadValueId> nodesToRead = PrepareNamespaceTableNodesToRead();
 
             // read from server.
-            ReadResponse response = await ReadAsync(
+            ReadResponse response = await serviceClient.ReadAsync(
                 null,
                 0,
                 TimestampsToReturn.Neither,
@@ -2588,7 +2612,12 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async Task FetchOperationLimitsAsync(CancellationToken ct)
+        public Task FetchOperationLimitsAsync(CancellationToken ct)
+        {
+            return FetchOperationLimitsAsync(this, ct);
+        }
+
+        private async Task FetchOperationLimitsAsync(SessionClient serviceClient, CancellationToken ct)
         {
             using Activity? activity = m_telemetry.StartActivity();
 
@@ -2647,11 +2676,15 @@ namespace Opc.Ua.Client
         VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead
             ];
             (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors) =
-                await this.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
+                await serviceClient.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
             int index = 0;
             OperationLimits.MaxNodesPerRead = ApplyOperationLimit(
                 OperationLimits.MaxNodesPerRead,
                 GetUInt32(ref index, values, errors));
+            if (serviceClient is SessionClientBatched batched)
+            {
+                batched.OperationLimits.MaxNodesPerRead = OperationLimits.MaxNodesPerRead;
+            }
 
             nodeIds =
             [
@@ -2684,7 +2717,7 @@ namespace Opc.Ua.Client
         VariableIds.Server_ServerCapabilities_MaxSelectClauseParameters
             ];
 
-            (values, errors) = await this.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
+            (values, errors) = await serviceClient.ReadValuesAsync(nodeIds, ct).ConfigureAwait(false);
             index = 0;
             OperationLimits.MaxNodesPerHistoryReadData = ApplyOperationLimit(
                 OperationLimits.MaxNodesPerHistoryReadData, GetUInt32(ref index, values, errors));
@@ -3055,7 +3088,8 @@ namespace Opc.Ua.Client
             IRetryBudget? budget,
             CancellationToken ct,
             bool recreateSubscriptions = true,
-            bool requireTokenReuse = false)
+            bool requireTokenReuse = false,
+            SessionClient? recoveryClient = null)
         {
             ThrowIfDisposed();
             using Activity? activity = m_telemetry.StartActivity();
@@ -3264,7 +3298,8 @@ namespace Opc.Ua.Client
                                 m_identity ?? new UserIdentity(),
                                 m_preferredLocales,
                                 m_serverNonce,
-                                ct)
+                                ct,
+                                recoveryClient)
                             .ConfigureAwait(false);
                         reused = true;
                         m_logger.SessionTOKENREUSEFAILOVERSessionIdSucceeded(SessionId);
@@ -3305,40 +3340,34 @@ namespace Opc.Ua.Client
                     // manager lease is owned elsewhere and the error handling
                     // below restores the previous lease.
                     bool ownsChannel = channel == null && manager == null;
-                    await OpenAsync(
+                    ArrayOf<EndpointDescription> refreshedEndpoints = default;
+                    if (!m_endpoint.DiscoveryEndpoints.IsEmpty)
+                    {
+                        // Refresh only the comparison snapshot; keep caller-pinned transport settings and URL.
+                        ConfiguredEndpoint discovery = CoreUtils.Clone(m_endpoint)!;
+                        await discovery.UpdateFromServerAsync(m_configuration, m_telemetry, ct).ConfigureAwait(false);
+                        refreshedEndpoints = discovery.DiscoveryEndpoints;
+                    }
+                    await OpenCoreAsync(
+                            recoveryClient ?? this,
                             m_sessionName,
                             (uint)m_sessionTimeout,
                             m_identity ?? tempIdentity!,
                             m_preferredLocales,
                             m_checkDomain,
                             ownsChannel,
-                            ct)
+                            ct,
+                            refreshedEndpoints)
                         .ConfigureAwait(false);
                 }
 
                 if (recreateSubscriptions)
                 {
-#if OPCUA_V1_CLIENT
-                    // V1: drive the classic template-based recreate using
-                    // the subscriptions still attached to this Session. A
-                    // reused server session still owns its subscriptions, so
-                    // there is nothing to transfer or reset there; only the
-                    // ones never created are missing.
-                    await RecreateSubscriptionsAsync(
-                            TransferSubscriptionsOnReconnect && !reused,
-                            Subscriptions,
-                            ct,
-                            sessionRecreatedInPlace: !reused)
-                        .ConfigureAwait(false);
-#endif
-
-                    // V2: hand the previous session id to the engine so
-                    // configured subscriptions can attempt transfer or
-                    // fall back to recreate against the new session id.
-                    await m_engine.RecreateSubscriptionsAsync(
-                            previousSessionId,
-                            ct)
-                        .ConfigureAwait(false);
+                    m_pendingSubscriptionRecovery = new PendingSubscriptionRecovery(previousSessionId, reused);
+                    if (recoveryClient == null)
+                    {
+                        await CompleteSessionRecoveryAsync(ct).ConfigureAwait(false);
+                    }
                 }
 
                 managedLeaseActivated = true;
@@ -3389,11 +3418,41 @@ namespace Opc.Ua.Client
                 }
 
 #if OPCUA_V1_CLIENT
-                if (m_engine is not ClassicSubscriptionEngine)
+                if (m_engine is not ClassicSubscriptionEngine && m_pendingSubscriptionRecovery == null)
+#else
+                if (m_pendingSubscriptionRecovery == null)
 #endif
                 {
                     m_engine.ResumePublishing();
                 }
+            }
+        }
+
+        /// <summary>
+        /// Restores subscriptions only after their session and ordinary service path are available.
+        /// </summary>
+        internal async Task CompleteSessionRecoveryAsync(CancellationToken ct)
+        {
+            PendingSubscriptionRecovery? pending = m_pendingSubscriptionRecovery;
+            if (pending == null)
+            {
+                return;
+            }
+            try
+            {
+#if OPCUA_V1_CLIENT
+                await RecreateSubscriptionsAsync(
+                    TransferSubscriptionsOnReconnect && !pending.ReusedSession,
+                    Subscriptions,
+                    ct,
+                    sessionRecreatedInPlace: !pending.ReusedSession).ConfigureAwait(false);
+#endif
+                await m_engine.RecreateSubscriptionsAsync(pending.PreviousSessionId, ct).ConfigureAwait(false);
+                m_pendingSubscriptionRecovery = null;
+            }
+            finally
+            {
+                m_engine.ResumePublishing();
             }
         }
 
@@ -3576,7 +3635,8 @@ namespace Opc.Ua.Client
             ITransportWaitingConnection? connection,
             ITransportChannel? channel,
             IRetryBudget? budget,
-            CancellationToken ct)
+            CancellationToken ct,
+            SessionClient? recoveryClient = null)
         {
             ThrowIfDisposed();
 
@@ -3610,7 +3670,8 @@ namespace Opc.Ua.Client
                     connection,
                     channel,
                     budget,
-                    ct).ConfigureAwait(false);
+                    ct,
+                    recoveryClient: recoveryClient).ConfigureAwait(false);
                 return;
             }
 
@@ -3775,7 +3836,7 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                ITransportChannel activeChannel = TransportChannel;
+                ITransportChannel activeChannel = recoveryClient?.TransportChannel ?? TransportChannel;
 
                 byte[] channelThumbprint = activeChannel.ChannelThumbprint;
                 byte[] serverChannelCertificate = activeChannel.ServerChannelCertificate;
@@ -3857,7 +3918,7 @@ namespace Opc.Ua.Client
                 try
                 {
                     // reactivate session.
-                    ActivateSessionResponse activateResult = await ActivateSessionAsync(
+                    ActivateSessionResponse activateResult = await (recoveryClient ?? this).ActivateSessionAsync(
                         header,
                         clientSignature,
                         [],

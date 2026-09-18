@@ -41,10 +41,10 @@ namespace Opc.Ua
     /// <remarks>
     /// The manager invokes <see cref="OnReconnectAsync"/> for every
     /// active participant lease on a channel after the underlying
-    /// transport has been (re)opened. Participants may issue
-    /// session-service requests (e.g. ActivateSession) on the supplied
-    /// channel during this call; the manager bypasses the channel's
-    /// service-call gate for the duration of the call.
+    /// transport has been (re)opened. The supplied channel remains the
+    /// participant's owning lease. Participants that send session recovery
+    /// requests before the channel is ready implement
+    /// <see cref="IChannelRecoveryParticipant"/> to receive a separate send capability.
     /// </remarks>
     public interface IReconnectParticipant
     {
@@ -129,5 +129,49 @@ namespace Opc.Ua
 #else
         ValueTask RecreateAsync(CancellationToken ct = default);
 #endif
+    }
+
+    /// <summary>
+    /// Receives a scoped send channel for session recovery without replacing or releasing the participant's lease.
+    /// </summary>
+    /// <remarks>
+    /// Recovery channels expire when their callback completes, times out, or is cancelled.
+    /// Do not retain them or pass them to application callbacks or background workers.
+    /// Ordinary requests continue to use the owning lease and wait until the entry is ready.
+    /// </remarks>
+    public interface IChannelRecoveryParticipant : IReconnectParticipant
+    {
+        /// <summary>
+        /// Reactivates session state using a send capability limited to this callback.
+        /// </summary>
+        /// <param name="channel">The participant's unchanged owning lease.</param>
+        /// <param name="recoveryChannel">The non-owning send channel for recovery requests.</param>
+        /// <param name="reconnectAttempt">The zero-based reconnect attempt.</param>
+        /// <param name="ct">Cancellation for shutdown or expiry of this callback.</param>
+        /// <returns>The participant's recovery outcome.</returns>
+        ValueTask<ParticipantReconnectResult> OnReconnectAsync(
+            IManagedTransportChannel channel,
+            ITransportChannel recoveryChannel,
+            int reconnectAttempt,
+            CancellationToken ct);
+
+        /// <summary>
+        /// Creates and activates a replacement server session before ordinary requests are admitted.
+        /// </summary>
+        /// <param name="channel">The participant's unchanged owning lease.</param>
+        /// <param name="recoveryChannel">The non-owning send channel for recovery requests.</param>
+        /// <param name="ct">Cancellation for shutdown or expiry of this callback.</param>
+        /// <returns>The asynchronous session recreation.</returns>
+        ValueTask RecreateAsync(
+            IManagedTransportChannel channel,
+            ITransportChannel recoveryChannel,
+            CancellationToken ct);
+
+        /// <summary>
+        /// Restores callback-dependent state after every participant has recovered and the channel admits requests.
+        /// </summary>
+        /// <param name="ct">Cancellation for shutdown or expiry of this callback.</param>
+        /// <returns>The remaining recovery work, which the reconnect caller also awaits.</returns>
+        ValueTask CompleteRecoveryAsync(CancellationToken ct);
     }
 }

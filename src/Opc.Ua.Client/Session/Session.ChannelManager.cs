@@ -35,7 +35,10 @@ using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
-    public partial class Session : IReconnectParticipant, IRecreateAwareReconnectParticipant
+    public partial class Session :
+        IReconnectParticipant,
+        IRecreateAwareReconnectParticipant,
+        IChannelRecoveryParticipant
     {
         /// <summary>
         /// Stable participant identifier used by
@@ -92,9 +95,29 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        async ValueTask<ParticipantReconnectResult> IReconnectParticipant.OnReconnectAsync(
+        ValueTask<ParticipantReconnectResult> IReconnectParticipant.OnReconnectAsync(
             IManagedTransportChannel channel,
             int reconnectAttempt,
+            CancellationToken ct)
+        {
+            return ReconnectParticipantAsync(channel, reconnectAttempt, null, ct);
+        }
+
+        /// <inheritdoc/>
+        async ValueTask<ParticipantReconnectResult> IChannelRecoveryParticipant.OnReconnectAsync(
+            IManagedTransportChannel channel,
+            ITransportChannel recoveryChannel,
+            int reconnectAttempt,
+            CancellationToken ct)
+        {
+            using var client = new RecoverySessionClient(this, recoveryChannel);
+            return await ReconnectParticipantAsync(channel, reconnectAttempt, client, ct).ConfigureAwait(false);
+        }
+
+        private async ValueTask<ParticipantReconnectResult> ReconnectParticipantAsync(
+            IManagedTransportChannel channel,
+            int reconnectAttempt,
+            SessionClient? recoveryClient,
             CancellationToken ct)
         {
             if (reconnectAttempt < 0)
@@ -120,12 +143,8 @@ namespace Opc.Ua.Client
 
             try
             {
-                // Pass the reactivation view back in as the "channel" so
-                // the existing legacy path hits the "set channel" no-op
-                // branch and goes straight to ActivateSession. The view is
-                // an explicit capability and does not flow through
-                // ExecutionContext into unrelated participant workers.
-                await ReconnectAsync(connection: null, channel: channel, ct: ct)
+                await ReconnectCoreAsync(
+                    connection: null, channel, budget: null, ct, recoveryClient)
                     .ConfigureAwait(false);
                 return ParticipantReconnectResult.Reactivated;
             }
@@ -222,6 +241,49 @@ namespace Opc.Ua.Client
             await RecreateInPlaceAsync(ct: ct).ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
+        async ValueTask IChannelRecoveryParticipant.RecreateAsync(
+            IManagedTransportChannel channel,
+            ITransportChannel recoveryChannel,
+            CancellationToken ct)
+        {
+            using var client = new RecoverySessionClient(this, recoveryChannel);
+            await RecreateInPlaceCoreAsync(
+                endpoint: null, connection: null, channel, budget: null, ct, recoveryClient: client)
+                .ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        ValueTask IChannelRecoveryParticipant.CompleteRecoveryAsync(CancellationToken ct)
+        {
+            return new ValueTask(CompleteSessionRecoveryAsync(ct));
+        }
+
+        private sealed class RecoverySessionClient : SessionClientBatched
+        {
+            public RecoverySessionClient(Session owner, ITransportChannel channel)
+                : base(channel, owner.m_telemetry)
+            {
+                m_owner = owner;
+                OperationLimits.MaxNodesPerRead = owner.OperationLimits.MaxNodesPerRead;
+            }
+
+            protected override void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
+            {
+                m_owner.UpdateRequestHeader(request, useDefaults);
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                ReleaseChannel();
+                base.Dispose(disposing);
+            }
+
+            private readonly Session m_owner;
+        }
+
+        private sealed record PendingSubscriptionRecovery(NodeId PreviousSessionId, bool ReusedSession);
+
         private static ValueTask ReconnectManagedChannelAsync(
             IClientChannelManager manager,
             IManagedTransportChannel channel,
@@ -244,6 +306,7 @@ namespace Opc.Ua.Client
 
         private IClientChannelManager? m_channelManager;
         private IManagedTransportChannel? m_managedChannel;
+        private PendingSubscriptionRecovery? m_pendingSubscriptionRecovery;
 
         /// <summary>
         /// Creates a new <see cref="Session"/> bound to a centrally
