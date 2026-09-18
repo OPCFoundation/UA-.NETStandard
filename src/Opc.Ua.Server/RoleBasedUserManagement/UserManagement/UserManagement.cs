@@ -37,22 +37,18 @@ using Opc.Ua.Server.UserDatabase;
 namespace Opc.Ua.Server.UserManagement
 {
     /// <summary>
-    /// Default in-memory <see cref="IUserManagement"/> implementation. Wraps
-    /// an <see cref="IUserDatabase"/> for credential persistence and keeps
-    /// the per-user <see cref="UserConfigurationMask"/> and description in
-    /// memory.
+    /// Default <see cref="IUserManagement"/> implementation. Wraps an
+    /// <see cref="IUserDatabase"/> for credential persistence and uses the
+    /// optional metadata capability when the database supports it.
     /// </summary>
     /// <remarks>
-    /// Per Part 18 §6.4 "the management of these Users is server-specific" —
-    /// this default keeps the metadata in memory across the server lifetime.
-    /// Integrators that need persistence of the metadata implement
-    /// <see cref="IUserManagement"/> directly and inject the instance via
-    /// <see cref="StandardServer.CreateUserManagement"/>, or by registering it
-    /// in the service container.
+    /// Databases that do not implement <see cref="IUserMetadataDatabase"/>
+    /// retain the historical in-memory metadata behavior.
     /// </remarks>
     public sealed class UserManagement : IUserManagement, IDisposable
     {
         private readonly IUserDatabase m_userDatabase;
+        private readonly IUserMetadataDatabase? m_userMetadataDatabase;
 
         private readonly Dictionary<string, UserMetadata> m_metadata
             = new(StringComparer.Ordinal);
@@ -84,6 +80,7 @@ namespace Opc.Ua.Server.UserManagement
             LocalizedText? passwordRestrictions = null)
         {
             m_userDatabase = userDatabase ?? throw new ArgumentNullException(nameof(userDatabase));
+            m_userMetadataDatabase = userDatabase as IUserMetadataDatabase;
             PasswordLength = passwordLength ?? new Range { Low = 8, High = 256 };
             PasswordOptions = passwordOptions
                 ?? (PasswordOptionsMask.SupportDisableUser |
@@ -168,6 +165,13 @@ namespace Opc.Ua.Server.UserManagement
                         new LocalizedText("User-database rejected the create operation."));
                 }
                 m_metadata[userName] = new UserMetadata(userConfiguration, description ?? string.Empty);
+                if (!PersistUserMetadata(userName, userConfiguration, description))
+                {
+                    m_metadata.Remove(userName);
+                    m_userDatabase.DeleteUser(userName);
+                    return new ServiceResult(StatusCodes.BadResourceUnavailable,
+                        new LocalizedText("User-database rejected the metadata write."));
+                }
             }
             finally
             {
@@ -275,6 +279,14 @@ namespace Opc.Ua.Server.UserManagement
                 m_metadata[userName] = new UserMetadata(
                     effectiveConfig,
                     modifyDescription ? description ?? string.Empty : existing.Description);
+                if (!PersistUserMetadata(
+                    userName,
+                    effectiveConfig,
+                    modifyDescription ? description ?? string.Empty : existing.Description))
+                {
+                    return new ServiceResult(StatusCodes.BadResourceUnavailable,
+                        new LocalizedText("User-database rejected the metadata write."));
+                }
             }
             finally
             {
@@ -384,6 +396,10 @@ namespace Opc.Ua.Server.UserManagement
                     m_metadata[userName] = new UserMetadata(
                         current.Configuration & ~UserConfigurationMask.MustChangePassword,
                         current.Description);
+                    _ = PersistUserMetadata(
+                        userName,
+                        current.Configuration & ~UserConfigurationMask.MustChangePassword,
+                        current.Description);
                 }
             }
             finally
@@ -445,6 +461,18 @@ namespace Opc.Ua.Server.UserManagement
                     (UserConfigurationMask)user.UserConfiguration,
                     user.Description ?? string.Empty);
             }
+        }
+
+        private bool PersistUserMetadata(
+            string userName,
+            UserConfigurationMask configuration,
+            string? description)
+        {
+            return m_userMetadataDatabase == null ||
+                m_userMetadataDatabase.UpdateUserMetadata(
+                    userName,
+                    configuration,
+                    description ?? string.Empty);
         }
 
         private ServiceResult ValidatePassword(string password)

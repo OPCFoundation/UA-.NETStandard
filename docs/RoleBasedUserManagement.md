@@ -150,8 +150,10 @@ The Part 18 §5 `UserManagementType` is bound to the standard
 Integrators inject an `IUserManagement` instance via
 `IServerInternal.SetUserManagement` before the configuration node manager
 binds the address space; the default `UserManagement` implementation wraps
-an existing `IUserDatabase` for credential persistence and stores the
-per-user `UserConfigurationMask` and description in memory:
+an existing `IUserDatabase` for credential persistence. Built-in
+`LinqUserDatabase` and `JsonUserDatabase` also persist the per-user
+`UserConfigurationMask` and description through the optional
+`IUserMetadataDatabase` capability:
 
 ```csharp
 using Opc.Ua.Server.UserDatabase;
@@ -170,6 +172,11 @@ var userManagement = new UserManagement(
 
 serverInternal.SetUserManagement(userManagement);
 ```
+
+Custom databases that implement only `IUserDatabase` retain in-memory metadata
+for compatibility. Applications that require disabled and
+`MustChangePassword` decisions to survive a restart should implement
+`IUserMetadataDatabase` or use one of the built-in databases.
 
 `UserManagementBinding.Bind` (called automatically by
 `ConfigurationNodeManager.CreateServerConfiguration` when an

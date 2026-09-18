@@ -84,4 +84,18 @@ namespace Opc.Ua.Server.UserDatabase
             ReadOnlySpan<byte> oldPassword,
             ReadOnlySpan<byte> newPassword);
     }
+
+    /// <summary>
+    /// Optional user database capability for persisting UserManagement metadata.
+    /// </summary>
+    public interface IUserMetadataDatabase
+    {
+        /// <summary>
+        /// Stores the configuration mask and description for a user.
+        /// </summary>
+        bool UpdateUserMetadata(
+            string userName,
+            UserConfigurationMask userConfiguration,
+            string description);
+    }
 }

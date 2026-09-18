@@ -41,7 +41,7 @@ namespace Opc.Ua.Server.UserDatabase
     /// Implementation of a serializable user database using a concurrent dictionary for users.
     /// </summary>
     [DataContract(Namespace = Namespaces.UserDatabase)]
-    public class LinqUserDatabase : IUserDatabase
+    public class LinqUserDatabase : IUserDatabase, IUserMetadataDatabase
     {
         /// <summary>
         /// 128 bit
@@ -94,6 +94,18 @@ namespace Opc.Ua.Server.UserDatabase
             /// </summary>
             [DataMember(Name = "Roles", IsRequired = false, Order = 40)]
             public ICollection<Role> Roles { get; set; } = null!;
+
+            /// <summary>
+            /// The persisted user configuration flags.
+            /// </summary>
+            [DataMember(Name = "UserConfiguration", IsRequired = false, Order = 50)]
+            public uint UserConfiguration { get; set; }
+
+            /// <summary>
+            /// The persisted user description.
+            /// </summary>
+            [DataMember(Name = "Description", IsRequired = false, Order = 60)]
+            public string Description { get; set; } = string.Empty;
         }
 
         /// <summary>
@@ -146,7 +158,9 @@ namespace Opc.Ua.Server.UserDatabase
                         ID = value.ID,
                         UserName = value.UserName,
                         Hash = hash,
-                        Roles = assignedRoles!
+                        Roles = assignedRoles!,
+                        UserConfiguration = value.UserConfiguration,
+                        Description = value.Description
                     };
                 });
 
@@ -214,10 +228,38 @@ namespace Opc.Ua.Server.UserDatabase
                 .. m_users.Values.Select(user => new UserManagementDataType
                 {
                     UserName = user.UserName,
-                    UserConfiguration = (uint)UserConfigurationMask.None,
-                    Description = string.Empty
+                    UserConfiguration = user.UserConfiguration,
+                    Description = user.Description
                 })
             ];
+        }
+
+        /// <inheritdoc/>
+        public bool UpdateUserMetadata(
+            string userName,
+            UserConfigurationMask userConfiguration,
+            string description)
+        {
+            if (string.IsNullOrEmpty(userName))
+            {
+                throw new ArgumentException("UserName cannot be empty.", nameof(userName));
+            }
+
+            if (!m_users.TryGetValue(userName, out User? user))
+            {
+                return false;
+            }
+
+            var replacement = SnapshotUser(user);
+            replacement.UserConfiguration = (uint)userConfiguration;
+            replacement.Description = description ?? string.Empty;
+            if (!m_users.TryUpdate(userName, replacement, user))
+            {
+                return false;
+            }
+
+            SaveChanges();
+            return true;
         }
 
         /// <inheritdoc/>
@@ -252,7 +294,9 @@ namespace Opc.Ua.Server.UserDatabase
                     ID = user.ID,
                     UserName = user.UserName,
                     Hash = Hash(newPassword),
-                    Roles = user.Roles
+                    Roles = user.Roles,
+                    UserConfiguration = user.UserConfiguration,
+                    Description = user.Description
                 };
                 if (!m_users.TryUpdate(userName, replacement, user))
                 {
@@ -441,7 +485,9 @@ namespace Opc.Ua.Server.UserDatabase
                 ID = user.ID,
                 UserName = user.UserName,
                 Hash = user.Hash,
-                Roles = user.Roles?.ToArray()!
+                Roles = user.Roles?.ToArray()!,
+                UserConfiguration = user.UserConfiguration,
+                Description = user.Description
             };
         }
 

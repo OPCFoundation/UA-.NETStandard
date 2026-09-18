@@ -30,8 +30,11 @@
 #nullable enable
 
 using System.Collections.Generic;
+using System;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Opc.Ua.Server.UserDatabase;
 using UserManagementImpl = Opc.Ua.Server.UserManagement.UserManagement;
 
@@ -293,6 +296,49 @@ namespace Opc.Ua.Server.Tests
                 um.AddUser("alice", "oldpass", UserConfigurationMask.None, string.Empty)), Is.True);
             ServiceResult result = um.ChangePassword("alice", "oldpass", "newpass");
             Assert.That(ServiceResult.IsGood(result), Is.True);
+        }
+
+        [Test]
+        public void JsonDatabasePersistsUserConfigurationAndDescriptionAcrossReload()
+        {
+            string fileName = Path.Combine(
+                Path.GetTempPath(),
+                "opcua-user-metadata-" + Guid.NewGuid().ToString("N") + ".json");
+            try
+            {
+                using (var initial = new UserManagementImpl(
+                    new JsonUserDatabase(fileName),
+                    passwordLength: new Range { Low = 4, High = 64 }))
+                {
+                    ServiceResult result = initial.AddUser(
+                        "alice",
+                        "secret",
+                        UserConfigurationMask.Disabled | UserConfigurationMask.MustChangePassword,
+                        "Disabled until verified");
+                    Assert.That(ServiceResult.IsGood(result), Is.True);
+                }
+
+                IUserDatabase loadedDatabase = JsonUserDatabase.Load(
+                    fileName,
+                    NUnitTelemetryContext.Create());
+                using var reloaded = new UserManagementImpl(
+                    loadedDatabase,
+                    passwordLength: new Range { Low = 4, High = 64 });
+
+                UserManagementDataType alice = reloaded.SnapshotUsers()
+                    .Single(user => user.UserName == "alice");
+                Assert.That(
+                    (UserConfigurationMask)alice.UserConfiguration,
+                    Is.EqualTo(UserConfigurationMask.Disabled | UserConfigurationMask.MustChangePassword));
+                Assert.That(alice.Description, Is.EqualTo("Disabled until verified"));
+            }
+            finally
+            {
+                if (File.Exists(fileName))
+                {
+                    File.Delete(fileName);
+                }
+            }
         }
 
         [Test]
