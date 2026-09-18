@@ -1527,6 +1527,7 @@ namespace Opc.Ua
             bool allowOverride = false)
         {
             var filePath = new StringBuilder();
+            bool storeDirectoryExisted = Directory?.Exists == true;
 
             if (Directory is { Exists: false } storeDir)
             {
@@ -1563,6 +1564,8 @@ namespace Opc.Ua
 
             // create the directory.
             var fileInfo = new FileInfo(filePath.ToString());
+            bool directoryExisted = fileInfo.Directory?.Exists == true && (!m_noSubDirs || storeDirectoryExisted);
+            bool fileExisted = fileInfo.Exists;
             if (fileInfo.Directory is { Exists: false } parentDir)
             {
                 parentDir.Create();
@@ -1570,7 +1573,7 @@ namespace Opc.Ua
 
             if (includePrivateKey)
             {
-                RestrictPrivateDirectory(fileInfo.Directory);
+                RestrictPrivateDirectory(fileInfo.Directory, directoryExisted);
             }
 
             // write file.
@@ -1588,7 +1591,7 @@ namespace Opc.Ua
 
             if (includePrivateKey)
             {
-                RestrictPrivateFile(fileInfo);
+                RestrictPrivateFile(fileInfo, fileExisted);
             }
 
             m_certificateSubdir?.Refresh();
@@ -1597,92 +1600,160 @@ namespace Opc.Ua
             return fileInfo;
         }
 
-        private static void RestrictPrivateDirectory(DirectoryInfo? directory)
+        private void RestrictPrivateDirectory(DirectoryInfo? directory, bool existed)
         {
             if (directory == null)
             {
                 return;
             }
 
-#if NET7_0_OR_GREATER
-            if (OperatingSystem.IsWindows())
+            try
             {
-                RestrictPrivateWindowsDirectory(directory);
-            }
-            else
-            {
-                File.SetUnixFileMode(
-                    directory.FullName,
-                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-            }
-#elif NET472_OR_GREATER
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                var security = directory.GetAccessControl();
-                SetPrivateAccessRules(security);
-                directory.SetAccessControl(security);
-            }
+#if NET8_0_OR_GREATER || NET472_OR_GREATER
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    RestrictPrivateWindowsDirectory(directory);
+                }
+#if NET8_0_OR_GREATER
+                else
+                {
+                    File.SetUnixFileMode(
+                        directory.FullName,
+                        UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+                }
 #endif
+#endif
+            }
+            catch (UnauthorizedAccessException ex) when (existed && HasPrivateAccess(directory))
+            {
+                m_logger.PrivatePermissionsUnchanged(ex, Redact.Create(directory.FullName));
+            }
         }
 
-        private static void RestrictPrivateFile(FileInfo file)
+        private void RestrictPrivateFile(FileInfo file, bool existed)
         {
-#if NET7_0_OR_GREATER
-            if (OperatingSystem.IsWindows())
+            try
             {
-                RestrictPrivateWindowsFile(file);
+#if NET8_0_OR_GREATER || NET472_OR_GREATER
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    RestrictPrivateWindowsFile(file);
+                }
+#if NET8_0_OR_GREATER
+                else
+                {
+                    File.SetUnixFileMode(file.FullName, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                }
+#endif
+#endif
             }
-            else
+            catch (UnauthorizedAccessException ex) when (existed && HasPrivateAccess(file))
             {
-                File.SetUnixFileMode(
-                    file.FullName,
-                    UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                m_logger.PrivatePermissionsUnchanged(ex, Redact.Create(file.FullName));
             }
-#elif NET472_OR_GREATER
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        }
+
+        private static bool HasPrivateAccess(FileSystemInfo path)
+        {
+#if NET8_0_OR_GREATER
+            if (!OperatingSystem.IsWindows())
             {
-                var security = file.GetAccessControl();
-                SetPrivateAccessRules(security);
-                file.SetAccessControl(security);
+                UnixFileMode required = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+                if (path is DirectoryInfo)
+                {
+                    required |= UnixFileMode.UserExecute;
+                }
+                return File.GetUnixFileMode(path.FullName) == required;
             }
 #endif
+#if NET8_0_OR_GREATER || NET472_OR_GREATER
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return path is DirectoryInfo directory
+                    ? HasPrivateWindowsAccess(directory.GetAccessControl(), isDirectory: true)
+                    : HasPrivateWindowsAccess(((FileInfo)path).GetAccessControl(), isDirectory: false);
+            }
+#endif
+            return false;
         }
 
 #if NET8_0_OR_GREATER || NET472_OR_GREATER
-#pragma warning disable CA1416
+#pragma warning disable CA1416 // These helpers are reached only after a Windows platform check.
         private static void RestrictPrivateWindowsDirectory(DirectoryInfo directory)
         {
             var security = directory.GetAccessControl();
-            SetPrivateAccessRules(security);
+            SetPrivateAccessRules(security, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit);
             directory.SetAccessControl(security);
         }
 
         private static void RestrictPrivateWindowsFile(FileInfo file)
         {
             var security = file.GetAccessControl();
-            SetPrivateAccessRules(security);
+            SetPrivateAccessRules(security, InheritanceFlags.None);
             file.SetAccessControl(security);
         }
 
-        private static void SetPrivateAccessRules(FileSystemSecurity security)
+        private static void SetPrivateAccessRules(FileSystemSecurity security, InheritanceFlags inheritance)
         {
             security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
-            security.RemoveAccessRuleAll(new FileSystemAccessRule(
-                new SecurityIdentifier(WellKnownSidType.WorldSid, null),
-                FileSystemRights.FullControl,
-                AccessControlType.Allow));
+            foreach (FileSystemAccessRule rule in security.GetAccessRules(
+                includeExplicit: true, includeInherited: false, typeof(SecurityIdentifier)))
+            {
+                security.RemoveAccessRuleSpecific(rule);
+            }
+            using WindowsIdentity identity = WindowsIdentity.GetCurrent();
             security.AddAccessRule(new FileSystemAccessRule(
-                WindowsIdentity.GetCurrent().User!,
-                FileSystemRights.FullControl,
-                AccessControlType.Allow));
+                identity.User!, FileSystemRights.FullControl, inheritance,
+                PropagationFlags.None, AccessControlType.Allow));
             security.AddAccessRule(new FileSystemAccessRule(
-                new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
-                FileSystemRights.FullControl,
-                AccessControlType.Allow));
+                new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), FileSystemRights.FullControl,
+                inheritance, PropagationFlags.None, AccessControlType.Allow));
             security.AddAccessRule(new FileSystemAccessRule(
-                new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null),
-                FileSystemRights.FullControl,
-                AccessControlType.Allow));
+                new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null), FileSystemRights.FullControl,
+                inheritance, PropagationFlags.None, AccessControlType.Allow));
+        }
+
+        private static bool HasPrivateWindowsAccess(FileSystemSecurity security, bool isDirectory)
+        {
+            var descriptor = new RawSecurityDescriptor(security.GetSecurityDescriptorBinaryForm(), 0);
+            if (descriptor.DiscretionaryAcl == null)
+            {
+                return false;
+            }
+            using WindowsIdentity identity = WindowsIdentity.GetCurrent();
+            var system = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
+            var administrators = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+            FileSystemRights granted = 0;
+            FileSystemRights denied = 0;
+            const FileSystemRights sensitiveRights = FileSystemRights.ReadData | FileSystemRights.WriteData |
+                FileSystemRights.AppendData | FileSystemRights.ExecuteFile | FileSystemRights.Delete |
+                FileSystemRights.DeleteSubdirectoriesAndFiles | FileSystemRights.ChangePermissions |
+                FileSystemRights.TakeOwnership;
+            foreach (FileSystemAccessRule rule in security.GetAccessRules(
+                includeExplicit: true, includeInherited: true, typeof(SecurityIdentifier)))
+            {
+                bool currentUser = rule.IdentityReference == identity.User;
+                if (rule.AccessControlType == AccessControlType.Allow &&
+                    (rule.FileSystemRights & sensitiveRights) != 0 &&
+                    !currentUser && rule.IdentityReference != system && rule.IdentityReference != administrators)
+                {
+                    return false;
+                }
+                if (currentUser && (rule.PropagationFlags & PropagationFlags.InheritOnly) == 0)
+                {
+                    if (rule.AccessControlType == AccessControlType.Allow)
+                    {
+                        granted |= rule.FileSystemRights;
+                    }
+                    else
+                    {
+                        denied |= rule.FileSystemRights;
+                    }
+                }
+            }
+            FileSystemRights required = (isDirectory ? FileSystemRights.ReadAndExecute : FileSystemRights.Read) |
+                FileSystemRights.Write;
+            return (granted & ~denied & required) == required;
         }
 #pragma warning restore CA1416
 #endif
@@ -1974,6 +2045,14 @@ namespace Opc.Ua
                 "not written to the store. Only the public certificate was stored; the key " +
                 "remains where it resides.")]
         public static partial void PrivateKeyNotExportableStoringPublicOnly(this ILogger logger, string? thumbprint);
+
+        [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 25, Level = LogLevel.Warning,
+            Message = "Could not update private-key permissions for {Path}; " +
+                "existing private permissions were verified.")]
+        public static partial void PrivatePermissionsUnchanged(
+            this ILogger logger,
+            Exception exception,
+            global::Opc.Ua.Redaction.RedactionWrapper<string> path);
     }
 
 }
