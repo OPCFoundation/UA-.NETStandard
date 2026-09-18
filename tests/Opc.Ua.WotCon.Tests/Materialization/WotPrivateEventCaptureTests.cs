@@ -44,6 +44,52 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [TestFixture]
     public sealed class WotPrivateEventCaptureTests
     {
+        [TestCase("BaseEvent", 8)]
+        [TestCase("Condition", 23)]
+        [TestCase("Acknowledgeable", 25)]
+        [TestCase("Alarm", 29)]
+        [TestCase("Limit", 29)]
+        public void RequiredCaptureMatchesAdvertisedCoreType(string kind, int count)
+        {
+            NodeId coreType = kind switch
+            {
+                "BaseEvent" => Ua.ObjectTypeIds.BaseEventType,
+                "Condition" => Ua.ObjectTypeIds.ConditionType,
+                "Acknowledgeable" => Ua.ObjectTypeIds.AcknowledgeableConditionType,
+                "Alarm" => Ua.ObjectTypeIds.AlarmConditionType,
+                "Limit" => Ua.ObjectTypeIds.LimitAlarmType,
+                _ => throw new ArgumentOutOfRangeException(nameof(kind))
+            };
+            ArrayOf<WotResolvedEventSelectClause> clauses = WotCapturedEvent.GetRequiredSelectClauses(coreType);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(clauses.Count, Is.EqualTo(count));
+                Assert.That(clauses.Contains(clause => clause.IsConditionIdSelection),
+                    Is.EqualTo(kind != "BaseEvent"));
+                Assert.That(clauses.Contains(clause => clause.BrowsePath == "AckedState/Id"),
+                    Is.EqualTo(kind is "Acknowledgeable" or "Alarm" or "Limit"));
+                Assert.That(clauses.Contains(clause => clause.BrowsePath == "ActiveState/Id"),
+                    Is.EqualTo(kind is "Alarm" or "Limit"));
+                Assert.That(clauses.Contains(clause => clause.BrowsePath == "InputNode"),
+                    Is.EqualTo(kind is "Alarm" or "Limit"));
+                Assert.That(clauses.Contains(clause => clause.BrowsePath == "SuppressedOrShelved"),
+                    Is.EqualTo(kind is "Alarm" or "Limit"));
+            }
+            for (int index = 0; index < WotEventSelectClauses.Default.Count; index++)
+            {
+                Assert.That(clauses[index], Is.EqualTo(WotEventSelectClauses.Default[index]));
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RequiredCaptureRejectsUnsupportedCoreTypes(bool custom)
+        {
+            ServiceResultException? error = Assert.Throws<ServiceResultException>(() =>
+                WotCapturedEvent.GetRequiredSelectClauses(custom ? new NodeId("Custom", 1) : NodeId.Null));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+        }
+
         [Test]
         public void RequiredCapturePreservesPublicPrefixAndDeduplicatesExactOperands()
         {

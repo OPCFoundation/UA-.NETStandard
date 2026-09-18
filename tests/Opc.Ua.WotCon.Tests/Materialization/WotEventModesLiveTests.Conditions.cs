@@ -253,11 +253,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var context = endpoint.Server.CurrentInstance.DefaultSystemContext;
             NodeId conditionId = ExpandedNodeId.Parse(
                 "nsu=" + SourceNamespace + ";s=" + conditionName, context.NamespaceUris);
-            var state = new ConditionState(null);
+            NodeId eventTypeId = ExpandedNodeId.Parse(
+                "nsu=" + SourceNamespace + ";s=ConditionEventType", context.NamespaceUris);
+            ConditionState state = context.TypeTable.IsTypeOf(eventTypeId, Ua.ObjectTypeIds.AcknowledgeableConditionType)
+                ? new AcknowledgeableConditionState(null) : new ConditionState(null);
             state.Create(context, conditionId, new QualifiedName(conditionName, conditionId.NamespaceIndex),
                 new LocalizedText(conditionName), assignNodeIds: false);
-            state.TypeDefinitionId = ExpandedNodeId.Parse(
-                "nsu=" + SourceNamespace + ";s=ConditionEventType", context.NamespaceUris);
+            state.TypeDefinitionId = eventTypeId;
             state.EventId!.Value = eventId;
             state.EventType!.Value = state.TypeDefinitionId;
             state.SourceNode!.Value = ExpandedNodeId.Parse(
@@ -273,6 +275,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 : NodeId.Null;
             state.EnabledState!.Id!.Value = enabled;
             state.Retain!.Value = true;
+            if (state is AcknowledgeableConditionState acknowledgeable)
+            {
+                acknowledgeable.AckedState!.Value = new LocalizedText("Unacknowledged");
+                acknowledgeable.AckedState.Id!.Value = false;
+            }
             configure?.Invoke(state);
             await endpoint.Server.CurrentInstance.ReportEventAsync(context, state, ct).ConfigureAwait(false);
         }

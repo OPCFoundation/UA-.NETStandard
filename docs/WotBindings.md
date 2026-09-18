@@ -654,6 +654,15 @@ Comment, ClientUserId, and the mandatory SourceTimestamp subcomponents of
 Quality, LastSeverity, and Comment. Non-Condition occurrences do not acquire
 Condition semantics merely because these operands were requested.
 
+The Core-type capture overload also requests `AckedState` and its Id for
+`AcknowledgeableConditionType`. For `AlarmConditionType` and `LimitAlarmType`,
+it adds `ActiveState` and its Id, `InputNode`, and `SuppressedOrShelved`.
+The runtime selects these fields from the advertised Core representation,
+not from the public selection. A shared source captures the fields needed by
+all its declarations; each binding applies only fields valid for its own type.
+An ordinary Condition does not require alarm fields. The existing Boolean
+capture overload retains its BaseEventType or common ConditionType contract.
+
 `WotCompiledForm.EventSelection`, `WotNotification.EventFields`, and
 `WotNotification.Data` still contain only the authored public selection. Native
 projected notifications and Condition instances receive their Core fields from

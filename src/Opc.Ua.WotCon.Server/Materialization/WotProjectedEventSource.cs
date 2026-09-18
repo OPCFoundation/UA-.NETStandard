@@ -63,9 +63,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return await capturing.CaptureEventSourceAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        public void RequireConditionFields()
+        public void RequireConditionFields(ITypeTable types, NodeId eventTypeId)
         {
-            m_captureConditionFields = true;
+            NodeId coreType = types.IsTypeOf(eventTypeId, Ua.ObjectTypeIds.LimitAlarmType)
+                ? Ua.ObjectTypeIds.LimitAlarmType
+                : types.IsTypeOf(eventTypeId, Ua.ObjectTypeIds.AlarmConditionType)
+                    ? Ua.ObjectTypeIds.AlarmConditionType
+                    : types.IsTypeOf(eventTypeId, Ua.ObjectTypeIds.AcknowledgeableConditionType)
+                        ? Ua.ObjectTypeIds.AcknowledgeableConditionType : Ua.ObjectTypeIds.ConditionType;
+            if (m_captureEventType == Ua.ObjectTypeIds.BaseEventType || types.IsTypeOf(coreType, m_captureEventType))
+            {
+                m_captureEventType = coreType;
+            }
         }
 
         public async ValueTask<IAsyncDisposable> AttachAsync(
@@ -102,7 +111,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     {
                         m_subscription = channel is IWotCapturedEventChannel capturing
                             ? await capturing.SubscribeCapturedEventAsync(
-                                m_captureConditionFields, Dispatch, acquisition.Token).ConfigureAwait(false)
+                                m_captureEventType, Dispatch, acquisition.Token).ConfigureAwait(false)
                             : await channel.SubscribeEventAsync(Dispatch, acquisition.Token).ConfigureAwait(false);
                     }
                 }
@@ -362,7 +371,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private long m_nextListener;
         private int m_operationCount;
         private TaskCompletionSource<bool>? m_operationsDrained;
-        private bool m_captureConditionFields;
+        private NodeId m_captureEventType = Ua.ObjectTypeIds.BaseEventType;
         private bool m_disposed;
     }
 }

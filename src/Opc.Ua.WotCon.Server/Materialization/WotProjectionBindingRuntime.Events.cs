@@ -94,7 +94,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                     if (isCondition)
                     {
-                        source.RequireConditionFields();
+                        source.RequireConditionFields(m_builder.Context.TypeTable, eventTypeId);
                     }
                     TimeProvider timeProvider = m_builder.NodeManager is AsyncCustomNodeManager manager &&
                         manager.Server is ITimeProviderProvider provider

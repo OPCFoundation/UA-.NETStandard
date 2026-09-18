@@ -494,6 +494,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     captureConditionFields, onEvent, cancellationToken);
             }
 
+            public ValueTask<IWotSubscription> SubscribeCapturedEventAsync(
+                NodeId coreEventType, Action<WotNotification> onEvent,
+                CancellationToken cancellationToken = default)
+            {
+                SubscribeCount++;
+                return ((IWotCapturedEventChannel)inner).SubscribeCapturedEventAsync(
+                    coreEventType, onEvent, cancellationToken);
+            }
+
             public ValueTask<WotReadResult> ReadAsync(CancellationToken cancellationToken = default)
             {
                 return inner.ReadAsync(cancellationToken);

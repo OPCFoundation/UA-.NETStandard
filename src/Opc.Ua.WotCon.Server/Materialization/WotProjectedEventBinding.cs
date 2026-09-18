@@ -761,8 +761,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             for (int index = 0; index < captured.Clauses.Count; index++)
             {
                 WotResolvedEventSelectClause clause = captured.Clauses[index];
-                if (clause.IsConditionIdSelection ||
-                    (!IsCondition && clause.TypeDefinitionId == WotCapturedEvent.ConditionTypeId))
+                if (clause.IsConditionIdSelection || !IsApplicableCapturedClause(clause))
                 {
                     continue;
                 }
@@ -788,7 +787,25 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
-        private static bool HasCapturedField(WotCapturedEvent? captured, ArrayOf<QualifiedName> path)
+        private bool IsApplicableCapturedClause(WotResolvedEventSelectClause clause)
+        {
+            if (clause.TypeDefinitionId == WotCapturedEvent.ConditionTypeId)
+            {
+                return IsCondition;
+            }
+            if (clause.TypeDefinitionId == WotCapturedEvent.AcknowledgeableConditionTypeId)
+            {
+                return IsCondition && m_context.TypeTable.IsTypeOf(
+                    EventTypeId, Ua.ObjectTypeIds.AcknowledgeableConditionType);
+            }
+            if (clause.TypeDefinitionId == WotCapturedEvent.AlarmConditionTypeId)
+            {
+                return IsCondition && m_context.TypeTable.IsTypeOf(EventTypeId, Ua.ObjectTypeIds.AlarmConditionType);
+            }
+            return true;
+        }
+
+        private bool HasCapturedField(WotCapturedEvent? captured, ArrayOf<QualifiedName> path)
         {
             if (captured is null || path.Contains(name => name.NamespaceIndex != 0))
             {
@@ -796,8 +813,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             for (int index = 0; index < captured.Clauses.Count; index++)
             {
-                ArrayOf<string> capturedPath = captured.Clauses[index].PathElements;
-                if (captured.Fields[index].IsNull || path.Count != capturedPath.Count)
+                WotResolvedEventSelectClause clause = captured.Clauses[index];
+                ArrayOf<string> capturedPath = clause.PathElements;
+                if (!IsApplicableCapturedClause(clause) ||
+                    captured.Fields[index].IsNull || path.Count != capturedPath.Count)
                 {
                     continue;
                 }

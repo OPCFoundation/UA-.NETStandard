@@ -160,8 +160,17 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             Action<WotNotification> onEvent,
             CancellationToken cancellationToken = default)
         {
-            return SubscribeEventCoreAsync(onEvent, captureConditionFields
-                ? WotCapturedEvent.RequiredSelectClauses : WotEventSelectClauses.Default, cancellationToken);
+            return SubscribeCapturedEventAsync(captureConditionFields
+                ? Ua.ObjectTypeIds.ConditionType : Ua.ObjectTypeIds.BaseEventType, onEvent, cancellationToken);
+        }
+
+        public ValueTask<IWotSubscription> SubscribeCapturedEventAsync(
+            NodeId coreEventType,
+            Action<WotNotification> onEvent,
+            CancellationToken cancellationToken = default)
+        {
+            return SubscribeEventCoreAsync(
+                onEvent, WotCapturedEvent.GetRequiredSelectClauses(coreEventType), cancellationToken);
         }
 
         public ValueTask DisposeAsync()

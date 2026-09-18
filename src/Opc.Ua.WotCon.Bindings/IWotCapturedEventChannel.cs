@@ -65,5 +65,23 @@ namespace Opc.Ua.WotCon.Bindings
             bool captureConditionFields,
             Action<WotNotification> onEvent,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Subscribes with private fields required by the advertised Core event
+        /// representation, without extending the public notification selection.
+        /// </summary>
+        /// <param name="coreEventType">
+        /// BaseEventType, ConditionType, AcknowledgeableConditionType,
+        /// AlarmConditionType, or LimitAlarmType.
+        /// </param>
+        /// <param name="onEvent">Receives the public selection and captured source facts.</param>
+        /// <param name="cancellationToken">Cancels subscription creation.</param>
+        /// <exception cref="ServiceResultException">
+        /// The Core representation or its required source fields are unsupported.
+        /// </exception>
+        ValueTask<IWotSubscription> SubscribeCapturedEventAsync(
+            NodeId coreEventType,
+            Action<WotNotification> onEvent,
+            CancellationToken cancellationToken = default);
     }
 }

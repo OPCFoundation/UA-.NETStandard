@@ -124,6 +124,11 @@ namespace Opc.Ua.WotCon.Bindings
 
         internal static string ConditionTypeId { get; } = Ua.ObjectTypeIds.ConditionType.ToString();
 
+        internal static string AcknowledgeableConditionTypeId { get; } =
+            Ua.ObjectTypeIds.AcknowledgeableConditionType.ToString();
+
+        internal static string AlarmConditionTypeId { get; } = Ua.ObjectTypeIds.AlarmConditionType.ToString();
+
         /// <summary>
         /// Core BaseEventType fields and ConditionType fields, including the
         /// NodeId Attribute and mandatory subcomponents (Part 9, 5.5.2).
@@ -148,6 +153,28 @@ namespace Opc.Ua.WotCon.Bindings
             new(ConditionTypeId, Ua.BrowseNames.Comment + "/" + Ua.BrowseNames.SourceTimestamp),
             new(ConditionTypeId, Ua.BrowseNames.ClientUserId)
         ];
+
+        internal static ArrayOf<WotResolvedEventSelectClause> GetRequiredSelectClauses(NodeId coreEventType)
+        {
+            if (coreEventType == Ua.ObjectTypeIds.BaseEventType)
+            {
+                return WotEventSelectClauses.Default;
+            }
+            if (coreEventType == Ua.ObjectTypeIds.ConditionType)
+            {
+                return RequiredSelectClauses;
+            }
+            if (coreEventType == Ua.ObjectTypeIds.AcknowledgeableConditionType)
+            {
+                return [.. RequiredSelectClauses, .. s_acknowledgeableFields];
+            }
+            if (coreEventType == Ua.ObjectTypeIds.AlarmConditionType || coreEventType == Ua.ObjectTypeIds.LimitAlarmType)
+            {
+                return [.. RequiredSelectClauses, .. s_acknowledgeableFields, .. s_alarmFields];
+            }
+            throw new ServiceResultException(
+                StatusCodes.BadNotSupported, "The requested Core event capture representation is unsupported.");
+        }
 
         internal static WotCapturedEvent Capture(
             WotEventSource source,
@@ -243,5 +270,19 @@ namespace Opc.Ua.WotCon.Bindings
             }
             return NodeId.ToExpandedNodeId(nodeId, namespaces);
         }
+
+        private static readonly ArrayOf<WotResolvedEventSelectClause> s_acknowledgeableFields =
+        [
+            new(AcknowledgeableConditionTypeId, Ua.BrowseNames.AckedState),
+            new(AcknowledgeableConditionTypeId, Ua.BrowseNames.AckedState + "/" + Ua.BrowseNames.Id)
+        ];
+
+        private static readonly ArrayOf<WotResolvedEventSelectClause> s_alarmFields =
+        [
+            new(AlarmConditionTypeId, Ua.BrowseNames.ActiveState),
+            new(AlarmConditionTypeId, Ua.BrowseNames.ActiveState + "/" + Ua.BrowseNames.Id),
+            new(AlarmConditionTypeId, Ua.BrowseNames.InputNode),
+            new(AlarmConditionTypeId, Ua.BrowseNames.SuppressedOrShelved)
+        ];
     }
 }
