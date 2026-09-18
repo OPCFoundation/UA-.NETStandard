@@ -45,6 +45,59 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     {
         [TestCase("local-re-emission")]
         [TestCase("transparent-forwarding")]
+        public async Task StatePropertyCannotMasqueradeAsRetainedRefreshAsync(string mode)
+        {
+            await using var h = new RefreshHarness(mode, includeStateProperty: true);
+            h.Alarm.SuppressedOrShelved!.Value = false;
+            BaseEventState? first = await h.ProjectAsync().ConfigureAwait(false);
+            Assert.That(first, Is.Not.Null);
+            ByteString eventId = first!.EventId!.Value;
+            h.Alarm.SuppressedOrShelved.Value = true;
+            StatusCode status = StatusCodes.Good;
+            try
+            {
+                _ = await h.ProjectAsync().ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception)
+            {
+                status = exception.StatusCode;
+            }
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(status, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+                Assert.That(h.Conditions, Has.Count.EqualTo(1));
+                Assert.That(h.Conditions[0].EventId!.Value, Is.EqualTo(eventId));
+                Assert.That(h.Conditions[0].SuppressedOrShelved!.Value, Is.False);
+                Assert.That(h.Conditions[0].HighLimit!.Value, Is.EqualTo(100d));
+            }
+        }
+
+        [TestCaseSource(nameof(NonStateCorePropertyCases))]
+        public async Task CoreConfigurationPropertyRefreshPreservesIdentityAsync(string mode, string propertyName)
+        {
+            await using var h = new RefreshHarness(mode, configurationProperty: propertyName);
+            BaseEventState? first = await h.ProjectAsync().ConfigureAwait(false);
+            Assert.That(first, Is.Not.Null);
+            ByteString eventId = first!.EventId!.Value;
+            Variant updated = ConfigurationValue(propertyName, changed: true);
+            h.ConfigurationProperty!.Value = updated;
+            h.Alarm.ReceiveTime!.Value = s_time + TimeSpan.FromSeconds(1);
+
+            BaseEventState? refresh = await h.ProjectAsync().ConfigureAwait(false);
+            Assert.That(refresh, Is.Not.Null);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(refresh!.EventId!.Value, Is.EqualTo(eventId));
+                Assert.That(Read(refresh, h.Context, propertyName), Is.EqualTo(updated));
+                Assert.That(h.Conditions, Has.Count.EqualTo(1));
+                Assert.That(Read(h.Conditions[0], h.Context, propertyName), Is.EqualTo(updated));
+                Assert.That(h.Conditions[0].EventId!.Value, Is.EqualTo(eventId));
+            }
+            Assert.That(await h.ProjectAsync().ConfigureAwait(false), Is.Null);
+        }
+
+        [TestCase("local-re-emission")]
+        [TestCase("transparent-forwarding")]
         public async Task RetainedPropertyUpdateReusesIdentityAndFiniteCapacityAsync(string mode)
         {
             await using var h = new RefreshHarness(mode);
@@ -205,6 +258,24 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return alarm;
         }
 
+        private static IEnumerable<TestCaseData> NonStateCorePropertyCases()
+        {
+            foreach (string mode in s_identityModes)
+            {
+                foreach (string property in s_nonStateCoreProperties)
+                {
+                    yield return new TestCaseData(mode, property);
+                }
+            }
+        }
+
+        private static Variant ConfigurationValue(string propertyName, bool changed)
+        {
+            return propertyName.StartsWith("Severity", StringComparison.Ordinal)
+                ? new Variant((ushort)(changed ? 450 : 400))
+                : new Variant(changed ? 110d : 100d);
+        }
+
         private static Variant Read(BaseEventState state, SystemContext context, string path)
         {
             return state.GetAttributeValue(
@@ -214,7 +285,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private sealed class RefreshHarness : IAsyncDisposable
         {
-            public RefreshHarness(string mode, bool limitType = true, bool qualifiedProperty = false)
+            public RefreshHarness(
+                string mode, bool limitType = true, bool qualifiedProperty = false, bool includeStateProperty = false,
+                string? configurationProperty = null)
             {
                 ServiceMessageContext messageContext = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
                 messageContext.NamespaceUris = new NamespaceTable(
@@ -236,6 +309,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     TypeTable = types
                 };
                 Alarm = CreateAlarm(Context, s_sourceType, new NodeId("retainedLimitAlarm", 1), s_eventId, s_time);
+                if (configurationProperty is not null)
+                {
+                    ConfigurationProperty = Alarm.CreateChild(
+                        Context, QualifiedName.From(configurationProperty), assignInstanceNodeIds: false) as PropertyState
+                        ?? throw new AssertionException("The fixture must use a declared Core Property.");
+                    ConfigurationProperty.Value = ConfigurationValue(configurationProperty, changed: false);
+                }
                 Lookalike = PropertyState<double>.With<VariantBuilder>(Alarm, 100d);
                 Lookalike.BrowseName = new QualifiedName(Ua.BrowseNames.HighLimit, 1);
                 Alarm.AddChild(Lookalike);
@@ -250,6 +330,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         new WotResolvedEventSelectClause(s_sourceTypeText, "AckedState/Id")
                     ],
                     WotEventSelectionOrigin.Standard);
+                if (includeStateProperty)
+                {
+                    selection = new WotEventSelection(selection.Clauses.AddItem(
+                        new WotResolvedEventSelectClause(s_sourceTypeText, "SuppressedOrShelved")),
+                        WotEventSelectionOrigin.Standard);
+                }
+                if (configurationProperty is not null && configurationProperty != Ua.BrowseNames.HighLimit)
+                {
+                    selection = new WotEventSelection(selection.Clauses.AddItem(
+                        new WotResolvedEventSelectClause(s_sourceTypeText, configurationProperty)),
+                        WotEventSelectionOrigin.Standard);
+                }
                 var form = new WotCompiledForm(
                     new WotBindingIdentity("opc.opcua", "10101", "urn:opcfoundation:wot:binding:opcua"),
                     Bindings.WotAffordanceKind.Event, "alarm", "/events/alarm/forms/0",
@@ -283,6 +375,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public LimitAlarmState Alarm { get; }
 
             public PropertyState<double> Lookalike { get; }
+
+            public PropertyState? ConfigurationProperty { get; }
 
             public WotProjectedEventBinding Binding { get; }
 
@@ -362,5 +456,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             new ExpandedNodeId("LimitEventType", SourceNamespace).ToString();
         private static readonly ByteString s_eventId = ByteString.From(new byte[] { 0xD3, 0xC4, 0x11 });
         private static readonly DateTimeUtc s_time = new(2026, 9, 18, 15, 0, 0);
+        private static readonly string[] s_identityModes = ["local-re-emission", "transparent-forwarding"];
+        private static readonly string[] s_nonStateCoreProperties =
+        [
+            "MaxTimeShelved", "OnDelay", "OffDelay", "ReAlarmTime",
+            "HighHighLimit", "HighLimit", "LowLimit", "LowLowLimit",
+            "BaseHighHighLimit", "BaseHighLimit", "BaseLowLimit", "BaseLowLowLimit",
+            "SeverityHighHigh", "SeverityHigh", "SeverityLow", "SeverityLowLow",
+            "HighHighDeadband", "HighDeadband", "LowDeadband", "LowLowDeadband"
+        ];
     }
 }

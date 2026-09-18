@@ -628,7 +628,14 @@ The declared type must agree with that representation. The update retains
 EventId, Time, ConditionId, BranchId, captured Core state, value type and
 status/timestamp facts. It updates the retained Property and receipt provenance
 without consuming another occurrence slot. Namespace lookalikes do not gain this
-permission. Other changes to selected or privately captured state, identity, or
+permission. The supported configuration Properties are the Core alarm timing
+settings (`MaxTimeShelved`, `OnDelay`, `OffDelay`, `ReAlarmTime`) and the limit,
+base-limit, per-limit severity and deadband settings of `LimitAlarmType`.
+Membership is checked against the actual Core state member, not just a matching
+name or `PropertyState` node class. State Properties such as
+`SuppressedOrShelved` and `AudibleEnabled` cannot change within the same retained
+occurrence. The shared native EventId domain also compares those state flags.
+Other changes to selected or privately captured state, identity, or
 source binding fault that binding's availability with
 `BadSecurityChecksFailed`, preserve the last accepted evidence, and revoke its
 occurrence action route.

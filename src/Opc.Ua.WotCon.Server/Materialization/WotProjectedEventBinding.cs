@@ -706,10 +706,40 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     !HasCapturedField(captured, field.Path))
                 {
                     permitted[index] = children.Any(child =>
-                        child is PropertyState && child.BrowseName == field.Path[0]);
+                        child is PropertyState property && child.BrowseName == field.Path[0] &&
+                        IsNonStateCoreProperty(condition, property));
                 }
             }
             return permitted;
+        }
+
+        private static bool IsNonStateCoreProperty(ConditionState condition, PropertyState property)
+        {
+            if (condition is AlarmConditionState alarm &&
+                (ReferenceEquals(property, alarm.MaxTimeShelved) ||
+                    ReferenceEquals(property, alarm.OnDelay) ||
+                    ReferenceEquals(property, alarm.OffDelay) ||
+                    ReferenceEquals(property, alarm.ReAlarmTime)))
+            {
+                return true;
+            }
+            return condition is LimitAlarmState limit &&
+                (ReferenceEquals(property, limit.HighHighLimit) ||
+                    ReferenceEquals(property, limit.HighLimit) ||
+                    ReferenceEquals(property, limit.LowLimit) ||
+                    ReferenceEquals(property, limit.LowLowLimit) ||
+                    ReferenceEquals(property, limit.BaseHighHighLimit) ||
+                    ReferenceEquals(property, limit.BaseHighLimit) ||
+                    ReferenceEquals(property, limit.BaseLowLimit) ||
+                    ReferenceEquals(property, limit.BaseLowLowLimit) ||
+                    ReferenceEquals(property, limit.SeverityHighHigh) ||
+                    ReferenceEquals(property, limit.SeverityHigh) ||
+                    ReferenceEquals(property, limit.SeverityLow) ||
+                    ReferenceEquals(property, limit.SeverityLowLow) ||
+                    ReferenceEquals(property, limit.HighHighDeadband) ||
+                    ReferenceEquals(property, limit.HighDeadband) ||
+                    ReferenceEquals(property, limit.LowDeadband) ||
+                    ReferenceEquals(property, limit.LowLowDeadband));
         }
 
         private static bool IsRetainedCondition(WotCapturedEvent? captured)

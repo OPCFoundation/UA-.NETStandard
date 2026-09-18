@@ -498,7 +498,9 @@ namespace Opc.Ua.Server
             [QualifiedName.From(Ua.BrowseNames.AckedState), QualifiedName.From(Ua.BrowseNames.Id)],
             [QualifiedName.From(Ua.BrowseNames.ConfirmedState), QualifiedName.From(Ua.BrowseNames.Id)],
             [QualifiedName.From(Ua.BrowseNames.ActiveState), QualifiedName.From(Ua.BrowseNames.Id)],
-            [QualifiedName.From(Ua.BrowseNames.SuppressedState), QualifiedName.From(Ua.BrowseNames.Id)]
+            [QualifiedName.From(Ua.BrowseNames.SuppressedState), QualifiedName.From(Ua.BrowseNames.Id)],
+            [QualifiedName.From(Ua.BrowseNames.SuppressedOrShelved)],
+            [QualifiedName.From(Ua.BrowseNames.AudibleEnabled)]
         ];
     }
 

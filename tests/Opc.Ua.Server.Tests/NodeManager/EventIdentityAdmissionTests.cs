@@ -191,6 +191,37 @@ namespace Opc.Ua.Server.Tests.NodeManager
             fixture.Manager.AdmitEvent(fixture.Context, Event(s_id));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void NativeStatePropertiesCannotReuseRetainedIdentity(bool audible)
+        {
+            using var fixture = new IdentityFixture();
+            EnableAdmission(fixture);
+            LimitAlarmState condition = Condition(s_id);
+            PropertyState<bool> property;
+            if (audible)
+            {
+                condition.AudibleEnabled ??= PropertyState<bool>.With<VariantBuilder>(condition);
+                condition.AudibleEnabled.BrowseName = QualifiedName.From(BrowseNames.AudibleEnabled);
+                property = condition.AudibleEnabled;
+            }
+            else
+            {
+                condition.SuppressedOrShelved ??= PropertyState<bool>.With<VariantBuilder>(condition);
+                condition.SuppressedOrShelved.BrowseName = QualifiedName.From(BrowseNames.SuppressedOrShelved);
+                property = condition.SuppressedOrShelved;
+            }
+            property.Value = false;
+            fixture.Manager.AdmitEvent(fixture.Context, condition);
+            var retained = new InstanceStateSnapshot();
+            retained.Initialize(fixture.Context, condition);
+            fixture.Manager.AdmitEvent(fixture.Context, retained);
+
+            property.Value = true;
+            AssertStatus(() => fixture.Manager.AdmitEvent(fixture.Context, condition),
+                StatusCodes.BadSecurityChecksFailed);
+        }
+
         [Test]
         public void LegacyNativeConflictMakesLaterOptionalAdmissionUnavailable()
         {
