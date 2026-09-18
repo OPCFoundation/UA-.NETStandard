@@ -76,6 +76,16 @@ Beyond-spec distributed building blocks (`Use*`):
 
 `AddServerRedundancy(...)` only publishes the redundancy metadata. It does not calculate or drive `Server.ServiceLevel`; register a ServiceLevel provider with `AddServerServiceLevel(...)`, or register an `IServiceLevelProvider` plus `ServiceLevelStartupTask`, when clients and Kubernetes readiness need live health or leader-state values.
 
+On the standard server, `ServiceLevelStartupTask` claims explicit ownership via
+`IServerServiceLevelControl`. Only one provider can claim the node for that
+server's lifetime; a second claim fails instead of creating competing writers.
+Provider publications and session-headroom updates share the server's internal
+coordination, and session churn cannot overwrite any provider-owned value,
+including Healthy-band standby/load levels such as 210 or a fixed 255.
+Without an explicit owner, the session-headroom heuristic is unchanged.
+Custom `IServerContext` implementations can implement this optional capability;
+contexts without it retain their existing direct provider-publication behavior.
+
 ```csharp
 services.AddOpcUa()
     .AddServer(server =>

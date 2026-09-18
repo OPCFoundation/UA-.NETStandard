@@ -72,7 +72,8 @@ namespace Opc.Ua.Server
         IAsyncDisposable,
         ITimeProviderProvider,
         ISecurityPolicyRegistryProvider,
-        INodeIdFactoryProvider
+        INodeIdFactoryProvider,
+        IServerServiceLevelControl
     {
         /// <summary>
         /// Initializes the datastore with the server configuration.
@@ -1186,6 +1187,34 @@ namespace Opc.Ua.Server
             ReportEvent(context, e);
         }
 
+        /// <inheritdoc/>
+        public Action<byte> ClaimServiceLevelControl()
+        {
+            lock (m_serviceLevelLock)
+            {
+                if (m_hasServiceLevelOwner)
+                {
+                    throw new InvalidOperationException("Server.ServiceLevel already has an explicit provider.");
+                }
+                if (ServerObject?.ServiceLevel == null)
+                {
+                    throw new InvalidOperationException("Server.ServiceLevel is not available.");
+                }
+                m_hasServiceLevelOwner = true;
+                return PublishServiceLevel;
+            }
+        }
+
+        private void PublishServiceLevel(byte level)
+        {
+            lock (m_serviceLevelLock)
+            {
+                ServerObject.ServiceLevel!.Value = level;
+                ServerObject.ServiceLevel.Timestamp = TimeProvider.GetUtcNow().UtcDateTime;
+                ServerObject.ServiceLevel.ClearChangeMasks(DefaultSystemContext, false);
+            }
+        }
+
         /// <summary>
         /// Updates Server.ServiceLevel after the session count changes.
         /// </summary>
@@ -1212,6 +1241,10 @@ namespace Opc.Ua.Server
 
             lock (m_serviceLevelLock)
             {
+                if (m_hasServiceLevelOwner)
+                {
+                    return;
+                }
                 byte currentServiceLevel = Convert.ToByte(
                     ServerObject.ServiceLevel.Value,
                     CultureInfo.InvariantCulture);
@@ -1672,6 +1705,7 @@ namespace Opc.Ua.Server
         private readonly List<Historian.HistorianBuilder> m_historianBuilders = [];
         private readonly Lock m_historianBuildersLock = new();
         private readonly Lock m_serviceLevelLock = new();
+        private bool m_hasServiceLevelOwner;
         private RoleStateBinding? m_roleStateBinding;
         private volatile IReadOnlyList<ITransportListener>? m_transportListeners;
         private ArrayOf<EndpointDescription> m_serverEndpoints;

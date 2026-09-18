@@ -150,4 +150,18 @@ namespace Opc.Ua.Server
         /// <param name="update">The mutation to apply to the diagnostics.</param>
         void UpdateServerDiagnostics(Action<ServerDiagnosticsSummaryDataType> update);
     }
+
+    /// <summary>
+    /// Coordinates an explicit provider's ownership of the server's advertised service level.
+    /// </summary>
+    public interface IServerServiceLevelControl
+    {
+        /// <summary>
+        /// Claims service-level publication for the lifetime of this server and returns its writer.
+        /// Session-headroom updates stop once ownership is claimed.
+        /// </summary>
+        /// <returns>A writer that publishes a value, timestamp and data-change notification atomically.</returns>
+        /// <exception cref="InvalidOperationException">The service level already has an explicit owner.</exception>
+        Action<byte> ClaimServiceLevelControl();
+    }
 }
