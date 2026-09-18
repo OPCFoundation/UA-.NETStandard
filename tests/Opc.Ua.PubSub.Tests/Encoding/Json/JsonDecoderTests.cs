@@ -171,6 +171,22 @@ namespace OpcUaPubSubJsonTests
         }
 
         [Test]
+        public void JsonSchemaIngestCachesAnnouncement()
+        {
+            string schemaJson = "{\"type\":\"object\"}";
+            JsonSchemaAnnouncement announcement = new(
+                JsonSchemaAnnouncement.ComputeSchemaId(schemaJson),
+                schemaJson,
+                null);
+            var decoder = new Opc.Ua.PubSub.Encoding.Json.JsonDecoder();
+
+            decoder.Ingest(announcement);
+
+            Assert.That(decoder.SchemaCache.TryGet(announcement.SchemaId, out SchemaCacheEntry entry), Is.True);
+            Assert.That(entry.Format, Is.EqualTo(SchemaCache.JsonFormat));
+        }
+
+        [Test]
         public async Task TryDecodeAsync_NullContext_ThrowsAsync()
         {
             var decoder = new Opc.Ua.PubSub.Encoding.Json.JsonDecoder();

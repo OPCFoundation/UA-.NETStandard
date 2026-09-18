@@ -50,6 +50,64 @@ namespace System.IO
         {
             target.Write(value.ToArray());
         }
+
+        /// <summary>
+        /// Reads a sequence of bytes from the stream into the span.
+        /// </summary>
+        public static int Read(this Stream stream, Span<byte> buffer)
+        {
+            byte[] rented = Buffers.ArrayPool<byte>.Shared.Rent(buffer.Length);
+            try
+            {
+                int read = stream.Read(rented, 0, buffer.Length);
+                if (read > 0)
+                {
+                    rented.AsSpan(0, read).CopyTo(buffer);
+                }
+                return read;
+            }
+            finally
+            {
+                Buffers.ArrayPool<byte>.Shared.Return(rented);
+            }
+        }
+
+        /// <summary>
+        /// Writes a span of bytes to the stream.
+        /// </summary>
+        public static void Write(this Stream stream, ReadOnlySpan<byte> buffer)
+        {
+            byte[] rented = Buffers.ArrayPool<byte>.Shared.Rent(buffer.Length);
+            try
+            {
+                buffer.CopyTo(rented);
+                stream.Write(rented, 0, buffer.Length);
+            }
+            finally
+            {
+                Buffers.ArrayPool<byte>.Shared.Return(rented);
+            }
+        }
+#endif
+
+#if !NET7_0_OR_GREATER
+        /// <summary>
+        /// Reads exactly the number of bytes required to fill the span, throwing
+        /// <see cref="EndOfStreamException"/> if the stream ends before the span is filled.
+        /// </summary>
+        public static void ReadExactly(this Stream stream, Span<byte> buffer)
+        {
+            int total = 0;
+            while (total < buffer.Length)
+            {
+                int read = stream.Read(buffer.Slice(total));
+                if (read <= 0)
+                {
+                    throw new EndOfStreamException();
+                }
+                total += read;
+            }
+        }
 #endif
     }
 }
