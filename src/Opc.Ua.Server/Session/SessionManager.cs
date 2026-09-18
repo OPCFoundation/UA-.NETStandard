@@ -639,17 +639,22 @@ namespace Opc.Ua.Server
                                 cancellationToken)
                             .ConfigureAwait(false);
 
+                        if (ServiceResult.IsBad(error))
+                        {
+                            throw new ServiceResultException(error!);
+                        }
+
                         // parse the token manually if the identity is not provided.
                         if (identity == null)
                         {
-                                if (newIdentity == null ||
-                                    newIdentity.TokenType != UserTokenType.Anonymous)
-                                {
-                                    throw new ServiceResultException(
-                                        StatusCodes.BadIdentityTokenRejected);
-                                }
+                            if (newIdentity == null ||
+                                newIdentity.TokenType != UserTokenType.Anonymous)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadIdentityTokenRejected);
+                            }
 
-                                tempIdentity = new UserIdentity(newIdentity);
+                            tempIdentity = new UserIdentity(newIdentity);
                             identity = tempIdentity;
                         }
 
@@ -673,13 +678,6 @@ namespace Opc.Ua.Server
                                 newIdentity!);
                         }
                         throw;
-                    }
-
-                    // check for validation error.
-                    if (ServiceResult.IsBad(error))
-                    {
-                        RecordFailedAuthentication(clientKey);
-                        throw new ServiceResultException(error!);
                     }
 
                     // Compare the continuity key rather than the diagnostic
