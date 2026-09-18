@@ -516,6 +516,10 @@ namespace Opc.Ua.Server
             {
                 await MaterializeRegisteredAliasNameNodesAsync(externalReferences, cancellationToken)
                     .ConfigureAwait(false);
+                if (m_aliasNameOptions.RefreshAliasNodesOnChange)
+                {
+                    EnableAliasNameRefresh();
+                }
             }
 
             await CreateCertificateAlarmsAsync(

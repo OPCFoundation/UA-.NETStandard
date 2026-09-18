@@ -460,7 +460,7 @@ namespace Opc.Ua.Server.AliasNames
 
         private void RegisterCategoryRecursive(
             AliasNameCategoryDescriptor descriptor,
-            NodeId? parentId = null)
+            NodeId parentId = default)
         {
             if (!m_categories.TryAdd(descriptor.NodeId, new CategoryEntry(descriptor)))
             {
@@ -468,9 +468,9 @@ namespace Opc.Ua.Server.AliasNames
                     "Duplicate category NodeId: " + descriptor.NodeId,
                     nameof(descriptor));
             }
-            if (parentId != null)
+            if (!parentId.IsNull)
             {
-                m_parentByCategory[descriptor.NodeId] = parentId.Value;
+                m_parentByCategory[descriptor.NodeId] = parentId;
             }
             foreach (AliasNameCategoryDescriptor child in descriptor.SubCategories)
             {
@@ -671,7 +671,13 @@ namespace Opc.Ua.Server.AliasNames
 
             public AliasNameCategoryDescriptor Descriptor { get; }
             public Dictionary<string, Dictionary<MappingKey, string?>> Aliases { get; }
-            public uint LastChange { get; set; }
+            public uint LastChange
+            {
+                get => Volatile.Read(ref m_lastChange);
+                set => Volatile.Write(ref m_lastChange, value);
+            }
+
+            private uint m_lastChange;
         }
     }
 }

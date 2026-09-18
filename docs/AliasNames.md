@@ -91,6 +91,8 @@ registries. The opt-in
 `IOpcUaServerBuilder` in `Microsoft.Extensions.DependencyInjection`.
 `AliasNameServerOptions` is in `Opc.Ua.Server.AliasNames`, and its
 `MaterializeAliasNodes` property defaults to `false`.
+`RefreshAliasNodesOnChange` separately defaults to `false`, preserving the
+startup browse snapshot even when materialization is enabled.
 
 When enabled, the normal `ConfigurationNodeManager` materializes
 registered standard-category aliases and their declared optional
@@ -229,7 +231,31 @@ nodes. The created nodes are a snapshot taken at address-space creation
 — aliases added or removed later through
 `AddAliasesToCategory` / `DeleteAliasesFromCategory` change what
 `FindAlias` returns and advance `LastChange`, but do not add or remove
-`AliasNameType` nodes.
+`AliasNameType` nodes by default.
+
+To keep an explicitly materialized browse view current, also set
+`RefreshAliasNodesOnChange = true` on `AliasNameServerOptions` or
+`AliasNameNodeManagerOptions`. This setting never overrides
+`MaterializeAliasNodes = false`:
+
+```csharp
+builder.ConfigureAliasNames(options =>
+{
+    options.MaterializeAliasNodes = true;
+    options.RefreshAliasNodesOnChange = true;
+});
+```
+
+Each opted-in host owns one background worker and at most one pending
+refresh signal. Category and ancestor notifications coalesce into a pass
+over store roots. A completed query is applied only while its generation
+is current; query failures leave existing nodes and references intact and
+are logged. Reconciliation retains unchanged node instances, updates only
+changed associations, and applies inverse `HasAlias` references to their
+actual local targets. `LastChange` reads the current store version rather
+than a potentially delayed event value, including across counter rollover.
+Asynchronous host disposal cancels and drains the worker, with a fixed
+five-second drain limit and a warning if a provider does not stop.
 
 The browse view carries `AliasFor` associations only: an entry a store
 holds under an unrelated reference type is not a Part 17 §6.2 alias

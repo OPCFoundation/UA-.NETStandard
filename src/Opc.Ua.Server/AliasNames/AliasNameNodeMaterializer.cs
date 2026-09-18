@@ -127,6 +127,15 @@ namespace Opc.Ua.Server.AliasNames
             IDictionary<NodeId, IList<IReference>> externalReferences);
 
         /// <summary>
+        /// Updates a live target's inverse reference after address-space startup.
+        /// </summary>
+        ValueTask UpdateInverseAliasReferenceAsync(
+            NodeId targetId,
+            NodeId aliasNodeId,
+            bool remove,
+            CancellationToken cancellationToken);
+
+        /// <summary>
         /// Notifies the host that a category's <c>LastChange</c> property
         /// was created or seeded, so the host can keep it current from its
         /// store/registry Changed events.
@@ -157,16 +166,6 @@ namespace Opc.Ua.Server.AliasNames
     /// </remarks>
     internal sealed class AliasNameNodeMaterializer
     {
-        /// <summary>
-        /// The Part 4 §7.40 Like-pattern that matches every alias name.
-        /// </summary>
-        private const string AllAliasesPattern = "%";
-
-        private readonly IAliasNameMaterializerHost m_host;
-        private readonly IAliasNameStoreRegistry m_dispatchRegistry;
-        private readonly Func<ISystemContext, bool> m_authorizeMutations;
-        private readonly ILogger m_logger;
-
         /// <summary>
         /// Initializes the materializer for one host manager.
         /// </summary>
@@ -234,26 +233,8 @@ namespace Opc.Ua.Server.AliasNames
                 Dictionary<NodeId, List<AliasNameVerboseDataType>>? aliasesByCategory = null;
                 if (materializeAliasNodes)
                 {
-                    IReadOnlyList<AliasNameVerboseDataType> aliases = await store
-                        .FindAliasVerboseAsync(
-                            root.NodeId,
-                            AllAliasesPattern,
-                            ReferenceTypeIds.AliasFor,
-                            m_host.TypeTree,
-                            cancellationToken).ConfigureAwait(false);
-
-                    aliasesByCategory = [];
-                    foreach (AliasNameVerboseDataType alias in aliases)
-                    {
-                        if (!aliasesByCategory.TryGetValue(
-                                alias.AliasNameCategoryId,
-                                out List<AliasNameVerboseDataType>? bucket))
-                        {
-                            bucket = [];
-                            aliasesByCategory[alias.AliasNameCategoryId] = bucket;
-                        }
-                        bucket.Add(alias);
-                    }
+                    aliasesByCategory = await QueryAliasesAsync(store, root.NodeId, cancellationToken)
+                        .ConfigureAwait(false);
                 }
 
                 await MaterializeCategoryAsync(
@@ -268,46 +249,217 @@ namespace Opc.Ua.Server.AliasNames
         }
 
         /// <summary>
-        /// Rebuilds the alias instances beneath one category after its
-        /// backing store changes.
+        /// Queries a category subtree before reconciling its alias nodes and live inverse references.
         /// </summary>
         public async ValueTask RefreshCategoryAsync(
             IAliasNameStore store,
             NodeId categoryId,
+            bool materializeAliasNodes,
+            Func<bool>? isCurrentGeneration = null,
             CancellationToken cancellationToken = default)
         {
             AliasNameCategoryState? category = m_host.FindCategoryNode(categoryId);
-            if (category == null)
+            if (!materializeAliasNodes || category == null)
             {
                 return;
             }
 
-            var references = new List<IReference>();
-            category.GetReferences(m_host.SystemContext, references);
-            foreach (IReference reference in references)
+            Dictionary<NodeId, List<AliasNameVerboseDataType>> aliases = await QueryAliasesAsync(
+                store, categoryId, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (isCurrentGeneration != null && !isCurrentGeneration())
             {
-                NodeId targetId = ExpandedNodeId.ToNodeId(
-                    reference.TargetId,
-                    m_host.NamespaceUris);
-                if (reference.IsInverse ||
-                    reference.ReferenceTypeId != ReferenceTypeIds.Organizes ||
-                    !m_host.TryGetNode(targetId, out NodeState? node) ||
-                    node is not AliasNameState)
+                return;
+            }
+
+            var pending = new Queue<AliasNameCategoryState>();
+            var visited = new HashSet<NodeId>();
+            pending.Enqueue(category);
+            while (pending.Count != 0)
+            {
+                category = pending.Dequeue();
+                if (!visited.Add(category.NodeId))
                 {
                     continue;
                 }
+                cancellationToken.ThrowIfCancellationRequested();
+                var existing = new Dictionary<string, AliasNameState>(StringComparer.Ordinal);
+                var references = new List<IReference>();
+                category.GetReferences(m_host.SystemContext, references);
+                foreach (IReference reference in references)
+                {
+                    if (reference.IsInverse || reference.ReferenceTypeId != ReferenceTypeIds.Organizes ||
+                        !m_host.TryGetNode(ExpandedNodeId.ToNodeId(reference.TargetId, m_host.NamespaceUris),
+                            out NodeState? node))
+                    {
+                        continue;
+                    }
+                    if (node is AliasNameCategoryState child && store.OwnsCategory(child.NodeId))
+                    {
+                        pending.Enqueue(child);
+                    }
+                    else if (node is AliasNameState alias && !string.IsNullOrEmpty(alias.BrowseName.Name))
+                    {
+                        existing.TryAdd(alias.BrowseName.Name!, alias);
+                    }
+                }
 
-                await m_host.RemoveNodeAsync(targetId, cancellationToken)
+                var desired = new Dictionary<string, (QualifiedName Name, HashSet<ExpandedNodeId> Targets)>(
+                    StringComparer.Ordinal);
+                if (aliases.TryGetValue(category.NodeId, out List<AliasNameVerboseDataType>? bucket))
+                {
+                    foreach (AliasNameVerboseDataType alias in bucket)
+                    {
+                        string? name = alias.AliasName.Name;
+                        if (string.IsNullOrEmpty(name))
+                        {
+                            continue;
+                        }
+                        if (!desired.TryGetValue(name!, out var item))
+                        {
+                            item = (alias.AliasName, []);
+                            desired.Add(name!, item);
+                        }
+                        for (int ii = 0; ii < alias.ReferencedNodes.Count; ii++)
+                        {
+                            ExpandedNodeId target = ResolveAliasTarget(alias.ReferencedNodes[ii],
+                                ii < alias.ServerUris.Count ? alias.ServerUris[ii] : null);
+                            if (!target.IsNull)
+                            {
+                                item.Targets.Add(target);
+                            }
+                        }
+                    }
+                }
+
+                foreach (KeyValuePair<string, (QualifiedName Name, HashSet<ExpandedNodeId> Targets)> item in desired)
+                {
+                    AliasNameState alias = existing.TryGetValue(item.Key, out AliasNameState? current)
+                        ? current
+                        : await GetOrCreateAliasNodeAsync(
+                            category.NodeId, category, item.Value.Name, item.Key, [], cancellationToken)
+                            .ConfigureAwait(false);
+                    await ReconcileTargetsAsync(alias, item.Value.Targets, cancellationToken).ConfigureAwait(false);
+                }
+                foreach (KeyValuePair<string, AliasNameState> item in existing)
+                {
+                    if (desired.ContainsKey(item.Key))
+                    {
+                        continue;
+                    }
+                    await ReconcileTargetsAsync(item.Value, [], cancellationToken).ConfigureAwait(false);
+                    await m_host.RemoveNodeAsync(item.Value.NodeId, cancellationToken).ConfigureAwait(false);
+                    category.RemoveReference(ReferenceTypeIds.Organizes, false, item.Value.NodeId);
+                }
+                category.ClearChangeMasks(m_host.SystemContext, false);
+            }
+        }
+
+        private async ValueTask<Dictionary<NodeId, List<AliasNameVerboseDataType>>> QueryAliasesAsync(
+            IAliasNameStore store,
+            NodeId categoryId,
+            CancellationToken cancellationToken)
+        {
+            IReadOnlyList<AliasNameVerboseDataType> aliases = await store.FindAliasVerboseAsync(
+                categoryId, AllAliasesPattern, ReferenceTypeIds.AliasFor, m_host.TypeTree, cancellationToken)
+                .ConfigureAwait(false);
+            var result = new Dictionary<NodeId, List<AliasNameVerboseDataType>>();
+            foreach (AliasNameVerboseDataType alias in aliases)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!result.TryGetValue(alias.AliasNameCategoryId, out List<AliasNameVerboseDataType>? bucket))
+                {
+                    bucket = [];
+                    result.Add(alias.AliasNameCategoryId, bucket);
+                }
+                bucket.Add(alias);
+            }
+            return result;
+        }
+
+        private async ValueTask ReconcileTargetsAsync(
+            AliasNameState alias,
+            HashSet<ExpandedNodeId> desired,
+            CancellationToken cancellationToken)
+        {
+            var references = new List<IReference>();
+            alias.GetReferences(m_host.SystemContext, references);
+            foreach (IReference reference in references)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (reference.IsInverse || reference.ReferenceTypeId != ReferenceTypeIds.AliasFor ||
+                    desired.Contains(reference.TargetId))
+                {
+                    continue;
+                }
+                await UpdateInverseAsync(reference.TargetId, alias.NodeId, remove: true, cancellationToken)
+                    .ConfigureAwait(false);
+                alias.RemoveReference(ReferenceTypeIds.AliasFor, false, reference.TargetId);
+            }
+            foreach (ExpandedNodeId target in desired)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!alias.ReferenceExists(ReferenceTypeIds.AliasFor, false, target))
+                {
+                    await UpdateInverseAsync(target, alias.NodeId, remove: false, cancellationToken)
+                        .ConfigureAwait(false);
+                    alias.AddReference(ReferenceTypeIds.AliasFor, false, target);
+                }
+            }
+            alias.ClearChangeMasks(m_host.SystemContext, false);
+        }
+
+        private ValueTask UpdateInverseAsync(
+            ExpandedNodeId target,
+            NodeId aliasNodeId,
+            bool remove,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (target.ServerIndex != 0)
+            {
+                return default;
+            }
+            NodeId localTarget = ExpandedNodeId.ToNodeId(target, m_host.NamespaceUris);
+            return localTarget.IsNull
+                ? default
+                : m_host.UpdateInverseAliasReferenceAsync(localTarget, aliasNodeId, remove, cancellationToken);
+        }
+
+        internal static async ValueTask UpdateInverseAliasReferenceAsync(
+            IServerInternal server,
+            ISystemContext context,
+            NodeState? target,
+            NodeId targetId,
+            NodeId aliasNodeId,
+            bool remove,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (target != null)
+            {
+                if (remove)
+                {
+                    target.RemoveReference(ReferenceTypeIds.AliasFor, true, aliasNodeId);
+                }
+                else if (!target.ReferenceExists(ReferenceTypeIds.AliasFor, true, aliasNodeId))
+                {
+                    target.AddReference(ReferenceTypeIds.AliasFor, true, aliasNodeId);
+                }
+                target.ClearChangeMasks(context, false);
+            }
+            else if (remove)
+            {
+                await server.NodeManager.DeleteReferencesAsync(aliasNodeId,
+                    [new ReferenceNode { ReferenceTypeId = ReferenceTypeIds.AliasFor, TargetId = targetId }],
+                    cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await server.NodeManager.AddReferencesAsync(targetId,
+                    [new NodeStateReference(ReferenceTypeIds.AliasFor, true, aliasNodeId)], cancellationToken)
                     .ConfigureAwait(false);
             }
-
-            await MaterializeStoreAsync(
-                store,
-                new Dictionary<NodeId, IList<IReference>>(),
-                [],
-                [],
-                materializeAliasNodes: true,
-                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -657,14 +809,17 @@ namespace Opc.Ua.Server.AliasNames
                 return;
             }
 
+            if (onBound != null)
+            {
+                onBound(categoryId, category.LastChange);
+                return;
+            }
             uint? seed = registry.GetStoreForCategory(categoryId)?.GetLastChange(categoryId);
             if (seed.HasValue)
             {
                 category.LastChange.Value = seed.Value;
                 category.LastChange.ClearChangeMasks(context, false);
             }
-
-            onBound?.Invoke(categoryId, category.LastChange);
         }
 
         /// <summary>
@@ -748,7 +903,7 @@ namespace Opc.Ua.Server.AliasNames
                 if (!byName.TryGetValue(name, out AliasNameState? aliasNode))
                 {
                     aliasNode = await GetOrCreateAliasNodeAsync(
-                        descriptor, category, alias.AliasName, name, created,
+                        descriptor.NodeId, category, alias.AliasName, name, created,
                         cancellationToken).ConfigureAwait(false);
                     byName[name] = aliasNode;
                 }
@@ -780,7 +935,7 @@ namespace Opc.Ua.Server.AliasNames
         /// replacing the occupant.
         /// </remarks>
         private async ValueTask<AliasNameState> GetOrCreateAliasNodeAsync(
-            AliasNameCategoryDescriptor descriptor,
+            NodeId categoryId,
             AliasNameCategoryState category,
             QualifiedName aliasName,
             string name,
@@ -788,7 +943,7 @@ namespace Opc.Ua.Server.AliasNames
             CancellationToken cancellationToken)
         {
             var mintedId = new NodeId(
-                Utils.Format("{0}.{1}", descriptor.NodeId, name),
+                Utils.Format("{0}.{1}", categoryId, name),
                 m_host.MaterializationNamespaceIndex);
 
             if (m_host.TryGetNode(mintedId, out NodeState? existing))
@@ -865,55 +1020,39 @@ namespace Opc.Ua.Server.AliasNames
             string? serverUri,
             IDictionary<NodeId, IList<IReference>> externalReferences)
         {
+            ExpandedNodeId resolved = ResolveAliasTarget(target, serverUri);
+            if (resolved.IsNull || aliasNode.ReferenceExists(ReferenceTypeIds.AliasFor, false, resolved))
+            {
+                return;
+            }
+            aliasNode.AddReference(ReferenceTypeIds.AliasFor, false, resolved);
+            if (resolved.ServerIndex != 0 || !string.IsNullOrEmpty(serverUri))
+            {
+                return;
+            }
+            NodeId localTarget = ExpandedNodeId.ToNodeId(resolved, m_host.NamespaceUris);
+            if (!localTarget.IsNull)
+            {
+                m_host.AddInverseAliasReference(localTarget, aliasNode.NodeId, externalReferences);
+            }
+        }
+
+        private ExpandedNodeId ResolveAliasTarget(ExpandedNodeId target, string? serverUri)
+        {
             if (target.IsNull)
             {
-                return;
+                return target;
             }
-
             if (!string.IsNullOrEmpty(serverUri))
             {
-                // A target on a remote server has no local node to carry
-                // the inverse reference. Register the URI in the server
-                // table and stamp its index onto the reference target, so
-                // clients can resolve which server owns the node via the
-                // ServerArray — an ExpandedNodeId with ServerIndex 0 would
-                // misreport the target as local.
-                uint serverIndex = m_host.ServerUris.GetIndexOrAppend(serverUri!);
-                ExpandedNodeId remoteTarget = target.WithServerIndex(serverIndex);
-                if (!aliasNode.ReferenceExists(ReferenceTypeIds.AliasFor, false, remoteTarget))
-                {
-                    aliasNode.AddReference(ReferenceTypeIds.AliasFor, false, remoteTarget);
-                }
-                return;
+                return target.WithServerIndex(m_host.ServerUris.GetIndexOrAppend(serverUri!));
             }
-
-            // Resolve the namespace-uri form a store may have been seeded
-            // with, so the reference carries a plain local NodeId. The
-            // duplicate check runs on the RESOLVED id — the same target
-            // seeded once in URI form and once in index form must produce
-            // one reference, and AddReference throws on duplicates.
-            var localTarget = ExpandedNodeId.ToNodeId(target, m_host.NamespaceUris);
-            if (localTarget.IsNull)
+            if (target.ServerIndex != 0)
             {
-                if (!aliasNode.ReferenceExists(ReferenceTypeIds.AliasFor, false, target))
-                {
-                    aliasNode.AddReference(ReferenceTypeIds.AliasFor, false, target);
-                }
-                return;
+                return target;
             }
-
-            if (aliasNode.ReferenceExists(ReferenceTypeIds.AliasFor, false, localTarget))
-            {
-                return;
-            }
-
-            aliasNode.AddReference(ReferenceTypeIds.AliasFor, false, localTarget);
-
-            // The inverse reference travels only with a newly added
-            // forward reference, so repeat materializations do not queue
-            // duplicate external references for the target's manager.
-            m_host.AddInverseAliasReference(
-                localTarget, aliasNode.NodeId, externalReferences);
+            NodeId localTarget = ExpandedNodeId.ToNodeId(target, m_host.NamespaceUris);
+            return localTarget.IsNull ? target : new ExpandedNodeId(localTarget);
         }
 
         /// <summary>
@@ -932,6 +1071,12 @@ namespace Opc.Ua.Server.AliasNames
                 ? new QualifiedName(name.Name, m_host.MaterializationNamespaceIndex)
                 : name;
         }
+
+        private const string AllAliasesPattern = "%";
+        private readonly IAliasNameMaterializerHost m_host;
+        private readonly IAliasNameStoreRegistry m_dispatchRegistry;
+        private readonly Func<ISystemContext, bool> m_authorizeMutations;
+        private readonly ILogger m_logger;
     }
 
     /// <summary>

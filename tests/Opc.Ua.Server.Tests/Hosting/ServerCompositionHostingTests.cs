@@ -1288,6 +1288,72 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
         }
 
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task StandardLiveAliasRefreshRequiresBothOptInsAsync(bool materialize, bool topics)
+        {
+            NodeId categoryId = topics ? ObjectIds.Topics : ObjectIds.TagVariables;
+            using var store = new InMemoryAliasNameStore(
+                [new AliasNameCategoryDescriptor(categoryId,
+                    QualifiedName.From(topics ? BrowseNames.Topics : BrowseNames.TagVariables),
+                    AliasNameCapabilities.All)]);
+            store.Seed(categoryId, "BuildName",
+                VariableIds.Server_ServerStatus_BuildInfo_ProductName, null, ReferenceTypeIds.AliasFor);
+            HostedFixture fixture = HostedFixture.Create(builder =>
+            {
+                builder.AddAliasNameStore(store);
+                builder.ConfigureAliasNames(options =>
+                {
+                    options.MaterializeAliasNodes = materialize;
+                    options.RefreshAliasNodesOnChange = true;
+                });
+            });
+            await using var cleanup = fixture.ConfigureAwait(false);
+            await fixture.StartAsync().ConfigureAwait(false);
+            AliasNameCategoryState category = fixture.Context.FindPredefinedNode<AliasNameCategoryState>(categoryId);
+            ushort ns = fixture.Context.DefaultSystemContext.NamespaceUris.GetIndexOrAppend(
+                Ua.Namespaces.OpcUa + "Diagnostics");
+            var originalId = new NodeId(Utils.Format("{0}.{1}", categoryId, "BuildName"), ns);
+            var addedId = new NodeId(Utils.Format("{0}.{1}", categoryId, "BuildNumber"), ns);
+            AliasNameState original = fixture.Context.FindPredefinedNode<AliasNameState>(originalId);
+            var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (materialize)
+            {
+                Assert.That(original, Is.Not.Null);
+                category.OnStateChanged += (_, _, _) =>
+                {
+                    if (fixture.Context.FindPredefinedNode<AliasNameState>(addedId) != null)
+                    {
+                        published.TrySetResult(true);
+                    }
+                };
+            }
+
+            await store.AddAliasesAsync(categoryId,
+                [new AliasAddRequest("BuildNumber", VariableIds.Server_ServerStatus_BuildInfo_BuildNumber,
+                    null, ReferenceTypeIds.AliasFor)]).ConfigureAwait(false);
+            if (materialize)
+            {
+                await published.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(fixture.Context.FindPredefinedNode<AliasNameState>(originalId), Is.SameAs(original));
+                BaseVariableState target = fixture.Context.FindPredefinedNode<BaseVariableState>(
+                    VariableIds.Server_ServerStatus_BuildInfo_BuildNumber);
+                Assert.That(target.ReferenceExists(ReferenceTypeIds.AliasFor, true, addedId), Is.True);
+            }
+            else
+            {
+                Assert.That(fixture.Context.FindPredefinedNode<AliasNameState>(addedId), Is.Null);
+                Assert.That(category.FindAliasVerbose, Is.Null);
+                Assert.That(category.AddAliasesToCategory, Is.Null);
+                Assert.That(category.DeleteAliasesFromCategory, Is.Null);
+            }
+            ArrayOf<AliasNameDataType> current = await FindAliasesAsync(fixture.Context, category)
+                .ConfigureAwait(false);
+            Assert.That(current.ToArray().Select(alias => alias.AliasName.Name), Is.EquivalentTo(s_mutatedAliases));
+        }
+
         [Test]
         public async Task DefaultHostedReverseConnectUsesInjectedSessionHookAndStopsItsTimerAsync()
         {

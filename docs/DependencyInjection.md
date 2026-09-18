@@ -556,7 +556,10 @@ serverBuilder
 
 `AliasNameServerOptions` is in `Opc.Ua.Server.AliasNames`; its
 `MaterializeAliasNodes` defaults to `false`. Materialized browse nodes
-are a startup snapshot, not a live mirror of store mutations.
+are a startup snapshot by default. Also set `RefreshAliasNodesOnChange = true`
+to opt a materialized host into bounded, coalesced live refresh. This second
+option does not enable materialization by itself; query-only servers remain
+query-only.
 This setting is independent of `AliasNameNodeManagerOptions` for custom
 categories, whose `MaterializeAliasNodes` default remains `true`.
 See [Alias Names](AliasNames.md#browsable-alias-nodes) for capabilities,

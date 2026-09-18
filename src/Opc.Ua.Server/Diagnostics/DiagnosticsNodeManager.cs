@@ -172,6 +172,10 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         protected override async ValueTask DisposeAsyncCore()
         {
+            if (m_aliasRefresh != null)
+            {
+                await m_aliasRefresh.DisposeAsync().ConfigureAwait(false);
+            }
             await m_diagnosticsTransitionSemaphore.WaitAsync().ConfigureAwait(false);
             try
             {

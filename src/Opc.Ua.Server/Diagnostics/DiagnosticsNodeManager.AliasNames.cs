@@ -114,7 +114,7 @@ namespace Opc.Ua.Server
                     categoryId,
                     m_aliasRegistry!,
                     SystemContext,
-                    (id, lastChange) => m_lastChangeNodes[id] = lastChange);
+                    ((IAliasNameMaterializerHost)this).OnLastChangeBound);
             }
         }
 
@@ -143,7 +143,8 @@ namespace Opc.Ua.Server
         /// <c>LastChange</c>, but do not add or remove
         /// <c>AliasNameType</c> nodes — so a mutated category's browse view
         /// and its query results diverge until the next restart. This
-        /// applies to the standard well-known categories too whenever their
+        /// default can be changed by explicitly calling <see cref="EnableAliasNameRefresh"/>.
+        /// The snapshot behavior applies to the standard well-known categories too whenever their
         /// descriptor declares the mutation capabilities, because this
         /// method instantiates those methods for them.
         /// </para>
@@ -200,8 +201,47 @@ namespace Opc.Ua.Server
                     cancellationToken).ConfigureAwait(false);
             }
 
+            m_aliasNodesMaterialized = true;
             m_logger.MaterializedAliasNameNodes(created.Count);
             return created.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Explicitly opts a materialized startup snapshot into live, bounded refresh.
+        /// </summary>
+        protected void EnableAliasNameRefresh()
+        {
+            if (!m_aliasNodesMaterialized || m_aliasRegistry == null)
+            {
+                throw new InvalidOperationException("Materialize the registered alias stores before enabling refresh.");
+            }
+            if (m_aliasRefresh != null)
+            {
+                return;
+            }
+            m_aliasRefresh = new AliasNameRefreshCoordinator(
+                nameof(DiagnosticsNodeManager), Server.Telemetry, RefreshRegisteredAliasesAsync);
+            m_aliasRefresh.RequestRefresh();
+        }
+
+        private async ValueTask RefreshRegisteredAliasesAsync(long generation, CancellationToken cancellationToken)
+        {
+            IAliasNameStoreRegistry? registry = m_aliasRegistry;
+            AliasNameRefreshCoordinator? coordinator = m_aliasRefresh;
+            if (registry == null || coordinator == null)
+            {
+                return;
+            }
+            var materializer = new AliasNameNodeMaterializer(
+                this, registry, AliasNameMethodDispatcher.HasSecureAdminAccess, m_logger);
+            foreach (IAliasNameStore store in registry.Stores)
+            {
+                foreach (AliasNameCategoryDescriptor root in store.RootCategories)
+                {
+                    await materializer.RefreshCategoryAsync(store, root.NodeId, m_aliasNodesMaterialized,
+                        () => coordinator.IsCurrent(generation), cancellationToken).ConfigureAwait(false);
+                }
+            }
         }
 
         private void OnAliasRegistryChanged(object? sender, AliasStoreChangedEventArgs e)
@@ -219,28 +259,15 @@ namespace Opc.Ua.Server
                 // value write and the change-mask notification.
                 lock (m_lastChangeSync)
                 {
-                    lastChange.Value = e.LastChange;
-                    lastChange.ClearChangeMasks(SystemContext, false);
+                    uint? current = m_aliasRegistry?.GetStoreForCategory(e.CategoryId)?.GetLastChange(e.CategoryId);
+                    if (current.HasValue)
+                    {
+                        lastChange.Value = current.Value;
+                        lastChange.ClearChangeMasks(SystemContext, false);
+                    }
                 }
             }
-
-            if (m_aliasRegistry?.GetStoreForCategory(e.CategoryId) is IAliasNameStore store)
-            {
-                _ = RefreshRegisteredAliasCategoryAsync(store, e.CategoryId);
-            }
-        }
-
-        private async Task RefreshRegisteredAliasCategoryAsync(
-            IAliasNameStore store,
-            NodeId categoryId)
-        {
-            var materializer = new AliasNameNodeMaterializer(
-                this,
-                m_aliasRegistry!,
-                AliasNameMethodDispatcher.HasSecureAdminAccess,
-                m_logger);
-            await materializer.RefreshCategoryAsync(store, categoryId)
-                .ConfigureAwait(false);
+            m_aliasRefresh?.RequestRefresh();
         }
 
         /// <summary>
@@ -252,6 +279,8 @@ namespace Opc.Ua.Server
         /// </summary>
         private void UnwireStandardAliasMethods()
         {
+            m_aliasNodesMaterialized = false;
+            m_aliasRefresh?.Dispose();
             IAliasNameStoreRegistry? registry = m_aliasRegistry;
             if (registry != null)
             {
@@ -363,13 +392,36 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        ValueTask IAliasNameMaterializerHost.UpdateInverseAliasReferenceAsync(
+            NodeId targetId,
+            NodeId aliasNodeId,
+            bool remove,
+            CancellationToken cancellationToken)
+        {
+            PredefinedNodes.TryGetValue(targetId, out NodeState? target);
+            return AliasNameNodeMaterializer.UpdateInverseAliasReferenceAsync(
+                Server, SystemContext, target, targetId, aliasNodeId, remove, cancellationToken);
+        }
+
+        /// <inheritdoc/>
         void IAliasNameMaterializerHost.OnLastChangeBound(
             NodeId categoryId, PropertyState<uint> lastChange)
         {
-            m_lastChangeNodes[categoryId] = lastChange;
+            lock (m_lastChangeSync)
+            {
+                uint? current = m_aliasRegistry?.GetStoreForCategory(categoryId)?.GetLastChange(categoryId);
+                if (current.HasValue)
+                {
+                    lastChange.Value = current.Value;
+                    lastChange.ClearChangeMasks(SystemContext, false);
+                }
+                m_lastChangeNodes[categoryId] = lastChange;
+            }
         }
 
         private IAliasNameStoreRegistry? m_aliasRegistry;
+        private AliasNameRefreshCoordinator? m_aliasRefresh;
+        private bool m_aliasNodesMaterialized;
 
         /// <summary>
         /// Serializes the <c>LastChange</c> node updates raised by store
