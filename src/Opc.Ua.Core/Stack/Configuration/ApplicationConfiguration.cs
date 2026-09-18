@@ -116,6 +116,10 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the domain names which the server is configured to use.
         /// </summary>
+        /// <remarks>
+        /// TLS endpoints retain the configured DNS name as well as the normalized host name
+        /// so application certificates cover the name used for the TLS connection.
+        /// </remarks>
         /// <returns>A list of domain names.</returns>
         public ArrayOf<string> GetServerDomainNames()
         {
@@ -171,6 +175,14 @@ namespace Opc.Ua
                 if (!Utils.FindStringIgnoreCase(domainNames, domainName))
                 {
                     domainNames.Add(domainName);
+                }
+
+                // TLS validates the literal endpoint name, not the hostname substituted for localhost.
+                if ((Utils.IsUriHttpsScheme(baseAddresses[ii]) || Utils.IsUriWssScheme(baseAddresses[ii])) &&
+                    url.HostNameType == UriHostNameType.Dns &&
+                    !Utils.FindStringIgnoreCase(domainNames, url.IdnHost))
+                {
+                    domainNames.Add(url.IdnHost);
                 }
             }
 
@@ -953,29 +965,28 @@ namespace Opc.Ua
             Message = "Could not get file path from app config - returning: {SectionName}.Config.xml")]
         public static partial void AppConfigLog0(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string sectionName);
 
         [LoggerMessage(EventId = CoreEventIds.ApplicationConfiguration + 1, Level = LogLevel.Error,
             Message = "Could not get file path {FilePath}")]
         public static partial void AppConfigLog1(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? filePath);
 
         [LoggerMessage(EventId = CoreEventIds.ApplicationConfiguration + 2, Level = LogLevel.Error,
             Message = "Could not load configuration from file: {FilePath}")]
         public static partial void AppConfigLog2(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? filePath);
 
         [LoggerMessage(EventId = CoreEventIds.ApplicationConfiguration + 3, Level = LogLevel.Error,
             Message = "Could not save configuration to file: {FilePath}")]
         public static partial void AppConfigLog3(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? filePath);
     }
-
 }
