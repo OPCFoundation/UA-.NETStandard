@@ -2548,8 +2548,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                             statuses[i] = StatusCodes.Good;
                         }
                     }
-                    else if (type == HistoryUpdateType.Insert && exists ||
-                        type == HistoryUpdateType.Replace && !exists)
+                    else if ((type == HistoryUpdateType.Insert && exists) ||
+                        (type == HistoryUpdateType.Replace && !exists))
                     {
                         statuses[i] = exists ? StatusCodes.BadEntryExists : StatusCodes.BadNoEntryExists;
                     }
@@ -2634,7 +2634,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                 return false;
             }
             if (!token.TryGetCursor(out HistorianResumeCursor cursor) ||
-                cursor.Key.Length != sizeof(long) || cursor.Sequence > uint.MaxValue)
+                cursor.Key.Length != sizeof(long) ||
+                cursor.Sequence > uint.MaxValue)
             {
                 throw new ServiceResultException(StatusCodes.BadContinuationPointInvalid);
             }
@@ -2686,6 +2687,7 @@ namespace Opc.Ua.Server.Historian.InMemory
         private const int kMaxValuesPerPage = 1000;
         private const int kModifiedCursorKeyMagic = 0x4D434D31;
         private const int kModifiedCursorKeyVersion = 1;
+
         private const int kModifiedCursorKeyLength =
             (2 * sizeof(int)) + sizeof(long);
 
@@ -2704,8 +2706,10 @@ namespace Opc.Ua.Server.Historian.InMemory
                 = new(HistoricalValueKeyComparer.Instance);
 
             public LinkedList<ModificationEntry> ModifiedLog { get; } = [];
+
             public Dictionary<HistoricalValueKey, int> PriorValueCounts { get; } =
                 new(HistoricalValueKeyComparer.Instance);
+
             public SortedDictionary<AnnotationKey, HistorianAnnotation> Annotations { get; } = [];
             public Dictionary<DateTime, int> AnnotationCounts { get; } = [];
             public DateTime LatestRawTimestamp { get; set; } = DateTime.MinValue;

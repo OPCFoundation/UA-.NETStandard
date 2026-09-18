@@ -73,6 +73,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Replaces the scope's pending certificate and private key in its dedicated directory store.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         private static async ValueTask<bool> SaveCoreAsync(
             PendingCertificateKeyContext context,
             Certificate certificateWithPrivateKey,
@@ -164,6 +165,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restores a consumed key only when the scope has no newer pending certificate.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="certificate"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static async ValueTask<bool> RestoreCoreAsync(
             PendingCertificateKeyContext context,
             Certificate certificate,
@@ -173,11 +176,8 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(certificate));
             }
-            CertificateStoreIdentifier? identifier = TryCreatePendingStoreIdentifier(context);
-            if (identifier == null)
-            {
+            CertificateStoreIdentifier? identifier = TryCreatePendingStoreIdentifier(context) ??
                 throw new ServiceResultException(StatusCodes.BadNotSupported, "The pending-key scope cannot be restored.");
-            }
             using (ICertificateStore store = identifier.OpenStore(context.Telemetry))
             using (CertificateCollection entries = await store.EnumerateAsync(ct).ConfigureAwait(false))
             {
@@ -196,6 +196,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Loads a pending private key, optionally consuming it after a requested key match succeeds.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         private static async ValueTask<Certificate?> TryTakeCoreAsync(
             PendingCertificateKeyContext context,
             Certificate? matchingCertificate,
@@ -258,8 +259,9 @@ namespace Opc.Ua.Server
                 {
                     return null;
                 }
-                if (consume && !await store.DeleteAsync(pendingEntry.Thumbprint, cancellationToken)
-                    .ConfigureAwait(false))
+                if (consume &&
+                    !await store.DeleteAsync(pendingEntry.Thumbprint, cancellationToken)
+                        .ConfigureAwait(false))
                 {
                     return null;
                 }
@@ -296,6 +298,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Clears pending certificates from the directory store for the requested scope.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         private static async ValueTask RemoveCoreAsync(
             PendingCertificateKeyContext context,
             CancellationToken cancellationToken)

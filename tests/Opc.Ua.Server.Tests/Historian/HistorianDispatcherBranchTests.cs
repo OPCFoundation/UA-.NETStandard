@@ -936,7 +936,7 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianOperationContext context =
                 HarnessFixture.CreateContext(h.SystemContext);
             DateTimeUtc startTime = DateTimeUtc.MaxValue;
-            DateTime maximum = startTime.ToDateTime();
+            var maximum = startTime.ToDateTime();
             DateTimeUtc middle = new(
                 maximum.AddMilliseconds(-5));
             DateTimeUtc endTime = new(
@@ -1387,7 +1387,7 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 Provider = new InMemoryHistorianProvider(
                     new InMemoryHistorianOptions(),
-                    new FakeTimeProvider(HarnessFixture.BaseTime));
+                    new FakeTimeProvider(BaseTime));
 
                 var mockTelemetry = new Mock<ITelemetryContext>();
 

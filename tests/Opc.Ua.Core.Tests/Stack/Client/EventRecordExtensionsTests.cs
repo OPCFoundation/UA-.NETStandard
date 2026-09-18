@@ -87,7 +87,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         public void ConditionDecoderReadsConditionNodeIdAttribute()
         {
             QualifiedName[][] fields = ConditionTypeRecord.Decoder.StandardFields;
-            var values = Enumerable.Repeat(default(Variant), fields.Length).ToArray();
+            Variant[] values = [.. Enumerable.Repeat(default(Variant), fields.Length)];
             int conditionIdIndex = fields
                 .Select((path, index) => (path, index))
                 .Single(value => value.path.Length == 0)

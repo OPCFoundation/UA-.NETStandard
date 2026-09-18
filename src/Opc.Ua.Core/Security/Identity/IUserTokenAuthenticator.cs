@@ -248,6 +248,11 @@ namespace Opc.Ua.Identity
         /// authenticator declines based on policy / endpoint, e.g.
         /// "this JWT issuer only accepts signed channels").
         /// </summary>
+        /// <param name="context">The token and security context to authenticate.</param>
+        /// <param name="ct">The token used to cancel authentication.</param>
+        /// <returns>
+        /// The accepted identity, rejection status, or a result indicating that the token was not handled.
+        /// </returns>
         ValueTask<AuthenticationResult> AuthenticateAsync(
             AuthenticationContext context,
             CancellationToken ct = default);

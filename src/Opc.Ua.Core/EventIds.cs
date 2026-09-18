@@ -41,8 +41,10 @@ namespace Opc.Ua
     /// </remarks>
     internal static class CoreEventIds
     {
-        // Compatibility events retain their former EventSource ids. They are scoped by
-        // their dedicated ILogger categories and intentionally overlap the per-class ids below.
+        /// <summary>
+        /// Compatibility events retain their former EventSource ids. They are scoped by
+        /// their dedicated ILogger categories and intentionally overlap the per-class ids below.
+        /// </summary>
         public const string CoreCompatibilityCategory = "OPC-UA-Core";
         public const int CoreServiceCallStart = 10;
         public const int CoreServiceCallStop = 11;
@@ -62,9 +64,12 @@ namespace Opc.Ua
         public const int ApplicationConfiguration = 0;
         public const int AsyncResultBase = 10;
         public const int Audit = 20;
-        // Buffer-manager logging: #3994 split the former monolithic BufferManager
-        // into pluggable managers, so the former BufferManager offset block is
-        // reused here for the logging of the tracing and array-pool implementations.
+
+        /// <summary>
+        /// Buffer-manager logging: #3994 split the former monolithic BufferManager
+        /// into pluggable managers, so the former BufferManager offset block is
+        /// reused here for the logging of the tracing and array-pool implementations.
+        /// </summary>
         public const int ArrayPoolBufferManagerBase = 30;
         public const int TracingBufferManager = 40;
         public const int CertificateLifecycleMonitor = 50;

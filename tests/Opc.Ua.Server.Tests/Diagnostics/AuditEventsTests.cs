@@ -225,6 +225,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             Assert.That(auditEvent.Status.Value, Is.False);
             Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.Bad));
         }
+
         /// <summary>
         /// Verifies that session reporting methods emit failed audit events for exceptions.
         /// </summary>

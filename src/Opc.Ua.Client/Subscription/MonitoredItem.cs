@@ -538,7 +538,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // size up by one and the item is modified forever.
             uint required = (uint)Math.Ceiling(
                 publishingInterval.TotalMilliseconds /
-                samplingInterval.TotalMilliseconds) + 1;
+                samplingInterval.TotalMilliseconds) +
+                1;
             queueSize = Math.Max(queueSize, required);
             if (queueSize == options.QueueSize)
             {
@@ -974,7 +975,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                             Modify = null;
                         }
                     }
-
                     else
                     {
                         MonitoringModeChange = null;
@@ -988,10 +988,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             /// </summary>
             internal MonitoredItemModifyRequest? BindModifyRequest()
             {
-                if (Modify != null)
-                {
-                    Modify.MonitoredItemId = Item.ServerId;
-                }
+                Modify?.MonitoredItemId = Item.ServerId;
                 return Modify;
             }
 
@@ -1342,5 +1339,4 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Message = "{Item}: {Action} with desired configuration.")]
         public static partial void ItemActionDesiredConfiguration(this ILogger logger, MonitoredItem item, string action);
     }
-
 }

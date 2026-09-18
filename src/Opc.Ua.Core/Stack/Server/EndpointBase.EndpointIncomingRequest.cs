@@ -68,7 +68,7 @@ namespace Opc.Ua
             public IServiceRequest Request { get; }
 
             /// <inheritdoc/>
-            RequestParkSink? IParkableIncomingRequest.ParkSink => m_parkSink;
+            readonly RequestParkSink? IParkableIncomingRequest.ParkSink => m_parkSink;
 
             /// <summary>
             /// Process an incoming request
@@ -90,7 +90,7 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public async ValueTask CallAsync(CancellationToken cancellationToken = default)
+            public async readonly ValueTask CallAsync(CancellationToken cancellationToken = default)
             {
                 using CancellationTokenSource? timeoutHintCts = (int)Request.RequestHeader.TimeoutHint > 0 ?
                     TimeProvider.System.CreateCancellationTokenSource(
@@ -162,7 +162,7 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public void OperationCompleted(IServiceResponse? response, ServiceResult error)
+            public readonly void OperationCompleted(IServiceResponse? response, ServiceResult error)
             {
                 if (ServiceResult.IsBad(error))
                 {
@@ -175,7 +175,7 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public override bool Equals(object? obj)
+            public override readonly bool Equals(object? obj)
             {
                 if (obj is EndpointIncomingRequest other)
                 {
@@ -185,7 +185,7 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public override int GetHashCode()
+            public override readonly int GetHashCode()
             {
                 return Request.RequestHeader.GetHashCode();
             }
@@ -203,7 +203,7 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public bool Equals(EndpointIncomingRequest other)
+            public readonly bool Equals(EndpointIncomingRequest other)
             {
                 return Request.RequestHeader.Equals(other.Request.RequestHeader);
             }

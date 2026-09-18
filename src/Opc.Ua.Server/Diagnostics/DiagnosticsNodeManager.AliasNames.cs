@@ -209,6 +209,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Explicitly opts a materialized startup snapshot into live, bounded refresh.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         protected void EnableAliasNameRefresh()
         {
             if (!m_aliasNodesMaterialized || m_aliasRegistry == null)

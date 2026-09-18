@@ -204,6 +204,8 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Takes ownership of the actual key-agreement objects while a reconnect is handed off.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         internal void SetNonces(Nonce localNonce, Nonce remoteNonce)
         {
             lock (m_nonceLock)
@@ -224,6 +226,8 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Transfers the key-agreement objects, including the local private key, to the retained channel.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         internal (Nonce Local, Nonce Remote) TakeNonces()
         {
             lock (m_nonceLock)

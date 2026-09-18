@@ -85,6 +85,8 @@ namespace Opc.Ua.Server.FileSystem
         /// <summary>
         /// Re-reads the provider and reconciles materialised child nodes.
         /// </summary>
+        /// <param name="cancellationToken">The token used to cancel reconciliation.</param>
+        /// <returns>A task that completes when reconciliation finishes, or reports the refresh failure.</returns>
         ValueTask RefreshAsync(CancellationToken cancellationToken = default);
     }
 
@@ -96,6 +98,14 @@ namespace Opc.Ua.Server.FileSystem
         /// <summary>
         /// Binds a FileDirectoryType node to a provider and materialises its current contents.
         /// </summary>
+        /// <param name="directory">The existing directory node to bind.</param>
+        /// <param name="provider">The file-system provider that backs the directory.</param>
+        /// <param name="context">The system context used to create and register child nodes.</param>
+        /// <param name="options">The binding options, or null to use the defaults.</param>
+        /// <param name="registerNode">The callback that registers a materialised node with its node manager.</param>
+        /// <param name="deregisterNode">The callback that removes a materialised node from its node manager.</param>
+        /// <param name="cancellationToken">The token used to cancel initial materialisation.</param>
+        /// <returns>The initialized binding, which the caller must dispose asynchronously.</returns>
         ValueTask<IFileDirectoryBinding> BindAsync(
             FileDirectoryState directory,
             IFileSystemProvider provider,
@@ -354,7 +364,8 @@ namespace Opc.Ua.Server.FileSystem
                 lock (m_lock)
                 {
                     if (m_handles.TryGetValue(identity, out FileHandle? current) &&
-                        ReferenceEquals(current, handle) && handle.TryRetire())
+                        ReferenceEquals(current, handle) &&
+                        handle.TryRetire())
                     {
                         m_handles.Remove(identity);
                     }
@@ -780,22 +791,10 @@ namespace Opc.Ua.Server.FileSystem
 
             private void DetachDirectoryCallbacks(FileDirectoryState directory)
             {
-                if (directory.DeleteFileSystemObject != null)
-                {
-                    directory.DeleteFileSystemObject.OnCallAsync = null;
-                }
-                if (directory.CreateFile != null)
-                {
-                    directory.CreateFile.OnCallAsync = null;
-                }
-                if (directory.CreateDirectory != null)
-                {
-                    directory.CreateDirectory.OnCallAsync = null;
-                }
-                if (directory.MoveOrCopy != null)
-                {
-                    directory.MoveOrCopy.OnCallAsync = null;
-                }
+                directory.DeleteFileSystemObject?.OnCallAsync = null;
+                directory.CreateFile?.OnCallAsync = null;
+                directory.CreateDirectory?.OnCallAsync = null;
+                directory.MoveOrCopy?.OnCallAsync = null;
             }
 
             private void EnsureDirectoryMethods(FileDirectoryState directory)

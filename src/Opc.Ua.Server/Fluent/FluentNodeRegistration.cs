@@ -40,6 +40,7 @@ namespace Opc.Ua.Server.Fluent
         /// <summary>
         /// Resolves an unsealed owning builder for registering handlers on an existing node.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal static NodeBuilder GetHandlerBuilder(INodeManagerBuilder builder, NodeState node)
         {
             NodeManagerBuilder owner = builder as NodeManagerBuilder ??
@@ -117,7 +118,7 @@ namespace Opc.Ua.Server.Fluent
             return ownership.Register(chain);
         }
 
-        private static readonly ConditionalWeakTable<IAsyncNodeManager, AlarmNotifierOwnership> s_notifierOwnership = new();
+        private static readonly ConditionalWeakTable<IAsyncNodeManager, AlarmNotifierOwnership> s_notifierOwnership = [];
     }
 
     /// <summary>
@@ -179,7 +180,7 @@ namespace Opc.Ua.Server.Fluent
                 {
                     BaseObjectState parent = chain[i];
                     BaseObjectState child = chain[i - 1];
-                    var key = (parent.NodeId, child.NodeId);
+                    (NodeId, NodeId) key = (parent.NodeId, child.NodeId);
                     if (!m_links.TryGetValue(key, out LinkOwnership? link))
                     {
                         link = new LinkOwnership(parent, child);
@@ -232,7 +233,7 @@ namespace Opc.Ua.Server.Fluent
                 {
                     for (int i = 1; i < chain.Count; i++)
                     {
-                        var key = (chain[i].NodeId, chain[i - 1].NodeId);
+                        (NodeId, NodeId) key = (chain[i].NodeId, chain[i - 1].NodeId);
                         LinkOwnership link = m_links[key];
                         if (--link.References == 0)
                         {

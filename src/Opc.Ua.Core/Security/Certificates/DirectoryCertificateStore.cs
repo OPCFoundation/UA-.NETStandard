@@ -482,7 +482,7 @@ namespace Opc.Ua
                                                 entry.Certificate.Thumbprint, contents, out newContent) &&
                                             newContent != null)
                                         {
-                                            using CertificateCollection remaining = CertificateCollection.From(
+                                            using var remaining = CertificateCollection.From(
                                                 PEMReader.ImportPublicKeysFromPEM(newContent));
                                             if (remaining.Count == 0)
                                             {
@@ -1681,14 +1681,14 @@ namespace Opc.Ua
 #pragma warning disable CA1416 // These helpers are reached only after a Windows platform check.
         private static void RestrictPrivateWindowsDirectory(DirectoryInfo directory)
         {
-            var security = directory.GetAccessControl();
+            DirectorySecurity security = directory.GetAccessControl();
             SetPrivateAccessRules(security, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit);
             directory.SetAccessControl(security);
         }
 
         private static void RestrictPrivateWindowsFile(FileInfo file)
         {
-            var security = file.GetAccessControl();
+            FileSecurity security = file.GetAccessControl();
             SetPrivateAccessRules(security, InheritanceFlags.None);
             file.SetAccessControl(security);
         }
@@ -1701,7 +1701,7 @@ namespace Opc.Ua
             {
                 security.RemoveAccessRuleSpecific(rule);
             }
-            using WindowsIdentity identity = WindowsIdentity.GetCurrent();
+            using var identity = WindowsIdentity.GetCurrent();
             security.AddAccessRule(new FileSystemAccessRule(
                 identity.User!, FileSystemRights.FullControl, inheritance,
                 PropagationFlags.None, AccessControlType.Allow));
@@ -1720,7 +1720,7 @@ namespace Opc.Ua
             {
                 return false;
             }
-            using WindowsIdentity identity = WindowsIdentity.GetCurrent();
+            using var identity = WindowsIdentity.GetCurrent();
             var system = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
             var administrators = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
             FileSystemRights granted = 0;
@@ -1733,7 +1733,9 @@ namespace Opc.Ua
                 bool currentUser = rule.IdentityReference == identity.User;
                 if (rule.AccessControlType == AccessControlType.Allow &&
                     (rule.FileSystemRights & ~metadataOnlyRights) != 0 &&
-                    !currentUser && rule.IdentityReference != system && rule.IdentityReference != administrators)
+                    !currentUser &&
+                    rule.IdentityReference != system &&
+                    rule.IdentityReference != administrators)
                 {
                     return false;
                 }
@@ -1896,15 +1898,15 @@ namespace Opc.Ua
             Message = "Failed to add certificate with thumbprint {Thumbprint} to store {StorePath}.")]
         public static partial void DirectoryStoreLog1(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? thumbprint,
-            global::Opc.Ua.Redaction.RedactionWrapper<string> storePath);
+            RedactionWrapper<string> storePath);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 2, Level = LogLevel.Debug,
             Message = "Failed to delete {FileName} - force reload.")]
         public static partial void DirectoryStoreLog2(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? fileName);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 3, Level = LogLevel.Warning,
@@ -1919,77 +1921,77 @@ namespace Opc.Ua
             Message = "Imported the PFX private key for {Certificate}.")]
         public static partial void DirectoryStoreLog5(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 6, Level = LogLevel.Debug,
             Message = "PFX Private key could not be verified for {Certificate}.")]
         public static partial void DirectoryStoreLog6(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 7, Level = LogLevel.Debug,
             Message = "Failed to import the PFX private for {Certificate}.")]
         public static partial void DirectoryStoreLog7(
             this ILogger logger,
-            global::System.Exception? exception,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Exception? exception,
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 8, Level = LogLevel.Information,
             Message = "Imported the PEM private key for {Certificate}.")]
         public static partial void DirectoryStoreLog8(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 9, Level = LogLevel.Debug,
             Message = "PEM Private key could not be verified for {Certificate}.")]
         public static partial void DirectoryStoreLog9(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 10, Level = LogLevel.Debug,
             Message = "Failed to import the PEM private for {Certificate}.")]
         public static partial void DirectoryStoreLog10(
             this ILogger logger,
-            global::System.Exception? exception,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Exception? exception,
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 11, Level = LogLevel.Information,
             Message = "Imported the PEM private key for {Certificate}.")]
         public static partial void DirectoryStoreLog11(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 12, Level = LogLevel.Debug,
             Message = "PEM Private key could not be verified for {Certificate}.")]
         public static partial void DirectoryStoreLog12(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 13, Level = LogLevel.Debug,
             Message = "Failed to import the PEM private for {Certificate}.")]
         public static partial void DirectoryStoreLog13(
             this ILogger logger,
-            global::System.Exception? exception,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Exception? exception,
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 14, Level = LogLevel.Error,
             Message = "A private key for the certificate {Certificate} does not exist.")]
         public static partial void DirectoryStoreLog14(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 15, Level = LogLevel.Error,
             Message = "Could not load private key for certificate with thumbprint [{Thumbprint}]")]
         public static partial void DirectoryStoreLog15(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? thumbprint);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 16, Level = LogLevel.Error,
             Message = "The private key for the certificate with thumbprint [{Thumbprint}] failed to import.")]
         public static partial void DirectoryStoreLog16(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? thumbprint);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 17, Level = LogLevel.Error,
@@ -2012,7 +2014,7 @@ namespace Opc.Ua
             Message = "Failed to parse CRL {Crl} in store {StorePath}.")]
         public static partial void DirectoryStoreLog20(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? crl,
             string storePath);
 
@@ -2020,7 +2022,7 @@ namespace Opc.Ua
             Message = "Failed to parse CRL {Crl} in store {StorePath}.")]
         public static partial void DirectoryStoreLog21(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? crl,
             string storePath);
 
@@ -2028,14 +2030,14 @@ namespace Opc.Ua
             Message = "Could not load certificate from file: {FilePath}")]
         public static partial void DirectoryStoreLog22(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? filePath);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 23, Level = LogLevel.Information,
             Message = "Certificate store reloaded from {Path}, {Count} entries.")]
         public static partial void DirectoryStoreLog23(
             this ILogger logger,
-            global::Opc.Ua.Redaction.RedactionWrapper<string> path,
+            RedactionWrapper<string> path,
             int count);
 
         [LoggerMessage(EventId = CoreEventIds.DirectoryCertificateStore + 24, Level = LogLevel.Warning,
@@ -2050,7 +2052,6 @@ namespace Opc.Ua
         public static partial void PrivatePermissionsUnchanged(
             this ILogger logger,
             Exception exception,
-            global::Opc.Ua.Redaction.RedactionWrapper<string> path);
+            RedactionWrapper<string> path);
     }
-
 }

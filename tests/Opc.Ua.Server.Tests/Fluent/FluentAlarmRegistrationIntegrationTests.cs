@@ -441,7 +441,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             };
             root.AddChild(source);
 
-            BaseDataVariableState<bool> flag = BaseDataVariableState<bool>.With<VariantBuilder>(source);
+            var flag = BaseDataVariableState<bool>.With<VariantBuilder>(source);
             flag.NodeId = new NodeId("Root_Events_Flag", ns);
             flag.BrowseName = new QualifiedName("Flag", ns);
             flag.DisplayName = new LocalizedText("Flag");

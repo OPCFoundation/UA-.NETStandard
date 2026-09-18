@@ -74,8 +74,8 @@ namespace Opc.Ua.Core.Tests.Redundancy
             using var active = new AesCbcHmacRecordProtector(s_masterKeyA, keyId: 1);
             using var ring = new KeyRingRecordProtector(active, null!);
 
-            ByteString envelope = ring.Protect(default(ByteString), s_plaintext);
-            bool ok = ring.TryUnprotect(default(ByteString), envelope, out ByteString recovered);
+            ByteString envelope = ring.Protect(default, s_plaintext);
+            bool ok = ring.TryUnprotect(default, envelope, out ByteString recovered);
 
             Assert.That(ok, Is.True);
             Assert.That(recovered.ToArray(), Is.EqualTo(s_plaintext.ToArray()));
@@ -87,8 +87,8 @@ namespace Opc.Ua.Core.Tests.Redundancy
             using var active = new AesCbcHmacRecordProtector(s_masterKeyA, keyId: 1);
             using var ring = new KeyRingRecordProtector(active);
 
-            ByteString envelope = ring.Protect(default(ByteString), s_plaintext);
-            bool ok = ring.TryUnprotect(default(ByteString), envelope, out ByteString recovered);
+            ByteString envelope = ring.Protect(default, s_plaintext);
+            bool ok = ring.TryUnprotect(default, envelope, out ByteString recovered);
 
             Assert.That(ok, Is.True);
             Assert.That(recovered.ToArray(), Is.EqualTo(s_plaintext.ToArray()));
@@ -101,12 +101,12 @@ namespace Opc.Ua.Core.Tests.Redundancy
             using var activeKey = new AesCbcHmacRecordProtector(s_masterKeyB, keyId: 2);
 
             // A record produced before rotation, under the now-retired key.
-            ByteString legacyEnvelope = retiredKey.Protect(default(ByteString), s_plaintext);
+            ByteString legacyEnvelope = retiredKey.Protect(default, s_plaintext);
 
             IRecordProtector[] retired = [retiredKey];
             using var ring = new KeyRingRecordProtector(activeKey, retired);
 
-            bool ok = ring.TryUnprotect(default(ByteString), legacyEnvelope, out ByteString recovered);
+            bool ok = ring.TryUnprotect(default, legacyEnvelope, out ByteString recovered);
 
             Assert.That(ok, Is.True);
             Assert.That(recovered.ToArray(), Is.EqualTo(s_plaintext.ToArray()));
@@ -116,12 +116,12 @@ namespace Opc.Ua.Core.Tests.Redundancy
         public void UnprotectReturnsFalseForRecordFromUnknownKey()
         {
             using var stranger = new AesCbcHmacRecordProtector(CreateKey(0xCC), keyId: 9);
-            ByteString foreignEnvelope = stranger.Protect(default(ByteString), s_plaintext);
+            ByteString foreignEnvelope = stranger.Protect(default, s_plaintext);
 
             using var active = new AesCbcHmacRecordProtector(s_masterKeyA, keyId: 1);
             using var ring = new KeyRingRecordProtector(active);
 
-            bool ok = ring.TryUnprotect(default(ByteString), foreignEnvelope, out ByteString recovered);
+            bool ok = ring.TryUnprotect(default, foreignEnvelope, out ByteString recovered);
 
             Assert.That(ok, Is.False);
             Assert.That(recovered.IsNull, Is.True);
@@ -154,7 +154,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
         {
             using var protector = new AesCbcHmacRecordProtector(s_masterKeyA);
             const string context = "record|store/\u00E9";
-            ByteString contextBytes = ByteString.From(Encoding.UTF8.GetBytes(context));
+            var contextBytes = ByteString.From(Encoding.UTF8.GetBytes(context));
             ByteString record = protector.Protect(context, s_plaintext);
             Assert.That(protector.TryUnprotect(contextBytes, record, out ByteString plaintext), Is.True);
             Assert.That(plaintext, Is.EqualTo(s_plaintext));
@@ -170,7 +170,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
                 CryptoUtils.ZeroMemory(owned);
             }
 
-            ByteString emptyContextRecord = protector.Protect((string?)null, s_plaintext);
+            ByteString emptyContextRecord = protector.Protect(null, s_plaintext);
             Assert.That(protector.TryUnprotect(ByteString.Empty, emptyContextRecord, out plaintext), Is.True);
             Assert.That(plaintext, Is.EqualTo(s_plaintext));
             Assert.That(protector.TryUnprotect(string.Empty, emptyContextRecord, out plaintext), Is.True);
@@ -184,8 +184,8 @@ namespace Opc.Ua.Core.Tests.Redundancy
             using var active = new AesCbcHmacRecordProtector(s_masterKeyA, keyId: 1);
             using var retired = new AesCbcHmacRecordProtector(s_masterKeyB, keyId: 2);
             using var ring = new KeyRingRecordProtector(active, retired);
-            ByteString context = ByteString.From(new byte[] { 1, 2, 3 });
-            ByteString wrongContext = ByteString.From(new byte[] { 1, 2, 4 });
+            var context = ByteString.From(new byte[] { 1, 2, 3 });
+            var wrongContext = ByteString.From(new byte[] { 1, 2, 4 });
             ByteString record = (useRetiredKey ? retired : active).Protect(context, s_plaintext);
 
             Assert.That(ring.TryUnprotectOwned(context, record, out byte[] recovered), Is.True);
@@ -202,22 +202,21 @@ namespace Opc.Ua.Core.Tests.Redundancy
             [Values] bool useRetiredMember,
             [Values] bool textContext)
         {
-            ByteString context = ByteString.From(new byte[] { 1, 2, 3 });
+            var context = ByteString.From(new byte[] { 1, 2, 3 });
             byte[] owned = s_plaintext.ToArray();
-            ByteString unowned = ByteString.From(owned);
+            var unowned = ByteString.From(owned);
             var member = new Mock<IOwnedRecordProtector>(MockBehavior.Strict);
             member.Setup(value => value.TryUnprotect(context, s_plaintext, out unowned)).Returns(true);
             member.Setup(value => value.TryUnprotectOwned(context, s_plaintext, out owned)).Returns(true);
             using var active = new AesCbcHmacRecordProtector(s_masterKeyA);
-            using var ring = useRetiredMember
+            using KeyRingRecordProtector ring = useRetiredMember
                 ? new KeyRingRecordProtector(active, member.Object)
                 : new KeyRingRecordProtector(member.Object);
 
             try
             {
-                byte[] actual;
                 bool accepted = textContext
-                    ? ring.TryUnprotectOwned("\u0001\u0002\u0003", s_plaintext, out actual)
+                    ? ring.TryUnprotectOwned("\u0001\u0002\u0003", s_plaintext, out byte[] actual)
                     : ring.TryUnprotectOwned(context, s_plaintext, out actual);
                 Assert.That(accepted, Is.True);
                 Assert.That(actual, Is.SameAs(owned), "The decrypted buffer must be transferred, never copied.");
@@ -238,7 +237,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
             using var ring = new KeyRingRecordProtector(member.Object);
 
             Assert.That(
-                () => ring.TryUnprotectOwned(default(ByteString), s_plaintext, out _),
+                () => ring.TryUnprotectOwned(default, s_plaintext, out _),
                 Throws.TypeOf<NotSupportedException>());
             member.Verify(value => value.TryUnprotect(
                 It.IsAny<ByteString>(), It.IsAny<ByteString>(), out It.Ref<ByteString>.IsAny), Times.Never);
@@ -384,7 +383,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
         [Test]
         public void NullOwnedReadDoesNotAliasStoreInput()
         {
-            ByteString stored = NullRecordProtector.Instance.Protect(default(ByteString), s_plaintext);
+            ByteString stored = NullRecordProtector.Instance.Protect(default, s_plaintext);
             Assert.That(
                 NullRecordProtector.Instance.TryUnprotectOwned(ByteString.Empty, stored, out byte[] owned), Is.True);
             Assert.That(owned, Is.EqualTo(s_plaintext.ToArray()));
@@ -393,7 +392,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
 
             Assert.That(stored, Is.EqualTo(s_plaintext));
             Assert.That(NullRecordProtector.Instance.TryUnprotect(
-                default(ByteString), stored, out ByteString recovered), Is.True);
+                default, stored, out ByteString recovered), Is.True);
             Assert.That(recovered, Is.EqualTo(s_plaintext));
         }
 

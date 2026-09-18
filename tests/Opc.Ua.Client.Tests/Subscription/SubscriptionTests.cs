@@ -2521,12 +2521,16 @@ namespace Opc.Ua.Client.Subscriptions
             public PublishState LastPublishState { get; private set; }
             public uint LastSequenceNumberForTest => LastSequenceNumberProcessed;
             public uint LastDataSequenceNumberForTest => LastDataSequenceNumberProcessed;
+
             public IReadOnlyList<uint> AvailableSequenceNumbersForTest
                 => AvailableInRetransmissionQueue;
+
             public int KeepAliveNotificationCount
                 => Volatile.Read(ref m_keepAliveNotificationCount);
+
             public IReadOnlyList<uint> KeepAliveSequenceNumbers
                 => [.. m_keepAliveSequenceNumbers];
+
             public Func<ValueTask>? OnKeepAliveAsync { get; set; }
             public Func<uint, ValueTask>? OnDataChangeAsync { get; set; }
 
@@ -2606,6 +2610,7 @@ namespace Opc.Ua.Client.Subscriptions
             "subscription", "durable", "items",
             "subscription", "durable", "items"
         ];
+
         private FakeMessageAckQueue m_completion;
         private OptionsMonitor<SubscriptionOptions> m_options;
         private ITelemetryContext m_telemetry;

@@ -317,7 +317,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using Certificate added = CertificateBuilder.Create("CN=Added Private Key").CreateForRSA();
             using var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
-            using Certificate publicOnly = Certificate.FromRawData(existing.RawData);
+            using var publicOnly = Certificate.FromRawData(existing.RawData);
             await store.AddAsync(publicOnly).ConfigureAwait(false);
             DirectoryInfo privateDirectory = Directory.CreateDirectory(Path.Combine(m_tempDir, "private"));
             var existingKey = new FileInfo(Path.Combine(privateDirectory.FullName,
@@ -326,7 +326,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 #if NET8_0_OR_GREATER || NET472_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                using WindowsIdentity identity = WindowsIdentity.GetCurrent();
+                using var identity = WindowsIdentity.GetCurrent();
                 var directorySecurity = new DirectorySecurity();
                 directorySecurity.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
                 directorySecurity.AddAccessRule(new FileSystemAccessRule(
@@ -369,7 +369,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 AuthorizationRuleCollection rules = existingKey.GetAccessControl().GetAccessRules(
                     includeExplicit: false, includeInherited: true, typeof(SecurityIdentifier));
-                using WindowsIdentity identity = WindowsIdentity.GetCurrent();
+                using var identity = WindowsIdentity.GetCurrent();
                 SecurityIdentifier[] trusted =
                 [
                     identity.User,
@@ -381,7 +381,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     bool permitted = false;
                     foreach (FileSystemAccessRule rule in rules)
                     {
-                        if (rule.IdentityReference.Equals(sid) && rule.AccessControlType == AccessControlType.Allow &&
+                        if (rule.IdentityReference.Equals(sid) &&
+                            rule.AccessControlType == AccessControlType.Allow &&
                             (rule.FileSystemRights & FileSystemRights.FullControl) == FileSystemRights.FullControl)
                         {
                             permitted = true;
@@ -423,7 +424,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 #if NET8_0_OR_GREATER || NET472_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                using WindowsIdentity identity = WindowsIdentity.GetCurrent();
+                using var identity = WindowsIdentity.GetCurrent();
                 var security = new DirectorySecurity();
                 security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
                 security.AddAccessRule(new FileSystemAccessRule(
@@ -625,7 +626,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(after, Has.Count.EqualTo(1));
             Assert.That(after[0].Thumbprint, Is.EqualTo(first.Thumbprint));
 
-            using CertificateCollection remaining = CertificateCollection.From(
+            using var remaining = CertificateCollection.From(
                 PEMReader.ImportPublicKeysFromPEM(File.ReadAllBytes(pemFile)));
             Assert.That(remaining, Has.Count.EqualTo(1));
 

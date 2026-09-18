@@ -519,7 +519,7 @@ namespace Quickstarts.Servers
         /// <exception cref="InvalidDataException">The supplied store version is not supported.</exception>
         private static void ValidateStoreVersion(uint version)
         {
-            if (version != kLegacyStoreVersion && version != kStoreVersion)
+            if (version is not kLegacyStoreVersion and not kStoreVersion)
             {
                 throw new InvalidDataException(
                     $"Unsupported durable subscription store version {version}.");

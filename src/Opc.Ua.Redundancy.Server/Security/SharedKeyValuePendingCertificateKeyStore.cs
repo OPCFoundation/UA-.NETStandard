@@ -126,6 +126,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <summary>
         /// Protects and stores an exportable pending private key, optionally restoring it only into an empty slot.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         private async ValueTask<bool> SaveCoreAsync(
             PendingCertificateKeyContext context,
             Certificate certificateWithPrivateKey,
@@ -152,12 +153,8 @@ namespace Opc.Ua.Redundancy.Server
                 {
                     pkcs12 = certificateWithPrivateKey.Export(X509ContentType.Pfx, passcode);
                 }
-                catch (CryptographicException)
+                catch (CryptographicException) when (!onlyIfAbsent)
                 {
-                    if (onlyIfAbsent)
-                    {
-                        throw;
-                    }
                     // The private key is not extractable, so it cannot be staged
                     // in a shared store for another replica to pick up. The key
                     // lives in a TPM, an HSM, a PKCS#11 token or a remote key
@@ -248,6 +245,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <summary>
         /// Validates a pending key and optionally claims the exact stored record after matching it.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         private async ValueTask<Certificate?> TryTakeCoreAsync(
             PendingCertificateKeyContext context,
             Certificate? matchingCertificate,
@@ -305,8 +303,9 @@ namespace Opc.Ua.Redundancy.Server
 
                 // Delete exactly the validated record, never a concurrent replacement.
                 cancellationToken.ThrowIfCancellationRequested();
-                if (consume && !await m_store
-                    .CompareAndSwapAsync(key, value, default, cancellationToken).ConfigureAwait(false))
+                if (consume &&
+                    !await m_store
+                        .CompareAndSwapAsync(key, value, default, cancellationToken).ConfigureAwait(false))
                 {
                     return null;
                 }

@@ -743,8 +743,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
         private readonly List<IManagedSubscription> m_partitions;
         private readonly Lock m_partitionLock;
+
         private readonly BackgroundTaskScope m_backgroundWork =
             new(nameof(CompositeMonitoredItemCollection), AmbientMessageContext.Telemetry);
+
         private readonly PartitionPlacementPolicy? m_policy;
         private readonly Func<IManagedSubscription>? m_partitionFactory;
         private readonly TimeProvider m_timeProvider;

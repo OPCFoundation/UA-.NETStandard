@@ -301,9 +301,9 @@ namespace Opc.Ua.Server
 
             if (method.Parent is KeyCredentialConfigurationState state)
             {
-                state.CredentialId ??= state.CreateOrReplaceCredentialId(context, state.CredentialId!);
+                state.CredentialId ??= state.CreateOrReplaceCredentialId(context, state.CredentialId);
                 state.CredentialId.Value = credentialId;
-                state.ServiceStatus ??= state.CreateOrReplaceServiceStatus(context, state.ServiceStatus!);
+                state.ServiceStatus ??= state.CreateOrReplaceServiceStatus(context, state.ServiceStatus);
                 state.ServiceStatus.Value = StatusCodes.Good;
                 await state.ClearChangeMasksAsync(context, includeChildren: true, ct)
                     .ConfigureAwait(false);
@@ -315,6 +315,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Accepts a plaintext secret or validates and decrypts its RSA encrypted-secret envelope.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<byte[]> DecodeSecretAsync(
             ISystemContext context,
             ByteString encrypted,
@@ -351,11 +352,7 @@ namespace Opc.Ua.Server
             {
                 throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
             }
-            using RSA? key = receiver.GetRSAPrivateKey();
-            if (key == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
-            }
+            using RSA? key = receiver.GetRSAPrivateKey() ?? throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
 
             byte[] encoded = encrypted.ToArray();
             try
@@ -402,6 +399,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Resolves an allowed RSA encryption policy and rejects unsupported or ephemeral-key policies.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private SecurityPolicyInfo ResolveEncryptionPolicy(string policyUri)
         {
             SecurityPolicyInfo? policy = m_securityPolicies.GetInfo(policyUri);
@@ -527,16 +525,16 @@ namespace Opc.Ua.Server
             state.ReferenceTypeId = ReferenceTypeIds.HasComponent;
             state.TypeDefinitionId = ObjectTypeIds.KeyCredentialConfigurationType;
             state.DisplayName = LocalizedText.From(name);
-            state.ResourceUri ??= state.CreateOrReplaceResourceUri(context, state.ResourceUri!);
+            state.ResourceUri ??= state.CreateOrReplaceResourceUri(context, state.ResourceUri);
             state.ResourceUri.Value = resourceUri ?? string.Empty;
-            state.ProfileUri ??= state.CreateOrReplaceProfileUri(context, state.ProfileUri!);
+            state.ProfileUri ??= state.CreateOrReplaceProfileUri(context, state.ProfileUri);
             state.ProfileUri.Value = string.IsNullOrWhiteSpace(profileUri)
                 ? KeyCredentialBridgeOptions.DefaultProfileUri
                 : profileUri;
-            state.EndpointUrls ??= state.CreateOrReplaceEndpointUrls(context, state.EndpointUrls!);
+            state.EndpointUrls ??= state.CreateOrReplaceEndpointUrls(context, state.EndpointUrls);
             state.EndpointUrls.Value = [.. endpointUrls];
-            state.CredentialId ??= state.CreateOrReplaceCredentialId(context, state.CredentialId!);
-            state.ServiceStatus ??= state.CreateOrReplaceServiceStatus(context, state.ServiceStatus!);
+            state.CredentialId ??= state.CreateOrReplaceCredentialId(context, state.CredentialId);
+            state.ServiceStatus ??= state.CreateOrReplaceServiceStatus(context, state.ServiceStatus);
             state.ServiceStatus.Value = StatusCodes.Good;
             WireCredentialState(state, context);
             return state;

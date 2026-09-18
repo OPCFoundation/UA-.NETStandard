@@ -164,9 +164,9 @@ namespace Opc.Ua.Server.Tests
 
             // Act – fire value-change notification three times
             ISystemContext context = new Mock<ISystemContext>().Object;
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Asynchronous disposal is the delivery barrier.
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
@@ -217,13 +217,13 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act – first value change populates the cache
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Simulate a RolePermissions change (invalidates cache)
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.RolePermissions);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.RolePermissions).ConfigureAwait(false);
 
             // Second value change should trigger re-validation
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Asynchronous disposal is the delivery barrier.
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
@@ -274,8 +274,8 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act – fire value-change notification twice
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Asynchronous disposal is the delivery barrier.
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
@@ -416,7 +416,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // First value change populates the cache
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Wait until the consumer has fully processed the first notification (cache populated).
             await firstItemProcessed.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
@@ -426,7 +426,7 @@ namespace Opc.Ua.Server.Tests
             capturedHandler.Invoke(configNodeManagerMock.Object, EventArgs.Empty);
 
             // Second value change should trigger re-validation since cache was cleared
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Asynchronous disposal is the delivery barrier.
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
@@ -493,16 +493,16 @@ namespace Opc.Ua.Server.Tests
 
             // Act – first change: consumer will block on validation
             node.Value = 10;
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Wait until the consumer has started validation so it is definitely blocked
             await validationStarted.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
 
             // While blocked, enqueue two more changes; each call snapshots the value immediately
             node.Value = 20;
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
             node.Value = 30;
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Release validation – all three notifications should now be processed in order
             validationGate.Release();
@@ -584,12 +584,12 @@ namespace Opc.Ua.Server.Tests
 
             // Enqueue snapshot with value=100
             node.Value = 100;
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
             await validationStarted.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
 
             // Enqueue second snapshot while consumer is blocked; value at enqueue time is 200
             node.Value = 200;
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Mutate the node value to something else BEFORE releasing the consumer;
             // the already-captured snapshots must not be affected
@@ -649,10 +649,10 @@ namespace Opc.Ua.Server.Tests
 
             ISystemContext context = new Mock<ISystemContext>().Object;
 
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             node.Value = s_indexRangeShrunkValue;
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
@@ -714,9 +714,9 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act – fire three value changes
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
@@ -761,9 +761,9 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act – fire a non-value attribute change three times
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.NonValue);
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.NonValue);
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.NonValue);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.NonValue).ConfigureAwait(false);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.NonValue).ConfigureAwait(false);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.NonValue).ConfigureAwait(false);
 
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
@@ -846,13 +846,13 @@ namespace Opc.Ua.Server.Tests
 
             // First value change – consumer blocks on validation
             node.Value = 10;
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
             await firstValidationStarted.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
 
             // While consumer is blocked, enqueue a RolePermissions change followed by another value change
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.RolePermissions);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.RolePermissions).ConfigureAwait(false);
             node.Value = 20;
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Release validation
             firstValidationGate.Release();
@@ -914,7 +914,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act
-            await monitoredNode.OnReportEventAsync(context, node, eventState);
+            await monitoredNode.OnReportEventAsync(context, node, eventState).ConfigureAwait(false);
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Assert – QueueEvent called exactly once
@@ -976,12 +976,12 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act – fire first event; consumer blocks on validation
-            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null));
+            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null)).ConfigureAwait(false);
             await validationStarted.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
 
             // While blocked, enqueue two more events
-            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null));
-            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null));
+            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null)).ConfigureAwait(false);
+            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null)).ConfigureAwait(false);
 
             // Release and drain
             validationGate.Release();
@@ -1057,7 +1057,7 @@ namespace Opc.Ua.Server.Tests
             originalEvent.SetChildValue(context, BrowseNames.SourceName, "source-before", false);
             originalEvent.SetChildValue(context, BrowseNames.Severity, (ushort)300, false);
 
-            await monitoredNode.OnReportEventAsync(context, node, originalEvent);
+            await monitoredNode.OnReportEventAsync(context, node, originalEvent).ConfigureAwait(false);
             Assert.That(await validationStarted.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false), Is.True);
 
             // Mutate the original after enqueue – the clone must not reflect this change.
@@ -1123,7 +1123,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act
-            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null));
+            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null)).ConfigureAwait(false);
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Assert – QueueEvent must never have been called
@@ -1169,7 +1169,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act
-            await monitoredNode.OnReportEventAsync(context, node, auditEvent);
+            await monitoredNode.OnReportEventAsync(context, node, auditEvent).ConfigureAwait(false);
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             // Assert – nothing queued
@@ -1214,9 +1214,9 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Act – fire three events
-            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null));
-            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null));
-            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null));
+            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null)).ConfigureAwait(false);
+            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null)).ConfigureAwait(false);
+            await monitoredNode.OnReportEventAsync(context, node, new BaseEventState(null)).ConfigureAwait(false);
 
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
@@ -1241,7 +1241,7 @@ namespace Opc.Ua.Server.Tests
             using var monitored = new MonitoredNode2(owner.Object, server.Object, source);
             monitored.Add(CreateEventMonitoredItemMock(1).Object);
             monitored.Add(CreateEventMonitoredItemMock(2).Object);
-            IEventMonitoredItem[] order = monitored.EventMonitoredItems.Values.ToArray();
+            IEventMonitoredItem[] order = [.. monitored.EventMonitoredItems.Values];
             Mock.Get(order[0]).Setup(value => value.QueueEvent(It.IsAny<IFilterTarget>()))
                 .Callback<IFilterTarget>(filter => throw new ArgumentNullException(nameof(filter)));
 
@@ -1291,7 +1291,7 @@ namespace Opc.Ua.Server.Tests
             var sessionContextMock = new Mock<ISessionSystemContext>();
             sessionContextMock.Setup(c => c.SessionId).Returns(sessionBId);
 
-            await monitoredNode.OnReportEventAsync(sessionContextMock.Object, node, new BaseEventState(null));
+            await monitoredNode.OnReportEventAsync(sessionContextMock.Object, node, new BaseEventState(null)).ConfigureAwait(false);
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
             int sessionACount = sessionAItem.Invocations
@@ -1589,7 +1589,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Populate the permission cache with the first value change
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Wait until the consumer has fully processed the first notification (cache populated).
             await firstItemProcessed.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
@@ -1598,7 +1598,7 @@ namespace Opc.Ua.Server.Tests
             monitoredNode.InvalidatePermissionCacheForSession(sessionId);
 
             // Next value change should trigger re-validation
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Asynchronous disposal is the delivery barrier.
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
@@ -1655,7 +1655,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = new Mock<ISystemContext>().Object;
 
             // Populate the cache
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Wait until the consumer has fully processed the first notification (cache populated).
             await firstItemProcessed.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
@@ -1664,7 +1664,7 @@ namespace Opc.Ua.Server.Tests
             monitoredNode.InvalidatePermissionCacheForSession(otherSessionId);
 
             // Next value change should still use the cached result
-            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value);
+            await monitoredNode.OnMonitoredNodeChangedAsync(context, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
 
             // Asynchronous disposal is the delivery barrier.
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
@@ -1744,12 +1744,12 @@ namespace Opc.Ua.Server.Tests
                 return ev;
             }
 
-            await monitoredNode.OnReportEventAsync(context, node, BuildEvent());
+            await monitoredNode.OnReportEventAsync(context, node, BuildEvent()).ConfigureAwait(false);
             Assert.That(await firstValidationSignal.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false), Is.True);
 
             for (int i = 0; i < 4; i++)
             {
-                await monitoredNode.OnReportEventAsync(context, node, BuildEvent());
+                await monitoredNode.OnReportEventAsync(context, node, BuildEvent()).ConfigureAwait(false);
             }
 
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
@@ -1795,7 +1795,7 @@ namespace Opc.Ua.Server.Tests
             Mock<IEventMonitoredItem> eventItemMock = CreateEventMonitoredItemMock(7u);
             eventItemMock
                 .Setup(m => m.QueueEvent(It.IsAny<IFilterTarget>()))
-                .Callback(() => queuedSignal.Set());
+                .Callback(queuedSignal.Set);
 
             var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
             monitoredNode.Add(eventItemMock.Object);
@@ -1810,7 +1810,7 @@ namespace Opc.Ua.Server.Tests
                 return ev;
             }
 
-            await monitoredNode.OnReportEventAsync(context, node, BuildEvent());
+            await monitoredNode.OnReportEventAsync(context, node, BuildEvent()).ConfigureAwait(false);
             Assert.That(await validationSignal.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false), Is.True);
 
             // The verdict is written to the permission cache only after the
@@ -1827,7 +1827,7 @@ namespace Opc.Ua.Server.Tests
             monitoredNode.Remove(eventItemMock.Object);
             monitoredNode.Add(eventItemMock.Object);
 
-            await monitoredNode.OnReportEventAsync(context, node, BuildEvent());
+            await monitoredNode.OnReportEventAsync(context, node, BuildEvent()).ConfigureAwait(false);
             Assert.That(await validationSignal.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false), Is.True);
 
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
@@ -1891,7 +1891,7 @@ namespace Opc.Ua.Server.Tests
             const int eventCount = 10;
             for (int i = 0; i < eventCount; i++)
             {
-                await monitoredNode.OnReportEventAsync(context, node, BuildEvent());
+                await monitoredNode.OnReportEventAsync(context, node, BuildEvent()).ConfigureAwait(false);
             }
 
             // Asynchronous disposal drains the event channel.
@@ -1959,7 +1959,7 @@ namespace Opc.Ua.Server.Tests
             const int eventCount = 10;
             for (int i = 0; i < eventCount; i++)
             {
-                await monitoredNode.OnReportEventAsync(context, node, BuildEvent());
+                await monitoredNode.OnReportEventAsync(context, node, BuildEvent()).ConfigureAwait(false);
             }
 
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
@@ -2021,7 +2021,7 @@ namespace Opc.Ua.Server.Tests
             const int eventCount = 10;
             for (int i = 0; i < eventCount; i++)
             {
-                await monitoredNode.OnReportEventAsync(context, node, BuildEvent());
+                await monitoredNode.OnReportEventAsync(context, node, BuildEvent()).ConfigureAwait(false);
             }
 
             await monitoredNode.DisposeAsync().ConfigureAwait(false);

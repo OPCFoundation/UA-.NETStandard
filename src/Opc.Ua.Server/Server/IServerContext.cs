@@ -87,6 +87,7 @@ namespace Opc.Ua.Server
         /// identity and preferred locales.
         /// </summary>
         /// <param name="session">The session to attribute operations to.</param>
+        /// <returns>A system context carrying the session's identity and preferred locales.</returns>
         ServerSystemContext CreateSystemContext(ISession session);
 
         /// <summary>
@@ -109,6 +110,7 @@ namespace Opc.Ua.Server
         /// have to know how node managers are stored or filter the list themselves.
         /// </remarks>
         /// <typeparam name="T">The capability to look for.</typeparam>
+        /// <returns>The registered node managers that implement the requested capability.</returns>
         IEnumerable<T> FindNodeManagers<T>() where T : class;
 
         /// <summary>
@@ -116,6 +118,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="e">The event.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that completes when global event reporting finishes.</returns>
         ValueTask ReportEventAsync(IFilterTarget e, CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -125,6 +128,7 @@ namespace Opc.Ua.Server
         /// <param name="sessionId">The session identifier.</param>
         /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that completes when session closure finishes.</returns>
         ValueTask CloseSessionAsync(
             OperationContext context,
             NodeId sessionId,
@@ -136,6 +140,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="subscriptionId">The subscription identifier.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that completes when subscription deletion finishes.</returns>
         ValueTask DeleteSubscriptionAsync(uint subscriptionId, CancellationToken cancellationToken = default);
 
         /// <summary>

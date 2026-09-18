@@ -583,7 +583,7 @@ namespace Opc.Ua.Server.Tests
 
             (ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnostics) = await sut.AddNodesAsync(
                 ctx,
-                System.Array.Empty<AddNodesItem>().ToArrayOf(),
+                Array.Empty<AddNodesItem>().ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results.Count, Is.Zero);
@@ -598,9 +598,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 async () => await sut.AddNodesAsync(
                     null!,
-                    System.Array.Empty<AddNodesItem>().ToArrayOf(),
+                    Array.Empty<AddNodesItem>().ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false),
-                Throws.TypeOf<System.ArgumentNullException>());
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
@@ -611,9 +611,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 async () => await sut.DeleteNodesAsync(
                     null!,
-                    System.Array.Empty<DeleteNodesItem>().ToArrayOf(),
+                    Array.Empty<DeleteNodesItem>().ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false),
-                Throws.TypeOf<System.ArgumentNullException>());
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
@@ -624,9 +624,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 async () => await sut.AddReferencesAsync(
                     null!,
-                    System.Array.Empty<AddReferencesItem>().ToArrayOf(),
+                    Array.Empty<AddReferencesItem>().ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false),
-                Throws.TypeOf<System.ArgumentNullException>());
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
@@ -637,9 +637,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 async () => await sut.DeleteReferencesAsync(
                     null!,
-                    System.Array.Empty<DeleteReferencesItem>().ToArrayOf(),
+                    Array.Empty<DeleteReferencesItem>().ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false),
-                Throws.TypeOf<System.ArgumentNullException>());
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
@@ -1595,8 +1595,8 @@ namespace Opc.Ua.Server.Tests
         public async Task AddReferencesSameManagerLocalTargetMirrorsInverseEdgeAsync()
         {
             ushort namespaceIndex = GetTestNamespaceIndex();
-            NodeId sourceNodeId = new NodeId("Source", namespaceIndex);
-            NodeId targetNodeId = new NodeId("Target", namespaceIndex);
+            var sourceNodeId = new NodeId("Source", namespaceIndex);
+            var targetNodeId = new NodeId("Target", namespaceIndex);
             Mock<INodeManagerWithNodeManagement> manager = CreateSameManagerNodeManagementManager(
                 namespaceIndex,
                 sourceNodeId,
@@ -1871,8 +1871,8 @@ namespace Opc.Ua.Server.Tests
         public async Task DeleteReferencesSameManagerLocalTargetDeletesInverseEdgeAsync()
         {
             ushort namespaceIndex = GetTestNamespaceIndex();
-            NodeId sourceNodeId = new NodeId("Source", namespaceIndex);
-            NodeId targetNodeId = new NodeId("Target", namespaceIndex);
+            var sourceNodeId = new NodeId("Source", namespaceIndex);
+            var targetNodeId = new NodeId("Target", namespaceIndex);
             Mock<INodeManagerWithNodeManagement> manager = CreateSameManagerNodeManagementManager(
                 namespaceIndex,
                 sourceNodeId,
@@ -2102,7 +2102,7 @@ namespace Opc.Ua.Server.Tests
                 Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance,
                 E2eNamespaceUri);
 #pragma warning restore CA2000
-            using MasterNodeManager sut = new MasterNodeManager(
+            using var sut = new MasterNodeManager(
                 m_server.CurrentInstance, m_fixture.Config, null, manager);
 
             ServerSystemContext ctx = manager.SystemContext;
@@ -2211,7 +2211,7 @@ namespace Opc.Ua.Server.Tests
             NodeId sourceNodeId,
             NodeId targetNodeId)
         {
-            var manager = CreateNodeManagementManager(true);
+            Mock<INodeManagerWithNodeManagement> manager = CreateNodeManagementManager(true);
             var sourceHandle = new object();
             var targetHandle = new object();
 
@@ -2307,6 +2307,7 @@ namespace Opc.Ua.Server.Tests
         {
             private const string SourceNamespaceUri =
                 "urn:opcfoundation:server:tests:node-management-source";
+
             private const string TargetNamespaceUri =
                 "urn:opcfoundation:server:tests:node-management-target";
 
@@ -2477,11 +2478,10 @@ namespace Opc.Ua.Server.Tests
                     server.Object,
                     configuration,
                     null,
-                    new IAsyncNodeManager[]
-                    {
+                    [
                         SourceManager.Object,
                         TargetManager.Object
-                    });
+                    ]);
             }
 
             public MasterNodeManager Sut { get; }

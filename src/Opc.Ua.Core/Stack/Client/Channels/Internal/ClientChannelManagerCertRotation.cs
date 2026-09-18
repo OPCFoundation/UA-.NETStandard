@@ -193,8 +193,8 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    m_host.Logger
-                        ?.CertRotationLog1(
+                    m_host.Logger?
+                        .CertRotationLog1(
                             ex,
                             securityPolicy);
                 }
@@ -373,18 +373,17 @@ namespace Opc.Ua
     /// </summary>
     internal static partial class ClientChannelManagerCertRotationLog
     {
-
         [LoggerMessage(EventId = CoreEventIds.ClientChannelManagerCertRotation + 0, Level = LogLevel.Warning,
             Message = "ClientChannelManager: application certificate rotation reconnect failed.")]
         public static partial void CertRotationLog0(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.ClientChannelManagerCertRotation + 1, Level = LogLevel.Debug,
             Message = "ClientChannelManager: application certificate reload for {SecurityPolicy} failed.")]
         public static partial void CertRotationLog1(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? securityPolicy);
 
         [LoggerMessage(EventId = CoreEventIds.ClientChannelManagerCertRotation + 2, Level = LogLevel.Warning,
@@ -395,5 +394,4 @@ namespace Opc.Ua
                 "adoption.")]
         public static partial void CertRotationLog2(this ILogger logger);
     }
-
 }

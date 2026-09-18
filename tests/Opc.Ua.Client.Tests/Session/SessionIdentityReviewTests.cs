@@ -35,9 +35,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Identity;
-using Opc.Ua.Security.Certificates;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
-using Subscriptions = Opc.Ua.Client.Subscriptions;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -168,7 +166,7 @@ namespace Opc.Ua.Client.Tests
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 using ISession session = staticFactory
-                    ? await Opc.Ua.Client.Session.CreateAsync(
+                    ? await Client.Session.CreateAsync(
                         manager, ClientFixture.Config, endpoint, updateBeforeConnect: false, ct: timeout.Token)
                         .ConfigureAwait(false)
                     : await new ChannelManagerSessionFactory(manager, Telemetry).CreateAsync(
@@ -319,7 +317,7 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicyUri = SecurityPolicies.Basic256Sha256
             }, EndpointConfiguration.Create(ClientFixture.Config));
             await using var manager = new ClientChannelManager(ClientFixture.Config, Telemetry);
-            using Session session = await Opc.Ua.Client.Session.CreateAsync(
+            using Session session = await Client.Session.CreateAsync(
                 manager, ClientFixture.Config, endpoint, ct: timeout.Token).ConfigureAwait(false);
             IManagedTransportChannel lease = session.ManagedChannel!;
             int readyEvents = 0;

@@ -296,7 +296,7 @@ namespace Opc.Ua.Server.UserDatabase
                     return false;
                 }
 
-                var replacement = SnapshotUser(user);
+                User replacement = SnapshotUser(user);
                 replacement.UserConfiguration = (uint)userConfiguration;
                 replacement.Description = description ?? string.Empty;
                 SaveUserChange(userName, user, replacement);
@@ -329,7 +329,7 @@ namespace Opc.Ua.Server.UserDatabase
                     return false;
                 }
 
-                var replacement = SnapshotUser(user);
+                User replacement = SnapshotUser(user);
                 replacement.Hash = hash;
                 replacement.UserConfiguration = (uint)userConfiguration;
                 replacement.Description = description ?? string.Empty;
@@ -365,7 +365,7 @@ namespace Opc.Ua.Server.UserDatabase
                     return false;
                 }
 
-                var replacement = SnapshotUser(user);
+                User replacement = SnapshotUser(user);
                 replacement.Hash = Hash(newPassword);
                 replacement.UserConfiguration &= ~(uint)UserConfigurationMask.MustChangePassword;
                 SaveUserChange(userName, user, replacement);
@@ -395,7 +395,7 @@ namespace Opc.Ua.Server.UserDatabase
             {
                 lock (m_updateLock)
                 {
-                    return m_users.Values.Select(SnapshotUser).ToArray();
+                    return [.. m_users.Values.Select(SnapshotUser)];
                 }
             }
             set
@@ -511,6 +511,7 @@ namespace Opc.Ua.Server.UserDatabase
         /// <summary>
         /// Checks a stored password verifier with a fixed-time key comparison and clears the derived key afterward.
         /// </summary>
+        /// <exception cref="FormatException"></exception>
         private bool Check(string hash, ReadOnlySpan<byte> password)
         {
 #if NET6_0_OR_GREATER
@@ -601,7 +602,7 @@ namespace Opc.Ua.Server.UserDatabase
             byte[] secret = new byte[kKeySize];
             try
             {
-                using RandomNumberGenerator random = RandomNumberGenerator.Create();
+                using var random = RandomNumberGenerator.Create();
                 random.GetBytes(secret);
                 return Hash(secret);
             }

@@ -1001,5 +1001,4 @@ namespace Opc.Ua.Client.Subscriptions
             uint subscriptionId,
             int count);
     }
-
 }

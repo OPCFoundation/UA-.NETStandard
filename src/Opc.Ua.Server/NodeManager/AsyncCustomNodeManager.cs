@@ -261,6 +261,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Admits an operation until it exits, allowing guarded access during the active teardown callback.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         private protected NodeManagerOperation BeginNodeManagerOperation()
         {
             lock (m_operationLifetimeLock)
@@ -277,6 +278,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Rejects access after admission closes unless it belongs to the active teardown callback.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         private protected void ThrowIfNodeManagerStopping()
         {
             lock (m_operationLifetimeLock)
@@ -992,6 +994,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Resolves the current node and attaches an existing sampled item to its monitoring manager.
         /// </summary>
+        /// <exception cref="AggregateException"></exception>
         private async ValueTask<ServiceResult> AttachMonitoredItemForLifecycleAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)
@@ -2113,6 +2116,7 @@ namespace Opc.Ua.Server
         /// Reserves an identifier before asynchronous registration, selecting a fresh counter ID
         /// for automatic collisions.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private ServiceResult ReserveAddNodesNodeId(
             ref NodeId nodeId,
             bool serverAssigned,
@@ -2255,6 +2259,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Detaches items monitoring a deleted subtree and restores prior detachments if any item fails.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         private async ValueTask<IReadOnlyList<IMonitoredItem>>
             DetachMonitoredItemsForNodeDeletionAsync(
                 ISystemContext context,
@@ -2529,8 +2534,8 @@ namespace Opc.Ua.Server
             NodeClass nodeClass,
             NodeId typeDefinitionId)
         {
-            if (nodeClass != NodeClass.Object &&
-                nodeClass != NodeClass.Variable)
+            if (nodeClass is not NodeClass.Object and
+                not NodeClass.Variable)
             {
                 return ServiceResult.Good;
             }
@@ -3030,6 +3035,7 @@ namespace Opc.Ua.Server
         /// root-notifier set. Shared by the asynchronous and synchronous
         /// registration paths.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void IndexPredefinedNode(NodeState activeNode)
         {
             if (Server is INodeIdFactoryProvider { NodeIdFactory: INodeIdFactoryPolicy policy })
@@ -9808,7 +9814,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Retains AddNodes identifiers until asynchronous registration and reference publication have finished.
         /// </summary>
-        private readonly NodeIdDictionary<byte> m_addNodesReservations = new();
+        private readonly NodeIdDictionary<byte> m_addNodesReservations = [];
 
         private const byte kHistoryAccessMask = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
         private const int kMaxInitialHistoryPages = 100_000;

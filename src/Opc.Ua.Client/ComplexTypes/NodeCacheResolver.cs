@@ -226,7 +226,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     }
                 }
             }
-            ArrayOf<INode> namespaceNodes = namespaceNodeList.ToArrayOf();
+            var namespaceNodes = namespaceNodeList.ToArrayOf();
 
             // read all schema definitions
             ArrayOf<NodeId> referenceExpandedNodeIds = references
@@ -965,5 +965,4 @@ namespace Opc.Ua.Client.ComplexTypes
             int count,
             long duration);
     }
-
 }

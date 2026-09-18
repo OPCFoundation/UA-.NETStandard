@@ -664,6 +664,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Validates aggregate inputs and pages processed history through the provider or a local aggregate calculator.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static async ValueTask<ServiceResult>
             DispatchProcessedReadCoreAsync(
             ServerSystemContext systemContext,
@@ -1299,7 +1300,7 @@ namespace Opc.Ua.Server.Historian
                 cancellationToken)
                 .ConfigureAwait(false);
 
-            ArrayOf<DataValue> orderedSamples = samples.ToArrayOf();
+            var orderedSamples = samples.ToArrayOf();
             var produced = new List<DataValue>(reqTimes.Count);
             foreach (DateTimeUtc requestedTime in reqTimes)
             {
@@ -2826,11 +2827,11 @@ namespace Opc.Ua.Server.Historian
                 if (!ReferenceEquals(claimedState.Provider, provider) &&
                     (claimedState.Provider is not
                             IHistorianProviderIdentity savedIdentity ||
-                            provider is not IHistorianProviderIdentity currentIdentity ||
-                            !string.Equals(
-                                savedIdentity.ProviderId,
-                                currentIdentity.ProviderId,
-                                StringComparison.Ordinal)))
+                        provider is not IHistorianProviderIdentity currentIdentity ||
+                        !string.Equals(
+                            savedIdentity.ProviderId,
+                            currentIdentity.ProviderId,
+                            StringComparison.Ordinal)))
                 {
                     claim.Retire();
                     return null;

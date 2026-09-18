@@ -2797,13 +2797,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                IServerInternal? serverInternal = System.Threading.Volatile.Read(ref m_serverInternal);
-                if (serverInternal == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadServerHalted);
-                }
-
-                return serverInternal;
+                return Volatile.Read(ref m_serverInternal) ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
             }
         }
 
@@ -3434,7 +3428,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void OnRequestComplete(OperationContext context)
         {
-            if (System.Threading.Volatile.Read(ref m_serverInternal) == null)
+            if (Volatile.Read(ref m_serverInternal) == null)
             {
                 throw new ServiceResultException(StatusCodes.BadServerHalted);
             }

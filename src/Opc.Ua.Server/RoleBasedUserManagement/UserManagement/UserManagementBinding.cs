@@ -372,7 +372,7 @@ namespace Opc.Ua.Server.UserManagement
                     Task<ServiceResult>[] pending;
                     lock (m_deactivationLock)
                     {
-                        pending = deactivations.ToArray();
+                        pending = [.. deactivations];
                     }
                     await Task.WhenAll(pending).ConfigureAwait(false);
                 }
@@ -520,5 +520,4 @@ namespace Opc.Ua.Server.UserManagement
             Exception ex,
             string userName);
     }
-
 }

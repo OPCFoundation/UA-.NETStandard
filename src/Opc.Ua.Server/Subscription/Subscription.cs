@@ -41,7 +41,7 @@ namespace Opc.Ua.Server
     /// Manages a subscription created by a client.
     /// </summary>
     public class Subscription :
-        ISubscription,
+
         ISubscriptionPublishPipeline,
         ISubscriptionMonitoredItemLifecycle
     {
@@ -235,9 +235,7 @@ namespace Opc.Ua.Server
             m_lifetimeCounter = storedSubscription.LifetimeCounter;
             m_maxKeepAliveCount = storedSubscription.MaxKeepaliveCount;
             m_maxNotificationsPerPublish = storedSubscription.MaxNotificationsPerPublish;
-            m_publishingEnabled = storedSubscription is IStoredSubscriptionState storedState
-                ? storedState.PublishingEnabled
-                : true;
+            m_publishingEnabled = storedSubscription is not IStoredSubscriptionState storedState || storedState.PublishingEnabled;
             Priority = storedSubscription.Priority;
             m_publishTimerExpiry = m_timeProvider.GetTimestampMilliseconds() +
                 (long)storedSubscription.PublishingInterval;
@@ -633,7 +631,7 @@ namespace Opc.Ua.Server
                 List<IMonitoredItem> monitoredItems;
                 lock (m_lock)
                 {
-                    monitoredItems = m_monitoredItems.Values.Select(node => node.Value).ToList();
+                    monitoredItems = [.. m_monitoredItems.Values.Select(node => node.Value)];
                     m_monitoredItems.Clear();
                     m_itemsToTrigger.Clear();
                     m_itemsToCheck.Clear();
@@ -955,7 +953,7 @@ namespace Opc.Ua.Server
                         StatusCodes.BadSubscriptionIdInvalid,
                         "Subscription source changed during transfer.");
                 }
-                monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
+                monitoredItems = [.. m_monitoredItems.Select(v => v.Value.Value)];
             }
 
             var errors = new List<ServiceResult>(monitoredItems.Count);
@@ -1132,6 +1130,7 @@ namespace Opc.Ua.Server
             /// <param name="cancellationToken">The unused cancellation token.</param>
             /// <returns>A task that completes when rollback has finished.</returns>
             /// <exception cref="AggregateException">One or more rollback steps failed.</exception>
+            /// <exception cref="ServiceResultException"></exception>
             public ValueTask RollbackAsync(CancellationToken cancellationToken)
             {
                 _ = cancellationToken;
@@ -1474,8 +1473,7 @@ namespace Opc.Ua.Server
         /// </summary>
         NotificationMessage ISubscriptionPublishPipeline.PublishTimeout()
         {
-            NotificationMessage? message = null;
-
+            NotificationMessage? message;
             lock (m_lock)
             {
                 m_expired = true;
@@ -1504,8 +1502,7 @@ namespace Opc.Ua.Server
         /// </summary>
         NotificationMessage ISubscriptionPublishPipeline.SubscriptionTransferred()
         {
-            NotificationMessage? message = null;
-
+            NotificationMessage? message;
             lock (m_lock)
             {
                 message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
@@ -1599,8 +1596,9 @@ namespace Opc.Ua.Server
                     if (m_maxNotificationsPerPublish > 0)
                     {
                         // Reserve room for every value before taking it out of its monitored-item queue.
-                        ulong remaining = ((ulong)messageBudget - (uint)messages.Count) * m_maxNotificationsPerPublish
-                            - (ulong)events.Count - (ulong)datachanges.Count;
+                        ulong remaining = (((ulong)messageBudget - (uint)messages.Count) * m_maxNotificationsPerPublish) -
+                            (ulong)events.Count -
+                            (ulong)datachanges.Count;
                         notificationLimit = (uint)Math.Min(notificationLimit, remaining);
                     }
 
@@ -2679,12 +2677,10 @@ namespace Opc.Ua.Server
                     // remove the item from the internal lists.
                     m_monitoredItems.Remove(monitoredItemIds[ii]);
                     m_itemsToTrigger.Remove(monitoredItemIds[ii]);
-
-                    //remove the links towards the deleted monitored item
-                    List<ITriggeredMonitoredItem>? triggeredItems = null;
                     foreach (KeyValuePair<uint, List<ITriggeredMonitoredItem>> item in m_itemsToTrigger)
                     {
-                        triggeredItems = item.Value;
+                        //remove the links towards the deleted monitored item
+                        List<ITriggeredMonitoredItem>? triggeredItems = item.Value;
                         for (int jj = 0; jj < triggeredItems.Count; jj++)
                         {
                             if (triggeredItems[jj].Id == monitoredItemIds[ii])
@@ -3541,5 +3537,4 @@ namespace Opc.Ua.Server
             this ILogger logger,
             uint subscriptionId);
     }
-
 }

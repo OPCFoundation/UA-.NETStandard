@@ -110,7 +110,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
         {
             await EnsureSubscriptionAsync(ct).ConfigureAwait(false);
 
-            var channel = CreateChannel<DataValueChange>(
+            Channel<DataValueChange> channel = CreateChannel<DataValueChange>(
                 options?.QueueSize ?? 0,
                 nodeIds.Count,
                 options?.DiscardOldest ?? true);
@@ -232,7 +232,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
                 QueueSize = options?.QueueSize > 0 ? options.QueueSize : 10
             };
 
-            var channel = CreateChannel<EventNotification>(
+            Channel<EventNotification> channel = CreateChannel<EventNotification>(
                 itemOptions.QueueSize,
                 itemCount: 1,
                 itemOptions.DiscardOldest);
@@ -404,9 +404,9 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
                     });
             }
 
-            ulong capacity = (ulong)Math.Max(1u, queueSize) *
+            ulong capacity = Math.Max(1u, queueSize) *
                 (ulong)Math.Max(1, itemCount);
-            int boundedCapacity = (int)Math.Min((ulong)int.MaxValue, capacity);
+            int boundedCapacity = (int)Math.Min(int.MaxValue, capacity);
 
             return Channel.CreateBounded<T>(new BoundedChannelOptions(boundedCapacity)
             {

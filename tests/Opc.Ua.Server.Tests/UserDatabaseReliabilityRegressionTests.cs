@@ -60,7 +60,7 @@ namespace Opc.Ua.Server.Tests
             var database = new JsonUserDatabase(files.FileName, (path, bytes) =>
             {
                 File.WriteAllBytes(path, bytes);
-                using JsonDocument snapshot = JsonDocument.Parse(bytes);
+                using var snapshot = JsonDocument.Parse(bytes);
                 if (snapshot.RootElement.GetProperty("users").EnumerateArray().Any(user =>
                     user.GetProperty("UserName").GetString() == "bob" &&
                     user.GetProperty("UserConfiguration").GetUInt32() == (uint)configuration))
@@ -101,7 +101,7 @@ namespace Opc.Ua.Server.Tests
             var database = new JsonUserDatabase(files.FileName, (path, bytes) =>
             {
                 File.WriteAllBytes(path, bytes);
-                using JsonDocument snapshot = JsonDocument.Parse(bytes);
+                using var snapshot = JsonDocument.Parse(bytes);
                 if (snapshot.RootElement.GetProperty("users").EnumerateArray().Any(user =>
                     user.GetProperty("Description").GetString() == "Reset pending approval"))
                 {
@@ -154,7 +154,7 @@ namespace Opc.Ua.Server.Tests
             var database = new JsonUserDatabase(files.FileName, (path, bytes) =>
             {
                 File.WriteAllBytes(path, bytes);
-                using JsonDocument snapshot = JsonDocument.Parse(bytes);
+                using var snapshot = JsonDocument.Parse(bytes);
                 if (snapshot.RootElement.GetProperty("users").EnumerateArray().Any(user =>
                     user.GetProperty("UserName").GetString() == "alice" &&
                     user.GetProperty("UserConfiguration").GetUInt32() == 0))
@@ -294,8 +294,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(initial.CreateUser("alice", "credential"u8, [Role.SecurityAdmin]), Is.True);
             Assert.That(initial.UpdateUserMetadata(
                 "alice",
-                UserConfigurationMask.Disabled | UserConfigurationMask.NoDelete |
-                    UserConfigurationMask.MustChangePassword,
+                UserConfigurationMask.Disabled |
+                UserConfigurationMask.NoDelete |
+                UserConfigurationMask.MustChangePassword,
                 "Original restriction"), Is.True);
             int writes = 0;
             var database = new JsonUserDatabase(files.FileName, (path, bytes) =>

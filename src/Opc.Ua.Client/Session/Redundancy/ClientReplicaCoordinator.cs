@@ -279,16 +279,10 @@ namespace Opc.Ua.Client.Redundancy
                 return;
             }
 
-            if (m_publishedSession != null)
-            {
-                m_publishedSession.SessionConfigurationChanged -= OnSessionConfigurationChanged;
-            }
+            m_publishedSession?.SessionConfigurationChanged -= OnSessionConfigurationChanged;
 
             m_publishedSession = m_session;
-            if (m_publishedSession != null)
-            {
-                m_publishedSession.SessionConfigurationChanged += OnSessionConfigurationChanged;
-            }
+            m_publishedSession?.SessionConfigurationChanged += OnSessionConfigurationChanged;
         }
 
         private void OnSessionConfigurationChanged(object? sender, EventArgs e)
@@ -364,5 +358,4 @@ namespace Opc.Ua.Client.Redundancy
             Message = "Disposing a token-reuse session that failed to reactivate threw; ignoring.")]
         public static partial void DisposingTokenReuseSessionThatFailed(this ILogger logger, Exception? exception);
     }
-
 }

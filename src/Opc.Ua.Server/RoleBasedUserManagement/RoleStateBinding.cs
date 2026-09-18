@@ -69,15 +69,19 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly ConcurrentDictionary<NodeId, BoundRole> m_boundRoles = new();
 
-        // Serializes every mutation of the RoleSet subtree — materializing a
-        // role and dropping one both rewrite the RoleSet's children and
-        // references, which are not thread-safe collections.
+        /// <summary>
+        /// Serializes every mutation of the RoleSet subtree — materializing a
+        /// role and dropping one both rewrite the RoleSet's children and
+        /// references, which are not thread-safe collections.
+        /// </summary>
         private readonly SemaphoreSlim m_roleSetLock = new(1, 1);
 
-        // Cancelled by Dispose so waiters queued on m_roleSetLock leave the
-        // queue before the semaphore is released: SemaphoreSlim.Dispose does
-        // not wake its waiters, so a queued materialization would otherwise
-        // hang for the lifetime of the process.
+        /// <summary>
+        /// Cancelled by Dispose so waiters queued on m_roleSetLock leave the
+        /// queue before the semaphore is released: SemaphoreSlim.Dispose does
+        /// not wake its waiters, so a queued materialization would otherwise
+        /// hang for the lifetime of the process.
+        /// </summary>
         private readonly CancellationTokenSource m_shutdown = new();
 
         private RoleSetState? m_roleSet;
@@ -1396,5 +1400,4 @@ namespace Opc.Ua.Server
             Exception ex,
             NodeId roleId);
     }
-
 }

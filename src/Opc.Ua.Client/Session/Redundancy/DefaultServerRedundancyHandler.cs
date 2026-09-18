@@ -541,8 +541,10 @@ namespace Opc.Ua.Client
         }
 
         private readonly IRedundantServerEndpointResolver m_endpointResolver;
+
         private readonly ConcurrentDictionary<string, ConfiguredEndpoint> m_resolvedEndpoints =
             new(StringComparer.Ordinal);
+
         private readonly TimeProvider m_timeProvider;
     }
 }

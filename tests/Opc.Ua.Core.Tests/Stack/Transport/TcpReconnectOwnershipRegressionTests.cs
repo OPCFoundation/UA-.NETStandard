@@ -32,7 +32,6 @@
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -139,9 +138,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var buffers = new BufferManager("reconnect-loops", 65536, telemetry, pool);
             using var channel = new ReceiveChannel(buffers, new ChannelQuotas(
                 ServiceMessageContext.Create(telemetry)), telemetry);
-            var oldEntered = Signal();
+            TaskCompletionSource<bool> oldEntered = Signal();
             var oldRelease = new TaskCompletionSource<ArraySegment<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var newEntered = Signal();
+            TaskCompletionSource<bool> newEntered = Signal();
             var newChunk = new TaskCompletionSource<ArraySegment<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
             int newReceives = 0;
             var oldTransport = new Mock<IUaSCByteTransport>();

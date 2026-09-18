@@ -783,14 +783,8 @@ namespace Opc.Ua.Server
 
         private void RefreshVersionNodes(ISystemContext context)
         {
-            if (m_node.CurrentVersion != null)
-            {
-                m_node.CurrentVersion.Value = m_provider.CurrentVersion;
-            }
-            if (m_node.LastUpdateTime != null)
-            {
-                m_node.LastUpdateTime.Value = new DateTimeUtc(m_provider.LastUpdateTime);
-            }
+            m_node.CurrentVersion?.Value = m_provider.CurrentVersion;
+            m_node.LastUpdateTime?.Value = new DateTimeUtc(m_provider.LastUpdateTime);
             m_node.ClearChangeMasks(context, includeChildren: true);
         }
 
@@ -897,7 +891,7 @@ namespace Opc.Ua.Server
         {
             if (targets.Count == 0)
             {
-                return ArrayOf<StatusCode>.Empty;
+                return [];
             }
 
             var results = new StatusCode[targets.Count];
@@ -914,7 +908,7 @@ namespace Opc.Ua.Server
         {
             if (targets.Count == 0)
             {
-                return ArrayOf<StatusCode>.Empty;
+                return [];
             }
 
             var results = new StatusCode[targets.Count];

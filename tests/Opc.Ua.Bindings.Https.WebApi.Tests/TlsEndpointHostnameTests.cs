@@ -81,8 +81,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     {
                         ServerCertificate = serverCertificate,
                         ClientCertificateMode = ClientCertificateMode.NoCertificate
-                    })));
-                web.ConfigureServices(_ => { });
+                    })))
+                    .ConfigureServices(_ => { });
                 web.Configure(app =>
                 {
                     app.UseWebSockets();
@@ -114,7 +114,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     Scheme = transport == "webapi-https" ? "https" : "wss"
                 };
                 var validator = new AcceptingValidator();
-                ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(telemetry);
+                var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
                 messageContext.Factory.Builder.AddEncodeableTypes(typeof(ReadRequest).Assembly).Commit();
                 var settings = new TransportChannelSettings
                 {

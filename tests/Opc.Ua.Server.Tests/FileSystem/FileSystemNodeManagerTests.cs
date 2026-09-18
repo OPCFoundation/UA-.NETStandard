@@ -367,7 +367,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 manager,
                 FileSystemNodeId.BuildFile("missing.txt", manager.NamespaceIndex))
                 .ConfigureAwait(false);
-            NodeId missingComponentId = new FileSystemNodeId(
+            var missingComponentId = new FileSystemNodeId(
                 FileSystemNodeId.File,
                 "file.txt",
                 manager.NamespaceIndex,

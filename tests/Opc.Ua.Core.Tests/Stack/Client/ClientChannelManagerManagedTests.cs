@@ -797,7 +797,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             ConfiguredEndpoint endpoint = GetNoneSecurityEndpoint(
                 new EndpointConfiguration { OperationTimeout = 6000 });
             var entry = new ChannelEntry(
-                (IChannelEntryHost)manager,
+                manager,
                 ManagedChannelKey.FromEndpoint(endpoint),
                 endpoint,
                 reverseConnection: null);
@@ -1245,13 +1245,11 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                             record.EventId.Name == "ChannelClosed"),
                     "ParticipantDetached + ChannelClosed events").ConfigureAwait(false);
 
-                RecordedLogRecord[] records = loggerProvider.Records
-                    .Where(record => record.CategoryName == "Opc.Ua.ChannelManager")
-                    .ToArray();
+                RecordedLogRecord[] records = [.. loggerProvider.Records.Where(record => record.CategoryName == "Opc.Ua.ChannelManager")];
                 string formatted = string.Join(
                     Environment.NewLine,
                     records.Select(record => $"{record.EventId.Name} {record.Message}"));
-                string?[] eventNames = records.Select(record => record.EventId.Name).ToArray();
+                string?[] eventNames = [.. records.Select(record => record.EventId.Name)];
                 Assert.That(eventNames, Does.Contain("StateChanged"), formatted);
                 Assert.That(eventNames, Does.Contain("ReconnectStarted"), formatted);
                 Assert.That(eventNames, Does.Contain("ReconnectCompleted"), formatted);
@@ -1514,7 +1512,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         public async Task ReconnectParticipantTimeoutUsesInjectedClockAsync()
         {
             var timeProvider = new ObservableFakeTimeProvider();
-            TimeSpan participantTimeout = TimeSpan.FromMilliseconds(200);
+            var participantTimeout = TimeSpan.FromMilliseconds(200);
             var reconnectPolicy = new ExponentialBackoffChannelReconnectPolicy
             {
                 MinDelay = TimeSpan.Zero,
@@ -1648,7 +1646,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         public async Task RecreateParticipantTimeoutUsesInjectedClockAsync(bool scoped)
         {
             var timeProvider = new ObservableFakeTimeProvider();
-            TimeSpan participantTimeout = TimeSpan.FromMilliseconds(200);
+            var participantTimeout = TimeSpan.FromMilliseconds(200);
             var policy = new ExponentialBackoffChannelReconnectPolicy
             {
                 MinDelay = TimeSpan.Zero,
@@ -1800,6 +1798,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         /// blocked, NUnit's runner thread never returns, and the whole test host
         /// hangs until the blame collector kills it.
         /// </remarks>
+        /// <exception cref="InvalidOperationException"></exception>
         private static async Task<TException> AssertThrowsAsync<TException>(
             Task task,
             TimeSpan timeout)
@@ -2012,6 +2011,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
 
             private readonly ActivityListener m_listener;
+
             private readonly TaskCompletionSource<Activity> m_stoppedActivity = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
         }
@@ -2139,6 +2139,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         {
             private readonly Func<IManagedTransportChannel, int, CancellationToken,
                 ParticipantReconnectResult>? m_onReconnect;
+
             private int m_notificationCount;
 
             public TestParticipant(
@@ -2226,6 +2227,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             /// further timers have been created, counted from this call. Arm it
             /// <b>before</b> starting the operation whose timers are awaited.
             /// </summary>
+            /// <exception cref="ArgumentOutOfRangeException"></exception>
             public Task<bool> WaitForTimersCreatedAsync(int count = 1)
             {
                 if (count < 1)
@@ -2242,7 +2244,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 return completion.Task;
             }
 
-            private readonly System.Threading.Lock m_lock = new();
+            private readonly Lock m_lock = new();
             private readonly List<(int Target, TaskCompletionSource<bool> Completion)> m_waiters = [];
             private int m_timerCount;
         }

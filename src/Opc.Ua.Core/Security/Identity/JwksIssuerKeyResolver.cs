@@ -659,7 +659,6 @@ namespace Opc.Ua.Identity
                     ? keys
                     : [];
             }
-
         }
     }
 }

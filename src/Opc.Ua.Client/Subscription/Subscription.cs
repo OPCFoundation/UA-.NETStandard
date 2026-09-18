@@ -1009,7 +1009,7 @@ namespace Opc.Ua.Client.Subscriptions
                         this,
                         CancellationToken.None,
                         TaskContinuationOptions.OnlyOnFaulted |
-                            TaskContinuationOptions.ExecuteSynchronously,
+                        TaskContinuationOptions.ExecuteSynchronously,
                         TaskScheduler.Default);
                 }
                 else if (dispatch.IsFaulted)
@@ -1077,7 +1077,6 @@ namespace Opc.Ua.Client.Subscriptions
                                 await RunAfterCreateHookAsync(ct)
                                     .ConfigureAwait(false);
                             }
-
                             else
                             {
                                 await ModifyAsync(options, ct).ConfigureAwait(false);
@@ -1693,8 +1692,10 @@ namespace Opc.Ua.Client.Subscriptions
             uint MaxNotificationsPerPublish);
 
         private static readonly TimeSpan s_minKeepAliveTimerInterval = TimeSpan.FromSeconds(1);
+
         private static readonly TimeSpan s_maxKeepAliveTimerInterval =
             TimeSpan.FromMilliseconds(uint.MaxValue - 1u);
+
         private static readonly TimeSpan s_keepAliveTimerMargin = TimeSpan.FromSeconds(1);
         private const int kBaseApplyRetryBackoffMs = 250;
         private const int kMaxApplyRetryBackoffMs = 5000;
@@ -1706,8 +1707,10 @@ namespace Opc.Ua.Client.Subscriptions
         private Func<CancellationToken, ValueTask>? m_onAfterCreateAsync;
         private readonly AsyncAutoResetEvent m_stateControl = new();
         private readonly AsyncManualResetEvent m_createdEvent = new();
+
         private readonly TaskCompletionSource<bool> m_disposeCompletion = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
+
         private readonly CancellationTokenSource m_cts = new();
         private readonly Task m_stateManagement;
         private readonly SemaphoreSlim m_stateLock = new(1, 1);
@@ -1909,5 +1912,4 @@ namespace Opc.Ua.Client.Subscriptions
             Exception? exception,
             uint subscriptionId);
     }
-
 }

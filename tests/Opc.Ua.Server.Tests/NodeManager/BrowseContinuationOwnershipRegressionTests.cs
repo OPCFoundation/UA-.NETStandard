@@ -80,10 +80,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<BrowseResultMask>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new InvalidOperationException("metadata failure"));
 
-            InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            {
-                await harness.Master.BrowseNextAsync(harness.Context, false, [Token(point)]).ConfigureAwait(false);
-            });
+            InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await harness.Master.BrowseNextAsync(harness.Context, false, [Token(point)]).ConfigureAwait(false));
             Assert.That(error.Message, Is.EqualTo("metadata failure"));
             resource.Verify(value => value.Dispose(), Times.Once);
         }
@@ -346,11 +344,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     return new ValueTask<ContinuationPoint>(current);
                 });
 
-            Assert.CatchAsync<OperationCanceledException>(async () =>
-            {
-                await harness.Master.BrowseNextAsync(
-                    harness.Context, false, [Token(first), Token(second)], cancellation.Token).ConfigureAwait(false);
-            });
+            Assert.CatchAsync<OperationCanceledException>(async () => await harness.Master.BrowseNextAsync(
+                    harness.Context, false, [Token(first), Token(second)], cancellation.Token).ConfigureAwait(false));
             firstResource.Verify(value => value.Dispose(), Times.Once);
             secondResource.Verify(value => value.Dispose(), Times.Once);
             Assert.That(harness.Points.RestoreBrowse(Token(first)), Is.Null);

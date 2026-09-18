@@ -1181,7 +1181,8 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         firstRepublishStarted.SetResult(true);
                         await releaseFirstRepublish.Task
-                            .WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
+                            .WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None)
+                            .ConfigureAwait(false);
                     }
 
                     return new RepublishResponse
@@ -1201,17 +1202,17 @@ namespace Opc.Ua.Client.Subscriptions
                 Task recoverTask = sut.RecoverTransferredMessagesAsync([7, 8], default)
                     .AsTask();
 
-                await firstRepublishStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                await firstRepublishStarted.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 await sut.OnPublishReceivedAsync(
                     new NotificationMessage { SequenceNumber = 20 },
                     [11, 12],
-                    []);
+                    []).ConfigureAwait(false);
 
                 Assert.That(sut.AvailableInRetransmissionQueue,
                     Is.EqualTo(new uint[] { 11, 12 }));
 
                 releaseFirstRepublish.SetResult(true);
-                await recoverTask.WaitAsync(TimeSpan.FromSeconds(5));
+                await recoverTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
                 Assert.That(sut.AvailableInRetransmissionQueue,
                     Is.EqualTo(new uint[] { 11, 12 }));
@@ -1328,7 +1329,7 @@ namespace Opc.Ua.Client.Subscriptions
             };
             await using (sut.ConfigureAwait(false))
             {
-                await sut.Block.WaitAsync();
+                await sut.Block.WaitAsync().ConfigureAwait(false);
                 bool blockHeld = true;
                 try
                 {
@@ -1336,7 +1337,8 @@ namespace Opc.Ua.Client.Subscriptions
                         .AsTask();
 
                     await sut.DataChangeNotificationReceived.WaitAsync()
-                        .WaitAsync(TimeSpan.FromSeconds(5));
+                        .WaitAsync(TimeSpan.FromSeconds(5))
+                        .ConfigureAwait(false);
                     cts.Cancel();
                     sut.Block.Release();
                     blockHeld = false;
@@ -1457,8 +1459,10 @@ namespace Opc.Ua.Client.Subscriptions
             public List<uint> ReceivedSequenceNumbers { get; } = [];
             public AsyncManualResetEvent StatusChangeNotificationReceived { get; } = new();
             public DeferredCallbackMode DeferredCallbackMode { get; init; }
+
             public TaskCompletionSource<bool> CallbackReturned { get; } = new(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+
             public Task<bool>? DeferredDispatchGuard { get; private set; }
             public bool IsDispatchingForTest => IsDispatchingNotification;
             public Func<uint, ValueTask>? NotificationCallback { get; set; }

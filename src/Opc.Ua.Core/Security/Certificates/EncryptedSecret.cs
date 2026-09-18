@@ -15,7 +15,6 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 #if CURVE25519
 using Org.BouncyCastle.Crypto.Modes;
@@ -1192,7 +1191,7 @@ namespace Opc.Ua
                 CertificateCollection? senderIssuerCertificates = null;
                 try
                 {
-                    senderIssuerCertificates = new CertificateCollection();
+                    senderIssuerCertificates = [];
 
                     for (int ii = 1; ii < senderCertificateChain.Count; ii++)
                     {
@@ -1375,7 +1374,7 @@ namespace Opc.Ua
                 CertificateCollection? senderIssuerCertificates = null;
                 try
                 {
-                    senderIssuerCertificates = new CertificateCollection();
+                    senderIssuerCertificates = [];
 
                     for (int ii = 1; ii < senderCertificateChain.Count; ii++)
                     {
@@ -1545,6 +1544,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decrypts a verified ECC payload, validates its nonce and padding, and clears temporary secret material.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private byte[] DecryptVerifiedEcc(ArraySegment<byte> dataToDecrypt, byte[]? expectedNonce)
         {
             if (ReceiverNonce == null || SenderNonce == null)
@@ -1641,6 +1641,7 @@ namespace Opc.Ua
         /// <summary>
         /// Erases the exclusively owned backing array of a byte string allocated while decoding a secret.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static void ClearDecodedBytes(ByteString value)
         {
             if (value.IsEmpty)

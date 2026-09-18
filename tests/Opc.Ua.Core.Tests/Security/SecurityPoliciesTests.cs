@@ -180,7 +180,7 @@ namespace Opc.Ua.Core.Tests.Security
 
             using (ServiceProvider provider = services.BuildServiceProvider())
             {
-                var registry = provider.GetRequiredService<ISecurityPolicyRegistry>();
+                ISecurityPolicyRegistry registry = provider.GetRequiredService<ISecurityPolicyRegistry>();
 
                 Assert.That(registry, Is.Not.Null);
                 Assert.That(registry.GetInfo(policy.Uri), Is.SameAs(policy));
@@ -218,7 +218,7 @@ namespace Opc.Ua.Core.Tests.Security
         [Test]
         public void EmptyPolicyEncryptDecryptAndSignAreNoOps()
         {
-            ILogger logger = NUnitTelemetryContext.Create().CreateLogger<SecurityPoliciesTests>();
+            _ = NUnitTelemetryContext.Create().CreateLogger<SecurityPoliciesTests>();
             byte[] plainText = [1, 2, 3];
 
             EncryptedData encrypted = SecurityPolicies.Default.Encrypt(null, string.Empty, plainText);
@@ -256,7 +256,7 @@ namespace Opc.Ua.Core.Tests.Security
         [Test]
         public async Task NoSecurityEncryptAndDecryptAreNoOpsAsync(
             [Values(null, "", SecurityPolicies.None, "None")] string policyUri,
-            [Values(false, true)] bool empty)
+            [Values] bool empty)
         {
             byte[] plainText = empty ? [] : [1, 2, 3];
 
@@ -341,7 +341,7 @@ namespace Opc.Ua.Core.Tests.Security
                 Assert.Ignore("Policy is not supported by this platform.");
             }
 
-            ILogger logger = NUnitTelemetryContext.Create().CreateLogger<SecurityPoliciesTests>();
+            _ = NUnitTelemetryContext.Create().CreateLogger<SecurityPoliciesTests>();
             using Certificate certificate = CertificateBuilder
                 .Create("CN=SecurityPolicies Encrypt")
                 .SetRSAKeySize(2048)

@@ -335,8 +335,7 @@ namespace Opc.Ua.Server.Tests
 
             if (hasPeerAddress)
             {
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await ActivateVictimAsync().ConfigureAwait(false));
+                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(ActivateVictimAsync);
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
                 Assert.That(exception.Message, Does.Contain("Too many failed authentication attempts"));
             }
@@ -355,6 +354,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Verifies that successful username authentication clears prior failed attempts for the client application.
         /// </summary>
+        /// <exception cref="AssertionException"></exception>
         [Test]
         public async Task SuccessfulAuthenticationClearsFailedAttemptsAsync()
         {
@@ -474,6 +474,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Verifies that disabling lockout permits valid authentication after failures exceed the normal threshold.
         /// </summary>
+        /// <exception cref="AssertionException"></exception>
         [Test]
         public async Task ClientIsNotLockedOutWhenLockoutDisabledAsync()
         {

@@ -505,5 +505,4 @@ namespace Opc.Ua.Client
             Exception? exception,
             NodeId? sessionId);
     }
-
 }

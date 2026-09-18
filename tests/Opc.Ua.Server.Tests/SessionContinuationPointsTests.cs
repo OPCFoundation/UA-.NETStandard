@@ -504,9 +504,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ClearRemovesMirroredOnlyPointsUsingOriginalOwnersAsync()
         {
-            NodeId originalOwner = new NodeId("original-owner", 1);
-            Guid browseId = Guid.NewGuid();
-            Guid historyId = Guid.NewGuid();
+            var originalOwner = new NodeId("original-owner", 1);
+            var browseId = Guid.NewGuid();
+            var historyId = Guid.NewGuid();
             var store = new Mock<IContinuationPointStore>(MockBehavior.Loose);
             store
                 .Setup(s => s.LoadContinuationPointsAsync(originalOwner, It.IsAny<CancellationToken>()))
@@ -551,8 +551,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task LateMirroredLoadAfterClearCleansUpOriginalOwnersAsync()
         {
-            NodeId originalOwner = new NodeId("late-owner", 1);
-            Guid browseId = Guid.NewGuid();
+            var originalOwner = new NodeId("late-owner", 1);
+            var browseId = Guid.NewGuid();
             var loadStarted = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseLoad = new TaskCompletionSource<bool>(

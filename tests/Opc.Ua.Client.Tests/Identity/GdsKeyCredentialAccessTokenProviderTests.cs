@@ -202,7 +202,7 @@ namespace Opc.Ua.Client.Tests.Identity
         {
             Assert.That(
                 () => new GdsKeyCredentialAccessTokenProvider(
-                    (Func<CancellationToken, ValueTask<GdsIssuedKeyCredential>>)null!,
+                    null!,
                     "urn:authority"),
                 Throws.TypeOf<ArgumentNullException>());
             Assert.That(
@@ -261,7 +261,7 @@ namespace Opc.Ua.Client.Tests.Identity
 
             Assert.That(client.StartRequestApplicationUri, Is.EqualTo("urn:app"));
             Assert.That(client.StartRequestSecurityPolicyUri, Is.EqualTo(SecurityPolicies.Basic256Sha256));
-            Assert.That(client.StartRequestRoles, Is.EqualTo(new[] { ObjectIds.WellKnownRole_AuthenticatedUser }));
+            Assert.That(client.StartRequestRoles, Is.EqualTo([ObjectIds.WellKnownRole_AuthenticatedUser]));
             Assert.That(token.DisplayName, Is.EqualTo("credential-id"));
             Assert.That(token.GrantedScopes, Does.Contain(SecurityPolicies.Basic256Sha256));
             Assert.That(token.GrantedScopes, Does.Contain(ObjectIds.WellKnownRole_AuthenticatedUser.ToString()));

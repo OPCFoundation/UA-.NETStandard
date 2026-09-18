@@ -155,6 +155,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns an owning key handle and optionally consumes the entry after a requested certificate match.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         private ValueTask<Certificate?> TryTakeCore(
             PendingCertificateKeyContext context,
             Certificate? matchingCertificate,

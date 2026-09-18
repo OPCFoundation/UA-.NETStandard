@@ -117,6 +117,7 @@ namespace Opc.Ua.Server
         /// Saves a browse continuation point, dropping the oldest when the limit is exceeded.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="continuationPoint"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public void SaveBrowse(ContinuationPoint continuationPoint)
         {
             if (continuationPoint == null)
@@ -224,6 +225,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Removes and disposes browse continuation points owned by the specified node manager.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public void RemoveBrowseForManager(IAsyncNodeManager nodeManager)
         {
             if (nodeManager is null)

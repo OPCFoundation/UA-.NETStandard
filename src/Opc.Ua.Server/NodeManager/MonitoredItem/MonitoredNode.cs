@@ -113,7 +113,6 @@ namespace Opc.Ua.Server
             });
             m_consumerCts = new CancellationTokenSource();
             m_consumerTask = Task.Run(() => ProcessChannelAsync(m_consumerCts.Token));
-
         }
 
         /// <summary>
@@ -217,7 +216,6 @@ namespace Opc.Ua.Server
                 EventMonitoredItems.TryAdd(eventItem.Id, eventItem);
 
                 Node.OnReportEventAsync = OnReportEventAsync;
-
             }
         }
 
@@ -236,7 +234,6 @@ namespace Opc.Ua.Server
                 {
                     Node.OnReportEventAsync = null;
                 }
-
             }
         }
 
@@ -1035,5 +1032,4 @@ namespace Opc.Ua.Server
             Message = "MonitoredNode2 consumer faulted during shutdown.")]
         public static partial void MonitoredNode2ConsumerFaultedDuringShutdown(this ILogger logger, Exception ex);
     }
-
 }

@@ -127,7 +127,10 @@ namespace Opc.Ua.Server.Tests
         {
             public event Action<byte> ServiceLevelChanged;
 
-            public byte GetServiceLevel() => m_level;
+            public byte GetServiceLevel()
+            {
+                return m_level;
+            }
 
             public void SetLevel(byte value)
             {

@@ -371,11 +371,11 @@ namespace Opc.Ua.Server.FileSystem
                 return target;
             }
             catch (Exception ex) when (
-                ex is IOException ||
-                ex is UnauthorizedAccessException ||
-                ex is ArgumentException ||
-                ex is NotSupportedException ||
-                ex is PathTooLongException)
+                ex is IOException or
+                UnauthorizedAccessException or
+                ArgumentException or
+                NotSupportedException or
+                PathTooLongException)
             {
                 return null!;
             }
@@ -470,7 +470,8 @@ namespace Opc.Ua.Server.FileSystem
             lock (m_lock)
             {
                 if (m_handles.TryGetValue(identity, out FileHandle? current) &&
-                    ReferenceEquals(current, handle) && handle.TryRetire())
+                    ReferenceEquals(current, handle) &&
+                    handle.TryRetire())
                 {
                     m_handles.Remove(identity);
                 }
@@ -490,7 +491,7 @@ namespace Opc.Ua.Server.FileSystem
                 return;
             }
             string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, parsed.ProviderPath);
-            FileHandle? retired = null;
+            FileHandle? retired;
             lock (m_lock)
             {
                 if (m_handles.TryGetValue(identity, out retired))

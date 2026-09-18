@@ -1401,5 +1401,4 @@ namespace Opc.Ua.Client
             Variant value,
             DateTimeUtc sourceTime);
     }
-
 }

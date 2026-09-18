@@ -34,6 +34,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -43,8 +44,7 @@ using Opc.Ua.Tests;
 
 // This fixture covers obsolete synchronous compatibility APIs and the
 // protected disposal compatibility hook alongside the async lifecycle.
-#pragma warning disable CS0618
-#pragma warning disable CS0672
+#pragma warning disable CS0618, CS0672
 
 namespace Opc.Ua.Client.Tests.ClientBuilder
 {
@@ -71,8 +71,10 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         private static Uri Url(int port, string path = "/reverse")
         {
             return new Uri(
-                Scheme + "://localhost:" +
-                port.ToString(CultureInfo.InvariantCulture) + path);
+                Scheme +
+                "://localhost:" +
+                port.ToString(CultureInfo.InvariantCulture) +
+                path);
         }
 
         private static ReverseConnectClientConfiguration ConfigFor(params Uri[] urls)
@@ -1841,6 +1843,22 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
+        public async Task RegistrationStateRecheckPreservesDisposalErrorAsync()
+        {
+            await using var manager = new ReverseConnectManager(CreateTelemetry());
+            await manager.DisposeAsync().ConfigureAwait(false);
+            MethodInfo? recheck = typeof(ReverseConnectManager).GetMethod(
+                "RejectIfNotServingLocked", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(recheck, Is.Not.Null);
+
+            TargetInvocationException exception = Assert.Throws<TargetInvocationException>(
+                () => recheck!.Invoke(manager, null))!;
+
+            Assert.That(exception.InnerException, Is.TypeOf<ObjectDisposedException>());
+            Assert.That(manager.WaitingConnectionCountForTest, Is.Zero);
+        }
+
+        [Test]
         public async Task ConcurrentRegistrationDuringDisposalNeverCorrupts()
         {
             ITelemetryContext telemetry = CreateTelemetry();
@@ -1875,7 +1893,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                     }
                 }));
             }
-            Task dispose = Task.Run(async () =>
+            var dispose = Task.Run(async () =>
             {
                 await gate.Task.ConfigureAwait(false);
                 await manager.DisposeAsync().ConfigureAwait(false);
@@ -3268,7 +3286,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
                 await WaitForAsync(
                     () => harness.Listeners.Any(l => l.OpenedUrl == newUrl && l.IsOpen),
-                    "the re-queued reload must eventually open the changed endpoint");
+                    "the re-queued reload must eventually open the changed endpoint").ConfigureAwait(false);
                 Assert.That(
                     harness.Listeners.Any(l => l.OpenedUrl == liveUrl && l.IsOpen),
                     Is.False,
@@ -3381,13 +3399,12 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var manager = new ReverseConnectManager(telemetry)
             {
-                TransportBindings = harness.Registry
-            };
-
-            manager.GateAcquiredForTest = async () =>
-            {
-                gateAcquired.TrySetResult(true);
-                await release.Task.ConfigureAwait(false);
+                TransportBindings = harness.Registry,
+                GateAcquiredForTest = async () =>
+                    {
+                        gateAcquired.TrySetResult(true);
+                        await release.Task.ConfigureAwait(false);
+                    }
             };
 
             Task start = manager.StartServiceAsync(ConfigFor(url));
@@ -4099,10 +4116,13 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             {
                 ReverseConnectClientEndpoint[] endpoints =
                     loaded.ClientConfiguration!.ReverseConnect!.ClientEndpoints.ToArray() ?? [];
-                Uri[] urls = endpoints
-                    .Select(e => new Uri(e.EndpointUrl!))
-                    .Append(optionUrl)
-                    .ToArray();
+                Uri[] urls =
+                [
+                    .. endpoints
+                                        .Select(e => new Uri(e.EndpointUrl!))
+,
+                    optionUrl
+                ];
                 return string.IsNullOrEmpty(loaded.SourceFilePath)
                     ? BuildAppConfig(telemetry, urls)
                     : BuildAppConfigWithFile(telemetry, loaded.SourceFilePath!, urls);
@@ -4310,11 +4330,11 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                     "rather than the endpoints a prior start mutated away");
                 Assert.That(
                     provider.ObservedHoldTimes,
-                    Is.EqualTo(new[] { optionHold, optionHold }),
+                    Is.EqualTo([optionHold, optionHold]),
                     "every start must hand the provider the clean option hold time");
                 Assert.That(
                     provider.ObservedWaitTimeouts,
-                    Is.EqualTo(new[] { optionWait, optionWait }),
+                    Is.EqualTo([optionWait, optionWait]),
                     "every start must hand the provider the clean option wait timeout");
             }
             finally
@@ -4391,10 +4411,10 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                     "option endpoint");
                 Assert.That(
                     provider.ObservedHoldTimes,
-                    Is.EqualTo(new[] { optionHold, optionHold }));
+                    Is.EqualTo([optionHold, optionHold]));
                 Assert.That(
                     provider.ObservedWaitTimeouts,
-                    Is.EqualTo(new[] { optionWait, optionWait }));
+                    Is.EqualTo([optionWait, optionWait]));
             }
             finally
             {
@@ -4425,7 +4445,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 Task callback = manager.InvokeBlockingConnectionCallbackForTest(gate.Task);
                 await WaitForAsync(
                     () => manager.ActiveConnectionCallbackCountForTest == 1,
-                    "the blocking callback must be tracked before the stop");
+                    "the blocking callback must be tracked before the stop").ConfigureAwait(false);
 
                 // A cancellable Stop carrying a deadline must cancel at the
                 // deadline (parked on the drain) rather than hang forever on the
@@ -4455,7 +4475,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 await callback.ConfigureAwait(false);
                 await WaitForAsync(
                     () => manager.ActiveConnectionCallbackCountForTest == 0,
-                    "the released callback must drain to zero");
+                    "the released callback must drain to zero").ConfigureAwait(false);
 
                 // A subsequent non-cancellable stop now completes cleanly.
                 await manager.StopServiceAsync().ConfigureAwait(false);
@@ -4491,7 +4511,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 Task callback = manager.InvokeBlockingConnectionCallbackForTest(gate.Task);
                 await WaitForAsync(
                     () => manager.ActiveConnectionCallbackCountForTest == 1,
-                    "the blocking callback must be tracked before the host stop");
+                    "the blocking callback must be tracked before the host stop").ConfigureAwait(false);
 
                 // The Generic Host shutdown token must flow through StopAsync and
                 // cancel the drain at the host's deadline.
@@ -4694,7 +4714,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
                 using var waitCts = new CancellationTokenSource(
                     TimeSpan.FromMilliseconds(500));
-                Task waiter = Task.Run(
+                var waiter = Task.Run(
                     async () =>
                     {
                         try
@@ -4710,7 +4730,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                         {
                         }
                     });
-                Task stop = Task.Run(() => manager.StopServiceAsync());
+                var stop = Task.Run(() => manager.StopServiceAsync());
 
                 await Task.WhenAll(waiter, stop).ConfigureAwait(false);
 
@@ -5476,6 +5496,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         {
             private readonly TaskCompletionSource<bool> m_entered =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private readonly Task<bool> m_release;
 
             public CancellationIgnoringProvider(Task<bool> release)
@@ -5521,6 +5542,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         {
             private readonly TaskCompletionSource<bool> m_entered =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private readonly Task<bool> m_release;
 
             public TokenRegisteringProvider(Task<bool> release)
@@ -5550,7 +5572,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 await m_release.ConfigureAwait(false);
                 try
                 {
-                    using CancellationTokenSource linked =
+                    using var linked =
                         CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                     using CancellationTokenRegistration reg =
                         cancellationToken.Register(static () => { });
@@ -5695,6 +5717,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         {
             private readonly TaskCompletionSource<bool> m_entered =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private readonly TaskCompletionSource<bool> m_canceled =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -5730,6 +5753,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         {
             private readonly TaskCompletionSource<bool> m_entered =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private readonly Task<bool> m_release;
 
             public GatedProvider(Task<bool> release)
@@ -5890,10 +5914,13 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             }
 
             private readonly ConcurrentDictionary<Uri, Exception> m_openFailures = new();
+
             private readonly ConcurrentDictionary<Uri, Func<CancellationToken, Task>> m_openGates =
                 new();
+
             private readonly ConcurrentDictionary<Uri, Func<CancellationToken, Task>> m_closeGates =
                 new();
+
             private readonly TaskCompletionSource<bool> m_openObserved =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -5916,10 +5943,9 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             public List<Uri> OpenedUrls()
             {
-                return Listeners
+                return [.. Listeners
                     .Where(l => l.OpenCount > 0 && l.OpenedUrl != null)
-                    .Select(l => l.OpenedUrl!)
-                    .ToList();
+                    .Select(l => l.OpenedUrl!)];
             }
 
             public async ValueTask OnOpenAsync(Uri url, CancellationToken ct)

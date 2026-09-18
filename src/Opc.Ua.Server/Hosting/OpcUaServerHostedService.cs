@@ -41,7 +41,6 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
 using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
-using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server.Hosting
 {
@@ -276,8 +275,7 @@ namespace Opc.Ua.Server.Hosting
                 m_services.GetServices<OpcUaServerNodeManagerRegistration>())
             {
                 stoppingToken.ThrowIfCancellationRequested();
-                ArrayOf<IAsyncNodeManagerFactory> factories = reg.ResolveAsyncFactories(m_services, configuration);
-                foreach (IAsyncNodeManagerFactory factory in factories)
+                foreach (IAsyncNodeManagerFactory factory in reg.ResolveAsyncFactories(m_services, configuration))
                 {
                     m_server.AddNodeManager(factory ??
                         throw new InvalidOperationException(

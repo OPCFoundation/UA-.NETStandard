@@ -155,7 +155,7 @@ namespace Opc.Ua
 
                 byte[] dataToEncrypt = Utils.Append(DecryptedPassword, receiverNonce);
 
-                ILogger logger = context.Telemetry.CreateLogger<UserNameIdentityToken>();
+                _ = context.Telemetry.CreateLogger<UserNameIdentityToken>();
                 EncryptedData encryptedData = m_securityPolicies.Encrypt(
                     receiverCertificate,
                     securityPolicyUri,
@@ -184,7 +184,7 @@ namespace Opc.Ua
                     senderIssuerCertificates = issuers;
                 }
 
-                using Nonce senderNonce = Nonce.CreateNonce(securityPolicy);
+                using var senderNonce = Nonce.CreateNonce(securityPolicy);
                 using var secret = EncryptedSecret.CreateForEcc(
                     context: context,
                     securityPolicyUri: securityPolicyUri,
@@ -243,7 +243,7 @@ namespace Opc.Ua
                     certificate,
                     receiverNonce);
                 if (string.IsNullOrEmpty(m_token.EncryptionAlgorithm) &&
-                    encryptedSecret.TryDecrypt(m_token.Password.ToArray()!, receiverNonce?.Data!, out byte[]? decryptedSecret))
+                    encryptedSecret.TryDecrypt(m_token.Password.ToArray()!, receiverNonce?.Data, out byte[]? decryptedSecret))
                 {
                     DecryptedPassword = decryptedSecret;
                     return;
@@ -305,7 +305,7 @@ namespace Opc.Ua
 
                 (bool ok, byte[]? decryptedSecret) = await secret.TryDecryptAsync(
                     m_token.Password.ToArray()!,
-                    receiverNonce?.Data!,
+                    receiverNonce?.Data,
                     ct).ConfigureAwait(false);
                 if (!ok)
                 {

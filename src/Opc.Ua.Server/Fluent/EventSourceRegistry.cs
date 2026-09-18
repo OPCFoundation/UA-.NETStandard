@@ -1067,8 +1067,10 @@ namespace Opc.Ua.Server.Fluent
             public CancellationTokenSource? FailedGeneration;
             public DateTimeOffset RetryAfter;
             public int ConsecutiveFailures;
+
             public TaskCompletionSource<bool> Ready =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             public int LeakedFaulted;
         }
 
@@ -1213,5 +1215,4 @@ namespace Opc.Ua.Server.Fluent
             QualifiedName browse,
             NodeId nodeId);
     }
-
 }

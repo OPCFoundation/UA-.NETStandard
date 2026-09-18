@@ -84,6 +84,9 @@ namespace Opc.Ua.Server.FileSystem
         /// <paramref name="path"/>, or <c>null</c> when the path
         /// resolves to nothing.
         /// </summary>
+        /// <param name="path">The provider-relative path to inspect.</param>
+        /// <param name="ct">The token used to cancel the metadata query.</param>
+        /// <returns>The entry metadata, or null when no entry exists at the path.</returns>
         ValueTask<FileSystemEntry?> GetEntryAsync(string path, CancellationToken ct);
 
         /// <summary>
@@ -93,11 +96,17 @@ namespace Opc.Ua.Server.FileSystem
         /// <paramref name="path"/> refers to a missing or non-directory
         /// node.
         /// </summary>
+        /// <param name="path">The provider-relative directory path.</param>
+        /// <param name="ct">The token used to cancel enumeration.</param>
+        /// <returns>The directory's immediate file and directory entries.</returns>
         IAsyncEnumerable<FileSystemEntry> EnumerateAsync(string path, CancellationToken ct);
 
         /// <summary>
         /// Opens the file at <paramref name="path"/> for reading.
         /// </summary>
+        /// <param name="path">The provider-relative file path.</param>
+        /// <param name="ct">The token used to cancel opening the file.</param>
+        /// <returns>The readable stream, which the caller must dispose.</returns>
         /// <exception cref="FileNotFoundException">If the file does not exist.</exception>
         ValueTask<Stream> OpenReadAsync(string path, CancellationToken ct);
 
@@ -107,6 +116,7 @@ namespace Opc.Ua.Server.FileSystem
         /// <param name="path">Provider-relative file path.</param>
         /// <param name="mode">How the file should be opened / created.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <returns>The writable stream, which the caller must dispose.</returns>
         ValueTask<Stream> OpenWriteAsync(string path, FileWriteMode mode, CancellationToken ct);
 
         /// <summary>
@@ -115,6 +125,9 @@ namespace Opc.Ua.Server.FileSystem
         /// exists. Throws <see cref="IOException"/> when a file
         /// already occupies the slot.
         /// </summary>
+        /// <param name="path">The provider-relative directory path to create.</param>
+        /// <param name="ct">The token used to cancel directory creation.</param>
+        /// <returns>A task that completes when the directory exists.</returns>
         ValueTask CreateDirectoryAsync(string path, CancellationToken ct);
 
         /// <summary>
@@ -122,6 +135,9 @@ namespace Opc.Ua.Server.FileSystem
         /// <see cref="IOException"/> when the path already exists
         /// (either as a file or a directory).
         /// </summary>
+        /// <param name="path">The provider-relative file path to create.</param>
+        /// <param name="ct">The token used to cancel file creation.</param>
+        /// <returns>A task that completes when the empty file has been created.</returns>
         ValueTask CreateFileAsync(string path, CancellationToken ct);
 
         /// <summary>
@@ -131,6 +147,9 @@ namespace Opc.Ua.Server.FileSystem
         /// <see cref="DirectoryNotFoundException"/> when the path
         /// does not exist.
         /// </summary>
+        /// <param name="path">The provider-relative file or directory path to delete.</param>
+        /// <param name="ct">The token used to cancel deletion.</param>
+        /// <returns>A task that completes when the entry and any descendants have been deleted.</returns>
         ValueTask DeleteAsync(string path, CancellationToken ct);
 
         /// <summary>
@@ -139,6 +158,10 @@ namespace Opc.Ua.Server.FileSystem
         /// provider-relative paths. Throws
         /// <see cref="IOException"/> on collision.
         /// </summary>
+        /// <param name="source">The provider-relative path of the entry to move.</param>
+        /// <param name="target">The provider-relative destination path.</param>
+        /// <param name="ct">The token used to cancel the move.</param>
+        /// <returns>A task that completes when the entry has moved to the destination.</returns>
         ValueTask MoveAsync(string source, string target, CancellationToken ct);
 
         /// <summary>
@@ -147,6 +170,10 @@ namespace Opc.Ua.Server.FileSystem
         /// provider-relative paths. Throws
         /// <see cref="IOException"/> on collision.
         /// </summary>
+        /// <param name="source">The provider-relative path of the entry to copy.</param>
+        /// <param name="target">The provider-relative destination path.</param>
+        /// <param name="ct">The token used to cancel the copy.</param>
+        /// <returns>A task that completes when the entry and any descendants have been copied.</returns>
         ValueTask CopyAsync(string source, string target, CancellationToken ct);
     }
 
@@ -161,6 +188,8 @@ namespace Opc.Ua.Server.FileSystem
         /// Equivalent path spellings must return the same key, including for entries that no longer exist.
         /// The key is for handle ownership only and need not be a browsable or provider-accessible path.
         /// </summary>
+        /// <param name="path">The provider-relative path whose identity is requested.</param>
+        /// <returns>The stable ordinal key used to share handle ownership for equivalent paths.</returns>
         string GetPathIdentity(string path);
     }
 }

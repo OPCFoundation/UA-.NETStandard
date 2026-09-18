@@ -592,7 +592,7 @@ namespace Opc.Ua.Client.Subscriptions
 
                 var actionEntered = new TaskCompletionSource<bool>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
-                var dropped = 0;
+                int dropped = 0;
                 Task quiesced = sut.RunWithPublishingQuiescedAsync(_ =>
                 {
                     dropped = sut.DropPendingForSubscription(1);
@@ -1341,7 +1341,7 @@ namespace Opc.Ua.Client.Subscriptions
                 loggerFactory, DiagnosticsMasks.None);
             await using (sut.ConfigureAwait(false))
             {
-                var nextId = 0;
+                int nextId = 0;
                 var survivors = new ConcurrentBag<ISubscription>();
                 var partitions = new ConcurrentDictionary<
                     IOptionsMonitor<SubscriptionOptions>, FakeManagedSubscription>();

@@ -1446,9 +1446,11 @@ namespace Opc.Ua.Server.Tests.Historian
 
         private static readonly double[] PriorReadings = [1.0, 2.0];
 
-        // Insert (Temperature=1.0), Replace (Temperature 1.0->2.0),
-        // Update-that-replaces (Temperature 2.0->3.0), Insert (Pressure=4.0
-        // via the same Update call), Delete (Temperature=3.0 removed).
+        /// <summary>
+        /// Insert (Temperature=1.0), Replace (Temperature 1.0->2.0),
+        /// Update-that-replaces (Temperature 2.0->3.0), Insert (Pressure=4.0
+        /// via the same Update call), Delete (Temperature=3.0 removed).
+        /// </summary>
         private static readonly HistoryUpdateType[] ExpectedUpdateTypes =
         [
             HistoryUpdateType.Insert,

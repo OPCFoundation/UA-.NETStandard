@@ -1,7 +1,34 @@
-// ------------------------------------------------------------
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
 //  Copyright (c) Microsoft Corporation.  All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
-// ------------------------------------------------------------
 
 #nullable enable
 
@@ -78,6 +105,55 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             Assert.That(builder, Is.Not.Null);
             Assert.That(builder.Services, Is.SameAs(services));
+        }
+
+        [Test]
+        public async Task CachedSessionConnectSurvivesCancelledWaitersAndRetriesAfterFailureAsync()
+        {
+            var pending = new TaskCompletionSource<ApplicationConfiguration>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var configurationProvider = new Mock<IOpcUaApplicationConfigurationProvider>();
+            configurationProvider.Setup(provider => provider.Configuration).Returns(CreateConfig());
+            int calls = 0;
+            configurationProvider.Setup(provider => provider.GetAsync(It.IsAny<CancellationToken>()))
+                .Returns((CancellationToken token) =>
+                {
+                    Assert.That(token.CanBeCanceled, Is.False);
+                    return Interlocked.Increment(ref calls) == 1
+                        ? pending.Task
+                        : Task.FromException<ApplicationConfiguration>(new IOException("Retry configuration failure."));
+                });
+            var services = new ServiceCollection();
+            services.AddSingleton(configurationProvider.Object);
+            services.AddOpcUa().AddClient(options =>
+                options.Session = new ManagedSessionOptions { Endpoint = CreateEndpoint() });
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            var connect = provider.GetRequiredService<Func<CancellationToken, Task<Client.ManagedSession>>>();
+            using var cancellation = new CancellationTokenSource();
+            var cancelledWaiters = new Task<Client.ManagedSession>[16];
+            for (int ii = 0; ii < cancelledWaiters.Length; ii++)
+            {
+                cancelledWaiters[ii] = connect(cancellation.Token);
+            }
+            Task<Client.ManagedSession> survivor = connect(CancellationToken.None);
+
+            cancellation.Cancel();
+            await Assert.ThatAsync(
+                () => Task.WhenAll(cancelledWaiters).WaitAsync(TimeSpan.FromSeconds(5)),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(survivor.IsCompleted, Is.False);
+
+            pending.SetException(new IOException("Shared configuration failure."));
+            await Assert.ThatAsync(
+                () => survivor.WaitAsync(TimeSpan.FromSeconds(5)),
+                Throws.TypeOf<IOException>().With.Message.EqualTo("Shared configuration failure."))
+                .ConfigureAwait(false);
+            await Assert.ThatAsync(
+                () => connect(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5)),
+                Throws.TypeOf<IOException>().With.Message.EqualTo("Retry configuration failure."))
+                .ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(2));
         }
 
         [Test]
@@ -233,10 +309,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             services.AddSingleton<IOpcUaApplicationConfigurationProvider>(
                 configurationProvider);
             services.AddOpcUa()
-                .ConfigureApplication(options =>
-                {
-                    options.ApplicationName = "ConfiguredClient";
-                })
+                .ConfigureApplication(options => options.ApplicationName = "ConfiguredClient")
                 .AddClient(_ => { });
 
             ServiceProvider sp = services.BuildServiceProvider();

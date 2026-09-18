@@ -164,12 +164,12 @@ namespace Opc.Ua.Server.Tests.Historian
             }
             Assert.That(outcome.OperationResults.ToArray(), Has.All.EqualTo(StatusCodes.GoodEntryInserted));
             HistorianPage<HistoricalDataValue> raw = await ReadRawAsync(provider, context).ConfigureAwait(false);
-            Assert.That(raw.Values.ToArray().Select(v => v.Value.SourceTimestamp), Is.EqualTo(new[]
-            {
+            Assert.That(raw.Values.ToArray().Select(v => v.Value.SourceTimestamp), Is.EqualTo(
+            [
                 (DateTimeUtc)s_now.AddMinutes(-30),
                 (DateTimeUtc)s_now.AddMinutes(-15),
                 (DateTimeUtc)s_now.AddYears(1)
-            }));
+            ]));
             clock.Advance(TimeSpan.FromMinutes(31));
             raw = await ReadRawAsync(provider, context).ConfigureAwait(false);
             Assert.That(raw.Values, Has.Count.EqualTo(2));
@@ -187,7 +187,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 HistorianOperationContext context = CreateContext();
                 for (int i = 0; i < offsets.Length; i++)
                 {
-                    int index = (permutation / 2 + (permutation % 2 == 0 ? i : offsets.Length - i - 1)) %
+                    int index = ((permutation / 2) + (permutation % 2 == 0 ? i : offsets.Length - i - 1)) %
                         offsets.Length;
                     int offset = offsets[index];
                     HistorianUpdateOutcome<DataValue> outcome = await provider.InsertAsync(

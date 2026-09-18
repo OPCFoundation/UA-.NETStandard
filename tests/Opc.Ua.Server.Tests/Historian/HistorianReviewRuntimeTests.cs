@@ -374,7 +374,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
             Assert.That(result.HistoryData.TryGetValue(out HistoryEvent history), Is.True);
-            bool hasIdentity = fieldKind < 2 || fieldKind == 4;
+            bool hasIdentity = fieldKind is < 2 or 4;
             Assert.That(history.Events, Has.Count.EqualTo(where && !hasIdentity ? 0 : 1));
             if (!where || hasIdentity)
             {

@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Tests;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Tests;
@@ -406,18 +407,18 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 return WaitForDeleteCancellationAsync(ct);
             }
 
-            public async IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
+            public IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
                 string keyPrefix,
-                [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken ct = default)
+                System.Threading.CancellationToken ct = default)
             {
-                yield break;
+                return TestAsyncEnumerable.Empty<KeyValuePair<string, ByteString>>();
             }
 
-            public async IAsyncEnumerable<KeyValueChange> WatchAsync(
+            public IAsyncEnumerable<KeyValueChange> WatchAsync(
                 string keyPrefix,
-                [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken ct = default)
+                System.Threading.CancellationToken ct = default)
             {
-                yield break;
+                return TestAsyncEnumerable.Empty<KeyValueChange>();
             }
 
             public ValueTask DisposeAsync()

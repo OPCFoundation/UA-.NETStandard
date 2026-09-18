@@ -921,15 +921,14 @@ namespace Opc.Ua
             Message = "Could not get absolute path for {FileName}")]
         public static partial void UtilsObsoleteLogMessage0(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string fileName);
 
         [LoggerMessage(EventId = CoreEventIds.UtilsObsolete + 1, Level = LogLevel.Debug,
             Message = "Could not find installed file: {FileName}")]
         public static partial void UtilsObsoleteLogMessage1(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string fileName);
     }
-
 }

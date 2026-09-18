@@ -754,7 +754,9 @@ namespace Opc.Ua.Server.Tests.Historian
             // 2 inserts + 2 replaces qualify (middle, upper); lower is
             // excluded by the reverse-read boundary rule.
             Assert.That(page.Values, Has.Count.EqualTo(4));
-            int upperCount = 0, middleCount = 0, lowerCount = 0;
+            int upperCount = 0;
+            int middleCount = 0;
+            int lowerCount = 0;
             foreach (ModifiedDataValue v in page.Values)
             {
                 if (v.Value.SourceTimestamp == (DateTimeUtc)upper)
@@ -1041,7 +1043,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 nodeId,
                 [MakeValue(sourceTimestamp, 1)],
                 CancellationToken.None).ConfigureAwait(false);
-            HistorianResumeToken malformed = HistorianResumeToken.FromCursor(
+            var malformed = HistorianResumeToken.FromCursor(
                 new HistorianResumeCursor(
                     sourceTimestamp,
                     ByteString.From([1]),

@@ -671,6 +671,7 @@ namespace Opc.Ua.Server.AliasNames
 
             public AliasNameCategoryDescriptor Descriptor { get; }
             public Dictionary<string, Dictionary<MappingKey, string?>> Aliases { get; }
+
             public uint LastChange
             {
                 get => Volatile.Read(ref m_lastChange);

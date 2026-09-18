@@ -254,6 +254,9 @@ namespace Opc.Ua.Identity
         /// through the view without managing its lifetime. Refresh must not
         /// invalidate a previously returned key while a caller is verifying with it.
         /// </remarks>
+        /// <param name="keyId">The JOSE key identifier, or null to request all known verification keys.</param>
+        /// <param name="ct">The token used to cancel key resolution.</param>
+        /// <returns>The matching verification-key views, whose lifetime remains managed by the resolver.</returns>
         ValueTask<IReadOnlyList<IIssuerVerificationKey>> GetKeysAsync(
             string? keyId,
             CancellationToken ct = default);

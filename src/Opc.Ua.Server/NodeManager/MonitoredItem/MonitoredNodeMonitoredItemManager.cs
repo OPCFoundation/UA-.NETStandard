@@ -460,7 +460,7 @@ namespace Opc.Ua.Server
             monitoredNode.Add(monitoredItem);
             if (!MonitoredItems.TryAdd(monitoredItem.Id, monitoredItem) &&
                 (!MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? existing) ||
-                 !ReferenceEquals(existing, monitoredItem)))
+                    !ReferenceEquals(existing, monitoredItem)))
             {
                 return (monitoredNode, StatusCodes.BadUnexpectedError);
             }

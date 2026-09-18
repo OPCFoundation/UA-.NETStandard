@@ -584,7 +584,7 @@ namespace Opc.Ua
 
         private static string ToHex(byte[] bytes)
         {
-            var builder = new System.Text.StringBuilder(bytes.Length * 2);
+            var builder = new StringBuilder(bytes.Length * 2);
             foreach (byte value in bytes)
             {
                 builder.Append(value.ToString("x2", CultureInfo.InvariantCulture));
@@ -623,19 +623,18 @@ namespace Opc.Ua
             Message = "Skipping an undecodable certificate record in shared store {StorePath}.")]
         public static partial void SharedKeyValueStoreLog2(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? storePath);
 
         [LoggerMessage(EventId = CoreEventIds.SharedKeyValueCertificateStore + 3, Level = LogLevel.Warning,
             Message = "Skipping an undecodable CRL record in shared store {StorePath}.")]
         public static partial void SharedKeyValueStoreLog3(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? storePath);
 
         [LoggerMessage(EventId = CoreEventIds.SharedKeyValueCertificateStore + 4, Level = LogLevel.Warning,
             Message = "Rejected a certificate record that failed integrity verification in shared store {StorePath}.")]
         public static partial void SharedKeyValueStoreLog4(this ILogger logger, string? storePath);
     }
-
 }

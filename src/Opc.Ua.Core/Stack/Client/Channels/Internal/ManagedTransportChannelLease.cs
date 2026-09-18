@@ -337,17 +337,17 @@ namespace Opc.Ua
         private static bool IsTransientChannelError(StatusCode statusCode)
         {
             uint code = statusCode.CodeBits;
-            return code == StatusCodes.BadConnectionClosed
-                || code == StatusCodes.BadSecureChannelClosed
-                || code == StatusCodes.BadSecureChannelIdInvalid
-                || code == StatusCodes.BadNotConnected
-                || code == StatusCodes.BadConnectionRejected
-                || code == StatusCodes.BadServerNotConnected
-                || code == StatusCodes.BadServerHalted
-                || code == StatusCodes.BadNoCommunication
-                || code == StatusCodes.BadCommunicationError
-                || code == StatusCodes.BadTcpInternalError
-                || code == StatusCodes.BadRequestInterrupted;
+            return code == StatusCodes.BadConnectionClosed ||
+                code == StatusCodes.BadSecureChannelClosed ||
+                code == StatusCodes.BadSecureChannelIdInvalid ||
+                code == StatusCodes.BadNotConnected ||
+                code == StatusCodes.BadConnectionRejected ||
+                code == StatusCodes.BadServerNotConnected ||
+                code == StatusCodes.BadServerHalted ||
+                code == StatusCodes.BadNoCommunication ||
+                code == StatusCodes.BadCommunicationError ||
+                code == StatusCodes.BadTcpInternalError ||
+                code == StatusCodes.BadRequestInterrupted;
         }
 
         /// <inheritdoc/>
@@ -413,6 +413,7 @@ namespace Opc.Ua
             public byte[] ClientChannelCertificate => transport.ClientChannelCertificate;
             public byte[] ServerChannelCertificate => transport.ServerChannelCertificate;
             public IServiceMessageContext MessageContext => transport.MessageContext;
+
             public int OperationTimeout
             {
                 get => transport.OperationTimeout;

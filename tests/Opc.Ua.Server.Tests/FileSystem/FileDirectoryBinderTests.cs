@@ -468,7 +468,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         public void AddFileDirectoryBinderRegistersDefaultBinder()
         {
             var services = new ServiceCollection();
-            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            services.AddSingleton(NUnitTelemetryContext.Create());
             IOpcUaServerBuilder builder = new TestServerBuilder(services);
 
             builder.AddFileDirectoryBinder();
@@ -524,7 +524,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         private static byte[] ReadAll(ISystemContext context, FileState file)
         {
             uint handle = Open(context, file, 0x1);
-            ByteString data = ByteString.From([]);
+            var data = ByteString.From([]);
             ServiceResult readResult = file.Read!.OnCall!(context, file.Read!, file.NodeId, handle, 1024, ref data);
             ServiceResult closeResult = file.Close!.OnCall!(context, file.Close!, file.NodeId, handle);
             Assert.That(ServiceResult.IsGood(readResult), Is.True);
@@ -627,11 +627,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
                         throw new DirectoryNotFoundException(parent);
                     }
 
-                    entries = m_entries
+                    entries = [.. m_entries
                         .Where(kv => IsImmediateChild(parent, kv.Key))
                         .OrderBy(kv => kv.Key, StringComparer.Ordinal)
-                        .Select(kv => kv.Value.ToFileSystemEntry(kv.Key, IsWritable))
-                        .ToList();
+                        .Select(kv => kv.Value.ToFileSystemEntry(kv.Key, IsWritable))];
                 }
 
                 foreach (FileSystemEntry entry in entries)
@@ -652,7 +651,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                     }
                     m_openStreamCount++;
                     return new ValueTask<Stream>(new TrackingReadStream(
-                        entry.Content.ToArray(),
+                        [.. entry.Content],
                         () =>
                         {
                             lock (m_lock)
@@ -682,7 +681,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                         }
                         if (mode == FileWriteMode.Append)
                         {
-                            initial = entry.Content.ToArray();
+                            initial = [.. entry.Content];
                         }
                     }
                     else
@@ -981,7 +980,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
                 public Entry Clone(string name)
                 {
-                    return IsDirectory ? Directory(name) : File(Content.ToArray());
+                    return IsDirectory ? Directory(name) : File([.. Content]);
                 }
 
                 public FileSystemEntry ToFileSystemEntry(string path, bool isWritable)

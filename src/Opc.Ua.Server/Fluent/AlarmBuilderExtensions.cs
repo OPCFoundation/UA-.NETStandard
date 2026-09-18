@@ -167,6 +167,11 @@ namespace Opc.Ua.Server.Fluent
         /// a non-limit alarm. Pass <c>double.NaN</c> for any limit you
         /// don't want to set.
         /// </summary>
+        /// <param name="highHigh">The high-high limit, or NaN to leave it unchanged.</param>
+        /// <param name="high">The high limit, or NaN to leave it unchanged.</param>
+        /// <param name="low">The low limit, or NaN to leave it unchanged.</param>
+        /// <param name="lowLow">The low-low limit, or NaN to leave it unchanged.</param>
+        /// <returns>This builder for further alarm configuration.</returns>
         IAlarmBuilder<TState> WithLimits(
             double highHigh = double.NaN,
             double high = double.NaN,
@@ -178,6 +183,8 @@ namespace Opc.Ua.Server.Fluent
         /// <c>SourceName</c> to the supplied target. Equivalent to
         /// setting the alarm's "InputNode" semantics from the spec.
         /// </summary>
+        /// <param name="source">The source node monitored by the alarm.</param>
+        /// <returns>This builder for further alarm configuration.</returns>
         IAlarmBuilder<TState> MonitorVariable(NodeState source);
 
         /// <summary>
@@ -185,11 +192,15 @@ namespace Opc.Ua.Server.Fluent
         /// Return <see cref="ServiceResult.Good"/> from the handler to
         /// permit the acknowledge transition; any other code cancels it.
         /// </summary>
+        /// <param name="handler">The callback that accepts or rejects acknowledgement.</param>
+        /// <returns>This builder for further alarm configuration.</returns>
         IAlarmBuilder<TState> OnAcknowledge(ConditionAddCommentEventHandler handler);
 
         /// <summary>
         /// Wires <see cref="AcknowledgeableConditionState.OnConfirm"/>.
         /// </summary>
+        /// <param name="handler">The callback that accepts or rejects confirmation.</param>
+        /// <returns>This builder for further alarm configuration.</returns>
         IAlarmBuilder<TState> OnConfirm(ConditionAddCommentEventHandler handler);
     }
 
@@ -283,6 +294,8 @@ namespace Opc.Ua.Server.Fluent
         /// Creates and registers an alarm beneath an object, assigning child identifiers and event-source ownership.
         /// </summary>
         /// <typeparam name="TState">The concrete alarm state created by the factory.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="parent"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         private static TState AttachAlarm<TState>(
             INodeBuilder parent,
             QualifiedName browseName,

@@ -232,7 +232,7 @@ namespace Opc.Ua.Server.Tests.Identity
             {
                 string[] parts = frameworkName.Split('=');
                 string versionText = parts.Length > 1
-                    ? parts[parts.Length - 1].TrimStart('v', 'V')
+                    ? parts[^1].TrimStart('v', 'V')
                     : string.Empty;
                 stackIsNet8OrGreater =
                     Version.TryParse(versionText, out Version version) && version.Major >= 8;

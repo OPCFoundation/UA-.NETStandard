@@ -85,7 +85,7 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
             }
 
-            subject.ConfigureEncryption(m_configuration.CertificateManager as ICertificateRegistry);
+            subject.ConfigureEncryption(m_configuration.CertificateManager);
             await subject.BindAsync(
                     folder,
                     SystemContext,
@@ -98,6 +98,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates and stages a certificate upload without consuming a pending signing key.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<UpdateCertificateMethodStateResult> UpdateCertificateAsync(
             ISystemContext context,
             MethodState method,
@@ -141,7 +143,7 @@ namespace Opc.Ua.Server
             Certificate? newCertificateWithKey = null;
             Certificate? previousCertificateWithKey = null;
             PendingCertificateKeyContext? pendingContextToClaim = null;
-            IPeekablePendingCertificateKeyStore? matchingKeyStore =
+            var matchingKeyStore =
                 m_pendingKeyStore as IPeekablePendingCertificateKeyStore;
             try
             {
@@ -281,7 +283,7 @@ namespace Opc.Ua.Server
                         // build issuer chain
                         foreach (ByteString issuerRawCert in issuerCertificates)
                         {
-                            using Certificate issuerCertificate = Certificate.FromRawData(issuerRawCert);
+                            using var issuerCertificate = Certificate.FromRawData(issuerRawCert);
                             newIssuerCollection.Add(issuerCertificate);
                         }
                     }
@@ -464,7 +466,7 @@ namespace Opc.Ua.Server
                 // coordinator only reverse-compensates operations that
                 // committed in full), so it always reads the value
                 // CommitAsync wrote.
-                ArrayOf<string> stagedNewlyAddedIssuerThumbprints = ArrayOf<string>.Empty;
+                ArrayOf<string> stagedNewlyAddedIssuerThumbprints = [];
                 ct.ThrowIfCancellationRequested();
 
                 // CA2025: the coordinator guarantees CommitAsync/RollbackAsync
@@ -488,13 +490,10 @@ namespace Opc.Ua.Server
                                     .TryTakeMatchingAsync(
                                         pendingContextToClaim!,
                                         stagedPublicCertificate,
-                                        ct2).ConfigureAwait(false);
-                                if (stagedPendingKey == null)
-                                {
+                                        ct2).ConfigureAwait(false) ??
                                     throw new ServiceResultException(
                                         StatusCodes.BadSecurityChecksFailed,
                                         "The matching regenerated private key is no longer available.");
-                                }
                                 ct2.ThrowIfCancellationRequested();
                                 stagedNewCert = DefaultCertificateFactory.Instance
                                     .CreateWithPrivateKey(stagedPublicCertificate, stagedPendingKey);
@@ -966,6 +965,7 @@ namespace Opc.Ua.Server
         /// same transaction for this slot permits this call even though
         /// nothing has actually been added to the store/registry yet.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<DeleteCertificateMethodStateResult> DeleteCertificateAsync(
             ISystemContext context,
             MethodState method,
@@ -1119,6 +1119,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a signing request and updates the scope's pending key only after request generation succeeds.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<CreateSigningRequestMethodStateResult> CreateSigningRequestAsync(
             ISystemContext context,
             MethodState method,
@@ -1189,9 +1190,10 @@ namespace Opc.Ua.Server
                     m_configuration.ApplicationUri,
                     Server.Telemetry,
                     cancellationToken).ConfigureAwait(false);
-                subjectName = existingCertificate?.Subject ?? throw new ServiceResultException(
-                    StatusCodes.BadInvalidArgument,
-                    "The SubjectName must be specified when an existing certificate cannot be resolved.");
+                subjectName = existingCertificate?.Subject ??
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidArgument,
+                        "The SubjectName must be specified when an existing certificate cannot be resolved.");
             }
 
             X500DistinguishedName? requestedSubject = null;

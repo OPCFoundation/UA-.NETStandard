@@ -134,9 +134,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         [Test]
         public async Task LoadDataTypesAsyncStopsOnCyclicSubtypeGraphAsync()
         {
-            NodeId root = new NodeId("Root", 2);
-            NodeId childA = new NodeId("A", 2);
-            NodeId childB = new NodeId("B", 2);
+            var root = new NodeId("Root", 2);
+            var childA = new NodeId("A", 2);
+            var childB = new NodeId("B", 2);
 
             var nodeCache = new Mock<INodeCache>(MockBehavior.Strict);
             nodeCache.SetupGet(x => x.NamespaceUris).Returns(Session.NamespaceUris);
@@ -183,9 +183,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         [Test]
         public async Task GetEnumTypeArrayAsyncUsesNamedPropertyAsync()
         {
-            NodeId typeId = new NodeId("MyEnum", 2);
-            NodeId unrelatedPropertyId = new NodeId("NodeVersion", 2);
-            NodeId enumValuesPropertyId = new NodeId("EnumValues", 2);
+            var typeId = new NodeId("MyEnum", 2);
+            var unrelatedPropertyId = new NodeId("NodeVersion", 2);
+            var enumValuesPropertyId = new NodeId("EnumValues", 2);
 
             var expected = new ArrayOf<ExtensionObject>();
             var nodeCache = new Mock<INodeCache>(MockBehavior.Strict);

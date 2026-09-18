@@ -534,12 +534,11 @@ namespace Opc.Ua
             SecurityPolicyRegistry = securityPolicies;
             m_options = options ?? new ChannelManagerOptions();
             m_diagnostics = new ClientChannelManagerDiagnostics(
-                TelemetryExtensions.CreateLogger(
-                    telemetry,
+                telemetry.CreateLogger(
                     CoreEventIds.ChannelManagerCompatibilityCategory));
             if (enableGeneralTelemetry)
             {
-                Logger = TelemetryExtensions.CreateLogger<ClientChannelManager>(telemetry);
+                Logger = telemetry.CreateLogger<ClientChannelManager>();
                 m_meter = telemetry?.CreateMeter();
                 m_metrics = m_meter != null
                     ? new ClientChannelManagerMetrics(this, m_meter)

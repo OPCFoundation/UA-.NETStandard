@@ -101,7 +101,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Security
         /// </summary>
         [Test]
         public async Task AConcurrentSigningRequestSurvivesBothSidesOfTheClaimCompareExchangeAsync(
-            [Values(false, true)] bool replaceAfterClaim)
+            [Values] bool replaceAfterClaim)
         {
             using var backend = new InMemorySharedKeyValueStore();
             var options = new DistributedPushConfigurationOptions();
@@ -144,7 +144,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Security
         /// Verifies restoration succeeds only while no newer replica has published a replacement key.
         /// </summary>
         [Test]
-        public async Task ConditionalRestorationNeverReplacesANewerReplicaKeyAsync([Values(false, true)] bool replace)
+        public async Task ConditionalRestorationNeverReplacesANewerReplicaKeyAsync([Values] bool replace)
         {
             using var backend = new InMemorySharedKeyValueStore();
             var store = new SharedKeyValuePendingCertificateKeyStore(backend, new DistributedPushConfigurationOptions());

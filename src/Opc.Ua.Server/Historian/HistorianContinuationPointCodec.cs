@@ -238,8 +238,8 @@ namespace Opc.Ua.Server.Historian
                     nodeId,
                     providerNodeId,
                     kind == HistorianReadKind.Annotations &&
-                        formatVersion <
-                            kAnnotationRequestNodeIdFormatVersion,
+                    formatVersion <
+                        kAnnotationRequestNodeIdFormatVersion,
                     (uint)formatVersion,
                     new HistorianResumeToken(resumeToken),
                     timestamps,
@@ -639,6 +639,7 @@ namespace Opc.Ua.Server.Historian
 
         private const uint kFormatVersion =
             kAnnotationPageLimitFormatVersion;
+
         private const int kMaxPayloadSize = 1024 * 1024;
         private const int kMaxProviderIdLength = 256;
         private const int kMaxResumeTokenSize = 64 * 1024;

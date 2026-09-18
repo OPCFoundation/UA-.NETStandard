@@ -36,7 +36,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The interface that a server exposes to objects that it contains.
     /// </summary>
-    public static partial class ServerUtils
+    public static class ServerUtils
     {
         private enum EventType
         {

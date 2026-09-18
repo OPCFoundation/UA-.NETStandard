@@ -472,10 +472,9 @@ namespace Opc.Ua.Server
         {
             lock (m_connectionsLock)
             {
-                Uri[] urls = m_connections
+                Uri[] urls = [.. m_connections
                     .Where(entry => entry.Value.ConfigEntry == configEntry)
-                    .Select(entry => entry.Key)
-                    .ToArray();
+                    .Select(entry => entry.Key)];
                 foreach (Uri url in urls)
                 {
                     m_connections.Remove(url);
@@ -547,10 +546,9 @@ namespace Opc.Ua.Server
                             }
                         }
 
-                        Uri[] removedUrls = m_connections
+                        Uri[] removedUrls = [.. m_connections
                             .Where(entry => entry.Value.ConfigEntry && !configuredUrls.Contains(entry.Key))
-                            .Select(entry => entry.Key)
-                            .ToArray();
+                            .Select(entry => entry.Key)];
                         foreach (Uri uri in removedUrls)
                         {
                             m_connections.Remove(uri);
@@ -645,5 +643,4 @@ namespace Opc.Ua.Server
             Message = "Reverse Connection added for EndpointUrl: {Uri}.")]
         public static partial void ReverseConnectionAddedForEndpointUrlUri(this ILogger logger, Uri uri);
     }
-
 }

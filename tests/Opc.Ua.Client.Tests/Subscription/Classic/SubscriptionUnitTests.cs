@@ -51,6 +51,7 @@ namespace Opc.Ua.Client.Tests
             public bool SessionConnected { get; init; }
             public bool SessionReconnecting { get; init; }
             public bool SessionKeepAliveStopped { get; init; }
+
             public string ToString(string format, IFormatProvider formatProvider)
             {
                 return $"Connected={SessionConnected}, " +
@@ -393,6 +394,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Steady delivery and sequence rollover do not resynchronize the cursor backwards.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         [TestCase("steady", false)]
         [TestCase("steady", true)]
         [TestCase("wrap", false)]
@@ -483,7 +485,7 @@ namespace Opc.Ua.Client.Tests
                     }
                 }
             };
-            ArrayOf<uint> available = Enumerable.Range(11, messageCount).Select(value => (uint)value).ToArrayOf();
+            var available = Enumerable.Range(11, messageCount).Select(value => (uint)value).ToArrayOf();
             ISession session = BuildSessionMock(
                 (_, sequenceNumber) =>
                 {

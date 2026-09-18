@@ -210,7 +210,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var store = new InMemoryNodeStateStore(kv, m_messageContext, protector);
             var source = new NodeId("source", NamespaceIndex);
             var target = new NodeId("target", NamespaceIndex);
-            ByteString payload = ByteString.From(new byte[] { 1, 2, 3 });
+            var payload = ByteString.From(new byte[] { 1, 2, 3 });
             if (valueRecord)
             {
                 await store.WriteValueAsync(source, new DataValue(Variant.From(true))).ConfigureAwait(false);
@@ -324,7 +324,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var protector = new AesCbcHmacRecordProtector(MakeKey(45));
             using var store = new InMemoryNodeStateStore(kv, m_messageContext, protector);
             var nodeId = new NodeId("snapshot", NamespaceIndex);
-            ByteString originalPayload = ByteString.From(new byte[] { 1 });
+            var originalPayload = ByteString.From(new byte[] { 1 });
             await store.UpsertNodeAsync(new StoredNode(nodeId, originalPayload)).ConfigureAwait(false);
             await store.WriteSnapshotAsync().ConfigureAwait(false);
             NodeStateSnapshot? original = await store.TryReadSnapshotAsync().ConfigureAwait(false);
@@ -366,9 +366,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             using var kv = new InMemorySharedKeyValueStore();
             using var protector = new AesCbcHmacRecordProtector(MakeKey(46));
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             using var store = new InMemoryNodeStateStore(kv, context, protector);
-            ByteString payload = ByteString.From(new byte[context.MaxByteStringLength]);
+            var payload = ByteString.From(new byte[context.MaxByteStringLength]);
             await store.UpsertNodeAsync(new StoredNode(new NodeId("first", 1), payload)).ConfigureAwait(false);
             await store.UpsertNodeAsync(new StoredNode(new NodeId("second", 1), payload)).ConfigureAwait(false);
             await store.WriteSnapshotAsync().ConfigureAwait(false);
@@ -401,7 +401,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(protector.TryUnprotect(
                 RecordProtectionContext.Create("node-state-manifest", "snapmeta/manifest"),
                 record, out ByteString manifest), Is.True);
-            await kv.SetAsync("snapmeta/manifest", protector.Protect(default(ByteString), manifest))
+            await kv.SetAsync("snapmeta/manifest", protector.Protect(default, manifest))
                 .ConfigureAwait(false);
 
             Assert.That(await store.TryReadSnapshotAsync().ConfigureAwait(false), Is.Null);

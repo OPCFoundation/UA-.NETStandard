@@ -185,7 +185,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 [MakeAnnotation(1, 10, "first"), MakeAnnotation(2, 10, "second")],
                 CancellationToken.None).ConfigureAwait(false);
             Assert.That(inserted.OperationResults, Is.EqualTo(
-                new[] { StatusCodes.GoodEntryInserted, StatusCodes.GoodEntryInserted }));
+                [StatusCodes.GoodEntryInserted, StatusCodes.GoodEntryInserted]));
             HistorianUpdateOutcome<HistorianAnnotation> missing = await provider.ReplaceAnnotationsWithTimestampsAsync(
                 context, nodeId, [MakeAnnotation(3, 10, "missing")], CancellationToken.None).ConfigureAwait(false);
             Assert.That(missing.OperationResults[0], Is.EqualTo(StatusCodes.BadNoEntryExists));
@@ -213,7 +213,7 @@ namespace Opc.Ua.Server.Tests.Historian
             string[] expectedMessages = ["replacement", "third"];
             Assert.That(page.Values.ToArray().Select(a => a.Annotation.Message), Is.EqualTo(expectedMessages));
             Assert.That(page.Values.ToArray().Select(a => a.SourceTimestamp),
-                Is.EqualTo(new[] { (DateTimeUtc)s_start.AddSeconds(2), (DateTimeUtc)s_start.AddSeconds(3) }));
+                Is.EqualTo([(DateTimeUtc)s_start.AddSeconds(2), (DateTimeUtc)s_start.AddSeconds(3)]));
         }
 
         [TestCase(0u)]
@@ -386,14 +386,14 @@ namespace Opc.Ua.Server.Tests.Historian
                 PerformUpdateType.Remove => StatusCodes.Good,
                 _ => StatusCodes.GoodEntryReplaced
             };
-            Assert.That(result.OperationResults, Is.EqualTo(new[]
-            {
+            Assert.That(result.OperationResults, Is.EqualTo(
+            [
                 StatusCodes.BadInvalidArgument,
                 expectedGood,
                 StatusCodes.BadInvalidArgument,
                 expectedGood,
                 StatusCodes.BadInvalidArgument
-            }));
+            ]));
         }
 
         [TestCase(0)]
@@ -430,7 +430,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 result,
                 CancellationToken.None).ConfigureAwait(false);
             Assert.That(result.OperationResults,
-                Is.EqualTo(new[] { StatusCodes.BadUnexpectedError, StatusCodes.BadUnexpectedError }));
+                Is.EqualTo([StatusCodes.BadUnexpectedError, StatusCodes.BadUnexpectedError]));
         }
 
         private static HistorianAnnotation MakeAnnotation(int sourceSeconds, int annotationSeconds, string message)

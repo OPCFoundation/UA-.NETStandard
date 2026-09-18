@@ -29,13 +29,13 @@
 
 #nullable enable
 
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 using Opc.Ua.Server.UserDatabase;
+using Opc.Ua.Tests;
 using UserManagementImpl = Opc.Ua.Server.UserManagement.UserManagement;
 
 namespace Opc.Ua.Server.Tests
@@ -547,24 +547,24 @@ namespace Opc.Ua.Server.Tests
                 m_users = users;
             }
 
-            public bool CreateUser(string userName, System.ReadOnlySpan<byte> password, ICollection<Role> roles)
+            public bool CreateUser(string userName, ReadOnlySpan<byte> password, ICollection<Role> roles)
             {
-                throw new System.NotSupportedException();
+                throw new NotSupportedException();
             }
 
             public bool DeleteUser(string userName)
             {
-                throw new System.NotSupportedException();
+                throw new NotSupportedException();
             }
 
-            public bool CheckCredentials(string userName, System.ReadOnlySpan<byte> password)
+            public bool CheckCredentials(string userName, ReadOnlySpan<byte> password)
             {
-                throw new System.NotSupportedException();
+                throw new NotSupportedException();
             }
 
             public ICollection<Role> GetUserRoles(string userName)
             {
-                throw new System.NotSupportedException();
+                throw new NotSupportedException();
             }
 
             public IReadOnlyList<UserManagementDataType> GetUsers()
@@ -574,10 +574,10 @@ namespace Opc.Ua.Server.Tests
 
             public bool ChangePassword(
                 string userName,
-                System.ReadOnlySpan<byte> oldPassword,
-                System.ReadOnlySpan<byte> newPassword)
+                ReadOnlySpan<byte> oldPassword,
+                ReadOnlySpan<byte> newPassword)
             {
-                throw new System.NotSupportedException();
+                throw new NotSupportedException();
             }
         }
     }

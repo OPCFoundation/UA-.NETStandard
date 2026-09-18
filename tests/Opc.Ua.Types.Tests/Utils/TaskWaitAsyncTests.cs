@@ -86,7 +86,7 @@ namespace Opc.Ua.Types.Tests.Utils
 
             Assert.That(
                 () => wait,
-                Throws.InstanceOf<System.OperationCanceledException>());
+                Throws.InstanceOf<OperationCanceledException>());
 
             // The abandoned wait must not fault the underlying task.
             pending.TrySetResult(1);

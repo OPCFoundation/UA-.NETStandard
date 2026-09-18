@@ -31,7 +31,6 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -236,7 +235,7 @@ namespace Opc.Ua.Server.Tests
             (TestableAsyncCustomNodeManager manager, UserManagementState state) =
                 CreateNodeManagerWithCreatedUserManagementNode();
             using (manager)
-            using (UserManagementBinding? binding =
+            using (var binding =
                 UserManagementBinding.Bind(manager, m_userManagement.Object, null))
             {
                 Assert.That(binding, Is.Not.Null);
@@ -269,24 +268,24 @@ namespace Opc.Ua.Server.Tests
         public async Task AdminMethodsDelegateToUserManagementAndRefreshPropertiesAsync()
         {
             UserManagementDataType[] initialUsers = [];
-            var addedUsers = new[]
-            {
+            UserManagementDataType[] addedUsers =
+            [
                 new UserManagementDataType
                 {
                     UserName = "alice",
                     UserConfiguration = (uint)UserConfigurationMask.None,
                     Description = "Alice"
                 }
-            };
-            var modifiedUsers = new[]
-            {
+            ];
+            UserManagementDataType[] modifiedUsers =
+            [
                 new UserManagementDataType
                 {
                     UserName = "alice",
                     UserConfiguration = (uint)UserConfigurationMask.Disabled,
                     Description = "Disabled"
                 }
-            };
+            ];
             UserManagementDataType[] removedUsers = [];
             m_userManagement
                 .SetupSequence(m => m.SnapshotUsers())
@@ -305,7 +304,7 @@ namespace Opc.Ua.Server.Tests
                 CreateNodeManagerWithCreatedUserManagementNode();
 
             using (manager)
-            using (UserManagementBinding? binding =
+            using (var binding =
                 UserManagementBinding.Bind(manager, m_userManagement.Object, null))
             {
                 Assert.That(binding, Is.Not.Null);
@@ -385,7 +384,7 @@ namespace Opc.Ua.Server.Tests
                 CreateNodeManagerWithCreatedUserManagementNode();
 
             using (manager)
-            using (UserManagementBinding? binding =
+            using (var binding =
                 UserManagementBinding.Bind(manager, m_userManagement.Object, null))
             {
                 Assert.That(binding, Is.Not.Null);
@@ -434,7 +433,7 @@ namespace Opc.Ua.Server.Tests
                 CreateNodeManagerWithCreatedUserManagementNode();
 
             using (manager)
-            using (UserManagementBinding? binding =
+            using (var binding =
                 UserManagementBinding.Bind(manager, m_userManagement.Object, null))
             {
                 Assert.That(binding, Is.Not.Null);
@@ -477,7 +476,7 @@ namespace Opc.Ua.Server.Tests
         {
             (TestableAsyncCustomNodeManager manager, UserManagementState state) =
                 CreateNodeManagerWithCreatedUserManagementNode();
-            using var managerLifetime = manager;
+            using TestableAsyncCustomNodeManager managerLifetime = manager;
             Mock<ISession> session = CreateSessionWithUser("bob");
             Mock<ISession> unrelated = CreateSessionWithUser("alice");
             var sessionManager = new Mock<ISessionManager>();
@@ -548,7 +547,7 @@ namespace Opc.Ua.Server.Tests
                     }]);
             (TestableAsyncCustomNodeManager manager, UserManagementState state) =
                 CreateNodeManagerWithCreatedUserManagementNode();
-            using var managerLifetime = manager;
+            using TestableAsyncCustomNodeManager managerLifetime = manager;
             Mock<ISession> session = CreateSessionWithUser("bob");
             Mock<ISession> anotherSession = CreateSessionWithUser("bob");
             var failure = new InvalidOperationException("close failed");
@@ -603,7 +602,7 @@ namespace Opc.Ua.Server.Tests
                 .Returns(new ServiceResult(StatusCodes.BadNotFound));
             (TestableAsyncCustomNodeManager manager, UserManagementState state) =
                 CreateNodeManagerWithCreatedUserManagementNode();
-            using var managerLifetime = manager;
+            using TestableAsyncCustomNodeManager managerLifetime = manager;
             var sessionManager = new Mock<ISessionManager>();
             using var binding =
                 UserManagementBinding.Bind(manager, m_userManagement.Object, sessionManager.Object);
@@ -711,7 +710,7 @@ namespace Opc.Ua.Server.Tests
         {
             (TestableAsyncCustomNodeManager manager, UserManagementState state) =
                 CreateNodeManagerWithCreatedUserManagementNode();
-            using var managerLifetime = manager;
+            using TestableAsyncCustomNodeManager managerLifetime = manager;
             Mock<ISession> session = CreateSessionWithUser("bob");
             var sessionManager = new Mock<ISessionManager>();
             sessionManager.Setup(m => m.GetSessions()).Returns([session.Object]);
@@ -761,7 +760,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<OperationContext>(), session.Object.Id, true, CancellationToken.None))
                 .Callback(() => entered.SetResult(true))
                 .Returns(new ValueTask(release.Task));
-            using var binding =
+            using UserManagementBinding binding =
                 UserManagementBinding.Bind(manager, m_userManagement.Object, sessionManager.Object)!;
 
             try
@@ -806,7 +805,7 @@ namespace Opc.Ua.Server.Tests
         {
             (TestableAsyncCustomNodeManager manager, UserManagementState state) =
                 CreateNodeManagerWithCreatedUserManagementNode();
-            using var managerLifetime = manager;
+            using TestableAsyncCustomNodeManager managerLifetime = manager;
             var sessionManager = new Mock<ISessionManager>();
             using var binding = UserManagementBinding.Bind(manager, m_userManagement.Object, sessionManager.Object);
             SessionSystemContext context = BuildContext(

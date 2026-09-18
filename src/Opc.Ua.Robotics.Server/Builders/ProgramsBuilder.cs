@@ -30,8 +30,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Server.FileSystem;
 using Opc.Ua.Server;
+using Opc.Ua.Server.FileSystem;
 
 namespace Opc.Ua.Robotics.Server.Builders
 {
@@ -112,13 +112,10 @@ namespace Opc.Ua.Robotics.Server.Builders
                 context.Context,
                 m_options,
                 (node, ct) => context.Manager.AddPredefinedNodeAsync(node, ct),
-                async (node, ct) =>
-                {
-                    await context.Manager.DeleteNodeAsync(
+                async (node, ct) => await context.Manager.DeleteNodeAsync(
                         (ServerSystemContext)context.Context,
                         node.NodeId,
-                        ct).ConfigureAwait(false);
-                },
+                        ct).ConfigureAwait(false),
                 cancellationToken).ConfigureAwait(false);
 
             m_scope.RegisteredResources.Add(binding);

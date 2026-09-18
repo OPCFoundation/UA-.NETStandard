@@ -182,8 +182,9 @@ namespace Opc.Ua.Redundancy.Server
             (bool found, ByteString value) = await m_store
                 .TryGetAsync(key, cancellationToken)
                 .ConfigureAwait(false);
-            if (!found || !m_protector.TryUnprotect(
-                RecordProtectionContext.Create("monitored-data-queue", key), value, out ByteString payload))
+            if (!found ||
+                !m_protector.TryUnprotect(
+                    RecordProtectionContext.Create("monitored-data-queue", key), value, out ByteString payload))
             {
                 return null;
             }
@@ -213,8 +214,9 @@ namespace Opc.Ua.Redundancy.Server
             (bool found, ByteString value) = await m_store
                 .TryGetAsync(key, cancellationToken)
                 .ConfigureAwait(false);
-            if (!found || !m_protector.TryUnprotect(
-                RecordProtectionContext.Create("monitored-event-queue", key), value, out ByteString payload))
+            if (!found ||
+                !m_protector.TryUnprotect(
+                    RecordProtectionContext.Create("monitored-event-queue", key), value, out ByteString payload))
             {
                 return null;
             }
@@ -675,5 +677,4 @@ namespace Opc.Ua.Redundancy.Server
             this ILogger logger,
             Exception exception);
     }
-
 }

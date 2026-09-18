@@ -52,7 +52,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// </summary>
         [Test]
         public async Task DecryptClearsOwnedPayloadAndKeysWithoutErasingHeadersOrReturnedSecretAsync(
-            [Values(false, true)] bool p384,
+            [Values] bool p384,
             [Values(0, 17)] int offset,
             [Values("success", "nonce", "padding", "padding-byte", "cipher")] string outcome)
         {
@@ -65,23 +65,23 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("securityPolicy"));
                 SecurityPolicyInfo unsupported = p384
                     ? SecurityPolicyInfo.ECC_nistP384 : SecurityPolicyInfo.ECC_nistP256;
-                using Nonce local = Nonce.CreateNonce(unsupported);
-                using Nonce remote = Nonce.CreateNonce(unsupported);
+                using var local = Nonce.CreateNonce(unsupported);
+                using var remote = Nonce.CreateNonce(unsupported);
                 Assert.That(() => local.GenerateSecret(remote, null), Throws.TypeOf<NotSupportedException>());
                 return;
             }
             Assert.That(SecurityPolicies.Default.GetInfo(policy), Is.Not.Null);
             using Certificate sender = CertificateBuilder.Create("CN=Buffer Sender").SetECCurve(curve).CreateForECDsa();
             using Certificate receiver = CertificateBuilder.Create("CN=Buffer Receiver").SetECCurve(curve).CreateForECDsa();
-            using Nonce senderNonce = Nonce.CreateNonce(policy);
-            using Nonce receiverNonce = Nonce.CreateNonce(policy);
+            using var senderNonce = Nonce.CreateNonce(policy);
+            using var receiverNonce = Nonce.CreateNonce(policy);
             using var issuers = new CertificateCollection();
-            ServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
-            using EncryptedSecret encryptor = EncryptedSecret.CreateForEcc(
+            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            using var encryptor = EncryptedSecret.CreateForEcc(
                 context, policy, issuers, receiver, receiverNonce, sender, senderNonce,
                 doNotEncodeSenderCertificate: true);
             byte[] encoded = encryptor.Encrypt(s_secret, s_nonce);
-            byte[] buffer = Enumerable.Repeat((byte)0x7A, offset + encoded.Length + 13).ToArray();
+            byte[] buffer = [.. Enumerable.Repeat((byte)0x7A, offset + encoded.Length + 13)];
             encoded.CopyTo(buffer, offset);
             byte[] key = null;
             byte[] iv = null;

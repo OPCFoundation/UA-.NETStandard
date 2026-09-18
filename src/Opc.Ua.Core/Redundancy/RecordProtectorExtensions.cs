@@ -43,6 +43,7 @@ namespace Opc.Ua.Redundancy
         /// <param name="context">The context; null and empty strings both encode as empty bytes.</param>
         /// <param name="plaintext">The record to protect.</param>
         /// <returns>The protected envelope.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="protector"/> is <c>null</c>.</exception>
         public static ByteString Protect(this IRecordProtector protector, string? context, ByteString plaintext)
         {
             if (protector == null)
@@ -60,6 +61,7 @@ namespace Opc.Ua.Redundancy
         /// <param name="protectedRecord">The protected envelope.</param>
         /// <param name="plaintext">The recovered plaintext on success; null bytes on failure.</param>
         /// <returns>Whether the canonical protection operation succeeded.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="protector"/> is <c>null</c>.</exception>
         public static bool TryUnprotect(
             this IRecordProtector protector,
             string? context,
@@ -81,6 +83,7 @@ namespace Opc.Ua.Redundancy
         /// <param name="protectedRecord">The protected envelope.</param>
         /// <param name="plaintext">The caller-owned plaintext to wipe on success; an empty buffer on failure.</param>
         /// <returns>Whether the canonical owned protection operation succeeded.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="protector"/> is <c>null</c>.</exception>
         public static bool TryUnprotectOwned(
             this IOwnedRecordProtector protector,
             string? context,

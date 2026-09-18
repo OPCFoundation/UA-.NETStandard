@@ -125,7 +125,7 @@ namespace Opc.Ua
             {
                 lock (m_certificatesLock)
                 {
-                    return m_trustLists.Keys.ToArray();
+                    return [.. m_trustLists.Keys];
                 }
             }
         }
@@ -236,6 +236,7 @@ namespace Opc.Ua
         /// changes).
         /// </param>
         /// <exception cref="ArgumentNullException"><paramref name="config"/> is <c>null</c>.</exception>
+        /// <exception cref="ObjectDisposedException"></exception>
         private void MapFromSecurityConfiguration(SecurityConfiguration config, bool replaceExisting)
         {
             bool changed;
@@ -257,6 +258,7 @@ namespace Opc.Ua
         /// Applies global validation flags and snapshots configured trust sources, reporting whether registration
         /// changed.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="config"/> is <c>null</c>.</exception>
         private bool MapSecurityConfigurationCore(SecurityConfiguration config, bool replaceExisting)
         {
             if (config == null)
@@ -321,6 +323,7 @@ namespace Opc.Ua
         /// <summary>
         /// Registers trust-list snapshots and invalidates cached validation cores when the registration changes.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         private void RegisterOrReplaceTrustList(
             TrustListIdentifier trustList,
             CertificateStoreIdentifier? trustedStore,
@@ -381,8 +384,9 @@ namespace Opc.Ua
         /// </summary>
         private CertificateTrustList? CreateTrustListSnapshot(CertificateStoreIdentifier? store)
         {
-            CertificateTrustList? snapshot = CertificateTrustList.CreateSnapshot(store);
-            if (snapshot != null && !string.IsNullOrEmpty(snapshot.StorePath) &&
+            var snapshot = CertificateTrustList.CreateSnapshot(store);
+            if (snapshot != null &&
+                !string.IsNullOrEmpty(snapshot.StorePath) &&
                 (string.IsNullOrEmpty(snapshot.StoreType) || snapshot.StoreType == CertificateStoreType.Directory))
             {
                 // StorePath infers Directory without seeing injected providers.
@@ -638,7 +642,6 @@ namespace Opc.Ua
                 {
                     oldEntry.Dispose();
                 }
-
             }
             finally
             {
@@ -1309,7 +1312,7 @@ namespace Opc.Ua
                     return;
                 }
                 m_disposed = true;
-                cores = m_customCores.Values.ToArray();
+                cores = [.. m_customCores.Values];
                 peer = m_peerCore;
                 user = m_userCore;
                 https = m_httpsCore;
@@ -1349,7 +1352,7 @@ namespace Opc.Ua
             CertificateEntry[] certificates;
             lock (m_certificatesLock)
             {
-                certificates = m_applicationCertificates.ToArray();
+                certificates = [.. m_applicationCertificates];
                 m_applicationCertificates.Clear();
                 m_trustLists.Clear();
             }
@@ -1403,6 +1406,7 @@ namespace Opc.Ua
         /// Gets or creates a <see cref="CertificateValidationCore"/> configured
         /// for the specified trust list.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         private CertificateValidationCore.Borrow GetOrCreateCore(TrustListIdentifier trustList)
         {
             lock (m_certificatesLock)
@@ -1441,6 +1445,7 @@ namespace Opc.Ua
         /// <summary>
         /// Retrieves a registered trust-list snapshot or reports that the requested list is unknown.
         /// </summary>
+        /// <exception cref="KeyNotFoundException"></exception>
         private TrustListEntry GetTrustListEntry(TrustListIdentifier trustList)
         {
             lock (m_certificatesLock)
@@ -1590,6 +1595,7 @@ namespace Opc.Ua
         /// <summary>
         /// Rejects operations after the manager has released its owned resources.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         private void ThrowIfDisposed()
         {
             if (Volatile.Read(ref m_disposed))
@@ -1648,8 +1654,7 @@ namespace Opc.Ua
                 "sending leaf certificate only.")]
         public static partial void CertificateManagerLogMessage1(
             this ILogger logger,
-            global::System.Exception? exception,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Exception? exception,
+            Certificate? certificate);
     }
-
 }

@@ -318,6 +318,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// <summary>
         /// Verifies that recoverable pre-refresh failures do not replace the error returned by a corrective deletion.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         [TestCase("io")]
         [TestCase("access")]
         [TestCase("unsupported")]
@@ -680,6 +681,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             /// <summary>
             /// Finds a materialized child directory and fails the test if it is absent.
             /// </summary>
+            /// <exception cref="AssertionException"></exception>
             public FileDirectoryState FindDirectory(string name)
             {
                 return (FileDirectoryState)(Root.FindChild(Context, new QualifiedName(name, 1)) ??
@@ -689,6 +691,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             /// <summary>
             /// Finds a materialized child file and fails the test if it is absent.
             /// </summary>
+            /// <exception cref="AssertionException"></exception>
             public FileState FindFile(string name)
             {
                 return (FileState)(Root.FindChild(Context, new QualifiedName(name, 1)) ??

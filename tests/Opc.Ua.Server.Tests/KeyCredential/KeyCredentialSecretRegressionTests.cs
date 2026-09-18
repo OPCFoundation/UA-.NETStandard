@@ -63,7 +63,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             byte[] expected = [11, 22, 33, 44, 55];
             byte[] encrypted = EncryptedSecret.CreateForRsa(harness.MessageContext, policy, harness.Certificate)
                 .Encrypt(expected, []);
-            byte[] original = encrypted.AsSpan().ToArray();
+            byte[] original = [.. encrypted];
             KeyCredentialUpdateMethodStateResult result = await harness.UpdateAsync(
                 encrypted, harness.Certificate.Thumbprint, policy).ConfigureAwait(false);
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -83,7 +83,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             byte[] expected = [11, 22, 33, 44, 55];
             byte[] nonce = Nonce.CreateRandomNonceData(nonceLength);
             byte[] envelope = CreatePeerRsaEnvelope(harness, expected, nonce);
-            byte[] original = envelope.AsSpan().ToArray();
+            byte[] original = [.. envelope];
 
             KeyCredentialUpdateMethodStateResult result = await harness.UpdateAsync(
                 envelope, harness.Certificate.Thumbprint, SecurityPolicies.Aes256_Sha256_RsaPss)
@@ -205,14 +205,14 @@ namespace Opc.Ua.Server.Tests.KeyCredential
         /// </summary>
         [Test]
         public async Task EncryptingKeyUsesTheSameConfiguredRegistryAsDecryptionAsync(
-            [Values(false, true)] bool dependencyInjection)
+            [Values] bool dependencyInjection)
         {
             using var harness = new Harness(dependencyInjection);
             await harness.BindAsync().ConfigureAwait(false);
             GetEncryptingKeyMethodStateResult key = await harness.GetKeyAsync(string.Empty).ConfigureAwait(false);
             Assert.That(key.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(key.RevisedSecurityPolicyUri, Is.EqualTo(SecurityPolicies.Aes256_Sha256_RsaPss));
-            using Certificate certificate = Certificate.FromRawData(key.PublicKey);
+            using var certificate = Certificate.FromRawData(key.PublicKey);
             Assert.That(certificate.Thumbprint, Is.EqualTo(harness.Certificate.Thumbprint));
             Assert.That(certificate.HasPrivateKey, Is.False);
             byte[] encrypted = EncryptedSecret.CreateForRsa(
@@ -220,7 +220,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             KeyCredentialUpdateMethodStateResult result = await harness.UpdateAsync(
                 encrypted, certificate.Thumbprint, key.RevisedSecurityPolicyUri).ConfigureAwait(false);
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(harness.Stored.Secret, Is.EqualTo(new byte[] { 41, 42 }));
+            Assert.That(harness.Stored.Secret, Is.EqualTo(")*"u8.ToArray()));
         }
 
         /// <summary>

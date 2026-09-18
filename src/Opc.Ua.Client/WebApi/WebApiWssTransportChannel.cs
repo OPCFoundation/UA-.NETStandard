@@ -685,5 +685,4 @@ namespace Opc.Ua.Client.WebApi
                 " Sec-WebSocket-Protocol header from proxy / WAF logs.")]
         public static partial void WSSOpcuaOpenapiAccesstokenBearerToken(this ILogger logger);
     }
-
 }

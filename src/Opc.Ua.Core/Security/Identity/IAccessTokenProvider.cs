@@ -103,6 +103,10 @@ namespace Opc.Ua.Identity
         /// Acquires a token using the endpoint's server identity as well as its authorization metadata.
         /// The caller owns and disposes the returned token.
         /// </summary>
+        /// <param name="metadata">The authorization service metadata for the requested resource.</param>
+        /// <param name="endpoint">The resource-server endpoint selected for the connection.</param>
+        /// <param name="ct">The token used to cancel token acquisition.</param>
+        /// <returns>The access token. The caller must dispose it after encrypting the user identity token.</returns>
         ValueTask<AccessToken> AcquireAsync(
             AuthorizationServerMetadata metadata,
             EndpointDescription endpoint,

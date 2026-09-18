@@ -59,6 +59,7 @@ namespace Opc.Ua
 
         public ManagedChannelKey Key { get; }
         public ConfiguredEndpoint Endpoint { get; }
+
         public ITransportWaitingConnection? ReverseConnection
         {
             get
@@ -159,13 +160,15 @@ namespace Opc.Ua
         /// <summary>
         /// Acquires an independent snapshot of the certificate material actually installed on this entry's transport.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal ClientChannelCertificateSnapshot SnapshotClientCertificate()
         {
             lock (m_lock)
             {
-                OwnedTransport transport = m_underlying ?? throw new ServiceResultException(
-                    StatusCodes.BadSecureChannelClosed,
-                    "The managed transport is closed.");
+                OwnedTransport transport = m_underlying ??
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecureChannelClosed,
+                        "The managed transport is closed.");
                 return new ClientChannelCertificateSnapshot(
                     transport.Certificates.Certificate,
                     transport.Certificates.Chain,
@@ -177,6 +180,7 @@ namespace Opc.Ua
         /// Open the initial transport channel. Called once per
         /// entry before any lease is handed out.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public async Task OpenInitialAsync(
             Certificate? clientCertificate,
             CertificateCollection? clientCertificateChain,
@@ -1090,6 +1094,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reconnects a reusable transport or replaces it when the current certificate configuration has changed.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private async Task EnsureTransportConnectedAsync(CancellationToken ct)
         {
             OwnedTransport? underlying;
@@ -1329,8 +1334,8 @@ namespace Opc.Ua
                     }
                     catch (TimeoutException)
                     {
-                        OwnerManager.Logger
-                            ?.ChannelEntryLog5(
+                        OwnerManager.Logger?
+                            .ChannelEntryLog5(
                                 lease.Participant.Id,
                                 participantTimeout);
                         OwnerManager.RecordParticipantTimeout(this, lease.Participant.Id);
@@ -1342,8 +1347,8 @@ namespace Opc.Ua
                     }
                     catch (Exception ex)
                     {
-                        OwnerManager.Logger
-                            ?.ChannelEntryLog6(
+                        OwnerManager.Logger?
+                            .ChannelEntryLog6(
                                 ex,
                                 lease.Participant.Id);
                         return ParticipantReconnectResult.TransientFailure;
@@ -1700,32 +1705,31 @@ namespace Opc.Ua
     /// </summary>
     internal static partial class ChannelEntryLog
     {
-
         [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 0, Level = LogLevel.Debug,
             Message = "ClientChannelManager: underlying CloseAsync failed.")]
-        public static partial void ChannelEntryLog0(this ILogger logger, global::System.Exception? exception);
+        public static partial void ChannelEntryLog0(this ILogger logger, Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 1, Level = LogLevel.Debug,
             Message = "ClientChannelManager: CloseChannel failed.")]
-        public static partial void ChannelEntryLog1(this ILogger logger, global::System.Exception? exception);
+        public static partial void ChannelEntryLog1(this ILogger logger, Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 2, Level = LogLevel.Warning,
             Message = "ClientChannelManager: transport reconnect attempt {Attempt} failed.")]
         public static partial void ChannelEntryLog2(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             int attempt);
 
         [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 3, Level = LogLevel.Warning,
             Message = "ClientChannelManager: participant notification attempt {Attempt} failed.")]
         public static partial void ChannelEntryLog3(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             int attempt);
 
         [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 4, Level = LogLevel.Debug,
             Message = "ClientChannelManager: channel.ReconnectAsync failed; recreating.")]
-        public static partial void ChannelEntryLog4(this ILogger logger, global::System.Exception? exception);
+        public static partial void ChannelEntryLog4(this ILogger logger, Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 5, Level = LogLevel.Warning,
             Message = "ClientChannelManager: participant {Participant} OnReconnect timed out after " +
@@ -1733,21 +1737,20 @@ namespace Opc.Ua
         public static partial void ChannelEntryLog5(
             this ILogger logger,
             string participant,
-            global::System.TimeSpan timeout);
+            TimeSpan timeout);
 
         [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 6, Level = LogLevel.Warning,
             Message = "ClientChannelManager: participant {Participant} OnReconnect failed.")]
         public static partial void ChannelEntryLog6(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string participant);
 
         [LoggerMessage(EventId = CoreEventIds.ChannelEntry + 7, Level = LogLevel.Warning,
             Message = "ClientChannelManager: participant {Participant} RecreateAsync failed.")]
         public static partial void ChannelEntryLog7(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string participant);
     }
-
 }

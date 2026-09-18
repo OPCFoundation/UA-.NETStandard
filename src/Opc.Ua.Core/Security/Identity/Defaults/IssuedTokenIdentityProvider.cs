@@ -114,7 +114,7 @@ namespace Opc.Ua.Identity
                     satisfied.RejectionReason ?? "token profile is not supported");
             }
 
-            AuthorizationServerMetadata metadata = AuthorizationServerMetadata.Parse(policy.IssuerEndpointUrl);
+            var metadata = AuthorizationServerMetadata.Parse(policy.IssuerEndpointUrl);
             AccessToken accessToken = m_accessTokenProvider is IEndpointAccessTokenProvider endpointProvider
                 ? await endpointProvider.AcquireAsync(metadata, context.EndpointDescription, ct).ConfigureAwait(false)
                 : await m_accessTokenProvider.AcquireAsync(metadata, ct).ConfigureAwait(false);

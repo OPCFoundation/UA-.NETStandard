@@ -2470,7 +2470,6 @@ namespace Opc.Ua.Bindings
             }
         }
 
-
         /// <summary>
         /// Validate TLS client certificate at TLS handshake.
         /// </summary>

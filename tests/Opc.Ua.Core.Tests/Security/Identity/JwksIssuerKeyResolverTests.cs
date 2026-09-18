@@ -209,7 +209,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             using var rsa = RSA.Create(2048);
             using var ec = ECDsa.Create(ECCurve.NamedCurves.nistP256);
             string jwks = CreateJwks(CreateRsaJwk(rsa, "rsa", "sig"), CreateEcJwk(ec, "ec"));
-            using var handler = new QueueMessageHandler(Enumerable.Repeat(jwks, 33).ToArray());
+            using var handler = new QueueMessageHandler([.. Enumerable.Repeat(jwks, 33)]);
             using var httpClient = new HttpClient(handler, disposeHandler: false);
             using var resolver = new JwksIssuerKeyResolver(
                 "https://issuer.example.test", "https://issuer.example.test/keys",
@@ -266,7 +266,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         public async Task GetKeysAsyncSkipsMalformedKeyAndRetainsUsableKeys()
         {
             using var rsa = RSA.Create(2048);
-            string malformedEc =
+            const string malformedEc =
                 "{\"kty\":\"EC\",\"kid\":\"bad-ec\",\"use\":\"sig\",\"key_ops\":[\"verify\"]," +
                 "\"alg\":\"ES256\",\"crv\":\"secp256k1\",\"x\":\"AA\",\"y\":\"AA\"}";
             using var handler = new QueueMessageHandler(
@@ -321,7 +321,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             JwksIssuerKeyResolver resolver)
         {
             IReadOnlyList<IIssuerVerificationKey> keys = await resolver.GetKeysAsync(null).ConfigureAwait(false);
-            return keys.Select(key => new WeakReference<IIssuerVerificationKey>(key)).ToArray();
+            return [.. keys.Select(key => new WeakReference<IIssuerVerificationKey>(key))];
         }
 
         private static IIssuerVerificationKey FindKey(IReadOnlyList<IIssuerVerificationKey> keys, string kid)

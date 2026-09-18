@@ -87,7 +87,8 @@ namespace Opc.Ua.Identity
                         existing.IssuedTokenProfileUri,
                         authenticator.IssuedTokenProfileUri,
                         StringComparison.Ordinal) &&
-                    (issuer == null || GetIssuer(existing) == null ||
+                    (issuer == null ||
+                        GetIssuer(existing) == null ||
                         string.Equals(GetIssuer(existing), issuer, StringComparison.Ordinal)));
                 m_order.Add(authenticator);
             }

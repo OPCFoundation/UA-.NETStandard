@@ -74,7 +74,7 @@ namespace Opc.Ua.Server.Tests
                 await owner.AddNodeAsync(node).ConfigureAwait(false);
 
                 Mock<IAsyncNodeManager> originalNodeManager = new();
-                object originalHandle = new object();
+                object originalHandle = new();
                 using MonitoredItem item = CreateMonitoredItem(
                     server.Object,
                     originalNodeManager.Object,
@@ -901,7 +901,7 @@ namespace Opc.Ua.Server.Tests
             using (queueFactory)
             {
                 var nodeManager = new Mock<IAsyncNodeManager>();
-                using var samplingGroups = useSamplingGroups
+                using TrackingSamplingGroupManager samplingGroups = useSamplingGroups
                     ? new TrackingSamplingGroupManager(server.Object, nodeManager.Object)
                     : null;
                 using IMonitoredItemManager manager = useSamplingGroups
@@ -1005,7 +1005,7 @@ namespace Opc.Ua.Server.Tests
             using (queueFactory)
             {
                 var nodeManager = new Mock<IAsyncNodeManager>();
-                using var samplingGroups = useSamplingGroups
+                using TrackingSamplingGroupManager samplingGroups = useSamplingGroups
                     ? new TrackingSamplingGroupManager(server.Object, nodeManager.Object)
                     : null;
                 using IMonitoredItemManager manager = useSamplingGroups
@@ -1111,7 +1111,7 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(manager.MonitoredItems.ContainsKey(conflictingItem.Id), Is.False);
                     Assert.That(
                         lifecycle.GetMonitoredItemsSnapshot(null),
-                        Is.EqualTo(new[] { existingItem }));
+                        Is.EqualTo([existingItem]));
                 });
 
                 lifecycle.DetachMonitoredItem(
@@ -1274,10 +1274,7 @@ namespace Opc.Ua.Server.Tests
                     references++;
                     return value;
                 }
-                void RemoveReference(ISystemContext context, NodeHandle handle)
-                {
-                    references--;
-                }
+                void RemoveReference(ISystemContext context, NodeHandle handle) => references--;
 
                 var items = new List<ISampledDataChangeMonitoredItem>();
                 var ids = new MonitoredItemIdFactory();

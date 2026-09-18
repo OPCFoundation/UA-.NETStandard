@@ -558,7 +558,7 @@ namespace Opc.Ua.Client
             catch (ServiceResultException sre) when (IsPerNodeBrowseFailure(sre.StatusCode))
             {
                 m_logger.ReferencesUnavailableForNode(nodeId, sre.StatusCode);
-                return ArrayOf<ReferenceDescription>.Empty;
+                return [];
             }
         }
 
@@ -1420,5 +1420,4 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             StatusCode statusCode);
     }
-
 }

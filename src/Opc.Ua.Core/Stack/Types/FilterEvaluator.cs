@@ -61,6 +61,7 @@ namespace Opc.Ua
         /// be evaluated (they have no influence on the result).
         /// </summary>
         /// <returns>Returns true, false or null.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public bool Result
         {
             get
@@ -95,11 +96,7 @@ namespace Opc.Ua
                         continue;
                     }
                     m_currentIndex = index;
-                    ContentFilterElement element = m_filter.Elements[index];
-                    if (element == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadContentFilterInvalid);
-                    }
+                    ContentFilterElement element = m_filter.Elements[index] ?? throw new ServiceResultException(StatusCodes.BadContentFilterInvalid);
                     FilterOperand[] operands = operandsByIndex[index] ??= GetOperands(element, 0);
                     if (operandIndex == 1 &&
                         element.FilterOperator is FilterOperator.And or FilterOperator.Or &&
@@ -774,7 +771,7 @@ namespace Opc.Ua
                     bool typeSubtypes = false;
                     bool referenceSubtypes = false;
                     if ((!hopsValue.IsNull &&
-                            !ConvertValue(hopsValue, BuiltInType.Int32).TryGetValue(out hops)) ||
+                        !ConvertValue(hopsValue, BuiltInType.Int32).TryGetValue(out hops)) ||
                         (!typeSubtypesValue.IsNull &&
                             !ConvertValue(typeSubtypesValue, BuiltInType.Boolean).TryGetValue(out typeSubtypes)) ||
                         (!referenceSubtypesValue.IsNull &&

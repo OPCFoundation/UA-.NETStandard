@@ -30,7 +30,6 @@
 // CA2000: disposable test helpers are short-lived or ownership-transferred to the fixture under test.
 #pragma warning disable CA2000
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -126,7 +125,7 @@ namespace Opc.Ua.Server.Tests
                 m_context, m_node.CreateSelfSignedCertificate, m_node.NodeId, group, type,
                 "CN=localhost", ["localhost"], ["127.0.0.1"], 30, 2048, CancellationToken.None).ConfigureAwait(false);
             Assert.That(created.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
-            using Certificate certificate = Certificate.FromRawData(created.Certificate);
+            using var certificate = Certificate.FromRawData(created.Certificate);
             using RSA key = certificate.GetRSAPublicKey();
             Assert.That(key, Is.Not.Null);
             Assert.That(key.KeySize, Is.EqualTo(2048));
@@ -184,7 +183,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [Test]
         public async Task NonmatchingUploadCannotConsumeTheRegeneratedSigningKeyAsync(
-            [Values(false, true)] bool reuseActiveCertificate)
+            [Values] bool reuseActiveCertificate)
         {
             NodeId group = ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup;
             NodeId type = ObjectTypeIds.RsaSha256ApplicationCertificateType;
@@ -253,7 +252,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [Test]
         public async Task CancelledMatchingUploadRestoresOnlyAnUnreplacedPendingKeyAsync(
-            [Values(false, true)] bool replaceDuringUpload)
+            [Values] bool replaceDuringUpload)
         {
             FieldInfo field = typeof(ConfigurationNodeManager).GetField(
                 "m_pendingKeyStore", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -314,7 +313,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task ExistingKeyRenewalAppliesWithoutAPendingKeyAsync([Values(false, true)] bool legacyStore)
+        public async Task ExistingKeyRenewalAppliesWithoutAPendingKeyAsync([Values] bool legacyStore)
         {
             IPendingCertificateKeyStore original = GetPendingStore();
             if (legacyStore)
@@ -342,7 +341,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task CancelledCertificateOperationsRetainTheSigningKeyAsync(
             [Values("update", "self-signed", "delete")] string operation,
-            [Values(false, true)] bool sessionClose)
+            [Values] bool sessionClose)
         {
             using Certificate signed = await CreateSignedRequestAsync(regenerate: true).ConfigureAwait(false);
             if (operation == "update")
@@ -388,7 +387,7 @@ namespace Opc.Ua.Server.Tests
 
         [Test]
         public async Task LaterApplyFailureRestoresTheClaimUnlessANewerRequestExistsAsync(
-            [Values(false, true)] bool replace)
+            [Values] bool replace)
         {
             using CertificateEntry before = m_fixture.Server.CertificateManager.AcquireApplicationCertificateByType(
                 ObjectTypeIds.RsaSha256ApplicationCertificateType);
@@ -433,8 +432,8 @@ namespace Opc.Ua.Server.Tests
 
         [Test]
         public async Task CertificateReplacementDiscardsCsrOnlyOnSuccessfulCommitAsync(
-            [Values(false, true)] bool deleteOnly,
-            [Values(false, true)] bool failLater)
+            [Values] bool deleteOnly,
+            [Values] bool failLater)
         {
             NodeId group = ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup;
             NodeId type = ObjectTypeIds.HttpsCertificateType;
@@ -506,7 +505,7 @@ namespace Opc.Ua.Server.Tests
                 m_context, node.GetEncryptingKey, node.NodeId,
                 "bound-secret", SecurityPolicies.Basic256Sha256, CancellationToken.None).ConfigureAwait(false);
             Assert.That(key.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
-            using Certificate receiver = Certificate.FromRawData(key.PublicKey);
+            using var receiver = Certificate.FromRawData(key.PublicKey);
             using CertificateEntry active = m_fixture.Server.CertificateManager.AcquireApplicationCertificateByType(
                 ObjectTypeIds.RsaSha256ApplicationCertificateType);
             Assert.That(receiver.RawData, Is.EqualTo(active.Certificate.RawData));
@@ -518,7 +517,7 @@ namespace Opc.Ua.Server.Tests
                 .ConfigureAwait(false);
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
             Server.KeyCredential credential = await store.GetAsync("bound-secret", CancellationToken.None).ConfigureAwait(false);
-            Assert.That(credential.Secret, Is.EqualTo(new byte[] { 63, 64, 65 }));
+            Assert.That(credential.Secret, Is.EqualTo("?@A"u8.ToArray()));
         }
 
         /// <summary>

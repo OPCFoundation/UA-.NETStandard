@@ -551,6 +551,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Set the ECC security policy URI
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         public virtual void SetUserTokenSecurityPolicy(string securityPolicyUri)
         {
             Nonce? retired;
@@ -570,6 +571,7 @@ namespace Opc.Ua.Server
         /// Create new ECC ephemeral key
         /// </summary>
         /// <returns>A new ephemeral key</returns>
+        /// <exception cref="ObjectDisposedException"></exception>
         public virtual EphemeralKeyType? GetNewEphemeralKey()
         {
             Nonce? retired;
@@ -584,7 +586,7 @@ namespace Opc.Ua.Server
                 {
                     return null;
                 }
-                Nonce nonce = Nonce.CreateNonce(m_userTokenSecurityPolicyUri);
+                var nonce = Nonce.CreateNonce(m_userTokenSecurityPolicyUri);
                 bool retained = false;
                 try
                 {
@@ -1002,6 +1004,7 @@ namespace Opc.Ua.Server
         /// Resolves the endpoint's user-token policy and verifies the identity token
         /// while retaining its decryption nonce.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<(
             IUserIdentityTokenHandler IdentityToken,
             UserTokenPolicy? UserTokenPolicy)> ValidateUserIdentityTokenAsync(
@@ -1254,6 +1257,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Borrows the current user-token nonce so replacement cannot dispose it during token validation.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         private Nonce? AcquireUserTokenNonce()
         {
             lock (m_lock)
@@ -1361,7 +1365,7 @@ namespace Opc.Ua.Server
                     ArrayOf<string> history = m_securityDiagnostics.ClientUserIdHistory;
                     if (history.Count == 0 ||
                         !string.Equals(
-                            history[history.Count - 1],
+                            history[^1],
                             clientUserId,
                             StringComparison.Ordinal))
                     {

@@ -409,5 +409,4 @@ namespace Opc.Ua.PubSub.Security.Sks
             this ILogger logger,
             string securityGroupId);
     }
-
 }

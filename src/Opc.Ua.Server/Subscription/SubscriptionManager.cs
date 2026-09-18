@@ -992,11 +992,8 @@ namespace Opc.Ua.Server
                 diagnostics.PublishingIntervalCount = publishingIntervalCount;
             });
 
-            if (context.Session != null)
-            {
-                context.Session.UpdateDiagnostics(
+            context.Session?.UpdateDiagnostics(
                     diagnostics => diagnostics.CurrentSubscriptionsCount++);
-            }
 
             // raise subscription event.
             RaiseSubscriptionEvent(subscription, false);
@@ -1209,11 +1206,8 @@ namespace Opc.Ua.Server
                 out ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos);
 
             // update diagnostics.
-            if (context.Session != null)
-            {
-                context.Session.UpdateDiagnostics(
+            context.Session?.UpdateDiagnostics(
                     diagnostics => diagnostics.CurrentPublishRequestsInQueue++);
-            }
 
             try
             {
@@ -1312,11 +1306,8 @@ namespace Opc.Ua.Server
             finally
             {
                 // update diagnostics.
-                if (context.Session != null)
-                {
-                    context.Session.UpdateDiagnostics(
+                context.Session?.UpdateDiagnostics(
                         diagnostics => diagnostics.CurrentPublishRequestsInQueue--);
-                }
             }
         }
 
@@ -1381,10 +1372,7 @@ namespace Opc.Ua.Server
             // get the count for the diagnostics.
             uint publishingIntervalCount = GetPublishingIntervalCount();
 
-            m_server.UpdateServerDiagnostics(diagnostics =>
-            {
-                diagnostics.PublishingIntervalCount = publishingIntervalCount;
-            });
+            m_server.UpdateServerDiagnostics(diagnostics => diagnostics.PublishingIntervalCount = publishingIntervalCount);
         }
 
         /// <summary>
@@ -1429,7 +1417,7 @@ namespace Opc.Ua.Server
             }
 
             const long millisecondsInHour = 3_600_000L;
-            long lifetimeInMilliseconds = (long)revisedLifetimeInHours * millisecondsInHour;
+            long lifetimeInMilliseconds = revisedLifetimeInHours * millisecondsInHour;
             ulong requestedLifetimeCount = (ulong)(lifetimeInMilliseconds /
                 subscription.PublishingInterval);
 
@@ -1499,7 +1487,6 @@ namespace Opc.Ua.Server
                         diagnosticsExist = true;
                     }
                 }
-
             }
             if (!diagnosticsExist)
             {
@@ -1512,6 +1499,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Attaches a groups of subscriptions to a different session.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="AggregateException"></exception>
         public async ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             OperationContext context,
             ArrayOf<uint> subscriptionIds,
@@ -1788,7 +1777,8 @@ namespace Opc.Ua.Server
                             {
                                 sourcePublishQueue.Add(subscription);
                             }
-                            else if (sourceRemoved && sourceIsAbandoned &&
+                            else if (sourceRemoved &&
+                                sourceIsAbandoned &&
                                 !m_abandonedSubscriptions.TryAdd(
                                     subscription.Id,
                                     subscription))
@@ -1839,11 +1829,8 @@ namespace Opc.Ua.Server
                         m_statusMessages[context.SessionId] = processedQueue;
                     }
 
-                    if (context.Session != null)
-                    {
-                        context.Session.UpdateDiagnostics(
+                    context.Session?.UpdateDiagnostics(
                             diagnostics => diagnostics.CurrentSubscriptionsCount++);
-                    }
 
                     // raise subscription event.
                     RaiseSubscriptionEvent(subscription, false);
@@ -1943,7 +1930,6 @@ namespace Opc.Ua.Server
                                 m_logger));
                     }
                 }
-
             }
             for (int i = 0; i < results.Count; i++)
             {
@@ -2042,12 +2028,9 @@ namespace Opc.Ua.Server
                 currentMonitoredItemCount;
 
             // update diagnostics.
-            if (context.Session != null)
-            {
-                context.Session.UpdateDiagnostics(
+            context.Session?.UpdateDiagnostics(
                     diagnostics => UpdateCurrentMonitoredItemsCount(
                         diagnostics, monitoredItemCountIncrement));
-            }
 
             return response;
         }
@@ -2105,12 +2088,9 @@ namespace Opc.Ua.Server
                 currentMonitoredItemCount;
 
             // update diagnostics.
-            if (context.Session != null)
-            {
-                context.Session.UpdateDiagnostics(
+            context.Session?.UpdateDiagnostics(
                     diagnostics => UpdateCurrentMonitoredItemsCount(
                         diagnostics, monitoredItemCountIncrement));
-            }
 
             return response;
         }
@@ -3029,5 +3009,4 @@ namespace Opc.Ua.Server
             Message = "Server - CleanupSubscriptions Task Halted Unexpectedly")]
         public static partial void ServerCleanupSubscriptionsTaskHaltedUnexpectedly(this ILogger logger, Exception ex);
     }
-
 }

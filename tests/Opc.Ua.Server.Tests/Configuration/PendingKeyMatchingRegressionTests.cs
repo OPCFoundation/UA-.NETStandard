@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.Tests.Configuration
         [Test]
         public async Task RestoringFailedClaimNeverOverwritesANewerSigningKeyAsync(
             [Values("memory", "directory", "hardware")] string kind,
-            [Values(false, true)] bool replace)
+            [Values] bool replace)
         {
             await using var harness = new StoreHarness(kind);
             using Certificate original = harness.CreateKey("original");

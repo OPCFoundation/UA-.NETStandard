@@ -224,7 +224,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     RecordProtectionContext.Create("session", sourceKey), record, out byte[] plaintext), Is.True);
                 try
                 {
-                    invalid = protector.Protect(default(ByteString), ByteString.From(plaintext));
+                    invalid = protector.Protect(default, ByteString.From(plaintext));
                 }
                 finally
                 {

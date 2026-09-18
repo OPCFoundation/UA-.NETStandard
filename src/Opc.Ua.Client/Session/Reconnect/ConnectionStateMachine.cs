@@ -235,6 +235,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Waits for an activated session, including the callback-dependent phase before recovery settles.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal async ValueTask WaitForServiceAvailabilityAsync(CancellationToken ct)
         {
             while (true)
@@ -302,7 +303,8 @@ namespace Opc.Ua.Client
         {
             lock (m_lock)
             {
-                if (m_worker == null || m_disposed != 0 ||
+                if (m_worker == null ||
+                    m_disposed != 0 ||
                     (m_state == ConnectionState.Disconnected && !m_hasConnected))
                 {
                     return false;
@@ -1242,5 +1244,4 @@ namespace Opc.Ua.Client
             Message = "ConnectionStateMachine: Reconnect attempt abandoned because a close was requested.")]
         public static partial void ConnectionStateMachineReconnectAbandonedForClose(this ILogger logger);
     }
-
 }

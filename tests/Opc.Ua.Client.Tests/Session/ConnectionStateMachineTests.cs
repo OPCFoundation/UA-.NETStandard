@@ -827,7 +827,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             Assert.That(
                 exception.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+                Is.EqualTo(StatusCodes.BadCertificateUntrusted));
             Assert.That(
                 sm.State,
                 Is.EqualTo(ConnectionState.Disconnected));
@@ -860,7 +860,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             Assert.That(
                 exception.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadNotConnected));
+                Is.EqualTo(StatusCodes.BadNotConnected));
 
             connectTcs.SetResult(ServiceResult.Good);
         }

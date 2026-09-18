@@ -185,7 +185,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             Assert.That(protector.TryUnprotect(
                 RecordProtectionContext.Create("history-continuation", key), original, out ByteString plaintext),
                 Is.True);
-            await keyValueStore.SetAsync(key, protector.Protect(default(ByteString), plaintext)).ConfigureAwait(false);
+            await keyValueStore.SetAsync(key, protector.Protect(default, plaintext)).ConfigureAwait(false);
 
             if (load)
             {
@@ -1424,7 +1424,6 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 plaintext = ByteString.From(value);
                 return true;
             }
-
         }
     }
 }

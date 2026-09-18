@@ -911,5 +911,4 @@ namespace Opc.Ua
             int pendingRequestCount,
             int statusCode);
     }
-
 }

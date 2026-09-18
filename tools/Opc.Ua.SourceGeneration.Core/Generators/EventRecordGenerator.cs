@@ -1077,8 +1077,10 @@ namespace Opc.Ua.SourceGeneration
 
         private const string kStandardUaNamespaceUri = "http://opcfoundation.org/UA/";
         private const string kStandardUaRecordNamespace = "Opc.Ua";
+
         private const string kXRegistryNamespaceUri =
             "http://opcfoundation.org/UA/xRegistry/";
+
         private const string kRootBaseRecord = "global::Opc.Ua.EventRecord";
 
         private readonly IGeneratorContext m_context;

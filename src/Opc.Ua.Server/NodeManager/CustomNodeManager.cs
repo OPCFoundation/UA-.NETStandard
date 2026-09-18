@@ -2769,7 +2769,6 @@ namespace Opc.Ua.Server
                         nodesToNotify.Add(handle.Node);
                     }
                 }
-
             }
 
             foreach (NodeState node in nodesToNotify)
@@ -3197,11 +3196,8 @@ namespace Opc.Ua.Server
                     sourceToNotify = source;
                 }
 
-                if (sourceToNotify != null)
-                {
-                    // Publish notifications after releasing the node-manager lock.
-                    sourceToNotify.ClearChangeMasks(context, false);
-                }
+                // Publish notifications after releasing the node-manager lock.
+                sourceToNotify?.ClearChangeMasks(context, false);
             }
         }
 

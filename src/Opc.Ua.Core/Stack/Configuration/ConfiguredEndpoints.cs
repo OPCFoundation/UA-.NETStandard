@@ -1177,6 +1177,7 @@ namespace Opc.Ua
         /// The application configuration supplies the certificate validator required by
         /// secure discovery transports such as WSS.
         /// </remarks>
+        /// <exception cref="ArgumentNullException"><paramref name="applicationConfiguration"/> is <c>null</c>.</exception>
         public Task UpdateFromServerAsync(
             ApplicationConfiguration applicationConfiguration,
             ITelemetryContext? telemetry,
@@ -1643,7 +1644,6 @@ namespace Opc.Ua
             Message = "Unexpected error loading ConfiguredEndpoints: {Message}")]
         public static partial void ConfiguredEndpointsLogMessage0(
             this ILogger logger,
-            global::Opc.Ua.Redaction.RedactionWrapper<global::System.Exception> message);
+            Redaction.RedactionWrapper<Exception> message);
     }
-
 }

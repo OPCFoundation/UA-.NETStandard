@@ -78,29 +78,42 @@ namespace Opc.Ua.Server.AliasNames
         /// <summary>
         /// Resolves an already-registered category node, or null.
         /// </summary>
+        /// <param name="nodeId">The category NodeId to resolve.</param>
+        /// <returns>The registered category node, or null when no category is registered at that NodeId.</returns>
         AliasNameCategoryState? FindCategoryNode(NodeId nodeId);
 
         /// <summary>
         /// Looks up any registered node at the given id — used to detect
         /// occupants that are not alias nodes before minting.
         /// </summary>
+        /// <param name="nodeId">The NodeId to look up.</param>
+        /// <param name="node">The registered node, or null when no node was found.</param>
+        /// <returns>True when a registered node was found; otherwise, false.</returns>
         bool TryGetNode(NodeId nodeId, out NodeState? node);
 
         /// <summary>
         /// Registers a node (and its children) with the host manager so it
         /// serves Browse and Call for it.
         /// </summary>
+        /// <param name="node">The node whose subtree must be registered.</param>
+        /// <param name="cancellationToken">The token used to cancel registration.</param>
+        /// <returns>A task that completes after registration.</returns>
         ValueTask RegisterNodeAsync(NodeState node, CancellationToken cancellationToken);
 
         /// <summary>
         /// Removes a previously materialized node and its references.
         /// </summary>
+        /// <param name="nodeId">The materialized node to remove.</param>
+        /// <param name="cancellationToken">The token used to cancel removal.</param>
+        /// <returns>A task that completes after removal.</returns>
         ValueTask RemoveNodeAsync(NodeId nodeId, CancellationToken cancellationToken);
 
         /// <summary>
         /// Mints a fresh NodeId for a node whose deterministic id
         /// collided.
         /// </summary>
+        /// <param name="node">The node that needs a fresh identifier.</param>
+        /// <returns>A new NodeId allocated by the host.</returns>
         NodeId MintNodeId(NodeState node);
 
         /// <summary>
@@ -111,6 +124,8 @@ namespace Opc.Ua.Server.AliasNames
         /// otherwise. Hosts may make this a no-op (an opt-out option, or a
         /// root that is itself the standard Aliases node).
         /// </summary>
+        /// <param name="root">The root category to link.</param>
+        /// <param name="externalReferences">The references to install through other node managers.</param>
         void LinkRootCategory(
             AliasNameCategoryState root,
             IDictionary<NodeId, IList<IReference>> externalReferences);
@@ -121,6 +136,9 @@ namespace Opc.Ua.Server.AliasNames
         /// another node manager and therefore travels through
         /// <paramref name="externalReferences"/>.
         /// </summary>
+        /// <param name="targetId">The local target of the alias.</param>
+        /// <param name="aliasNodeId">The alias node referenced by the inverse link.</param>
+        /// <param name="externalReferences">The references to install through other node managers.</param>
         void AddInverseAliasReference(
             NodeId targetId,
             NodeId aliasNodeId,
@@ -129,6 +147,11 @@ namespace Opc.Ua.Server.AliasNames
         /// <summary>
         /// Updates a live target's inverse reference after address-space startup.
         /// </summary>
+        /// <param name="targetId">The local target whose inverse reference must change.</param>
+        /// <param name="aliasNodeId">The alias node referenced by the inverse link.</param>
+        /// <param name="remove">True to remove the link; false to add it.</param>
+        /// <param name="cancellationToken">The token used to cancel the update.</param>
+        /// <returns>A task that completes after the reference update.</returns>
         ValueTask UpdateInverseAliasReferenceAsync(
             NodeId targetId,
             NodeId aliasNodeId,
@@ -140,6 +163,8 @@ namespace Opc.Ua.Server.AliasNames
         /// was created or seeded, so the host can keep it current from its
         /// store/registry Changed events.
         /// </summary>
+        /// <param name="categoryId">The category whose LastChange property was bound.</param>
+        /// <param name="lastChange">The property instance to keep current.</param>
         void OnLastChangeBound(NodeId categoryId, PropertyState<uint> lastChange);
     }
 
@@ -288,7 +313,8 @@ namespace Opc.Ua.Server.AliasNames
                 category.GetReferences(m_host.SystemContext, references);
                 foreach (IReference reference in references)
                 {
-                    if (reference.IsInverse || reference.ReferenceTypeId != ReferenceTypeIds.Organizes ||
+                    if (reference.IsInverse ||
+                        reference.ReferenceTypeId != ReferenceTypeIds.Organizes ||
                         !m_host.TryGetNode(ExpandedNodeId.ToNodeId(reference.TargetId, m_host.NamespaceUris),
                             out NodeState? node))
                     {
@@ -315,7 +341,7 @@ namespace Opc.Ua.Server.AliasNames
                         {
                             continue;
                         }
-                        if (!desired.TryGetValue(name!, out var item))
+                        if (!desired.TryGetValue(name!, out (QualifiedName Name, HashSet<ExpandedNodeId> Targets) item))
                         {
                             item = (alias.AliasName, []);
                             desired.Add(name!, item);
@@ -363,6 +389,10 @@ namespace Opc.Ua.Server.AliasNames
             IReadOnlyList<AliasNameVerboseDataType> aliases = await store.FindAliasVerboseAsync(
                 categoryId, AllAliasesPattern, ReferenceTypeIds.AliasFor, m_host.TypeTree, cancellationToken)
                 .ConfigureAwait(false);
+            if (aliases == null)
+            {
+                throw ServiceResultException.Unexpected("The alias store returned a null snapshot.");
+            }
             var result = new Dictionary<NodeId, List<AliasNameVerboseDataType>>();
             foreach (AliasNameVerboseDataType alias in aliases)
             {
@@ -387,7 +417,8 @@ namespace Opc.Ua.Server.AliasNames
             foreach (IReference reference in references)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (reference.IsInverse || reference.ReferenceTypeId != ReferenceTypeIds.AliasFor ||
+                if (reference.IsInverse ||
+                    reference.ReferenceTypeId != ReferenceTypeIds.AliasFor ||
                     desired.Contains(reference.TargetId))
                 {
                     continue;
@@ -420,7 +451,7 @@ namespace Opc.Ua.Server.AliasNames
             {
                 return default;
             }
-            NodeId localTarget = ExpandedNodeId.ToNodeId(target, m_host.NamespaceUris);
+            var localTarget = ExpandedNodeId.ToNodeId(target, m_host.NamespaceUris);
             return localTarget.IsNull
                 ? default
                 : m_host.UpdateInverseAliasReferenceAsync(localTarget, aliasNodeId, remove, cancellationToken);
@@ -652,7 +683,7 @@ namespace Opc.Ua.Server.AliasNames
         {
             ISystemContext context = m_host.SystemContext;
             AliasNameCapabilities capabilities = descriptor.Capabilities;
-            AliasNameReservedChildIds reserved =
+            var reserved =
                 AliasNameReservedChildIds.For(descriptor.NodeId);
             NodeId categoryId = descriptor.NodeId;
             IAliasNameStoreRegistry registry = m_dispatchRegistry;
@@ -856,14 +887,8 @@ namespace Opc.Ua.Server.AliasNames
             {
                 return;
             }
-            if (method.InputArguments != null)
-            {
-                method.InputArguments.NodeId = reserved.InputArguments;
-            }
-            if (method.OutputArguments != null)
-            {
-                method.OutputArguments.NodeId = reserved.OutputArguments;
-            }
+            method.InputArguments?.NodeId = reserved.InputArguments;
+            method.OutputArguments?.NodeId = reserved.OutputArguments;
         }
 
         /// <summary>
@@ -1030,7 +1055,7 @@ namespace Opc.Ua.Server.AliasNames
             {
                 return;
             }
-            NodeId localTarget = ExpandedNodeId.ToNodeId(resolved, m_host.NamespaceUris);
+            var localTarget = ExpandedNodeId.ToNodeId(resolved, m_host.NamespaceUris);
             if (!localTarget.IsNull)
             {
                 m_host.AddInverseAliasReference(localTarget, aliasNode.NodeId, externalReferences);
@@ -1051,7 +1076,7 @@ namespace Opc.Ua.Server.AliasNames
             {
                 return target;
             }
-            NodeId localTarget = ExpandedNodeId.ToNodeId(target, m_host.NamespaceUris);
+            var localTarget = ExpandedNodeId.ToNodeId(target, m_host.NamespaceUris);
             return localTarget.IsNull ? target : new ExpandedNodeId(localTarget);
         }
 
@@ -1132,9 +1157,11 @@ namespace Opc.Ua.Server.AliasNames
                 : default;
         }
 
-        // One row per well-known category; the numeric literals are the
-        // Method rows of StandardTypes.csv, the VariableIds constants
-        // its Variable rows.
+        /// <summary>
+        /// One row per well-known category; the numeric literals are the
+        /// Method rows of StandardTypes.csv, the VariableIds constants
+        /// its Variable rows.
+        /// </summary>
         private static readonly Dictionary<NodeId, AliasNameReservedChildIds> s_reserved = new()
         {
             [ObjectIds.Aliases] = new AliasNameReservedChildIds(

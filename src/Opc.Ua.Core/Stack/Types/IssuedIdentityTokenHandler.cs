@@ -343,7 +343,7 @@ namespace Opc.Ua
 
             (bool ok, byte[]? decryptedSecret) = await secret.TryDecryptAsync(
                 m_token.TokenData.ToArray(),
-                receiverNonce?.Data!,
+                receiverNonce?.Data,
                 ct).ConfigureAwait(false);
             if (!ok)
             {

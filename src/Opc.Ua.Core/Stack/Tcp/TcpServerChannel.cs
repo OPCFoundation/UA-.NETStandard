@@ -1866,7 +1866,7 @@ namespace Opc.Ua.Bindings
         public static partial void TcpServerLog0(
             this ILogger logger,
             string channel,
-            global::System.Net.EndPoint? remoteEndpoint,
+            System.Net.EndPoint? remoteEndpoint,
             uint channelId);
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 1, Level = LogLevel.Debug,
@@ -1885,7 +1885,7 @@ namespace Opc.Ua.Bindings
             Message = "Unexpected error re-sending request (ID={Id}).")]
         public static partial void TcpServerLog4(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             uint id);
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 5, Level = LogLevel.Information,
@@ -1894,7 +1894,7 @@ namespace Opc.Ua.Bindings
         public static partial void TcpServerLog5(
             this ILogger logger,
             string channel,
-            global::System.Net.EndPoint? remoteEndpoint,
+            System.Net.EndPoint? remoteEndpoint,
             uint channelId,
             uint tokenId);
 
@@ -1902,7 +1902,7 @@ namespace Opc.Ua.Bindings
             Message = "Error raising StatusChanged event.")]
         public static partial void TcpServerLog6(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 7, Level = LogLevel.Debug,
             Message = "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}")]
@@ -1910,16 +1910,16 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             uint id,
             uint requestId,
-            global::Opc.Ua.StatusCode serviceFault);
+            StatusCode serviceFault);
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 8, Level = LogLevel.Error,
             Message = "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}: Unexpected error.")]
         public static partial void TcpServerLog8(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             uint id,
             uint requestId,
-            global::Opc.Ua.StatusCode serviceFault);
+            StatusCode serviceFault);
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 9, Level = LogLevel.Debug,
             Message = "ChannelId {Id}: SendOpenSecureChannelResponse()")]
@@ -1929,7 +1929,7 @@ namespace Opc.Ua.Bindings
             Message = "Unexpected error processing CloseSecureChannel request.")]
         public static partial void TcpServerLog10(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 11, Level = LogLevel.Information,
             Message = "{Channel} ProcessCloseSecureChannelRequest success, ChannelId={ChannelId}, " +
@@ -1939,7 +1939,7 @@ namespace Opc.Ua.Bindings
             string channel,
             uint? channelId,
             uint? tokenId,
-            global::System.Net.EndPoint? remoteEndpoint);
+            System.Net.EndPoint? remoteEndpoint);
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 12, Level = LogLevel.Information,
             Message = "ChannelId {Id}: Server Current Token #{CurrentToken}, Revoked Token #{PreviousToken}.")]
@@ -1968,12 +1968,13 @@ namespace Opc.Ua.Bindings
             Message = "Unexpected error processing request.")]
         public static partial void TcpServerLog16(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
+
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 17, Level = LogLevel.Error,
             Message = "Could not verify security on OpenSecureChannel request.")]
         public static partial void TcpServerLog17(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 18, Level = LogLevel.Error,
             Message = "ChannelId {ChannelId}: reconnect handoff failed; closing the unadopted connection.")]
@@ -1991,7 +1992,5 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             int channelId,
             int requestId);
-
     }
-
 }

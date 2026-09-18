@@ -101,7 +101,7 @@ namespace Opc.Ua.Gds.Tests.KeyCredential
                 TokenType = UserTokenType.IssuedToken,
                 PolicyId = "keycredential",
                 IssuedTokenType = KeyCredentialBridgeOptions.DefaultProfileUri,
-                IssuerEndpointUrl = "{\"authorityUri\":\"urn:test:gds\"}"
+                IssuerEndpointUrl = /*lang=json,strict*/ "{\"authorityUri\":\"urn:test:gds\"}"
             };
             var endpoint = new EndpointDescription
             {

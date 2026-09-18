@@ -241,5 +241,4 @@ namespace Opc.Ua.Client
             this ILogger logger,
             Exception? exception);
     }
-
 }

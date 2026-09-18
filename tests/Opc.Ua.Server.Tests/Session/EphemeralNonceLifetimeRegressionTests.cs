@@ -90,10 +90,10 @@ namespace Opc.Ua.Server.Tests
             using var harness = new NonceHarness();
             EphemeralKeyType ephemeral = harness.Session.GetNewEphemeralKey()!;
             using Nonce original = GetCurrentNonce(harness.Session);
-            using Nonce publicNonce = Nonce.CreateNonce(kPolicy, ephemeral.PublicKey.ToArray());
-            using Nonce senderNonce = Nonce.CreateNonce(kPolicy);
+            using var publicNonce = Nonce.CreateNonce(kPolicy, ephemeral.PublicKey.ToArray());
+            using var senderNonce = Nonce.CreateNonce(kPolicy);
             using var issuerCertificates = new CertificateCollection();
-            EncryptedSecret encryptor = EncryptedSecret.CreateForEcc(
+            var encryptor = EncryptedSecret.CreateForEcc(
                 harness.MessageContext, kPolicy, issuerCertificates, harness.ServerCertificate,
                 publicNonce, harness.ClientCertificate, senderNonce, doNotEncodeSenderCertificate: true);
             byte[] encrypted = encryptor.Encrypt(s_testSecret, harness.ServerNonce.Data!);
@@ -226,7 +226,7 @@ namespace Opc.Ua.Server.Tests
                 server.SetupGet(value => value.NamespaceUris).Returns(new NamespaceTable());
                 server.SetupGet(value => value.MessageContext).Returns(MessageContext);
                 ServerNonce = Nonce.CreateNonce(32);
-                using Nonce clientNonce = Nonce.CreateNonce(32);
+                using var clientNonce = Nonce.CreateNonce(32);
                 Session = new ServerSession(
                     Context, server.Object, ServerCertificate, new NodeId(100), clientNonce.Data.ToByteString(),
                     ServerNonce, "NonceLifetime", new ApplicationDescription { ApplicationUri = "urn:nonce-lifetime" },
@@ -236,7 +236,7 @@ namespace Opc.Ua.Server.Tests
                 ClientSignature = SecurityPolicies.Default.CreateSignatureData(
                     policy, ClientCertificate, policy.GetClientSignatureData(
                         channel.ChannelThumbprint, ServerNonce.Data, ServerCertificate.RawData,
-                        channel.ServerChannelCertificate, channel.ClientChannelCertificate, clientNonce.Data!));
+                        channel.ServerChannelCertificate, channel.ClientChannelCertificate, clientNonce.Data));
             }
 
             /// <summary>
@@ -346,6 +346,8 @@ namespace Opc.Ua.Server.Tests
             /// <summary>
             /// Holds each key borrower at its barrier and optionally injects an agreement failure after release.
             /// </summary>
+            /// <exception cref="TimeoutException"></exception>
+            /// <exception cref="CryptographicException"></exception>
             private void WaitForRelease()
             {
                 int position = Interlocked.Increment(ref m_entered);

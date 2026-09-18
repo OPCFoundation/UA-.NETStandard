@@ -68,6 +68,9 @@ namespace Opc.Ua.Client
         /// engine (<see cref="DefaultSubscriptionEngineFactory"/>) via
         /// the <c>ManagedSessionBuilder</c>.
         /// </summary>
+        // MemberwiseClone updates these fields without making the public settings mutable.
+        // TODO: remove this suppression when RCS1085 preserves init-only clone updates.
+#pragma warning disable RCS1085
         public ISubscriptionEngineFactory? SubscriptionEngineFactory
         {
             get => m_subscriptionEngineFactory;
@@ -85,6 +88,7 @@ namespace Opc.Ua.Client
             get => m_timeProvider;
             init => m_timeProvider = value;
         }
+#pragma warning restore RCS1085
 
         /// <summary>
         /// Optional security policy registry forwarded to every channel and
@@ -123,25 +127,17 @@ namespace Opc.Ua.Client
             ISubscriptionEngineFactory engineFactory,
             TimeProvider? timeProvider = null)
         {
-            if (engineFactory == null)
-            {
-                throw new ArgumentNullException(nameof(engineFactory));
-            }
-
             // A shallow copy keeps the runtime type, so a subclass keeps its
             // overrides and every setting, and it leaves this instance -
             // possibly the shared Instance - untouched.
             var copy = (DefaultSessionFactory)MemberwiseClone();
-            copy.m_subscriptionEngineFactory = engineFactory;
+            copy.m_subscriptionEngineFactory = engineFactory ?? throw new ArgumentNullException(nameof(engineFactory));
             if (timeProvider != null)
             {
                 copy.m_timeProvider = timeProvider;
             }
             return copy;
         }
-
-        private ISubscriptionEngineFactory? m_subscriptionEngineFactory;
-        private TimeProvider? m_timeProvider;
 
         /// <inheritdoc/>
         public virtual Task<ISession> CreateAsync(
@@ -331,16 +327,7 @@ namespace Opc.Ua.Client
                     !ct.IsCancellationRequested &&
                     IsStaleReverseConnectionStatus(sre.StatusCode))
                 {
-                    if (logger != null)
-                    {
-                        logger.LogWarning(
-                            "Reverse connection to {EndpointUrl} was stale ({StatusCode}); " +
-                            "retrying with a fresh connection (attempt {Attempt} of {Max}).",
-                            endpointUrl,
-                            sre.StatusCode,
-                            attempt,
-                            maxAttempts);
-                    }
+                    logger?.RetryStaleReverseConnection(endpointUrl, sre.StatusCode, attempt, maxAttempts);
 
                     connection = await resolveFreshConnectionAsync(ct).ConfigureAwait(false);
                 }
@@ -360,9 +347,9 @@ namespace Opc.Ua.Client
         /// </summary>
         private static bool IsStaleReverseConnectionStatus(StatusCode statusCode)
         {
-            return statusCode == StatusCodes.BadConnectionClosed
-                || statusCode == StatusCodes.BadNotConnected
-                || statusCode == StatusCodes.BadSecureChannelClosed;
+            return statusCode == StatusCodes.BadConnectionClosed ||
+                statusCode == StatusCodes.BadNotConnected ||
+                statusCode == StatusCodes.BadSecureChannelClosed;
         }
 
         /// <inheritdoc/>
@@ -623,5 +610,21 @@ namespace Opc.Ua.Client
 
             return session;
         }
+
+        private ISubscriptionEngineFactory? m_subscriptionEngineFactory;
+        private TimeProvider? m_timeProvider;
+    }
+
+    internal static partial class DefaultSessionFactoryLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.DefaultSessionFactory, Level = LogLevel.Warning,
+            Message = "Reverse connection to {EndpointUrl} was stale ({StatusCode}); " +
+                "retrying with a fresh connection (attempt {Attempt} of {Max}).")]
+        public static partial void RetryStaleReverseConnection(
+            this ILogger logger,
+            Uri? endpointUrl,
+            StatusCode statusCode,
+            int attempt,
+            int max);
     }
 }

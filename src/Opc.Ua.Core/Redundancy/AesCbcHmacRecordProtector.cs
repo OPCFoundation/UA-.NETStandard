@@ -188,15 +188,13 @@ namespace Opc.Ua.Redundancy
             byte[] iv = new byte[IvLength];
             Buffer.BlockCopy(envelope, 5, iv, 0, IvLength);
 
-            using (var aes = Aes.Create())
-            {
-                aes.Mode = CipherMode.CBC;
-                aes.Padding = PaddingMode.PKCS7;
-                aes.Key = m_aesKey;
-                aes.IV = iv;
-                using ICryptoTransform decryptor = aes.CreateDecryptor();
-                data = decryptor.TransformFinalBlock(envelope, headerLength, cipherLength);
-            }
+            using var aes = Aes.Create();
+            aes.Mode = CipherMode.CBC;
+            aes.Padding = PaddingMode.PKCS7;
+            aes.Key = m_aesKey;
+            aes.IV = iv;
+            using ICryptoTransform decryptor = aes.CreateDecryptor();
+            data = decryptor.TransformFinalBlock(envelope, headerLength, cipherLength);
 
             return true;
         }

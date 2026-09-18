@@ -473,7 +473,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         [Test]
         [Category("EncryptedSecretCoverage")]
-        public async Task DecryptAsyncEccThrowsBadNonceInvalidWhenNonceMismatchedAsync()
+        public Task DecryptAsyncEccThrowsBadNonceInvalidWhenNonceMismatchedAsync()
         {
             const string policyUri = SecurityPolicies.ECC_nistP256;
             RequireEccPolicy(policyUri);
@@ -501,6 +501,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             Assert.That(ex.StatusCode.Code, Is.EqualTo(StatusCodes.BadNonceInvalid));
             decryptor.SenderCertificate?.Dispose();
+            return Task.CompletedTask;
         }
 
         [Test]
@@ -1110,7 +1111,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             aes.Padding = PaddingMode.None;
             aes.Key = encryptingKey;
             aes.IV = iv;
+            // Protocol vectors require the supplied derived IV. TODO: remove when CA5401 tracks nonce-derived IVs.
+#pragma warning disable CA5401
             using ICryptoTransform encryptor = aes.CreateEncryptor();
+#pragma warning restore CA5401
             return encryptor.TransformFinalBlock(payload, 0, payload.Length);
         }
 

@@ -2533,7 +2533,7 @@ namespace Opc.Ua.Client
         public async Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            await FetchTypeTreeAsync(typeId, new HashSet<ExpandedNodeId> { typeId }, ct)
+            await FetchTypeTreeAsync(typeId, [typeId], ct)
                 .ConfigureAwait(false);
         }
 
@@ -4459,7 +4459,8 @@ namespace Opc.Ua.Client
             // Wait for the requests in flight, but only while a response can
             // still arrive: without a live transport the wait would just delay
             // the close by the full timeout.
-            if (pending.Count > 0 && CanReceiveResponses() &&
+            if (pending.Count > 0 &&
+                CanReceiveResponses() &&
                 PublishRequestCancelDelayOnCloseSession != 0)
             {
                 TimeSpan waitTimeout = PublishRequestCancelDelayOnCloseSession < 0
@@ -5341,14 +5342,11 @@ namespace Opc.Ua.Client
             EndpointDescription? foundDescription = FindMatchingDescription(
                 serverEndpoints,
                 m_endpoint.Description,
-                true);
-            if (foundDescription == null)
-            {
-                foundDescription = FindMatchingDescription(
+                true) ??
+                FindMatchingDescription(
                     serverEndpoints,
                     m_endpoint.Description,
                     false);
-            }
 
             // could be a security risk.
             if (foundDescription == null)
@@ -5700,6 +5698,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Acquires a session-owned certificate and optional issuer chain from the active registry or configured store.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal static async Task<CertificateEntry> LoadInstanceCertificateEntryAsync(
             ApplicationConfiguration configuration,
             string securityProfile,
@@ -6092,9 +6091,11 @@ namespace Opc.Ua.Client
         private byte[]? m_clientNonce;
         private ByteString m_serverNonce;
         private ByteString m_previousServerNonce;
-        // OPC 10000-4 §5.7.3.1 forbids reuse of any once-used server nonce, so retain the full
-        // Session history. This state is owned by the Session and released when it is disposed;
-        // bounding or evicting entries would allow non-consecutive nonce reuse to go undetected.
+        /// <summary>
+        /// OPC 10000-4 §5.7.3.1 forbids reuse of any once-used server nonce, so retain the full
+        /// Session history. This state is owned by the Session and released when it is disposed;
+        /// bounding or evicting entries would allow non-consecutive nonce reuse to go undetected.
+        /// </summary>
         private readonly HashSet<ByteString> m_serverNonceHistory = [];
         private ByteString m_sessionClientCertificate;
 #pragma warning disable CA2213 // Disposed in Dispose method (m_serverCertificate?.Dispose() in cleanup path)
@@ -6720,5 +6721,4 @@ namespace Opc.Ua.Client
                       "prevent process exit.")]
         public static partial void KeepAliveWorkerDidNotStopWithinTimeout(this ILogger logger, int timeoutSeconds);
     }
-
 }

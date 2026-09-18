@@ -583,7 +583,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if ((string.IsNullOrEmpty(namespaceUri) || namespaceUri == Opc.Ua.Namespaces.OpcUa) &&
+            if ((string.IsNullOrEmpty(namespaceUri) || namespaceUri == Ua.Namespaces.OpcUa) &&
                 symbolicId == new StatusCode(statusCode.Code).SymbolicId)
             {
                 return TranslateStatusCode(preferredLocales, statusCode, args, symbolicId);

@@ -856,6 +856,8 @@ namespace Opc.Ua.Redundancy.Server
         /// <summary>
         /// Sets the serialization context, rejecting a different context after initialization.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="messageContext"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
         internal void Initialize(IServiceMessageContext messageContext)
         {
             if (messageContext == null)

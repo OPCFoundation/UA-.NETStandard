@@ -1683,12 +1683,14 @@ namespace Opc.Ua.Server.StateMachines
             // at the node's construction value (true) and a client can
             // only discover the answer by calling and being refused.
             method.OnReadExecutable =
-                (ISystemContext ctx, NodeState node, ref bool value) => {
+                (ctx, node, ref value) =>
+                {
                     value = m_stateMachine.IsCausePermitted(ctx, causeId, false);
                     return ServiceResult.Good;
                 };
             method.OnReadUserExecutable =
-                (ISystemContext ctx, NodeState node, ref bool value) => {
+                (ctx, node, ref value) =>
+                {
                     value = m_stateMachine.IsCausePermitted(ctx, causeId, true);
                     return ServiceResult.Good;
                 };
@@ -1697,6 +1699,7 @@ namespace Opc.Ua.Server.StateMachines
         /// <summary>
         /// Replaces a state's timed transition and arms it immediately when that state is already current.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         public void AddTimedTransition(
             uint fromStateId,
             TimeSpan timeout,
@@ -1713,7 +1716,7 @@ namespace Opc.Ua.Server.StateMachines
             {
                 if (m_disposed)
                 {
-                    throw new ObjectDisposedException(nameof(StateMachineDispatcher<TState>));
+                    throw new ObjectDisposedException(nameof(StateMachineDispatcher<>));
                 }
                 m_timedTransitions[fromStateId] = entry;
             }

@@ -1013,7 +1013,8 @@ namespace Opc.Ua.Redundancy.Server
                 (bool found, ByteString chunk) = await m_store
                     .TryGetAsync(key, ct)
                     .ConfigureAwait(false);
-                if (!found || !m_protector.TryUnprotect(
+                if (!found ||
+                    !m_protector.TryUnprotect(
                         RecordProtectionContext.Create("node-state-chunk", key), chunk, out ByteString plaintext) ||
                     plaintext.IsNull)
                 {

@@ -163,7 +163,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
                 Assert.That(protector.TryUnprotect(
                     RecordProtectionContext.Create("historian-record", key), original, out ByteString plaintext),
                     Is.True);
-                invalid = protector.Protect(default(ByteString), plaintext);
+                invalid = protector.Protect(default, plaintext);
             }
             else
             {

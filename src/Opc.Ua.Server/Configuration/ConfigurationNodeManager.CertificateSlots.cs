@@ -54,6 +54,7 @@ namespace Opc.Ua.Server
         /// certificate type); it may or may not currently resolve to a
         /// certificate on disk.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static CertificateIdentifier FindCertificateIdentifier(
             ServerCertificateGroup certificateGroup,
             NodeId certificateTypeId)
@@ -262,6 +263,7 @@ namespace Opc.Ua.Server
         /// alongside orphaned or half-imported issuers.
         /// </para>
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         private async Task<ArrayOf<string>> ApplyCertificateSlotChangeAsync(
             ServerCertificateGroup certificateGroup,
             CertificateIdentifier existingCertIdentifier,
@@ -376,7 +378,7 @@ namespace Opc.Ua.Server
                         existingCertIdentifier,
                         addCertificateWithKey,
                         removedCertificateBackup,
-                        newlyAddedIssuerThumbprints?.ToArrayOf() ?? ArrayOf<string>.Empty,
+                        newlyAddedIssuerThumbprints?.ToArrayOf() ?? [],
                         CancellationToken.None).ConfigureAwait(false);
 
                     throw;
@@ -387,7 +389,7 @@ namespace Opc.Ua.Server
             {
                 if (m_configuration.CertificateManager is ICertificateLifecycle lifecycle)
                 {
-                    using Certificate certOnly = Certificate.FromRawData(addCertificateWithKey.RawData);
+                    using var certOnly = Certificate.FromRawData(addCertificateWithKey.RawData);
                     await lifecycle.UpdateApplicationCertificateAsync(
                         existingCertIdentifier.CertificateType,
                         certOnly,
@@ -409,7 +411,7 @@ namespace Opc.Ua.Server
                     ct).ConfigureAwait(false);
             }
 
-            return newlyAddedIssuerThumbprints?.ToArrayOf() ?? ArrayOf<string>.Empty;
+            return newlyAddedIssuerThumbprints?.ToArrayOf() ?? [];
         }
 
         /// <summary>
@@ -558,7 +560,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            using Certificate rotationCopy = Certificate.FromRawData(oldCertificateWithKey.RawData);
+            using var rotationCopy = Certificate.FromRawData(oldCertificateWithKey.RawData);
             collector.Add(new PendingCertificateRotation
             {
                 OldCertificate = rotationCopy.AddRef(),
@@ -597,6 +599,7 @@ namespace Opc.Ua.Server
         /// before deciding whether this additional delete is safe.
         /// </para>
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         private void EnsureCertificateNotSoleEndpointReference(NodeId certificateTypeId)
         {
             if (m_configuration.CertificateManager is not ICertificateRegistry registry)

@@ -43,7 +43,6 @@ using System.Collections.ObjectModel;
 
 namespace Opc.Ua
 {
-
     /// <summary>
     /// The security policies an application knows about.
     /// </summary>
@@ -1208,96 +1207,98 @@ namespace Opc.Ua
 
         private volatile SecurityPolicySnapshot m_snapshot;
 
-        // Policy metadata calls GetNameFromUri while its static fields are still being initialized.
+        /// <summary>
+        /// Policy metadata calls GetNameFromUri while its static fields are still being initialized.
+        /// </summary>
         private static readonly Lazy<SecurityPolicies> s_default = new(static () => new SecurityPolicies());
 
         private static readonly string[] s_defaultPolicyUris =
         [
-            SecurityPolicies.Basic256Sha256,
-            SecurityPolicies.Aes128_Sha256_RsaOaep,
-            SecurityPolicies.Aes256_Sha256_RsaPss
+            Basic256Sha256,
+            Aes128_Sha256_RsaOaep,
+            Aes256_Sha256_RsaPss
         ];
 
         private static readonly string[] s_defaultDeprecatedPolicyUris =
         [
-            SecurityPolicies.Basic128Rsa15,
-            SecurityPolicies.Basic256
+            Basic128Rsa15,
+            Basic256
         ];
 
         private static readonly string[] s_defaultEccPolicyUris =
         [
-            SecurityPolicies.ECC_nistP256,
-            SecurityPolicies.ECC_nistP384,
-            SecurityPolicies.ECC_brainpoolP256r1,
-            SecurityPolicies.ECC_brainpoolP384r1
+            ECC_nistP256,
+            ECC_nistP384,
+            ECC_brainpoolP256r1,
+            ECC_brainpoolP384r1
         ];
 
         private static readonly string[] s_defaultCertificatePolicyUris =
         [
-            SecurityPolicies.Basic256Sha256,
-            SecurityPolicies.Aes128_Sha256_RsaOaep,
-            SecurityPolicies.Aes256_Sha256_RsaPss,
-            SecurityPolicies.RSA_DH_AesGcm,
-            SecurityPolicies.RSA_DH_ChaChaPoly
+            Basic256Sha256,
+            Aes128_Sha256_RsaOaep,
+            Aes256_Sha256_RsaPss,
+            RSA_DH_AesGcm,
+            RSA_DH_ChaChaPoly
         ];
 
         private static readonly string[] s_defaultRsaCertificatePolicyUris =
         [
-            SecurityPolicies.Basic256Sha256,
-            SecurityPolicies.Aes128_Sha256_RsaOaep,
-            SecurityPolicies.Aes256_Sha256_RsaPss,
-            SecurityPolicies.RSA_DH_AesGcm,
-            SecurityPolicies.RSA_DH_ChaChaPoly,
-            SecurityPolicies.Basic128Rsa15,
-            SecurityPolicies.Basic256
+            Basic256Sha256,
+            Aes128_Sha256_RsaOaep,
+            Aes256_Sha256_RsaPss,
+            RSA_DH_AesGcm,
+            RSA_DH_ChaChaPoly,
+            Basic128Rsa15,
+            Basic256
         ];
 
         private static readonly string[] s_eccNistP256PolicyUris =
         [
-            SecurityPolicies.ECC_nistP256,
-            SecurityPolicies.ECC_nistP256_AesGcm,
-            SecurityPolicies.ECC_nistP256_ChaChaPoly
+            ECC_nistP256,
+            ECC_nistP256_AesGcm,
+            ECC_nistP256_ChaChaPoly
         ];
 
         private static readonly string[] s_eccNistP384PolicyUris =
         [
-            SecurityPolicies.ECC_nistP256,
-            SecurityPolicies.ECC_nistP256_AesGcm,
-            SecurityPolicies.ECC_nistP256_ChaChaPoly,
-            SecurityPolicies.ECC_nistP384,
-            SecurityPolicies.ECC_nistP384_AesGcm,
-            SecurityPolicies.ECC_nistP384_ChaChaPoly
+            ECC_nistP256,
+            ECC_nistP256_AesGcm,
+            ECC_nistP256_ChaChaPoly,
+            ECC_nistP384,
+            ECC_nistP384_AesGcm,
+            ECC_nistP384_ChaChaPoly
         ];
 
         private static readonly string[] s_eccBrainpoolP256r1PolicyUris =
         [
-            SecurityPolicies.ECC_brainpoolP256r1,
-            SecurityPolicies.ECC_brainpoolP256r1_AesGcm,
-            SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly
+            ECC_brainpoolP256r1,
+            ECC_brainpoolP256r1_AesGcm,
+            ECC_brainpoolP256r1_ChaChaPoly
         ];
 
         private static readonly string[] s_eccBrainpoolP384r1PolicyUris =
         [
-            SecurityPolicies.ECC_brainpoolP256r1,
-            SecurityPolicies.ECC_brainpoolP256r1_AesGcm,
-            SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly,
-            SecurityPolicies.ECC_brainpoolP384r1,
-            SecurityPolicies.ECC_brainpoolP384r1_AesGcm,
-            SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly
+            ECC_brainpoolP256r1,
+            ECC_brainpoolP256r1_AesGcm,
+            ECC_brainpoolP256r1_ChaChaPoly,
+            ECC_brainpoolP384r1,
+            ECC_brainpoolP384r1_AesGcm,
+            ECC_brainpoolP384r1_ChaChaPoly
         ];
 
         private static readonly string[] s_eccCurve25519PolicyUris =
         [
-            SecurityPolicies.ECC_curve25519,
-            SecurityPolicies.ECC_curve25519_AesGcm,
-            SecurityPolicies.ECC_curve25519_ChaChaPoly
+            ECC_curve25519,
+            ECC_curve25519_AesGcm,
+            ECC_curve25519_ChaChaPoly
         ];
 
         private static readonly string[] s_eccCurve448PolicyUris =
         [
-            SecurityPolicies.ECC_curve448,
-            SecurityPolicies.ECC_curve448_AesGcm,
-            SecurityPolicies.ECC_curve448_ChaChaPoly
+            ECC_curve448,
+            ECC_curve448_AesGcm,
+            ECC_curve448_ChaChaPoly
         ];
 
         private sealed class SecurityPolicyRegistration : IDisposable

@@ -640,7 +640,6 @@ namespace Opc.Ua.Client.WebApi
             }
         }
 
-
         private static Uri NormalizeUrl(Uri url)
         {
             // The synthetic registry-key scheme "opc.https+webapi" must
@@ -688,5 +687,4 @@ namespace Opc.Ua.Client.WebApi
             this ILogger logger,
             string channelType);
     }
-
 }

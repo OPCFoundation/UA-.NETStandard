@@ -60,7 +60,7 @@ namespace Opc.Ua.Client.Tests
             using var session = SessionMock.Create();
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             ushort namespaceIndex = session.NamespaceUris.GetIndexOrAppend("urn:test:type-traversal");
-            ArrayOf<NodeId> ids = Enumerable.Range(1, count)
+            var ids = Enumerable.Range(1, count)
                 .Select(value => new NodeId((uint)value, namespaceIndex)).ToArrayOf();
             var browsed = new HashSet<NodeId>();
             session.Channel.Setup(channel => channel.SendRequestAsync(

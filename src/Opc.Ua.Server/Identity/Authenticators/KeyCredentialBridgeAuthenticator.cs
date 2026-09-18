@@ -207,6 +207,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a versioned bridge-token payload bound to an audience.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentNullException"><paramref name="secret"/> is <c>null</c>.</exception>
         public static byte[] CreateTokenData(
             string credentialId,
             byte[] secret,
@@ -273,6 +275,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a versioned HMAC proof bound to the supplied audience.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="secret"/> is <c>null</c>.</exception>
         public static string CreateProof(
             byte[] secret,
             string credentialId,

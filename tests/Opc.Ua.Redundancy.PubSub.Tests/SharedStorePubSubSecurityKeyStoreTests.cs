@@ -193,7 +193,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
             using AesCbcHmacRecordProtector protector = CreateProtector();
             SharedStorePubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
             await keyStore.SaveSecurityGroupAsync(CreateGroup("source")).ConfigureAwait(false);
-            string key = PubSubRedundancyStoreKeys.SecurityKeyPrefix + "source";
+            const string key = PubSubRedundancyStoreKeys.SecurityKeyPrefix + "source";
             (_, ByteString record) = await sharedStore.TryGetAsync(key).ConfigureAwait(false);
             ByteString invalid;
             if (emptyContext)
@@ -201,7 +201,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
                 Assert.That(protector.TryUnprotect(
                     RecordProtectionContext.Create("pubsub-security-group", key), record, out ByteString plaintext),
                     Is.True);
-                invalid = protector.Protect(default(ByteString), plaintext);
+                invalid = protector.Protect(default, plaintext);
             }
             else
             {

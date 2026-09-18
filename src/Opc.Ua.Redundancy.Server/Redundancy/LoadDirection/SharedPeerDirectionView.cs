@@ -94,7 +94,7 @@ namespace Opc.Ua.Redundancy.Server
                 });
             }
 
-            return new ArrayOf<PeerDirectionRecord>(records.ToArray());
+            return new ArrayOf<PeerDirectionRecord>([.. records]);
         }
 
         private async ValueTask<Dictionary<string, (byte Value, long Ticks)>> ReadSignalsAsync(

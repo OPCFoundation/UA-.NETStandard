@@ -387,7 +387,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [TestCase(null)]
-        [TestCase(Opc.Ua.Namespaces.OpcUa)]
+        [TestCase(Ua.Namespaces.OpcUa)]
         public void TranslateStandardStatusUsesRegisteredTranslation(string namespaceUri)
         {
             var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create());
@@ -420,7 +420,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [TestCase("BadTimeout", "urn:custom-errors")]
-        [TestCase("CustomTimeout", Opc.Ua.Namespaces.OpcUa)]
+        [TestCase("CustomTimeout", Ua.Namespaces.OpcUa)]
         public void TranslateCustomSymbolicIdDoesNotUseStandardStatusTranslation(string name, string namespaceUri)
         {
             var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create());

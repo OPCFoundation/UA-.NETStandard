@@ -30,7 +30,6 @@
 
 #nullable enable
 
-using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
@@ -118,7 +117,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void ValidateNonceAcceptsAWellFormedNonce()
         {
             using TestChannel channel = CreateChannel();
-            using Nonce nonce = Nonce.CreateNonce(SecurityPolicyInfo.RSA_DH_AesGcm);
+            using var nonce = Nonce.CreateNonce(SecurityPolicyInfo.RSA_DH_AesGcm);
 
             byte[]? data = nonce.Data;
             Assert.That(data, Is.Not.Null);
@@ -167,7 +166,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     bufferManager,
                     quotas,
                     (Certificate?)null,
-                    new List<EndpointDescription>(),
+                    [],
                     MessageSecurityMode.SignAndEncrypt,
                     SecurityPolicies.RSA_DH_AesGcm,
                     telemetry)
@@ -184,15 +183,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return CreateNonce(null)!;
             }
 
-            public Nonce? LocalNonceForTest
-            {
-                get
-                {
-                    return typeof(UaSCUaBinaryChannel)
+            public Nonce? LocalNonceForTest => typeof(UaSCUaBinaryChannel)
                         .GetField("m_localNonce", BindingFlags.Instance | BindingFlags.NonPublic)!
                         .GetValue(this) as Nonce;
-                }
-            }
         }
     }
 }

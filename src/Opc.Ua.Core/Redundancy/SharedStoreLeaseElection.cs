@@ -400,7 +400,7 @@ namespace Opc.Ua.Redundancy
         /// </summary>
         private TimeSpan GetRemainingLeaseTime(long timestamp, long expiryTicks)
         {
-            TimeSpan utcRemaining = TimeSpan.FromTicks(expiryTicks - m_timeProvider.GetUtcNow().UtcTicks);
+            var utcRemaining = TimeSpan.FromTicks(expiryTicks - m_timeProvider.GetUtcNow().UtcTicks);
             TimeSpan elapsedRemaining = m_leaseDuration - m_timeProvider.GetElapsedTime(timestamp);
             return utcRemaining < elapsedRemaining ? utcRemaining : elapsedRemaining;
         }
@@ -552,19 +552,18 @@ namespace Opc.Ua.Redundancy
     /// </summary>
     internal static partial class SharedStoreLeaseElectionLog
     {
-
         [LoggerMessage(EventId = CoreEventIds.SharedStoreLeaseElection + 0, Level = LogLevel.Error,
             Message = "Lease election renew failed for {NodeId}.")]
         public static partial void SharedStoreLeaseElectionLogMessage0(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string nodeId);
 
         [LoggerMessage(EventId = CoreEventIds.SharedStoreLeaseElection + 1, Level = LogLevel.Error,
             Message = "Lease election release failed for {NodeId}.")]
         public static partial void SharedStoreLeaseElectionLogMessage1(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string nodeId);
 
         /// <summary>
@@ -574,8 +573,7 @@ namespace Opc.Ua.Redundancy
             Message = "Lease election notification failed for {NodeId}.")]
         public static partial void SharedStoreLeaseElectionLogMessage2(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string nodeId);
     }
-
 }

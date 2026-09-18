@@ -192,8 +192,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void ChannelTokenTransfersOriginalNonceObjectsOnce(string policyUri)
         {
             SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(policyUri)!;
-            using Nonce local = Nonce.CreateNonce(policy);
-            using Nonce remote = Nonce.CreateNonce(policy);
+            using var local = Nonce.CreateNonce(policy);
+            using var remote = Nonce.CreateNonce(policy);
             using var token = new ChannelToken();
             token.SetNonces(local, remote);
 
@@ -221,7 +221,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 validator.Setup(value => value.ValidateAsync(
                         It.IsAny<CertificateCollection>(),
                         It.IsAny<TrustListIdentifier?>(),
-                        It.IsAny<Opc.Ua.Security.Certificates.CertificateValidationOptions?>(),
+                        It.IsAny<Ua.Security.Certificates.CertificateValidationOptions?>(),
                         It.IsAny<CancellationToken>()))
                     .Returns(Task.FromResult(CertificateValidationResult.Success));
                 var quotas = new ChannelQuotas(context)
@@ -534,9 +534,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         private sealed class RecordingTransport : IUaSCByteTransport, IUaSCByteTransportLimits
         {
             public EndPoint? LocalEndpoint => null;
+
             public EndPoint? RemoteEndpoint => FailEndpointRead
                 ? throw new InvalidOperationException("Injected endpoint failure.")
                 : null;
+
             public TransportChannelFeatures Features => TransportChannelFeatures.None;
             public string Implementation => "ReconnectTest";
             public bool IsClosed => Volatile.Read(ref m_closed) != 0;

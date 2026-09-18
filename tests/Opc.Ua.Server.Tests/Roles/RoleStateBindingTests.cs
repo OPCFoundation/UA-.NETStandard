@@ -394,7 +394,7 @@ namespace Opc.Ua.Server.Tests.Roles
             foreach (IdentityMappingRuleType rule in synced)
             {
                 if (rule.CriteriaType == IdentityCriteriaType.UserName &&
-                    string.Equals(rule.Criteria, "alice", System.StringComparison.Ordinal))
+                    string.Equals(rule.Criteria, "alice", StringComparison.Ordinal))
                 {
                     hasAlice = true;
                     break;
@@ -415,7 +415,7 @@ namespace Opc.Ua.Server.Tests.Roles
             bool found = false;
             foreach (string app in apps)
             {
-                if (string.Equals(app, "urn:test:app", System.StringComparison.Ordinal))
+                if (string.Equals(app, "urn:test:app", StringComparison.Ordinal))
                 {
                     found = true;
                     break;
@@ -437,7 +437,7 @@ namespace Opc.Ua.Server.Tests.Roles
             bool found = false;
             foreach (EndpointType ep in endpoints)
             {
-                if (string.Equals(ep.EndpointUrl, "opc.tcp://srv:4840", System.StringComparison.Ordinal))
+                if (string.Equals(ep.EndpointUrl, "opc.tcp://srv:4840", StringComparison.Ordinal))
                 {
                     found = true;
                     break;
@@ -956,7 +956,7 @@ namespace Opc.Ua.Server.Tests.Roles
             };
 
             using var stub = new FixedNodeIdRoleManager(occupied);
-            using var binding = await RoleStateBinding
+            using RoleStateBinding? binding = await RoleStateBinding
                 .BindAsync(m_nodeManager, stub, m_auditServer.Object)
                 .ConfigureAwait(false);
             Assume.That(binding, Is.Not.Null);
@@ -1108,7 +1108,7 @@ namespace Opc.Ua.Server.Tests.Roles
             Assert.That(
                 m_roleManager.RoleIds.Any(id =>
                     string.Equals(m_roleManager.GetRole(id)?.BrowseName, "AfterShutdown",
-                        System.StringComparison.Ordinal)),
+                        StringComparison.Ordinal)),
                 Is.False,
                 "A role that could not be materialized must not linger in the manager.");
         }
@@ -1373,7 +1373,7 @@ namespace Opc.Ua.Server.Tests.Roles
 
             public IList<NodeId> ResolveGrantedRoles(
                 IUserIdentity identity,
-                Opc.Ua.Security.Certificates.Certificate? clientCertificate,
+                Security.Certificates.Certificate? clientCertificate,
                 EndpointDescription? endpoint)
             {
                 return [];
@@ -1436,7 +1436,7 @@ namespace Opc.Ua.Server.Tests.Roles
                     AllocationCount++;
                     return new NodeId(
                         $"provided:{instance.Parent.NodeId.IdentifierAsString}:" +
-                            instance.SymbolicName,
+                        instance.SymbolicName,
                         instance.Parent.NodeId.NamespaceIndex);
                 }
 

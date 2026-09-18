@@ -216,7 +216,7 @@ namespace Opc.Ua.Server
             uint effectiveMaxMessageCount = Math.Max(1u, MaxMessageCount);
 
             // have to drop unsent messages if out of queue space.
-            int overflowCount = (int)Math.Max(0, (long)messages.Count - effectiveMaxMessageCount);
+            int overflowCount = (int)Math.Max(0, messages.Count - effectiveMaxMessageCount);
             if (overflowCount > 0)
             {
                 m_logger.WARNINGQUEUEOVERFLOWDroppingCountMessagesIncrease(overflowCount, Id, MaxMessageCount);
@@ -447,5 +447,4 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             uint maxMessageCount);
     }
-
 }

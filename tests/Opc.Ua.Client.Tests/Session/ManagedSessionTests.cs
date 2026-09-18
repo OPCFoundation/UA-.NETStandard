@@ -702,7 +702,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             // not the BadNotConnected of a session handed back half-built.
             Assert.That(
                 exception.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+                Is.EqualTo(StatusCodes.BadCertificateUntrusted));
 
             // A reconnect with no inner session runs a full connect, so the
             // retry policy actually retries the initial connect.
@@ -807,7 +807,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     It.IsAny<IUserIdentity?>(),
                     It.IsAny<ArrayOf<string>>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync((ISession)innerSession);
+                .ReturnsAsync(innerSession);
 
             Client.ManagedSession? managedSession = null;
             var fetchStarted = new TaskCompletionSource<bool>(
@@ -886,7 +886,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     It.IsAny<IUserIdentity?>(),
                     It.IsAny<ArrayOf<string>>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync((ISession)innerSession);
+                .ReturnsAsync(innerSession);
 
             Client.ManagedSession? managedSession = null;
             var fetchStarted = new TaskCompletionSource<bool>(
@@ -936,8 +936,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 "CloseAsync must not wait for the attempt in flight.");
 
             Assert.That(
-                (StatusCode)await closeTask.ConfigureAwait(false),
-                Is.EqualTo((StatusCode)StatusCodes.Good));
+                await closeTask.ConfigureAwait(false),
+                Is.EqualTo(StatusCodes.Good));
             Assert.That(
                 managedSession.StateMachine.State,
                 Is.EqualTo(ConnectionState.Closed));
@@ -977,7 +977,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .CloseAsync(250, closeChannel: true)
                 .ConfigureAwait(false);
 
-            Assert.That(result, Is.EqualTo((StatusCode)StatusCodes.BadTimeout));
+            Assert.That(result, Is.EqualTo(StatusCodes.BadTimeout));
 
             // The close continues in the background: let it finish so the
             // session is torn down before the fixture completes.
@@ -1017,7 +1017,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .CloseAsync(10_000, closeChannel: true)
                 .ConfigureAwait(false);
 
-            Assert.That(result, Is.EqualTo((StatusCode)StatusCodes.BadSessionClosed));
+            Assert.That(result, Is.EqualTo(StatusCodes.BadSessionClosed));
             Assert.That(innerSession.CloseChannelRequested, Is.True);
             channel.Verify(c => c.Dispose(), Times.Once);
         }
@@ -1049,7 +1049,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .CloseAsync(10_000, closeChannel: false)
                 .ConfigureAwait(false);
 
-            Assert.That(result, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(result, Is.EqualTo(StatusCodes.Good));
             Assert.That(innerSession.CloseChannelRequested, Is.False);
 
             // The channel stays owned by the caller: neither closed nor
@@ -1305,7 +1305,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             }
         }
 
-        private sealed class BlockingConnectGate : IClientConnectGate        {
+        private sealed class BlockingConnectGate : IClientConnectGate
+        {
             public Task Started => m_started.Task;
 
             public Task Stopped => m_stopped.Task;
@@ -1329,6 +1330,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             private readonly TaskCompletionSource<object?> m_started =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private readonly TaskCompletionSource<object?> m_stopped =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
         }

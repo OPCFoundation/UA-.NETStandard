@@ -1358,7 +1358,7 @@ namespace Opc.Ua.Client
                 }
 
                 itemsToDelete = m_deletedItems
-                    .Where(monitoredItem => m_deletingItems.Add(monitoredItem))
+                    .Where(m_deletingItems.Add)
                     .ToArrayOf();
                 if (itemsToDelete.Count == 0)
                 {
@@ -2797,7 +2797,9 @@ namespace Opc.Ua.Client
                             }
                         }
                         // process keep alive messages
-                        else if (ii.Next == null && ii.Value.Message == null && !ii.Value.Processed &&
+                        else if (ii.Next == null &&
+                            ii.Value.Message == null &&
+                            !ii.Value.Processed &&
                             !ii.Value.RepublishImmediately)
                         {
                             (keepAliveToProcess ??= []).Add(ii.Value);
@@ -2810,9 +2812,10 @@ namespace Opc.Ua.Client
                             !ii.Value.Republished)
                         {
                             // tolerate if a single request was received out of order
-                            if (ii.Value.RepublishImmediately || (ii.Next?.Next != null &&
-                                m_timeProvider.GetElapsedTime(ii.Value.MonotonicTimestamp)
-                                    .TotalMilliseconds > RepublishMessageTimeout))
+                            if (ii.Value.RepublishImmediately ||
+                                (ii.Next?.Next != null &&
+                                    m_timeProvider.GetElapsedTime(ii.Value.MonotonicTimestamp)
+                                        .TotalMilliseconds > RepublishMessageTimeout))
                             {
                                 ii.Value.Republished = true;
                                 publishStateChangedMask |= PublishStateChangedMask.Republish;
@@ -3487,8 +3490,10 @@ namespace Opc.Ua.Client
         private long m_lastNotificationTimestamp;
         private int m_keepAliveInterval;
         private int m_publishLateCount;
+
         private readonly BackgroundTaskScope m_backgroundWork =
             new(nameof(Subscription), AmbientMessageContext.Telemetry);
+
         private bool m_disposed;
 
         /// <summary>
@@ -4157,5 +4162,4 @@ namespace Opc.Ua.Client
             uint subscriptionId,
             NodeId? sessionId);
     }
-
 }

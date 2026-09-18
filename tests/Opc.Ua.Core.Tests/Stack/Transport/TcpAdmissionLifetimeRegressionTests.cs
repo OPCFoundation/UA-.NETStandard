@@ -137,8 +137,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using (client)
             using (accepted)
             {
-                var gate = idle.Gate.Enter();
-                Task admission = Task.Run(() => harness.Admit(accepted));
+                ChannelGate.Releaser gate = idle.Gate.Enter();
+                var admission = Task.Run(() => harness.Admit(accepted));
                 Task? lookup = null;
                 try
                 {
@@ -194,7 +194,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using (client)
             using (accepted)
             {
-                Task first = Task.Run(() => harness.Admit(accepted));
+                var first = Task.Run(() => harness.Admit(accepted));
                 try
                 {
                     await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -234,6 +234,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Sets an existing private listener seam needed to control admission deterministically.
         /// </summary>
         /// <typeparam name="T">The value type of the listener field.</typeparam>
+        /// <exception cref="InvalidOperationException"></exception>
         private static void SetField<T>(TcpTransportListener listener, string name, T value)
         {
             FieldInfo field = typeof(TcpTransportListener).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)

@@ -213,8 +213,8 @@ namespace Opc.Ua.Server
                 while (secondBeforeIndex >= 0 &&
                     (StatusCode.IsBad(
                         orderedValues[secondBeforeIndex].StatusCode) ||
-                    orderedValues[secondBeforeIndex].SourceTimestamp ==
-                        nonBadBefore.SourceTimestamp))
+                        orderedValues[secondBeforeIndex].SourceTimestamp ==
+                            nonBadBefore.SourceTimestamp))
                 {
                     secondBeforeIndex--;
                 }
@@ -1131,9 +1131,9 @@ namespace Opc.Ua.Server
                 double lateValue = CastToDouble(lateBound);
 
                 // do interpolation.
-                DateTime earlyTimestamp =
+                var earlyTimestamp =
                     earlyBound.SourceTimestamp.ToDateTime();
-                DateTime lateTimestamp =
+                var lateTimestamp =
                     lateBound.SourceTimestamp.ToDateTime();
                 double range =
                     (lateTimestamp - earlyTimestamp).TotalMilliseconds;
@@ -1796,5 +1796,4 @@ namespace Opc.Ua.Server
             Message = "Computing Aggregate {StartTime:HH:mm:ss.fff}")]
         public static partial void ComputingAggregateStartTimeHHMmSsFff(this ILogger logger, DateTimeUtc startTime);
     }
-
 }

@@ -165,7 +165,6 @@ namespace Opc.Ua.Server.AliasNames
                 {
                     m_aliasLogger.AliasNameStoreCouldNotBeRegisteredWithThe(ex);
                 }
-
             }
 
             Store.Changed += OnStoreChanged;

@@ -183,9 +183,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         Filter = new ExtensionObject(filter)
                     }
                 };
-                ServiceResult[] errors = new ServiceResult[1];
-                MonitoringFilterResult[] filterErrors = new MonitoringFilterResult[1];
-                IMonitoredItem[] items = new IMonitoredItem[1];
+                var errors = new ServiceResult[1];
+                var filterErrors = new MonitoringFilterResult[1];
+                var items = new IMonitoredItem[1];
 
                 await manager.CreateMonitoredItemsAsync(
                     context, 1, 1000, TimestampsToReturn.Both,
@@ -281,7 +281,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 for (int i = 0; i < m_owners.Length; i++)
                 {
                     int ownerIndex = i;
-                    Mock<IAsyncNodeManager> owner = Mock.Get(m_owners[i]);
+                    var owner = Mock.Get(m_owners[i]);
                     owner.Setup(value => value.SubscribeToAllEventsAsync(
                             It.IsAny<OperationContext>(), 1, It.IsAny<IEventMonitoredItem>(),
                             true, It.IsAny<CancellationToken>()))
@@ -347,6 +347,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Records an event unsubscribe and injects a failure for the middle owner.
             /// </summary>
+            /// <exception cref="InvalidOperationException"></exception>
             private ValueTask<ServiceResult> Unsubscribe(int owner, bool all)
             {
                 EventCalls.Add(owner + (all ? 0 : 10));
@@ -360,6 +361,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Records owner dispatch and injects cancellation or failure before or after partial item processing.
             /// </summary>
+            /// <exception cref="InvalidOperationException"></exception>
             private void Process(
                 int owner,
                 IList<bool> processed,

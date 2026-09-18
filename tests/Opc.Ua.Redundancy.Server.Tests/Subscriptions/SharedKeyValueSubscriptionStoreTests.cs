@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(protector.TryUnprotect(
                 RecordProtectionContext.Create("subscription-manifest", key), record, out ByteString plaintext),
                 Is.True);
-            await kv.SetAsync(key, protector.Protect(default(ByteString), plaintext)).ConfigureAwait(false);
+            await kv.SetAsync(key, protector.Protect(default, plaintext)).ConfigureAwait(false);
 
             Assert.That(
                 async () => await store.RestoreSubscriptionsAsync().ConfigureAwait(false),
@@ -188,7 +188,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await active.StoreSubscriptionsAsync([expected]).ConfigureAwait(false);
             RestoreSubscriptionResult result = await backup.RestoreSubscriptionsAsync().ConfigureAwait(false);
 
-            StoredSubscription actual = (StoredSubscription)result.Subscriptions!.Single();
+            var actual = (StoredSubscription)result.Subscriptions!.Single();
             Assert.Multiple(() =>
             {
                 Assert.That(result.Success, Is.True);
@@ -409,7 +409,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Assert.That(restored.IsDeleted, Is.False);
                 Assert.That(restored.IsDetached, Is.False);
             });
-            StoredSubscription restoredSubscription = (StoredSubscription)result.Subscriptions!.Single();
+            var restoredSubscription = (StoredSubscription)result.Subscriptions!.Single();
             Assert.That(restoredSubscription.PublishingEnabled, Is.True);
             Assert.That(restoredSubscription.OwnerClientApplicationUri, Is.Null);
         }

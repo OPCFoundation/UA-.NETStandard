@@ -248,7 +248,7 @@ namespace Opc.Ua.Server.FileSystem
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState, "Node manager unavailable.");
             }
-            value = new Variant(host.FindHandle(ProviderPath)?.OpenCount ?? (ushort)0);
+            value = new Variant(host.FindHandle(ProviderPath)?.OpenCount ?? 0);
             timestamp = DateTimeUtc.Now;
             statusCode = StatusCodes.Good;
             return ServiceResult.Good;
@@ -472,7 +472,7 @@ namespace Opc.Ua.Server.FileSystem
             uint fileLimit = MaxByteStringLength?.Value ?? 0;
             if (fileLimit > 0)
             {
-                limit = (int)Math.Min(limit, (long)fileLimit);
+                limit = (int)Math.Min(limit, fileLimit);
             }
             if (limit <= 0)
             {
@@ -587,56 +587,26 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         internal void DetachCallbacks()
         {
-            if (OpenCount != null)
-            {
-                OpenCount.OnReadValue -= OnOpenCount;
-            }
-            if (Writable != null)
-            {
-                Writable.OnReadValueAsync -= OnReadMetadataAsync;
-            }
-            if (UserWritable != null)
-            {
-                UserWritable.OnReadValueAsync -= OnReadMetadataAsync;
-            }
-            if (Size != null)
-            {
-                Size.OnReadValueAsync -= OnReadMetadataAsync;
-            }
-            if (MimeType != null)
-            {
-                MimeType.OnReadValueAsync -= OnReadMetadataAsync;
-            }
-            if (LastModifiedTime != null)
-            {
-                LastModifiedTime.OnReadValueAsync -= OnReadMetadataAsync;
-            }
+            OpenCount?.OnReadValue -= OnOpenCount;
+            Writable?.OnReadValueAsync -= OnReadMetadataAsync;
+            UserWritable?.OnReadValueAsync -= OnReadMetadataAsync;
+            Size?.OnReadValueAsync -= OnReadMetadataAsync;
+            MimeType?.OnReadValueAsync -= OnReadMetadataAsync;
+            LastModifiedTime?.OnReadValueAsync -= OnReadMetadataAsync;
             if (Open != null)
             {
                 Open.OnCall = null;
                 Open.OnCallAsync = null;
             }
-            if (Write != null)
-            {
-                Write.OnCall = null;
-            }
+            Write?.OnCall = null;
             if (Read != null)
             {
                 Read.OnCall = null;
                 Read.OnCallAsync = null;
             }
-            if (Close != null)
-            {
-                Close.OnCall = null;
-            }
-            if (GetPosition != null)
-            {
-                GetPosition.OnCall = null;
-            }
-            if (SetPosition != null)
-            {
-                SetPosition.OnCall = null;
-            }
+            Close?.OnCall = null;
+            GetPosition?.OnCall = null;
+            SetPosition?.OnCall = null;
         }
 
         private IFileSystemHost? ResolveHost(ISystemContext context)

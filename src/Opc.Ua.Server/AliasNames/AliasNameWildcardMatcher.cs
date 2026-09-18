@@ -70,7 +70,8 @@ namespace Opc.Ua.Server.AliasNames
         /// invalid pattern return <c>false</c>.</returns>
         public static bool IsMatch(string? target, string? pattern)
         {
-            if (target == null || string.IsNullOrEmpty(pattern) ||
+            if (target == null ||
+                string.IsNullOrEmpty(pattern) ||
                 !LikePattern.TryParse(pattern, out LikePattern? parsed))
             {
                 return false;
@@ -96,6 +97,7 @@ namespace Opc.Ua.Server.AliasNames
         /// <summary>
         /// Parses a reusable OPC UA Like pattern or reports invalid syntax as a service error.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal static LikePattern CreatePattern(string pattern)
         {
             if (!LikePattern.TryParse(pattern, out LikePattern? parsed))
@@ -125,6 +127,8 @@ namespace Opc.Ua.Server.AliasNames
         /// <summary>
         /// Tests an alias name before the shared search deadline expires.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="TimeoutException"></exception>
         internal static bool Matches(string target, LikePattern pattern, long deadline)
         {
             try

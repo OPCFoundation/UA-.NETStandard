@@ -191,7 +191,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             };
             using CertificateEntry entry = m_certificateRegistry!
                 .AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.None)!;
-            ServiceMessageContext messageContext = ServiceMessageContext.Create(m_telemetry!);
+            var messageContext = ServiceMessageContext.Create(m_telemetry);
             var settings = new TransportChannelSettings
             {
                 Description = new EndpointDescription
@@ -305,7 +305,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
             return new TransportListenerSettings
             {
-                Descriptions = s_peerProfiles.Select(profile =>
+                Descriptions = [.. s_peerProfiles.Select(profile =>
                 {
                     var description = (EndpointDescription)endpoint.Clone();
                     description.TransportProfileUri = profile;
@@ -314,7 +314,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                         description.EndpointUrl = $"wss://127.0.0.1:{port}/";
                     }
                     return description;
-                }).ToList(),
+                })],
                 Configuration = EndpointConfiguration.Create(),
                 ServerCertificates = certificateRegistry,
                 CertificateValidator = new AcceptAllCertificateValidator(),

@@ -29,8 +29,6 @@
 
 #if NET8_0_OR_GREATER
 using System.Net;
-using System.Security.Cryptography.X509Certificates;
-using Opc.Ua;
 
 namespace Opc.Ua.Bindings
 {

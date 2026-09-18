@@ -1970,5 +1970,4 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             uint subscriptionId,
             string name);
     }
-
 }

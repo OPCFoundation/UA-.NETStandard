@@ -157,6 +157,8 @@ namespace Opc.Ua.Client.StateMachines
         /// </param>
         /// <param name="ct">Cancellation token.</param>
         /// <exception cref="ArgumentNullException"><paramref name="client"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="OperationCanceledException"></exception>
         public static async ValueTask WaitForStateAsync(
             this StateMachineTypeClient client,
             IStreamingSubscription streaming,

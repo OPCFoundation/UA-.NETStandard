@@ -1061,7 +1061,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     sp.GetService<ICertificatePasswordProvider>()));
             }
 
-            services.TryAddSingleton<OpcUaClientOptions>(sp =>
+            services.TryAddSingleton(sp =>
             {
                 var resolvedOptions = new OpcUaClientOptions();
                 CopyClientOptions(options, resolvedOptions);
@@ -1571,28 +1571,37 @@ namespace Microsoft.Extensions.DependencyInjection
                 Task<ManagedSession> connectTask;
                 lock (m_gate)
                 {
-                    m_connectTask ??= ConnectCoreAsync(CancellationToken.None);
-                    connectTask = m_connectTask;
-                    _ = connectTask.ContinueWith(
-                        static (task, state) =>
-                        {
-                            if (task.Status == TaskStatus.RanToCompletion)
+                    if (m_connectTask != null)
+                    {
+                        connectTask = m_connectTask;
+                    }
+                    else
+                    {
+                        connectTask = ConnectCoreAsync(CancellationToken.None);
+                        m_connectTask = connectTask;
+                        // One observer owns eviction even when every caller cancels its own wait.
+                        _ = connectTask.ContinueWith(
+                            static (task, state) =>
                             {
-                                return;
-                            }
-                            var accessor = (ManagedSessionAccessor)state!;
-                            lock (accessor.m_gate)
-                            {
-                                if (ReferenceEquals(accessor.m_connectTask, task))
+                                if (task.Status == TaskStatus.RanToCompletion)
                                 {
-                                    accessor.m_connectTask = null;
+                                    return;
                                 }
-                            }
-                        },
-                        this,
-                        CancellationToken.None,
-                        TaskContinuationOptions.ExecuteSynchronously,
-                        TaskScheduler.Default);
+                                _ = task.Exception;
+                                var accessor = (ManagedSessionAccessor)state!;
+                                lock (accessor.m_gate)
+                                {
+                                    if (ReferenceEquals(accessor.m_connectTask, task))
+                                    {
+                                        accessor.m_connectTask = null;
+                                    }
+                                }
+                            },
+                            this,
+                            CancellationToken.None,
+                            TaskContinuationOptions.ExecuteSynchronously,
+                            TaskScheduler.Default);
+                    }
                 }
                 return connectTask.WaitAsync(ct);
             }

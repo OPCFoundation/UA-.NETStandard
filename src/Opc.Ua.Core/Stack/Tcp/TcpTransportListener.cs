@@ -361,7 +361,7 @@ namespace Opc.Ua.Bindings
 
                     if (m_channels != null)
                     {
-                        channels = m_channels.ToArray();
+                        channels = [.. m_channels];
                         m_channels.Clear();
                         m_channels = null;
                     }
@@ -1108,7 +1108,7 @@ namespace Opc.Ua.Bindings
             while (true)
             {
                 Socket? accepted = e.AcceptSocket;
-                Socket? listeningSocket = e.UserToken as Socket;
+                var listeningSocket = e.UserToken as Socket;
                 SocketError error = e.SocketError;
                 e.AcceptSocket = null;
                 e.Dispose();
@@ -1285,7 +1285,8 @@ namespace Opc.Ua.Bindings
                     }
                     foreach (TcpListenerChannel candidate in channels.Values)
                     {
-                        if (candidate.UsedBySession || attempted.Contains(candidate) ||
+                        if (candidate.UsedBySession ||
+                            attempted.Contains(candidate) ||
                             m_idleCleanupClaims.Contains(candidate))
                         {
                             continue;
@@ -1391,7 +1392,7 @@ namespace Opc.Ua.Bindings
                         channel.ClientCertificate?.RawData,
                         channel.ServerCertificate?.RawData,
                         channel.ChannelThumbprint,
-                        (channel.Transport?.RemoteEndpoint as System.Net.IPEndPoint)?.Address);
+                        (channel.Transport?.RemoteEndpoint as IPEndPoint)?.Address);
 
                     response = await m_callback.ProcessRequestAsync(
                         context,
@@ -1619,7 +1620,7 @@ namespace Opc.Ua.Bindings
                 "{ActionCOunt} actions under {ActionInterval} ms ")]
         public static partial void TcpTransportLog0(
             this ILogger logger,
-            global::System.Net.IPAddress ipAddress,
+            IPAddress ipAddress,
             int duration,
             int actionCOunt,
             int actionInterval);
@@ -1629,7 +1630,7 @@ namespace Opc.Ua.Bindings
                 "{BlockDurationMs} ms has been exceeded")]
         public static partial void TcpTransportLog1(
             this ILogger logger,
-            global::System.Net.IPAddress ipAddress,
+            IPAddress ipAddress,
             int blockDurationMs);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 2, Level = LogLevel.Debug,
@@ -1637,7 +1638,7 @@ namespace Opc.Ua.Bindings
                 "for more than {ExpirationMs} ms")]
         public static partial void TcpTransportLog2(
             this ILogger logger,
-            global::System.Net.IPAddress ipAddress,
+            IPAddress ipAddress,
             int expirationMs);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 3, Level = LogLevel.Information,
@@ -1656,21 +1657,21 @@ namespace Opc.Ua.Bindings
             Message = "Failed to create IPv4 listening socket on port {Port}")]
         public static partial void TcpTransportLog6(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             int port);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 7, Level = LogLevel.Warning,
             Message = "Failed to create IPv6 listening socket on port {Port}")]
         public static partial void TcpTransportLog7(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             int port);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 8, Level = LogLevel.Warning,
             Message = "Failed to close channel for certificate rotation (thumbprint {Thumbprint}).")]
         public static partial void TcpTransportLog8(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string thumbprint);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 9, Level = LogLevel.Information,
@@ -1682,12 +1683,12 @@ namespace Opc.Ua.Bindings
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 10, Level = LogLevel.Debug,
             Message = "MarkClientAsPotentialProblematic address: {RemoteEndpoint} ")]
-        public static partial void TcpTransportLog10(this ILogger logger, global::System.Net.IPAddress remoteEndpoint);
+        public static partial void TcpTransportLog10(this ILogger logger, IPAddress remoteEndpoint);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 11, Level = LogLevel.Debug,
             Message = "OnAccept: RemoteEndpoint address: {IpAddress} refused access for behaving as " +
                 "potential problematic ")]
-        public static partial void TcpTransportLog11(this ILogger logger, global::System.Net.IPAddress ipAddress);
+        public static partial void TcpTransportLog11(this ILogger logger, IPAddress ipAddress);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 12, Level = LogLevel.Error,
             Message = "OnAccept: Listensocket was null.")]
@@ -1698,8 +1699,8 @@ namespace Opc.Ua.Bindings
                 "limiter; server is too busy (retry after {RetryAfter}).")]
         public static partial void TcpTransportLog13(
             this ILogger logger,
-            global::System.Net.EndPoint? remoteEndPoint,
-            global::System.TimeSpan? retryAfter);
+            EndPoint? remoteEndPoint,
+            TimeSpan? retryAfter);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 14, Level = LogLevel.Information,
             Message = "TCPLISTENER: Channel Id {Id} scheduled for IdleCleanup - Oldest without established session.")]
@@ -1721,13 +1722,13 @@ namespace Opc.Ua.Bindings
             Message = "Unexpected error accepting a new connection.")]
         public static partial void TcpTransportLog17(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 18, Level = LogLevel.Error,
             Message = "Unexpected error listening for a new connection.")]
         public static partial void TcpTransportLog18(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 19, Level = LogLevel.Information,
             Message = "TCPLISTENER: {ChannelCount} channels scheduled for IdleCleanup.")]
@@ -1745,7 +1746,7 @@ namespace Opc.Ua.Bindings
             Message = "TCPLISTENER - Unexpected error processing request.")]
         public static partial void TcpTransportLog22(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 23, Level = LogLevel.Debug,
             Message = "TCPLISTENER - Could not send fault response; secure channel was closed by the client.")]
@@ -1755,38 +1756,38 @@ namespace Opc.Ua.Bindings
             Message = "TCPLISTENER - Failed to send fault response to client.")]
         public static partial void TcpTransportLog24(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 25, Level = LogLevel.Error,
             Message = "TCPLISTENER - Unexpected error sending OpenSecureChannel Audit event.")]
         public static partial void TcpTransportLog25(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 26, Level = LogLevel.Error,
             Message = "TCPLISTENER - Unexpected error sending CloseSecureChannel Audit event.")]
         public static partial void TcpTransportLog26(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 27, Level = LogLevel.Error,
             Message = "TCPLISTENER - Unexpected error sending Certificate Audit event.")]
         public static partial void TcpTransportLog27(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 28, Level = LogLevel.Warning,
             Message = "Failed to re-validate peer certificate for channel {ChannelId}; leaving it open.")]
         public static partial void TcpTransportLog28(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string channelId);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 29, Level = LogLevel.Warning,
             Message = "Failed to close channel {ChannelId} for peer-certificate trust change.")]
         public static partial void TcpTransportLog29(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string channelId);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 30, Level = LogLevel.Information,
@@ -1795,5 +1796,4 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             int count);
     }
-
 }

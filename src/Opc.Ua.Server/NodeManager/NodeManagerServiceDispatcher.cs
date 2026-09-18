@@ -177,6 +177,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Translates browse paths to target node identifiers and collects per-path results and diagnostics.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal async ValueTask<(ArrayOf<BrowsePathResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             TranslateBrowsePathsToNodeIdsAsync(
             OperationContext context,
@@ -410,8 +411,10 @@ namespace Opc.Ua.Server
                         ExpandedNodeId.ToNodeId(nextTarget, Server.NamespaceUris), cancellationToken)
                         .ConfigureAwait(false);
                 }
-                if (handle == null || manager == null ||
-                    nextIndex < 0 || nextIndex >= relativePath.Elements.Count)
+                if (handle == null ||
+                    manager == null ||
+                    nextIndex < 0 ||
+                    nextIndex >= relativePath.Elements.Count)
                 {
                     continue;
                 }
@@ -493,6 +496,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Browses the requested nodes, applying view validation and collecting results and continuation points.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         internal async ValueTask<(ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> BrowseAsync(
             OperationContext context,
             ViewDescription view,
@@ -590,7 +595,7 @@ namespace Opc.Ua.Server
                         view,
                         maxReferencesPerNode,
                         m_owner.MaxContinuationPointsPerBrowse == 0 ||
-                            continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
+                        continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
                         nodeToBrowse,
                         result,
                         cancellationToken).ConfigureAwait(false);
@@ -691,6 +696,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Resumes or releases browse continuation points and returns per-point results and diagnostics.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         internal async ValueTask<(ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             BrowseNextAsync(
                 OperationContext context,
@@ -761,7 +768,7 @@ namespace Opc.Ua.Server
                                 (error, cp, references) = await FetchReferencesAsync(
                                     context,
                                     m_owner.MaxContinuationPointsPerBrowse == 0 ||
-                                        continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
+                                    continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
                                     pointToFetch,
                                     references,
                                     cancellationToken).ConfigureAwait(false);
@@ -1071,6 +1078,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates and dispatches attribute reads, applying timestamp selection and collecting diagnostics.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal async ValueTask<(ArrayOf<DataValue> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> ReadAsync(
             OperationContext context,
             double maxAge,
@@ -1208,6 +1216,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates history read requests and dispatches reads or continuation releases to the node managers.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal async ValueTask<(ArrayOf<HistoryReadResult> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> HistoryReadAsync(
             OperationContext context,
             ExtensionObject historyReadDetails,
@@ -1338,6 +1347,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates and dispatches attribute writes, collecting operation status codes and diagnostics.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         internal async ValueTask<(ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos)> WriteAsync(
             OperationContext context,
             ArrayOf<WriteValue> nodesToWrite,
@@ -1606,6 +1616,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates method call requests and dispatches them to node managers, collecting results and diagnostics.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         internal async ValueTask<(ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             CallAsync(
                 OperationContext context,
@@ -2092,6 +2103,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restores persisted monitored items and their queues during server startup.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="itemsToRestore"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
         internal async ValueTask RestoreMonitoredItemsAsync(
             IList<IStoredMonitoredItem> itemsToRestore,
             IList<IMonitoredItem> monitoredItems,
@@ -2289,6 +2302,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates monitored-item modifications and dispatches them to the items' owning node managers.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         internal async ValueTask ModifyMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
@@ -2508,6 +2523,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Prepares monitored-item transfers and commits any requested initial-value delivery.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         internal async ValueTask TransferMonitoredItemsAsync(
             OperationContext context,
             bool sendInitialValues,
@@ -2543,6 +2559,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Prepares owner-specific transfers while deferring requested initial-value delivery until commit.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="destinationContext"/> is <c>null</c>.</exception>
         internal async ValueTask<IMonitoredItemTransferTransaction>
             PrepareMonitoredItemsTransferAsync(
                 OperationContext destinationContext,
@@ -2708,6 +2725,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deletes monitored items through their owning node managers and handles detached items locally.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         internal async ValueTask DeleteMonitoredItemsAsync(
             OperationContext context,
             uint subscriptionId,
@@ -2884,6 +2902,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates monitoring modes through the items' owning node managers or detached-item handlers.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         internal async ValueTask SetMonitoringModeAsync(
             OperationContext context,
             MonitoringMode monitoringMode,
@@ -3527,8 +3546,10 @@ namespace Opc.Ua.Server
         {
             if (nodeManager == null ||
                 nodeHandle == null ||
-                (context.Session == null && context.UserIdentity == null &&
-                    context.ChannelContext == null && !metadataRequired))
+                (context.Session == null &&
+                    context.UserIdentity == null &&
+                    context.ChannelContext == null &&
+                    !metadataRequired))
             {
                 return (StatusCodes.Good, null);
             }

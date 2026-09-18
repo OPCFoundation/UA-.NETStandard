@@ -288,7 +288,7 @@ namespace Opc.Ua.Server.Tests
             IStoredSubscription snapshot = subscription.ToStorableSubscription();
             queue.Clear();
             Assert.That(message.IsEmpty, Is.True);
-            ServiceMessageContext messageContext = ServiceMessageContext.Create(m_telemetry);
+            var messageContext = ServiceMessageContext.Create(m_telemetry);
             using var encoder = new BinaryEncoder(messageContext);
             snapshot.SentMessages[0].Encode(encoder);
             using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer(), messageContext);
@@ -571,12 +571,14 @@ namespace Opc.Ua.Server.Tests
             return publishQueues[sessionId];
         }
 
-        private async Task<(
+        private readonly record struct TransferFixture(
             SubscriptionManager Manager,
             Subscription Subscription,
             OperationContext SourceContext,
             OperationContext DestinationContext,
-            Mock<ISession> DestinationSession)> CreateTransferSubscriptionAsync()
+            Mock<ISession> DestinationSession);
+
+        private async Task<TransferFixture> CreateTransferSubscriptionAsync()
         {
             var configuration = new ApplicationConfiguration
             {
@@ -587,7 +589,7 @@ namespace Opc.Ua.Server.Tests
                 configuration);
             m_serverMock.SetupGet(server => server.SubscriptionManager).Returns(manager);
 
-            var identity = new UserIdentity("transfer-user", new byte[] { 1, 2, 3 });
+            var identity = new UserIdentity("transfer-user", [1, 2, 3]);
             m_sessionMock.SetupGet(session => session.EffectiveIdentity).Returns(identity);
             m_sessionMock.SetupGet(session => session.Identity).Returns(identity);
             m_sessionMock.SetupGet(session => session.IdentityToken).Returns(identity.TokenHandler);
@@ -630,7 +632,7 @@ namespace Opc.Ua.Server.Tests
                 throw new InvalidOperationException("Created subscription was not registered.");
             }
 
-            return (
+            return new TransferFixture(
                 manager,
                 (Subscription)subscription,
                 sourceContext,
@@ -957,7 +959,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(dataChangeNotification.DiagnosticInfos, Has.Count.EqualTo(2));
                 Assert.That(
                     publishLimits,
-                    Is.EqualTo(new[] { uint.MaxValue, uint.MaxValue }));
+                    Is.EqualTo([uint.MaxValue, uint.MaxValue]));
             });
         }
 
@@ -1436,7 +1438,7 @@ namespace Opc.Ua.Server.Tests
             using var manager = new SubscriptionManager(
                 m_serverMock.Object,
                 configuration);
-            var identity = new UserIdentity("transfer-user", new byte[] { 1, 2, 3 });
+            var identity = new UserIdentity("transfer-user", [1, 2, 3]);
             bool sourceClosing = false;
             m_sessionMock.SetupGet(session => session.EffectiveIdentity).Returns(identity);
             m_sessionMock.SetupGet(session => session.Identity).Returns(identity);
@@ -1516,7 +1518,7 @@ namespace Opc.Ua.Server.Tests
             releaseTransfer.TrySetResult(true);
             TransferSubscriptionsResponse transferred = await transferTask.ConfigureAwait(false);
             await closeTask.ConfigureAwait(false);
-            var abandonedSubscriptions =
+            ConcurrentDictionary<uint, ISubscriptionPublishPipeline> abandonedSubscriptions =
                 GetPrivateField<ConcurrentDictionary<uint, ISubscriptionPublishPipeline>>(
                     manager,
                     "m_abandonedSubscriptions");
@@ -1535,7 +1537,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TransferClaimsSourceBeforeCallbacksAndBlocksStalePublishAsync()
         {
-            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            TransferFixture fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
             using SubscriptionManager manager = fixture.Manager;
             Subscription subscription = fixture.Subscription;
             SessionPublishQueue sourceQueue = GetPublishQueue(
@@ -1644,7 +1646,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TransferInitialValueIsPublishedOnlyByDestinationAsync()
         {
-            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            TransferFixture fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
             using SubscriptionManager manager = fixture.Manager;
             Subscription subscription = fixture.Subscription;
             using var queueFactory = new MonitoredItemQueueFactory(m_telemetry);
@@ -1725,11 +1727,11 @@ namespace Opc.Ua.Server.Tests
             var configurationNodeManager = new Mock<IConfigurationNodeManager>();
             configurationNodeManager
                 .SetupGet(nodeManager => nodeManager.NamespaceUris)
-                .Returns(System.Array.Empty<string>());
+                .Returns(Array.Empty<string>());
             var coreNodeManager = new Mock<ICoreNodeManager>();
             coreNodeManager
                 .SetupGet(nodeManager => nodeManager.NamespaceUris)
-                .Returns(System.Array.Empty<string>());
+                .Returns(Array.Empty<string>());
             var factory = new Mock<IMainNodeManagerFactory>();
             factory
                 .Setup(nodeManagerFactory => nodeManagerFactory.CreateConfigurationNodeManager())
@@ -1822,7 +1824,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TransferFallbackAppliesInitialValueExactlyOnceAsync()
         {
-            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            TransferFixture fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
             using SubscriptionManager manager = fixture.Manager;
             Subscription subscription = fixture.Subscription;
             using var queueFactory = new MonitoredItemQueueFactory(m_telemetry);
@@ -1930,7 +1932,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task SourcePublishTimerSnapshotDoesNotExpireTransferredSubscriptionAsync()
         {
-            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            TransferFixture fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
             using SubscriptionManager manager = fixture.Manager;
             Subscription subscription = fixture.Subscription;
             ExpireOnNextPublishTimer(subscription);
@@ -1941,7 +1943,7 @@ namespace Opc.Ua.Server.Tests
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseSnapshot = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            Task staleTimer = Task.Run(
+            var staleTimer = Task.Run(
                 async () =>
                 {
                     IReadOnlyList<SessionPublishQueue.QueuedSubscription> snapshot =
@@ -1992,7 +1994,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task FirstPublishAfterTransferOfAbandonedSubscriptionReturnsQueuedDataAsync()
         {
-            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            TransferFixture fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
             using SubscriptionManager manager = fixture.Manager;
             Subscription subscription = fixture.Subscription;
             using var queueFactory = new MonitoredItemQueueFactory(m_telemetry);
@@ -2052,7 +2054,7 @@ namespace Opc.Ua.Server.Tests
                 out _,
                 out _,
                 out _);
-            Assert.That(addResults[0], Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(addResults[0], Is.EqualTo(StatusCodes.Good));
             m_nodeManagerMock
                 .Setup(nodeManager => nodeManager.TransferMonitoredItemsAsync(
                     It.IsAny<OperationContext>(),
@@ -2128,7 +2130,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task AbandonedTimerSnapshotDoesNotExpireTransferredSubscriptionAsync()
         {
-            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            TransferFixture fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
             using SubscriptionManager manager = fixture.Manager;
             Subscription subscription = fixture.Subscription;
             m_sessionMock.SetupGet(session => session.IsClosing).Returns(true);
@@ -2144,7 +2146,7 @@ namespace Opc.Ua.Server.Tests
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseSnapshot = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            Task staleTimer = Task.Run(
+            var staleTimer = Task.Run(
                 async () =>
                 {
                     IReadOnlyList<ISubscriptionPublishPipeline> snapshot =
@@ -2202,7 +2204,7 @@ namespace Opc.Ua.Server.Tests
         public async Task CurrentOwnerPublishTimerStillExpiresSubscriptionAsync(
             bool abandonBeforeExpiration)
         {
-            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            TransferFixture fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
             using SubscriptionManager manager = fixture.Manager;
             Subscription subscription = fixture.Subscription;
             SessionPublishQueue sourceQueue = GetPublishQueue(
@@ -2265,7 +2267,7 @@ namespace Opc.Ua.Server.Tests
         public async Task FailedTransferRestoresClaimedExpirationSourceAsync(
             bool abandonBeforeTransfer)
         {
-            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            TransferFixture fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
             using SubscriptionManager manager = fixture.Manager;
             Subscription subscription = fixture.Subscription;
             SessionPublishQueue sourceQueue = GetPublishQueue(
@@ -2353,7 +2355,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task FailedTransferPreservesDestinationQueuedPublishRequestsAsync()
         {
-            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            TransferFixture fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
             using SubscriptionManager manager = fixture.Manager;
             Subscription subscription = fixture.Subscription;
             fixture.DestinationSession
@@ -2415,7 +2417,7 @@ namespace Opc.Ua.Server.Tests
                 moreNotifications: true);
 
             ISubscription publishedSubscription = await destinationPublish.ConfigureAwait(false);
-            Assert.That(publishedSubscription, Is.SameAs(destinationSubscription!));
+            Assert.That(publishedSubscription, Is.SameAs(destinationSubscription));
         }
 
         [Test]
@@ -2603,16 +2605,13 @@ namespace Opc.Ua.Server.Tests
                 DiagnosticsMasks.None);
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () =>
-                {
-                    await subscription
+                async () => await subscription
                         .PrepareSessionTransferAsync(
                             context,
                             m_sessionMock.Object,
                             sendInitialValues: false,
                             CancellationToken.None)
-                        .ConfigureAwait(false);
-                });
+                        .ConfigureAwait(false));
 
             Assert.That(
                 exception.StatusCode,
@@ -2674,10 +2673,7 @@ namespace Opc.Ua.Server.Tests
             await diagnostics.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
                 .ConfigureAwait(false);
 
-            static ServiceResult Update(ISystemContext context, NodeState node, ref Variant value)
-            {
-                return ServiceResult.Good;
-            }
+            static ServiceResult Update(ISystemContext context, NodeState node, ref Variant value) => ServiceResult.Good;
 
             NodeId sourceId = await diagnostics.CreateSessionDiagnosticsAsync(
                 diagnostics.SystemContext, new SessionDiagnosticsDataType { SessionName = "source" }, Update,
@@ -2700,7 +2696,7 @@ namespace Opc.Ua.Server.Tests
             var references = new List<IReference>();
             sourceArray.GetReferences(diagnostics.SystemContext, references, ReferenceTypeIds.HasComponent, false);
             Assert.That(references, Has.Count.EqualTo(1));
-            NodeId diagnosticsId = ExpandedNodeId.ToNodeId(references[0].TargetId, m_serverMock.Object.NamespaceUris);
+            var diagnosticsId = ExpandedNodeId.ToNodeId(references[0].TargetId, m_serverMock.Object.NamespaceUris);
             SubscriptionDiagnosticsState diagnosticsNode =
                 diagnostics.FindPredefinedNode<SubscriptionDiagnosticsState>(diagnosticsId);
             var transaction = new Mock<IMonitoredItemTransferTransaction>();
@@ -2751,7 +2747,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TransferFailsWhenTheSourceQueueEntryIsAlreadyClaimedAsync()
         {
-            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            TransferFixture fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
             using SubscriptionManager manager = fixture.Manager;
             Subscription subscription = fixture.Subscription;
             SessionPublishQueue sourceQueue = GetPublishQueue(
@@ -2802,7 +2798,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task TransferFailsWhenTheAbandonedSubscriptionIsAlreadyReservedAsync()
         {
-            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            TransferFixture fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
             using SubscriptionManager manager = fixture.Manager;
             Subscription subscription = fixture.Subscription;
             m_sessionMock.SetupGet(session => session.IsClosing).Returns(true);
@@ -2859,7 +2855,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task FailedOwnershipCommitRollsBackThePreparedTransferAsync()
         {
-            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            TransferFixture fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
             using SubscriptionManager manager = fixture.Manager;
             Subscription subscription = fixture.Subscription;
             SessionPublishQueue sourceQueue = GetPublishQueue(
@@ -2925,7 +2921,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task FailedSourceQueueRestoreAggregatesTheTransferErrorAsync()
         {
-            var fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
+            TransferFixture fixture = await CreateTransferSubscriptionAsync().ConfigureAwait(false);
             using SubscriptionManager manager = fixture.Manager;
             Subscription subscription = fixture.Subscription;
             SessionPublishQueue sourceQueue = GetPublishQueue(
@@ -3077,11 +3073,9 @@ namespace Opc.Ua.Server.Tests
                     (_, notifications, maxNotificationsPerPublish) =>
                     {
                         publishLimits.Add(maxNotificationsPerPublish);
-                        uint published = 0;
-                        while (pending.Count > 0 && published < maxNotificationsPerPublish)
+                        for (uint published = 0; pending.Count > 0 && published < maxNotificationsPerPublish; published++)
                         {
                             notifications.Enqueue(pending.Dequeue());
-                            published++;
                         }
                         return pending.Count > 0;
                     });
@@ -3125,12 +3119,10 @@ namespace Opc.Ua.Server.Tests
                     (_, notifications, diagnostics, maxNotificationsPerPublish, _) =>
                     {
                         publishLimits.Add(maxNotificationsPerPublish);
-                        uint published = 0;
-                        while (pending.Count > 0 && published < maxNotificationsPerPublish)
+                        for (uint published = 0; pending.Count > 0 && published < maxNotificationsPerPublish; published++)
                         {
                             notifications.Enqueue(pending.Dequeue());
                             diagnostics.Enqueue(new DiagnosticInfo());
-                            published++;
                         }
                         return pending.Count > 0;
                     });

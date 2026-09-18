@@ -46,7 +46,6 @@ using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Security.Certificates;
-using Opc.Ua.Server;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Redundancy
@@ -78,15 +77,15 @@ namespace Opc.Ua.Server.Tests.Redundancy
             PendingCertificateKeyContext context = NewContext();
             using Certificate original = NewCertificateWithKey();
 
-            bool saved = await store.SaveAsync(context, original, CancellationToken.None);
+            bool saved = await store.SaveAsync(context, original, CancellationToken.None).ConfigureAwait(false);
             Assert.That(saved, Is.True);
 
-            using Certificate? taken = await store.TryTakeAsync(context, CancellationToken.None);
+            using Certificate? taken = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
             Assert.That(taken, Is.Not.Null);
             Assert.That(taken!.Thumbprint, Is.EqualTo(original.Thumbprint));
             Assert.That(taken.HasPrivateKey, Is.True);
 
-            using Certificate? again = await store.TryTakeAsync(context, CancellationToken.None);
+            using Certificate? again = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
             Assert.That(again, Is.Null, "TryTakeAsync consumes the entry");
         }
 
@@ -99,9 +98,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             PendingCertificateKeyContext context = NewContext();
             using Certificate original = NewCertificateWithKey();
 
-            Assert.That(await store.SaveAsync(context, original, CancellationToken.None), Is.True);
+            Assert.That(await store.SaveAsync(context, original, CancellationToken.None).ConfigureAwait(false), Is.True);
 
-            using Certificate? taken = await store.TryTakeAsync(context, CancellationToken.None);
+            using Certificate? taken = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
             Assert.That(taken, Is.Not.Null);
             Assert.That(taken!.Thumbprint, Is.EqualTo(original.Thumbprint));
             Assert.That(taken.HasPrivateKey, Is.True);
@@ -117,9 +116,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             PendingCertificateKeyContext context = NewContext();
             using Certificate original = NewCertificateWithKey();
 
-            Assert.That(await onA.SaveAsync(context, original, CancellationToken.None), Is.True);
+            Assert.That(await onA.SaveAsync(context, original, CancellationToken.None).ConfigureAwait(false), Is.True);
 
-            using Certificate? takenOnB = await onB.TryTakeAsync(context, CancellationToken.None);
+            using Certificate? takenOnB = await onB.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
             Assert.That(takenOnB, Is.Not.Null, "a replica that did not run CreateSigningRequest can still consume the key");
             Assert.That(takenOnB!.Thumbprint, Is.EqualTo(original.Thumbprint));
             Assert.That(takenOnB.HasPrivateKey, Is.True);
@@ -134,10 +133,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using Certificate first = NewCertificateWithKey();
             using Certificate second = NewCertificateWithKey();
 
-            Assert.That(await store.SaveAsync(context, first, CancellationToken.None), Is.True);
-            Assert.That(await store.SaveAsync(context, second, CancellationToken.None), Is.True);
+            Assert.That(await store.SaveAsync(context, first, CancellationToken.None).ConfigureAwait(false), Is.True);
+            Assert.That(await store.SaveAsync(context, second, CancellationToken.None).ConfigureAwait(false), Is.True);
 
-            using Certificate? taken = await store.TryTakeAsync(context, CancellationToken.None);
+            using Certificate? taken = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
             Assert.That(taken, Is.Not.Null);
             Assert.That(taken!.Thumbprint, Is.EqualTo(second.Thumbprint));
         }
@@ -150,10 +149,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             PendingCertificateKeyContext context = NewContext();
             using Certificate original = NewCertificateWithKey();
 
-            Assert.That(await store.SaveAsync(context, original, CancellationToken.None), Is.True);
-            await store.RemoveAsync(context, CancellationToken.None);
+            Assert.That(await store.SaveAsync(context, original, CancellationToken.None).ConfigureAwait(false), Is.True);
+            await store.RemoveAsync(context, CancellationToken.None).ConfigureAwait(false);
 
-            using Certificate? taken = await store.TryTakeAsync(context, CancellationToken.None);
+            using Certificate? taken = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
             Assert.That(taken, Is.Null);
         }
 
@@ -166,12 +165,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
             PendingCertificateKeyContext contextB = NewContext();
             using Certificate certA = NewCertificateWithKey();
 
-            Assert.That(await store.SaveAsync(contextA, certA, CancellationToken.None), Is.True);
+            Assert.That(await store.SaveAsync(contextA, certA, CancellationToken.None).ConfigureAwait(false), Is.True);
 
-            using Certificate? fromB = await store.TryTakeAsync(contextB, CancellationToken.None);
+            using Certificate? fromB = await store.TryTakeAsync(contextB, CancellationToken.None).ConfigureAwait(false);
             Assert.That(fromB, Is.Null, "a different (group, type) scope must not see another scope's pending key");
 
-            using Certificate? fromA = await store.TryTakeAsync(contextA, CancellationToken.None);
+            using Certificate? fromA = await store.TryTakeAsync(contextA, CancellationToken.None).ConfigureAwait(false);
             Assert.That(fromA, Is.Not.Null);
         }
 
@@ -186,9 +185,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             PendingCertificateKeyContext context = NewContext();
             using Certificate original = NewCertificateWithKey();
 
-            Assert.That(await saveStore.SaveAsync(context, original, CancellationToken.None), Is.True);
+            Assert.That(await saveStore.SaveAsync(context, original, CancellationToken.None).ConfigureAwait(false), Is.True);
 
-            using Certificate? taken = await takeStore.TryTakeAsync(context, CancellationToken.None);
+            using Certificate? taken = await takeStore.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
             Assert.That(taken, Is.Null, "a record produced under a different key must not decrypt (fail-closed)");
         }
 
@@ -201,11 +200,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             PendingCertificateKeyContext context = NewContext();
             using Certificate original = NewCertificateWithKey();
 
-            Assert.That(await store.SaveAsync(context, original, CancellationToken.None), Is.True);
+            Assert.That(await store.SaveAsync(context, original, CancellationToken.None).ConfigureAwait(false), Is.True);
             await kv.SetAsync(store.KeyFor(context), ByteString.From(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }))
                 .ConfigureAwait(false);
 
-            using Certificate? taken = await store.TryTakeAsync(context, CancellationToken.None);
+            using Certificate? taken = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
             Assert.That(taken, Is.Null);
         }
 
@@ -218,11 +217,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var onB = new SharedKeyValuePendingCertificateKeyStore(kv, NewOptions(), protector);
             PendingCertificateKeyContext context = NewContext();
             using Certificate original = NewCertificateWithKey();
-            Assert.That(await onA.SaveAsync(context, original, CancellationToken.None), Is.True);
+            Assert.That(await onA.SaveAsync(context, original, CancellationToken.None).ConfigureAwait(false), Is.True);
 
             Task<Certificate?> takeA = onA.TryTakeAsync(context, CancellationToken.None).AsTask();
             Task<Certificate?> takeB = onB.TryTakeAsync(context, CancellationToken.None).AsTask();
-            Certificate?[] results = await Task.WhenAll(takeA, takeB);
+            Certificate?[] results = await Task.WhenAll(takeA, takeB).ConfigureAwait(false);
 
             int winners = (results[0] != null ? 1 : 0) + (results[1] != null ? 1 : 0);
             results[0]?.Dispose();
@@ -242,9 +241,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             PendingCertificateKeyContext context = NewContext();
             using Certificate original = NewCertificateWithKey();
 
-            Assert.That(await store.SaveAsync(context, original, CancellationToken.None), Is.True);
+            Assert.That(await store.SaveAsync(context, original, CancellationToken.None).ConfigureAwait(false), Is.True);
 
-            using Certificate? taken = await store.TryTakeAsync(context, CancellationToken.None);
+            using Certificate? taken = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
             Assert.That(taken, Is.Not.Null);
             Assert.That(taken!.Thumbprint, Is.EqualTo(original.Thumbprint));
 
@@ -283,7 +282,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     Is.True);
                 try
                 {
-                    transplanted = protector.Protect(default(ByteString), ByteString.From(owned));
+                    transplanted = protector.Protect(default, ByteString.From(owned));
                 }
                 finally
                 {
@@ -380,7 +379,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
         [TestCase(false)]
         [TestCase(true)]
-        public async Task SaveWipesWorkingRecordWhenProtectionOrStoreFailsAsync(bool failProtection)
+        public Task SaveWipesWorkingRecordWhenProtectionOrStoreFailsAsync(bool failProtection)
         {
             var kv = new Mock<ISharedKeyValueStore>(MockBehavior.Strict);
             kv.Setup(value => value.SetAsync(
@@ -396,6 +395,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             Assert.That(protector.LastProtectedPlaintext.IsEmpty, Is.False);
             Assert.That(protector.LastProtectedPlaintext.ToArray(), Is.All.Zero);
+            return Task.CompletedTask;
         }
 
         [Test]
@@ -420,15 +420,15 @@ namespace Opc.Ua.Server.Tests.Redundancy
             PendingCertificateKeyContext context = NewContext();
             using Certificate original = NewCertificateWithKey();
 
-            Assert.That(await store.SaveAsync(context, original, CancellationToken.None), Is.True);
+            Assert.That(await store.SaveAsync(context, original, CancellationToken.None).ConfigureAwait(false), Is.True);
 
-            (bool found, ByteString stored) = await kv.TryGetAsync(store.KeyFor(context));
+            (bool found, ByteString stored) = await kv.TryGetAsync(store.KeyFor(context)).ConfigureAwait(false);
             Assert.That(found, Is.True);
             byte[] before = stored.ToArray();
             Assert.That(Array.TrueForAll(before, b => b == 0), Is.False,
                 "precondition: the stored pass-through record is non-zero");
 
-            using Certificate? taken = await store.TryTakeAsync(context, CancellationToken.None);
+            using Certificate? taken = await store.TryTakeAsync(context, CancellationToken.None).ConfigureAwait(false);
             Assert.That(taken, Is.Not.Null);
 
             // The pass-through input buffer must be byte-for-byte intact.
@@ -456,9 +456,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using Certificate cert = NewCertificateWithKey();
 
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await store.SaveAsync(null!, cert, CancellationToken.None));
+                await store.SaveAsync(null!, cert, CancellationToken.None).ConfigureAwait(false));
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await store.SaveAsync(NewContext(), null!, CancellationToken.None));
+                await store.SaveAsync(NewContext(), null!, CancellationToken.None).ConfigureAwait(false));
         }
 
         [Test]
@@ -570,7 +570,8 @@ namespace Opc.Ua.Server.Tests.Redundancy
             {
                 ReadOnlySpan<byte> span = protectedRecord.Span;
                 int headerLength = 1 + sizeof(int) + context.Length;
-                if (span.Length < headerLength || span[0] != Marker ||
+                if (span.Length < headerLength ||
+                    span[0] != Marker ||
                     BinaryPrimitives.ReadInt32LittleEndian(span[1..]) != context.Length ||
                     !span.Slice(1 + sizeof(int), context.Length).SequenceEqual(context.Span))
                 {

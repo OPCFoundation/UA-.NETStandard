@@ -109,8 +109,9 @@ namespace Opc.Ua.Redundancy.Server
             (bool found, ByteString value) = await m_store
                 .TryGetAsync(key, ct)
                 .ConfigureAwait(false);
-            if (found && m_protector.TryUnprotect(
-                RecordProtectionContext.Create("session", key), value, out ByteString payload))
+            if (found &&
+                m_protector.TryUnprotect(
+                    RecordProtectionContext.Create("session", key), value, out ByteString payload))
             {
                 try
                 {

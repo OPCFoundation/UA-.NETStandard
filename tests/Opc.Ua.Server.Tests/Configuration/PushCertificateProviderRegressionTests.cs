@@ -451,7 +451,7 @@ namespace Opc.Ua.Server.Tests
                 await manager.CreateAddressSpaceAsync(
                     new Dictionary<NodeId, IList<IReference>>(), CancellationToken.None).ConfigureAwait(false);
                 manager.CreateServerConfiguration(server.DefaultSystemContext, configuration);
-                var node = manager.FindPredefinedNode<ServerConfigurationState>(ObjectIds.ServerConfiguration);
+                ServerConfigurationState node = manager.FindPredefinedNode<ServerConfigurationState>(ObjectIds.ServerConfiguration);
                 Assert.That(node, Is.Not.Null);
                 return new Harness(manager, node, configuration, identifier);
             }

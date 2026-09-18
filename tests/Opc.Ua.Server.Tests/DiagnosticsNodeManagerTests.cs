@@ -698,6 +698,7 @@ ObjectIds.Server,
                     "A disable that finishes after the enable started must not delete the restored nodes.");
             }
         }
+
         private static DataValue ReadValue(DiagnosticsNodeManager manager, NodeState node)
         {
             var value = new DataValue();
@@ -992,7 +993,7 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             NodeId id = await manager.CreateSubscriptionDiagnosticsAsync(
                 manager.SystemContext,
                 new SubscriptionDiagnosticsDataType { SubscriptionId = 123, SessionId = owner },
-                static (ISystemContext _, NodeState _, ref Variant _) => ServiceResult.Good).ConfigureAwait(false);
+                static (_, _, ref _) => ServiceResult.Good).ConfigureAwait(false);
             if (!restored)
             {
                 manager.RelinkSubscriptionDiagnostics(id, owner, NodeId.Null);

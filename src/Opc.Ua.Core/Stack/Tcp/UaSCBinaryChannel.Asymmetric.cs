@@ -34,7 +34,6 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -113,9 +112,10 @@ namespace Opc.Ua.Bindings
         /// negotiated policy.
         /// </exception>
         private SecurityPolicyInfo NegotiatedSecurityPolicy
-            => SecurityPolicy ?? throw ServiceResultException.Create(
-                StatusCodes.BadSecurityPolicyRejected,
-                "Unsupported security policy.");
+            => SecurityPolicy ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unsupported security policy.");
 
         private bool UsesKeyAgreement => SecurityPolicy?.EphemeralKeyAlgorithm is
             CertificateKeyAlgorithm.RSADH or
@@ -315,6 +315,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Replaces the ephemeral key-agreement nonces with the objects owned by the reconnect token.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         protected void ReplaceNonces(ChannelToken token)
         {
             if (!UsesKeyAgreement)
@@ -341,6 +342,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Moves key-agreement ownership out of a temporary channel before it is retired.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private protected void TransferNonces(ChannelToken token)
         {
             if (!UsesKeyAgreement)
@@ -370,7 +372,7 @@ namespace Opc.Ua.Bindings
                 {
                     throw new ObjectDisposedException(nameof(UaSCUaBinaryChannel));
                 }
-                Nonce localNonce = Nonce.CreateNonce(securityPolicy);
+                var localNonce = Nonce.CreateNonce(securityPolicy);
                 m_localNonce?.Dispose();
                 m_localNonce = localNonce;
                 return localNonce.Data;
@@ -385,7 +387,7 @@ namespace Opc.Ua.Bindings
                 {
                     throw new ObjectDisposedException(nameof(UaSCUaBinaryChannel));
                 }
-                Nonce remoteNonce = Nonce.CreateNonce(securityPolicy, data);
+                var remoteNonce = Nonce.CreateNonce(securityPolicy, data);
                 m_remoteNonce?.Dispose();
                 m_remoteNonce = remoteNonce;
             }
@@ -2095,6 +2097,7 @@ namespace Opc.Ua.Bindings
         /// through its own <see cref="ISecurityPolicyRegistry"/> decrypts with
         /// the padding its peer encrypted with.
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         private static RsaUtils.Padding GetAsymmetricPadding(SecurityPolicyInfo policy)
         {
             return policy.AsymmetricEncryptionAlgorithm switch

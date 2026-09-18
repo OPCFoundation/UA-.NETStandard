@@ -46,7 +46,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Identity;
 using Opc.Ua.Redundancy;

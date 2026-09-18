@@ -97,6 +97,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Snapshots a reported event and attempts to queue it for historical capture.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         public void Enqueue(
             ISystemContext context,
             NodeState notifier,

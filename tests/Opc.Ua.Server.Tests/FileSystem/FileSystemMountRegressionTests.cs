@@ -56,7 +56,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             Mock<IFileSystemProvider> provider = CreateProvider();
             using FileSystemNodeManager manager = CreateManager(provider.Object);
-            var root = CreateRoot(manager);
+            DirectoryObjectState root = CreateRoot(manager);
             var source = new NodeId(identifier, manager.NamespaceIndex);
 
             ServiceResult result = await MutateAsync(root, manager.SystemContext, source, operation)
@@ -78,11 +78,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
         public async Task NonCanonicalObjectPathsCannotDeleteMoveOrCopyAsync(
             [Values("delete", "move", "copy")] string operation,
             [ValueSource(nameof(s_nonCanonicalProviderPaths))] string providerPath,
-            [Values(false, true)] bool isDirectory)
+            [Values] bool isDirectory)
         {
             Mock<IFileSystemProvider> provider = CreateProvider();
             using FileSystemNodeManager manager = CreateManager(provider.Object);
-            var root = CreateRoot(manager);
+            DirectoryObjectState root = CreateRoot(manager);
             NodeId source = isDirectory
                 ? FileSystemNodeId.BuildDirectory(providerPath, manager.NamespaceIndex)
                 : FileSystemNodeId.BuildFile(providerPath, manager.NamespaceIndex);
@@ -107,12 +107,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// </summary>
         [Test]
         public async Task NonCanonicalMoveOrCopyTargetsDoNotInvokeProviderAsync(
-            [Values(false, true)] bool createCopy,
+            [Values] bool createCopy,
             [ValueSource(nameof(s_invalidNonRootPaths))] string providerPath)
         {
             Mock<IFileSystemProvider> provider = CreateProvider();
             using FileSystemNodeManager manager = CreateManager(provider.Object);
-            var root = CreateRoot(manager);
+            DirectoryObjectState root = CreateRoot(manager);
             NodeId source = FileSystemNodeId.BuildFile("sub/keep.txt", manager.NamespaceIndex);
             NodeId target = FileSystemNodeId.BuildDirectory(providerPath, manager.NamespaceIndex);
 
@@ -136,11 +136,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
             [Values("delete", "move", "copy")] string operation,
             [Values("sub/keep.txt", "sub/.hidden", "sub/name..txt", "sub/.../file",
                 "data dir/nested file.txt", "sub/a&b?c.txt")] string providerPath,
-            [Values(false, true)] bool isDirectory)
+            [Values] bool isDirectory)
         {
             Mock<IFileSystemProvider> provider = CreateProvider();
             using FileSystemNodeManager manager = CreateManager(provider.Object);
-            var root = CreateRoot(manager);
+            DirectoryObjectState root = CreateRoot(manager);
             NodeId source = isDirectory
                 ? FileSystemNodeId.BuildDirectory(providerPath, manager.NamespaceIndex)
                 : FileSystemNodeId.BuildFile(providerPath, manager.NamespaceIndex);
@@ -172,15 +172,15 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// </summary>
         [Test]
         public async Task SeparatorOnlyTargetsResolveToCanonicalMountRootAsync(
-            [Values(false, true)] bool createCopy,
+            [Values] bool createCopy,
             [ValueSource(nameof(s_rootPaths))] string providerPath,
             [Values(FileSystemNodeId.Root, FileSystemNodeId.Directory)] int rootType)
         {
             Mock<IFileSystemProvider> provider = CreateProvider();
             using FileSystemNodeManager manager = CreateManager(provider.Object);
-            var root = CreateRoot(manager);
+            DirectoryObjectState root = CreateRoot(manager);
             NodeId source = FileSystemNodeId.BuildFile("sub/keep.txt", manager.NamespaceIndex);
-            NodeId target = new FileSystemNodeId(rootType, providerPath, manager.NamespaceIndex).ToNodeId();
+            var target = new FileSystemNodeId(rootType, providerPath, manager.NamespaceIndex).ToNodeId();
 
             MoveOrCopyMethodStateResult result = await root.MoveOrCopy!.OnCallAsync!(
                 manager.SystemContext, root.MoveOrCopy, root.NodeId, source, target,
@@ -201,11 +201,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
             [Values("delete", "move", "copy")] string operation,
             [Values("3:keep.txt", "4294967298:keep.txt", "2147483648:keep.txt",
                 "0:keep.txt", "2:keep.txt?Open", "2:keep.txt?")] string identifier,
-            [Values(false, true)] bool foreignNamespace)
+            [Values] bool foreignNamespace)
         {
             Mock<IFileSystemProvider> provider = CreateProvider();
             using FileSystemNodeManager manager = CreateManager(provider.Object);
-            var root = CreateRoot(manager);
+            DirectoryObjectState root = CreateRoot(manager);
             var source = new NodeId(identifier,
                 foreignNamespace ? (ushort)(manager.NamespaceIndex + 1) : manager.NamespaceIndex);
 
@@ -230,7 +230,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             Mock<IFileSystemProvider> provider = CreateProvider();
             using FileSystemNodeManager manager = CreateManager(provider.Object);
-            var root = CreateRoot(manager);
+            DirectoryObjectState root = CreateRoot(manager);
             NodeId source = FileSystemNodeId.BuildFile("keep.txt", (ushort)(manager.NamespaceIndex + 1));
 
             ServiceResult result = await MutateAsync(root, manager.SystemContext, source, operation)
@@ -248,13 +248,13 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// </summary>
         [Test]
         public async Task InvalidMoveOrCopyTargetDoesNotInvokeProviderAsync(
-            [Values(false, true)] bool createCopy,
+            [Values] bool createCopy,
             [Values("3:target", "2:target", "1:target?CreateFile", "0:target")] string identifier,
-            [Values(false, true)] bool foreignNamespace)
+            [Values] bool foreignNamespace)
         {
             Mock<IFileSystemProvider> provider = CreateProvider();
             using FileSystemNodeManager manager = CreateManager(provider.Object);
-            var root = CreateRoot(manager);
+            DirectoryObjectState root = CreateRoot(manager);
             NodeId source = FileSystemNodeId.BuildFile("keep.txt", manager.NamespaceIndex);
             var target = new NodeId(identifier,
                 foreignNamespace ? (ushort)(manager.NamespaceIndex + 1) : manager.NamespaceIndex);
@@ -341,7 +341,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             {
                 await WriteTextAsync(Path.Combine(rootPath, "keep.txt"), "payload").ConfigureAwait(false);
                 using FileSystemNodeManager manager = CreateManager(provider);
-                var root = CreateRoot(manager);
+                DirectoryObjectState root = CreateRoot(manager);
                 NodeId source = FileSystemNodeId.BuildFile("keep.txt", manager.NamespaceIndex);
 
                 ServiceResult result = await MutateAsync(root, manager.SystemContext, source, operation)
@@ -481,8 +481,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
             ".", "..", "sub/..", "sub/../", "../sub", "sub/../leaf", "sub//leaf", "sub/./leaf", "/sub", "sub/",
             " ", "sub/ /leaf",
             .. Path.DirectorySeparatorChar == '\\'
-                ? new[] { "sub\\..", "sub\\..\\", "sub\\..\\leaf", "sub\\\\leaf", "sub\\.\\leaf", "\\sub",
-                    "sub\\leaf", "C:/sub", "C:\\sub", "sub/stream:name" }
+                ? [ "sub\\..", "sub\\..\\", "sub\\..\\leaf", "sub\\\\leaf", "sub\\.\\leaf", "\\sub",
+                    "sub\\leaf", "C:/sub", "C:\\sub", "sub/stream:name" ]
                 : Array.Empty<string>()
         ];
 
@@ -492,7 +492,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         private static readonly string[] s_nonCanonicalProviderPaths =
         [
             "/", "//", .. s_invalidNonRootPaths,
-            .. Path.DirectorySeparatorChar == '\\' ? new[] { "\\", "\\\\", "/\\/" } : Array.Empty<string>()
+            .. Path.DirectorySeparatorChar == '\\' ? ["\\", "\\\\", "/\\/"] : Array.Empty<string>()
         ];
 
         private static readonly string[] s_rootIds = Path.DirectorySeparatorChar == '\\'

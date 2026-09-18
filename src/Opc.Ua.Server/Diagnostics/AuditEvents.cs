@@ -1260,7 +1260,7 @@ namespace Opc.Ua.Server
                     false);
                 if (SanitizeUserIdentityToken(userIdentityToken) is { } sanitizedToken)
                 {
-                    e.SetChildValue<UserIdentityToken>(
+                    e.SetChildValue(
                         systemContext,
                         BrowseNames.UserIdentityToken,
                         sanitizedToken,

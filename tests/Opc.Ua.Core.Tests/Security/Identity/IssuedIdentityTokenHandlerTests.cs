@@ -110,8 +110,8 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
         [Test]
         public async Task EccEncryptionReleasesTemporaryNonceAndIssuerHandlesAsync(
-            [Values(false, true)] bool missingTokenData,
-            [Values(false, true)] bool rsaDh)
+            [Values] bool missingTokenData,
+            [Values] bool rsaDh)
         {
             string policyUri = rsaDh ? SecurityPolicies.RSA_DH_AesGcm : SecurityPolicies.ECC_nistP256;
             SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(policyUri);
@@ -129,10 +129,10 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             using Certificate receiver = CreateSigningCertificate("CN=Issued Token Receiver", rsaDh);
             using Certificate issuerTemplate = CreateSigningCertificate("CN=Issued Token Issuer", rsaDh, ca: true);
             X509Certificate2 issuerNative = issuerTemplate.AsX509Certificate2();
-            using Certificate issuer = Certificate.From(issuerNative);
+            using var issuer = Certificate.From(issuerNative);
             using var chain = new CertificateCollection { sender, issuer };
-            using Nonce receiverKey = Nonce.CreateNonce(policy);
-            using Nonce temporarySenderKey = Nonce.CreateNonce(policy);
+            using var receiverKey = Nonce.CreateNonce(policy);
+            using var temporarySenderKey = Nonce.CreateNonce(policy);
             byte[] expected = [0x10, 0x20, 0x30];
             byte[] nonce = Nonce.CreateRandomNonceData(32);
             var handler = new IssuedIdentityTokenHandler(
@@ -201,7 +201,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
             handler.UpdatePolicy(policy);
 
-            Assert.That(((IssuedIdentityToken)handler.Token).PolicyId, Is.EqualTo("issued"));
+            Assert.That(handler.Token.PolicyId, Is.EqualTo("issued"));
             Assert.That(handler.IssuedTokenTypeProfileUri, Is.EqualTo(policy.IssuedTokenType));
             Assert.That(handler.IssuedTokenType, Is.EqualTo(IssuedTokenType.SAML));
         }
@@ -225,8 +225,10 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public void CloneCopiesTokenAndEqualsComparesTokenData()
         {
-            var handler = new IssuedIdentityTokenHandler(Profiles.JwtUserToken, [7, 8, 9]);
-            handler.DecryptedTokenData = [7, 8, 9];
+            var handler = new IssuedIdentityTokenHandler(Profiles.JwtUserToken, [7, 8, 9])
+            {
+                DecryptedTokenData = [7, 8, 9]
+            };
 
             var clone = (IssuedIdentityTokenHandler)handler.Clone();
 

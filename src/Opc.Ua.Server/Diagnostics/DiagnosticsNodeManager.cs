@@ -1037,7 +1037,7 @@ namespace Opc.Ua.Server
             {
                 tempSessionNode = new SessionDiagnosticsObjectState(null);
                 SessionDiagnosticsObjectState sessionNode = tempSessionNode;
-                QualifiedName browseName = QualifiedName.From(diagnostics.SessionName!);
+                var browseName = QualifiedName.From(diagnostics.SessionName!);
 
                 if (DiagnosticsEnabled)
                 {
@@ -1333,7 +1333,7 @@ namespace Opc.Ua.Server
         private void SetDiagnosticsPermissions(NodeState node, NodeId ownerSessionId)
         {
             node.OnReadUserRolePermissions =
-                (ISystemContext context, NodeState currentNode, ref ArrayOf<RolePermissionType> value) =>
+                (context, currentNode, ref value) =>
                     OnReadUserRolePermissions(context, currentNode, ownerSessionId, ref value);
 
             var children = new List<BaseInstanceState>();

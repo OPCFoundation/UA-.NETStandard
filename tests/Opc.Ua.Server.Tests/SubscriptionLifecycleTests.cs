@@ -790,7 +790,7 @@ namespace Opc.Ua.Server.Tests
             using Subscription subscription = CreateSubscription();
             OperationContext context = CreateOperationContext();
 
-            await subscription.DeleteAsync(context);
+            await subscription.DeleteAsync(context).ConfigureAwait(false);
 
             Assert.That(subscription.IsDeleted, Is.True);
         }
@@ -801,7 +801,7 @@ namespace Opc.Ua.Server.Tests
             using Subscription subscription = CreateSubscription();
             OperationContext context = CreateOperationContext();
 
-            await subscription.DeleteAsync(context);
+            await subscription.DeleteAsync(context).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -834,21 +834,21 @@ namespace Opc.Ua.Server.Tests
             using Subscription subscription = CreateSubscription();
             OperationContext context = CreateOperationContext();
 
-            await subscription.DeleteAsync(context);
+            await subscription.DeleteAsync(context).ConfigureAwait(false);
 
             AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.CreateMonitoredItemsAsync(
-                    context, TimestampsToReturn.Both, [])));
+                    context, TimestampsToReturn.Both, []).ConfigureAwait(false)));
             AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.ModifyMonitoredItemsAsync(
-                    context, TimestampsToReturn.Both, [])));
+                    context, TimestampsToReturn.Both, []).ConfigureAwait(false)));
             AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
-                async () => await subscription.DeleteMonitoredItemsAsync(context, [])));
+                async () => await subscription.DeleteMonitoredItemsAsync(context, []).ConfigureAwait(false)));
             AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.SetMonitoringModeAsync(
-                    context, MonitoringMode.Reporting, [])));
+                    context, MonitoringMode.Reporting, []).ConfigureAwait(false)));
             AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
-                async () => await subscription.ConditionRefreshAsync()));
+                async () => await subscription.ConditionRefreshAsync().ConfigureAwait(false)));
         }
 
         private static void AssertBadSubscriptionId(ServiceResultException ex)

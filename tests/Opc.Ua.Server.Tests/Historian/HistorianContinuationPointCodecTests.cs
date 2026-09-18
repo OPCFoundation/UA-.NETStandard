@@ -388,6 +388,7 @@ namespace Opc.Ua.Server.Tests.Historian
         /// <summary>
         /// Verifies that legacy annotation continuations use their state node as the request node.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         [TestCase(1)]
         [TestCase(2)]
         public async Task LegacyAnnotationContinuationUsesStateNodeForRequestAsync(
@@ -416,7 +417,7 @@ namespace Opc.Ua.Server.Tests.Historian
             var nodeId = new NodeId("HistorizedVariable", 1);
             PortableProvider provider = new("shared-historian");
             registry.RegisterForNode(nodeId, provider);
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             NodeId ownerSessionId = new(Guid.NewGuid());
             DateTime startTime = new(
                 2026,

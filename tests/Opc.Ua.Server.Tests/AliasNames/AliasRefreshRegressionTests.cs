@@ -76,6 +76,55 @@ namespace Opc.Ua.Server.Tests.AliasNames
         }
 
         [Test]
+        public async Task NullStoreSnapshotPreservesAliasesAndAllowsLiveRetryAsync()
+        {
+            await using var harness = new RefreshHarness(refreshOnChange: true);
+            await harness.InitializeAsync().ConfigureAwait(false);
+            AliasNameState original = harness.FindAlias("Alpha");
+            var queried = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            harness.Store.Setup(store => store.FindAliasVerboseAsync(
+                It.IsAny<NodeId>(), It.IsAny<string>(), It.IsAny<NodeId>(), It.IsAny<ITypeTable>(),
+                It.IsAny<CancellationToken>()))
+                .Returns((NodeId id, string pattern, NodeId reference, ITypeTable types, CancellationToken ct) =>
+                {
+                    if (Interlocked.Increment(ref calls) == 1)
+                    {
+                        queried.TrySetResult(true);
+                        return new ValueTask<IReadOnlyList<AliasNameVerboseDataType>>(
+                            (IReadOnlyList<AliasNameVerboseDataType>)null!);
+                    }
+                    return harness.Data.FindAliasVerboseAsync(id, pattern, reference, types, ct);
+                });
+            harness.Category.OnStateChanged += (_, _, _) =>
+            {
+                if (harness.FindAlias("Gamma") != null)
+                {
+                    published.TrySetResult(true);
+                }
+            };
+
+            await harness.Data.AddAliasesAsync(harness.CategoryId,
+                [new AliasAddRequest("Beta", harness.Target.NodeId, null, ReferenceTypeIds.AliasFor)])
+                .ConfigureAwait(false);
+            await queried.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(harness.FindAlias("Alpha"), Is.SameAs(original));
+            await harness.Data.AddAliasesAsync(harness.CategoryId,
+                [new AliasAddRequest("Gamma", harness.Target.NodeId, null, ReferenceTypeIds.AliasFor)])
+                .ConfigureAwait(false);
+            await published.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(harness.FindAlias("Alpha"), Is.SameAs(original));
+            Assert.That(harness.FindAlias("Beta"), Is.Not.Null);
+            Assert.That(harness.Target.ReferenceExists(
+                ReferenceTypeIds.AliasFor, true, original.NodeId), Is.True);
+            Assert.That(harness.Target.ReferenceExists(
+                ReferenceTypeIds.AliasFor, true, harness.FindAlias("Gamma").NodeId), Is.True);
+        }
+
+        [Test]
         public async Task RefreshDiffRetainsUnchangedAliasesAndUpdatesActualTargetInversesAsync()
         {
             await using var harness = new RefreshHarness();
@@ -443,7 +492,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                     });
                 m_registry.Register(Store.Object);
                 Materializer = new AliasNameNodeMaterializer(
-                    (IAliasNameMaterializerHost)Manager, m_registry, _ => false,
+                    Manager, m_registry, _ => false,
                     telemetry.CreateLogger<AliasNameNodeMaterializer>());
             }
 
@@ -461,7 +510,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
 
             public InMemoryAliasNameStore Data { get; }
 
-            public Mock<IAliasNameStore> Store { get; } = new();
+            public Mock<IAliasNameStore> Store { get; } = new(MockBehavior.Strict);
 
             public AliasNameNodeManager Manager { get; }
 

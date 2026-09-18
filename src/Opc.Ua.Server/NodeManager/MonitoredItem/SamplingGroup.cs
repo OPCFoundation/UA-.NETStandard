@@ -643,5 +643,4 @@ namespace Opc.Ua.Server
             Message = "Server: Unexpected error sampling values.")]
         public static partial void ServerUnexpectedErrorSamplingValues(this ILogger logger, Exception ex);
     }
-
 }

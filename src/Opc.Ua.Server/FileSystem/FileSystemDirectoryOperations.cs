@@ -334,7 +334,8 @@ namespace Opc.Ua.Server.FileSystem
             }
             if (!host.TryGetProviderPath(objectToMoveOrCopy, out string sourcePath, out bool sourceIsDirectory,
                     out bool sourceIsRoot) ||
-                sourceIsRoot || string.IsNullOrEmpty(sourcePath))
+                sourceIsRoot ||
+                string.IsNullOrEmpty(sourcePath))
             {
                 return new MoveOrCopyMethodStateResult
                 {
@@ -412,6 +413,7 @@ namespace Opc.Ua.Server.FileSystem
         /// <summary>
         /// Dispatches an admitted mutation to the provider and retires source handles after deletion or movement.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static async ValueTask ApplyProviderMutationAsync(
             IFileSystemHost host,
             FileSystemMutationKind kind,
@@ -472,7 +474,7 @@ namespace Opc.Ua.Server.FileSystem
         /// still be escaped on Windows by a name such as
         /// <c>"..\..\Windows\System32\evil"</c>, which contains no
         /// slash-delimited <c>".."</c> segment yet is resolved as traversal by
-        /// <see cref="System.IO.Path"/>.
+        /// <see cref="Path"/>.
         /// </para>
         /// <para>
         /// This is deliberately a defence in depth: providers remain

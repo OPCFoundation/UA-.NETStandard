@@ -459,20 +459,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Pre-hydrates monitored-item data/event queues from the configured
-        /// <see cref="ISubscriptionStore"/> so the synchronous monitored-item creation path can
-        /// consume them without blocking on an asynchronous store.
-        /// </summary>
-        /// <param name="itemsToRestore">The monitored items being restored.</param>
-        /// <param name="cancellationToken">A token to cancel the operation.</param>
-        private ValueTask PreHydrateMonitoredItemQueuesAsync(
-            IList<IStoredMonitoredItem> itemsToRestore,
-            CancellationToken cancellationToken)
-        {
-            return m_serviceDispatch.PreHydrateMonitoredItemQueuesAsync(itemsToRestore, cancellationToken);
-        }
-
-        /// <summary>
         /// Modifies a set of monitored items.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>

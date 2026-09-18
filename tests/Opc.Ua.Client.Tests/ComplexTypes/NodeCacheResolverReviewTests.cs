@@ -95,13 +95,13 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             cache.Setup(value => value.GetReferencesAsync(
                     It.IsAny<ArrayOf<NodeId>>(), It.IsAny<ArrayOf<NodeId>>(),
                     false, false, It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<ArrayOf<INode>>(ArrayOf.Empty<INode>()));
+                .Returns(new ValueTask<ArrayOf<INode>>([]));
             cache.Setup(value => value.GetValuesAsync(
                     It.IsAny<ArrayOf<NodeId>>(), It.IsAny<CancellationToken>()))
                 .Returns((ArrayOf<NodeId> ids, CancellationToken _) =>
                     new ValueTask<ArrayOf<DataValue>>(ids.ConvertAll(id =>
                         new DataValue(id == namespaceProperty ? "urn:test:good-dictionary" : "GoodType"))));
-            ByteString schema = ByteString.From("""
+            var schema = ByteString.From("""
                 <opc:TypeDictionary xmlns:opc="http://opcfoundation.org/BinarySchema/"
                     TargetNamespace="urn:test:good-dictionary" DefaultByteOrder="LittleEndian">
                     <opc:StructuredType Name="GoodType">
@@ -130,7 +130,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             IReadOnlyDictionary<NodeId, DataDictionary> dictionaries = await resolver
                 .LoadDataTypeSystem(ct: timeout.Token).ConfigureAwait(false);
 
-            Assert.That(dictionaries.Keys, Is.EquivalentTo(new[] { good }));
+            Assert.That(dictionaries.Keys, Is.EquivalentTo([good]));
             Assert.That(dictionaries[good].TypeDictionary.TargetNamespace, Is.EqualTo("urn:test:good-dictionary"));
             Assert.That(dictionaries[good].DataTypes[description].Name, Is.EqualTo("GoodType"));
             Assert.That(dictionaries[good].GetSchema(description), Does.Contain("GoodType"));

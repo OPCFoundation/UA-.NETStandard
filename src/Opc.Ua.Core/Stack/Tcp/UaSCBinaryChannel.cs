@@ -1129,7 +1129,7 @@ namespace Opc.Ua.Bindings
                         static completed => _ = completed.Exception,
                         CancellationToken.None,
                         TaskContinuationOptions.ExecuteSynchronously |
-                            TaskContinuationOptions.DenyChildAttach,
+                        TaskContinuationOptions.DenyChildAttach,
                         TaskScheduler.Default);
             }
         }
@@ -1864,7 +1864,7 @@ namespace Opc.Ua.Bindings
             Message = "Sender Certificate {Certificate}")]
         public static partial void UaSCChannelLog2(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 3, Level = LogLevel.Error,
             Message = "ChannelId {ChannelId}: {Context} - Duplicate sequence number: {SequenceNumber} " +
@@ -1890,7 +1890,7 @@ namespace Opc.Ua.Bindings
         public static partial void UaSCChannelLog6(
             this ILogger logger,
             uint channelId,
-            global::Opc.Ua.Bindings.TcpChannelState state);
+            TcpChannelState state);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 7, Level = LogLevel.Warning,
             Message = "Message is not an integral multiple of the block size. Length = {Length}, " +
@@ -1914,7 +1914,7 @@ namespace Opc.Ua.Bindings
         public static partial void UaSCChannelLog9(
             this ILogger logger,
             uint channelId,
-            global::System.DateTime createdAt,
+            DateTime createdAt,
             long createdAtTimestamp,
             int lifetime);
 
@@ -1925,7 +1925,7 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             uint id,
             uint tokenId,
-            global::System.DateTime createdAt,
+            DateTime createdAt,
             long createdAtTimestamp,
             int lifetime);
 
@@ -1936,7 +1936,7 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             uint id,
             uint tokenId,
-            global::System.DateTime createdAt,
+            DateTime createdAt,
             long createdAtTimestamp,
             int lifetime);
 
@@ -1975,5 +1975,4 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             Exception exception);
     }
-
 }

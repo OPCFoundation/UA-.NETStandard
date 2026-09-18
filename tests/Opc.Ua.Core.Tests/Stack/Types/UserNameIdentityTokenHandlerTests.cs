@@ -388,7 +388,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 _ => throw new NotSupportedException(securityPolicy.AsymmetricEncryptionAlgorithm.ToString())
             };
             int encryptedBlockSize = rsa.KeySize / 8;
-            byte[] encrypted = new byte[((plainText.Length + blockSize - 1) / blockSize) * encryptedBlockSize];
+            byte[] encrypted = new byte[(plainText.Length + blockSize - 1) / blockSize * encryptedBlockSize];
             int written = 0;
 
             for (int offset = 0; offset < plainText.Length; offset += blockSize)
