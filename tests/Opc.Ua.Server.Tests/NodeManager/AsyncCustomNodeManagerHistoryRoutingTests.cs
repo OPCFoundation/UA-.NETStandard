@@ -307,6 +307,53 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(historyEvent!.Events, Has.Count.EqualTo(1));
         }
 
+        [Test]
+        public async Task FreshHistoryEventEntryValidatesFilterDespiteOtherContinuationAsync()
+        {
+            using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
+            ushort namespaceIndex = h.Manager.NamespaceIndexes[0];
+            var notifier = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("MixedEventReads", namespaceIndex),
+                BrowseName = new QualifiedName("MixedEventReads", namespaceIndex),
+                EventNotifier = EventNotifiers.HistoryRead
+            };
+            await h.Manager.AddNodeAsync(h.Context, default, notifier).ConfigureAwait(false);
+            using var provider = new InMemoryHistorianProvider();
+            h.RegisterProvider(notifier.NodeId, provider);
+            provider.Register(notifier.NodeId, CreateEventCapabilities());
+
+            var invalid = new ContentFilterElement { FilterOperator = FilterOperator.Not };
+            invalid.SetOperands([new ElementOperand(0)]);
+            var filter = new EventFilter { WhereClause = new ContentFilter { Elements = [invalid] } };
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, BrowseNames.Message, Attributes.Value);
+            var details = new ReadEventDetails
+            {
+                NumValuesPerNode = 10,
+                StartTime = BaseTime,
+                EndTime = BaseTime.AddMinutes(1),
+                Filter = filter
+            };
+            HistoryReadValueId[] nodes =
+            [
+                new() { NodeId = notifier.NodeId, ContinuationPoint = ByteString.From([1, 2, 3]) },
+                new() { NodeId = notifier.NodeId }
+            ];
+            var results = new List<HistoryReadResult> { null!, null! };
+            var errors = new List<ServiceResult> { null!, null! };
+
+            await h.Manager.HistoryReadAsync(
+                h.OperationContext, details, TimestampsToReturn.Neither,
+                false, nodes, results, errors).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                Assert.That(errors[1].StatusCode, Is.EqualTo(StatusCodes.BadEventFilterInvalid));
+                Assert.That(results[1].HistoryData.IsNull, Is.True);
+            });
+        }
+
         /// <summary>
         /// Verifies that history reads reject invalid timestamp selections.
         /// </summary>

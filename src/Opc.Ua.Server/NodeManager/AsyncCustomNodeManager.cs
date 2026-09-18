@@ -5889,44 +5889,58 @@ namespace Opc.Ua.Server
 
             if (details is ReadEventDetails readEventDetails)
             {
-                if (!hasContinuationPoint)
+                var validNodes = new List<NodeHandle>(nodesToProcess.Count);
+                ServiceResult validation = ServiceResult.Good;
+                bool validated = false;
+                foreach (NodeHandle handle in nodesToProcess)
                 {
-                    // check start/end time and max values.
-                    if (readEventDetails.NumValuesPerNode == 0)
+                    if (!nodesToRead[handle.Index].ContinuationPoint.IsEmpty)
                     {
-                        if (readEventDetails.StartTime == DateTimeUtc.MinValue ||
-                            readEventDetails.EndTime == DateTimeUtc.MinValue)
+                        validNodes.Add(handle);
+                        continue;
+                    }
+                    if (!validated)
+                    {
+                        bool startMissing = readEventDetails.StartTime == DateTimeUtc.MinValue;
+                        bool endMissing = readEventDetails.EndTime == DateTimeUtc.MinValue;
+                        if (readEventDetails.NumValuesPerNode == 0
+                            ? startMissing || endMissing
+                            : startMissing && endMissing)
                         {
-                            throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                            validation = StatusCodes.BadInvalidTimestampArgument;
                         }
+                        else
+                        {
+                            validation = readEventDetails.Filter.Validate(
+                                new FilterContext(Server.NamespaceUris, Server.TypeTree, context, Server.Telemetry))
+                                .Status;
+                        }
+                        validated = true;
                     }
-                    else if (readEventDetails.StartTime == DateTimeUtc.MinValue &&
-                        readEventDetails.EndTime == DateTimeUtc.MinValue)
+                    if (ServiceResult.IsBad(validation))
                     {
-                        throw new ServiceResultException(StatusCodes.BadInvalidTimestampArgument);
+                        errors[handle.Index] = validation;
+                        results[handle.Index].StatusCode = validation.StatusCode;
                     }
-
-                    // validate the event filter.
-                    EventFilter.Result result = readEventDetails.Filter.Validate(
-                        new FilterContext(Server.NamespaceUris, Server.TypeTree, context, Server.Telemetry));
-
-                    if (ServiceResult.IsBad(result.Status))
+                    else
                     {
-                        throw new ServiceResultException(result.Status);
+                        validNodes.Add(handle);
                     }
                 }
 
-                // read the event history.
-                await HistoryReadEventsAsync(
-                    context,
-                    readEventDetails,
-                    timestampsToReturn,
-                    nodesToRead,
-                    results,
-                    errors,
-                    nodesToProcess,
-                    cache,
-                    cancellationToken).ConfigureAwait(false);
+                if (validNodes.Count != 0)
+                {
+                    await HistoryReadEventsAsync(
+                        context,
+                        readEventDetails,
+                        timestampsToReturn,
+                        nodesToRead,
+                        results,
+                        errors,
+                        validNodes,
+                        cache,
+                        cancellationToken).ConfigureAwait(false);
+                }
             }
         }
 
