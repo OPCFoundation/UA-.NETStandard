@@ -5031,9 +5031,11 @@ namespace Opc.Ua.Client
                 identity.TokenHandler.UpdatePolicy(identityPolicy);
             }
 
+            string effectiveTokenPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
+                ? securityPolicyUri
+                : identityPolicy.SecurityPolicyUri!;
             if (identity.TokenType == UserTokenType.UserName &&
-                (string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri) ||
-                    identityPolicy.SecurityPolicyUri == SecurityPolicies.None) &&
+                effectiveTokenPolicyUri == SecurityPolicies.None &&
                 m_endpoint.Description.SecurityMode != MessageSecurityMode.SignAndEncrypt)
             {
                 throw new ServiceResultException(
