@@ -294,7 +294,13 @@ namespace Opc.Ua.Client.TestFramework
                 retryStartServer = false;
                 try
                 {
-                    var reverseConnectUri = new Uri($"{uriScheme}://localhost:{testPort}");
+                    string reverseConnectUrl = $"{uriScheme}://localhost:{testPort}";
+                    if (Utils.IsUriWssScheme(reverseConnectUrl))
+                    {
+                        // The client's certificate carries the machine name as its DNS identity.
+                        reverseConnectUrl = Utils.ReplaceLocalhost(reverseConnectUrl);
+                    }
+                    var reverseConnectUri = new Uri(reverseConnectUrl);
                     ReverseConnectManager.AddEndpoint(reverseConnectUri, Config);
                     await ReverseConnectManager.StartServiceAsync(Config).ConfigureAwait(false);
                     ReverseConnectUri = reverseConnectUri.ToString();
