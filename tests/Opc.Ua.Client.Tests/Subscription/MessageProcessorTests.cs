@@ -726,6 +726,267 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// A transferred subscription that stays quiet must still recover the
+        /// notifications the server kept in its retransmission queue: the
+        /// gap-walk republish only runs when a new data message arrives, so
+        /// the transfer itself has to drive the recovery.
+        /// </summary>
+        [Test]
+        public async Task RecoverTransferredMessagesRepublishesWithoutNewNotificationsAsync()
+        {
+            SetupRepublish();
+
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 21
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                // Act: transfer reports three messages still in the server
+                // retransmission queue, reported out of order.
+                await sut.RecoverTransferredMessagesAsync([4, 2, 3], default)
+                    .ConfigureAwait(false);
+
+                // Assert: all three are recovered, in ascending order, and
+                // flagged as republished notifications.
+                Assert.That(sut.ReceivedSequenceNumbers,
+                    Is.EqualTo(new uint[] { 2, 3, 4 }));
+                Assert.That(sut.PublishState, Is.EqualTo(PublishState.Republish));
+                Assert.That(sut.RepublishMessageCount, Is.EqualTo(3));
+                Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(4));
+                Assert.That(sut.AvailableInRetransmissionQueue, Is.Empty,
+                    "transfer recovery must not publish its local snapshot");
+                await m_completion.WaitForQueuedAckAsync(3).ConfigureAwait(false);
+
+                // The dedup gate advanced past the recovered messages, so the
+                // next publish is not mistaken for a gap and nothing is
+                // republished a second time.
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(5),
+                    [4, 2, 3], []).ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 5).ConfigureAwait(false);
+
+                Assert.That(sut.ReceivedSequenceNumbers,
+                    Is.EqualTo(new uint[] { 2, 3, 4, 5 }));
+                Assert.That(sut.MissingMessageCount, Is.Zero);
+                Assert.That(sut.RepublishMessageCount, Is.EqualTo(3));
+            }
+        }
+
+        [Test]
+        public async Task RecoverTransferredMessagesPreservesNewerAvailableSetAsync()
+        {
+            int republishCalls = 0;
+            var firstRepublishStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseFirstRepublish = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            m_mockServices
+                .Setup(c => c.RepublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(async (RequestHeader _, uint _, uint sequenceNumber,
+                    CancellationToken _) =>
+                {
+                    if (Interlocked.Increment(ref republishCalls) == 1)
+                    {
+                        firstRepublishStarted.SetResult(true);
+                        await releaseFirstRepublish.Task
+                            .WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
+                    }
+
+                    return new RepublishResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        NotificationMessage = BuildDataChangeMessage(sequenceNumber)
+                    };
+                });
+
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 25
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                Task recoverTask = sut.RecoverTransferredMessagesAsync([7, 8], default)
+                    .AsTask();
+
+                await firstRepublishStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 20 },
+                    [11, 12],
+                    []);
+
+                Assert.That(sut.AvailableInRetransmissionQueue,
+                    Is.EqualTo(new uint[] { 11, 12 }));
+
+                releaseFirstRepublish.SetResult(true);
+                await recoverTask.WaitAsync(TimeSpan.FromSeconds(5));
+
+                Assert.That(sut.AvailableInRetransmissionQueue,
+                    Is.EqualTo(new uint[] { 11, 12 }));
+                Assert.That(sut.RepublishMessageCount, Is.EqualTo(2));
+            }
+        }
+
+        [Test]
+        public async Task RecoverTransferredMessagesWithoutAvailableSequenceNumbersDoesNothingAsync()
+        {
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 22
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.RecoverTransferredMessagesAsync([], default)
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.ReceivedSequenceNumbers, Is.Empty);
+                Assert.That(sut.RepublishMessageCount, Is.Zero);
+                Assert.That(sut.LastSequenceNumberProcessed, Is.Zero);
+                m_mockServices.Verify(
+                    c => c.RepublishAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.IsAny<uint>(),
+                        It.IsAny<uint>(),
+                        It.IsAny<CancellationToken>()),
+                    Times.Never);
+            }
+        }
+
+        /// <summary>
+        /// Sequence numbers wrap from <see cref="uint.MaxValue"/> to 1
+        /// (Part 4 §7.30.5), so a retransmission queue spanning the wrap must
+        /// still be recovered oldest-first.
+        /// </summary>
+        [Test]
+        public async Task RecoverTransferredMessagesOrdersAcrossSequenceNumberWrapAsync()
+        {
+            SetupRepublish();
+
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 23
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.RecoverTransferredMessagesAsync(
+                    [3, uint.MaxValue - 5, 5], default)
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.ReceivedSequenceNumbers,
+                    Is.EqualTo(new uint[]
+                    {
+                        uint.MaxValue - 5, 3, 5
+                    }));
+                Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(5));
+            }
+        }
+
+        [Test]
+        public async Task RecoverTransferredMessagesAdvancesGateWhenRepublishFailsAsync()
+        {
+            m_mockServices
+                .Setup(c => c.RepublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(
+                    StatusCodes.BadMessageNotAvailable));
+
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 24
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                // A server that dropped the messages must not fail the
+                // recovery - the gate still advances past the sequence
+                // numbers the server reported as sent.
+                await sut.RecoverTransferredMessagesAsync([7, 8], default)
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.ReceivedSequenceNumbers, Is.Empty);
+                Assert.That(sut.RepublishMessageCount, Is.EqualTo(2));
+                Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(8));
+
+                // The next message is therefore delivered without a gap walk.
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(9),
+                    [], []).ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 9).ConfigureAwait(false);
+
+                Assert.That(sut.ReceivedSequenceNumbers,
+                    Is.EqualTo(new uint[] { 9 }));
+                Assert.That(sut.MissingMessageCount, Is.Zero);
+            }
+        }
+
+        [Test]
+        public async Task RecoverTransferredMessagesPropagatesCancellationDuringRepublishCallbackAsync()
+        {
+            SetupRepublish();
+
+            using var cts = new CancellationTokenSource();
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 26
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.Block.WaitAsync();
+                bool blockHeld = true;
+                try
+                {
+                    Task recoverTask = sut.RecoverTransferredMessagesAsync([10], cts.Token)
+                        .AsTask();
+
+                    await sut.DataChangeNotificationReceived.WaitAsync()
+                        .WaitAsync(TimeSpan.FromSeconds(5));
+                    cts.Cancel();
+                    sut.Block.Release();
+                    blockHeld = false;
+
+                    Assert.ThrowsAsync<OperationCanceledException>(
+                        async () => await recoverTask.ConfigureAwait(false));
+                    Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(10));
+                    Assert.That(sut.RepublishMessageCount, Is.EqualTo(1));
+                }
+                finally
+                {
+                    if (blockHeld)
+                    {
+                        sut.Block.Release();
+                    }
+                }
+            }
+        }
+
+        private void SetupRepublish()
+        {
+            m_mockServices
+                .Setup(c => c.RepublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((RequestHeader _, uint _, uint sequenceNumber,
+                    CancellationToken _) => new RepublishResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        NotificationMessage = BuildDataChangeMessage(sequenceNumber)
+                    });
+        }
+
         private static NotificationMessage BuildDataChangeMessage(uint sequenceNumber)
         {
             return new NotificationMessage
@@ -794,6 +1055,13 @@ namespace Opc.Ua.Client.Subscriptions
             public PublishState PublishState { get; set; }
             public List<uint> ReceivedSequenceNumbers { get; } = [];
             public AsyncManualResetEvent StatusChangeNotificationReceived { get; } = new();
+
+            public new ValueTask RecoverTransferredMessagesAsync(
+                IReadOnlyList<uint> availableSequenceNumbers, CancellationToken ct)
+            {
+                return base.RecoverTransferredMessagesAsync(
+                    availableSequenceNumbers, ct);
+            }
 
             public async ValueTask WaitAsync()
             {

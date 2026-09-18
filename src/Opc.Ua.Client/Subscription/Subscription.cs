@@ -518,12 +518,36 @@ namespace Opc.Ua.Client.Subscriptions
                 await m_monitoredItems.ApplyChangesAsync(true, false,
                     ct).ConfigureAwait(false);
                 StartKeepAliveTimer();
-                return true;
             }
             finally
             {
                 m_stateLock.Release();
             }
+
+            // Recover the messages the server still holds for this
+            // subscription. Doing this here rather than waiting for the next
+            // publish response ensures the notifications are also recovered on
+            // a subscription that stays quiet (or only emits keep-alives)
+            // after the transfer. Runs outside the state lock so a
+            // notification handler may call back into the subscription. The
+            // transfer itself already succeeded at this point, so a failed
+            // recovery is logged and does not fail the transfer - the
+            // remaining messages are still recoverable through the normal
+            // gap-walking republish.
+            try
+            {
+                await RecoverTransferredMessagesAsync(availableSequenceNumbers, ct)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Logger.SubscriptionFailedToRecoverTransferredMessages(ex, Id);
+            }
+            return true;
         }
 
         /// <summary>
@@ -1734,6 +1758,14 @@ namespace Opc.Ua.Client.Subscriptions
             this ILogger logger,
             uint subscriptionId,
             uint staleId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 67, Level = LogLevel.Error,
+            Message = "Subscription {SubscriptionId}: failed to recover the messages the server " +
+                "still held after the transfer completed.")]
+        public static partial void SubscriptionFailedToRecoverTransferredMessages(
+            this ILogger logger,
+            Exception? exception,
+            uint subscriptionId);
     }
 
 }
