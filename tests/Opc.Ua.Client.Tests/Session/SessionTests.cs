@@ -31,6 +31,7 @@
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -51,6 +52,92 @@ namespace Opc.Ua.Client.Tests
     [SetUICulture("en-us")]
     public sealed class SessionTests
     {
+        [TestCase(3, false, true)]
+        [TestCase(4, true, true)]
+        [TestCase(4, false, false)]
+        public async Task FetchTypeTreeVisitsEveryNodeAndTerminatesAsync(int count, bool singleId, bool cycle)
+        {
+            using var session = SessionMock.Create();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            ushort namespaceIndex = session.NamespaceUris.GetIndexOrAppend("urn:test:type-traversal");
+            ArrayOf<NodeId> ids = Enumerable.Range(1, count)
+                .Select(value => new NodeId((uint)value, namespaceIndex)).ToArrayOf();
+            var browsed = new HashSet<NodeId>();
+            session.Channel.Setup(channel => channel.SendRequestAsync(
+                    It.IsAny<ReadRequest>(), It.IsAny<CancellationToken>()))
+                .Returns((ReadRequest request, CancellationToken ct) =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    return new ValueTask<IServiceResponse>(new ReadResponse
+                    {
+                        Results = request.NodesToRead.ConvertAll(item => item.AttributeId switch
+                        {
+                            Attributes.NodeId => new DataValue(item.NodeId),
+                            Attributes.NodeClass => new DataValue((int)NodeClass.ObjectType),
+                            Attributes.BrowseName => new DataValue(new QualifiedName("Type", namespaceIndex)),
+                            Attributes.DisplayName => new DataValue(LocalizedText.From("Type")),
+                            Attributes.IsAbstract => new DataValue(false),
+                            _ => DataValue.FromStatusCode(StatusCodes.BadAttributeIdInvalid)
+                        })
+                    });
+                });
+            session.Channel.Setup(channel => channel.SendRequestAsync(
+                    It.IsAny<BrowseRequest>(), It.IsAny<CancellationToken>()))
+                .Returns((BrowseRequest request, CancellationToken ct) =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    return new ValueTask<IServiceResponse>(new BrowseResponse
+                    {
+                        Results = request.NodesToBrowse.ConvertAll(item =>
+                        {
+                            browsed.Add(item.NodeId);
+                            int index = ids.ToList().IndexOf(item.NodeId);
+                            return new BrowseResult
+                            {
+                                References = index == count - 1 && !cycle ? [] :
+                                [
+                                    new ReferenceDescription
+                                    {
+                                        ReferenceTypeId = ReferenceTypeIds.HasSubtype,
+                                        IsForward = true,
+                                        NodeId = new ExpandedNodeId(ids[(index + 1) % count]),
+                                        NodeClass = NodeClass.ObjectType,
+                                        BrowseName = new QualifiedName("Type", namespaceIndex)
+                                    }
+                                ]
+                            };
+                        })
+                    });
+                });
+
+            IServiceMessageContext context = session.MessageContext;
+            int lookups = 0;
+            session.Channel.SetupGet(channel => channel.MessageContext).Returns(() =>
+            {
+                Assert.That(++lookups, Is.LessThan(128),
+                    "The cached graph must terminate instead of recursively revisiting the cycle.");
+                return context;
+            });
+            try
+            {
+                if (singleId)
+                {
+                    await session.FetchTypeTreeAsync(new ExpandedNodeId(ids[0]), timeout.Token).ConfigureAwait(false);
+                }
+                else
+                {
+                    await session.FetchTypeTreeAsync(
+                        [new ExpandedNodeId(ids[0])], timeout.Token).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                session.Channel.SetupGet(channel => channel.MessageContext).Returns(context);
+            }
+
+            Assert.That(browsed, Is.EquivalentTo(ids.ToList()));
+        }
+
         [Test]
         public void BuildTransportChainReturnsLeafFollowedByIssuers()
         {

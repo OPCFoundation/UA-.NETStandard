@@ -2558,10 +2558,15 @@ namespace Opc.Ua.Client
             HashSet<ExpandedNodeId> visited,
             CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
             ArrayOf<NodeId> referenceTypeIds = [ReferenceTypeIds.HasSubtype];
             ArrayOf<INode> nodes = await NodeCache
                 .FindReferencesAsync(typeIds, referenceTypeIds, false, false, ct)
                 .ConfigureAwait(false);
+            foreach (INode node in nodes)
+            {
+                visited.Add(node.NodeId);
+            }
             var subTypes = new List<ExpandedNodeId>();
             foreach (INode inode in nodes)
             {
@@ -2578,7 +2583,7 @@ namespace Opc.Ua.Client
             }
             if (subTypes.Count > 0)
             {
-                await FetchTypeTreeAsync(subTypes.ToArrayOf(), ct).ConfigureAwait(false);
+                await FetchTypeTreeAsync(subTypes.ToArrayOf(), visited, ct).ConfigureAwait(false);
             }
         }
 
