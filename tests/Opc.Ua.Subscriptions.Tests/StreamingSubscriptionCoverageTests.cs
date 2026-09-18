@@ -32,8 +32,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Channels;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions;
@@ -389,6 +391,29 @@ namespace Opc.Ua.Subscriptions.Tests
 
             Assert.That(await WithinTimeoutAsync(move).ConfigureAwait(false), Is.False);
             await enumerator.DisposeAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public void QueueSizeZeroPreservesUnboundedStreamingChannelBehavior()
+        {
+            MethodInfo factory = typeof(StreamingSubscription).GetMethod(
+                "CreateChannel",
+                BindingFlags.Static | BindingFlags.NonPublic)!;
+            MethodInfo intFactory = factory.MakeGenericMethod(typeof(int));
+
+            var channel = (Channel<int>)intFactory.Invoke(
+                null,
+                [0u, 1, false])!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(channel.Writer.TryWrite(1), Is.True);
+                Assert.That(channel.Writer.TryWrite(2), Is.True);
+                Assert.That(channel.Reader.TryRead(out int first), Is.True);
+                Assert.That(first, Is.EqualTo(1));
+                Assert.That(channel.Reader.TryRead(out int second), Is.True);
+                Assert.That(second, Is.EqualTo(2));
+            });
         }
 
         [Test]

@@ -988,13 +988,24 @@ namespace Opc.Ua.Client
                 response.RevisedMaxKeepAliveCount,
                 response.RevisedLifetimeCount);
 
-            await CreateItemsAsync(ct).ConfigureAwait(false);
-
-            // only enable publishing afer CreateSubscription is called
-            // to avoid race conditions with subscription cleanup.
-            if (PublishingEnabled)
+            try
             {
-                await SetPublishingModeAsync(PublishingEnabled, ct).ConfigureAwait(false);
+                await CreateItemsAsync(ct).ConfigureAwait(false);
+
+                // only enable publishing afer CreateSubscription is called
+                // to avoid race conditions with subscription cleanup.
+                if (PublishingEnabled)
+                {
+                    await SetPublishingModeAsync(PublishingEnabled, ct).ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                if (Created)
+                {
+                    await DeleteAsync(silent: true, CancellationToken.None).ConfigureAwait(false);
+                }
+                throw;
             }
 
             ChangesCompleted();
@@ -2868,10 +2879,21 @@ namespace Opc.Ua.Client
                                         SaveDataChange(message, datachange);
                                     }
 
-                                    datachangeCallback?.Invoke(
-                                        this,
-                                        datachange,
-                                        message.StringTable);
+                                    try
+                                    {
+                                        datachangeCallback?.Invoke(
+                                            this,
+                                            datachange,
+                                            message.StringTable);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        m_logger.ErrorWhileProcessingIncomingMessageSequenceNumber(
+                                            ex,
+                                            message.SequenceNumber,
+                                            Id,
+                                            Session?.SessionId);
+                                    }
                                 }
                                 else if (notificationData.TryGetValue(out EventNotificationList? events))
                                 {
@@ -2886,7 +2908,18 @@ namespace Opc.Ua.Client
                                         SaveEvents(message, events);
                                     }
 
-                                    eventCallback?.Invoke(this, events, message.StringTable);
+                                    try
+                                    {
+                                        eventCallback?.Invoke(this, events, message.StringTable);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        m_logger.ErrorWhileProcessingIncomingMessageSequenceNumber(
+                                            ex,
+                                            message.SequenceNumber,
+                                            Id,
+                                            Session?.SessionId);
+                                    }
                                 }
                                 else if (notificationData.TryGetValue(out StatusChangeNotification? statusChanged))
                                 {

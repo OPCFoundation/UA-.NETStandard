@@ -715,7 +715,8 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 foreach (IManagedSubscription subscription in m_subscriptions)
                 {
-                    if (subscription.Id == 0)
+                    if (subscription is Subscription concrete &&
+                        concrete.IsCreationInProgress)
                     {
                         return true;
                     }

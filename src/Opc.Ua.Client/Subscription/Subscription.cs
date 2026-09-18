@@ -929,6 +929,7 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         private int m_recreateAfterTransferInProgress;
+        private int m_creationInProgress;
 
         /// <summary>
         /// Called when the subscription state changed
@@ -1253,26 +1254,37 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="ct"></param>
         internal async ValueTask CreateAsync(SubscriptionOptions options, CancellationToken ct)
         {
-            // create the subscription.
-            AdjustCounts(options, out uint revisedMaxKeepAliveCount, out uint revisedLifetimeCount);
+            Interlocked.Exchange(ref m_creationInProgress, 1);
+            try
+            {
+                // create the subscription.
+                AdjustCounts(options, out uint revisedMaxKeepAliveCount, out uint revisedLifetimeCount);
 
-            CreateSubscriptionResponse response = await m_context.SubscriptionServiceSet.CreateSubscriptionAsync(null,
-                options.PublishingInterval.TotalMilliseconds, revisedLifetimeCount,
-                revisedMaxKeepAliveCount, options.MaxNotificationsPerPublish,
-                options.PublishingEnabled, options.Priority, ct).ConfigureAwait(false);
+                CreateSubscriptionResponse response = await m_context.SubscriptionServiceSet.CreateSubscriptionAsync(null,
+                    options.PublishingInterval.TotalMilliseconds, revisedLifetimeCount,
+                    revisedMaxKeepAliveCount, options.MaxNotificationsPerPublish,
+                    options.PublishingEnabled, options.Priority, ct).ConfigureAwait(false);
 
-            RememberRequestedSettings(
-                options.PublishingInterval,
-                revisedMaxKeepAliveCount,
-                revisedLifetimeCount,
-                options.Priority,
-                options.MaxNotificationsPerPublish);
-            OnSubscriptionUpdateComplete(true, response.SubscriptionId,
-                TimeSpan.FromMilliseconds(response.RevisedPublishingInterval),
-                response.RevisedMaxKeepAliveCount, response.RevisedLifetimeCount,
-                options.Priority, options.MaxNotificationsPerPublish,
-                options.PublishingEnabled);
+                RememberRequestedSettings(
+                    options.PublishingInterval,
+                    revisedMaxKeepAliveCount,
+                    revisedLifetimeCount,
+                    options.Priority,
+                    options.MaxNotificationsPerPublish);
+                OnSubscriptionUpdateComplete(true, response.SubscriptionId,
+                    TimeSpan.FromMilliseconds(response.RevisedPublishingInterval),
+                    response.RevisedMaxKeepAliveCount, response.RevisedLifetimeCount,
+                    options.Priority, options.MaxNotificationsPerPublish,
+                    options.PublishingEnabled);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref m_creationInProgress, 0);
+            }
         }
+
+        internal bool IsCreationInProgress
+            => Volatile.Read(ref m_creationInProgress) != 0;
 
         /// <summary>
         /// Modifies a subscription on the server.

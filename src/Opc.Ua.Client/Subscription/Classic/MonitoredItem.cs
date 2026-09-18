@@ -604,7 +604,14 @@ namespace Opc.Ua.Client
                 notification = m_Notification;
             }
 
-            notification?.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
+            try
+            {
+                notification?.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
+            }
+            catch (Exception ex)
+            {
+                m_logger.ErrorWhileProcessingIncomingMessages(ex);
+            }
         }
 
         /// <inheritdoc/>

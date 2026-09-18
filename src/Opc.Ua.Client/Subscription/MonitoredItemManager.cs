@@ -1647,6 +1647,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                             RequeueAfterDeadSubscription(ops, toRequeue);
                             continue;
                         }
+                        else if (IsRetryableTriggeringFailure(serviceResult) &&
+                            ops.Any(static operation => operation.Completion == null))
+                        {
+                            RequeueAfterTransientFailure(ops, toRequeue);
+                            continue;
+                        }
                         else
                         {
                             // Service-level terminal error: roll back
@@ -1676,6 +1682,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                             StatusCodes.BadSubscriptionIdInvalid)
                         {
                             RequeueAfterDeadSubscription(ops, toRequeue);
+                            continue;
+                        }
+                        if (IsRetryableTriggeringFailure(failStatus) &&
+                            ops.Any(static operation => operation.Completion == null))
+                        {
+                            RequeueAfterTransientFailure(ops, toRequeue);
                             continue;
                         }
                         // Terminal: rollback the optimistic desired
@@ -1751,6 +1763,43 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     }
                 }
             }
+
+            void RequeueAfterTransientFailure(
+                List<TriggeringOperation> currentOps,
+                List<TriggeringOperation> queue)
+            {
+                foreach (TriggeringOperation op in currentOps)
+                {
+                    op.RetryCount++;
+                    if (op.RetryCount > MaxTriggeringRetryCount)
+                    {
+                        RollbackDesired(
+                            op.Add,
+                            op.Remove,
+                            op.TriggeringItem.Name);
+                        FailOperation(
+                            op,
+                            op.TriggeringItem,
+                            StatusCodes.BadTooManyOperations);
+                    }
+                    else
+                    {
+                        queue.Add(op);
+                    }
+                }
+            }
+        }
+
+        private static bool IsRetryableTriggeringFailure(StatusCode statusCode)
+        {
+            return statusCode == StatusCodes.BadCommunicationError ||
+                statusCode == StatusCodes.BadConnectionClosed ||
+                statusCode == StatusCodes.BadNotConnected ||
+                statusCode == StatusCodes.BadRequestTimeout ||
+                statusCode == StatusCodes.BadTimeout ||
+                statusCode == StatusCodes.BadServerTooBusy ||
+                statusCode == StatusCodes.BadTcpServerTooBusy ||
+                statusCode == StatusCodes.BadTooManyOperations;
         }
 
         private void ReplayTriggeringLinksAfterRecreate(MonitoredItem item)
@@ -1813,8 +1862,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         private void RollbackDesired(
-            List<IMonitoredItem> add,
-            List<IMonitoredItem> remove,
+            IReadOnlyList<IMonitoredItem> add,
+            IReadOnlyList<IMonitoredItem> remove,
             string trigName)
         {
             lock (m_monitoredItemsLock)

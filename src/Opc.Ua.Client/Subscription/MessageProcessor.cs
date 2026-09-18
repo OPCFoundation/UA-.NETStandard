@@ -114,6 +114,7 @@ namespace Opc.Ua.Client.Subscriptions
                     Comparer = Comparer<IncomingMessage>.Create(
                         IncomingMessage.Compare)
                 });
+            m_messageCapacity = new SemaphoreSlim(kIncomingMessageCapacity);
             m_messageWorkerTask = ProcessReceivedMessagesAsync(m_cts.Token);
         }
 
@@ -142,10 +143,19 @@ namespace Opc.Ua.Client.Subscriptions
                 AvailableInRetransmissionQueue = availableSequenceNumbers;
             }
             LastNotificationTimestamp = TimeProvider.GetTimestamp();
-            await m_messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
-                TimeProvider.GetUtcNow(),
-                Volatile.Read(ref m_generation)))
-                .ConfigureAwait(false);
+            await m_messageCapacity.WaitAsync(m_cts.Token).ConfigureAwait(false);
+            try
+            {
+                await m_messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
+                    TimeProvider.GetUtcNow(),
+                    Volatile.Read(ref m_generation)))
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                m_messageCapacity.Release();
+                throw;
+            }
         }
 
         /// <summary>
@@ -166,6 +176,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     m_messageDispatchGate.Dispose();
                     m_cts.Dispose();
+                    m_messageCapacity.Dispose();
                     (m_messages as IDisposable)?.Dispose();
                     Disposed = true;
                 }
@@ -271,7 +282,14 @@ namespace Opc.Ua.Client.Subscriptions
                 IAsyncEnumerable<IncomingMessage> reader = m_messages.Reader.ReadAllAsync(ct);
                 await foreach (IncomingMessage incoming in reader.ConfigureAwait(false))
                 {
-                    await ProcessMessageAsync(incoming, ct).ConfigureAwait(false);
+                    try
+                    {
+                        await ProcessMessageAsync(incoming, ct).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        m_messageCapacity.Release();
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -672,12 +690,14 @@ namespace Opc.Ua.Client.Subscriptions
         {
             MessageProcessor? previous = s_dispatchingProcessor.Value;
             s_dispatchingProcessor.Value = this;
+            Interlocked.Increment(ref m_dispatchingCallbackCount);
             try
             {
                 await callback().ConfigureAwait(false);
             }
             finally
             {
+                Interlocked.Decrement(ref m_dispatchingCallbackCount);
                 s_dispatchingProcessor.Value = previous;
             }
         }
@@ -732,20 +752,24 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         protected bool IsDispatchingNotification
         {
-            get => ReferenceEquals(s_dispatchingProcessor.Value, this);
+            get => Volatile.Read(ref m_dispatchingCallbackCount) != 0 &&
+                ReferenceEquals(s_dispatchingProcessor.Value, this);
         }
 
         private static readonly AsyncLocal<MessageProcessor?> s_dispatchingProcessor = new();
         private readonly ISubscriptionServiceSetClientMethods m_services;
-        // CA2213: both fields are disposed in DisposeAsync(bool) — suppressed
+        // CA2213: fields are disposed in DisposeAsync(bool) — suppressed
         // because the analyzer does not track IAsyncDisposable disposal paths.
 #pragma warning disable CA2213
         private readonly SemaphoreSlim m_messageDispatchGate = new(1, 1);
         private readonly CancellationTokenSource m_cts = new();
+        private readonly SemaphoreSlim m_messageCapacity;
 #pragma warning restore CA2213
         private long m_generation;
+        private int m_dispatchingCallbackCount;
         private readonly Task m_messageWorkerTask;
         private readonly Channel<IncomingMessage> m_messages;
+        private const int kIncomingMessageCapacity = 1024;
     }
 
     /// <summary>
