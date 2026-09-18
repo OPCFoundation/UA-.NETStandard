@@ -456,7 +456,8 @@ namespace Opc.Ua.Server.Historian
                         usesLegacyAnnotationNodeId,
                     AnnotationRequest = ReadAnnotationRequest(
                         decoder,
-                        providerNodeId)
+                        providerNodeId,
+                        formatVersion)
                 },
                 HistorianReadKind.Events => new HistorianContinuationState
                 {
@@ -578,11 +579,13 @@ namespace Opc.Ua.Server.Historian
             encoder.WriteDateTime(null, request.EndTime);
             encoder.WriteUInt32(null, request.MaxValues);
             encoder.WriteBoolean(null, request.IsForward);
+            encoder.WriteUInt32(null, request.PageLimit);
         }
 
         private static HistorianAnnotationReadRequest ReadAnnotationRequest(
             BinaryDecoder decoder,
-            NodeId nodeId)
+            NodeId nodeId,
+            uint formatVersion)
         {
             return new HistorianAnnotationReadRequest
             {
@@ -590,7 +593,8 @@ namespace Opc.Ua.Server.Historian
                 StartTime = decoder.ReadDateTime(null),
                 EndTime = decoder.ReadDateTime(null),
                 MaxValues = decoder.ReadUInt32(null),
-                IsForward = decoder.ReadBoolean(null)
+                IsForward = decoder.ReadBoolean(null),
+                PageLimit = formatVersion >= kAnnotationPageLimitFormatVersion ? decoder.ReadUInt32(null) : 0
             };
         }
 
@@ -631,9 +635,10 @@ namespace Opc.Ua.Server.Historian
         private const uint kNamespaceMappedFormatVersion = 2;
         private const uint kAnnotationRequestNodeIdFormatVersion = 3;
         private const uint kRawPageLimitFormatVersion = 4;
+        private const uint kAnnotationPageLimitFormatVersion = 5;
 
         private const uint kFormatVersion =
-            kRawPageLimitFormatVersion;
+            kAnnotationPageLimitFormatVersion;
         private const int kMaxPayloadSize = 1024 * 1024;
         private const int kMaxProviderIdLength = 256;
         private const int kMaxResumeTokenSize = 64 * 1024;

@@ -783,9 +783,15 @@ namespace Opc.Ua.Server.Historian.InMemory
                     return new ValueTask<HistorianPage<Annotation>>(HistorianPage<Annotation>.Empty);
                 }
 
-                DateTime resumeAt = DecodeTimestamp(resumeToken);
-                return new ValueTask<HistorianPage<Annotation>>(
-                    ReadAnnotationsPage(archive, request, resumeAt));
+                HistorianPage<HistorianAnnotation> page = ReadAnnotationsPage(
+                    archive, request, resumeToken, useSourceTimestamp: false);
+                var values = new List<Annotation>(page.Values.Count);
+                foreach (HistorianAnnotation value in page.Values)
+                {
+                    values.Add(value.Annotation);
+                }
+                return new ValueTask<HistorianPage<Annotation>>(new HistorianPage<Annotation>(
+                    values, page.NextToken));
             }
         }
 
@@ -850,7 +856,9 @@ namespace Opc.Ua.Server.Historian.InMemory
 
                 for (int i = 0; i < annotationTimes.Count; i++)
                 {
-                    var key = annotationTimes[i].ToDateTime();
+                    var key = new AnnotationKey(
+                        annotationTimes[i].ToDateTime(),
+                        annotationTimes[i].ToDateTime());
                     if (archive.Annotations.TryGetValue(key, out HistorianAnnotation annotation))
                     {
                         oldValues.Add(CloneAnnotation(annotation.Annotation));
@@ -1603,77 +1611,24 @@ namespace Opc.Ua.Server.Historian.InMemory
                 throw new ArgumentNullException(nameof(annotations));
             }
 
-            var statuses = new StatusCode[annotations.Count];
-            var oldValues = new List<Annotation>();
-            lock (m_lock)
+            var timestamped = new HistorianAnnotation[annotations.Count];
+            for (int i = 0; i < annotations.Count; i++)
             {
-                NodeArchive archive = GetOrCreateArchive(nodeId);
-
-                for (int i = 0; i < annotations.Count; i++)
+                Annotation annotation = annotations[i];
+                if (annotation != null)
                 {
-                    Annotation annotation = annotations[i];
-                    if (annotation == null)
-                    {
-                        statuses[i] = StatusCodes.BadInvalidArgument;
-                        continue;
-                    }
-
-                    var key = annotation.AnnotationTime.ToDateTime();
-                    bool exists = archive.Annotations.ContainsKey(key);
-
-                    switch (updateType)
-                    {
-                        case HistoryUpdateType.Insert:
-                            if (exists)
-                            {
-                                statuses[i] = StatusCodes.BadEntryExists;
-                            }
-                            else
-                            {
-                                archive.Annotations[key] = new HistorianAnnotation(
-                                    annotation.AnnotationTime,
-                                    CloneAnnotation(annotation));
-                                statuses[i] = StatusCodes.GoodEntryInserted;
-                                EvictAnnotationsIfNeeded(archive);
-                            }
-                            break;
-                        case HistoryUpdateType.Replace:
-                            if (!exists)
-                            {
-                                statuses[i] = StatusCodes.BadNoEntryExists;
-                            }
-                            else
-                            {
-                                oldValues.Add(CloneAnnotation(archive.Annotations[key].Annotation));
-                                archive.Annotations[key] = new HistorianAnnotation(
-                                    annotation.AnnotationTime,
-                                    CloneAnnotation(annotation));
-                                statuses[i] = StatusCodes.GoodEntryReplaced;
-                            }
-                            break;
-                        case HistoryUpdateType.Update:
-                            if (exists)
-                            {
-                                oldValues.Add(CloneAnnotation(archive.Annotations[key].Annotation));
-                            }
-                            archive.Annotations[key] = new HistorianAnnotation(
-                                annotation.AnnotationTime,
-                                CloneAnnotation(annotation));
-                            statuses[i] = exists
-                                ? StatusCodes.GoodEntryReplaced
-                                : StatusCodes.GoodEntryInserted;
-                            if (!exists)
-                            {
-                                EvictAnnotationsIfNeeded(archive);
-                            }
-                            break;
-                        default:
-                            statuses[i] = StatusCodes.BadInvalidArgument;
-                            break;
-                    }
+                    timestamped[i] = new HistorianAnnotation(annotation.AnnotationTime, annotation);
                 }
             }
-            return CreateOutcome(statuses, oldValues);
+            HistorianUpdateOutcome<HistorianAnnotation> outcome = ApplyTimestamped(
+                nodeId, timestamped, updateType);
+            var oldValues = new List<Annotation>(outcome.OldValues.Count);
+            foreach (HistorianAnnotation value in outcome.OldValues)
+            {
+                oldValues.Add(value.Annotation);
+            }
+            return new HistorianUpdateOutcome<Annotation>(
+                outcome.OperationResults, oldValues.ToArrayOf());
         }
 
         private static HistorianPage<HistoricalDataValue> ReadRawPage(
@@ -2158,60 +2113,80 @@ namespace Opc.Ua.Server.Historian.InMemory
             }
         }
 
-        private static HistorianPage<Annotation> ReadAnnotationsPage(
+        private static HistorianPage<HistorianAnnotation> ReadAnnotationsPage(
             NodeArchive archive,
             HistorianAnnotationReadRequest request,
-            DateTime resumeAt)
+            HistorianResumeToken resumeToken,
+            bool useSourceTimestamp)
         {
             var start = request.StartTime.ToDateTime();
             var end = request.EndTime.ToDateTime();
             DateTime lo = start <= end ? start : end;
             DateTime hi = start <= end ? end : start;
 
-            uint cap = request.MaxValues > 0 ? request.MaxValues : kMaxValuesPerPage;
-            var output = new List<Annotation>((int)Math.Min(cap, kMaxValuesPerPage));
-
-            IEnumerable<KeyValuePair<DateTime, HistorianAnnotation>> source = request.IsForward
-                ? archive.Annotations
-                : archive.Annotations.Reverse();
-            DateTime lastEmittedKey = DateTime.MinValue;
-            bool capReached = false;
-            foreach (KeyValuePair<DateTime, HistorianAnnotation> entry in source)
+            bool isOpenEnded = request.MaxValues > 0 &&
+                (request.StartTime == DateTimeUtc.MinValue || request.EndTime == DateTimeUtc.MaxValue);
+            bool hasResume = TryDecodeAnnotationCursor(resumeToken, out AnnotationKey resumeAt, out uint remaining);
+            if (isOpenEnded && hasResume && (remaining == 0 || remaining > request.MaxValues))
             {
+                throw new ServiceResultException(StatusCodes.BadContinuationPointInvalid);
+            }
+            remaining = isOpenEnded ? hasResume ? remaining : request.MaxValues : 0;
+            uint cap = GetPageLimit(request.MaxValues, request.PageLimit);
+            if (remaining > 0)
+            {
+                cap = Math.Min(cap, remaining);
+            }
+            var output = new List<HistorianAnnotation>((int)cap);
+            IEnumerable<KeyValuePair<AnnotationKey, HistorianAnnotation>> source = useSourceTimestamp
+                ? archive.Annotations
+                : archive.Annotations.OrderBy(entry => entry.Key.AnnotationTime)
+                    .ThenBy(entry => entry.Key.SourceTimestamp);
+            if (!request.IsForward)
+            {
+                source = source.Reverse();
+            }
+            AnnotationKey lastEmittedKey = default;
+            foreach (KeyValuePair<AnnotationKey, HistorianAnnotation> entry in source)
+            {
+                AnnotationKey position = useSourceTimestamp
+                    ? entry.Key
+                    : new AnnotationKey(entry.Key.AnnotationTime, entry.Key.SourceTimestamp);
+                DateTime timestamp = position.SourceTimestamp;
                 bool exactInstant = lo == hi;
                 bool outside = exactInstant
-                    ? entry.Key != lo
+                    ? timestamp != lo
                     : request.IsForward
-                        ? entry.Key < lo || entry.Key >= hi
-                        : entry.Key <= lo || entry.Key > hi;
+                        ? timestamp < lo || timestamp >= hi
+                        : timestamp <= lo || timestamp > hi;
                 if (outside)
                 {
                     continue;
                 }
-                if (resumeAt != DateTime.MinValue)
+                if (hasResume)
                 {
-                    if (request.IsForward && entry.Key <= resumeAt)
-                    {
-                        continue;
-                    }
-                    if (!request.IsForward && entry.Key >= resumeAt)
+                    int comparison = position.CompareTo(resumeAt);
+                    if (request.IsForward ? comparison <= 0 : comparison >= 0)
                     {
                         continue;
                     }
                 }
 
-                if (capReached)
+                if (output.Count >= cap)
                 {
-                    return new HistorianPage<Annotation>(
+                    if (remaining > 0 && output.Count >= remaining)
+                    {
+                        return new HistorianPage<HistorianAnnotation>(output);
+                    }
+                    return new HistorianPage<HistorianAnnotation>(
                         output,
-                        EncodeTimestamp(lastEmittedKey));
+                        EncodeAnnotationCursor(lastEmittedKey, remaining > 0 ? remaining - (uint)output.Count : 0));
                 }
-                output.Add(CloneAnnotation(entry.Value.Annotation));
-                lastEmittedKey = entry.Key;
-                capReached = output.Count >= cap;
+                output.Add(new HistorianAnnotation(entry.Value.SourceTimestamp, CloneAnnotation(entry.Value.Annotation)));
+                lastEmittedKey = position;
             }
 
-            return new HistorianPage<Annotation>(output);
+            return new HistorianPage<HistorianAnnotation>(output);
         }
 
         private NodeArchive GetOrCreateArchive(NodeId nodeId)
@@ -2370,7 +2345,7 @@ namespace Opc.Ua.Server.Historian.InMemory
 
             while (archive.Annotations.Count > m_options.MaxAnnotationsPerNode)
             {
-                DateTime oldest = archive.Annotations.Keys.First();
+                AnnotationKey oldest = archive.Annotations.Keys.First();
                 archive.Annotations.Remove(oldest);
             }
         }
@@ -2403,48 +2378,23 @@ namespace Opc.Ua.Server.Historian.InMemory
             HistorianResumeToken resumeToken,
             CancellationToken ct)
         {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+            ct.ThrowIfCancellationRequested();
             lock (m_lock)
             {
                 if (!m_archives.TryGetValue(request.NodeId, out NodeArchive? archive))
                 {
-                    return new(HistorianPage<HistorianAnnotation>.Empty);
+                    return new ValueTask<HistorianPage<HistorianAnnotation>>(HistorianPage<HistorianAnnotation>.Empty);
                 }
-                DateTime lo = request.StartTime.ToDateTime();
-                DateTime hi = request.EndTime.ToDateTime();
-                if (lo > hi)
-                {
-                    (lo, hi) = (hi, lo);
-                }
-                var values = new List<HistorianAnnotation>();
-                IEnumerable<KeyValuePair<DateTime, HistorianAnnotation>> source = request.IsForward
-                    ? archive.Annotations
-                    : archive.Annotations.Reverse();
-                foreach (KeyValuePair<DateTime, HistorianAnnotation> entry in source)
-                {
-                    // Per Part 11 A.4.5, the read window applies to the
-                    // annotation's own SourceTimestamp (the timestamp of
-                    // the historized value it annotates), not the
-                    // AnnotationTime carried inside the annotation payload.
-                    DateTime sourceTimestamp = entry.Value.SourceTimestamp.ToDateTime();
-                    bool exactInstant = lo == hi;
-                    bool outside = exactInstant
-                        ? sourceTimestamp != lo
-                        : request.IsForward
-                            ? sourceTimestamp < lo || sourceTimestamp >= hi
-                            : sourceTimestamp <= lo || sourceTimestamp > hi;
-                    if (outside)
-                    {
-                        continue;
-                    }
-                    values.Add(new HistorianAnnotation(
-                        entry.Value.SourceTimestamp,
-                        CloneAnnotation(entry.Value.Annotation)));
-                    if (request.MaxValues > 0 && values.Count >= request.MaxValues)
-                    {
-                        break;
-                    }
-                }
-                return new(new HistorianPage<HistorianAnnotation>(values));
+                return new ValueTask<HistorianPage<HistorianAnnotation>>(
+                    ReadAnnotationsPage(archive, request, resumeToken, useSourceTimestamp: true));
             }
         }
 
@@ -2492,16 +2442,15 @@ namespace Opc.Ua.Server.Historian.InMemory
                 ApplyTimestamped(nodeId, annotations, HistoryUpdateType.Delete));
         }
 
-        // Timestamped annotation reads/writes share the SAME underlying
-        // archive.Annotations store used by the legacy
-        // IHistorianAnnotationProvider (keyed by AnnotationTime), so both
-        // interfaces observe a consistent set of annotations for a node.
-        // Legacy inserts default SourceTimestamp to AnnotationTime.
         private HistorianUpdateOutcome<HistorianAnnotation> ApplyTimestamped(
             NodeId nodeId,
             ArrayOf<HistorianAnnotation> annotations,
             HistoryUpdateType type)
         {
+            if (annotations.IsNull)
+            {
+                throw new ArgumentNullException(nameof(annotations));
+            }
             var statuses = new StatusCode[annotations.Count];
             var oldValues = new List<HistorianAnnotation>();
             lock (m_lock)
@@ -2515,7 +2464,9 @@ namespace Opc.Ua.Server.Historian.InMemory
                         statuses[i] = StatusCodes.BadInvalidArgument;
                         continue;
                     }
-                    DateTime key = item.Annotation.AnnotationTime.ToDateTime();
+                    var key = new AnnotationKey(
+                        item.SourceTimestamp.ToDateTime(),
+                        item.Annotation.AnnotationTime.ToDateTime());
                     bool exists = archive.Annotations.TryGetValue(key, out HistorianAnnotation prior);
                     if (type == HistoryUpdateType.Delete)
                     {
@@ -2596,25 +2547,42 @@ namespace Opc.Ua.Server.Historian.InMemory
                 transactionRolledBack: transactionRolledBack);
         }
 
-        private static HistorianResumeToken EncodeTimestamp(DateTime timestamp)
+        private static HistorianResumeToken EncodeAnnotationCursor(AnnotationKey key, uint remainingValues)
         {
             byte[] buffer = new byte[sizeof(long)];
-            BinaryPrimitives.WriteInt64LittleEndian(buffer, timestamp.ToBinary());
-            return new HistorianResumeToken(ByteString.From(buffer));
+            BinaryPrimitives.WriteInt64LittleEndian(buffer, key.AnnotationTime.ToBinary());
+            return HistorianResumeToken.FromCursor(new HistorianResumeCursor(
+                key.SourceTimestamp, ByteString.From(buffer), remainingValues));
         }
 
-        private static DateTime DecodeTimestamp(HistorianResumeToken token)
+        private static bool TryDecodeAnnotationCursor(
+            HistorianResumeToken token,
+            out AnnotationKey key,
+            out uint remainingValues)
         {
+            key = default;
+            remainingValues = 0;
             if (token.IsEmpty)
             {
-                return DateTime.MinValue;
+                return false;
             }
-            if (token.State.Length < sizeof(long))
+            if (!token.TryGetCursor(out HistorianResumeCursor cursor) ||
+                cursor.Key.Length != sizeof(long) || cursor.Sequence > uint.MaxValue)
             {
                 throw new ServiceResultException(StatusCodes.BadContinuationPointInvalid);
             }
-            long ticks = BinaryPrimitives.ReadInt64LittleEndian(token.State.Span);
-            return DateTime.FromBinary(ticks);
+            try
+            {
+                key = new AnnotationKey(
+                    cursor.Timestamp.ToDateTime(),
+                    DateTime.FromBinary(BinaryPrimitives.ReadInt64LittleEndian(cursor.Key.Span)));
+                remainingValues = (uint)cursor.Sequence;
+                return true;
+            }
+            catch (ArgumentException exception)
+            {
+                throw new ServiceResultException(StatusCodes.BadContinuationPointInvalid, exception.Message, exception);
+            }
         }
 
         /// <summary>
@@ -2668,12 +2636,23 @@ namespace Opc.Ua.Server.Historian.InMemory
                 = new(HistoricalValueKeyComparer.Instance);
 
             public List<ModificationEntry> ModifiedLog { get; } = [];
-            public SortedDictionary<DateTime, HistorianAnnotation> Annotations { get; } = [];
+            public SortedDictionary<AnnotationKey, HistorianAnnotation> Annotations { get; } = [];
             public DateTime LatestRawTimestamp { get; set; } = DateTime.MinValue;
             public int SequenceCounter;
         }
 
         private sealed record ModificationEntry(DataValue Value, ModificationInfo Info, int Sequence);
+
+        private readonly record struct AnnotationKey(
+            DateTime SourceTimestamp,
+            DateTime AnnotationTime) : IComparable<AnnotationKey>
+        {
+            public int CompareTo(AnnotationKey other)
+            {
+                int comparison = SourceTimestamp.CompareTo(other.SourceTimestamp);
+                return comparison != 0 ? comparison : AnnotationTime.CompareTo(other.AnnotationTime);
+            }
+        }
 
         private readonly record struct ModifiedResumePosition(
             DateTimeUtc SourceTimestamp,

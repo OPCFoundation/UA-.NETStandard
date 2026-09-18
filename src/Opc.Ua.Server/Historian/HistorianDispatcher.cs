@@ -1424,9 +1424,10 @@ namespace Opc.Ua.Server.Historian
                         NodeId = parentVariable.NodeId,
                         StartTime = start,
                         EndTime = end,
-                        MaxValues = ApplyHistorianLimit(
-                            details.NumValuesPerNode,
-                            capabilities.MaxReturnDataValues),
+                        MaxValues = annotations is IHistorianTimestampedAnnotationProvider
+                            ? details.NumValuesPerNode
+                            : ApplyHistorianLimit(details.NumValuesPerNode, capabilities.MaxReturnDataValues),
+                        PageLimit = capabilities.MaxReturnDataValues,
                         IsForward = isForward
                     };
                     resumeToken = default;
@@ -1440,11 +1441,12 @@ namespace Opc.Ua.Server.Historian
 
                 if (annotations is IHistorianTimestampedAnnotationProvider timestamped)
                 {
-                    HistorianPage<HistorianAnnotation> timestampedPage = await timestamped.ReadAnnotationsWithTimestampsAsync(
-                        opContext,
-                        request,
-                        resumeToken,
-                        cancellationToken).ConfigureAwait(false);
+                    HistorianPage<HistorianAnnotation> timestampedPage =
+                        await timestamped.ReadAnnotationsWithTimestampsAsync(
+                            opContext,
+                            request,
+                            resumeToken,
+                            cancellationToken).ConfigureAwait(false);
                     var timestampedDataValues = new List<DataValue>(timestampedPage.Values.Count);
                     foreach (HistorianAnnotation a in timestampedPage.Values)
                     {
@@ -1619,6 +1621,7 @@ namespace Opc.Ua.Server.Historian
                 {
                     annotationList.Add(null!);
                     times.Add(DateTimeUtc.MinValue);
+                    timestampedList.Add(default);
                     continue;
                 }
 
@@ -1634,16 +1637,33 @@ namespace Opc.Ua.Server.Historian
                     details.PerformInsertReplace switch
                     {
                         PerformUpdateType.Insert => await timestampedProvider.InsertAnnotationsWithTimestampsAsync(
-                            opContext, parentVariable.NodeId, timestampedList.ToArrayOf(), cancellationToken).ConfigureAwait(false),
+                            opContext,
+                            parentVariable.NodeId,
+                            timestampedList.ToArrayOf(),
+                            cancellationToken).ConfigureAwait(false),
                         PerformUpdateType.Replace => await timestampedProvider.ReplaceAnnotationsWithTimestampsAsync(
-                            opContext, parentVariable.NodeId, timestampedList.ToArrayOf(), cancellationToken).ConfigureAwait(false),
+                            opContext,
+                            parentVariable.NodeId,
+                            timestampedList.ToArrayOf(),
+                            cancellationToken).ConfigureAwait(false),
                         PerformUpdateType.Update => await timestampedProvider.UpdateAnnotationsWithTimestampsAsync(
-                            opContext, parentVariable.NodeId, timestampedList.ToArrayOf(), cancellationToken).ConfigureAwait(false),
+                            opContext,
+                            parentVariable.NodeId,
+                            timestampedList.ToArrayOf(),
+                            cancellationToken).ConfigureAwait(false),
                         PerformUpdateType.Remove => await timestampedProvider.DeleteAnnotationsWithTimestampsAsync(
-                            opContext, parentVariable.NodeId, timestampedList.ToArrayOf(), cancellationToken).ConfigureAwait(false),
+                            opContext,
+                            parentVariable.NodeId,
+                            timestampedList.ToArrayOf(),
+                            cancellationToken).ConfigureAwait(false),
                         _ => new HistorianUpdateOutcome<HistorianAnnotation>(
                             RepeatStatus(StatusCodes.BadInvalidArgument, annotationList.Count).ToArrayOf())
                     };
+                if (timestampedOutcome.OperationResults.Count != updateValues.Count)
+                {
+                    timestampedOutcome = CreateFailureOutcome<HistorianAnnotation>(
+                        StatusCodes.BadUnexpectedError, updateValues.Count);
+                }
                 var timestampedOldValues = new Annotation[timestampedOutcome.OldValues.Count];
                 for (int i = 0; i < timestampedOldValues.Length; i++)
                 {

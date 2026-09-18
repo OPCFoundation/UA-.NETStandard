@@ -233,9 +233,16 @@ namespace Opc.Ua.Server.Historian
         public required DateTimeUtc EndTime { get; init; }
 
         /// <summary>
-        /// Maximum number of annotations to return. Zero = unbounded.
+        /// Client page limit for bounded reads, or total quota for open-ended reads.
+        /// Zero means no client limit.
         /// </summary>
         public uint MaxValues { get; init; }
+
+        /// <summary>
+        /// Maximum annotations per server page. Zero allows the provider's default limit.
+        /// This does not replace the client's <see cref="MaxValues"/> quota.
+        /// </summary>
+        public uint PageLimit { get; init; }
 
         /// <summary>
         /// True for forward-in-time reads, false for reverse.

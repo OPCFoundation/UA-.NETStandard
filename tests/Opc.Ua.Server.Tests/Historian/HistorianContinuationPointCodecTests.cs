@@ -357,6 +357,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     StartTime = startTime,
                     EndTime = startTime.AddHours(1),
                     MaxValues = 11,
+                    PageLimit = 3,
                     IsForward = true
                 }
             };
@@ -366,7 +367,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 original,
                 CancellationToken.None).ConfigureAwait(false);
             Assert.That(envelope, Is.Not.Null);
-            Assert.That(envelope!.CodecVersion, Is.EqualTo(4));
+            Assert.That(envelope!.CodecVersion, Is.EqualTo(5));
 
             IHistoryContinuationPoint? decoded = await codec.DecodeAsync(
                 envelope,
@@ -380,6 +381,8 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(
                 state.AnnotationRequest!.NodeId,
                 Is.EqualTo(parentNodeId));
+            Assert.That(state.AnnotationRequest.MaxValues, Is.EqualTo(11));
+            Assert.That(state.AnnotationRequest.PageLimit, Is.EqualTo(3));
         }
 
         /// <summary>
