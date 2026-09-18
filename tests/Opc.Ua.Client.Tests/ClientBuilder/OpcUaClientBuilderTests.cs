@@ -364,6 +364,124 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
+        public async Task ManagedSessionPoolKeepsDisconnectedSessionIdentityAsync()
+        {
+            await using Client.ManagedSession session = CreateUnconnectedManagedSession();
+            session.StateMachine.Start();
+            var factory = new Mock<IManagedSessionFactory>();
+            int attempts = 0;
+            factory.Setup(value => value.ConnectAsync(
+                    It.IsAny<ConfiguredEndpoint>(), It.IsAny<Action<ManagedSessionBuilder>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => ++attempts == 1
+                    ? session
+                    : throw new InvalidOperationException("A disconnected session must not be replaced."));
+            await using var pool = new ManagedSessionPool(factory.Object);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            Client.ManagedSession first = await pool.GetOrConnectAsync("primary", CreateEndpoint(), timeout.Token)
+                .ConfigureAwait(false);
+            Client.ManagedSession second = await pool.GetOrConnectAsync("primary", CreateEndpoint(), timeout.Token)
+                .ConfigureAwait(false);
+
+            Assert.That(first, Is.SameAs(session));
+            Assert.That(second, Is.SameAs(session));
+            Assert.That(attempts, Is.EqualTo(1));
+            Assert.That(session.StateMachine.State, Is.EqualTo(ConnectionState.Disconnected));
+        }
+
+        [Test]
+        public async Task ManagedSessionPoolRejectsClosedFactoryResultWithoutRetryAsync()
+        {
+            await using Client.ManagedSession session = CreateUnconnectedManagedSession();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            session.StateMachine.Start();
+            await session.CloseAsync(timeout.Token).ConfigureAwait(false);
+            var factory = new Mock<IManagedSessionFactory>();
+            int attempts = 0;
+            factory.Setup(value => value.ConnectAsync(
+                    It.IsAny<ConfiguredEndpoint>(), It.IsAny<Action<ManagedSessionBuilder>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => ++attempts <= 2
+                    ? session
+                    : throw new InvalidOperationException("The pool retried a closed factory result."));
+            await using var pool = new ManagedSessionPool(factory.Object);
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await pool.GetOrConnectAsync("primary", CreateEndpoint(), timeout.Token).ConfigureAwait(false))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
+            Assert.That(attempts, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task ManagedSessionPoolReplacesExplicitlyClosedSessionOnceAsync()
+        {
+            await using Client.ManagedSession first = CreateUnconnectedManagedSession();
+            await using Client.ManagedSession replacement = CreateUnconnectedManagedSession();
+            first.StateMachine.Start();
+            replacement.StateMachine.Start();
+            var factory = new Mock<IManagedSessionFactory>();
+            factory.SetupSequence(value => value.ConnectAsync(
+                    It.IsAny<ConfiguredEndpoint>(), It.IsAny<Action<ManagedSessionBuilder>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(first)
+                .ReturnsAsync(replacement);
+            await using var pool = new ManagedSessionPool(factory.Object);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            Client.ManagedSession cached = await pool.GetOrConnectAsync(
+                "primary", CreateEndpoint(), timeout.Token).ConfigureAwait(false);
+            Assert.That(cached, Is.SameAs(first));
+
+            await first.CloseAsync(timeout.Token).ConfigureAwait(false);
+            Client.ManagedSession next = await pool.GetOrConnectAsync(
+                "primary", CreateEndpoint(), timeout.Token).ConfigureAwait(false);
+
+            Assert.That(next, Is.SameAs(replacement));
+            Assert.That(first.Disposed, Is.True);
+            factory.Verify(value => value.ConnectAsync(
+                It.IsAny<ConfiguredEndpoint>(), It.IsAny<Action<ManagedSessionBuilder>>(),
+                It.IsAny<CancellationToken>()), Times.Exactly(2));
+        }
+
+        [Test]
+        public async Task ManagedSessionPoolRemovalBoundsIgnoringFactoryAndDisposesLateSessionAsync()
+        {
+            await using Client.ManagedSession late = CreateUnconnectedManagedSession();
+            late.StateMachine.Start();
+            var completion = new TaskCompletionSource<Client.ManagedSession>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var factory = new Mock<IManagedSessionFactory>();
+            factory.Setup(value => value.ConnectAsync(
+                    It.IsAny<ConfiguredEndpoint>(), It.IsAny<Action<ManagedSessionBuilder>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(completion.Task);
+            await using var pool = new ManagedSessionPool(factory.Object);
+            using var caller = new CancellationTokenSource();
+            Task<Client.ManagedSession> waiting = pool.GetOrConnectAsync("primary", CreateEndpoint(), caller.Token);
+            caller.Cancel();
+            Assert.ThrowsAsync(Is.InstanceOf<OperationCanceledException>(),
+                async () => await waiting.ConfigureAwait(false));
+            Task<bool> removal = pool.RemoveAsync("primary").AsTask();
+            try
+            {
+                Assert.That(await removal.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false), Is.True);
+            }
+            finally
+            {
+                completion.TrySetResult(late);
+                await removal.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await late.StateMachine.WaitForClosedAsync(timeout.Token).ConfigureAwait(false);
+            while (!late.Disposed)
+            {
+                await Task.Delay(10, timeout.Token).ConfigureAwait(false);
+            }
+            Assert.That(late.Disposed, Is.True);
+        }
+
+        [Test]
         public async Task ManagedSessionPoolDisposeDisposesCachedSessionsAsync()
         {
             Client.ManagedSession session = CreateUnconnectedManagedSession();
