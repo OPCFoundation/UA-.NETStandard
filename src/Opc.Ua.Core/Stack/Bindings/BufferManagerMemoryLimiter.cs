@@ -71,7 +71,10 @@ namespace Opc.Ua
                 if (!m_disposed)
                 {
                     m_disposed = true;
-                    m_capacityChanged.Release();
+                    if (m_waiterCount > 0)
+                    {
+                        m_capacityChanged.Release(m_waiterCount);
+                    }
                 }
             }
             GC.SuppressFinalize(this);
@@ -125,9 +128,20 @@ namespace Opc.Ua
                             "A buffer rent cannot synchronously re-enter the same limiter during a return.");
                     }
 
+                    m_waiterCount++;
                 }
 
-                m_capacityChanged.Wait(ct);
+                try
+                {
+                    m_capacityChanged.Wait(ct);
+                }
+                finally
+                {
+                    lock (m_lock)
+                    {
+                        m_waiterCount--;
+                    }
+                }
             }
         }
 
@@ -460,6 +474,7 @@ namespace Opc.Ua
 
         private long m_nextReservationId;
         private long m_outstandingBytes;
+        private int m_waiterCount;
         private bool m_disposed;
 
         [ThreadStatic]
