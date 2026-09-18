@@ -1469,11 +1469,14 @@ namespace Opc.Ua.Server.Tests
             // A session cannot delete another session's abandoned subscription.
             // Server-owned cleanup uses the same null context as ServerInternalData.
             var deleteStart = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Task<StatusCode>[] deleteTasks = subscriptionIds.Select(async id =>
-            {
-                await deleteStart.Task.ConfigureAwait(false);
-                return await subscriptionManager.DeleteSubscriptionAsync(null!, id).ConfigureAwait(false);
-            }).ToArray();
+            Task<StatusCode>[] deleteTasks =
+            [
+                .. subscriptionIds.Select(async id =>
+                {
+                    await deleteStart.Task.ConfigureAwait(false);
+                    return await subscriptionManager.DeleteSubscriptionAsync(null!, id).ConfigureAwait(false);
+                })
+            ];
             deleteStart.SetResult(true);
             StatusCode[] results = await Task.WhenAll(deleteTasks).ConfigureAwait(false);
 
