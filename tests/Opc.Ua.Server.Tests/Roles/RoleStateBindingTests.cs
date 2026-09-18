@@ -190,10 +190,6 @@ namespace Opc.Ua.Server.Tests.Roles
             m_nodeManager.Dispose();
         }
 
-        // ----------------------------------------------------------------
-        // Auth gate enforcement (Part 18 §4.4)
-        // ----------------------------------------------------------------
-
         [Test]
         public async Task AddIdentityHandler_AnonymousCaller_ReturnsBadUserAccessDenied()
         {
@@ -290,10 +286,6 @@ namespace Opc.Ua.Server.Tests.Roles
                 Times.Once);
         }
 
-        // ----------------------------------------------------------------
-        // Audit-event firing (Part 18 §4.5)
-        // ----------------------------------------------------------------
-
         [Test]
         public async Task AddIdentityHandler_OnSuccess_FiresRoleMappingRuleChangedAuditEvent()
         {
@@ -332,10 +324,6 @@ namespace Opc.Ua.Server.Tests.Roles
                 "Failed mutator attempt should still raise the audit event.");
         }
 
-        // ----------------------------------------------------------------
-        // Exclude-flag write path
-        // ----------------------------------------------------------------
-
         [Test]
         public void ApplicationsExcludeWrite_AnonymousCaller_ReturnsBadUserAccessDenied()
         {
@@ -366,10 +354,6 @@ namespace Opc.Ua.Server.Tests.Roles
                 Is.EqualTo(StatusCodes.BadTypeMismatch));
         }
 
-        // ----------------------------------------------------------------
-        // RoleConfigurationChanged → property sync
-        // ----------------------------------------------------------------
-
         [Test]
         public void RoleConfigurationChanged_SyncsApplicationsExcludeOnRoleState()
         {
@@ -392,10 +376,6 @@ namespace Opc.Ua.Server.Tests.Roles
             Assert.That(m_roleState.ApplicationsExclude.Value, Is.False,
                 "RoleConfigurationChanged subscription should sync the role-state property.");
         }
-
-        // ----------------------------------------------------------------
-        // Gap 12: RoleConfigurationChanged syncs every typed property
-        // ----------------------------------------------------------------
 
         [Test]
         public void RoleConfigurationChanged_SyncsIdentitiesOnRoleState()
@@ -759,6 +739,126 @@ namespace Opc.Ua.Server.Tests.Roles
         }
 
         [Test]
+        public async Task ReaddedWellKnownRoleSurvivesItsEarlierRemovalAsync()
+        {
+            m_binding!.Dispose();
+            NodeId readdedId = NodeId.Null;
+            ServiceResult? readded = null;
+            void ReaddBeforeRemovalIsDispatched(object? sender, RoleConfigurationChangedEventArgs change)
+            {
+                if (change.Kind == RoleConfigurationChangeKind.RoleRemoved &&
+                    change.RoleId == ObjectIds.WellKnownRole_Engineer)
+                {
+                    readded = m_roleManager.AddRole(
+                        BrowseNames.WellKnownRole_Engineer, "http://opcfoundation.org/UA/", m_namespaceTable,
+                        m_nodeManager.NamespaceIndex, out readdedId);
+                }
+            }
+            m_roleManager.RoleConfigurationChanged += ReaddBeforeRemovalIsDispatched;
+            try
+            {
+                RoleState engineer = m_serverSystemContext.CreateInstanceOfRoleType(
+                    m_roleSet, new QualifiedName(BrowseNames.WellKnownRole_Engineer));
+                engineer.NodeId = ObjectIds.WellKnownRole_Engineer;
+                engineer.AddIdentity = m_serverSystemContext.CreateInstanceOfAddIdentityMethodType(engineer);
+                m_roleSet.AddChild(engineer);
+                m_nodeManager.PredefinedNodes[engineer.NodeId] = engineer;
+                m_binding = await RoleStateBinding.BindAsync(m_nodeManager, m_roleManager, m_auditServer.Object)
+                    .ConfigureAwait(false);
+                ISystemContext context = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+
+                ServiceResult removed = await InvokeRemoveRoleAsync(context, engineer.NodeId).ConfigureAwait(false);
+
+                Assert.That(ServiceResult.IsGood(removed), Is.True);
+                Assert.That(readded, Is.Not.Null);
+                Assert.That(ServiceResult.IsGood(readded), Is.True);
+                Assert.That(readdedId, Is.EqualTo(ObjectIds.WellKnownRole_Engineer));
+                Assert.That(m_roleManager.GetRole(readdedId), Is.Not.Null);
+                Assert.That(m_nodeManager.FindPredefinedNode<RoleState>(readdedId), Is.SameAs(engineer));
+                AddIdentityMethodState method = engineer.AddIdentity!;
+                AddIdentityMethodStateResult identity = await method.OnCallAsync!(
+                    context, method, engineer.NodeId,
+                    new IdentityMappingRuleType
+                    {
+                        CriteriaType = IdentityCriteriaType.UserName,
+                        Criteria = "replacement-engineer"
+                    }, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(identity.ServiceResult), Is.True);
+                Assert.That(m_roleManager.GetRole(readdedId)!.Identities,
+                    Has.Some.Matches<IdentityMappingRuleType>(rule => rule.Criteria == "replacement-engineer"));
+            }
+            finally
+            {
+                m_roleManager.RoleConfigurationChanged -= ReaddBeforeRemovalIsDispatched;
+            }
+        }
+
+        [Test]
+        public async Task RemovedRoleCannotDeleteADifferentNodeReusingItsIdAsync()
+        {
+            ISystemContext context = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+            AddRoleMethodStateResult added = await InvokeAddRoleAsync(
+                context, "ReplacedRole", "http://test.org/role-binding/").ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(added.ServiceResult), Is.True);
+            var foreign = new BaseObjectState(null)
+            {
+                NodeId = added.RoleNodeId,
+                BrowseName = new QualifiedName("ForeignReplacement", m_nodeManager.NamespaceIndex)
+            };
+            void ReplaceRemovedRole(object? sender, RoleConfigurationChangedEventArgs change)
+            {
+                if (change.Kind == RoleConfigurationChangeKind.RoleRemoved && change.RoleId == added.RoleNodeId)
+                {
+                    m_nodeManager.PredefinedNodes[change.RoleId] = foreign;
+                }
+            }
+            m_binding!.Dispose();
+            m_roleManager.RoleConfigurationChanged += ReplaceRemovedRole;
+            try
+            {
+                m_binding = await RoleStateBinding.BindAsync(m_nodeManager, m_roleManager, m_auditServer.Object)
+                    .ConfigureAwait(false);
+                ServiceResult removed = await InvokeRemoveRoleAsync(context, added.RoleNodeId).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(removed), Is.True);
+                Assert.That(m_nodeManager.FindPredefinedNode<NodeState>(added.RoleNodeId), Is.SameAs(foreign));
+            }
+            finally
+            {
+                m_roleManager.RoleConfigurationChanged -= ReplaceRemovedRole;
+            }
+        }
+
+        [Test]
+        public async Task RemovalOfAnUnmaterializedRoleCannotDeleteAForeignNodeAsync()
+        {
+            var occupied = new NodeId(4243u, m_nodeManager.NamespaceIndex);
+            var foreign = new BaseObjectState(null)
+            {
+                NodeId = occupied,
+                BrowseName = new QualifiedName("ForeignMachine", m_nodeManager.NamespaceIndex)
+            };
+            m_nodeManager.PredefinedNodes[occupied] = foreign;
+            using var manager = new FixedNodeIdRoleManager(occupied);
+            using RoleStateBinding? binding = await RoleStateBinding.BindAsync(
+                m_nodeManager, manager, m_auditServer.Object).ConfigureAwait(false);
+            Assert.That(binding, Is.Not.Null);
+            ISystemContext context = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+
+            AddRoleMethodStateResult failed = await InvokeAddRoleAsync(context, "Collision", string.Empty)
+                .ConfigureAwait(false);
+            Assert.That(failed.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
+            Assert.That(manager.Roles, Is.Empty);
+            Assert.That(ServiceResult.IsGood(manager.AddRole(
+                "Unmaterialized", string.Empty, m_namespaceTable, m_nodeManager.NamespaceIndex, out NodeId roleId)),
+                Is.True);
+            ServiceResult removed = await InvokeRemoveRoleAsync(context, roleId).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(removed), Is.True);
+            Assert.That(manager.Roles, Is.Empty);
+            Assert.That(m_nodeManager.FindPredefinedNode<NodeState>(occupied), Is.SameAs(foreign));
+        }
+
+        [Test]
         public async Task RemoveRoleHandler_AnonymousCaller_ReturnsBadUserAccessDenied_AndKeepsRole()
         {
             ISystemContext adminCtx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
@@ -807,10 +907,6 @@ namespace Opc.Ua.Server.Tests.Roles
             Assert.That(entry!.Identities, Has.Count.EqualTo(1));
             Assert.That(entry.Identities[0].Criteria, Is.EqualTo("carol"));
         }
-
-        // ----------------------------------------------------------------
-        // Issue #4361 (1): AddRole must not allocate a NodeId that is in use
-        // ----------------------------------------------------------------
 
         [Test]
         public async Task AddRoleHandler_ForeignNamespaceUri_DoesNotReplaceAnExistingNode()
@@ -879,10 +975,6 @@ namespace Opc.Ua.Server.Tests.Roles
             Assert.That(stub.Roles, Is.Empty,
                 "A role the client cannot browse must be rolled back out of the manager.");
         }
-
-        // ----------------------------------------------------------------
-        // Issue #4361 (2): roles configured before start-up need a node
-        // ----------------------------------------------------------------
 
         [Test]
         public async Task Bind_MaterializesRolesConfiguredBeforeTheAddressSpaceExisted()
@@ -975,10 +1067,6 @@ namespace Opc.Ua.Server.Tests.Roles
             Assert.That(m_nodeManager.PredefinedNodes[lateRoleId], Is.InstanceOf<RoleState>(),
                 "A role added directly on the manager must appear under the RoleSet.");
         }
-
-        // ----------------------------------------------------------------
-        // Teardown and failure handling
-        // ----------------------------------------------------------------
 
         [Test]
         public async Task Bind_MaterializationThrows_StillCompletesTheBindingAsync()

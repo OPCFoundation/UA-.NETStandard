@@ -118,7 +118,7 @@ require both a role and a group simultaneously, implement a custom
 
 ### Typed-proxy address-space binding
 
-`RoleStateBinding.Bind(diagnosticsNodeManager, roleManager, auditServer)` uses the source-generated typed proxies (`RoleSetState`, `RoleState`, `AddIdentityMethodState`, `AddRoleMethodState`, ...). Each typed `OnCallAsync` delegate:
+`RoleStateBinding.BindAsync(diagnosticsNodeManager, roleManager, auditServer)` uses the source-generated typed proxies (`RoleSetState`, `RoleState`, `AddIdentityMethodState`, `AddRoleMethodState`, ...). Each typed `OnCallAsync` delegate:
 
 1. Enforces `RoleAuthorizationGate.CheckAdmin` (SecurityAdmin role over a `SignAndEncrypt` channel) - returns `Bad_SecurityModeInsufficient` or `Bad_UserAccessDenied` otherwise (Part 18 4.2 / 4.4).
 2. Delegates to `IRoleManager`.
@@ -126,6 +126,12 @@ require both a role and a group simultaneously, implement a custom
 4. Keeps the typed `Identities`, `Applications`, `Endpoints`, `ApplicationsExclude`, `EndpointsExclude` and `CustomConfiguration` property values in sync with the manager via the `RoleConfigurationChanged` event.
 
 `DiagnosticsNodeManager.AddBehaviourToPredefinedNodeAsync` upgrades passive `BaseObjectState` instances of `RoleSetType` and `RoleType` to the typed `RoleSetState` and `RoleState` proxies at predefined-node load time.
+
+Queued removal retains the exact binding generation and node reference it owns.
+Re-adding a role advances that generation, even when the same well-known NodeId
+and RoleState are reused. Cleanup rechecks the role manager and conditionally
+claims the removed generation before deleting the node. A failed AddRole that
+never acquired a binding cannot delete the foreign node that caused its collision.
 
 ### Default impersonation flow
 

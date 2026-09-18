@@ -67,7 +67,7 @@ namespace Opc.Ua.Server
         private readonly IRoleManager m_roleManager;
         private readonly IAuditEventServer? m_auditServer;
         private readonly ILogger m_logger;
-        private readonly ConcurrentDictionary<NodeId, RoleState> m_boundRoles = new();
+        private readonly ConcurrentDictionary<NodeId, BoundRole> m_boundRoles = new();
 
         // Serializes every mutation of the RoleSet subtree — materializing a
         // role and dropping one both rewrite the RoleSet's children and
@@ -372,7 +372,7 @@ namespace Opc.Ua.Server
         private void BindRoleState(RoleState roleState)
         {
             NodeId roleId = roleState.NodeId;
-            m_boundRoles[roleId] = roleState;
+            m_boundRoles[roleId] = new BoundRole(roleState);
 
             // When the role node was loaded from the standard nodeset XML,
             // its method/property children are plain MethodState /
@@ -619,9 +619,22 @@ namespace Opc.Ua.Server
                 ScheduleDematerialize(e.RoleId);
                 return;
             }
-            if (m_boundRoles.TryGetValue(e.RoleId, out RoleState? roleState))
+            while (m_boundRoles.TryGetValue(e.RoleId, out BoundRole? bound))
             {
-                SyncPropertiesFromManager(e.RoleId, roleState);
+                if (e.Kind == RoleConfigurationChangeKind.RoleAdded)
+                {
+                    var replacement = new BoundRole(bound.State);
+                    if (!m_boundRoles.TryUpdate(e.RoleId, replacement, bound))
+                    {
+                        continue;
+                    }
+                    bound = replacement;
+                }
+                SyncPropertiesFromManager(e.RoleId, bound.State);
+                if (e.Kind == RoleConfigurationChangeKind.RoleAdded && m_roleManager.GetRole(e.RoleId) == null)
+                {
+                    ScheduleDematerialize(e.RoleId);
+                }
                 return;
             }
             if (e.Kind == RoleConfigurationChangeKind.RoleAdded)
@@ -658,11 +671,15 @@ namespace Opc.Ua.Server
 
         private void ScheduleDematerialize(NodeId roleId)
         {
+            if (!m_boundRoles.TryGetValue(roleId, out BoundRole? bound))
+            {
+                return;
+            }
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    await DematerializeDynamicRoleAsync(roleId, CancellationToken.None)
+                    await DematerializeDynamicRoleAsync(roleId, bound, CancellationToken.None)
                         .ConfigureAwait(false);
                 }
                 catch (Exception ex)
@@ -840,9 +857,10 @@ namespace Opc.Ua.Server
                 return new RemoveRoleMethodStateResult { ServiceResult = auth };
             }
 
+            m_boundRoles.TryGetValue(roleNodeId, out BoundRole? bound);
             ServiceResult remove = m_roleManager.RemoveRole(roleNodeId);
 
-            if (ServiceResult.IsGood(remove))
+            if (ServiceResult.IsGood(remove) && bound != null)
             {
                 // Drop the address-space subtree so subsequent browses don't
                 // see the deleted role. Mirror the AddRole behaviour: failures
@@ -850,7 +868,7 @@ namespace Opc.Ua.Server
                 // authoritative.
                 try
                 {
-                    await DematerializeDynamicRoleAsync(roleNodeId, cancellationToken)
+                    await DematerializeDynamicRoleAsync(roleNodeId, bound, cancellationToken)
                         .ConfigureAwait(false);
                 }
                 catch (Exception ex)
@@ -995,12 +1013,9 @@ namespace Opc.Ua.Server
 
         private async ValueTask DematerializeDynamicRoleAsync(
             NodeId roleNodeId,
+            BoundRole expected,
             CancellationToken cancellationToken)
         {
-            // Drop the binding bookkeeping first so any concurrent
-            // RoleConfigurationChanged listener walks the new state.
-            m_boundRoles.TryRemove(roleNodeId, out _);
-
             // Deleting the node rewrites the RoleSet's children and references,
             // so it has to be serialized against materialization: otherwise a
             // concurrent AddRole and RemoveRole mutate those collections from
@@ -1013,6 +1028,22 @@ namespace Opc.Ua.Server
 
             try
             {
+                if (m_roleManager.GetRole(roleNodeId) != null)
+                {
+                    return;
+                }
+
+                // A RoleAdded event advances the binding generation even when it reuses
+                // the same RoleState. Claim only the generation that was actually removed.
+                if (!((ICollection<KeyValuePair<NodeId, BoundRole>>)m_boundRoles)
+                    .Remove(new KeyValuePair<NodeId, BoundRole>(roleNodeId, expected)))
+                {
+                    return;
+                }
+                if (!ReferenceEquals(m_nodeManager.FindPredefinedNode<NodeState>(roleNodeId), expected.State))
+                {
+                    return;
+                }
                 await m_nodeManager.DeleteNodeAsync(
                         m_nodeManager.SystemContext,
                         roleNodeId,
@@ -1237,6 +1268,11 @@ namespace Opc.Ua.Server
                 ArrayOf.Wrapped(inputArguments),
                 success,
                 m_logger);
+        }
+
+        private sealed class BoundRole(RoleState state)
+        {
+            public RoleState State { get; } = state;
         }
 
         private sealed class DynamicRoleNodeIdFactory : INodeIdFactory
