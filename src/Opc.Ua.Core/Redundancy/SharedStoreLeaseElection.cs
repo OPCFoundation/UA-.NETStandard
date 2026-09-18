@@ -108,22 +108,29 @@ namespace Opc.Ua.Redundancy
         /// <inheritdoc/>
         public async ValueTask<bool> TryAcquireOrRenewAsync(CancellationToken ct = default)
         {
-            await m_attemptGate.WaitAsync(ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+            long attempt;
+            CancellationToken lifetime;
+            lock (m_lock)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(SharedStoreLeaseElection));
+                }
+                ExpireLeaseIfNeeded();
+                attempt = ++m_attempt;
+                lifetime = m_cts.Token;
+            }
+            DispatchNotifications();
+
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct, lifetime);
+            CancellationToken cancellationToken = cancellation.Token;
             try
             {
-                long attempt;
-                lock (m_lock)
-                {
-                    if (m_disposed)
-                    {
-                        throw new ObjectDisposedException(nameof(SharedStoreLeaseElection));
-                    }
-                    ExpireLeaseIfNeeded();
-                    attempt = ++m_attempt;
-                }
-
-                (bool found, ByteString current) =
-                    await m_store.TryGetAsync(m_leaseKey, ct).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                (bool found, ByteString current) = await m_store
+                    .TryGetAsync(m_leaseKey, cancellationToken)
+                    .AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
                 if (!IsCurrentAttempt(attempt))
                 {
                     return false;
@@ -148,13 +155,29 @@ namespace Opc.Ua.Redundancy
                 ByteString newLease = EncodeLease(m_nodeId, newExpiryTicks);
                 ByteString expected = found ? current : default;
                 bool acquired = await m_store
-                    .CompareAndSwapAsync(m_leaseKey, expected, newLease, ct)
-                    .ConfigureAwait(false);
-                return CompleteAttempt(attempt, acquired, timestamp, newExpiryTicks);
+                    .CompareAndSwapAsync(m_leaseKey, expected, newLease, cancellationToken)
+                    .AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
+                if (acquired)
+                {
+                    return CompleteAttempt(attempt, true, timestamp, newExpiryTicks);
+                }
+                if (!IsCurrentAttempt(attempt))
+                {
+                    return false;
+                }
+
+                // A concurrent renewal may have won the CAS without changing ownership.
+                (found, current) = await m_store.TryGetAsync(m_leaseKey, cancellationToken)
+                    .AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
+                long confirmedExpiry = 0;
+                bool stillOwned = found &&
+                    TryParseLease(current, out string confirmedOwner, out confirmedExpiry) &&
+                    string.Equals(confirmedOwner, m_nodeId, StringComparison.Ordinal) &&
+                    m_timeProvider.GetUtcNow().UtcTicks < confirmedExpiry;
+                return CompleteAttempt(attempt, stillOwned, timestamp, confirmedExpiry);
             }
             finally
             {
-                m_attemptGate.Release();
                 DispatchNotifications();
             }
         }
@@ -164,12 +187,17 @@ namespace Opc.Ua.Redundancy
         {
             lock (m_lock)
             {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(SharedStoreLeaseElection));
+                }
                 if (m_started)
                 {
                     return;
                 }
                 m_started = true;
-                m_loop = Task.Run(() => RenewLoopAsync(m_cts.Token));
+                CancellationToken lifetime = m_cts.Token;
+                m_loop = Task.Run(() => RenewLoopAsync(lifetime));
             }
         }
 
@@ -207,8 +235,6 @@ namespace Opc.Ua.Redundancy
                 }
             }
 
-            await m_attemptGate.WaitAsync().ConfigureAwait(false);
-            m_attemptGate.Dispose();
             await ReleaseIfOwnedAsync().ConfigureAwait(false);
             m_cts.Dispose();
         }
@@ -250,9 +276,11 @@ namespace Opc.Ua.Redundancy
         {
             try
             {
+                using var timeout = new CancellationTokenSource(m_renewInterval);
+                CancellationToken cancellationToken = timeout.Token;
                 (bool found, ByteString current) = await m_store
-                    .TryGetAsync(m_leaseKey, CancellationToken.None)
-                    .ConfigureAwait(false);
+                    .TryGetAsync(m_leaseKey, cancellationToken)
+                    .AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
                 if (found &&
                     TryParseLease(current, out string owner, out _) &&
                     string.Equals(owner, m_nodeId, StringComparison.Ordinal))
@@ -261,7 +289,7 @@ namespace Opc.Ua.Redundancy
                         m_leaseKey,
                         current,
                         default,
-                        CancellationToken.None).ConfigureAwait(false);
+                        cancellationToken).AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -480,7 +508,6 @@ namespace Opc.Ua.Redundancy
         /// Schedules revocation of local leadership even when a store operation is still pending.
         /// </summary>
         private readonly ITimer m_expiryTimer;
-        private readonly SemaphoreSlim m_attemptGate = new(1, 1);
         private readonly Lock m_lock = new();
         private readonly CancellationTokenSource m_cts = new();
         private Task? m_loop;

@@ -53,6 +53,7 @@ namespace Opc.Ua.Core.Tests.Redundancy
         private static readonly TimeSpan s_leaseDuration = TimeSpan.FromSeconds(30);
         private static readonly TimeSpan s_renewInterval = TimeSpan.FromSeconds(10);
         private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(5);
+        private static readonly bool[] s_acquired = [true];
         private static readonly bool[] s_acquireThenLoss = [true, false];
 
         [Test]
@@ -196,56 +197,155 @@ namespace Opc.Ua.Core.Tests.Redundancy
         }
 
         [Test]
-        public async Task ConcurrentAcquireOrRenewCallsAreSerializedAsync()
+        public async Task NewerAttemptSupersedesBlockedCompareAndSwapAsync()
         {
             var time = new FakeTimeProvider();
+            using var backend = new InMemorySharedKeyValueStore();
             var firstCompareAndSwapStarted = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseFirstCompareAndSwap = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var secondTryGetStarted = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            int tryGetCount = 0;
+            int swaps = 0;
             var store = new Mock<ISharedKeyValueStore>();
             store
                 .Setup(s => s.TryGetAsync(LeaseKey, It.IsAny<CancellationToken>()))
-                .Returns(() =>
-                {
-                    if (Interlocked.Increment(ref tryGetCount) == 1)
-                    {
-                        return new ValueTask<(bool Found, ByteString Value)>(
-                            (false, default));
-                    }
-
-                    secondTryGetStarted.TrySetResult(true);
-                    return new ValueTask<(bool Found, ByteString Value)>((false, default));
-                });
+                .Returns((string key, CancellationToken ct) => backend.TryGetAsync(key, ct));
             store
                 .Setup(s => s.CompareAndSwapAsync(
                     LeaseKey,
                     It.IsAny<ByteString>(),
                     It.IsAny<ByteString>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(async () =>
+                .Returns(async (string key, ByteString expected, ByteString value, CancellationToken ct) =>
                 {
-                    firstCompareAndSwapStarted.TrySetResult(true);
-                    await releaseFirstCompareAndSwap.Task.ConfigureAwait(false);
-                    return true;
+                    bool swapped = await backend.CompareAndSwapAsync(key, expected, value, ct).ConfigureAwait(false);
+                    if (Interlocked.Increment(ref swaps) == 1)
+                    {
+                        firstCompareAndSwapStarted.TrySetResult(true);
+                        await releaseFirstCompareAndSwap.Task.WaitAsync(s_timeout, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    return swapped;
                 });
 
             await using SharedStoreLeaseElection election = CreateElection(store.Object, "A", time);
+            var transitions = new List<bool>();
+            election.LeadershipChanged += transitions.Add;
             Task<bool> first = election.TryAcquireOrRenewAsync().AsTask();
-            await firstCompareAndSwapStarted.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+            try
+            {
+                await firstCompareAndSwapStarted.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                Assert.That(
+                    await election.TryAcquireOrRenewAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false),
+                    Is.True);
+                Assert.That(first.IsCompleted, Is.False, "The newer attempt must not wait for the old store reply.");
+                releaseFirstCompareAndSwap.TrySetResult(true);
+                Assert.That(await first.WaitAsync(s_timeout).ConfigureAwait(false), Is.False);
+                Assert.That(election.IsLeader, Is.True);
+                Assert.That(transitions, Is.EqualTo(s_acquired));
+            }
+            finally
+            {
+                releaseFirstCompareAndSwap.TrySetResult(true);
+                await first.WaitAsync(s_timeout).ConfigureAwait(false);
+            }
+        }
 
-            Task<bool> second = election.TryAcquireOrRenewAsync().AsTask();
-            await Task.Delay(TimeSpan.FromMilliseconds(50)).ConfigureAwait(false);
-            Assert.That(secondTryGetStarted.Task.IsCompleted, Is.False);
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedCompareAndSwapPreservesUnexpiredLocalLeaseAsync(bool renewedInStore)
+        {
+            var time = new FakeTimeProvider();
+            using var backend = new InMemorySharedKeyValueStore();
+            var store = new Mock<ISharedKeyValueStore>();
+            store.Setup(s => s.TryGetAsync(LeaseKey, It.IsAny<CancellationToken>()))
+                .Returns((string key, CancellationToken ct) => backend.TryGetAsync(key, ct));
+            store.Setup(s => s.CompareAndSwapAsync(
+                    LeaseKey, It.IsAny<ByteString>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns((string key, ByteString expected, ByteString value, CancellationToken ct) =>
+                    backend.CompareAndSwapAsync(key, expected, value, ct));
+            await using SharedStoreLeaseElection election = CreateElection(store.Object, "A", time);
+            var transitions = new List<bool>();
+            election.LeadershipChanged += transitions.Add;
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            time.Advance(s_renewInterval);
 
-            releaseFirstCompareAndSwap.TrySetResult(true);
-            Assert.That(await first.ConfigureAwait(false), Is.True);
-            Assert.That(await second.ConfigureAwait(false), Is.True);
+            store.Setup(s => s.CompareAndSwapAsync(
+                    LeaseKey, It.IsAny<ByteString>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns(async (string key, ByteString expected, ByteString value, CancellationToken ct) =>
+                {
+                    if (renewedInStore)
+                    {
+                        Assert.That(
+                            await backend.CompareAndSwapAsync(key, expected, value, ct).ConfigureAwait(false),
+                            Is.True);
+                    }
+                    return false;
+                });
+
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
             Assert.That(election.IsLeader, Is.True);
-            Assert.That(tryGetCount, Is.EqualTo(2));
+            Assert.That(transitions, Is.EqualTo(s_acquired));
+            TimeSpan remaining = renewedInStore ? s_leaseDuration : s_leaseDuration - s_renewInterval;
+            time.Advance(remaining - TimeSpan.FromTicks(1));
+            Assert.That(election.IsLeader, Is.True);
+            time.Advance(TimeSpan.FromTicks(1));
+            Assert.That(election.IsLeader, Is.False, "A failed CAS cannot invent a later stored expiry.");
+            Assert.That(transitions, Is.EqualTo(s_acquireThenLoss));
+        }
+
+        [Test]
+        public async Task DisposalWakesPendingStoreAttemptsAsync()
+        {
+            var time = new FakeTimeProvider();
+            using var backend = new InMemorySharedKeyValueStore();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int reads = 0;
+            var store = new Mock<ISharedKeyValueStore>();
+            store.Setup(s => s.TryGetAsync(LeaseKey, It.IsAny<CancellationToken>()))
+                .Returns(async (string key, CancellationToken ct) =>
+                {
+                    int read = Interlocked.Increment(ref reads);
+                    if (read is 2 or 3)
+                    {
+                        if (read == 3)
+                        {
+                            entered.TrySetResult(true);
+                        }
+                        await release.Task.WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    return await backend.TryGetAsync(key, ct).ConfigureAwait(false);
+                });
+            store.Setup(s => s.CompareAndSwapAsync(
+                    LeaseKey, It.IsAny<ByteString>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns((string key, ByteString expected, ByteString value, CancellationToken ct) =>
+                    backend.CompareAndSwapAsync(key, expected, value, ct));
+            SharedStoreLeaseElection election = CreateElection(store.Object, "A", time);
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            Task<bool> first = election.TryAcquireOrRenewAsync().AsTask();
+            Task<bool> second = election.TryAcquireOrRenewAsync().AsTask();
+            try
+            {
+                await entered.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                await election.DisposeAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
+                Assert.That(election.IsLeader, Is.False);
+                Assert.That(
+                    () => first.WaitAsync(s_timeout),
+                    Throws.InstanceOf<OperationCanceledException>());
+                Assert.That(
+                    () => second.WaitAsync(s_timeout),
+                    Throws.InstanceOf<OperationCanceledException>());
+                Assert.That(release.Task.IsCompleted, Is.False, "Disposal must not require the provider to reply.");
+                Assert.That(
+                    async () => await election.TryAcquireOrRenewAsync().ConfigureAwait(false),
+                    Throws.TypeOf<ObjectDisposedException>());
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await election.DisposeAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
+            }
         }
 
         [Test]
@@ -587,24 +687,21 @@ namespace Opc.Ua.Core.Tests.Redundancy
         public async Task StoreThatHangsStillStepsTheLeaderDownAsync()
         {
             var time = new FakeTimeProvider();
-            var released = new SemaphoreSlim(0);
+            var released = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             int probes = 0;
             var store = new Mock<ISharedKeyValueStore>();
 
             store
                 .Setup(s => s.TryGetAsync(LeaseKey, It.IsAny<CancellationToken>()))
-                .Returns(() =>
+                .Returns(async () =>
                 {
                     if (Interlocked.Increment(ref probes) > 1)
                     {
-                        // never completes until the test lets it go.
-                        return new ValueTask<(bool, ByteString)>(
-                            released.WaitAsync().ContinueWith(
-                                _ => (false, default(ByteString)),
-                                TaskScheduler.Default));
+                        entered.TrySetResult(true);
+                        await released.Task.WaitAsync(s_timeout).ConfigureAwait(false);
                     }
-
-                    return new ValueTask<(bool, ByteString)>((false, default));
+                    return (false, default(ByteString));
                 });
 
             store
@@ -642,8 +739,8 @@ namespace Opc.Ua.Core.Tests.Redundancy
                 await WaitWithTimeoutAsync(
                     acquired.Task, "leadership was not acquired").ConfigureAwait(false);
 
-                // The renew loop is now blocked in the store and will never come
-                // back on its own. Run the lease out.
+                Task<bool> blocked = election.TryAcquireOrRenewAsync().AsTask();
+                await entered.Task.WaitAsync(s_timeout).ConfigureAwait(false);
                 time.Advance(s_leaseDuration + TimeSpan.FromSeconds(1));
 
                 await WaitWithTimeoutAsync(
@@ -651,12 +748,64 @@ namespace Opc.Ua.Core.Tests.Redundancy
                     "the replica kept leading while the store hung").ConfigureAwait(false);
 
                 Assert.That(election.IsLeader, Is.False);
+                released.TrySetResult(true);
+                Assert.That(await blocked.WaitAsync(s_timeout).ConfigureAwait(false), Is.False);
             }
             finally
             {
-                released.Release(int.MaxValue / 2);
-                await election.DisposeAsync().ConfigureAwait(false);
-                released.Dispose();
+                released.TrySetResult(true);
+                await election.DisposeAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task ExpiredLeaseNotifiesBeforeBlockedStoreReadAsync()
+        {
+            var clock = new FakeTimeProvider();
+            var timer = new Mock<ITimer>();
+            timer.Setup(value => value.Change(It.IsAny<TimeSpan>(), It.IsAny<TimeSpan>())).Returns(true);
+            var time = new Mock<TimeProvider>();
+            time.Setup(value => value.GetUtcNow()).Returns(clock.GetUtcNow);
+            time.Setup(value => value.GetTimestamp()).Returns(clock.GetTimestamp);
+            time.SetupGet(value => value.TimestampFrequency).Returns(clock.TimestampFrequency);
+            time.Setup(value => value.CreateTimer(
+                    It.IsAny<TimerCallback>(), It.IsAny<object?>(), It.IsAny<TimeSpan>(), It.IsAny<TimeSpan>()))
+                .Returns(timer.Object);
+            using var backend = new InMemorySharedKeyValueStore();
+            var store = new Mock<ISharedKeyValueStore>();
+            store.Setup(value => value.TryGetAsync(LeaseKey, It.IsAny<CancellationToken>()))
+                .Returns((string key, CancellationToken ct) => backend.TryGetAsync(key, ct));
+            store.Setup(value => value.CompareAndSwapAsync(
+                    LeaseKey, It.IsAny<ByteString>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns((string key, ByteString expected, ByteString value, CancellationToken ct) =>
+                    backend.CompareAndSwapAsync(key, expected, value, ct));
+            await using SharedStoreLeaseElection election = CreateElection(store.Object, "A", time.Object);
+            var transitions = new List<bool>();
+            election.LeadershipChanged += transitions.Add;
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            clock.Advance(s_leaseDuration);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            store.Setup(value => value.TryGetAsync(LeaseKey, It.IsAny<CancellationToken>()))
+                .Returns(async (string key, CancellationToken ct) =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(s_timeout, CancellationToken.None).ConfigureAwait(false);
+                    return await backend.TryGetAsync(key, ct).ConfigureAwait(false);
+                });
+
+            Task<bool> attempt = election.TryAcquireOrRenewAsync().AsTask();
+            try
+            {
+                await entered.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                Assert.That(attempt.IsCompleted, Is.False);
+                Assert.That(transitions, Is.EqualTo(s_acquireThenLoss),
+                    "An expired lease must be announced before awaiting the shared store.");
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await attempt.WaitAsync(s_timeout).ConfigureAwait(false);
             }
         }
 

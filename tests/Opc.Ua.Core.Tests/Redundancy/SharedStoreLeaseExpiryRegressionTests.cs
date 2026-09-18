@@ -257,7 +257,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
                 Assert.That(stale.IsCompleted, Is.False);
                 time.Advance(s_leaseDuration - s_renewInterval);
                 ConfigureStore(store, backend);
-                Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+                Assert.That(
+                    await election.TryAcquireOrRenewAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false),
+                    Is.True);
                 Assert.That(transitions, Is.EqualTo(s_reacquired));
 
                 complete.TrySetResult(true);
