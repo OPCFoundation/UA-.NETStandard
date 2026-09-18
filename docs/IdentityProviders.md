@@ -400,8 +400,14 @@ Key design notes:
   existing reactivation lock and binds the new token to the current
   server nonce.
 * **Use `ManagedSessionOptions.IdentityProvider` for managed clients.**
-  `ManagedSession` calls `UpdateIdentityAsync` after connect, then
-  schedules proactive refresh at `provider.ExpiresAt - 60s` using the
+  `ManagedSession` refreshes discovery metadata before acquiring the initial
+  identity when endpoint refresh is enabled. Selection uses the configured
+  security policies, instance-certificate algorithm and policy registry, just
+  like `UpdateIdentityAsync`. The first activation uses that identity; it does
+  not require an anonymous session. A supplied single-use reverse connection
+  without a reverse-connect manager must already have endpoint metadata, as
+  on the direct session-factory path.
+  The session then schedules proactive refresh at `provider.ExpiresAt - 60s` using the
   configured `TimeProvider`. Refresh failures are logged and retried
   with backoff; they do not close the session.
 

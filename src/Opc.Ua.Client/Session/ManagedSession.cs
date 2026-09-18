@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Identity;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -1090,13 +1091,48 @@ namespace Opc.Ua.Client
                     IUserIdentity? initialIdentity = m_identity;
                     if (m_identityProvider != null)
                     {
+                        if (updateBeforeConnect && m_reverseConnectManager != null)
+                        {
+                            ITransportWaitingConnection discoveryConnection = waitingConnection
+                                ?? await m_reverseConnectManager.WaitForConnectionAsync(
+                                    ConfiguredEndpoint.EndpointUrl!,
+                                    ConfiguredEndpoint.ReverseConnect?.ServerUri,
+                                    ct).ConfigureAwait(false);
+                            await ConfiguredEndpoint.UpdateFromServerAsync(
+                                ConfiguredEndpoint.EndpointUrl!,
+                                discoveryConnection,
+                                ConfiguredEndpoint.Description.SecurityMode,
+                                ConfiguredEndpoint.Description.SecurityPolicyUri!,
+                                SessionFactory.Telemetry,
+                                ct).ConfigureAwait(false);
+                            waitingConnection = null;
+                            updateBeforeConnect = false;
+                        }
+                        else if (updateBeforeConnect && waitingConnection == null)
+                        {
+                            await ConfiguredEndpoint.UpdateFromServerAsync(
+                                m_configuration, SessionFactory.Telemetry, ct).ConfigureAwait(false);
+                            updateBeforeConnect = false;
+                        }
+
                         ServiceMessageContext identityContext =
                             m_configuration.CreateMessageContext();
-                        initialIdentity = await m_identityProvider
-                            .AcquireIdentityAsync(
+                        string policyUri = ConfiguredEndpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
+                        using CertificateEntry? certificate = policyUri == SecurityPolicies.None
+                            ? null
+                            : await Session.LoadInstanceCertificateEntryAsync(
+                                m_configuration,
+                                policyUri,
+                                SessionFactory.Telemetry,
+                                useCertificateRegistry: m_channelManager != null,
+                                ct).ConfigureAwait(false);
+                        IdentitySelectionContext selectionContext = Session.CreateIdentitySelectionContext(
+                                m_configuration,
                                 ConfiguredEndpoint.Description,
                                 identityContext,
-                                ct)
+                                certificate?.Certificate,
+                                m_securityPolicies ?? SecurityPolicies.Default);
+                        initialIdentity = await m_identityProvider.AcquireIdentityAsync(selectionContext, ct)
                             .ConfigureAwait(false);
                     }
 

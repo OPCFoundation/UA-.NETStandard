@@ -1801,31 +1801,6 @@ namespace Opc.Ua.Client
                     }
 
                     bool hasOverride = !string.IsNullOrEmpty(overrideUserTokenPolicyUri);
-                    ArrayOf<string> enabledPolicies;
-                    if (hasOverride)
-                    {
-                        enabledPolicies = new[] { overrideUserTokenPolicyUri! };
-                    }
-                    else if (m_configuration.SecurityConfiguration != null &&
-                        !m_configuration.SecurityConfiguration.SupportedSecurityPolicies.IsNull)
-                    {
-                        enabledPolicies = m_configuration.SecurityConfiguration
-                            .SupportedSecurityPolicies;
-                    }
-                    else
-                    {
-                        enabledPolicies = new[]
-                        {
-                            m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None
-                        };
-                    }
-
-                    CertificateKeyAlgorithm instanceAlg =
-                        CryptoUtils.GetCertificateKeyAlgorithm(m_instanceCertificateEntry?.Certificate);
-                    int instanceKeySize = instanceAlg == CertificateKeyAlgorithm.RSA
-                        ? CryptoUtils.GetRsaPublicKeySize(m_instanceCertificateEntry?.Certificate)
-                        : 0;
-
                     // Pin only when there's actually a bound ephemeral
                     // key; an override request bypasses pinning (the
                     // caller is explicitly asking for a new policy and
@@ -1836,17 +1811,14 @@ namespace Opc.Ua.Client
                             ? m_userTokenSecurityPolicyUri
                             : null;
 
-                    context = new IdentitySelectionContext(
+                    context = CreateIdentitySelectionContext(
+                        m_configuration,
                         m_endpoint.Description,
-                        m_endpoint.Description.UserIdentityTokens,
                         MessageContext,
-                        enabledPolicies)
-                    {
-                        ClientInstanceCertificateAlgorithm = instanceAlg,
-                        ClientInstanceCertificateKeySize = instanceKeySize,
-                        CurrentEphemeralKeyPolicyUri = boundEphemeralUri,
-                        SecurityPolicyRegistry = m_securityPolicies
-                    };
+                        m_instanceCertificateEntry?.Certificate,
+                        m_securityPolicies,
+                        overrideUserTokenPolicyUri,
+                        boundEphemeralUri);
                 }
 
                 IUserIdentity identity = await provider.AcquireIdentityAsync(context, ct)
@@ -5051,6 +5023,43 @@ namespace Opc.Ua.Client
                     identityPolicy.SecurityPolicyUri != SecurityPolicies.None &&
                     !string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
             }
+        }
+
+        internal static IdentitySelectionContext CreateIdentitySelectionContext(
+            ApplicationConfiguration configuration,
+            EndpointDescription endpoint,
+            IServiceMessageContext messageContext,
+            Certificate? instanceCertificate,
+            ISecurityPolicyRegistry securityPolicies,
+            string? overrideUserTokenPolicyUri = null,
+            string? currentEphemeralKeyPolicyUri = null)
+        {
+            ArrayOf<string> enabledPolicies;
+            if (!string.IsNullOrEmpty(overrideUserTokenPolicyUri))
+            {
+                enabledPolicies = [overrideUserTokenPolicyUri!];
+            }
+            else if (configuration.SecurityConfiguration != null &&
+                !configuration.SecurityConfiguration.SupportedSecurityPolicies.IsNull)
+            {
+                enabledPolicies = configuration.SecurityConfiguration.SupportedSecurityPolicies;
+            }
+            else
+            {
+                enabledPolicies = [endpoint.SecurityPolicyUri ?? SecurityPolicies.None];
+            }
+
+            CertificateKeyAlgorithm algorithm = CryptoUtils.GetCertificateKeyAlgorithm(instanceCertificate);
+            return new IdentitySelectionContext(
+                endpoint, endpoint.UserIdentityTokens, messageContext, enabledPolicies)
+            {
+                ClientInstanceCertificateAlgorithm = algorithm,
+                ClientInstanceCertificateKeySize = algorithm == CertificateKeyAlgorithm.RSA
+                    ? CryptoUtils.GetRsaPublicKeySize(instanceCertificate)
+                    : 0,
+                CurrentEphemeralKeyPolicyUri = currentEphemeralKeyPolicyUri,
+                SecurityPolicyRegistry = securityPolicies
+            };
         }
 
         private void BuildCertificateData(
