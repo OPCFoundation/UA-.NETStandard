@@ -219,7 +219,7 @@ namespace Opc.Ua.Server.Tests
                     "no role other than Anonymous may remain");
                 Assert.That(
                     ((RoleBasedIdentity)result).Roles,
-                    Is.EquivalentTo(new[] { Role.Anonymous }),
+                    Is.EquivalentTo([Role.Anonymous]),
                     "the Roles collection must be reduced to Anonymous as well");
                 // ChangePassword still has to identify the caller.
                 Assert.That(result.TokenType, Is.EqualTo(UserTokenType.UserName));
