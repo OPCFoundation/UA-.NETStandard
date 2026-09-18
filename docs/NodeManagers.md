@@ -1829,6 +1829,13 @@ client, reported through `OnError`, and stop that activation. For reactivatable
 producers, return a new readiness-aware stream from the `Publish` factory on
 each activation.
 
+Failed factories, iterators, and readiness checks are reported to the caller
+and `OnError`. While a source is still wanted, retries use an exponential delay
+from one second up to thirty seconds rather than an immediate restart loop.
+Only the current activation can request a retry; a late failure from a cancelled
+activation cannot retire its replacement. A failed event subscription rolls back
+its monitored-node registration and notifier count before returning the error.
+
 Managers that don't use the source generator can opt in by deriving
 from `Opc.Ua.Server.Fluent.FluentNodeManagerBase` and calling
 `AttachToBuilder(builder)` from inside their address-space-build

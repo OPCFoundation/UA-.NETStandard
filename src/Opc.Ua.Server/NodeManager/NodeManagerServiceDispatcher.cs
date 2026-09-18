@@ -2004,49 +2004,87 @@ namespace Opc.Ua.Server
                         filter,
                         createDurable);
 
-                    // subscribe to all node managers.
-                    if (itemToCreate.ItemToMonitor.NodeId == Objects.Server)
+                    bool allEvents = itemToCreate.ItemToMonitor.NodeId == Objects.Server;
+                    bool accepted = false;
+                    var attemptedOwners = new List<IAsyncNodeManager>();
+                    try
                     {
-                        foreach (IAsyncNodeManager manager in m_nodeManagers)
+                        ServiceResult subscriptionResult = ServiceResult.Good;
+                        if (allEvents)
                         {
-                            try
+                            foreach (IAsyncNodeManager manager in m_nodeManagers)
                             {
-                                await manager.SubscribeToAllEventsAsync(
+                                attemptedOwners.Add(manager);
+                                subscriptionResult = await manager.SubscribeToAllEventsAsync(
                                     context,
                                     subscriptionId,
                                     monitoredItem,
                                     false,
-                                    cancellationToken)
-                                    .ConfigureAwait(false);
-                            }
-                            catch (Exception e)
-                            {
-                                m_logger.NodeManagerThrewAnExceptionSubscribingToAll(e, manager.GetType().Name);
+                                    cancellationToken).ConfigureAwait(false);
+                                if (ServiceResult.IsBad(subscriptionResult))
+                                {
+                                    break;
+                                }
                             }
                         }
-                    }
-                    // only subscribe to the node manager that owns the node.
-                    else
-                    {
-                        ServiceResult error = await nodeManager.SubscribeToEventsAsync(
+                        else
+                        {
+                            attemptedOwners.Add(nodeManager);
+                            subscriptionResult = await nodeManager.SubscribeToEventsAsync(
                                 context,
                                 handle,
                                 subscriptionId,
                                 monitoredItem,
                                 false,
-                                cancellationToken)
-                            .ConfigureAwait(false);
+                                cancellationToken).ConfigureAwait(false);
+                        }
 
-                        if (ServiceResult.IsBad(error))
+                        if (ServiceResult.IsBad(subscriptionResult))
                         {
-                            Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
-                            errors[ii] = error;
+                            errors[ii] = subscriptionResult;
                             continue;
                         }
-                    }
 
-                    monitoredItems[ii] = monitoredItem;
-                    errors[ii] = StatusCodes.Good;
+                        monitoredItems[ii] = monitoredItem;
+                        errors[ii] = StatusCodes.Good;
+                        accepted = true;
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception error) when (error is not OutOfMemoryException)
+                    {
+                        m_logger.NodeManagerThrewAnExceptionSubscribingToAll(error, nodeManager.GetType().Name);
+                        errors[ii] = error is ServiceResultException serviceFailure
+                            ? new ServiceResult(serviceFailure)
+                            : ServiceResult.Create(error, StatusCodes.BadUnexpectedError,
+                                "The event source could not complete subscription startup.");
+                    }
+                    finally
+                    {
+                        if (!accepted)
+                        {
+                            try
+                            {
+                                foreach (IAsyncNodeManager owner in attemptedOwners)
+                                {
+                                    await UnsubscribeEventsAsync(
+                                        owner,
+                                        () => allEvents
+                                            ? owner.SubscribeToAllEventsAsync(
+                                                context, subscriptionId, monitoredItem, true, CancellationToken.None)
+                                            : owner.SubscribeToEventsAsync(
+                                                context, handle, subscriptionId, monitoredItem, true, CancellationToken.None),
+                                        CancellationToken.None).ConfigureAwait(false);
+                                }
+                            }
+                            finally
+                            {
+                                Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
+                            }
+                        }
+                    }
                 }
             }
         }

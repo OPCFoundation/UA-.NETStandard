@@ -108,6 +108,97 @@ namespace Opc.Ua.Server.Tests.NodeManager
             other.Verify(item => item.SetMonitoringMode(MonitoringMode.Disabled), Times.Once);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task EventCreateFailureDoesNotLeakEventManagerItemsAsync(bool throws)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var events = new EventManager(server.Object, 100, 100))
+            {
+                server.SetupGet(value => value.EventManager).Returns(events);
+                const string uri = "urn:tests:event-startup-failure";
+                ushort ns = server.Object.NamespaceUris.GetIndexOrAppend(uri);
+                var source = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("Source", ns),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                var owner = new Mock<IAsyncNodeManager>();
+                owner.SetupGet(value => value.NamespaceUris).Returns([uri]);
+                owner.Setup(value => value.GetManagerHandleAsync(
+                        source.NodeId, It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<object>(source));
+                owner.Setup(value => value.GetNodeMetadataAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<object>(),
+                        It.IsAny<BrowseResultMask>(), It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<NodeMetadata>(new NodeMetadata(source, source.NodeId)
+                    {
+                        NodeClass = NodeClass.Object,
+                        EventNotifier = EventNotifiers.SubscribeToEvents
+                    }));
+                owner.Setup(value => value.SubscribeToEventsAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<object>(), 1,
+                        It.IsAny<IEventMonitoredItem>(), false, It.IsAny<CancellationToken>()))
+                    .Returns(() => throws
+                        ? throw new ServiceResultException(StatusCodes.BadServerNotConnected)
+                        : new ValueTask<ServiceResult>(StatusCodes.BadServerNotConnected));
+                owner.Setup(value => value.SubscribeToEventsAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<object>(), 1,
+                        It.IsAny<IEventMonitoredItem>(), true, It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+                var factory = new Mock<IMainNodeManagerFactory>();
+                factory.Setup(value => value.CreateConfigurationNodeManager())
+                    .Returns(new Mock<IConfigurationNodeManager>().Object);
+                factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                    .Returns(new Mock<ICoreNodeManager>().Object);
+                server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+                using var manager = new MasterNodeManager(
+                    server.Object,
+                    new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    null,
+                    [owner.Object]);
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None);
+                var filter = new EventFilter
+                {
+                    SelectClauses =
+                    [
+                        new SimpleAttributeOperand
+                        {
+                            TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                            AttributeId = Attributes.Value,
+                            BrowsePath = [new QualifiedName(BrowseNames.EventId)]
+                        }
+                    ]
+                };
+                var request = new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = new ReadValueId { NodeId = source.NodeId, AttributeId = Attributes.EventNotifier },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = 1,
+                        QueueSize = 1,
+                        Filter = new ExtensionObject(filter)
+                    }
+                };
+                ServiceResult[] errors = new ServiceResult[1];
+                MonitoringFilterResult[] filterErrors = new MonitoringFilterResult[1];
+                IMonitoredItem[] items = new IMonitoredItem[1];
+
+                await manager.CreateMonitoredItemsAsync(
+                    context, 1, 1000, TimestampsToReturn.Both,
+                    [request], errors, filterErrors, items, false).ConfigureAwait(false);
+
+                Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadServerNotConnected));
+                Assert.That(items[0], Is.Null);
+                Assert.That(events.GetMonitoredItems(), Is.Empty);
+                owner.Verify(value => value.SubscribeToEventsAsync(
+                    context, source, 1, It.IsAny<IEventMonitoredItem>(), true, CancellationToken.None), Times.Once);
+            }
+        }
+
         /// <summary>
         /// Supplies three monitored-item owners with controlled partial failures, cancellation, and event callbacks.
         /// </summary>

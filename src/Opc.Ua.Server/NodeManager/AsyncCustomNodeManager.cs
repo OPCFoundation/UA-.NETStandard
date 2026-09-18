@@ -6838,12 +6838,16 @@ namespace Opc.Ua.Server
             // reference count for all root notifiers.
             foreach (KeyValuePair<NodeId, NodeState> kvp in RootNotifiers)
             {
-                await SubscribeToEventsAsync(
+                ServiceResult result = await SubscribeToEventsAsync(
                     systemContext,
                     kvp.Value,
                     monitoredItem,
                     unsubscribe,
                     cancellationToken).ConfigureAwait(false);
+                if (!unsubscribe && ServiceResult.IsBad(result))
+                {
+                    return result;
+                }
             }
 
             return ServiceResult.Good;
@@ -7088,8 +7092,54 @@ namespace Opc.Ua.Server
             if (ServiceResult.IsGood(serviceResult) &&
                 monitoredNode != null)
             {
-                await OnSubscribeToEventsAsync(context, monitoredNode, unsubscribe, cancellationToken)
-                    .ConfigureAwait(false);
+                try
+                {
+                    await OnSubscribeToEventsAsync(context, monitoredNode, unsubscribe, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch
+                {
+                    if (!unsubscribe && !wasSubscribed)
+                    {
+                        bool removed = false;
+                        // This operation was already admitted. Rollback must also work after
+                        // cancellation or shutdown has closed admission for new operations.
+                        await m_monitoredItemSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                        try
+                        {
+                            if (monitoredNode.EventMonitoredItems.TryGetValue(
+                                    monitoredItem.Id, out IEventMonitoredItem? registered) &&
+                                ReferenceEquals(registered, monitoredItem))
+                            {
+                                m_monitoredItemManager.SubscribeToEvents(
+                                    context, source, monitoredItem, unsubscribe: true);
+                                source.SetAreEventsMonitored(context, false, true);
+                                removed = true;
+                                if (!monitoredNode.HasMonitoredItems)
+                                {
+                                    monitoredNode.Dispose();
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            m_monitoredItemSemaphore.Release();
+                        }
+                        if (removed)
+                        {
+                            try
+                            {
+                                await OnSubscribeToEventsAsync(
+                                    context, monitoredNode, true, CancellationToken.None).ConfigureAwait(false);
+                            }
+                            catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                            {
+                                m_logger.NodeManagerDeferredCleanupFailed(cleanupFailure);
+                            }
+                        }
+                    }
+                    throw;
+                }
             }
 
             return serviceResult;

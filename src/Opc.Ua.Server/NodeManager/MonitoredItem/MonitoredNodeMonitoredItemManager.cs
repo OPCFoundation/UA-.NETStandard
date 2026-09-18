@@ -417,12 +417,16 @@ namespace Opc.Ua.Server
                 }
 
                 monitoredNode.Remove(monitoredItem);
-                MonitoredItems.TryRemove(monitoredItem.Id, out _);
+                if (!IsEventMonitoredItemLinked(monitoredItem.Id))
+                {
+                    MonitoredItems.TryRemove(monitoredItem.Id, out _);
+                }
 
                 // check if node is no longer being monitored.
                 if (!monitoredNode.HasMonitoredItems)
                 {
                     MonitoredNodes.Remove(source.NodeId);
+                    monitoredNode.Dispose();
                 }
 
                 return (monitoredNode, ServiceResult.Good);
