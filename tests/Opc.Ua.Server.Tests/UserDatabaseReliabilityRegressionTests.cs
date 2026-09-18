@@ -48,6 +48,46 @@ namespace Opc.Ua.Server.Tests
     [Category("Server")]
     public sealed class UserDatabaseReliabilityRegressionTests
     {
+        [Test]
+        public void FailedUserCreationDoesNotPersistCredentialsWithoutRequestedFlags()
+        {
+            using var files = new DatabaseFiles();
+            var initial = new JsonUserDatabase(files.FileName);
+            Assert.That(initial.CreateUser("alice", "credential"u8, [Role.AuthenticatedUser]), Is.True);
+            byte[] committed = File.ReadAllBytes(files.FileName);
+            const UserConfigurationMask configuration =
+                UserConfigurationMask.Disabled | UserConfigurationMask.MustChangePassword;
+            var database = new JsonUserDatabase(files.FileName, (path, bytes) =>
+            {
+                File.WriteAllBytes(path, bytes);
+                using JsonDocument snapshot = JsonDocument.Parse(bytes);
+                if (snapshot.RootElement.GetProperty("users").EnumerateArray().Any(user =>
+                    user.GetProperty("UserName").GetString() == "bob" &&
+                    user.GetProperty("UserConfiguration").GetUInt32() == (uint)configuration))
+                {
+                    throw new IOException("controlled metadata snapshot failure");
+                }
+            })
+            {
+                Users = initial.Users
+            };
+            using var management = new UserManagementFacade(database);
+
+            IOException failure = Assert.Throws<IOException>(() =>
+                management.AddUser("bob", "initial-credential", configuration, "Pending approval"));
+            Assert.That(failure.Message, Is.EqualTo("controlled metadata snapshot failure"));
+
+            IUserDatabase reloaded = JsonUserDatabase.Load(files.FileName, NUnitTelemetryContext.Create());
+            Assert.That(reloaded.GetUsers().Select(user => user.UserName), Is.EqualTo(s_oneUser));
+            Assert.That(reloaded.CheckCredentials("bob", "initial-credential"u8), Is.False);
+            Assert.That(reloaded.CheckCredentials("alice", "credential"u8), Is.True);
+            Assert.That(File.ReadAllBytes(files.FileName), Is.EqualTo(committed));
+            Assert.That(database.GetUsers().Select(user => user.UserName), Is.EqualTo(s_oneUser));
+            Assert.That(database.CheckCredentials("bob", "initial-credential"u8), Is.False);
+            Assert.That(management.SnapshotUsers().Select(user => user.UserName), Is.EqualTo(s_oneUser));
+            Assert.That(Directory.GetFiles(files.DirectoryName), Has.Length.EqualTo(1));
+        }
+
         /// <summary>
         /// Verifies that a partial snapshot-write failure preserves the committed database and removes temporary files.
         /// </summary>

@@ -159,19 +159,16 @@ namespace Opc.Ua.Server.UserManagement
                     return new ServiceResult(StatusCodes.BadAlreadyExists,
                         new LocalizedText($"User '{userName}' already exists."));
                 }
-                if (!m_userDatabase.CreateUser(userName, GetPasswordBytes(password), []))
+                bool created = m_userMetadataDatabase != null
+                    ? m_userMetadataDatabase.CreateUser(
+                        userName, GetPasswordBytes(password), [], userConfiguration, description ?? string.Empty)
+                    : m_userDatabase.CreateUser(userName, GetPasswordBytes(password), []);
+                if (!created)
                 {
                     return new ServiceResult(StatusCodes.BadResourceUnavailable,
                         new LocalizedText("User-database rejected the create operation."));
                 }
                 m_metadata[userName] = new UserMetadata(userConfiguration, description ?? string.Empty);
-                if (!PersistUserMetadata(userName, userConfiguration, description))
-                {
-                    m_metadata.Remove(userName);
-                    m_userDatabase.DeleteUser(userName);
-                    return new ServiceResult(StatusCodes.BadResourceUnavailable,
-                        new LocalizedText("User-database rejected the metadata write."));
-                }
             }
             finally
             {

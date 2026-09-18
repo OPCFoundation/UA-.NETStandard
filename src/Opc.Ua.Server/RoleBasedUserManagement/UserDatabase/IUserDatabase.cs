@@ -91,6 +91,26 @@ namespace Opc.Ua.Server.UserDatabase
     public interface IUserMetadataDatabase
     {
         /// <summary>
+        /// Creates a user with credentials, roles, configuration flags, and description in one transaction.
+        /// </summary>
+        /// <param name="userName">The name of the new user.</param>
+        /// <param name="password">The UTF-8 encoded password.</param>
+        /// <param name="roles">The roles assigned to the new user.</param>
+        /// <param name="userConfiguration">The initial configuration flags.</param>
+        /// <param name="description">The initial user description.</param>
+        /// <returns><c>true</c> if created; <c>false</c> if the user already exists, without changing that user.</returns>
+        /// <remarks>
+        /// A persistent store must commit the complete record in one write. A rejected or failed write must
+        /// leave both the live record and the persisted record unchanged.
+        /// </remarks>
+        bool CreateUser(
+            string userName,
+            ReadOnlySpan<byte> password,
+            ArrayOf<Role> roles,
+            UserConfigurationMask userConfiguration,
+            string description);
+
+        /// <summary>
         /// Stores the configuration mask and description for a user.
         /// </summary>
         bool UpdateUserMetadata(
