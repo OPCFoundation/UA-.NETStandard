@@ -432,6 +432,39 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
+        public void FailedInitialRegistrationDeregistersOnlyCompletedRegistrations()
+        {
+            InMemoryFileSystemProvider provider = CreateProvider();
+            provider.AddFile("a.txt", "a");
+            provider.AddFile("b.txt", "b");
+            FileDirectoryState root = CreateRoot();
+            SessionSystemContext context = CreateContext();
+            var deregistered = new List<NodeState>();
+
+            Assert.ThrowsAsync<IOException>(async () => await CreateBinder().BindAsync(
+                root, provider, context,
+                registerNode: (node, _) =>
+                {
+                    if (node.BrowseName.Name == "b.txt")
+                    {
+                        throw new IOException("Registration rejected.");
+                    }
+                    return default;
+                },
+                deregisterNode: (node, _) =>
+                {
+                    deregistered.Add(node);
+                    return default;
+                }).ConfigureAwait(false));
+
+            Assert.That(deregistered, Has.Count.EqualTo(1));
+            Assert.That(deregistered[0].BrowseName.Name, Is.EqualTo("a.txt"));
+            Assert.That(Find<FileState>(root, context, "a.txt"), Is.Null);
+            Assert.That(Find<FileState>(root, context, "b.txt"), Is.Null);
+            Assert.That(root.CreateFile!.OnCallAsync, Is.Null);
+        }
+
+        [Test]
         public void AddFileDirectoryBinderRegistersDefaultBinder()
         {
             var services = new ServiceCollection();

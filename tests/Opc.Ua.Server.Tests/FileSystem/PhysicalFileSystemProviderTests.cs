@@ -127,6 +127,14 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
+        public void PathIdentityRejectsNullRatherThanAliasingTheRoot()
+        {
+            PhysicalFileSystemProvider provider = CreateProvider();
+
+            Assert.Throws<ArgumentNullException>(() => provider.GetPathIdentity(null!));
+        }
+
+        [Test]
         public async Task GetEntryAsyncReturnsNullForMissingPathAsync()
         {
             PhysicalFileSystemProvider provider = CreateProvider();
@@ -289,7 +297,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             PhysicalFileSystemProvider provider = CreateProvider();
             await provider.CreateDirectoryAsync("packages/version", CancellationToken.None).ConfigureAwait(false);
-            await provider.CreateFileAsync("packages/version/payload.bin", CancellationToken.None).ConfigureAwait(false);
+            await provider.CreateFileAsync("packages/version/payload.bin", CancellationToken.None)
+                .ConfigureAwait(false);
             using (Stream stream = await provider.OpenWriteAsync(
                 "packages/version/payload.bin", FileWriteMode.Truncate, CancellationToken.None).ConfigureAwait(false))
             {

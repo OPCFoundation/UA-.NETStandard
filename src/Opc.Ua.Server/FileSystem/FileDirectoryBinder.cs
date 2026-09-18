@@ -737,7 +737,7 @@ namespace Opc.Ua.Server.FileSystem
                 MaterializedNode entry,
                 CancellationToken cancellationToken)
             {
-                if (m_deregisterNode != null)
+                if (entry.Registered && m_deregisterNode != null)
                 {
                     await m_deregisterNode(entry.Node, cancellationToken).ConfigureAwait(false);
                 }

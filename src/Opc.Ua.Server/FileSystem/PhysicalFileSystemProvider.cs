@@ -122,6 +122,10 @@ namespace Opc.Ua.Server.FileSystem
         /// <inheritdoc/>
         public string GetPathIdentity(string path)
         {
+            if (path == null)
+            {
+                throw new ArgumentNullException(nameof(path));
+            }
             string full = ResolveAbsolute(path);
             return Path.DirectorySeparatorChar == '\\' ? full.ToUpperInvariant() : full;
         }

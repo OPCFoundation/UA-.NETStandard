@@ -484,7 +484,8 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         internal void ForgetHandle(NodeId nodeId)
         {
-            if (!FileSystemNodeId.TryParse(nodeId, out FileSystemNodeId parsed))
+            if (nodeId.NamespaceIndex != NamespaceIndex ||
+                !FileSystemNodeId.TryParse(nodeId, out FileSystemNodeId parsed))
             {
                 return;
             }
