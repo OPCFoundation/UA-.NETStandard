@@ -289,9 +289,13 @@ namespace Opc.Ua.Server
                         m_nextSampleTime);
 
                     DataValue replacement = value;
-                    if (m_overflowPending)
+                    bool overwritesOverflow = m_overflowPending && m_overflow == overwrittenValue;
+                    if (overwritesOverflow || overwrittenValue.StatusCode.Overflow)
                     {
                         SetOverflowBit(ref replacement, ref error);
+                    }
+                    if (overwritesOverflow)
+                    {
                         m_overflow = default;
                         m_overflowPending = false;
                     }

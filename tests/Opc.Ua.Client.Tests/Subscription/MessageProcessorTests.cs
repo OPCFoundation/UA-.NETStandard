@@ -380,7 +380,8 @@ namespace Opc.Ua.Client.Subscriptions
                 await callbackEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 manager.Add(Mock.Of<ISubscriptionNotificationHandler>(), OptionsFactory.Create<SubscriptionOptions>());
                 manager.Resume();
-                Assert.That(await ingressBlocked.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.True);
+                Assert.That(
+                    await ingressBlocked.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.True);
 
                 quiescence = manager.RunWithPublishingQuiescedAsync(_ =>
                 {

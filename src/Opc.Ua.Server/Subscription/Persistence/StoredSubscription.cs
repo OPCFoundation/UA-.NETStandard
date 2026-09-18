@@ -68,7 +68,7 @@ namespace Opc.Ua.Server
         public bool IsDurable { get; set; }
 
         /// <inheritdoc/>
-        public bool PublishingEnabled { get; set; }
+        public bool PublishingEnabled { get; set; } = true;
 
         /// <inheritdoc/>
         public string? OwnerClientApplicationUri { get; set; }

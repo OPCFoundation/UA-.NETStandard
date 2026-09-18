@@ -135,6 +135,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// <inheritdoc/>
         public bool Created => Id != 0;
 
+        /// <inheritdoc/>
+        public bool IsCreationInProgress
+            => Volatile.Read(ref m_creationInProgress) != 0;
+
         internal bool IsDispatchingCallback => IsDispatchingNotification;
 
         /// <inheritdoc/>
@@ -1313,10 +1317,6 @@ namespace Opc.Ua.Client.Subscriptions
                 Interlocked.Exchange(ref m_creationInProgress, 0);
             }
         }
-
-        /// <inheritdoc/>
-        public bool IsCreationInProgress
-            => Volatile.Read(ref m_creationInProgress) != 0;
 
         /// <summary>
         /// Modifies a subscription on the server.

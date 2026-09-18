@@ -614,20 +614,16 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deletes the subscription.
         /// </summary>
+        /// <remarks>
+        /// Once deletion starts, monitored-item cleanup is not cancelled. Diagnostics
+        /// teardown follows that cleanup so cancellation or shutdown cannot leave items registered.
+        /// </remarks>
         public async ValueTask DeleteAsync(OperationContext context, CancellationToken cancellationToken = default)
         {
             // Mark the subscription deleted first so any concurrent service call that reaches a
             // publicly callable method fails fast with Bad_SubscriptionIdInvalid instead of
             // operating on a subscription that is being torn down.
             Volatile.Write(ref m_deleted, 1);
-
-            // delete the diagnostics.
-            if (!m_diagnosticsId.IsNull)
-            {
-                ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(Session);
-                await m_server.DiagnosticsNodeManager
-                    .DeleteSubscriptionDiagnosticsAsync(systemContext, m_diagnosticsId, cancellationToken).ConfigureAwait(false);
-            }
 
             try
             {
@@ -666,20 +662,31 @@ namespace Opc.Ua.Server
                         errors.Add(null!);
                     }
 
-                    await m_server.NodeManager
-                        .DeleteMonitoredItemsAsync(context, Id, monitoredItems, errors, CancellationToken.None)
-                        .ConfigureAwait(false);
-
-                    // dispose the monitored items.
-                    foreach (IMonitoredItem monitoredItem in monitoredItems)
+                    try
                     {
-                        monitoredItem?.Dispose();
+                        await m_server.NodeManager
+                            .DeleteMonitoredItemsAsync(context, Id, monitoredItems, errors, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        foreach (IMonitoredItem monitoredItem in monitoredItems)
+                        {
+                            monitoredItem?.Dispose();
+                        }
                     }
                 }
             }
             catch (Exception e)
             {
                 m_logger.DeleteItemsForSubscriptionFailed(e);
+            }
+
+            if (!m_diagnosticsId.IsNull)
+            {
+                ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(Session);
+                await m_server.DiagnosticsNodeManager.DeleteSubscriptionDiagnosticsAsync(
+                    systemContext, m_diagnosticsId, CancellationToken.None).ConfigureAwait(false);
             }
         }
 
@@ -1145,6 +1152,14 @@ namespace Opc.Ua.Server
                         }
                     }
 
+                    if (m_subscription.m_server.DiagnosticsNodeManager is DiagnosticsNodeManager diagnosticsNodeManager)
+                    {
+                        diagnosticsNodeManager.RelinkSubscriptionDiagnostics(
+                            m_subscription.m_diagnosticsId,
+                            m_destinationSession.Id,
+                            m_sourceSession?.Id ?? default);
+                    }
+
                     m_subscription.UpdateDiagnostics(
                         diagnostics => diagnostics.SessionId = m_sourceSession?.Id ?? default);
                 }
@@ -1569,17 +1584,25 @@ namespace Opc.Ua.Server
                 // check for monitored items that are ready to publish.
                 LinkedListNode<IMonitoredItem>? current = m_itemsToPublish.First;
 
-                //Limit the amount of values a monitored item publishes at once
+                uint messageBudget = Math.Max(1u, m_messageQueue.MaxMessageCount);
                 uint maxNotificationsPerMonitoredItem =
                     m_maxNotificationsPerPublish == 0
                         ? uint.MaxValue
-                        : m_maxNotificationsPerPublish * 3;
+                        : (uint)Math.Min(uint.MaxValue, (ulong)m_maxNotificationsPerPublish * 3);
 
-                while (current != null)
+                while (current != null && messages.Count < messageBudget)
                 {
                     LinkedListNode<IMonitoredItem>? next = current.Next;
                     IMonitoredItem monitoredItem = current.Value;
                     bool hasMoreValuesToPublish;
+                    uint notificationLimit = maxNotificationsPerMonitoredItem;
+                    if (m_maxNotificationsPerPublish > 0)
+                    {
+                        // Reserve room for every value before taking it out of its monitored-item queue.
+                        ulong remaining = ((ulong)messageBudget - (uint)messages.Count) * m_maxNotificationsPerPublish
+                            - (ulong)events.Count - (ulong)datachanges.Count;
+                        notificationLimit = (uint)Math.Min(notificationLimit, remaining);
+                    }
 
                     if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                     {
@@ -1587,7 +1610,7 @@ namespace Opc.Ua.Server
                             context,
                             datachanges,
                             datachangeDiagnostics,
-                            maxNotificationsPerMonitoredItem,
+                            notificationLimit,
                             m_logger);
                     }
                     else
@@ -1595,7 +1618,7 @@ namespace Opc.Ua.Server
                         hasMoreValuesToPublish = ((IEventMonitoredItem)monitoredItem).Publish(
                             context,
                             events,
-                            maxNotificationsPerMonitoredItem);
+                            notificationLimit);
                     }
 
                     // if item has more values to publish leave it at the front of the list
@@ -1608,11 +1631,9 @@ namespace Opc.Ua.Server
                         m_itemsToCheck.AddLast(current);
                     }
 
-                    // Construct all complete messages currently available, while retaining any
-                    // notifications that do not fit in the retransmission queue.
                     while (m_maxNotificationsPerPublish > 0 &&
                         events.Count + datachanges.Count >= m_maxNotificationsPerPublish &&
-                        messages.Count < m_messageQueue.MaxMessageCount)
+                        messages.Count < messageBudget)
                     {
                         // construct message.
                         int eventCount = events.Count;
@@ -1636,16 +1657,13 @@ namespace Opc.Ua.Server
                             Diagnostics.NotificationsCount += (uint)notificationCount;
                             MarkDiagnosticsDirty();
                         }
-
-                        // Continue draining complete messages until the queue is full.
                     }
 
                     current = next;
                 }
 
                 // publish the remaining notifications.
-                while (events.Count + datachanges.Count > 0 &&
-                    messages.Count < m_messageQueue.MaxMessageCount)
+                while (events.Count + datachanges.Count > 0)
                 {
                     // construct message.
                     int eventCount = events.Count;
@@ -1715,6 +1733,7 @@ namespace Opc.Ua.Server
                 availableSequenceNumberList,
                 out moreNotifications,
                 out uint newlyUnacknowledgedCount);
+            moreNotifications |= m_itemsToPublish.Count > 0;
 
             if (newlyUnacknowledgedCount > 0)
             {

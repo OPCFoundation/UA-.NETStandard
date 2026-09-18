@@ -166,8 +166,11 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(StatusCodes.Good));
         }
 
-        [Test]
-        public void DataChangeOverflowCarrierSurvivesTooSoonOverwrite()
+        [TestCase(false, 1)]
+        [TestCase(false, 2)]
+        [TestCase(true, 1)]
+        [TestCase(true, 2)]
+        public void DataChangeOverflowCarrierSurvivesTooSoonOverwrite(bool discardOldest, int overwriteCount)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var queueFactory = new MonitoredItemQueueFactory(telemetry);
@@ -178,7 +181,7 @@ namespace Opc.Ua.Server.Tests
                 queueFactory,
                 telemetry,
                 timeProvider: timeProvider);
-            handler.SetQueueSize(2, discardOldest: false, DiagnosticsMasks.None);
+            handler.SetQueueSize(2, discardOldest, DiagnosticsMasks.None);
             handler.SetSamplingInterval(100);
 
             handler.QueueValue(new DataValue(new Variant(1)), ServiceResult.Good);
@@ -187,17 +190,22 @@ namespace Opc.Ua.Server.Tests
             timeProvider.Advance(TimeSpan.FromMilliseconds(100));
             handler.QueueValue(new DataValue(new Variant(3)), ServiceResult.Good);
 
-            handler.QueueValue(new DataValue(new Variant(4)), ServiceResult.Good);
+            for (int index = 1; index <= overwriteCount; index++)
+            {
+                handler.QueueValue(new DataValue(new Variant(3 + index)), ServiceResult.Good);
+            }
 
             Assert.That(handler.PublishSingleValue(
                 out DataValue first,
                 out _), Is.True);
-            Assert.That(first.WrappedValue.GetInt32(), Is.EqualTo(1));
+            Assert.That(first.WrappedValue.GetInt32(), Is.EqualTo(discardOldest ? 2 : 1));
+            Assert.That(first.StatusCode.Overflow, Is.EqualTo(discardOldest));
             Assert.That(handler.PublishSingleValue(
                 out DataValue replacement,
                 out _), Is.True);
-            Assert.That(replacement.WrappedValue.GetInt32(), Is.EqualTo(4));
-            Assert.That(replacement.StatusCode.Overflow, Is.True);
+            Assert.That(replacement.WrappedValue.GetInt32(), Is.EqualTo(3 + overwriteCount));
+            Assert.That(replacement.StatusCode.Overflow, Is.EqualTo(!discardOldest));
+            Assert.That(handler.PublishSingleValue(out _, out _), Is.False);
         }
 
         /// <summary>
