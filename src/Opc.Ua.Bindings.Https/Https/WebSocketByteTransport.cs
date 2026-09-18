@@ -29,6 +29,7 @@
 
 using System;
 using System.Net;
+using System.Net.Security;
 using System.Net.WebSockets;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
@@ -412,7 +413,8 @@ namespace Opc.Ua.Bindings
                         (sender, cert, chain, errors) => ValidateRemoteCertificate(
                             validator,
                             cert as X509Certificate2,
-                            chain);
+                            chain,
+                            errors);
                 }
                 if (ClientTlsCertificate != null)
                 {
@@ -466,7 +468,8 @@ namespace Opc.Ua.Bindings
         private bool ValidateRemoteCertificate(
             ICertificateValidatorEx validator,
             X509Certificate2? cert,
-            X509Chain? chain)
+            X509Chain? chain,
+            SslPolicyErrors sslPolicyErrors)
         {
             if (cert == null)
             {
@@ -474,6 +477,12 @@ namespace Opc.Ua.Bindings
             }
             try
             {
+                if ((sslPolicyErrors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateHostNameInvalid,
+                        "The TLS certificate host name does not match the endpoint.");
+                }
                 using CertificateCollection validation = CertificateValidationHelpers
                     .BuildValidationCertificateCollection(cert, chain);
                 // Run the async validator from the sync TLS callback; the

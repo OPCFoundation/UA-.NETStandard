@@ -167,6 +167,11 @@ sub-protocol) only accept `SecurityMode.None` regardless of the
 configured security policies — see Part 6 §7.4.5 / §7.5.2 for the
 spec rationale.
 
+All HTTPS and WSS client bindings, including WebApi, require the TLS certificate
+to match the endpoint hostname before invoking a configured OPC UA certificate
+validator. Trusting a certificate or its issuer does not bypass hostname
+verification. This also applies to TLS-only JSON bindings.
+
 ## Client-side usage
 
 The client API is the standard `Session` + `EndpointDescription` flow;
