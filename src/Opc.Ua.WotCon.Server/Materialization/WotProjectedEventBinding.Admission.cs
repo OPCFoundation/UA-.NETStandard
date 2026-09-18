@@ -57,9 +57,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             await ValidateEventTypeAsync(builder, source, cancellationToken).ConfigureAwait(false);
             source.Validate();
-            ValidateIdentityAdmission();
+            EventManager eventManager = ValidateIdentityAdmission();
             cancellationToken.ThrowIfCancellationRequested();
             m_routeRegistry.PrepareTransparentSource(this, source);
+            eventManager.RequireEventIdentityAdmission();
             m_preparedSource = source;
         }
 
@@ -72,7 +73,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
-        private void ValidateIdentityAdmission()
+        private EventManager ValidateIdentityAdmission()
         {
             if (m_eventManager?.SupportsEventIdentityAdmission != true)
             {
@@ -85,6 +86,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 throw new ServiceResultException(
                     status, "The host cannot establish continuous server-wide event identity ownership.");
             }
+            return m_eventManager;
         }
 
         private async ValueTask ValidateEventTypeAsync(

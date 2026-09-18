@@ -50,7 +50,7 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Gets the continuity status of native evidence recorded since server startup.
-        /// Legacy native publication remains compatible until a reservation requests
+        /// Legacy native publication remains compatible until preparation or a reservation requests
         /// the guarantee. Earlier unidentifiable or conflicting native output makes
         /// that guarantee unavailable, rather than silently starting a new domain.
         /// </summary>
@@ -62,6 +62,30 @@ namespace Opc.Ua.Server
                 {
                     return m_identityContinuityStatus;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Requires strict native occurrence admission before a projection is published,
+        /// without reserving an EventId or consuming identity capacity. Once required,
+        /// admission remains strict for the server lifetime, including after the
+        /// preparing generation is aborted or removed.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The server pipeline or its earlier native output cannot support continuous admission.
+        /// </exception>
+        /// <exception cref="ObjectDisposedException">The event manager is disposed.</exception>
+        public void RequireEventIdentityAdmission()
+        {
+            lock (m_identityLock)
+            {
+                ThrowIfIdentityDisposed();
+                if (!SupportsEventIdentityAdmission)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNotSupported,
+                        "The server publication pipeline cannot support server-wide EventId admission.");
+                }
+                RequireEventIdentityAdmissionCore();
             }
         }
 
@@ -83,13 +107,7 @@ namespace Opc.Ua.Server
             }
             lock (m_identityLock)
             {
-                ThrowIfIdentityDisposed();
-                if (StatusCode.IsBad(m_identityContinuityStatus))
-                {
-                    throw new ServiceResultException(m_identityContinuityStatus,
-                        "Earlier native publication cannot support server-wide EventId admission.");
-                }
-                m_identityRequired = true;
+                RequireEventIdentityAdmissionCore();
                 IdentityClaim claim = ReserveIdentityCore(eventId, source, native: false);
                 claim.Reservations++;
                 return new EventIdentityReservation(this, claim);
@@ -192,6 +210,17 @@ namespace Opc.Ua.Server
                     fields.Handle = null;
                 }
             }
+        }
+
+        private void RequireEventIdentityAdmissionCore()
+        {
+            ThrowIfIdentityDisposed();
+            if (StatusCode.IsBad(m_identityContinuityStatus))
+            {
+                throw new ServiceResultException(m_identityContinuityStatus,
+                    "Earlier native publication cannot support server-wide EventId admission.");
+            }
+            m_identityRequired = true;
         }
 
         private void AttachIdentity(IdentityClaim claim, ISystemContext context, IFilterTarget occurrence)

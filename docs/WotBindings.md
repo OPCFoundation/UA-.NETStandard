@@ -569,6 +569,10 @@ the current Session and namespace mapping, the selected Object or View's event
 subscription capability, and the host's server-wide identity admission status.
 It also checks the source and local EventType lineage. A known source Condition
 identity is reserved against conflicting authorities before publication.
+After these checks succeed, preparation requires strict native admission through
+`EventManager.RequireEventIdentityAdmission`. This does not allocate an EventId
+or consume identity capacity. Native collisions are rejected from this point,
+without waiting for a subscriber or the first forwarded occurrence.
 
 This admission supports Core event types and custom subtypes that add no
 instance declarations. Custom types must match their source BrowseName,
@@ -746,9 +750,11 @@ or action-route expiry is not a reset of either budget.
 
 Ordinary native APIs have no explicit producing-generation release contract, so
 their bounded identity evidence remains until server disposal. The manager
-records this evidence from startup. The first projected reservation requests
-strict admission for the remaining server lifetime, including subsequent native
-publication. Before that request, legacy native publication remains compatible;
+records this evidence from startup. Preparing a native transparent projection or
+making the first projected reservation requires strict admission for the remaining
+server lifetime, including subsequent native publication. Aborting or removing
+that generation does not restore legacy admission. Before that request, legacy
+native publication remains compatible;
 an unidentifiable or conflicting native occurrence is reported through warning
 telemetry and `EventIdentityAdmissionStatus = BadNotSupported`. It permanently
 prevents claiming the optional guarantee in that server lifetime, rather than
