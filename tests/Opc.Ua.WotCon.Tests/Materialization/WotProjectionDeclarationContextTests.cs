@@ -230,6 +230,65 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(references, Is.Empty);
         }
 
+        [TestCase("i=58")]
+        [TestCase("nsu=urn:loaded;s=Parent")]
+        [TestCase("nsu=https://types.example/model/;i=1001")]
+        public void PortableNodeMetadataRetainsItsIdentityWithoutDocumentBaseResolution(string identity)
+        {
+            byte[] content = Encoding.UTF8.GetBytes($$"""
+                {
+                  "@context":{"@base":"https://documents.example/sub/"},
+                  "id":"urn:document:instance",
+                  "uav:id":"{{identity}}",
+                  "links":[{"rel":"ua:HasTypeDefinition","href":"{{identity}}"}]
+                }
+                """);
+
+            WotResourceDependencies metadata = WotDependencyGraph.ReadMetadata(ByteString.From(content), 64);
+
+            Assert.That(metadata.References.Count, Is.Zero);
+            Assert.That(metadata.DefinedNodeIds.ToArray(), Is.EqualTo(new[] { identity }));
+        }
+
+        [Test]
+        public void RelativeDocumentDependencyStillUsesItsActiveBase()
+        {
+            var content = ByteString.From(Encoding.UTF8.GetBytes("""
+                {
+                  "@context":{"@base":"https://documents.example/sub/"},
+                  "id":"urn:document:instance",
+                  "links":[{"rel":"type","href":"../model.json"}]
+                }
+                """));
+
+            WotResourceDependencies metadata = WotDependencyGraph.ReadMetadata(content, 64);
+
+            Assert.That(metadata.References.Count, Is.EqualTo(1));
+            Assert.That(metadata.References[0].TargetUri, Is.EqualTo("../model.json"));
+            Assert.That(metadata.References[0].LookupUri, Is.EqualTo("https://documents.example/model.json"));
+        }
+
+        [TestCase("uav:componentOf")]
+        [TestCase("ua:HasTypeDefinition")]
+        public async Task PortableNodeTargetsKeepTheDocumentClosureProjectable(string relation)
+        {
+            using var registry = new WotRegistryService();
+            byte[] content = Document("instance", relation, "nsu=urn:loaded;s=Parent");
+            await AddAsync(registry, "instance", WoTDocumentKindEnum.ThingDescription, content).ConfigureAwait(false);
+            WotResource selected = registry.Current.AllResources().Single();
+
+            var closures = await WotDependencyGraph.BuildClosuresAsync(
+                registry.Current, [selected], 64,
+                (_, _) => new ValueTask<ByteString>(ByteString.From(content)), CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(closures, Has.Length.EqualTo(1));
+            Assert.That(closures[0].IsProjectable, Is.True);
+            Assert.That(closures[0].Dependencies, Is.Empty);
+            Assert.That(closures[0].OrderedResources, Has.Length.EqualTo(1));
+            Assert.That(closures[0].OrderedResources[0].ResourceId, Is.EqualTo("instance"));
+        }
+
         [TestCase("ParentNodeId")]
         [TestCase("HasComponent")]
         [TestCase("HasProperty")]

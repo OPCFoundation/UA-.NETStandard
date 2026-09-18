@@ -21,6 +21,11 @@ requirements before body acquisition. Contentless targets remain unresolved;
 their raw edges and acquisition failures are retained without inventing a content
 digest pin or aborting independent selected work.
 
+Portable NodeIds remain native identities rather than relative document
+locations. Dependency indexing does not resolve them against a document's base
+or invent missing document edges; ordinary relative document references still
+use their original active base context.
+
 The captured graph separates ordinary semantic strongly connected components
 from ordering constraints such as inheritance. Reciprocal ordinary references
 may co-activate; inheritance cycles remain invalid. Referenced disabled inputs

@@ -297,6 +297,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             string expanded = ExpandTerm(document, value, carryingNode);
             if (expanded.Length == 0 || expanded[0] is '#' or '/' ||
+                ExpandedNodeId.TryParse(expanded, out _) ||
                 Uri.TryCreate(expanded, UriKind.Absolute, out _))
             {
                 return expanded;
