@@ -39,7 +39,10 @@ namespace Opc.Ua
 {
     public partial class ContentFilter : IFormattable
     {
-        private const int MaxElementCount = 1024;
+        /// <summary>
+        /// Maximum number of elements accepted by validation and evaluation.
+        /// </summary>
+        public const int MaxElementCount = 1024;
 
         /// <summary>
         /// Set the default StringComparison to use when evaluating the Equals operator.

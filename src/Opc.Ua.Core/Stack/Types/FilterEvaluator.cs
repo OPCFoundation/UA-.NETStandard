@@ -56,7 +56,7 @@ namespace Opc.Ua
         /// <summary>
         /// Evaluates the first element in the ContentFilter. If the first or any
         /// subsequent element has dependent elements, the dependent elements are
-        /// evaluated before the root element (recursive descent). Elements which
+        /// evaluated before the root element without recursive descent. Elements which
         /// are not linked (directly or indirectly) to the first element will not
         /// be evaluated (they have no influence on the result).
         /// </summary>
@@ -71,14 +71,72 @@ namespace Opc.Ua
                     return true;
                 }
 
+                if (m_filter.Elements.Count > ContentFilter.MaxElementCount)
+                {
+                    throw new ServiceResultException(StatusCodes.BadContentFilterInvalid);
+                }
+
                 m_results = new Variant[m_filter.Elements.Count];
                 m_evaluated = new bool[m_filter.Elements.Count];
+                m_leftValues = new Variant[m_filter.Elements.Count];
+                m_leftEvaluated = new bool[m_filter.Elements.Count];
+                var dependenciesResolved = new bool[m_filter.Elements.Count];
+                var operandsByIndex = new FilterOperand[m_filter.Elements.Count][];
+                var pending = new Stack<(int Index, int OperandIndex, bool ValueRequired)>();
+                pending.Push((0, 0, true));
 
-                if (Evaluate(0).TryGetValue(out bool result))
+                // Resume each element after its higher-index dependencies. RelatedTo
+                // chains share operands, but their results depend on the intermediate node.
+                while (pending.Count != 0)
                 {
-                    return result;
+                    (int index, int operandIndex, bool valueRequired) = pending.Pop();
+                    if (m_evaluated[index] || (!valueRequired && dependenciesResolved[index]))
+                    {
+                        continue;
+                    }
+                    m_currentIndex = index;
+                    ContentFilterElement element = m_filter.Elements[index];
+                    if (element == null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadContentFilterInvalid);
+                    }
+                    FilterOperand[] operands = operandsByIndex[index] ??= GetOperands(element, 0);
+                    if (operandIndex == 1 &&
+                        element.FilterOperator is FilterOperator.And or FilterOperator.Or &&
+                        GetLeftValue(operands[0]).TryGetValue(out bool left) &&
+                        (element.FilterOperator == FilterOperator.And ? !left : left))
+                    {
+                        operandIndex = operands.Length;
+                    }
+                    if (!dependenciesResolved[index] && operandIndex < operands.Length)
+                    {
+                        pending.Push((index, operandIndex + 1, valueRequired));
+                        if (operands[operandIndex] is ElementOperand dependency)
+                        {
+                            bool relatedChain = element.FilterOperator == FilterOperator.RelatedTo && operandIndex == 1;
+                            if (dependency.Index <= index || dependency.Index >= m_filter.Elements.Count)
+                            {
+                                if (!relatedChain)
+                                {
+                                    throw new ServiceResultException(StatusCodes.BadContentFilterInvalid);
+                                }
+                                continue;
+                            }
+                            int dependencyIndex = (int)dependency.Index;
+                            bool dependencyValueRequired = !relatedChain ||
+                                m_filter.Elements[dependencyIndex]?.FilterOperator != FilterOperator.RelatedTo;
+                            pending.Push((dependencyIndex, 0, dependencyValueRequired));
+                        }
+                        continue;
+                    }
+                    dependenciesResolved[index] = true;
+                    if (valueRequired)
+                    {
+                        m_results[index] = Evaluate(index);
+                        m_evaluated[index] = true;
+                    }
                 }
-                return false;
+                return m_results[0].TryGetValue(out bool result) && result;
             }
         }
 
@@ -213,15 +271,30 @@ namespace Opc.Ua
                     attribute.ParsedIndexRange);
             }
 
-            // recursively evaluate element operands.
-
             if (operand is ElementOperand element)
             {
-                return Evaluate(checked((int)element.Index));
+                if (element.Index <= m_currentIndex ||
+                    element.Index >= m_filter.Elements.Count ||
+                    m_evaluated == null ||
+                    !m_evaluated[(int)element.Index])
+                {
+                    throw new ServiceResultException(StatusCodes.BadContentFilterInvalid);
+                }
+                return m_results![(int)element.Index];
             }
 
             // oops - Validate() was not called.
             throw ServiceResultException.Unexpected("FilterOperand is not supported.");
+        }
+
+        private Variant GetLeftValue(FilterOperand operand)
+        {
+            if (!m_leftEvaluated![m_currentIndex])
+            {
+                m_leftValues![m_currentIndex] = GetValue(operand);
+                m_leftEvaluated[m_currentIndex] = true;
+            }
+            return m_leftValues![m_currentIndex];
         }
 
         /// <summary>
@@ -232,7 +305,7 @@ namespace Opc.Ua
             FilterOperand[] operands = GetOperands(element, 2);
 
             // no need for further processing if first operand is false.
-            bool lhsNil = !GetValue(operands[0]).TryGetValue(out bool lhs);
+            bool lhsNil = !GetLeftValue(operands[0]).TryGetValue(out bool lhs);
             if (!lhsNil && !lhs)
             {
                 return false;
@@ -269,7 +342,7 @@ namespace Opc.Ua
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
-            bool lhsNil = !GetValue(operands[0]).TryGetValue(out bool lhs);
+            bool lhsNil = !GetLeftValue(operands[0]).TryGetValue(out bool lhs);
 
             // no need for further processing if first operand is true.
             if (lhs)
@@ -585,6 +658,11 @@ namespace Opc.Ua
                 return default; // not supported
             }
 
+            return ConvertValue(value, targetType);
+        }
+
+        private Variant ConvertValue(Variant value, BuiltInType targetType)
+        {
             try
             {
                 return value.ConvertTo(targetType);
@@ -663,157 +741,99 @@ namespace Opc.Ua
         /// </summary>
         private Variant RelatedTo(ContentFilterElement element)
         {
-            return RelatedTo(element, default);
-        }
-
-        /// <summary>
-        /// RelatedTo FilterOperator
-        /// </summary>
-        private bool RelatedTo(
-            ContentFilterElement element,
-            NodeId intermediateNodeId)
-        {
-            // RelatedTo only supported in advanced filter targets.
-
             if (m_target is not IAdvancedFilterTarget advancedTarget)
             {
                 return false;
             }
 
-            FilterOperand[] operands = GetOperands(element, 6);
-
-            // get the type of the source.
-            if (!GetValue(operands[0]).TryGetValue(out NodeId sourceTypeId))
-            {
-                return false;
-            }
-
-            // get the type of reference to follow.
-            if (!GetValue(operands[2]).TryGetValue(out NodeId referenceTypeId))
-            {
-                return false;
-            }
-
-            // get the number of hops
-            int? hops = 1;
-
-            Variant hopsValue = GetValue(operands[3]);
+            int rootIndex = m_currentIndex;
+            var pending = new Stack<(int Index, NodeId IntermediateNodeId)>();
+            var visited = new HashSet<(int Index, NodeId IntermediateNodeId)>();
+            pending.Push((rootIndex, default));
             try
             {
-                if (!hopsValue.IsNull)
+                while (pending.Count != 0)
                 {
-                    hops = hopsValue.ConvertToInt32().GetInt32();
-                }
-
-                // get whether to include type definition subtypes.
-                bool? includeTypeDefinitionSubtypes = false;
-
-                Variant includeValue = GetValue(operands[4]);
-
-                if (!includeValue.IsNull)
-                {
-                    includeTypeDefinitionSubtypes = includeValue.ConvertToBoolean().GetBoolean(true);
-                }
-
-                // get whether to include reference type subtypes.
-                bool? includeReferenceTypeSubtypes = false;
-
-                includeValue = GetValue(operands[5]);
-
-                if (!includeValue.IsNull)
-                {
-                    includeReferenceTypeSubtypes = includeValue.ConvertToBoolean().GetBoolean(true);
-                }
-
-                NodeId targetTypeId;
-
-            // check if elements are chained.
-
-            if (operands[1] is ElementOperand chainedOperand)
-            {
-                if ( /*chainedOperand.Index < 0 ||*/
-                    chainedOperand.Index >= m_filter.Elements.Count)
-                {
-                    return false;
-                }
-
-                ContentFilterElement chainedElement = m_filter.Elements[(int)chainedOperand.Index];
-
-                // get the m_target type from the first operand of the chained element.
-                if (chainedElement.FilterOperator == FilterOperator.RelatedTo)
-                {
-                    var nestedType = ExtensionObject.ToEncodeable(
-                        chainedElement.FilterOperands[0]) as FilterOperand;
-
-                    targetTypeId = GetValue(nestedType!).TryGetValue(out NodeId n) ? n : default;
-                    if (targetTypeId.IsNull)
+                    (int index, NodeId intermediateNodeId) = pending.Pop();
+                    if (!visited.Add((index, intermediateNodeId)))
                     {
-                        return false;
+                        continue;
+                    }
+                    m_currentIndex = index;
+                    FilterOperand[] operands = GetOperands(m_filter.Elements[index], 6);
+                    if (!GetValue(operands[0]).TryGetValue(out NodeId sourceTypeId) ||
+                        !GetValue(operands[2]).TryGetValue(out NodeId referenceTypeId))
+                    {
+                        continue;
                     }
 
-                    // find the nodes that meet the criteria in the first link of the chain.
-                    IList<NodeId> nodeIds = advancedTarget.GetRelatedNodes(
-                        m_context,
-                        intermediateNodeId,
-                        sourceTypeId,
-                        targetTypeId,
-                        referenceTypeId,
-                        hops.Value,
-                        includeTypeDefinitionSubtypes.Value,
-                        includeReferenceTypeSubtypes.Value);
-
-                    if (nodeIds == null || nodeIds.Count == 0)
+                    Variant hopsValue = GetValue(operands[3]);
+                    Variant typeSubtypesValue = GetValue(operands[4]);
+                    Variant referenceSubtypesValue = GetValue(operands[5]);
+                    int hops = 1;
+                    bool typeSubtypes = false;
+                    bool referenceSubtypes = false;
+                    if ((!hopsValue.IsNull &&
+                            !ConvertValue(hopsValue, BuiltInType.Int32).TryGetValue(out hops)) ||
+                        (!typeSubtypesValue.IsNull &&
+                            !ConvertValue(typeSubtypesValue, BuiltInType.Boolean).TryGetValue(out typeSubtypes)) ||
+                        (!referenceSubtypesValue.IsNull &&
+                            !ConvertValue(referenceSubtypesValue, BuiltInType.Boolean).TryGetValue(out referenceSubtypes)))
                     {
-                        return false;
+                        continue;
                     }
 
-                    // recursively follow the chain.
-                    for (int ii = 0; ii < nodeIds.Count; ii++)
+                    if (operands[1] is ElementOperand chained)
                     {
-                        // one match is all that is required.
-                        if (RelatedTo(chainedElement, nodeIds[ii]))
+                        if (chained.Index <= index || chained.Index >= m_filter.Elements.Count)
                         {
-                            return true;
+                            continue;
+                        }
+                        int chainedIndex = (int)chained.Index;
+                        ContentFilterElement chainedElement = m_filter.Elements[chainedIndex];
+                        if (chainedElement.FilterOperator == FilterOperator.RelatedTo)
+                        {
+                            FilterOperand[] chainedOperands = GetOperands(chainedElement, 6);
+                            if (!GetValue(chainedOperands[0]).TryGetValue(out NodeId chainedTypeId) ||
+                                chainedTypeId.IsNull)
+                            {
+                                continue;
+                            }
+                            IList<NodeId> nodeIds = advancedTarget.GetRelatedNodes(
+                                m_context, intermediateNodeId, sourceTypeId, chainedTypeId,
+                                referenceTypeId, hops, typeSubtypes, referenceSubtypes);
+                            if (nodeIds != null)
+                            {
+                                for (int ii = nodeIds.Count - 1; ii >= 0; ii--)
+                                {
+                                    pending.Push((chainedIndex, nodeIds[ii]));
+                                }
+                            }
+                            continue;
                         }
                     }
 
-                    // no matches.
-                    return false;
+                    if (GetValue(operands[1]).TryGetValue(out NodeId targetTypeId) &&
+                        !targetTypeId.IsNull &&
+                        advancedTarget.IsRelatedTo(
+                            m_context, intermediateNodeId, sourceTypeId, targetTypeId,
+                            referenceTypeId, hops, typeSubtypes, referenceSubtypes))
+                    {
+                        return true;
+                    }
                 }
-            }
-
-            // get the type of the m_target.
-            targetTypeId = GetValue(operands[1]).TryGetValue(out NodeId n2) ? n2 : default;
-            if (targetTypeId.IsNull)
-            {
                 return false;
-            }
-
-            // check the m_target.
-            try
-            {
-                return advancedTarget.IsRelatedTo(
-                    m_context,
-                    intermediateNodeId,
-                    sourceTypeId,
-                    targetTypeId,
-                    referenceTypeId,
-                    hops.Value,
-                    includeTypeDefinitionSubtypes.Value,
-                    includeReferenceTypeSubtypes.Value);
-            }
-            catch
-            {
-                return false;
-            }
             }
             catch (Exception ex) when (
-                ex is InvalidCastException or
-                FormatException or
-                OverflowException or
-                ServiceResultException)
+                ex is not OutOfMemoryException and not StackOverflowException and
+                    not AccessViolationException and not OperationCanceledException)
             {
+                m_logger.TargetEvaluationFailed(ex);
                 return false;
+            }
+            finally
+            {
+                m_currentIndex = rootIndex;
             }
         }
 
@@ -823,6 +843,9 @@ namespace Opc.Ua
         private readonly ILogger m_logger;
         private Variant[]? m_results;
         private bool[]? m_evaluated;
+        private Variant[]? m_leftValues;
+        private bool[]? m_leftEvaluated;
+        private int m_currentIndex;
     }
 
     /// <summary>
@@ -833,7 +856,7 @@ namespace Opc.Ua
         /// <summary>
         /// Evaluates the first element in the ContentFilter. If the first or any
         /// subsequent element has dependent elements, the dependent elements are
-        /// evaluated before the root element (recursive descent). Elements which
+        /// evaluated before the root element without recursive descent. Elements which
         /// are not linked (directly or indirectly) to the first element will not
         /// be evaluated (they have no influence on the result).
         /// </summary>
@@ -859,5 +882,9 @@ namespace Opc.Ua
         [LoggerMessage(EventId = CoreEventIds.FilterEvaluator + 0, Level = LogLevel.Debug,
             Message = "Content filter conversion to {TargetType} failed.")]
         public static partial void ConversionFailed(this ILogger logger, Exception exception, BuiltInType targetType);
+
+        [LoggerMessage(EventId = CoreEventIds.FilterEvaluator + 1, Level = LogLevel.Warning,
+            Message = "Content filter target evaluation failed.")]
+        public static partial void TargetEvaluationFailed(this ILogger logger, Exception exception);
     }
 }

@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -76,6 +78,114 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
 
             Assert.That(ServiceResult.IsGood(filter.Validate(m_filterContext).Status), Is.True);
             Assert.That(filter.Evaluate(m_filterContext, m_target), Is.True);
+        }
+
+        [TestCase(800)]
+        [TestCase(1024)]
+        public async Task DeepValidatedFilterEvaluatesOnSmallStackAsync(int count)
+        {
+            var elements = new ContentFilterElement[count];
+            for (int ii = 0; ii < count; ii++)
+            {
+                elements[ii] = new ContentFilterElement { FilterOperator = FilterOperator.Not };
+                elements[ii].SetOperands(
+                    ii + 1 < count
+                        ? [new ElementOperand((uint)(ii + 1))]
+                        : new FilterOperand[] { new LiteralOperand(Variant.From(true)) });
+            }
+            var filter = new Ua.ContentFilter { Elements = elements };
+            Assert.That(ServiceResult.IsGood(filter.Validate(m_filterContext).Status), Is.True);
+
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var thread = new Thread(
+                () =>
+                {
+                    try
+                    {
+                        completion.SetResult(filter.Evaluate(m_filterContext, m_target));
+                    }
+                    catch (Exception exception)
+                    {
+                        completion.SetException(exception);
+                    }
+                },
+                1024 * 1024)
+            {
+                IsBackground = true
+            };
+            thread.Start();
+
+            Assert.That(await completion.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false), Is.True);
+        }
+
+        [TestCase(FilterOperator.And, false)]
+        [TestCase(FilterOperator.Or, true)]
+        public void IterativeEvaluationPreservesShortCircuit(FilterOperator op, bool left)
+        {
+            m_target.ThrowOnAttributeRead = true;
+            var root = new ContentFilterElement { FilterOperator = op };
+            root.SetOperands([new ElementOperand(1), new ElementOperand(2)]);
+            var right = new ContentFilterElement { FilterOperator = FilterOperator.IsNull };
+            right.SetOperands([new SimpleAttributeOperand { AttributeId = Attributes.Value }]);
+            var filter = new Ua.ContentFilter
+            {
+                Elements =
+                [
+                    root,
+                    BuildBinaryElement(FilterOperator.Equals, Variant.From(left), Variant.From(true)),
+                    right
+                ]
+            };
+
+            Assert.That(filter.Evaluate(m_filterContext, m_target), Is.EqualTo(left));
+        }
+
+        [TestCase(0u)]
+        [TestCase(1u)]
+        [TestCase(uint.MaxValue)]
+        public void EvaluationRejectsInvalidDependencyWithoutValidation(uint index)
+        {
+            var element = new ContentFilterElement { FilterOperator = FilterOperator.Not };
+            element.SetOperands([new ElementOperand(index)]);
+            var filter = new Ua.ContentFilter { Elements = [element] };
+
+            ServiceResultException error = Assert.Throws<ServiceResultException>(
+                () => filter.Evaluate(m_filterContext, m_target));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadContentFilterInvalid));
+        }
+
+        [Test]
+        public void EvaluationAndValidationRejectOversizeFilter()
+        {
+            var elements = new ContentFilterElement[Ua.ContentFilter.MaxElementCount + 1];
+            Array.Fill(elements, BuildBinaryElement(FilterOperator.Equals, Variant.From(1), Variant.From(1)));
+            var filter = new Ua.ContentFilter { Elements = elements };
+
+            Assert.That(filter.Validate(m_filterContext).Status.StatusCode,
+                Is.EqualTo(StatusCodes.BadContentFilterInvalid));
+            ServiceResultException error = Assert.Throws<ServiceResultException>(
+                () => filter.Evaluate(m_filterContext, m_target));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadContentFilterInvalid));
+        }
+
+        [Test]
+        public void SharedDependenciesAreEvaluatedOnceAndUnlinkedElementsAreNotEvaluated()
+        {
+            m_target.AttributeValue = Variant.From(7);
+            var elements = new ContentFilterElement[52];
+            for (int ii = 0; ii < 50; ii++)
+            {
+                elements[ii] = new ContentFilterElement { FilterOperator = FilterOperator.And };
+                elements[ii].SetOperands([new ElementOperand((uint)(ii + 1)), new ElementOperand((uint)(ii + 1))]);
+            }
+            elements[50] = new ContentFilterElement { FilterOperator = FilterOperator.Equals };
+            elements[50].SetOperands(
+                [new SimpleAttributeOperand { AttributeId = Attributes.Value }, new LiteralOperand(Variant.From(7))]);
+            elements[51] = new ContentFilterElement { FilterOperator = (FilterOperator)int.MaxValue };
+            var filter = new Ua.ContentFilter { Elements = elements };
+
+            Assert.That(filter.Evaluate(m_filterContext, m_target), Is.True);
+            Assert.That(m_target.AttributeReads, Is.EqualTo(1));
         }
 
         [Test]
@@ -778,6 +888,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         {
             public bool IsTypeOfResult { get; set; }
             public Variant AttributeValue { get; set; } = Variant.Null;
+            public bool ThrowOnAttributeRead { get; set; }
+            public int AttributeReads { get; private set; }
 
             public bool IsTypeOf(IFilterContext context, NodeId typeDefinitionId)
             {
@@ -791,6 +903,11 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 uint attributeId,
                 NumericRange indexRange)
             {
+                if (ThrowOnAttributeRead)
+                {
+                    throw new InvalidOperationException("This branch must not be evaluated.");
+                }
+                AttributeReads++;
                 return AttributeValue;
             }
         }
