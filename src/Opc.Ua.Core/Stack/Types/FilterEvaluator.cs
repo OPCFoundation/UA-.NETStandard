@@ -27,8 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -49,6 +50,7 @@ namespace Opc.Ua
             m_filter = filter;
             m_context = context;
             m_target = target;
+            m_logger = context.Telemetry.CreateLogger<FilterEvaluator>();
         }
 
         /// <summary>
@@ -591,8 +593,11 @@ namespace Opc.Ua
                 ex is InvalidCastException or
                 FormatException or
                 OverflowException or
-                ServiceResultException)
+                ServiceResultException or
+                ArgumentException or
+                NullReferenceException)
             {
+                m_logger.ConversionFailed(ex, targetType);
                 return default;
             }
         }
@@ -815,6 +820,7 @@ namespace Opc.Ua
         private readonly ContentFilter m_filter;
         private readonly IFilterContext m_context;
         private readonly IFilterTarget m_target;
+        private readonly ILogger m_logger;
         private Variant[]? m_results;
         private bool[]? m_evaluated;
     }
@@ -846,5 +852,12 @@ namespace Opc.Ua
             var evaluator = new FilterEvaluator(filter, context, target);
             return evaluator.Result;
         }
+    }
+
+    internal static partial class FilterEvaluatorLog
+    {
+        [LoggerMessage(EventId = CoreEventIds.FilterEvaluator + 0, Level = LogLevel.Debug,
+            Message = "Content filter conversion to {TargetType} failed.")]
+        public static partial void ConversionFailed(this ILogger logger, Exception exception, BuiltInType targetType);
     }
 }

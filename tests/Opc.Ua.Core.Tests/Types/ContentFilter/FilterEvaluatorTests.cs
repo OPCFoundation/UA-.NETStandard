@@ -62,6 +62,22 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             Assert.That(result, Is.True);
         }
 
+        [TestCase(BuiltInType.Int32)]
+        [TestCase(BuiltInType.DateTime)]
+        public void CastNullStringProducesNull(BuiltInType targetType)
+        {
+            var isNull = new ContentFilterElement { FilterOperator = FilterOperator.IsNull };
+            isNull.SetOperands([new ElementOperand(1)]);
+            ContentFilterElement cast = BuildBinaryElement(
+                FilterOperator.Cast,
+                Variant.From((string)null),
+                Variant.From(new NodeId((uint)targetType)));
+            var filter = new Ua.ContentFilter { Elements = [isNull, cast] };
+
+            Assert.That(ServiceResult.IsGood(filter.Validate(m_filterContext).Status), Is.True);
+            Assert.That(filter.Evaluate(m_filterContext, m_target), Is.True);
+        }
+
         [Test]
         public void EmptyElementsArrayReturnsTrue()
         {
