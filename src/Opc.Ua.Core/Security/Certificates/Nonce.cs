@@ -564,10 +564,11 @@ namespace Opc.Ua
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing && m_ecdh != null)
+            if (disposing)
             {
-                m_ecdh.Dispose();
+                m_ecdh?.Dispose();
                 m_ecdh = null;
+                m_rsadh = null;
             }
         }
     }

@@ -110,9 +110,10 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
         [Test]
         public async Task EccEncryptionReleasesTemporaryNonceAndIssuerHandlesAsync(
-            [Values(false, true)] bool missingTokenData)
+            [Values(false, true)] bool missingTokenData,
+            [Values(false, true)] bool rsaDh)
         {
-            const string policyUri = SecurityPolicies.ECC_nistP256;
+            string policyUri = rsaDh ? SecurityPolicies.RSA_DH_AesGcm : SecurityPolicies.ECC_nistP256;
             SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(policyUri);
             IServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             if (policy == null)
@@ -124,12 +125,9 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 return;
             }
 
-            using Certificate sender = CertificateBuilder.Create("CN=Issued Token Sender")
-                .SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
-            using Certificate receiver = CertificateBuilder.Create("CN=Issued Token Receiver")
-                .SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
-            using Certificate issuerTemplate = CertificateBuilder.Create("CN=Issued Token Issuer")
-                .SetCAConstraint().SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
+            using Certificate sender = CreateSigningCertificate("CN=Issued Token Sender", rsaDh);
+            using Certificate receiver = CreateSigningCertificate("CN=Issued Token Receiver", rsaDh);
+            using Certificate issuerTemplate = CreateSigningCertificate("CN=Issued Token Issuer", rsaDh, ca: true);
             X509Certificate2 issuerNative = issuerTemplate.AsX509Certificate2();
             using Certificate issuer = Certificate.From(issuerNative);
             using var chain = new CertificateCollection { sender, issuer };
@@ -174,7 +172,8 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             {
                 Assert.Multiple(() =>
                 {
-                    Assert.That(retainedSecret?.Length, Is.Null, "The temporary sender ECDH key must be released.");
+                    Assert.That(retainedSecret?.Length, Is.Null,
+                        "The temporary sender agreement key must be released.");
                     Assert.That(issuerNative.Handle, Is.EqualTo(IntPtr.Zero),
                         "The filtered issuer collection must not retain an extra owning handle.");
                     Assert.That(sender.HasPrivateKey, Is.True);
@@ -238,6 +237,16 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             bool equalsOtherHandler = handler.Equals(new UserNameIdentityTokenHandler("user", [1]));
             Assert.That(equalsClone, Is.True);
             Assert.That(equalsOtherHandler, Is.False);
+        }
+
+        private static Certificate CreateSigningCertificate(string subject, bool rsa, bool ca = false)
+        {
+            ICertificateBuilder builder = CertificateBuilder.Create(subject);
+            if (ca)
+            {
+                builder.SetCAConstraint();
+            }
+            return rsa ? builder.CreateForRSA() : builder.SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
         }
     }
 }
