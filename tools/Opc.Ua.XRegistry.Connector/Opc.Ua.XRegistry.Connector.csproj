@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>Opc.Ua.XRegistry.Connector</AssemblyName>
+    <RootNamespace>Opc.Ua.XRegistry.Connector</RootNamespace>
+    <PackageId>$(PackagePrefix).Opc.Ua.XRegistry.Connector</PackageId>
+    <Description>Bidirectional xRegistry OPC UA and HTTP binding bridge.</Description>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>opcua-xregistry</ToolCommandName>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <IsAotCompatible>true</IsAotCompatible>
+    <PublishAot Condition="'$(XRegistryPublishAot)' == 'true'">true</PublishAot>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\..\src\Opc.Ua.XRegistry.Bridge\Opc.Ua.XRegistry.Bridge.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <PackageReference Include="System.CommandLine" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+    <InternalsVisibleTo Include="Opc.Ua.Tools.Tests" />
+  </ItemGroup>
+</Project>

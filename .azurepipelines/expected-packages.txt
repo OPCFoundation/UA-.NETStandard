@@ -87,5 +87,8 @@ OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings.Mqtt
 OPCFoundation.NetStandard.Opc.Ua.WotCon.Client
 OPCFoundation.NetStandard.Opc.Ua.WotCon.Server
 OPCFoundation.NetStandard.Opc.Ua.XRegistry
+OPCFoundation.NetStandard.Opc.Ua.XRegistry.Bridge
 OPCFoundation.NetStandard.Opc.Ua.XRegistry.Client
+OPCFoundation.NetStandard.Opc.Ua.XRegistry.Connector
+OPCFoundation.NetStandard.Opc.Ua.XRegistry.Http
 OPCFoundation.NetStandard.Opc.Ua.XRegistry.Server
