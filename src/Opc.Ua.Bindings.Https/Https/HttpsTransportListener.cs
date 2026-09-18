@@ -1463,7 +1463,8 @@ namespace Opc.Ua.Bindings
                     endpoint,
                     RequestEncoding.Json,
                     context.Connection.ClientCertificate?.RawData,
-                    ServerChannelCertificate);
+                    ServerChannelCertificate,
+                    peerAddress: context.Connection.RemoteIpAddress);
 
                 IServiceResponse output = await m_callback
                     .ProcessRequestAsync(secureChannelContext, input, ct)
@@ -1731,7 +1732,8 @@ namespace Opc.Ua.Bindings
                     RequestEncoding.Binary,
                     channel.ClientCertificate?.RawData,
                     channel.ServerCertificate?.RawData,
-                    channel.ChannelThumbprint);
+                    channel.ChannelThumbprint,
+                    peerAddress: (channel.Transport?.RemoteEndpoint as IPEndPoint)?.Address);
 
                 IServiceResponse response = await m_callback
                     .ProcessRequestAsync(context, request)
@@ -1848,7 +1850,8 @@ namespace Opc.Ua.Bindings
                 endpoint,
                 RequestEncoding.Json,
                 context.Connection.ClientCertificate?.RawData,
-                ServerChannelCertificate);
+                ServerChannelCertificate,
+                peerAddress: context.Connection.RemoteIpAddress);
 
             byte[]? receiveBuffer = null;
             try
@@ -2061,7 +2064,8 @@ namespace Opc.Ua.Bindings
                 endpoint,
                 RequestEncoding.Json,
                 context.Connection.ClientCertificate?.RawData,
-                ServerChannelCertificate);
+                ServerChannelCertificate,
+                peerAddress: context.Connection.RemoteIpAddress);
 
             byte[]? receiveBuffer = null;
             try

@@ -172,6 +172,12 @@ to match the endpoint hostname before invoking a configured OPC UA certificate
 validator. Trusting a certificate or its issuer does not bypass hostname
 verification. This also applies to TLS-only JSON bindings.
 
+All HTTP, WebSocket and WebApi dispatch paths forward the observed remote IP
+address for authentication lockout accounting. Unsecured clients cannot reset
+that bucket by opening a new connection or changing their ApplicationUri.
+When a transport cannot supply a peer address, the fallback bucket is
+session-local, never shared by every client of a listener.
+
 ## Client-side usage
 
 The client API is the standard `Session` + `EndpointDescription` flow;

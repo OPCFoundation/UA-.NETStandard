@@ -1857,7 +1857,7 @@ namespace Opc.Ua.Server
             ISession session,
             SecureChannelContext? channelContext)
         {
-            if (session?.ClientCertificate != null)
+            if (session.ClientCertificate != null)
             {
                 return session.ClientCertificate.Thumbprint;
             }
@@ -1867,10 +1867,9 @@ namespace Opc.Ua.Server
                 return "peer:" + channelContext.PeerAddress;
             }
 
-            // If the transport cannot expose a peer address, use the
-            // server-assigned channel id rather than trusting client-controlled
-            // metadata. Real listeners always provide a channel id.
-            return "channel:" + (channelContext?.SecureChannelId ?? "unknown");
+            // HTTP bindings may share a channel id across the entire listener.
+            // Without an observed peer, isolate the fallback to this server-created session.
+            return "session:" + session.Id;
         }
 
         /// <summary>

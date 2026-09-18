@@ -69,6 +69,12 @@ namespace Opc.Ua.Server.Tests
             await m_fixture.StopAsync().ConfigureAwait(false);
         }
 
+        [TearDown]
+        public void ClearAuthenticationLockouts()
+        {
+            m_server.CurrentInstance.SessionManager.ClearAuthenticationLockouts();
+        }
+
         [Test]
         public async Task FailedAuthenticationAttemptsAreTrackedAsync()
         {
@@ -136,9 +142,17 @@ namespace Opc.Ua.Server.Tests
             const string sessionName = nameof(ClientIsLockedOutAfterFiveFailedAttemptsAsync);
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription endpoint = FindTcpEndpoint(endpoints);
+            UserTokenPolicy userNamePolicy = endpoint.UserIdentityTokens.Find(
+                policy => policy.TokenType == UserTokenType.UserName)
+                ?? throw new AssertionException("The endpoint must advertise a Username token policy.");
+            userNamePolicy.SecurityPolicyUri = SecurityPolicies.None;
 
-            SecureChannelContext secureChannelContext = CreateSecureChannelContext(sessionName, endpoint);
-            var requestHeader = new RequestHeader();
+            SecureChannelContext secureChannelContext = CreateSecureChannelContext(
+                sessionName, endpoint, IPAddress.Parse("192.0.2.10"));
+            var requestHeader = new RequestHeader
+            {
+                ReturnDiagnostics = (uint)DiagnosticsMasks.ServiceLocalizedText
+            };
 
             CreateSessionResponse createResponse = await m_server.CreateSessionAsync(
                 secureChannelContext,
@@ -160,20 +174,19 @@ namespace Opc.Ua.Server.Tests
             {
                 UserName = "lockoutuser",
                 Password = System.Text.Encoding.UTF8.GetBytes("wrongpassword").ToByteString(),
-                PolicyId = "0"
+                PolicyId = userNamePolicy.PolicyId
             };
 
             var validToken = new UserNameIdentityToken
             {
                 UserName = "user1",
                 Password = System.Text.Encoding.UTF8.GetBytes("password").ToByteString(),
-                PolicyId = "0"
+                PolicyId = userNamePolicy.PolicyId
             };
 
             for (int i = 0; i < 5; i++)
             {
-                try
-                {
+                ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_server.ActivateSessionAsync(
                         secureChannelContext,
                         requestHeader,
@@ -182,12 +195,8 @@ namespace Opc.Ua.Server.Tests
                         [],
                         new ExtensionObject(invalidToken),
                         null,
-                        RequestLifetime.None).ConfigureAwait(false);
-                }
-
-                catch (ServiceResultException)
-                {
-                }
+                        RequestLifetime.None).ConfigureAwait(false));
+                Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             }
 
             CreateSessionResponse newCreateResponse = await m_server.CreateSessionAsync(
@@ -218,6 +227,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(lockoutException, Is.Not.Null);
             Assert.That(lockoutException.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(lockoutException.Message, Does.Contain("Too many failed authentication attempts"));
 
             await m_server.CloseSessionAsync(
                 secureChannelContext,
@@ -226,25 +236,36 @@ namespace Opc.Ua.Server.Tests
                 RequestLifetime.None).ConfigureAwait(false);
         }
 
-        [Test]
-        public async Task UnsecuredLockoutUsesObservedPeerInsteadOfApplicationUriAsync()
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task UnsecuredLockoutUsesObservedPeerInsteadOfApplicationUriAsync(bool hasPeerAddress)
         {
             const string sessionName = nameof(UnsecuredLockoutUsesObservedPeerInsteadOfApplicationUriAsync);
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription endpoint = FindTcpEndpoint(endpoints);
+            UserTokenPolicy userNamePolicy = endpoint.UserIdentityTokens.Find(
+                policy => policy.TokenType == UserTokenType.UserName)
+                ?? throw new AssertionException("The endpoint must advertise a Username token policy.");
+            userNamePolicy.SecurityPolicyUri = SecurityPolicies.None;
             var invalidToken = new UserNameIdentityToken
             {
-                UserName = "peer-lockout",
+                UserName = "user1",
                 Password = System.Text.Encoding.UTF8.GetBytes("wrongpassword").ToByteString(),
-                PolicyId = "0"
+                PolicyId = userNamePolicy.PolicyId
+            };
+            var validToken = new UserNameIdentityToken
+            {
+                UserName = "user1",
+                Password = System.Text.Encoding.UTF8.GetBytes("password").ToByteString(),
+                PolicyId = userNamePolicy.PolicyId
             };
 
             for (int i = 0; i < 5; i++)
             {
                 SecureChannelContext firstContext = CreateSecureChannelContext(
-                    sessionName + i,
+                    hasPeerAddress ? sessionName + i : "shared-listener",
                     endpoint,
-                    IPAddress.Loopback);
+                    hasPeerAddress ? IPAddress.Loopback : null);
                 var firstHeader = new RequestHeader();
                 CreateSessionResponse firstSession = await m_server.CreateSessionAsync(
                     firstContext,
@@ -259,8 +280,7 @@ namespace Opc.Ua.Server.Tests
                     ServerFixtureUtils.DefaultMaxResponseMessageSize,
                     RequestLifetime.None).ConfigureAwait(false);
                 firstHeader.AuthenticationToken = firstSession.AuthenticationToken;
-                try
-                {
+                ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_server.ActivateSessionAsync(
                         firstContext,
                         firstHeader,
@@ -269,11 +289,8 @@ namespace Opc.Ua.Server.Tests
                         [],
                         new ExtensionObject(invalidToken),
                         null,
-                        RequestLifetime.None).ConfigureAwait(false);
-                }
-                catch (ServiceResultException)
-                {
-                }
+                        RequestLifetime.None).ConfigureAwait(false));
+                Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
                 await m_server.CloseSessionAsync(
                     firstContext,
                     firstHeader,
@@ -282,10 +299,13 @@ namespace Opc.Ua.Server.Tests
             }
 
             SecureChannelContext victimContext = CreateSecureChannelContext(
-                sessionName + "-victim",
+                hasPeerAddress ? sessionName + "-victim" : "shared-listener",
                 endpoint,
-                IPAddress.Loopback);
-            var victimHeader = new RequestHeader();
+                hasPeerAddress ? IPAddress.Loopback : null);
+            var victimHeader = new RequestHeader
+            {
+                ReturnDiagnostics = (uint)DiagnosticsMasks.ServiceLocalizedText
+            };
             CreateSessionResponse victimSession = await m_server.CreateSessionAsync(
                 victimContext,
                 victimHeader,
@@ -300,24 +320,36 @@ namespace Opc.Ua.Server.Tests
                 RequestLifetime.None).ConfigureAwait(false);
             victimHeader.AuthenticationToken = victimSession.AuthenticationToken;
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_server.ActivateSessionAsync(
+            async Task<ActivateSessionResponse> ActivateVictimAsync()
+            {
+                return await m_server.ActivateSessionAsync(
                     victimContext,
                     victimHeader,
                     victimSession.ServerSignature,
                     [],
                     [],
-                    new ExtensionObject(invalidToken),
+                    new ExtensionObject(validToken),
                     null,
-                    RequestLifetime.None).ConfigureAwait(false));
+                    RequestLifetime.None).ConfigureAwait(false);
+            }
 
-            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            if (hasPeerAddress)
+            {
+                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await ActivateVictimAsync().ConfigureAwait(false));
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(exception.Message, Does.Contain("Too many failed authentication attempts"));
+            }
+            else
+            {
+                ActivateSessionResponse activated = await ActivateVictimAsync().ConfigureAwait(false);
+                Assert.That(activated.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            }
             await m_server.CloseSessionAsync(
                 victimContext,
                 victimHeader,
                 true,
                 RequestLifetime.None).ConfigureAwait(false);
-            m_server.CurrentInstance.SessionManager.ClearAuthenticationLockouts();
         }
 
         /// <summary>
