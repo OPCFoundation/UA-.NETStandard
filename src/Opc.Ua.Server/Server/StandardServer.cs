@@ -4209,6 +4209,11 @@ namespace Opc.Ua.Server
             // is torn down.
             StopRequestQueue();
 
+            await RunShutdownStageAsync(
+                    failures,
+                    serverInternal.DrainRoleStateBindingAsync)
+                .ConfigureAwait(false);
+
             if (lifecycle is not null)
             {
                 await RunShutdownStageAsync(

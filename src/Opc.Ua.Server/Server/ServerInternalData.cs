@@ -239,6 +239,16 @@ namespace Opc.Ua.Server
 
             try
             {
+                await DrainRoleStateBindingAsync().ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                disposalErrors ??= [];
+                disposalErrors.Add(exception);
+            }
+
+            try
+            {
                 if (NodeManager is IAsyncDisposable asyncNodeManager)
                 {
                     await asyncNodeManager.DisposeAsync().ConfigureAwait(false);
@@ -254,8 +264,6 @@ namespace Opc.Ua.Server
                 disposalErrors.Add(exception);
             }
 
-            m_roleStateBinding?.Dispose();
-            m_roleStateBinding = null;
             (RoleManager as IDisposable)?.Dispose();
             RoleManager = null!;
             ResourceManager?.Dispose();
@@ -309,6 +317,19 @@ namespace Opc.Ua.Server
             lock (m_historianBuildersLock)
             {
                 m_historianBuilders.Add(builder);
+            }
+        }
+
+        /// <summary>
+        /// Stops role reconciliation before shutdown deletes the address space.
+        /// </summary>
+        internal async ValueTask DrainRoleStateBindingAsync()
+        {
+            RoleStateBinding? binding = m_roleStateBinding;
+            if (binding != null)
+            {
+                await binding.DisposeAsync().ConfigureAwait(false);
+                Interlocked.CompareExchange(ref m_roleStateBinding, null, binding);
             }
         }
 

@@ -60,39 +60,15 @@ namespace Opc.Ua.Server
     /// each well-known role to the typed proxies before <see cref="BindAsync"/>
     /// is invoked.
     /// </para>
+    /// <para>
+    /// Role additions and removals signal one owned reconciliation worker.
+    /// At most one follow-up pass is pending; each pass reads the manager's
+    /// current roles instead of replaying individual changes. Owners must
+    /// await <see cref="DisposeAsync"/> before tearing down the address space.
+    /// </para>
     /// </remarks>
-    public sealed class RoleStateBinding : IDisposable
+    public sealed class RoleStateBinding : IAsyncDisposable, IDisposable
     {
-        private readonly AsyncCustomNodeManager m_nodeManager;
-        private readonly IRoleManager m_roleManager;
-        private readonly IAuditEventServer? m_auditServer;
-        private readonly ILogger m_logger;
-        private readonly ConcurrentDictionary<NodeId, BoundRole> m_boundRoles = new();
-
-        /// <summary>
-        /// Serializes every mutation of the RoleSet subtree — materializing a
-        /// role and dropping one both rewrite the RoleSet's children and
-        /// references, which are not thread-safe collections.
-        /// </summary>
-        private readonly SemaphoreSlim m_roleSetLock = new(1, 1);
-
-        /// <summary>
-        /// Cancelled by Dispose so waiters queued on m_roleSetLock leave the
-        /// queue before the semaphore is released: SemaphoreSlim.Dispose does
-        /// not wake its waiters, so a queued materialization would otherwise
-        /// hang for the lifetime of the process.
-        /// </summary>
-        private readonly CancellationTokenSource m_shutdown = new();
-
-        private RoleSetState? m_roleSet;
-        private volatile bool m_disposed;
-
-        /// <summary>
-        /// How long <see cref="Dispose"/> waits for an address-space mutation
-        /// that is already in flight before it releases the gate anyway.
-        /// </summary>
-        private static readonly TimeSpan s_disposeDrainTimeout = TimeSpan.FromSeconds(5);
-
         private RoleStateBinding(
             AsyncCustomNodeManager nodeManager,
             IRoleManager roleManager,
@@ -103,6 +79,11 @@ namespace Opc.Ua.Server
             m_auditServer = auditServer;
             m_logger = nodeManager.Server?.Telemetry?.CreateLogger<RoleStateBinding>()
                 ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<RoleStateBinding>.Instance;
+            m_backgroundWork = new BackgroundTaskScope(
+                nameof(RoleStateBinding), nodeManager.Server?.Telemetry);
+            m_shutdownToken = m_backgroundWork.ShutdownToken;
+            m_reconcileTask = RunReconcileLoopAsync(m_shutdownToken);
+            m_backgroundWork.Run(nameof(RunReconcileLoopAsync), _ => new ValueTask(m_reconcileTask));
         }
 
         /// <summary>
@@ -171,75 +152,134 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                binding?.Dispose();
+                if (binding != null)
+                {
+                    await binding.DisposeAsync().ConfigureAwait(false);
+                }
             }
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Stops accepting changes and cancels pending work without waiting.
+        /// The worker releases its gates only after all mutations have exited.
+        /// </summary>
         public void Dispose()
         {
-            if (m_disposed)
+            lock (m_workerLock)
             {
-                return;
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_disposed = true;
+                if (m_activeOperations == 0)
+                {
+                    m_operationsDrained.TrySetResult(true);
+                }
             }
-            m_disposed = true;
             m_roleManager.RoleConfigurationChanged -= OnRoleConfigurationChanged;
+            m_backgroundWork.Dispose();
+        }
 
-            // Turn away everything queued on the gate, then wait out whoever
-            // holds it so the address-space mutation in flight completes before
-            // the primitives go away. New callers are already refused by
-            // m_disposed and by the cancelled token.
-            m_shutdown.Cancel();
-            if (m_roleSetLock.Wait(s_disposeDrainTimeout))
-            {
-                m_roleSetLock.Release();
-            }
-            m_roleSetLock.Dispose();
-            m_shutdown.Dispose();
+        /// <summary>
+        /// Cancels and joins the worker before its node manager can be disposed.
+        /// A scope drain timeout is logged but does not end this join.
+        /// </summary>
+        public async ValueTask DisposeAsync()
+        {
+            Dispose();
+            await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
+            await m_reconcileTask.ConfigureAwait(false);
+            DisposePrimitives();
         }
 
         /// <summary>
         /// Acquires the gate serializing RoleSet subtree mutations.
         /// </summary>
         /// <returns>
-        /// <c>false</c> when the binding is being torn down, in which case the
-        /// caller must leave the address space alone. The caller's own
+        /// A linked cancellation source for the acquired gate. The caller must
+        /// release both through <see cref="ExitRoleSet"/>, or leave the address
+        /// space alone when this returns <c>null</c>. The caller's own
         /// cancellation still surfaces as <see cref="OperationCanceledException"/>.
         /// </returns>
-        private async ValueTask<bool> TryEnterRoleSetAsync(CancellationToken cancellationToken)
+        private async ValueTask<CancellationTokenSource?> TryEnterRoleSetAsync(CancellationToken cancellationToken)
         {
-            if (m_disposed)
+            if (!TryBeginOperation())
             {
-                return false;
+                return null;
             }
-
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
-                cancellationToken, m_shutdown.Token);
+            CancellationTokenSource? linked = null;
+            bool entered = false;
             try
             {
+                linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, m_shutdownToken);
                 await m_roleSetLock.WaitAsync(linked.Token).ConfigureAwait(false);
+                if (m_disposed)
+                {
+                    m_roleSetLock.Release();
+                    return null;
+                }
+                entered = true;
+                CancellationTokenSource operation = linked;
+                linked = null;
+                return operation;
             }
-            catch (OperationCanceledException) when (m_shutdown.IsCancellationRequested)
+            catch (OperationCanceledException) when (m_shutdownToken.IsCancellationRequested)
             {
-                // Torn down while this call sat in the queue.
-                return false;
+                return null;
             }
-            catch (ObjectDisposedException)
+            finally
             {
-                return false;
+                linked?.Dispose();
+                if (!entered)
+                {
+                    EndOperation();
+                }
             }
-            return true;
         }
 
-        private void ExitRoleSet()
+        private bool TryBeginOperation()
         {
-            try
+            lock (m_workerLock)
             {
-                m_roleSetLock.Release();
+                if (m_disposed)
+                {
+                    return false;
+                }
+                m_activeOperations++;
+                return true;
             }
-            catch (ObjectDisposedException)
+        }
+
+        private void EndOperation()
+        {
+            lock (m_workerLock)
             {
-                // Dispose drained the gate while this operation was running.
+                if (--m_activeOperations == 0 && m_disposed)
+                {
+                    m_operationsDrained.TrySetResult(true);
+                }
+            }
+        }
+
+        private void ExitRoleSet(CancellationTokenSource operation)
+        {
+            operation.Dispose();
+            m_roleSetLock.Release();
+            EndOperation();
+        }
+
+        private void DisposePrimitives()
+        {
+            lock (m_workerLock)
+            {
+                if (m_primitivesDisposed)
+                {
+                    return;
+                }
+                m_primitivesDisposed = true;
+                m_roleSetLock.Dispose();
+                m_reconcileSignal.Dispose();
             }
         }
 
@@ -614,40 +654,42 @@ namespace Opc.Ua.Server
 
         private void OnRoleConfigurationChanged(object? sender, RoleConfigurationChangedEventArgs e)
         {
-            if (m_disposed)
+            if (!TryBeginOperation())
             {
                 return;
             }
-            if (e.Kind == RoleConfigurationChangeKind.RoleRemoved)
+            try
             {
-                ScheduleDematerialize(e.RoleId);
-                return;
-            }
-            while (m_boundRoles.TryGetValue(e.RoleId, out BoundRole? bound))
-            {
-                if (e.Kind == RoleConfigurationChangeKind.RoleAdded)
+                if (e.Kind != RoleConfigurationChangeKind.RoleRemoved)
                 {
-                    var replacement = new BoundRole(bound.State);
-                    if (!m_boundRoles.TryUpdate(e.RoleId, replacement, bound))
+                    while (m_boundRoles.TryGetValue(e.RoleId, out BoundRole? bound))
                     {
-                        continue;
+                        if (e.Kind == RoleConfigurationChangeKind.RoleAdded)
+                        {
+                            var replacement = new BoundRole(bound.State);
+                            if (!m_boundRoles.TryUpdate(e.RoleId, replacement, bound))
+                            {
+                                continue;
+                            }
+                            bound = replacement;
+                        }
+                        SyncPropertiesFromManager(e.RoleId, bound.State);
+                        break;
                     }
-                    bound = replacement;
                 }
-                SyncPropertiesFromManager(e.RoleId, bound.State);
-                if (e.Kind == RoleConfigurationChangeKind.RoleAdded && m_roleManager.GetRole(e.RoleId) == null)
+                lock (m_workerLock)
                 {
-                    ScheduleDematerialize(e.RoleId);
+                    if (!m_disposed &&
+                        e.Kind is RoleConfigurationChangeKind.RoleAdded or RoleConfigurationChangeKind.RoleRemoved &&
+                        m_reconcileSignal.CurrentCount == 0)
+                    {
+                        m_reconcileSignal.Release();
+                    }
                 }
-                return;
             }
-            if (e.Kind == RoleConfigurationChangeKind.RoleAdded)
+            finally
             {
-                // A role created straight on the IRoleManager rather than
-                // through the AddRole Method still has to show up under the
-                // RoleSet. The event is raised synchronously from inside the
-                // manager, so the address-space work has to be queued.
-                ScheduleMaterialize(e.RoleId);
+                EndOperation();
             }
         }
 
@@ -657,40 +699,75 @@ namespace Opc.Ua.Server
                 new LocalizedText("The RoleSet binding is not available."));
         }
 
-        private void ScheduleMaterialize(NodeId roleId)
+        private async Task RunReconcileLoopAsync(CancellationToken cancellationToken)
         {
-            _ = Task.Run(async () =>
+            try
             {
+                while (true)
+                {
+                    await m_reconcileSignal.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        await ReconcileRolesAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException ||
+                        !cancellationToken.IsCancellationRequested)
+                    {
+                        m_logger.ReconcilingRoleSetFailed(ex);
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Shutdown cancels both the pending signal and mutations waiting for the gate.
+            }
+            finally
+            {
+                Dispose();
+                // Admission is closed. Join gate holders, cancelled waiters and event callbacks
+                // before releasing primitives, even if the background scope's drain timed out.
+                await m_operationsDrained.Task.ConfigureAwait(false);
+                DisposePrimitives();
+            }
+        }
+
+        private async ValueTask ReconcileRolesAsync(CancellationToken cancellationToken)
+        {
+            foreach (KeyValuePair<NodeId, BoundRole> bound in m_boundRoles)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
-                    await EnsureRoleMaterializedAsync(roleId, CancellationToken.None)
+                    await DematerializeDynamicRoleAsync(bound.Key, bound.Value, cancellationToken)
                         .ConfigureAwait(false);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException ||
+                    !cancellationToken.IsCancellationRequested)
+                {
+                    m_logger.DematerializingRoleRoleIdFailed(ex, bound.Key);
+                }
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (NodeId roleId in m_roleManager.RoleIds)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    ServiceResult result = await EnsureRoleMaterializedAsync(roleId, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (ServiceResult.IsBad(result) &&
+                        result.StatusCode != StatusCodes.BadNodeIdUnknown &&
+                        result.StatusCode != StatusCodes.BadInvalidState)
+                    {
+                        m_logger.MaterializingRoleRoleIdFailed(new ServiceResultException(result), roleId);
+                    }
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException ||
+                    !cancellationToken.IsCancellationRequested)
                 {
                     m_logger.MaterializingRoleRoleIdFailed(ex, roleId);
                 }
-            });
-        }
-
-        private void ScheduleDematerialize(NodeId roleId)
-        {
-            if (!m_boundRoles.TryGetValue(roleId, out BoundRole? bound))
-            {
-                return;
             }
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await DematerializeDynamicRoleAsync(roleId, bound, CancellationToken.None)
-                        .ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    m_logger.DematerializingRoleRoleIdFailed(ex, roleId);
-                }
-            });
         }
 
         /// <summary>
@@ -720,7 +797,9 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadNodeIdInvalid,
                     new LocalizedText("The role manager did not allocate a NodeId."));
             }
-            if (!await TryEnterRoleSetAsync(cancellationToken).ConfigureAwait(false))
+            CancellationTokenSource? operation = await TryEnterRoleSetAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (operation == null)
             {
                 return NotBoundResult();
             }
@@ -776,13 +855,13 @@ namespace Opc.Ua.Server
                             $"NodeId '{roleId}' is not in a namespace owned by the RoleSet's NodeManager."));
                 }
 
-                await MaterializeDynamicRoleAsync(roleSet, entry, cancellationToken)
+                await MaterializeDynamicRoleAsync(roleSet, entry, operation.Token)
                     .ConfigureAwait(false);
                 return ServiceResult.Good;
             }
             finally
             {
-                ExitRoleSet();
+                ExitRoleSet(operation);
             }
         }
 
@@ -804,47 +883,58 @@ namespace Opc.Ua.Server
                 result.ServiceResult = auth;
                 return result;
             }
-
-            ServiceResult add = m_roleManager.AddRole(
-                roleName,
-                namespaceUri,
-                context.NamespaceUris,
-                dynamicNamespaceIndex,
-                out NodeId newRoleId);
-
-            if (ServiceResult.IsBad(add))
+            if (!TryBeginOperation())
             {
+                result.ServiceResult = NotBoundResult();
+                return result;
+            }
+
+            try
+            {
+                ServiceResult add = m_roleManager.AddRole(
+                    roleName,
+                    namespaceUri,
+                    context.NamespaceUris,
+                    dynamicNamespaceIndex,
+                    out NodeId newRoleId);
+
+                if (ServiceResult.IsBad(add))
+                {
+                    result.ServiceResult = add;
+                    return result;
+                }
+
+                // Materialize the RoleType subtree into the address space so
+                // browsers and method callers see the dynamic role straight away.
+                ServiceResult materialize;
+                try
+                {
+                    materialize = await EnsureRoleMaterializedAsync(newRoleId, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.AddRoleRoleNameSucceededInTheRoleManagerBut(ex, roleName);
+                    materialize = new ServiceResult(ex, StatusCodes.BadInternalError);
+                }
+
+                if (ServiceResult.IsBad(materialize))
+                {
+                    // Keep rollback inside the operation lifetime so disposal cannot
+                    // release the role manager between materialization and rollback.
+                    m_roleManager.RemoveRole(newRoleId);
+                    result.ServiceResult = materialize;
+                    return result;
+                }
+
+                result.RoleNodeId = newRoleId;
                 result.ServiceResult = add;
                 return result;
             }
-
-            // Materialize the RoleType subtree into the address space so
-            // browsers and method callers see the dynamic role straight away.
-            ServiceResult materialize;
-            try
+            finally
             {
-                materialize = await EnsureRoleMaterializedAsync(newRoleId, cancellationToken)
-                    .ConfigureAwait(false);
+                EndOperation();
             }
-            catch (Exception ex)
-            {
-                m_logger.AddRoleRoleNameSucceededInTheRoleManagerBut(ex, roleName);
-                materialize = new ServiceResult(ex, StatusCodes.BadInternalError);
-            }
-
-            if (ServiceResult.IsBad(materialize))
-            {
-                // AddRole is all-or-nothing: a role the client cannot browse or
-                // reconfigure is worse than a failed call, so roll the manager
-                // back and hand the caller the reason.
-                m_roleManager.RemoveRole(newRoleId);
-                result.ServiceResult = materialize;
-                return result;
-            }
-
-            result.RoleNodeId = newRoleId;
-            result.ServiceResult = add;
-            return result;
         }
 
         private async ValueTask<RemoveRoleMethodStateResult> OnRemoveRoleAsync(
@@ -860,28 +950,38 @@ namespace Opc.Ua.Server
             {
                 return new RemoveRoleMethodStateResult { ServiceResult = auth };
             }
-
-            m_boundRoles.TryGetValue(roleNodeId, out BoundRole? bound);
-            ServiceResult remove = m_roleManager.RemoveRole(roleNodeId);
-
-            if (ServiceResult.IsGood(remove) && bound != null)
+            if (!TryBeginOperation())
             {
-                // Drop the address-space subtree so subsequent browses don't
-                // see the deleted role. Mirror the AddRole behaviour: failures
-                // are logged and swallowed so the RoleManager state stays
-                // authoritative.
-                try
-                {
-                    await DematerializeDynamicRoleAsync(roleNodeId, bound, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    m_logger.RemoveRoleRoleIdSucceededInTheRoleManagerBut(ex, roleNodeId);
-                }
+                return new RemoveRoleMethodStateResult { ServiceResult = NotBoundResult() };
             }
 
-            return new RemoveRoleMethodStateResult { ServiceResult = remove };
+            try
+            {
+                m_boundRoles.TryGetValue(roleNodeId, out BoundRole? bound);
+                ServiceResult remove = m_roleManager.RemoveRole(roleNodeId);
+
+                if (ServiceResult.IsGood(remove) && bound != null)
+                {
+                    // Drop the address-space subtree so subsequent browses don't
+                    // see the deleted role. Failures are logged while the role
+                    // manager's removal remains authoritative.
+                    try
+                    {
+                        await DematerializeDynamicRoleAsync(roleNodeId, bound, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.RemoveRoleRoleIdSucceededInTheRoleManagerBut(ex, roleNodeId);
+                    }
+                }
+
+                return new RemoveRoleMethodStateResult { ServiceResult = remove };
+            }
+            finally
+            {
+                EndOperation();
+            }
         }
 
         /// <summary>
@@ -986,6 +1086,7 @@ namespace Opc.Ua.Server
 
             await m_nodeManager.AddPredefinedNodeAsync(roleState, cancellationToken)
                 .ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
 
             // Now that the state is in PredefinedNodes, wire the OnCallAsync
             // delegates and OnWriteValue handlers via the existing binding
@@ -1025,7 +1126,9 @@ namespace Opc.Ua.Server
             // concurrent AddRole and RemoveRole mutate those collections from
             // two threads. If the binding is going away there is no address
             // space left to tidy up.
-            if (!await TryEnterRoleSetAsync(cancellationToken).ConfigureAwait(false))
+            CancellationTokenSource? operation = await TryEnterRoleSetAsync(cancellationToken)
+                .ConfigureAwait(false);
+            if (operation == null)
             {
                 return;
             }
@@ -1051,12 +1154,12 @@ namespace Opc.Ua.Server
                 await m_nodeManager.DeleteNodeAsync(
                         m_nodeManager.SystemContext,
                         roleNodeId,
-                        cancellationToken)
+                        operation.Token)
                     .ConfigureAwait(false);
             }
             finally
             {
-                ExitRoleSet();
+                ExitRoleSet(operation);
             }
         }
 
@@ -1274,6 +1377,24 @@ namespace Opc.Ua.Server
                 m_logger);
         }
 
+        private readonly AsyncCustomNodeManager m_nodeManager;
+        private readonly IRoleManager m_roleManager;
+        private readonly IAuditEventServer? m_auditServer;
+        private readonly ILogger m_logger;
+        private readonly ConcurrentDictionary<NodeId, BoundRole> m_boundRoles = new();
+        private readonly BackgroundTaskScope m_backgroundWork;
+        private readonly CancellationToken m_shutdownToken;
+        private readonly Task m_reconcileTask;
+        private readonly TaskCompletionSource<bool> m_operationsDrained =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly Lock m_workerLock = new();
+        private readonly SemaphoreSlim m_reconcileSignal = new(0, 1);
+        private readonly SemaphoreSlim m_roleSetLock = new(1, 1);
+        private RoleSetState? m_roleSet;
+        private volatile bool m_disposed;
+        private bool m_primitivesDisposed;
+        private int m_activeOperations;
+
         private sealed class BoundRole(RoleState state)
         {
             public RoleState State { get; } = state;
@@ -1399,5 +1520,9 @@ namespace Opc.Ua.Server
             this ILogger logger,
             Exception ex,
             NodeId roleId);
+
+        [LoggerMessage(EventId = ServerEventIds.RoleStateBinding + 7, Level = LogLevel.Warning,
+            Message = "Reconciling the RoleSet with the role manager failed.")]
+        public static partial void ReconcilingRoleSetFailed(this ILogger logger, Exception ex);
     }
 }
