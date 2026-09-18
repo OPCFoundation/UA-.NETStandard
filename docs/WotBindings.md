@@ -640,6 +640,14 @@ source binding fault that binding's availability with
 `BadSecurityChecksFailed`, preserve the last accepted evidence, and revoke its
 occurrence action route.
 
+Required private fields are checked and translated before the runtime acquires
+an occurrence reservation or creates a Condition instance. Before it updates an
+existing retained Condition, the runtime builds the prospective occurrence and
+applies its fields to a detached copy of that Condition. A missing field,
+translation failure or incompatible field path therefore cannot partially
+overwrite the retained identity or values. Native ConditionRefresh and provenance
+continue to expose the last accepted occurrence after the binding rejects input.
+
 Notification-only Conditions do not need invented actions or a static action
 receiver. The existing injectable Condition factory creates independently
 registered instances per source Condition; main and retained branches produce

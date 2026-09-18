@@ -445,6 +445,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     return new PreparedOccurrence(occurrence, retainedId, captured, sourceFields, now)
                     {
+                        CapturedFields = CapturePrivateFields(captured),
                         IsRetainedRefresh = true,
                         IdentityReservation = previous.IdentityReservation
                     };
@@ -463,7 +464,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             ByteString localEventId = IdentityMode == WoTEventIdentityModeEnum.TransparentForwarding
                 ? captured!.EventId : Uuid.NewUuid().ToByteString();
-            var prepared = new PreparedOccurrence(occurrence, localEventId, captured, sourceFields, now);
+            var prepared = new PreparedOccurrence(occurrence, localEventId, captured, sourceFields, now)
+            {
+                CapturedFields = CapturePrivateFields(captured)
+            };
             try
             {
                 if (m_requireServerIdentityAdmission)
@@ -498,10 +502,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 NodeId = condition is null ? NodeId.Null : condition.NodeId,
                 TypeDefinitionId = EventTypeId
             };
-            if (prepared.Captured is { } captured)
-            {
-                PopulateCapturedFields(result, condition, captured, occurrence.BranchId);
-            }
+            ConditionState? stagedCondition = condition is not null && occurrence.BranchId.IsNull
+                ? (ConditionState)condition.Clone() : null;
+            List<PreparedField> fields = prepared.CapturedFields.ToList();
             for (int index = 0; index < m_fields.Count; index++)
             {
                 Field field = m_fields[index];
@@ -510,12 +513,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     continue;
                 }
-                PopulateField(result, condition, field.Path, value, occurrence.BranchId);
+                fields.Add(new PreparedField(field.Path, value));
+            }
+            foreach (PreparedField field in fields)
+            {
+                PopulateField(result, stagedCondition, field.Path, field.Value, occurrence.BranchId);
             }
             SetIdentity(result, prepared.LocalEventId, prepared.ReceiveTime);
             prepared.IdentityReservation?.Attach(m_context, result);
-            if (condition is not null && occurrence.BranchId.IsNull)
+            if (stagedCondition is not null && condition is not null)
             {
+                SetIdentity(stagedCondition, prepared.LocalEventId, prepared.ReceiveTime);
+                prepared.IdentityReservation?.Attach(m_context, stagedCondition);
+                foreach (PreparedField field in fields)
+                {
+                    SetField(condition, field.Path, field.Value.WrappedValue,
+                        field.Value.StatusCode, field.Value.SourceTimestamp);
+                }
                 SetIdentity(condition, prepared.LocalEventId, prepared.ReceiveTime);
                 prepared.IdentityReservation?.Attach(m_context, condition);
             }
@@ -784,10 +798,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return true;
         }
 
-        private void PopulateCapturedFields(
-            WotProjectedEventState result, ConditionState? condition,
-            WotCapturedEvent captured, ExpandedNodeId branchId)
+        private ArrayOf<PreparedField> CapturePrivateFields(WotCapturedEvent? captured)
         {
+            if (captured is null)
+            {
+                return [];
+            }
+            var fields = new List<PreparedField>(captured.Clauses.Count);
             for (int index = 0; index < captured.Clauses.Count; index++)
             {
                 WotResolvedEventSelectClause clause = captured.Clauses[index];
@@ -813,8 +830,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 Variant mapped = WotBindingValueMapper.Translate(
                     value, captured.Source.Context, m_valueContext, allowNamespaceGrowth: true);
                 var field = new DataValue(mapped, StatusCodes.Good, captured.Time, captured.ReceiveTime);
-                PopulateField(result, condition, path, field, branchId);
+                fields.Add(new PreparedField(path, field));
             }
+            return fields.ToArrayOf();
         }
 
         private bool IsApplicableCapturedClause(WotResolvedEventSelectClause clause)
@@ -1032,6 +1050,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private readonly record struct Field(ArrayOf<string> MemberPath, ArrayOf<QualifiedName> Path);
 
+        private readonly record struct PreparedField(ArrayOf<QualifiedName> Path, DataValue Value);
+
         private readonly record struct Occurrence(
             ByteString EventId, ExpandedNodeId ConditionId, ExpandedNodeId BranchId);
 
@@ -1042,6 +1062,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ArrayOf<DataValue> Fields,
             DateTimeUtc ReceiveTime)
         {
+            public ArrayOf<PreparedField> CapturedFields { get; init; }
+
             public bool IsRetainedRefresh { get; init; }
 
             public bool OwnsTransparentReservation { get; set; }

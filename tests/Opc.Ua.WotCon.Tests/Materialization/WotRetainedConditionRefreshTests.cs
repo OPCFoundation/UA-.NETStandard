@@ -45,6 +45,101 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     {
         [TestCase("local-re-emission")]
         [TestCase("transparent-forwarding")]
+        public async Task RejectedCapturedFieldsDoNotMutateRetainedConditionAsync(string mode)
+        {
+            await using var h = new RefreshHarness(mode, capacity: 2);
+            BaseEventState? first = await h.ProjectAsync().ConfigureAwait(false);
+            Assert.That(first, Is.Not.Null);
+            ByteString eventId = first!.EventId!.Value;
+            h.Alarm.EventId!.Value = ByteString.From(new byte[] { 0xD3, 0xC8, 0x02 });
+            h.Alarm.Severity!.Value = 999;
+            h.Alarm.Time!.Value = s_time + TimeSpan.FromSeconds(1);
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await h.ProjectAsync("ClientUserId").ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
+            var retained = new List<IFilterTarget>();
+            h.Conditions[0].ConditionRefresh(h.Context, retained, includeChildren: false);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(h.Conditions, Has.Count.EqualTo(1));
+                Assert.That(retained, Has.Count.EqualTo(1));
+                Assert.That(retained[0], Is.SameAs(h.Conditions[0]));
+                Assert.That(h.Conditions[0].EventId!.Value, Is.EqualTo(eventId));
+                Assert.That(h.Conditions[0].Severity!.Value, Is.EqualTo((ushort)412));
+                Assert.That(h.Conditions[0].Time!.Value, Is.EqualTo(s_time));
+            }
+        }
+
+        [TestCase("local-re-emission", false, false)]
+        [TestCase("local-re-emission", false, true)]
+        [TestCase("local-re-emission", true, false)]
+        [TestCase("local-re-emission", true, true)]
+        [TestCase("transparent-forwarding", false, false)]
+        [TestCase("transparent-forwarding", false, true)]
+        [TestCase("transparent-forwarding", true, false)]
+        [TestCase("transparent-forwarding", true, true)]
+        public async Task RejectedPrivateValidationCanRetryWithoutOwningCapacityAsync(
+            string mode, bool firstInput, bool invalidNamespace)
+        {
+            await using var h = new RefreshHarness(mode, capacity: firstInput ? 1 : 2);
+            ByteString previousId = default;
+            if (!firstInput)
+            {
+                BaseEventState? first = await h.ProjectAsync().ConfigureAwait(false);
+                Assert.That(first, Is.Not.Null);
+                previousId = first!.EventId!.Value;
+            }
+            h.Alarm.EventId!.Value = ByteString.From(new byte[] { 0xD3, 0xC8, 0x03 });
+            h.Alarm.Severity!.Value = 999;
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await h.ProjectAsync(invalidNamespace ? null : "Quality/SourceTimestamp",
+                    invalidNamespace: invalidNamespace).ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(invalidNamespace
+                ? StatusCodes.BadNodeIdInvalid : StatusCodes.BadNoData));
+            Assert.That(h.Conditions, Has.Count.EqualTo(firstInput ? 0 : 1));
+            if (!firstInput)
+            {
+                Assert.That(h.Conditions[0].EventId!.Value, Is.EqualTo(previousId));
+                Assert.That(h.Conditions[0].Severity!.Value, Is.EqualTo((ushort)412));
+            }
+            BaseEventState? accepted = await h.ProjectAsync().ConfigureAwait(false);
+            Assert.That(accepted, Is.Not.Null);
+            Assert.That(h.Conditions, Has.Count.EqualTo(1));
+            Assert.That(h.Conditions[0].Severity!.Value, Is.EqualTo((ushort)999));
+            Assert.That(h.Conditions[0].EventId!.Value, Is.EqualTo(accepted!.EventId!.Value));
+            Assert.That(h.Binding.TryResolveOwnEventId(accepted.EventId.Value, out ByteString sourceId), Is.True);
+            Assert.That(sourceId, Is.EqualTo(h.Alarm.EventId.Value));
+        }
+
+        [TestCase("local-re-emission")]
+        [TestCase("transparent-forwarding")]
+        public async Task ConflictingRetainedFieldPathRejectsWithoutChangingOccurrenceAsync(string mode)
+        {
+            await using var h = new RefreshHarness(mode, capacity: 2);
+            BaseEventState? first = await h.ProjectAsync().ConfigureAwait(false);
+            Assert.That(first, Is.Not.Null);
+            ByteString eventId = first!.EventId!.Value;
+            LimitAlarmState retained = h.Conditions[0];
+            retained.HighLimit = null;
+            var incompatible = new BaseObjectState(retained)
+            {
+                BrowseName = QualifiedName.From(Ua.BrowseNames.HighLimit)
+            };
+            retained.AddChild(incompatible);
+            h.Alarm.EventId!.Value = ByteString.From(new byte[] { 0xD3, 0xC8, 0x04 });
+            h.Alarm.Severity!.Value = 999;
+
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await h.ProjectAsync().ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(retained.EventId!.Value, Is.EqualTo(eventId));
+            Assert.That(retained.Severity!.Value, Is.EqualTo((ushort)412));
+            Assert.That(retained.FindChild(h.Context, QualifiedName.From(Ua.BrowseNames.HighLimit)),
+                Is.SameAs(incompatible));
+        }
+
+        [TestCase("local-re-emission")]
+        [TestCase("transparent-forwarding")]
         public async Task StatePropertyCannotMasqueradeAsRetainedRefreshAsync(string mode)
         {
             await using var h = new RefreshHarness(mode, includeStateProperty: true);
@@ -287,7 +382,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             public RefreshHarness(
                 string mode, bool limitType = true, bool qualifiedProperty = false, bool includeStateProperty = false,
-                string? configurationProperty = null)
+                string? configurationProperty = null, int capacity = 1)
             {
                 ServiceMessageContext messageContext = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
                 messageContext.NamespaceUris = new NamespaceTable(
@@ -356,7 +451,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 var notifier = new BaseObjectState(null) { NodeId = new NodeId("Owner", 2) };
                 bool transparent = mode == "transparent-forwarding";
                 Binding = new WotProjectedEventBinding(Context, m_eventSource, notifier,
-                    transparent ? s_sourceType : s_localType, null, ExpandedNodeId.Null, 1, TimeProvider.System,
+                    transparent ? s_sourceType : s_localType, null, ExpandedNodeId.Null, capacity, TimeProvider.System,
                     "urn:wot:refresh:document", "/events/alarm", m_registry,
                     transparent
                         ? WoTEventIdentityModeEnum.TransparentForwarding : WoTEventIdentityModeEnum.LocalReEmission,
@@ -382,7 +477,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             public List<LimitAlarmState> Conditions { get; } = [];
 
-            public ValueTask<BaseEventState?> ProjectAsync()
+            public ValueTask<BaseEventState?> ProjectAsync(
+                string? missingCapturedField = null, bool invalidNamespace = false)
             {
                 var filter = new FilterContext(Context.NamespaceUris, Context.TypeTable, Context.Telemetry);
                 Variant ReadClause(WotResolvedEventSelectClause clause)
@@ -398,7 +494,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
                 WotCapturedEvent captured = WotCapturedEvent.Capture(m_source,
                     WotCapturedEvent.RequiredSelectClauses,
-                    WotCapturedEvent.RequiredSelectClauses.ConvertAll(ReadClause));
+                    WotCapturedEvent.RequiredSelectClauses.ConvertAll(clause =>
+                        clause.BrowsePath == missingCapturedField ? Variant.Null :
+                        invalidNamespace && clause.BrowsePath == Ua.BrowseNames.ConditionClassId
+                            ? new Variant(new NodeId("unmapped-class", ushort.MaxValue)) : ReadClause(clause)));
                 var data = new WotEventDataBuilder();
                 WotEventSelection selection = m_eventSource.Form.EventSelection!;
                 ArrayOf<ArrayOf<string>> paths = WotEventSelectClauses.GetMaterializedMemberPaths(selection.Clauses);
