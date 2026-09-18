@@ -517,12 +517,22 @@ namespace Opc.Ua.Server
                             Uri? uri = Utils.ParseUri(client.EndpointUrl);
                             if (uri != null)
                             {
-                                configuredUrls.Add(uri);
+                                if (!configuredUrls.Add(uri))
+                                {
+                                    m_logger.WarningServerConfigurationReverseConnectContains(uri);
+                                    continue;
+                                }
                                 if (m_connections.TryGetValue(uri, out ReverseConnectProperty? existing))
                                 {
-                                    existing.MaxSessionCount = client.MaxSessionCount;
-                                    existing.Enabled = client.Enabled;
-                                    m_logger.WarningServerConfigurationReverseConnectContains(uri);
+                                    if (existing.ConfigEntry)
+                                    {
+                                        existing.MaxSessionCount = client.MaxSessionCount;
+                                        existing.Enabled = client.Enabled;
+                                    }
+                                    else
+                                    {
+                                        m_logger.WarningServerConfigurationReverseConnectContains(uri);
+                                    }
                                 }
                                 else
                                 {
@@ -549,14 +559,12 @@ namespace Opc.Ua.Server
                 }
                 if (reverseConnect.Clients.IsEmpty)
                 {
-                    foreach (Uri uri in m_connections
-                        .Where(entry => entry.Value.ConfigEntry)
-                        .Select(entry => entry.Key)
-                        .ToArray())
-                    {
-                        m_connections.Remove(uri);
-                    }
+                    ClearConnections(true);
                 }
+            }
+            else
+            {
+                ClearConnections(true);
             }
         }
 
