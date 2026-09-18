@@ -367,8 +367,8 @@ With the server fixes of 2026-09-14:
 
 - **Subscription Services:** errors only in Subscription Minimum 02 `020.js` (issue 19) and Subscription
   Durable `012.js` (C38). Warnings: Durable `002.js` (RevisedLifetimeInHours 10 for a requested UInt32 max,
-  expected), Publish Min 05 `003.js` (project configuration), and CloseSession latency in Subscription Basic
-  `Err-011.js` (always) and Publish Basic `cleanup.js` (sometimes).
+  expected), Publish Min 05 `003.js` (project configuration), and CloseSession delay warnings in Subscription Basic
+  `Err-011.js` (always) and Publish Basic `cleanup.js` (sometimes; a CTT artifact, [ctt-issues.md](ctt-issues.md) C50).
 - **Session Services:** errors only in Session Base `Err-002.js`, `Err-005.js` and `Err-022.js` (C37).
   Skips: `Err-009.js` (no Kerberos in the CTT) and `Err-023.js` (the server offers SecurityPolicy None).
 
@@ -471,6 +471,51 @@ With the fixes of 2026-09-14 and the setup above:
 | Security User Token | Anonymous `002.js` fails (C35), User Name Password 2 `015.js` fails (C36); skips Anonymous `003.js` and User Name Password 2 `002.js` (not applicable); X509 18 of 18 automated cases pass |
 
 Negative certificate and user token tests passing here is only meaningful without `-a`.
+
+## 10. Full run of every conformance group
+
+To check a change against the whole CTT, run every CU that has test cases in parts, each on a fresh server.
+Build the selections with the generator of section 3, but read `ProfileSet_UACore_1.05_*` first, then DI 1.05,
+UAFX, the older UACore sets and `ProfileSet_Custom.xml` (strip its invalid `xmlns:xmlns` attribute before parsing).
+Otherwise the 1.03 group names win (for example *Security* instead of *Security General*) and the selection does
+not match the CTT tree. `testscripts.xml` lists Discovery Configuration twice; select each CU id once.
+
+Parts used on 2026-09-15 (CTT 1.05.06, scripts 1.05.513, 3,752 test cases, 23 parts, about 80 minutes):
+
+| Part | Server | Duration |
+| --- | --- | --- |
+| Address Space Model | `--ctt -a -c` | 2:44 |
+| Base Information | `--ctt -a -c` | 4:49 |
+| Base Services + View Services + Method Services | `--ctt -a -c` | 0:16 |
+| Attribute Services / Data Access | `--ctt -a -c` | 0:17 / 2:17 |
+| Aggregates / Historical Access | `--ctt -a -c` | 0:26 / 0:17 |
+| Node Management / AliasName / Discovery | `--ctt -a -c` | 0:26 / 0:12 / 0:12 |
+| DI Base Model + all UAFX groups | `--ctt -a -c` | 1:06 |
+| Auditing | `--ctt -a -c` | 0:50 |
+| Monitored Item Services | `--ctt -a -c` | 9:49 |
+| GDS / Session Services | `--ctt -a -c` | 0:55 / 0:43 |
+| Subscription Services | `--ctt -a -c` | 11:01 |
+| Miscellaneous, Base File Information, Protocol and Encoding, PubSub General, Redundancy, UserDefinedCG | `--ctt -a -c` | 0:26 |
+| Alarms and Conditions without CertificateExpiration (Alarm Cycle Time 30, section 6) | `--ctt -a -c` | 18:03 |
+| Security User Token | isolated PKI, `--ctt -c` (section 9) | 0:30 |
+| Security General: Certificate Validation / certificate management / roles and users / rest | isolated PKI, `--ctt -c` | 0:11 / 0:18 / 0:22 / 4:35 |
+
+Use the project settings of `samples/UAReferenceServer.ctt.xml` for the #4479 nodes (see ctt-issues.md, *CTT
+project configuration notes*). Compare every part with an earlier run at test-case level (`ResultNode` elements
+with a `unitkey`) and by normalized first error line; a changed error count alone hides swapped failures. Warnings
+*"… Timestamp shows a delay in excess of …"* on the first ActivateSession of a part are warm-up noise.
+
+Result against origin/master + #4477, #4482, #4485, #4486 (2026-09-15): every part matches the individual group
+runs of 2026-09-13/14, except
+
+- Aggregates: 4,498 error messages (was 4,210). Minimum, MinimumActualTime and MaximumActualTime `001-02.js`… now
+  fail because #4477 implements the Part 13 Uncertain rules the oracle lacks (C48, C49).
+- Auditing: 0 errors (C14 was the event queue size bug, fixed by #4480).
+- A & C Confirm `Test_001.js` can fail for all alarm types depending on the alarm phase (C10).
+- Newly covered: UAFX (no FX model), PubSub Publisher UADP (no PubSub publisher) and Security None /
+  Basic256Sha256 `007.js`/`005.js`. Those two failed (also on origin/master) because the server closed idle
+  SecureChannels after 30 s of silence while the CTT needed 41 s for the step (C50); they pass since the
+  inactivity cleanup keeps open channels with a valid token (see ctt-issues.md, open server findings).
 
 ## Pitfalls
 
