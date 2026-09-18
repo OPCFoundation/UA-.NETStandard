@@ -372,7 +372,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Recursively processes the elements in the RelativePath starting at the specified index.
+        /// Processes the relative path depth first without growing the execution stack.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private async ValueTask TranslateBrowsePathAsync(
@@ -389,166 +389,104 @@ namespace Opc.Ua.Server
             Debug.Assert(relativePath != null);
             Debug.Assert(targets != null);
 
-            // check for end of list.
-            if (index < 0 || index >= relativePath!.Elements.Count)
+            var pending = new Stack<(IAsyncNodeManager? Manager, object? Handle, ExpandedNodeId Target, int Index)>();
+            pending.Push((nodeManager, sourceHandle, default, index));
+            while (pending.Count != 0)
             {
-                return;
-            }
-
-            // follow the next hop.
-            RelativePathElement element = relativePath.Elements[index];
-
-            // check for valid reference type.
-            if (!element.IncludeSubtypes && element.ReferenceTypeId.IsNull)
-            {
-                return;
-            }
-
-            // check for valid target name.
-            if (element.TargetName.IsNull)
-            {
-                throw new ServiceResultException(StatusCodes.BadBrowseNameInvalid);
-            }
-
-            var targetIds = new List<ExpandedNodeId>();
-            var externalTargetIds = new List<NodeId>();
-
-            try
-            {
-                await nodeManager!.TranslateBrowsePathAsync(
-                    context,
-                    sourceHandle!,
-                    element,
-                    targetIds,
-                    externalTargetIds,
-                    cancellationToken)
-                .ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                m_logger.UnexpectedErrorTranslatingBrowsePath(e);
-                return;
-            }
-
-            // must check the browse name on all external targets.
-            for (int ii = 0; ii < externalTargetIds.Count; ii++)
-            {
-                // get the browse name from another node manager.
-                var description = new ReferenceDescription();
-
-                await UpdateReferenceDescriptionAsync(
-                        context,
-                        externalTargetIds[ii],
-                        NodeClass.Unspecified,
-                        BrowseResultMask.BrowseName,
-                        description,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-
-                // add to list if target name matches.
-                if (description.BrowseName == element.TargetName)
+                cancellationToken.ThrowIfCancellationRequested();
+                (IAsyncNodeManager? manager, object? handle, ExpandedNodeId nextTarget, int nextIndex) = pending.Pop();
+                if (nextTarget.IsAbsolute)
                 {
-                    bool found = false;
-
-                    for (int jj = 0; jj < targetIds.Count; jj++)
+                    targets.Add(new BrowsePathTarget
                     {
-                        if (targetIds[jj] == externalTargetIds[ii])
-                        {
-                            found = true;
-                            break;
-                        }
-                    }
+                        TargetId = nextTarget,
+                        RemainingPathIndex = (uint)nextIndex
+                    });
+                    continue;
+                }
+                if (handle == null)
+                {
+                    (handle, manager) = await m_owner.GetManagerHandleAsync(
+                        ExpandedNodeId.ToNodeId(nextTarget, Server.NamespaceUris), cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                if (handle == null || manager == null ||
+                    nextIndex < 0 || nextIndex >= relativePath.Elements.Count)
+                {
+                    continue;
+                }
 
-                    if (!found)
+                RelativePathElement element = relativePath.Elements[nextIndex];
+                if (!element.IncludeSubtypes && element.ReferenceTypeId.IsNull)
+                {
+                    continue;
+                }
+                if (element.TargetName.IsNull)
+                {
+                    throw new ServiceResultException(StatusCodes.BadBrowseNameInvalid);
+                }
+
+                var targetIds = new List<ExpandedNodeId>();
+                var externalTargetIds = new List<NodeId>();
+                try
+                {
+                    await manager.TranslateBrowsePathAsync(
+                        context, handle, element, targetIds, externalTargetIds, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception e) when (
+                    e is not OperationCanceledException and not OutOfMemoryException and
+                        not StackOverflowException and not AccessViolationException)
+                {
+                    m_logger.UnexpectedErrorTranslatingBrowsePath(e);
+                    continue;
+                }
+                foreach (NodeId externalTarget in externalTargetIds)
+                {
+                    var description = new ReferenceDescription();
+                    await UpdateReferenceDescriptionAsync(
+                            context, externalTarget, NodeClass.Unspecified, BrowseResultMask.BrowseName,
+                            description, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (description.BrowseName == element.TargetName && !targetIds.Contains(externalTarget))
                     {
-                        targetIds.Add(externalTargetIds[ii]);
+                        targetIds.Add(externalTarget);
                     }
                 }
-            }
-
-            // check if done after a final hop.
-            if (index == relativePath.Elements.Count - 1)
-            {
-                for (int ii = 0; ii < targetIds.Count; ii++)
+                if (nextIndex != relativePath.Elements.Count - 1)
                 {
-                    // Check the role permissions for target nodes
-                    (object? targetHandle, IAsyncNodeManager? targetNodeManager) =
-                        await m_owner.GetManagerHandleAsync(
-                            ExpandedNodeId.ToNodeId(targetIds[ii], Server.NamespaceUris),
+                    // Reverse pushes preserve the recursive walk's target ordering,
+                    // including partial paths that lead to another server.
+                    for (int ii = targetIds.Count - 1; ii >= 0; ii--)
+                    {
+                        pending.Push((null, null, targetIds[ii], nextIndex + 1));
+                    }
+                    continue;
+                }
+                foreach (ExpandedNodeId targetId in targetIds)
+                {
+                    (object? targetHandle, IAsyncNodeManager? targetNodeManager) = await m_owner.GetManagerHandleAsync(
+                            ExpandedNodeId.ToNodeId(targetId, Server.NamespaceUris),
                             cancellationToken)
                         .ConfigureAwait(false);
-
                     if (targetHandle != null && targetNodeManager != null)
                     {
                         NodeMetadata nodeMetadata = await targetNodeManager.GetNodeMetadataAsync(
-                            context,
-                            targetHandle,
-                            BrowseResultMask.All,
-                            cancellationToken)
+                            context, targetHandle, BrowseResultMask.All, cancellationToken)
                             .ConfigureAwait(false);
-
                         ServiceResult serviceResult = MasterNodeManager.ValidateRolePermissions(
-                            context,
-                            nodeMetadata,
-                            PermissionType.Browse,
-                            m_logger);
-
+                            context, nodeMetadata, PermissionType.Browse, m_logger);
                         if (ServiceResult.IsBad(serviceResult))
                         {
-                            // Remove target node without role permissions.
                             continue;
                         }
                     }
-
-                    var target = new BrowsePathTarget
-                    {
-                        TargetId = targetIds[ii],
-                        RemainingPathIndex = uint.MaxValue
-                    };
-
-                    targets!.Add(target);
-                }
-
-                return;
-            }
-
-            // process next hops.
-            for (int ii = 0; ii < targetIds.Count; ii++)
-            {
-                ExpandedNodeId targetId = targetIds[ii];
-
-                // check for external reference.
-                if (targetId.IsAbsolute)
-                {
-                    var target = new BrowsePathTarget
+                    targets.Add(new BrowsePathTarget
                     {
                         TargetId = targetId,
-                        RemainingPathIndex = (uint)(index + 1)
-                    };
-
-                    targets!.Add(target);
-                    continue;
+                        RemainingPathIndex = uint.MaxValue
+                    });
                 }
-
-                // check for valid start node.
-                (sourceHandle, nodeManager) = await m_owner.GetManagerHandleAsync((NodeId)targetId, cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (sourceHandle == null)
-                {
-                    continue;
-                }
-
-                // recursively follow hops.
-                await TranslateBrowsePathAsync(
-                    context,
-                    nodeManager,
-                    sourceHandle,
-                    relativePath,
-                    targets!,
-                    index + 1,
-                    cancellationToken)
-                .ConfigureAwait(false);
             }
         }
 
@@ -651,7 +589,8 @@ namespace Opc.Ua.Server
                         context,
                         view,
                         maxReferencesPerNode,
-                        continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
+                        m_owner.MaxContinuationPointsPerBrowse == 0 ||
+                            continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
                         nodeToBrowse,
                         result,
                         cancellationToken).ConfigureAwait(false);
@@ -821,7 +760,8 @@ namespace Opc.Ua.Server
                                 ArrayOf<ReferenceDescription> references = result.References;
                                 (error, cp, references) = await FetchReferencesAsync(
                                     context,
-                                    continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
+                                    m_owner.MaxContinuationPointsPerBrowse == 0 ||
+                                        continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
                                     pointToFetch,
                                     references,
                                     cancellationToken).ConfigureAwait(false);

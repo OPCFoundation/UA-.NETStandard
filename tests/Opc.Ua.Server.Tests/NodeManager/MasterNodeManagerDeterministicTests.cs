@@ -74,6 +74,48 @@ namespace Opc.Ua.Server.Tests
             await m_fixture.StopAsync().ConfigureAwait(false);
         }
 
+        [TestCase(1000, true)]
+        [TestCase(4096, true)]
+        [TestCase(4097, false)]
+        public async Task LongTranslatePathPreservesTargetAndQuotaAsync(int count, bool accepted)
+        {
+            StatusCode expectedStatus = accepted ? StatusCodes.Good : StatusCodes.BadQueryTooComplex;
+            var elements = new RelativePathElement[count];
+            for (int ii = 0; ii < count; ii++)
+            {
+                elements[ii] = new RelativePathElement
+                {
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                    IsInverse = ii % 2 != 0,
+                    TargetName = new QualifiedName(ii % 2 == 0 ? BrowseNames.ServerStatus : BrowseNames.Server)
+                };
+            }
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Browse, RequestLifetime.None, new UserIdentity());
+            var path = new BrowsePath
+            {
+                StartingNode = ObjectIds.Server,
+                RelativePath = new RelativePath { Elements = elements }
+            };
+
+            (ArrayOf<BrowsePathResult> results, _) = await Task.Run(async () =>
+                await m_server.CurrentInstance.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
+                    context, [path]).ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(results, Has.Count.EqualTo(1));
+            Assert.That(results[0].StatusCode, Is.EqualTo(expectedStatus));
+            if (accepted)
+            {
+                Assert.That(results[0].Targets, Has.Count.EqualTo(1));
+                Assert.That(results[0].Targets[0].TargetId, Is.EqualTo((ExpandedNodeId)ObjectIds.Server));
+                Assert.That(results[0].Targets[0].RemainingPathIndex, Is.EqualTo(uint.MaxValue));
+            }
+            else
+            {
+                Assert.That(results[0].Targets, Is.Empty);
+            }
+        }
+
         [Test]
         public void Constructor_NullServer_ThrowsArgumentNullException()
         {

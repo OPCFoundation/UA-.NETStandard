@@ -221,6 +221,103 @@ namespace Opc.Ua.Server.Tests.NodeManager
             firstResource.Verify(value => value.Dispose(), Times.Once);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ZeroContinuationQuotaAllowsEveryPagedResultAsync(bool browseNext)
+        {
+            using var harness = new BrowseHarness(maxPerBrowse: 0);
+            harness.ReturnAnotherPage();
+            ArrayOf<BrowseResult> results;
+            if (browseNext)
+            {
+                var firstResource = new Mock<IDisposable>();
+                var secondResource = new Mock<IDisposable>();
+                ContinuationPoint first = harness.AddPoint(firstResource);
+                ContinuationPoint second = harness.AddPoint(secondResource);
+                (results, _) = await harness.Master.BrowseNextAsync(
+                    harness.Context, false, [Token(first), Token(second)]).ConfigureAwait(false);
+            }
+            else
+            {
+                var description = new BrowseDescription
+                {
+                    NodeId = harness.Metadata.NodeId,
+                    BrowseDirection = BrowseDirection.Forward,
+                    ResultMask = (uint)BrowseResultMask.All
+                };
+                (results, _) = await harness.Master.BrowseAsync(
+                    harness.Context, new ViewDescription(), 1, [description, description]).ConfigureAwait(false);
+            }
+
+            Assert.That(results, Has.Count.EqualTo(2));
+            foreach (BrowseResult result in results)
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(result.ContinuationPoint.IsEmpty, Is.False);
+                Assert.That(result.References, Has.Count.EqualTo(1));
+                Assert.That(result.References[0].NodeId, Is.EqualTo((ExpandedNodeId)harness.Metadata.NodeId));
+            }
+        }
+
+        [Test]
+        public async Task TranslateWorklistPreservesBranchOrderAndExternalRemainingIndexAsync()
+        {
+            using var harness = new BrowseHarness();
+            var first = new NodeId(10, 1);
+            var second = new NodeId(20, 1);
+            var external = new NodeId(30, 1);
+            var remote = new ExpandedNodeId(99, "urn:remote", 2);
+            harness.Metadata.BrowseName = new QualifiedName("First");
+            harness.Manager.Setup(value => value.GetManagerHandleAsync(
+                    It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns((NodeId id, CancellationToken _) =>
+                    new ValueTask<object>(new NodeHandle { NodeId = id }));
+            harness.Manager.Setup(value => value.TranslateBrowsePathAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<object>(), It.IsAny<RelativePathElement>(),
+                    It.IsAny<IList<ExpandedNodeId>>(), It.IsAny<IList<NodeId>>(), It.IsAny<CancellationToken>()))
+                .Returns((OperationContext _, object handle, RelativePathElement element,
+                    IList<ExpandedNodeId> targets, IList<NodeId> externalTargets, CancellationToken _) =>
+                {
+                    if (element.TargetName.Name == "First")
+                    {
+                        targets.Add(first);
+                        targets.Add(remote);
+                        targets.Add(second);
+                        externalTargets.Add(first);
+                        externalTargets.Add(external);
+                    }
+                    else
+                    {
+                        targets.Add(new NodeId(((NodeHandle)handle).NodeId.ToString() + "-leaf", 1));
+                    }
+                    return default;
+                });
+            var path = new BrowsePath
+            {
+                StartingNode = harness.Metadata.NodeId,
+                RelativePath = new RelativePath
+                {
+                    Elements =
+                    [
+                        new() { TargetName = new QualifiedName("First"), ReferenceTypeId = ReferenceTypeIds.HasComponent },
+                        new() { TargetName = new QualifiedName("Second"), ReferenceTypeId = ReferenceTypeIds.HasComponent }
+                    ]
+                }
+            };
+
+            (ArrayOf<BrowsePathResult> results, _) = await harness.Master.TranslateBrowsePathsToNodeIdsAsync(
+                harness.Context, [path]).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(results[0].Targets, Has.Count.EqualTo(4));
+            Assert.That(results[0].Targets[0].TargetId, Is.EqualTo((ExpandedNodeId)new NodeId("ns=1;i=10-leaf", 1)));
+            Assert.That(results[0].Targets[1].TargetId, Is.EqualTo(remote));
+            Assert.That(results[0].Targets[1].RemainingPathIndex, Is.EqualTo(1));
+            Assert.That(results[0].Targets[2].TargetId, Is.EqualTo((ExpandedNodeId)new NodeId("ns=1;i=20-leaf", 1)));
+            Assert.That(results[0].Targets[3].TargetId, Is.EqualTo((ExpandedNodeId)new NodeId("ns=1;i=30-leaf", 1)));
+            Assert.That(results[0].Targets[3].RemainingPathIndex, Is.EqualTo(uint.MaxValue));
+        }
+
         /// <summary>
         /// Verifies that batch cancellation disposes both the current continuation and earlier pages not returned to
         /// the client.
