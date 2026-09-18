@@ -178,7 +178,7 @@ namespace Opc.Ua
                 }
 
                 // TLS validates the literal endpoint name, not the hostname substituted for localhost.
-                if ((Utils.IsUriHttpsScheme(baseAddresses[ii]) || Utils.IsUriWssScheme(baseAddresses[ii])) &&
+                if ((Utils.IsUriHttpsScheme(url.AbsoluteUri) || Utils.IsUriWssScheme(url.AbsoluteUri)) &&
                     url.HostNameType == UriHostNameType.Dns &&
                     !Utils.FindStringIgnoreCase(domainNames, url.IdnHost))
                 {

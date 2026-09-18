@@ -650,6 +650,10 @@ namespace Opc.Ua.Core.Tests
         [TestCase("opc.https")]
         [TestCase("wss")]
         [TestCase("opc.wss")]
+        [TestCase("HTTPS")]
+        [TestCase("Opc.Https")]
+        [TestCase("WSS")]
+        [TestCase("Opc.Wss")]
         public void GetServerDomainNamesPreservesConfiguredLoopbackName(string scheme)
         {
             var config = new ApplicationConfiguration(m_telemetry)
