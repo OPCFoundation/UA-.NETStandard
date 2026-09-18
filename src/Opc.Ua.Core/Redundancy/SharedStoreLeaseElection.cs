@@ -57,7 +57,7 @@ namespace Opc.Ua.Redundancy
         /// How long an acquired lease remains valid without renewal.
         /// </param>
         /// <param name="renewInterval">
-        /// How often the background loop renews the lease.
+        /// How often the background loop renews the lease, and the timeout for best-effort release during disposal.
         /// </param>
         /// <param name="timeProvider">Time source (defaults to system).</param>
         /// <param name="logger">Optional logger.</param>
@@ -323,8 +323,12 @@ namespace Opc.Ua.Redundancy
                 ExpireLeaseIfNeeded();
                 if (!m_disposed && attempt == m_attempt)
                 {
+                    // Reconfirming unchanged storage must not restart its monotonic lifetime.
+                    long confirmedTimestamp = m_isLeader && expiryTicks == m_confirmedExpiryTicks
+                        ? m_confirmedTimestamp
+                        : timestamp;
                     TimeSpan remaining = acquired
-                        ? GetRemainingLeaseTime(timestamp, expiryTicks)
+                        ? GetRemainingLeaseTime(confirmedTimestamp, expiryTicks)
                         : TimeSpan.Zero;
                     confirmed = acquired && remaining > TimeSpan.Zero;
                     if (m_isLeader != confirmed)
@@ -334,7 +338,7 @@ namespace Opc.Ua.Redundancy
                     m_isLeader = confirmed;
                     if (confirmed)
                     {
-                        m_confirmedTimestamp = timestamp;
+                        m_confirmedTimestamp = confirmedTimestamp;
                         m_confirmedExpiryTicks = expiryTicks;
                         m_expiryTimer.Change(remaining, Timeout.InfiniteTimeSpan);
                     }

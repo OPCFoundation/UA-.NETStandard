@@ -313,6 +313,40 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(election.IsLeader, Is.False);
         }
 
+        [Test]
+        public async Task FailedCasRereadCannotExtendMonotonicLeaseAfterClockRollbackAsync()
+        {
+            var clock = new FakeTimeProvider();
+            TimeSpan offset = TimeSpan.Zero;
+            var time = new Mock<TimeProvider>();
+            time.Setup(value => value.GetUtcNow()).Returns(() => clock.GetUtcNow() + offset);
+            time.Setup(value => value.GetTimestamp()).Returns(clock.GetTimestamp);
+            time.SetupGet(value => value.TimestampFrequency).Returns(clock.TimestampFrequency);
+            time.Setup(value => value.CreateTimer(
+                    It.IsAny<TimerCallback>(), It.IsAny<object>(), It.IsAny<TimeSpan>(), It.IsAny<TimeSpan>()))
+                .Returns((TimerCallback callback, object state, TimeSpan dueTime, TimeSpan period) =>
+                    clock.CreateTimer(callback, state, dueTime, period));
+            using var backend = new InMemorySharedKeyValueStore();
+            Mock<ISharedKeyValueStore> store = CreateStore(backend);
+            await using SharedStoreLeaseElection election = CreateElection(store.Object, "A", time.Object);
+            var transitions = new ConcurrentQueue<bool>();
+            election.LeadershipChanged += transitions.Enqueue;
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            clock.Advance(s_renewInterval);
+            offset = -s_renewInterval;
+            store.Setup(value => value.CompareAndSwapAsync(
+                    kLeaseKey, It.IsAny<ByteString>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(false));
+
+            Assert.That(await election.TryAcquireOrRenewAsync().ConfigureAwait(false), Is.True);
+            Assert.That(transitions, Is.EqualTo(s_acquired));
+            clock.Advance(s_leaseDuration - s_renewInterval - s_tick);
+            Assert.That(election.IsLeader, Is.True);
+            clock.Advance(s_tick);
+            Assert.That(election.IsLeader, Is.False, "Rereading the same lease cannot restart its monotonic lifetime.");
+            Assert.That(transitions, Is.EqualTo(s_acquiredThenLost));
+        }
+
         /// <summary>
         /// Creates an election with shared test lease timing and the supplied replica identity and clock.
         /// </summary>
