@@ -88,6 +88,15 @@ namespace Opc.Ua
             m_securityPolicies = securityPolicies ?? SecurityPolicies.Default;
         }
 
+        internal IssuedIdentityTokenHandler(
+            IssuedIdentityToken token,
+            ISecurityPolicyRegistry? securityPolicies,
+            Func<SecurityPolicyInfo, Nonce> nonceFactory)
+            : this(token, securityPolicies)
+        {
+            m_nonceFactory = nonceFactory ?? throw new ArgumentNullException(nameof(nonceFactory));
+        }
+
         /// <summary>
         /// Create handler
         /// </summary>
@@ -228,13 +237,14 @@ namespace Opc.Ua
                 return;
             }
 
-            if (senderIssuerCertificates != null &&
+            using CertificateCollection? issuers = senderIssuerCertificates != null &&
                 senderIssuerCertificates.Count > 0 &&
-                senderIssuerCertificates[0].Thumbprint == senderCertificate?.Thumbprint)
+                senderIssuerCertificates[0].Thumbprint == senderCertificate?.Thumbprint
+                ? new CertificateCollection()
+                : null;
+            if (issuers != null)
             {
-                var issuers = new CertificateCollection();
-
-                for (int ii = 1; ii < senderIssuerCertificates.Count; ii++)
+                for (int ii = 1; ii < senderIssuerCertificates!.Count; ii++)
                 {
                     issuers.Add(senderIssuerCertificates[ii]);
                 }
@@ -242,26 +252,23 @@ namespace Opc.Ua
                 senderIssuerCertificates = issuers;
             }
 
-            var secret = EncryptedSecret.CreateForEcc(
+            using Nonce senderNonce = m_nonceFactory(securityPolicy);
+            using var secret = EncryptedSecret.CreateForEcc(
                 context: context,
                 securityPolicyUri: securityPolicyUri,
                 senderIssuerCertificates: senderIssuerCertificates!,
                 receiverCertificate: receiverCertificate,
                 receiverNonce: receiverEphemeralKey!,
                 senderCertificate: senderCertificate!,
-                senderNonce: Nonce.CreateNonce(securityPolicy)!,
+                senderNonce: senderNonce,
                 doNotEncodeSenderCertificate: doNotEncodeSenderCertificate);
 
-            using (secret)
-            {
-                byte[] tokenData = m_decryptedTokenData ??
-                    throw new ServiceResultException(
-                        StatusCodes.BadIdentityTokenInvalid,
-                        "IssuedIdentityToken does not contain token data.");
-                m_token.TokenData = secret.Encrypt(tokenData, receiverNonce).ToByteString();
-                m_token.EncryptionAlgorithm = null;
-                return;
-            }
+            byte[] tokenData = m_decryptedTokenData ??
+                throw new ServiceResultException(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "IssuedIdentityToken does not contain token data.");
+            m_token.TokenData = secret.Encrypt(tokenData, receiverNonce).ToByteString();
+            m_token.EncryptionAlgorithm = null;
         }
 
         /// <inheritdoc/>
@@ -395,5 +402,6 @@ namespace Opc.Ua
         private byte[]? m_decryptedTokenData;
         private readonly IssuedIdentityToken m_token;
         private readonly ISecurityPolicyRegistry m_securityPolicies;
+        private readonly Func<SecurityPolicyInfo, Nonce> m_nonceFactory = Nonce.CreateNonce;
     }
 }

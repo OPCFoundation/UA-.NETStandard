@@ -28,8 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Security.Identity
@@ -103,6 +106,88 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             await handler.DecryptAsync(null, null, SecurityPolicies.None, context).ConfigureAwait(false);
 
             Assert.That(handler.DecryptedTokenData, Is.EqualTo(new byte[] { 0x10, 0x20, 0x30 }));
+        }
+
+        [Test]
+        public async Task EccEncryptionReleasesTemporaryNonceAndIssuerHandlesAsync(
+            [Values(false, true)] bool missingTokenData)
+        {
+            const string policyUri = SecurityPolicies.ECC_nistP256;
+            SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(policyUri);
+            IServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            if (policy == null)
+            {
+                var unsupported = new IssuedIdentityTokenHandler(Profiles.JwtUserToken, [1, 2, 3]);
+                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await unsupported.EncryptAsync(null, [], policyUri, context).ConfigureAwait(false));
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+                return;
+            }
+
+            using Certificate sender = CertificateBuilder.Create("CN=Issued Token Sender")
+                .SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
+            using Certificate receiver = CertificateBuilder.Create("CN=Issued Token Receiver")
+                .SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
+            using Certificate issuerTemplate = CertificateBuilder.Create("CN=Issued Token Issuer")
+                .SetCAConstraint().SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
+            X509Certificate2 issuerNative = issuerTemplate.AsX509Certificate2();
+            using Certificate issuer = Certificate.From(issuerNative);
+            using var chain = new CertificateCollection { sender, issuer };
+            using Nonce receiverKey = Nonce.CreateNonce(policy);
+            using Nonce temporarySenderKey = Nonce.CreateNonce(policy);
+            byte[] expected = [0x10, 0x20, 0x30];
+            byte[] nonce = Nonce.CreateRandomNonceData(32);
+            var handler = new IssuedIdentityTokenHandler(
+                new IssuedIdentityToken { PolicyId = Profiles.JwtUserToken },
+                null,
+                _ => temporarySenderKey)
+            {
+                DecryptedTokenData = missingTokenData ? null : expected
+            };
+
+            if (missingTokenData)
+            {
+                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await handler.EncryptAsync(
+                        receiver, nonce, policyUri, context, receiverKey, sender, chain, true).ConfigureAwait(false));
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+            }
+            else
+            {
+                await handler.EncryptAsync(
+                    receiver, nonce, policyUri, context, receiverKey, sender, chain, true).ConfigureAwait(false);
+                using var decryptor = EncryptedSecret.CreateForEcc(
+                    context, policyUri, chain, receiver, receiverKey, sender, null);
+                (bool success, byte[] secret) = await decryptor.TryDecryptAsync(
+                    ((IssuedIdentityToken)handler.Token).TokenData.ToArray(), nonce).ConfigureAwait(false);
+                Assert.That(success, Is.True);
+                Assert.That(secret, Is.EqualTo(expected));
+                CryptoUtils.ZeroMemory(secret);
+            }
+
+            Assert.That(chain, Has.Count.EqualTo(2));
+            Assert.That(chain[1].Thumbprint, Is.EqualTo(issuer.Thumbprint));
+            chain.Dispose();
+            issuer.Dispose();
+            byte[] retainedSecret = temporarySenderKey.GenerateSecret(receiverKey, null);
+            try
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(retainedSecret?.Length, Is.Null, "The temporary sender ECDH key must be released.");
+                    Assert.That(issuerNative.Handle, Is.EqualTo(IntPtr.Zero),
+                        "The filtered issuer collection must not retain an extra owning handle.");
+                    Assert.That(sender.HasPrivateKey, Is.True);
+                    Assert.That(receiver.HasPrivateKey, Is.True);
+                });
+            }
+            finally
+            {
+                if (retainedSecret != null)
+                {
+                    CryptoUtils.ZeroMemory(retainedSecret);
+                }
+            }
         }
 
         [Test]
