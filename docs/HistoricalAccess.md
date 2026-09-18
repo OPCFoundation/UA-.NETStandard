@@ -1148,6 +1148,13 @@ failed node does not prevent the remaining nodes from being flushed. Provider ba
 `RejectedSampleCount`. Failure warnings are limited to one per 30 seconds per sink; counters are never rate-limited.
 Unexpected consumer termination remains an explicit error, and later discarded samples are still counted.
 
+Each capture pump owns one consumer task and a bounded channel; it does not spawn work per sample. Disposal closes
+the writer and drains the consumer for up to five seconds. A timeout cancels the pump and surfaces an error without
+starting further provider calls. An already-running provider must cooperate with cancellation; the framework cannot
+forcibly terminate it. Its token resources remain valid until it actually completes. A one-shot, static completion
+callback observes any late task failure and releases only the token source, without capturing the disposed pump,
+server, or request context. Normal graceful draining is preserved.
+
 ### What triggers a capture
 
 Auto-capture observes the **Value** bit of `NodeStateChangeMasks`. It fires when:

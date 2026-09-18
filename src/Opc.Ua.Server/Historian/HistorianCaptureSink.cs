@@ -149,7 +149,8 @@ namespace Opc.Ua.Server.Historian
             m_channel = Channel.CreateBounded<CaptureEvent>(
                 channelOptions, OnSampleDropped);
             m_shutdownCts = new CancellationTokenSource();
-            m_consumer = Task.Run(() => ConsumeAsync(m_shutdownCts.Token));
+            CancellationToken shutdownToken = m_shutdownCts.Token;
+            m_consumer = Task.Run(() => ConsumeAsync(shutdownToken));
         }
 
         /// <summary>
@@ -177,7 +178,7 @@ namespace Opc.Ua.Server.Historian
                 throw new ArgumentException(
                     "A capture sample requires a non-null NodeId and DataValue.");
             }
-            if (m_disposed)
+            if (Volatile.Read(ref m_disposed) != 0)
             {
                 return;
             }
@@ -210,13 +211,16 @@ namespace Opc.Ua.Server.Historian
         /// Flushes pending samples and shuts down the consumer task.
         /// Idempotent.
         /// </summary>
+        /// <remarks>
+        /// A timeout cancels capture and is surfaced to the caller. Token resources remain alive
+        /// until an in-flight provider completes; its eventual failure is still observed.
+        /// </remarks>
         public async ValueTask DisposeAsync()
         {
-            if (m_disposed)
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
             {
                 return;
             }
-            m_disposed = true;
             // Close the writer; the consumer drains remaining items and
             // exits its async-foreach loop normally.
             m_channel.Writer.TryComplete();
@@ -236,7 +240,26 @@ namespace Opc.Ua.Server.Historian
             }
             finally
             {
-                m_shutdownCts.Dispose();
+                if (m_consumer.IsCompleted)
+                {
+                    _ = m_consumer.Exception;
+                    m_shutdownCts.Dispose();
+                }
+                else
+                {
+                    // A timed-out provider still owns the token. This one-shot cleanup
+                    // only observes completion and disposes its source; it cannot capture this.
+                    _ = m_consumer.ContinueWith(
+                        static (completed, state) =>
+                        {
+                            _ = completed.Exception;
+                            ((CancellationTokenSource)state!).Dispose();
+                        },
+                        m_shutdownCts,
+                        CancellationToken.None,
+                        TaskContinuationOptions.ExecuteSynchronously,
+                        TaskScheduler.Default);
+                }
             }
         }
 
@@ -344,6 +367,7 @@ namespace Opc.Ua.Server.Historian
             Dictionary<NodeId, List<DataValue>> batch,
             CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
             using var opContext = new OperationContext(
                 new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
             var historianContext = new HistorianOperationContext(
@@ -389,6 +413,7 @@ namespace Opc.Ua.Server.Historian
             var data = (IHistorianDataProvider)m_provider;
             foreach (KeyValuePair<NodeId, List<DataValue>> kv in batch)
             {
+                ct.ThrowIfCancellationRequested();
                 try
                 {
                     HistorianUpdateOutcome<DataValue> outcome = await data.InsertAsync(
@@ -488,7 +513,7 @@ namespace Opc.Ua.Server.Historian
         private long m_lastFailureReport;
         private int m_unavailableReported;
         private bool m_failureReported;
-        private bool m_disposed;
+        private int m_disposed;
     }
 
     /// <summary>
@@ -543,7 +568,8 @@ namespace Opc.Ua.Server.Historian
         /// Logs the count and first status code of samples rejected by the historian provider.
         /// </summary>
         [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 5, Level = LogLevel.Warning,
-            Message = "HistorianCaptureSink provider rejected {Count} sample(s) for {NodeId}; first status {StatusCode}.")]
+            Message = "HistorianCaptureSink provider rejected {Count} sample(s) for {NodeId}; " +
+                "first status {StatusCode}.")]
         public static partial void HistorianCaptureSinkRejectedSamples(
             this ILogger logger,
             NodeId nodeId,

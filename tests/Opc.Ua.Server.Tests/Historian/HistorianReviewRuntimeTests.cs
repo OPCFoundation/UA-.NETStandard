@@ -176,6 +176,124 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(sink.DroppedSampleCount, Is.EqualTo(3));
         }
 
+        [TestCase(false, true, false)]
+        [TestCase(false, true, true)]
+        [TestCase(false, false, false)]
+        [TestCase(false, false, true)]
+        [TestCase(true, false, false)]
+        [TestCase(true, false, true)]
+        public async Task CaptureShutdownRetainsTokenResourcesUntilProviderCompletesAsync(
+            bool events,
+            bool bulk,
+            bool failAfterRelease)
+        {
+            var logger = new Mock<ILogger>();
+            logger.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
+            ServerSystemContext context = CreateSystemContext(logger.Object);
+            var clock = new FakeTimeProvider(s_start);
+            var entered = new TaskCompletionSource<CancellationToken>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var provider = new Mock<IHistorianProvider>();
+            int calls = 0;
+            IAsyncDisposable capture;
+            var options = new HistorianCaptureOptions { BatchTarget = bulk ? 1 : 2 };
+            if (events)
+            {
+                provider.As<IHistorianEventProvider>().Setup(p => p.UpdateEventsAsync(
+                        It.IsAny<HistorianOperationContext>(),
+                        It.IsAny<NodeId>(),
+                        It.IsAny<ArrayOf<HistorianEventRecord>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((HistorianOperationContext _, NodeId _, ArrayOf<HistorianEventRecord> _,
+                        CancellationToken ct) => FinishProviderAsync<HistorianEventRecord>(ct));
+                var pump = new HistorianEventCapture(
+                    context.Server, provider.Object, HistorianNodeCapabilities.EventReadWrite, options, clock);
+                capture = pump;
+                var notifier = new BaseObjectState(null) { NodeId = new NodeId("shutdown", 1) };
+                var reportedEvent = new BaseEventState(null);
+                reportedEvent.Initialize(context, notifier, EventSeverity.Medium, new LocalizedText("shutdown"));
+                pump.Enqueue(context, notifier, reportedEvent);
+                pump.Enqueue(context, new BaseObjectState(null) { NodeId = new NodeId("later", 1) }, reportedEvent);
+            }
+            else
+            {
+                if (bulk)
+                {
+                    provider.As<IHistorianBulkInsertProvider>().Setup(p => p.InsertBatchAsync(
+                            It.IsAny<HistorianOperationContext>(),
+                            It.IsAny<ArrayOf<HistorianDataBatch>>(),
+                            It.IsAny<CancellationToken>()))
+                        .Returns((HistorianOperationContext _, ArrayOf<HistorianDataBatch> _, CancellationToken ct) =>
+                            FinishBatchAsync(ct));
+                }
+                else
+                {
+                    provider.As<IHistorianDataProvider>().Setup(p => p.InsertAsync(
+                            It.IsAny<HistorianOperationContext>(),
+                            It.IsAny<NodeId>(),
+                            It.IsAny<ArrayOf<DataValue>>(),
+                            It.IsAny<CancellationToken>()))
+                        .Returns((HistorianOperationContext _, NodeId _, ArrayOf<DataValue> _, CancellationToken ct) =>
+                            FinishProviderAsync<DataValue>(ct));
+                }
+                var pump = new HistorianCaptureSink(provider.Object, context, options, clock);
+                capture = pump;
+                pump.Enqueue(new NodeId("shutdown", 1), new DataValue(1));
+                if (!bulk)
+                {
+                    pump.Enqueue(new NodeId("later", 1), new DataValue(2));
+                }
+            }
+
+            WaitHandle handle = null;
+            try
+            {
+                CancellationToken token = await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                handle = token.WaitHandle;
+                Task disposing = capture.DisposeAsync().AsTask();
+                clock.Advance(TimeSpan.FromSeconds(5));
+                Assert.ThrowsAsync<TimeoutException>(async () => await disposing.ConfigureAwait(false));
+                Assert.That(token.IsCancellationRequested, Is.True);
+                Assert.That(handle.SafeWaitHandle.IsClosed, Is.False,
+                    "An in-flight provider still owns access to the cancellation token's resources.");
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await capture.DisposeAsync().ConfigureAwait(false);
+            }
+
+            for (int attempt = 0; attempt < 500 && !handle.SafeWaitHandle.IsClosed; attempt++)
+            {
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+            Assert.That(handle.SafeWaitHandle.IsClosed, Is.True, "Completion must release the token resources.");
+            Assert.That(calls, Is.EqualTo(1), "A timed-out pump must not start another provider call.");
+            Assert.That(logger.Invocations.Any(call =>
+                call.Method.Name == nameof(ILogger.Log) &&
+                call.Arguments[3] is IOException { Message: "late provider failure" }), Is.EqualTo(failAfterRelease));
+
+            async ValueTask<HistorianUpdateOutcome<T>> FinishProviderAsync<T>(CancellationToken ct)
+            {
+                calls++;
+                entered.TrySetResult(ct);
+                await release.Task.ConfigureAwait(false);
+                if (failAfterRelease)
+                {
+                    throw new IOException("late provider failure");
+                }
+                return new HistorianUpdateOutcome<T>([StatusCodes.Good]);
+            }
+
+            async ValueTask<ArrayOf<HistorianUpdateOutcome<DataValue>>> FinishBatchAsync(CancellationToken ct)
+            {
+                HistorianUpdateOutcome<DataValue> outcome =
+                    await FinishProviderAsync<DataValue>(ct).ConfigureAwait(false);
+                return [outcome];
+            }
+        }
+
         [TestCase(0, false)]
         [TestCase(0, true)]
         [TestCase(1, false)]
