@@ -774,10 +774,10 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Verifies that an empty event browse path resolves the NodeId attribute.
+        /// Verifies that an unstored NodeId attribute is not projected as the event type.
         /// </summary>
         [Test]
-        public void ProjectEventFieldsResolvesNodeIdAttributeFromEmptyBrowsePath()
+        public void ProjectEventFieldsReturnsNullForUnstoredNodeIdAttribute()
         {
             NodeId eventType = ObjectTypeIds.AuditEventType;
             var record = new HistorianEventRecord(
@@ -785,7 +785,6 @@ namespace Opc.Ua.Server.Tests.Historian
                 (DateTimeUtc)BaseTime,
                 new Dictionary<string, Variant>().ToArrayOf());
 
-            // Select clause with empty BrowsePath + NodeId attribute asks for the EventType.
             var filter = new EventFilter
             {
                 SelectClauses = new SimpleAttributeOperand[]
@@ -802,8 +801,7 @@ namespace Opc.Ua.Server.Tests.Historian
             HistoryEventFieldList fields = HistorianDispatcher.ProjectEventFields(record, filter);
 
             Assert.That(fields.EventFields, Has.Count.EqualTo(1));
-            Assert.That(fields.EventFields[0].TryGetValue(out NodeId resolved), Is.True);
-            Assert.That(resolved, Is.EqualTo(eventType));
+            Assert.That(fields.EventFields[0].IsNull, Is.True);
         }
 
         /// <summary>

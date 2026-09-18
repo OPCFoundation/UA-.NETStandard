@@ -63,10 +63,10 @@ namespace Opc.Ua.Server.Historian
     /// <see cref="HistorianCaptureOptions.FullMode"/> is
     /// <see cref="CaptureFullMode.DropOldest"/> or
     /// <see cref="CaptureFullMode.DropNewest"/>, samples are dropped
-    /// and counted in <see cref="DroppedSampleCount"/>. Provider failures
-    /// fault the consumer and surface on a subsequent enqueue or
-    /// <see cref="DisposeAsync"/>. Callers needing durability should use
-    /// the explicit HistoryUpdate Insert service instead.
+    /// and counted in <see cref="DroppedSampleCount"/>. A failed provider
+    /// call drops its samples, records a rate-limited warning, and leaves
+    /// the consumer running for later batches. Callers needing durability
+    /// should use the explicit HistoryUpdate Insert service instead.
     /// </para>
     /// </remarks>
     internal sealed class HistorianCaptureSink : IAsyncDisposable
@@ -153,10 +153,9 @@ namespace Opc.Ua.Server.Historian
         }
 
         /// <summary>
-        /// The number of samples that have been dropped because the
-        /// queue was full. Increments on
-        /// <see cref="CaptureFullMode.DropOldest"/> or
-        /// <see cref="CaptureFullMode.DropNewest"/>.
+        /// The number of samples lost to queue overflow, a failed provider call,
+        /// or an unexpectedly unavailable consumer. Operation-level rejections
+        /// are counted separately by <see cref="RejectedSampleCount"/>.
         /// </summary>
         public long DroppedSampleCount => Interlocked.Read(ref m_droppedSamples);
 
@@ -182,16 +181,16 @@ namespace Opc.Ua.Server.Historian
             {
                 return;
             }
-            // Once faulted, the pipeline is already dead; treat further enqueues
-            // as a silent no-op (like a post-Dispose enqueue) rather than counting
-            // them as drops, since only samples actually lost in the channel or a
-            // failed flush are tracked as dropped.
             if (m_consumer.IsFaulted)
             {
-                m_logger?.HistorianCaptureSinkUnavailable(
-                    m_consumer.Exception?.InnerException ??
-                    m_consumer.Exception!,
-                    nodeId);
+                Interlocked.Increment(ref m_droppedSamples);
+                if (Interlocked.Exchange(ref m_unavailableReported, 1) == 0)
+                {
+                    m_logger?.HistorianCaptureSinkUnavailable(
+                        m_consumer.Exception?.InnerException ??
+                        m_consumer.Exception!,
+                        nodeId);
+                }
                 return;
             }
 
@@ -200,7 +199,10 @@ namespace Opc.Ua.Server.Historian
             if (!m_channel.Writer.TryWrite(ev))
             {
                 Interlocked.Increment(ref m_droppedSamples);
-                m_logger?.HistorianCaptureSinkQueueClosed(nodeId);
+                if (Interlocked.Exchange(ref m_unavailableReported, 1) == 0)
+                {
+                    m_logger?.HistorianCaptureSinkQueueClosed(nodeId);
+                }
             }
         }
 
@@ -261,25 +263,14 @@ namespace Opc.Ua.Server.Historian
                     {
                         throw;
                     }
-                    catch (Exception exception)
+                    catch (Exception exception) when (!ct.IsCancellationRequested)
                     {
                         int dropped = 0;
                         foreach (List<DataValue> values in batch.Values)
                         {
                             dropped += values.Count;
                         }
-                        Interlocked.Add(ref m_droppedSamples, dropped);
-                        m_logger?.HistorianCaptureSinkFlushFailedForNodesNodeS(
-                            exception,
-                            batch.Count);
-
-                        // A provider infrastructure failure (as opposed to an
-                        // operation-level rejection, which surfaces as a bad
-                        // status in the outcome and is handled inline) must
-                        // fault the shared consumer so it surfaces on the
-                        // next Enqueue or DisposeAsync, per the documented
-                        // best-effort contract.
-                        throw;
+                        ReportFailedFlush(exception, batch.Count, dropped);
                     }
                 }
             }
@@ -289,6 +280,11 @@ namespace Opc.Ua.Server.Historian
             }
             catch (Exception ex)
             {
+                m_channel.Writer.TryComplete(ex);
+                while (m_channel.Reader.TryRead(out _))
+                {
+                    Interlocked.Increment(ref m_droppedSamples);
+                }
                 m_logger?.HistorianCaptureSinkConsumerTerminatedUnexpectedly(ex);
                 throw;
             }
@@ -393,15 +389,35 @@ namespace Opc.Ua.Server.Historian
             var data = (IHistorianDataProvider)m_provider;
             foreach (KeyValuePair<NodeId, List<DataValue>> kv in batch)
             {
-                HistorianUpdateOutcome<DataValue> outcome = await data.InsertAsync(
-                    historianContext,
-                    kv.Key,
-                    kv.Value,
-                    ct).ConfigureAwait(false);
-                ValidateInsertOutcome(
-                    kv.Key,
-                    outcome,
-                    kv.Value.Count);
+                try
+                {
+                    HistorianUpdateOutcome<DataValue> outcome = await data.InsertAsync(
+                        historianContext,
+                        kv.Key,
+                        kv.Value,
+                        ct).ConfigureAwait(false);
+                    ValidateInsertOutcome(
+                        kv.Key,
+                        outcome,
+                        kv.Value.Count);
+                }
+                catch (Exception exception) when (!ct.IsCancellationRequested)
+                {
+                    ReportFailedFlush(exception, 1, kv.Value.Count);
+                }
+            }
+        }
+
+        private void ReportFailedFlush(Exception exception, int nodes, int dropped)
+        {
+            Interlocked.Add(ref m_droppedSamples, dropped);
+            long now = m_timeProvider.GetTimestamp();
+            if (!m_failureReported ||
+                m_timeProvider.GetElapsedTime(m_lastFailureReport, now) >= TimeSpan.FromSeconds(30))
+            {
+                m_failureReported = true;
+                m_lastFailureReport = now;
+                m_logger?.HistorianCaptureSinkFlushFailedForNodesNodeS(exception, nodes);
             }
         }
 
@@ -469,6 +485,9 @@ namespace Opc.Ua.Server.Historian
         private readonly TimeProvider m_timeProvider;
         private long m_droppedSamples;
         private long m_rejectedSamples;
+        private long m_lastFailureReport;
+        private int m_unavailableReported;
+        private bool m_failureReported;
         private bool m_disposed;
     }
 

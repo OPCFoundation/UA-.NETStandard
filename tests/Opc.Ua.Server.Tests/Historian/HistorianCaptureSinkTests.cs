@@ -259,10 +259,10 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Verifies that a provider failure surfaces on disposal without escaping the live value-change callback.
+        /// Verifies that a provider failure does not interrupt subsequent live value capture.
         /// </summary>
         [Test]
-        public async Task ProviderExceptionFaultsConsumerAndSurfacesOnDisposeAsync()
+        public async Task ProviderExceptionDoesNotInterruptSubsequentLiveCaptureAsync()
         {
             using var fixture = HistorianTestFixture.Create();
             var flaky = new FlakyProvider(fixture.Provider, failures: 1);
@@ -274,21 +274,14 @@ namespace Opc.Ua.Server.Tests.Historian
             SetValue(v, fixture.SystemContext, 0,
                 baseTime: new DateTime(2025, 1, 1, 0, 0, 1, DateTimeKind.Utc));
 
-            // Give the consumer time to flush and fault on the provider exception.
-            await Task.Delay(200).ConfigureAwait(false);
+            await flaky.FirstFailure.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
-            // A provider infrastructure exception remains observable on
-            // disposal, but it must not escape the live StateChanged path.
             Assert.DoesNotThrow(() =>
                 SetValue(v, fixture.SystemContext, 1,
                     baseTime: new DateTime(2025, 1, 1, 0, 0, 2, DateTimeKind.Utc)));
 
-            // Disposal must also surface the original provider failure.
-            AggregateException disposeEx = Assert.ThrowsAsync<AggregateException>(
-                async () => await fixture.DisposeBuilderAsync().ConfigureAwait(false))!;
-            Assert.That(disposeEx.InnerExceptions, Has.Count.EqualTo(1));
-            Assert.That(disposeEx.InnerException, Is.TypeOf<InvalidOperationException>());
-            Assert.That(disposeEx.InnerException!.Message, Is.EqualTo("forced"));
+            await fixture.DisposeBuilderAsync().ConfigureAwait(false);
+            Assert.That(await CountAsync(fixture.Provider, v.NodeId).ConfigureAwait(false), Is.EqualTo(1));
         }
 
         /// <summary>
@@ -654,6 +647,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 m_remainingFailures = failures;
             }
 
+            public TaskCompletionSource<bool> FirstFailure { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             public ValueTask<HistorianPage<HistoricalDataValue>> ReadRawAsync(
                 HistorianOperationContext c, HistorianRawReadRequest r, HistorianResumeToken t, CancellationToken ct)
             {
@@ -665,6 +661,7 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 if (Interlocked.Decrement(ref m_remainingFailures) >= 0)
                 {
+                    FirstFailure.TrySetResult(true);
                     throw new InvalidOperationException("forced");
                 }
                 return m_inner.InsertAsync(c, n, v, ct);
@@ -699,6 +696,7 @@ namespace Opc.Ua.Server.Tests.Historian
             {
                 if (Interlocked.Decrement(ref m_remainingFailures) >= 0)
                 {
+                    FirstFailure.TrySetResult(true);
                     throw new InvalidOperationException("forced");
                 }
                 return m_inner.InsertBatchAsync(c, b, ct);

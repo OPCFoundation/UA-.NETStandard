@@ -2395,12 +2395,6 @@ namespace Opc.Ua.Server.Historian
             HistorianEventRecord record,
             SimpleAttributeOperand op)
         {
-            if (op.BrowsePath.Count == 0 && op.AttributeId == Attributes.NodeId)
-            {
-                // Events have no real NodeId; the EventType stands in for it
-                // when the select/where clause targets the operand itself.
-                return new Variant(record.EventType);
-            }
             if (!record.TryGetQualifiedField(
                     HistorianEventFieldKey.FromOperand(op),
                     out Variant value) &&
