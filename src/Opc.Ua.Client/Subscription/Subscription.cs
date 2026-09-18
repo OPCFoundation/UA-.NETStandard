@@ -580,28 +580,30 @@ namespace Opc.Ua.Client.Subscriptions
             await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                Id = 0;
-                m_createdEvent.Reset();
-                CurrentPublishingInterval = TimeSpan.Zero;
-                CurrentKeepAliveCount = 0;
-                CurrentLifetimeCount = 0;
-                CurrentPublishingEnabled = false;
-                CurrentPriority = 0;
-                CurrentMaxNotificationsPerPublish = 0;
-                LastSequenceNumberProcessed = 0;
-                LastDataSequenceNumberProcessed = 0;
-                LastNotificationTimestamp = 0;
-                AvailableInRetransmissionQueue = [];
-
-                // Reset every loaded item so it queues a fresh
-                // CreateMonitoredItem on the next ApplyChanges pass.
-                foreach (IMonitoredItem item in m_monitoredItems.Items)
-                {
-                    if (item is MonitoredItems.MonitoredItem mi)
+                await ResetMessageGenerationAsync(
+                    _ =>
                     {
-                        mi.Reset();
-                    }
-                }
+                        Id = 0;
+                        m_createdEvent.Reset();
+                        Volatile.Write(ref m_lastRequestedSettings, null);
+                        CurrentPublishingInterval = TimeSpan.Zero;
+                        CurrentKeepAliveCount = 0;
+                        CurrentLifetimeCount = 0;
+                        CurrentPublishingEnabled = false;
+                        CurrentPriority = 0;
+                        CurrentMaxNotificationsPerPublish = 0;
+
+                        foreach (IMonitoredItem item in m_monitoredItems.Items)
+                        {
+                            if (item is MonitoredItems.MonitoredItem mi)
+                            {
+                                mi.Reset();
+                            }
+                        }
+                        return default;
+                    },
+                    _ => default,
+                    ct).ConfigureAwait(false);
             }
             finally
             {
@@ -1223,6 +1225,11 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 return;
             }
+            await ResetMessageGenerationAsync(DeleteCoreAsync, _ => default, ct).ConfigureAwait(false);
+        }
+
+        private async ValueTask DeleteCoreAsync(CancellationToken ct)
+        {
             try
             {
                 // delete the subscription.
@@ -1456,7 +1463,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             if (created)
             {
-                if (m_lastRequestedSettings == null)
+                if (Volatile.Read(ref m_lastRequestedSettings) == null)
                 {
                     RememberRequestedSettings(
                         revisedPublishingInterval,
@@ -1486,16 +1493,11 @@ namespace Opc.Ua.Client.Subscriptions
         /// Delete the subscription.
         /// Ignore errors, always reset all parameter.
         /// </summary>
-        internal void OnSubscriptionDeleteCompleted()
+        private void OnSubscriptionDeleteCompleted()
         {
-            LastSequenceNumberProcessed = 0;
-            LastDataSequenceNumberProcessed = 0;
-            LastNotificationTimestamp = 0;
-            AvailableInRetransmissionQueue = [];
-
             Id = 0;
             m_createdEvent.Reset();
-            m_lastRequestedSettings = null;
+            Volatile.Write(ref m_lastRequestedSettings, null);
             CurrentPublishingInterval = TimeSpan.Zero;
             CurrentKeepAliveCount = 0;
             CurrentPublishingEnabled = false;
@@ -1660,12 +1662,12 @@ namespace Opc.Ua.Client.Subscriptions
             byte priority,
             uint maxNotificationsPerPublish)
         {
-            m_lastRequestedSettings = new RequestedSubscriptionSettings(
+            Volatile.Write(ref m_lastRequestedSettings, new RequestedSubscriptionSettings(
                 publishingInterval,
                 keepAliveCount,
                 lifetimeCount,
                 priority,
-                maxNotificationsPerPublish);
+                maxNotificationsPerPublish));
         }
 
         private bool ShouldModifyRequestedSettings(
@@ -1675,7 +1677,7 @@ namespace Opc.Ua.Client.Subscriptions
             byte priority,
             uint maxNotificationsPerPublish)
         {
-            return m_lastRequestedSettings != new RequestedSubscriptionSettings(
+            return Volatile.Read(ref m_lastRequestedSettings) != new RequestedSubscriptionSettings(
                 publishingInterval,
                 keepAliveCount,
                 lifetimeCount,
@@ -1683,7 +1685,7 @@ namespace Opc.Ua.Client.Subscriptions
                 maxNotificationsPerPublish);
         }
 
-        private readonly record struct RequestedSubscriptionSettings(
+        private sealed record RequestedSubscriptionSettings(
             TimeSpan PublishingInterval,
             uint KeepAliveCount,
             uint LifetimeCount,

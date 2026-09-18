@@ -1868,12 +1868,16 @@ namespace Opc.Ua.Client.Subscriptions
                         publishLatencyRunning = false;
                         if (subscription != null)
                         {
-                            // deliver to subscription
-                            await subscription.OnPublishReceivedAsync(
+                            // Capture the delivery generation before draining can retire it.
+                            ValueTask delivery = subscription.OnPublishReceivedAsync(
                                 notificationMessage,
                                 availableSequenceNumbers.ToList(),
-                                response.ResponseHeader.StringTable.ToList())
-                                .ConfigureAwait(false);
+                                response.ResponseHeader.StringTable.ToList());
+                            m_outer.EndPublishRequest();
+                            publishActive = false;
+                            // A callback may await the service reader while recreation owns
+                            // the writer. Ingress backpressure is not an in-flight request.
+                            await delivery.ConfigureAwait(false);
                             Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
                             m_lastUnknownSubscriptionId = 0;
                             m_consecutiveUnresolvedResponses = 0;
@@ -1966,7 +1970,10 @@ namespace Opc.Ua.Client.Subscriptions
                         // worker (or this one after a reconnect) still has to
                         // send them, otherwise the server retransmits those
                         // messages until its retransmission queue overflows.
-                        acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                        if (publishActive)
+                        {
+                            acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                        }
                         break;
                     }
                     catch (Exception e)
@@ -1979,15 +1986,21 @@ namespace Opc.Ua.Client.Subscriptions
                         if (error.Code == StatusCodes.BadRequestInterrupted &&
                             ct.IsCancellationRequested)
                         {
-                            acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                            if (publishActive)
+                            {
+                                acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                            }
                             break;
                         }
 
                         Interlocked.Increment(ref m_outer.m_badPublishRequestCount);
-                        // Rollback acks we collected
-                        acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
-                        m_outer.EndPublishRequest();
-                        publishActive = false;
+                        if (publishActive)
+                        {
+                            // Only a failed service request needs acknowledgement rollback.
+                            acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                            m_outer.EndPublishRequest();
+                            publishActive = false;
+                        }
 
                         // ignore errors if paused.
                         if (!m_outer.m_running.IsSet)

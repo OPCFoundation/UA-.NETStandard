@@ -1177,7 +1177,7 @@ namespace Opc.Ua.Client.Subscriptions
                 OptionsFactory.Create<SubscriptionOptions>();
 
             var created = new FakeManagedSubscription { Id = 1u, Created = true };
-            var pending = new FakeManagedSubscription { Id = 0u };
+            var pending = new FakeManagedSubscription { Id = 0u, IsCreationInProgress = true };
 
             var sut = new SubscriptionManager(session,
                 loggerFactory, DiagnosticsMasks.None);
@@ -1209,6 +1209,7 @@ namespace Opc.Ua.Client.Subscriptions
                     Is.LessThan(kMaxExpectedPublishes),
                     "The publish worker must throttle while a subscription id " +
                     "cannot be resolved instead of republishing in a tight loop.");
+                Assert.That(session.DeleteCalls, Is.Empty);
             }
         }
 

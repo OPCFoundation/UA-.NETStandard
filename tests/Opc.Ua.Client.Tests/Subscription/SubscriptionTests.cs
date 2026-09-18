@@ -780,6 +780,200 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task DeleteAndResetRetireQueuedMessagesBeforeReplacementAsync(bool delete)
+        {
+            m_mockSubscriptionServices
+                .Setup(s => s.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse { Results = [StatusCodes.Good] });
+            m_mockSubscriptionServices
+                .Setup(s => s.CreateSubscriptionAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<uint>(), It.IsAny<uint>(),
+                    It.IsAny<uint>(), It.IsAny<bool>(), It.IsAny<byte>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateSubscriptionResponse
+                {
+                    SubscriptionId = 22,
+                    RevisedPublishingInterval = 1000,
+                    RevisedLifetimeCount = 30,
+                    RevisedMaxKeepAliveCount = 10
+                });
+            var firstEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseFirst = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var barrier = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var freshData = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var received = new ConcurrentQueue<uint>();
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 10);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnDataChangeAsync = async sequenceNumber =>
+                {
+                    received.Enqueue(sequenceNumber);
+                    if (sequenceNumber == 4999)
+                    {
+                        firstEntered.TrySetResult(true);
+                        await releaseFirst.Task.ConfigureAwait(false);
+                    }
+                    if (sequenceNumber == 1)
+                    {
+                        freshData.TrySetResult(true);
+                    }
+                };
+                sut.OnKeepAliveAsync = () =>
+                {
+                    barrier.TrySetResult(true);
+                    return default;
+                };
+                try
+                {
+                    await sut.OnPublishReceivedAsync(BuildDataMessage(4999), null, []).ConfigureAwait(false);
+                    await firstEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    await sut.OnPublishReceivedAsync(BuildDataMessage(5000), null, []).ConfigureAwait(false);
+
+                    Task reset = delete
+                        ? sut.DeleteAsync(CancellationToken.None).AsTask()
+                        : sut.ResetToRecreateAsync(CancellationToken.None).AsTask();
+                    releaseFirst.TrySetResult(true);
+                    await reset.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    if (delete)
+                    {
+                        await sut.CreateAsync(TestSubscription.SubscriptionOptions, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    await sut.WaitForCreatedAsync(CancellationToken.None)
+                        .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    await sut.OnPublishReceivedAsync(BuildKeepAliveMessage(6000), null, []).ConfigureAwait(false);
+                    await barrier.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                    Assert.That(received, Is.EqualTo(new uint[] { 4999 }));
+                    await sut.OnPublishReceivedAsync(BuildDataMessage(1), null, []).ConfigureAwait(false);
+                    await freshData.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(received, Is.EqualTo(new uint[] { 4999, 1 }));
+                    Assert.That(m_completion.QueuedAcks, Has.None.Matches<SubscriptionAcknowledgement>(
+                        acknowledgement => acknowledgement.SequenceNumber == 5000));
+                }
+                finally
+                {
+                    releaseFirst.TrySetResult(true);
+                }
+            }
+        }
+
+        [Test]
+        public async Task DisabledCycleRecreatesExistingMonitoredItemsAsync()
+        {
+            m_mockSubscriptionServices
+                .Setup(s => s.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse { Results = [StatusCodes.Good] });
+            m_mockSubscriptionServices
+                .Setup(s => s.CreateSubscriptionAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<uint>(), It.IsAny<uint>(),
+                    It.IsAny<uint>(), It.IsAny<bool>(), It.IsAny<byte>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateSubscriptionResponse
+                {
+                    SubscriptionId = 22,
+                    RevisedPublishingInterval = 1000,
+                    RevisedLifetimeCount = 30,
+                    RevisedMaxKeepAliveCount = 10
+                });
+            m_mockMonitoredItemServices
+                .Setup(s => s.CreateMonitoredItemsAsync(It.IsAny<RequestHeader>(), 22, TimestampsToReturn.Both,
+                    It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateMonitoredItemsResponse
+                {
+                    Results = [new MonitoredItemCreateResult { MonitoredItemId = 200, StatusCode = StatusCodes.Good }]
+                });
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 10);
+            await using (sut.ConfigureAwait(false))
+            {
+                Assert.That(sut.MonitoredItems.TryAdd("item",
+                    OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(), out IMonitoredItem item), Is.True);
+                Assert.That(item.Created, Is.True);
+                sut.SubscriptionStateChanged.Reset();
+                m_options.Configure(options => options with { Disabled = true });
+                await sut.SubscriptionStateChanged.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(sut.Created, Is.False);
+                Assert.That(item.Created, Is.False);
+
+                m_options.Configure(_ => TestSubscription.SubscriptionOptions);
+                await WaitForAsync(() => item.ServerId == 200, TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(sut.Id, Is.EqualTo(22u));
+                Assert.That(item.ServerId, Is.EqualTo(200u));
+                m_mockMonitoredItemServices.Verify(s => s.CreateMonitoredItemsAsync(
+                    It.IsAny<RequestHeader>(), 22, TimestampsToReturn.Both,
+                    It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(), It.IsAny<CancellationToken>()), Times.Once);
+            }
+        }
+
+        [TestCase("interval", 21u)]
+        [TestCase("keepalive", 24u)]
+        [TestCase("lifetime", 40u)]
+        [TestCase("priority", 21u)]
+        [TestCase("notifications", 21u)]
+        public async Task RequestedSettingsTrackCompleteRequestsNotServerRevisionsAsync(
+            string setting, uint expectedLifetime)
+        {
+            SubscriptionOptions original = TestSubscription.SubscriptionOptions;
+            SubscriptionOptions changed = setting switch
+            {
+                "interval" => original with { PublishingInterval = TimeSpan.FromSeconds(200) },
+                "keepalive" => original with { KeepAliveCount = 8 },
+                "lifetime" => original with { LifetimeCount = 40 },
+                "priority" => original with { Priority = 4 },
+                "notifications" => original with { MaxNotificationsPerPublish = 20 },
+                _ => throw new ArgumentOutOfRangeException(nameof(setting))
+            };
+            m_mockSubscriptionServices
+                .Setup(s => s.CreateSubscriptionAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<uint>(), It.IsAny<uint>(),
+                    It.IsAny<uint>(), It.IsAny<bool>(), It.IsAny<byte>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateSubscriptionResponse
+                {
+                    SubscriptionId = 22,
+                    RevisedPublishingInterval = 1000,
+                    RevisedLifetimeCount = 300,
+                    RevisedMaxKeepAliveCount = 100
+                });
+            m_mockSubscriptionServices
+                .Setup(s => s.ModifySubscriptionAsync(
+                    It.IsAny<RequestHeader>(), 22, changed.PublishingInterval.TotalMilliseconds,
+                    It.IsAny<uint>(), changed.KeepAliveCount, changed.MaxNotificationsPerPublish, changed.Priority,
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ModifySubscriptionResponse
+                {
+                    RevisedPublishingInterval = 2000,
+                    RevisedLifetimeCount = 600,
+                    RevisedMaxKeepAliveCount = 200
+                });
+            m_options.Configure(options => options with { Disabled = true });
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry);
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.CreateAsync(original, CancellationToken.None).ConfigureAwait(false);
+                await sut.ModifyAsync(original, CancellationToken.None).ConfigureAwait(false);
+                m_mockSubscriptionServices.Verify(s => s.ModifySubscriptionAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<uint>(), It.IsAny<double>(), It.IsAny<uint>(),
+                    It.IsAny<uint>(), It.IsAny<uint>(), It.IsAny<byte>(), It.IsAny<CancellationToken>()), Times.Never);
+
+                await sut.ModifyAsync(changed, CancellationToken.None).ConfigureAwait(false);
+                await sut.ModifyAsync(changed, CancellationToken.None).ConfigureAwait(false);
+
+                m_mockSubscriptionServices.Verify(s => s.ModifySubscriptionAsync(
+                    It.IsAny<RequestHeader>(), 22, changed.PublishingInterval.TotalMilliseconds, expectedLifetime,
+                    changed.KeepAliveCount, changed.MaxNotificationsPerPublish, changed.Priority,
+                    It.IsAny<CancellationToken>()), Times.Once);
+                m_mockSubscriptionServices.Verify(s => s.ModifySubscriptionAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<uint>(), It.IsAny<double>(), It.IsAny<uint>(),
+                    It.IsAny<uint>(), It.IsAny<uint>(), It.IsAny<byte>(), It.IsAny<CancellationToken>()), Times.Once);
+            }
+        }
+
         [Test]
         public async Task DeleteAsyncShouldCatchAllExceptionsAsync()
         {
@@ -2145,6 +2339,15 @@ namespace Opc.Ua.Client.Subscriptions
             };
         }
 
+        private static NotificationMessage BuildDataMessage(uint sequenceNumber)
+        {
+            return new NotificationMessage
+            {
+                SequenceNumber = sequenceNumber,
+                NotificationData = [new ExtensionObject(new DataChangeNotification())]
+            };
+        }
+
         private static NotificationMessage BuildKeepAliveMessage(uint sequenceNumber)
         {
             return new NotificationMessage
@@ -2258,6 +2461,7 @@ namespace Opc.Ua.Client.Subscriptions
             public IReadOnlyList<uint> KeepAliveSequenceNumbers
                 => [.. m_keepAliveSequenceNumbers];
             public Func<ValueTask>? OnKeepAliveAsync { get; set; }
+            public Func<uint, ValueTask>? OnDataChangeAsync { get; set; }
 
             public void SetMessageStateForTest(uint lastSequenceNumber,
                 uint lastDataSequenceNumber,
@@ -2311,6 +2515,19 @@ namespace Opc.Ua.Client.Subscriptions
                 m_keepAliveSequenceNumbers.Enqueue(sequenceNumber);
                 Interlocked.Increment(ref m_keepAliveNotificationCount);
                 return OnKeepAliveAsync?.Invoke() ?? default;
+            }
+
+            protected override ValueTask OnDataChangeNotificationAsync(
+                uint sequenceNumber,
+                DateTime publishTime,
+                DataChangeNotification notification,
+                PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
+            {
+                return OnDataChangeAsync != null
+                    ? OnDataChangeAsync(sequenceNumber)
+                    : base.OnDataChangeNotificationAsync(
+                        sequenceNumber, publishTime, notification, publishStateMask, stringTable);
             }
 
             private readonly ConcurrentQueue<uint> m_keepAliveSequenceNumbers = new();

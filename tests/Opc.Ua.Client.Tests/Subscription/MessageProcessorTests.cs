@@ -331,6 +331,169 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
+        public async Task PublishingDrainDoesNotWaitForIngressBlockedByServiceWriterAsync()
+        {
+            var session = new FakeSubscriptionManagerContext();
+            var manager = new SubscriptionManager(session, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry) { Id = 3 };
+            using var serviceGate = new SemaphoreSlim(1, 1);
+            var callbackEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var ingressBlocked = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var drained = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            await serviceGate.WaitAsync().ConfigureAwait(false);
+            sut.NotificationCallback = async _ =>
+            {
+                callbackEntered.TrySetResult(true);
+                await serviceGate.WaitAsync().ConfigureAwait(false);
+                serviceGate.Release();
+            };
+            var subscription = new FakeManagedSubscription
+            {
+                Id = 3,
+                Created = true,
+                OnPublishReceivedAsyncFunc = (message, available, strings) =>
+                {
+                    ValueTask receiving = sut.OnPublishReceivedAsync(message, available, strings);
+                    ingressBlocked.TrySetResult(!receiving.IsCompleted);
+                    return receiving;
+                }
+            };
+            session.CreateSubscriptionFactory = (_, _, _) => subscription;
+            session.OnPublishAsync = (_, _, _) => new ValueTask<PublishResponse>(new PublishResponse
+            {
+                SubscriptionId = 3,
+                MoreNotifications = true,
+                NotificationMessage = BuildNotificationMessage("keepalive", 1025)
+            });
+            Task quiescence = Task.CompletedTask;
+            try
+            {
+                for (uint sequenceNumber = 1; sequenceNumber <= 1024; sequenceNumber++)
+                {
+                    await sut.OnPublishReceivedAsync(
+                        BuildNotificationMessage("keepalive", sequenceNumber), null, []).ConfigureAwait(false);
+                }
+                await callbackEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                manager.Add(Mock.Of<ISubscriptionNotificationHandler>(), OptionsFactory.Create<SubscriptionOptions>());
+                manager.Resume();
+                Assert.That(await ingressBlocked.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.True);
+
+                quiescence = manager.RunWithPublishingQuiescedAsync(_ =>
+                {
+                    manager.Pause();
+                    drained.TrySetResult(true);
+                    return default;
+                }, CancellationToken.None).AsTask();
+
+                await drained.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(serviceGate.CurrentCount, Is.Zero, "The service writer still owns the gate.");
+                Assert.That(session.PublishCalls, Has.Count.EqualTo(1));
+            }
+            finally
+            {
+                serviceGate.Release();
+                await quiescence.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await manager.DisposeAsync().ConfigureAwait(false);
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task CapacityWaitCannotRelabelRetiredMessageAsNewGenerationAsync()
+        {
+            var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry);
+            var barrier = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            sut.NotificationCallback = sequenceNumber =>
+            {
+                if (sequenceNumber == 6000)
+                {
+                    barrier.TrySetResult(true);
+                }
+                return default;
+            };
+            await sut.Block.WaitAsync().ConfigureAwait(false);
+            await using (sut.ConfigureAwait(false))
+            {
+                for (uint sequenceNumber = 1; sequenceNumber <= 1024; sequenceNumber++)
+                {
+                    await sut.OnPublishReceivedAsync(
+                        BuildNotificationMessage("keepalive", sequenceNumber), null, []).ConfigureAwait(false);
+                }
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Task pending = sut.OnPublishReceivedAsync(BuildDataChangeMessage(5000), null, []).AsTask();
+                Assert.That(pending.IsCompleted, Is.False);
+
+                Task reset = sut.ResetGenerationAsync().AsTask();
+                sut.Block.Release();
+                await reset.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await pending.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildNotificationMessage("keepalive", 6000), null, [])
+                    .ConfigureAwait(false);
+                await barrier.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                Assert.That(sut.ReceivedSequenceNumbers, Does.Not.Contain(5000u));
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), null, []).ConfigureAwait(false);
+                await m_completion.WaitForQueuedAckAsync(1).ConfigureAwait(false);
+                Assert.That(m_completion.QueuedAcks.Single().SequenceNumber, Is.EqualTo(1u));
+            }
+        }
+
+        [Test]
+        public async Task BackpressuredBurstDeliversEveryNotificationAsync()
+        {
+            const int kMessageCount = 1100;
+            var firstEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseFirst = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry)
+            {
+                NotificationCallback = async sequenceNumber =>
+                {
+                    if (sequenceNumber == 1)
+                    {
+                        firstEntered.TrySetResult(true);
+                        await releaseFirst.Task.ConfigureAwait(false);
+                    }
+                }
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                Task producing = ProduceAsync();
+                try
+                {
+                    await firstEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(producing.IsCompleted, Is.False);
+                    releaseFirst.TrySetResult(true);
+                    await producing.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    await m_completion.WaitForQueuedAckAsync(kMessageCount).ConfigureAwait(false);
+
+                    Assert.That(sut.ReceivedSequenceNumbers,
+                        Is.EqualTo(Enumerable.Range(1, kMessageCount).Select(value => (uint)value)));
+                    Assert.That(m_completion.QueuedAcks.Select(acknowledgement => acknowledgement.SequenceNumber),
+                        Is.EqualTo(Enumerable.Range(1, kMessageCount).Select(value => (uint)value)));
+                }
+                finally
+                {
+                    releaseFirst.TrySetResult(true);
+                    await producing.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+            }
+
+            async Task ProduceAsync()
+            {
+                for (uint sequenceNumber = 1; sequenceNumber <= kMessageCount; sequenceNumber++)
+                {
+                    await sut.OnPublishReceivedAsync(BuildDataChangeMessage(sequenceNumber), null, [])
+                        .ConfigureAwait(false);
+                }
+            }
+        }
+
+        [Test]
         public async Task IngressBackpressureBlocksBeyondBoundedCapacityAsync()
         {
             var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry)
@@ -1308,6 +1471,11 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 await Block.WaitAsync().ConfigureAwait(false);
                 Block.Release();
+            }
+
+            public ValueTask ResetGenerationAsync()
+            {
+                return ResetMessageGenerationAsync(_ => default, _ => default, CancellationToken.None);
             }
 
             private async ValueTask InvokeNotificationAsync(uint sequenceNumber)

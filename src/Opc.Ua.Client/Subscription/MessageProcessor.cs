@@ -138,6 +138,7 @@ namespace Opc.Ua.Client.Subscriptions
             IReadOnlyList<uint>? availableSequenceNumbers,
             IReadOnlyList<string> stringTable)
         {
+            long generation = Volatile.Read(ref m_generation);
             if (availableSequenceNumbers != null)
             {
                 AvailableInRetransmissionQueue = availableSequenceNumbers;
@@ -148,7 +149,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 await m_messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
                     TimeProvider.GetUtcNow(),
-                    Volatile.Read(ref m_generation)))
+                    generation))
                     .ConfigureAwait(false);
             }
             catch
