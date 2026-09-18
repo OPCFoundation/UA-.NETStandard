@@ -45,7 +45,9 @@ internal static class Program
             ?? "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
         if (Has(args, "--smoke"))
         {
-            return await SmokeTest.RunAsync(endpoint).ConfigureAwait(false);
+            string nodeId = Option(args, "--node")
+                ?? "ns=2;s=Scalar_Simulation_UInt32";
+            return await SmokeTest.RunAsync(endpoint, nodeId).ConfigureAwait(false);
         }
         if (Has(args, "--testtree"))
         {

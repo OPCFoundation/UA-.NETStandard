@@ -187,6 +187,35 @@ public sealed class ConnectionProfileTests
     }
 
     [Test]
+    public void OpenApiSessionMayRenumberAUniqueEquivalentPolicy()
+    {
+        (EndpointDescription endpoint, ConnectionProfile profile) = CreateUserNameProfile();
+        endpoint.TransportProfileUri = Profiles.WssOpenApiTransport;
+        profile = profile with { TransportProfileUri = Profiles.WssOpenApiTransport };
+        endpoint.UserIdentityTokens[0].PolicyId = "session-policy";
+
+        Assert.That(profile.MatchesPolicy(endpoint.UserIdentityTokens[0]), Is.False);
+        Assert.That(profile.MatchesSessionPolicy(endpoint, endpoint.UserIdentityTokens[0]), Is.True);
+    }
+
+    [Test]
+    public void OpenApiSessionCannotSubstituteAnAmbiguousEquivalentPolicy()
+    {
+        (EndpointDescription endpoint, ConnectionProfile profile) = CreateUserNameProfile();
+        endpoint.TransportProfileUri = Profiles.WssOpenApiTransport;
+        profile = profile with { TransportProfileUri = Profiles.WssOpenApiTransport };
+        endpoint.UserIdentityTokens[0].PolicyId = "session-policy-1";
+        endpoint.UserIdentityTokens += new UserTokenPolicy(UserTokenType.UserName)
+        {
+            PolicyId = "session-policy-2",
+            SecurityPolicyUri = endpoint.UserIdentityTokens[0].SecurityPolicyUri
+        };
+
+        Assert.That(profile.MatchesSessionPolicy(endpoint, endpoint.UserIdentityTokens[0]), Is.False);
+        Assert.That(profile.MatchesSessionPolicy(endpoint, endpoint.UserIdentityTokens[1]), Is.False);
+    }
+
+    [Test]
     public async Task ADisplayLabelCannotHideADifferentUsernameInTheActualToken()
     {
         (EndpointDescription endpoint, ConnectionProfile profile) = CreateUserNameProfile();

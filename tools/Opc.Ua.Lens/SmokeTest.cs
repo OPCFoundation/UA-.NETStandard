@@ -48,23 +48,41 @@ namespace UaLens
     /// </summary>
     internal static class SmokeTest
     {
-        public static async Task<int> RunAsync(string endpointUrl, CancellationToken ct = default)
+        public static async Task<int> RunAsync(
+            string endpointUrl,
+            string nodeId,
+            CancellationToken ct = default)
         {
             var telemetry = new ConsoleTelemetry();
             Console.WriteLine("== UaLens smoke test ==");
             Console.WriteLine($"   endpoint: {endpointUrl}");
+            Console.WriteLine($"   node: {nodeId}");
             Console.WriteLine();
 
             int rc = 0;
-            rc |= await RunOneAsync(SubscriptionEngineKind.ChannelV2, endpointUrl, telemetry, ct).ConfigureAwait(false);
-            rc |= await RunOneAsync(SubscriptionEngineKind.Classic, endpointUrl, telemetry, ct).ConfigureAwait(false);
+            rc |= await RunOneAsync(
+                SubscriptionEngineKind.ChannelV2,
+                endpointUrl,
+                nodeId,
+                telemetry,
+                ct).ConfigureAwait(false);
+            rc |= await RunOneAsync(
+                SubscriptionEngineKind.Classic,
+                endpointUrl,
+                nodeId,
+                telemetry,
+                ct).ConfigureAwait(false);
             Console.WriteLine();
             Console.WriteLine(rc == 0 ? "SMOKE PASS" : "SMOKE FAIL");
             return rc;
         }
 
         private static async Task<int> RunOneAsync(
-            SubscriptionEngineKind engine, string endpointUrl, ITelemetryContext telemetry, CancellationToken ct)
+            SubscriptionEngineKind engine,
+            string endpointUrl,
+            string nodeId,
+            ITelemetryContext telemetry,
+            CancellationToken ct)
         {
             Console.WriteLine($"--- engine: {engine} ---");
             var conn = new ConnectionService(telemetry);
@@ -102,7 +120,7 @@ namespace UaLens
                 int id = await a.AddItemAsync(new MonitoredItemConfig
                 {
                     DisplayName = "value:UInt32",
-                    NodeId = NodeId.Parse("ns=2;s=Scalar_Simulation_UInt32"),
+                    NodeId = NodeId.Parse(nodeId),
                     AttributeId = Attributes.Value,
                     SamplingInterval = TimeSpan.FromMilliseconds(1000),
                     QueueSize = 1,

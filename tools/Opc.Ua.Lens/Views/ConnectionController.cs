@@ -214,17 +214,21 @@ internal sealed class ConnectionController
                 await ConnectRestoredProfileAsync(restored, cancellationToken).ConfigureAwait(true);
                 return;
             }
+            string endpointUrl = ConnectionTransportCatalog.NormalizeEndpointUrl(m_vm.EndpointUrl);
+            m_vm.EndpointUrl = endpointUrl;
             ConnectionSetupSelection? previous = m_setup is not null &&
-                ConnectionProfile.EndpointUrlsMatch(m_setup.EndpointUrl, m_vm.EndpointUrl) ? m_setup : null;
-            var setup = new ConnectionSetupSelection(m_vm.EndpointUrl,
+                ConnectionProfile.EndpointUrlsMatch(m_setup.EndpointUrl, endpointUrl) ? m_setup : null;
+            var setup = new ConnectionSetupSelection(endpointUrl,
                 previous?.ReverseConnection, previous?.ApplicationIdentityId);
             m_vm.ConnectionStatus = setup.ReverseConnection is null
                 ? "Discovering registered forward transport…"
                 : "Waiting for the configured reverse server… Cancel connection releases this wait.";
-            ArrayOf<EndpointDescription> endpoints = await m_vm.Connection
-                .DiscoverEndpointsAsync(setup, cancellationToken).ConfigureAwait(true);
-            ApplicationConfiguration configuration =
-                await m_vm.Connection.GetConfigAsync(cancellationToken).ConfigureAwait(true);
+            ArrayOf<EndpointDescription> endpoints = await RunConnectionOperationAsync(
+                () => m_vm.Connection.DiscoverEndpointsAsync(setup, cancellationToken),
+                cancellationToken).ConfigureAwait(true);
+            ApplicationConfiguration configuration = await RunConnectionOperationAsync(
+                () => m_vm.Connection.GetConfigAsync(cancellationToken),
+                cancellationToken).ConfigureAwait(true);
             ConnectionSelection? pick = await EndpointCredentialsPicker.PromptProviderAsync(
                 m_window, endpoints, m_vm.Connection.IdentityConfiguration, configuration,
                 m_vm.Engine, m_vm.Connection.ResolveCredentialsAsync, cancellationToken).ConfigureAwait(true);
@@ -235,7 +239,9 @@ internal sealed class ConnectionController
             await using (pick.ConfigureAwait(true))
             {
                 pick.ApplySetup(setup);
-                await m_vm.Connection.ConnectAsync(pick, PromptCertTrustAsync, cancellationToken).ConfigureAwait(true);
+                await RunConnectionOperationAsync(
+                    () => m_vm.Connection.ConnectAsync(pick, PromptCertTrustAsync, cancellationToken),
+                    cancellationToken).ConfigureAwait(true);
             }
         }
         catch (OperationCanceledException)
@@ -276,7 +282,9 @@ internal sealed class ConnectionController
         }
         if (endpoints.Count == 0)
         {
-            endpoints = await m_vm.Connection.DiscoverEndpointsAsync(setup, cancellationToken).ConfigureAwait(true);
+            endpoints = await RunConnectionOperationAsync(
+                () => m_vm.Connection.DiscoverEndpointsAsync(setup, cancellationToken),
+                cancellationToken).ConfigureAwait(true);
         }
         EndpointDescription? endpoint = null;
         for (int i = 0; i < endpoints.Count; i++)
@@ -295,8 +303,9 @@ internal sealed class ConnectionController
             return;
         }
 
-        ApplicationConfiguration configuration =
-            await m_vm.Connection.GetConfigAsync(cancellationToken).ConfigureAwait(true);
+        ApplicationConfiguration configuration = await RunConnectionOperationAsync(
+            () => m_vm.Connection.GetConfigAsync(cancellationToken),
+            cancellationToken).ConfigureAwait(true);
         ConnectionSelection? selection = await EndpointCredentialsPicker.PromptProfileAsync(
             m_window, endpoint, profile, m_vm.Connection.IdentityConfiguration, configuration,
             m_vm.Connection.ResolveCredentialsAsync, cancellationToken).ConfigureAwait(true);
@@ -307,8 +316,24 @@ internal sealed class ConnectionController
         await using (selection.ConfigureAwait(true))
         {
             selection.ApplySetup(setup);
-            await m_vm.Connection.ConnectAsync(selection, PromptCertTrustAsync, cancellationToken).ConfigureAwait(true);
+            await RunConnectionOperationAsync(
+                () => m_vm.Connection.ConnectAsync(selection, PromptCertTrustAsync, cancellationToken),
+                cancellationToken).ConfigureAwait(true);
         }
+    }
+
+    private static Task RunConnectionOperationAsync(
+        Func<Task> operation,
+        CancellationToken cancellationToken)
+    {
+        return Task.Run(operation, cancellationToken);
+    }
+
+    private static Task<T> RunConnectionOperationAsync<T>(
+        Func<Task<T>> operation,
+        CancellationToken cancellationToken)
+    {
+        return Task.Run(operation, cancellationToken);
     }
 
     private Task<TrustChoice> PromptCertTrustAsync(CertificateTrustRequest request, CancellationToken ct)

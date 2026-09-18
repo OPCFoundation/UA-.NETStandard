@@ -9,6 +9,15 @@ administration or diagnostic tool from the searchable catalog. Document actions
 and document or connection settings let you perform advanced operations and
 control their configuration.
 
+UaLens supports the OPC UA OpenAPI service mapping over HTTPS and WebSockets.
+Enter the server's `https://`, `opc.https://`, `ws://`, `wss://`, or
+`opc.wss://` discovery URL and select the advertised **HTTPS OpenAPI** or
+**WSS OpenAPI** endpoint. Plain `ws://` is intended for trusted local networks.
+The same browser, attribute inspector, subscriptions, event view, history,
+method calls, and write workflows operate through the selected transport
+profile. TLS trust remains fail-closed; OPC UA user identity selection is
+separate from optional HTTP or WebSocket transport authentication.
+
 **File > Open NodeSet2 files...** opens one or more information models in the
 same explorer without a server. Lens includes the OPC UA core model, resolves
 local dependencies, and offers approved downloads from OPCFoundation/UA-Nodeset
@@ -236,6 +245,9 @@ $env:CustomTestTarget = 'net10.0'
 dotnet test tests\Opc.Ua.Lens.Tests\Opc.Ua.Lens.Tests.csproj -c Release -f net10.0
 dotnet run --project tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj -c Release -f net10.0 -- --smoke --endpoint opc.tcp://localhost:62541/Quickstarts/ReferenceServer
 ```
+
+Pass `--node <NodeId>` when the target server does not expose the default
+`ns=2;s=Scalar_Simulation_UInt32` reference-server simulation node.
 
 The ordinary protocol probes use an explicitly selected Anonymous/None endpoint
 on a development reference server. Secure connection probes require the

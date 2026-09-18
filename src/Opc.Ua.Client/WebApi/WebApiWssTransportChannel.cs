@@ -258,7 +258,18 @@ namespace Opc.Ua.Client.WebApi
 
             try
             {
-                await ws.ConnectAsync(m_url, ct).ConfigureAwait(false);
+                using CancellationTokenSource timeout = CreateOperationTimeout();
+                using CancellationTokenSource operation =
+                    CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
+                await ws.ConnectAsync(m_url, operation.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                ws.Dispose();
+                throw ServiceResultException.Create(
+                    StatusCodes.BadRequestTimeout,
+                    "WSS OpenAPI connection timed out after {0} ms.",
+                    OperationTimeout);
             }
             catch
             {
@@ -441,14 +452,19 @@ namespace Opc.Ua.Client.WebApi
             }
 
             byte[] responseBytes;
-            await m_sendLock.WaitAsync(ct).ConfigureAwait(false);
+            using CancellationTokenSource timeout = CreateOperationTimeout();
+            using CancellationTokenSource operation =
+                CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
+            bool entered = false;
             try
             {
+                await m_sendLock.WaitAsync(operation.Token).ConfigureAwait(false);
+                entered = true;
                 await ws.SendAsync(
                     new ArraySegment<byte>(requestBytes, 0, requestBytes.Length),
                     WebSocketMessageType.Text,
                     endOfMessage: true,
-                    ct).ConfigureAwait(false);
+                    operation.Token).ConfigureAwait(false);
 
                 // MaxBufferSize bounds a single transport chunk, not the whole
                 // message; capping the response by it rejects every legitimate
@@ -459,12 +475,22 @@ namespace Opc.Ua.Client.WebApi
                 int maxResponseSize = quotas.MaxMessageSize > 0
                     ? quotas.MaxMessageSize
                     : int.MaxValue;
-                responseBytes = await ReceiveMessageAsync(ws, maxResponseSize, ct)
+                responseBytes = await ReceiveMessageAsync(ws, maxResponseSize, operation.Token)
                     .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadRequestTimeout,
+                    "WSS OpenAPI request timed out after {0} ms.",
+                    OperationTimeout);
             }
             finally
             {
-                m_sendLock.Release();
+                if (entered)
+                {
+                    m_sendLock.Release();
+                }
             }
 
             return DecodeServiceResponse(
@@ -650,6 +676,14 @@ namespace Opc.Ua.Client.WebApi
                 return builder.Uri;
             }
             return url;
+        }
+
+        private CancellationTokenSource CreateOperationTimeout()
+        {
+            TimeSpan timeout = OperationTimeout > 0
+                ? TimeSpan.FromMilliseconds(OperationTimeout)
+                : Timeout.InfiniteTimeSpan;
+            return m_timeProvider.CreateCancellationTokenSource(timeout);
         }
 
         private void ThrowIfDisposed()

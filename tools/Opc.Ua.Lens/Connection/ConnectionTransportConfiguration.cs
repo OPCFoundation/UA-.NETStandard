@@ -36,6 +36,7 @@ using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Bindings;
 using Opc.Ua.Client;
+using Opc.Ua.Client.WebApi;
 using Opc.Ua.Security.Certificates;
 
 namespace UaLens.Connection;
@@ -136,6 +137,24 @@ internal sealed record ConnectionTransportCapability(
     }
 }
 
+internal sealed class AliasedTransportChannelFactory : ITransportChannelFactory
+{
+    public AliasedTransportChannelFactory(string uriScheme, ITransportChannelFactory inner)
+    {
+        UriScheme = uriScheme;
+        m_inner = inner;
+    }
+
+    public string UriScheme { get; }
+
+    public ITransportChannel Create(ITelemetryContext telemetry)
+    {
+        return m_inner.Create(telemetry);
+    }
+
+    private readonly ITransportChannelFactory m_inner;
+}
+
 /// <summary>
 /// Uses the same explicitly registered factories for discovery, sessions and
 /// capability presentation. No assembly probing, implicit TLS or new transport.
@@ -149,7 +168,16 @@ internal sealed class ConnectionTransportCatalog : ITransportChannelBindings
         Bindings = bindings ?? CreateDefaultBindings();
         var schemes = new HashSet<string>(StringComparer.Ordinal)
         {
-            "opc.tcp", "https", "opc.https", "wss", "opc.wss", "opc.wss+json", "opc.quic"
+            "opc.tcp",
+            "https",
+            "opc.https",
+            "ws",
+            "wss",
+            "opc.wss",
+            "opc.wss+json",
+            Utils.UriSchemeOpcHttpsWebApi,
+            Utils.UriSchemeOpcWssOpenApi,
+            "opc.quic"
         };
         foreach (string scheme in additionalSchemes)
         {
@@ -192,12 +220,19 @@ internal sealed class ConnectionTransportCatalog : ITransportChannelBindings
                 "https" or "opc.https" =>
                     "UA-binary HTTPS endpoint, platform TLS support and a trusted TLS chain are required. " +
                     "This workflow does not support reverse HTTPS.",
+                "ws" =>
+                    "OPC UA OpenAPI over an unencrypted WebSocket. Use only on trusted local networks; " +
+                    "WebSocket bearer authentication requires WSS.",
                 "wss" or "opc.wss" =>
                     "Registered WSS binding, platform TLS/WebSocket support and trusted TLS chains are required. " +
                     "Reverse WSS also needs an explicit listener certificate and peer validator.",
                 "opc.wss+json" =>
-                    "Registered JSON WebSocket binding and its authentication flow are required; " +
-                    "registration alone does not make an OpenAPI endpoint usable by the UA-binary session flow.",
+                    "Registered UA JSON WebSocket binding and its authentication flow are required.",
+                Utils.UriSchemeOpcHttpsWebApi =>
+                    "OPC UA OpenAPI over HTTPS. TLS trust and any configured HTTP authentication are required.",
+                Utils.UriSchemeOpcWssOpenApi =>
+                    "OPC UA OpenAPI over WebSockets. TLS trust and any configured WebSocket bearer " +
+                    "authentication are required.",
                 "opc.quic" =>
                     "Optional QUIC binding, compatible platform and UDP access are required; " +
                     "reverse mode is not supported by this workflow.",
@@ -206,31 +241,64 @@ internal sealed class ConnectionTransportCatalog : ITransportChannelBindings
             });
     }
 
-    public void RequireForward(string endpointUrl)
+    public string RequireForward(string endpointUrl)
     {
-        if (!Uri.TryCreate(endpointUrl, UriKind.Absolute, out Uri? endpoint) ||
-            endpointUrl.Length > 2048 || !endpoint.IsWellFormedOriginalString() ||
+        endpointUrl = NormalizeEndpointUrl(endpointUrl);
+        var endpoint = new Uri(endpointUrl);
+        if (!Bindings.HasChannelFactory(ValidateScheme(endpoint.Scheme)))
+        {
+            throw new NotSupportedException("No client transport is registered for the selected endpoint scheme.");
+        }
+        return endpointUrl;
+    }
+
+    public static string NormalizeEndpointUrl(string endpointUrl)
+    {
+        ArgumentNullException.ThrowIfNull(endpointUrl);
+        if (endpointUrl.Length > 2048 ||
             endpointUrl.AsSpan().IndexOfAny('\r', '\n', '\t') >= 0 ||
+            !Uri.TryCreate(TrimEndpointDisplayPadding(endpointUrl), UriKind.Absolute, out Uri? endpoint) ||
+            !endpoint.IsWellFormedOriginalString() ||
             string.IsNullOrEmpty(endpoint.Host) || endpoint.Port == 0 ||
             !string.IsNullOrEmpty(endpoint.UserInfo) || !string.IsNullOrEmpty(endpoint.Query) ||
             !string.IsNullOrEmpty(endpoint.Fragment))
         {
             throw new ArgumentException("Enter a bounded endpoint URL without embedded credentials or query strings.");
         }
-        if (!Bindings.HasChannelFactory(ValidateScheme(endpoint.Scheme)))
+        return endpoint.AbsoluteUri;
+    }
+
+    private static string TrimEndpointDisplayPadding(string endpointUrl)
+    {
+        int start = 0;
+        while (start < endpointUrl.Length && IsEndpointDisplayPadding(endpointUrl[start]))
         {
-            throw new NotSupportedException("No client transport is registered for the selected endpoint scheme.");
+            start++;
         }
+        int end = endpointUrl.Length;
+        while (end > start && IsEndpointDisplayPadding(endpointUrl[end - 1]))
+        {
+            end--;
+        }
+        return endpointUrl[start..end];
+    }
+
+    private static bool IsEndpointDisplayPadding(char value)
+    {
+        return char.IsWhiteSpace(value) || value is '\u200B' or '\uFEFF';
     }
 
     public static string? GetSessionProfileUnavailableReason(EndpointDescription endpoint)
     {
         ArgumentNullException.ThrowIfNull(endpoint);
-        return Profiles.IsHttpsOpenApi(endpoint.TransportProfileUri) ||
-            Profiles.IsWssOpenApi(endpoint.TransportProfileUri)
-            ? "This session flow uses UA-binary transports. Select the binary endpoint; " +
-                "OpenAPI requires its separately configured HTTP authentication flow."
-            : null;
+        if ((Profiles.IsHttpsOpenApi(endpoint.TransportProfileUri) ||
+                Profiles.IsWssOpenApi(endpoint.TransportProfileUri)) &&
+            (endpoint.SecurityMode != MessageSecurityMode.None ||
+                endpoint.SecurityPolicyUri != SecurityPolicies.None))
+        {
+            return "OpenAPI transport profiles require MessageSecurityMode.None and SecurityPolicy None.";
+        }
+        return null;
     }
 
     public void RequireReverse(ReverseConnectionProfile profile)
@@ -303,6 +371,13 @@ internal sealed class ConnectionTransportCatalog : ITransportChannelBindings
         DefaultTransportBindingRegistry registry = DefaultTransportBindingRegistry.WithDefaultTcp();
         registry.RegisterChannelFactory(new HttpsTransportChannelFactory());
         registry.RegisterChannelFactory(new OpcHttpsTransportChannelFactory());
+        registry.RegisterChannelFactory(new WssTransportChannelFactory());
+        registry.RegisterChannelFactory(new OpcWssTransportChannelFactory());
+        registry.RegisterChannelFactory(new WssJsonTransportChannelFactory());
+        registry.RegisterChannelFactory(new WebApiTransportChannelFactory());
+        var webApiWssFactory = new WebApiWssTransportChannelFactory();
+        registry.RegisterChannelFactory(webApiWssFactory);
+        registry.RegisterChannelFactory(new AliasedTransportChannelFactory(Utils.UriSchemeWs, webApiWssFactory));
         return registry;
     }
 

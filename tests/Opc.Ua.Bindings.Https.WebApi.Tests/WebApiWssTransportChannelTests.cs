@@ -80,6 +80,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         private string? m_lastNegotiatedSubProtocol;
         private IServiceRequest? m_lastRequest;
         private Func<IServiceRequest, IServiceResponse>? m_responder;
+        private bool m_stallResponse;
 
         [SetUp]
         public async Task SetUpAsync()
@@ -96,6 +97,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             m_lastNegotiatedSubProtocol = null;
             m_lastRequest = null;
             m_responder = DefaultResponder;
+            m_stallResponse = false;
 
             IHostBuilder hostBuilder = new HostBuilder()
                 .ConfigureWebHost(webHost =>
@@ -347,10 +349,50 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 "in flight, the channel surfaces BadConnectionClosed.");
         }
 
+        [Test]
+        public async Task SilentServerRequestUsesOperationTimeoutAsync()
+        {
+            m_stallResponse = true;
+            using WebApiWssTransportChannel channel = await OpenChannelAsync(operationTimeout: 100)
+                .ConfigureAwait(false);
+            var request = new GetEndpointsRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 23 },
+                EndpointUrl = m_baseUri.AbsoluteUri
+            };
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await channel.SendRequestAsync(request, CancellationToken.None).ConfigureAwait(false))!;
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadRequestTimeout));
+            Assert.That(ex.Message, Does.Contain("100 ms"));
+        }
+
+        [Test]
+        public async Task SilentServerRequestPreservesCallerCancellationAsync()
+        {
+            m_stallResponse = true;
+            using WebApiWssTransportChannel channel = await OpenChannelAsync(operationTimeout: 10_000)
+                .ConfigureAwait(false);
+            var request = new GetEndpointsRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 24 },
+                EndpointUrl = m_baseUri.AbsoluteUri
+            };
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+            Assert.That(async () =>
+                await channel.SendRequestAsync(request, cancellation.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+        }
+
         private async Task<WebApiWssTransportChannel> OpenChannelAsync(
-            WebApiClientOptions? options = null)
+            WebApiClientOptions? options = null,
+            int operationTimeout = 60_000)
         {
             var channel = new WebApiWssTransportChannel(new TelemetryStub(), options);
+            EndpointConfiguration configuration = EndpointConfiguration.Create();
+            configuration.OperationTimeout = operationTimeout;
             var settings = new TransportChannelSettings
             {
                 Description = new EndpointDescription
@@ -362,7 +404,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     // don't have to stub GetEndpoints.
                     ServerCertificate = ByteString.From(0x01, 0x02, 0x03)
                 },
-                Configuration = EndpointConfiguration.Create(),
+                Configuration = configuration,
                 Factory = m_messageContext!.Factory,
                 NamespaceUris = new NamespaceTable()
             };
@@ -416,6 +458,11 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     requestBytes,
                     messageContext);
                 m_lastRequest = decoded;
+                if (m_stallResponse)
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, ct).ConfigureAwait(false);
+                    return;
+                }
 
                 IServiceResponse response;
                 try

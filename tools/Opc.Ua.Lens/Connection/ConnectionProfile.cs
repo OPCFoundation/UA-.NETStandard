@@ -211,17 +211,34 @@ internal sealed record ConnectionProfile
     public bool MatchesPolicy(UserTokenPolicy policy)
     {
         ArgumentNullException.ThrowIfNull(policy);
-        return policy.TokenType == IdentityType &&
-            string.Equals(policy.PolicyId, UserTokenPolicyId, StringComparison.Ordinal) &&
-            string.Equals(
-                policy.SecurityPolicyUri ?? string.Empty,
-                UserTokenSecurityPolicyUri ?? string.Empty,
-                StringComparison.Ordinal) &&
-            string.Equals(
-                policy.IssuedTokenType ?? string.Empty,
-                IssuedTokenType ?? string.Empty,
-                StringComparison.Ordinal) &&
-            MatchesAuthority(policy);
+        return MatchesPolicySemantics(policy) &&
+            string.Equals(policy.PolicyId, UserTokenPolicyId, StringComparison.Ordinal);
+    }
+
+    public bool MatchesSessionPolicy(EndpointDescription endpoint, UserTokenPolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(endpoint);
+        ArgumentNullException.ThrowIfNull(policy);
+        if (MatchesPolicy(policy))
+        {
+            return true;
+        }
+        if (!MatchesEndpoint(endpoint) ||
+            (!Profiles.IsHttpsOpenApi(TransportProfileUri) && !Profiles.IsWssOpenApi(TransportProfileUri)) ||
+            !MatchesPolicySemantics(policy))
+        {
+            return false;
+        }
+
+        int semanticMatches = 0;
+        foreach (UserTokenPolicy candidate in endpoint.UserIdentityTokens)
+        {
+            if (MatchesPolicySemantics(candidate) && ++semanticMatches > 1)
+            {
+                return false;
+            }
+        }
+        return semanticMatches == 1;
     }
 
     public UserTokenPolicy RequireMatch(EndpointDescription endpoint)
@@ -264,5 +281,19 @@ internal sealed record ConnectionProfile
         return AuthorizationServerMetadata.TryFromPolicy(policy, out AuthorizationServerMetadata metadata) &&
             string.Equals(metadata.AuthorityUri, TokenAuthorityUri, StringComparison.Ordinal) &&
             string.Equals(metadata.ResourceUri, TokenResourceUri, StringComparison.Ordinal);
+    }
+
+    private bool MatchesPolicySemantics(UserTokenPolicy policy)
+    {
+        return policy.TokenType == IdentityType &&
+            string.Equals(
+                policy.SecurityPolicyUri ?? string.Empty,
+                UserTokenSecurityPolicyUri ?? string.Empty,
+                StringComparison.Ordinal) &&
+            string.Equals(
+                policy.IssuedTokenType ?? string.Empty,
+                IssuedTokenType ?? string.Empty,
+                StringComparison.Ordinal) &&
+            MatchesAuthority(policy);
     }
 }

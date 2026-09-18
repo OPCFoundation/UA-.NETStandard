@@ -33,6 +33,8 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.Bindings;
+using Opc.Ua.Client.WebApi;
+using Opc.Ua.Tests;
 using UaLens.Connection;
 
 namespace UaLens.Tests.Connection;
@@ -43,9 +45,12 @@ public sealed class ConnectionTransportConfigurationTests
     [TestCase("opc.tcp", true, true, false)]
     [TestCase("https", true, false, false)]
     [TestCase("opc.https", true, false, false)]
-    [TestCase("wss", false, false, true)]
-    [TestCase("opc.wss", false, false, true)]
-    [TestCase("opc.wss+json", false, false, false)]
+    [TestCase("ws", true, false, false)]
+    [TestCase("wss", true, false, true)]
+    [TestCase("opc.wss", true, false, true)]
+    [TestCase("opc.wss+json", true, false, false)]
+    [TestCase("opc.https+webapi", true, false, false)]
+    [TestCase("opc.wss+openapi", true, false, false)]
     [TestCase("opc.quic", false, false, false)]
     public void DefaultCapabilitiesDistinguishRegistrationDirectionAndListenerTls(
         string scheme,
@@ -187,6 +192,76 @@ public sealed class ConnectionTransportConfigurationTests
             Throws.TypeOf<NotSupportedException>());
         Assert.That(catalog.GetCapability("opc.unknown").ForwardRegistered, Is.False);
         Assert.That(catalog.GetCapability("opc.unknown").ReverseRegistered, Is.False);
+    }
+
+    [TestCase(Profiles.HttpsOpenApiTransport)]
+    [TestCase(Profiles.WssOpenApiTransport)]
+    public void OpenApiProfilesAreSelectableByTheSessionFlow(string transportProfileUri)
+    {
+        var endpoint = new EndpointDescription("opc.wss://server.example.test:4840/Factory")
+        {
+            SecurityMode = MessageSecurityMode.None,
+            SecurityPolicyUri = SecurityPolicies.None,
+            TransportProfileUri = transportProfileUri
+        };
+
+        Assert.That(ConnectionTransportCatalog.GetSessionProfileUnavailableReason(endpoint), Is.Null);
+    }
+
+    [TestCase(MessageSecurityMode.Sign, SecurityPolicies.Basic256Sha256)]
+    [TestCase(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Aes256_Sha256_RsaPss)]
+    public void InvalidOpenApiMessageSecurityIsNotSelectable(
+        MessageSecurityMode securityMode,
+        string securityPolicyUri)
+    {
+        var endpoint = new EndpointDescription("opc.wss://server.example.test:4840/Factory")
+        {
+            SecurityMode = securityMode,
+            SecurityPolicyUri = securityPolicyUri,
+            TransportProfileUri = Profiles.WssOpenApiTransport
+        };
+
+        Assert.That(
+            ConnectionTransportCatalog.GetSessionProfileUnavailableReason(endpoint),
+            Does.Contain("MessageSecurityMode.None"));
+    }
+
+    [Test]
+    public void DefaultBindingsRouteOpenApiProfilesToTheirDedicatedChannels()
+    {
+        var catalog = new ConnectionTransportCatalog();
+        ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+        using ITransportChannel https = catalog.Create(Utils.UriSchemeOpcHttpsWebApi, telemetry)!;
+        using ITransportChannel ws = catalog.Create(Utils.UriSchemeWs, telemetry)!;
+        using ITransportChannel wss = catalog.Create(Utils.UriSchemeOpcWssOpenApi, telemetry)!;
+
+        Assert.That(https, Is.TypeOf<WebApiTransportChannel>());
+        Assert.That(ws, Is.TypeOf<WebApiWssTransportChannel>());
+        Assert.That(wss, Is.TypeOf<WebApiWssTransportChannel>());
+    }
+
+    [Test]
+    public void DirectWsOpenApiEndpointIsRegisteredForDiscovery()
+    {
+        var catalog = new ConnectionTransportCatalog();
+
+        Assert.That(
+            () => catalog.RequireForward("ws://localhost:8080/api/ws"),
+            Throws.Nothing);
+    }
+
+    [TestCase(" ws://localhost:8080/api/ws ")]
+    [TestCase("\u00A0ws://localhost:8080/api/ws\u00A0")]
+    [TestCase("\u200Bws://localhost:8080/api/ws\u200B")]
+    [TestCase("\uFEFFws://localhost:8080/api/ws\uFEFF")]
+    public void OuterDisplayWhitespaceIsRemovedFromForwardEndpoint(string input)
+    {
+        var catalog = new ConnectionTransportCatalog();
+
+        string endpointUrl = catalog.RequireForward(input);
+
+        Assert.That(endpointUrl, Is.EqualTo("ws://localhost:8080/api/ws"));
     }
 
     [TestCase(2048, true)]

@@ -47,6 +47,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.Client;
+using UaLens.Capabilities;
 using UaLens.Connection;
 using UaLens.Themes;
 using UaLens.ViewModels;
@@ -65,6 +66,64 @@ namespace UaLens.Tests.Desktop;
 [NonParallelizable]
 public sealed class ShellDesktopTests
 {
+    [Test]
+    public Task SynchronouslyStalledDiscoveryDoesNotBlockTheDesktopDispatcher()
+    {
+        return DesktopApplication.RunAsync(async () =>
+        {
+            var dispatcher = new AvaloniaWorkspaceDispatcher();
+            await using var context = new DesktopConnectionContext(
+                new ConnectionConfigurationCatalog(),
+                dispatcher);
+            using var release = new ManualResetEventSlim();
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            context.DiscoverAsync = (_, token) =>
+            {
+                entered.TrySetResult();
+                release.Wait(token);
+                throw new IOException("Controlled discovery failure.");
+            };
+            var operations = new PluginDocumentOperations(context.Connection);
+            var workspace = new DocumentWorkspace<IPlugin>(
+                Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance,
+                dispatcher,
+                operations.SynchronizeConnectionAsync);
+            await using var viewModel = new MainViewModel(
+                context.Telemetry,
+                context.Connection,
+                workspace,
+                new CommandRegistry(),
+                operations,
+                dispatcher,
+                startResourceMonitor: _ => Task.FromException<UaLens.Diagnostics.ResourceMonitorHost>(
+                    new InvalidOperationException("Unexpected monitor.")),
+                capabilities: new Mock<ICapabilityService>().Object);
+            viewModel.EndpointUrl = "ws://localhost:8080/api/ws";
+            await using DesktopWindowScope scope = await DesktopWindowScope
+                .OpenAsync(viewModel: viewModel)
+                .ConfigureAwait(true);
+
+            Task<bool> responsiveness = Task.Run(async () =>
+            {
+                await entered.Task.WaitAsync(DesktopApplication.Timeout).ConfigureAwait(false);
+                var dispatched = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                Dispatcher.UIThread.Post(dispatched.SetResult);
+                Task completed = await Task.WhenAny(
+                    dispatched.Task,
+                    Task.Delay(TimeSpan.FromMilliseconds(500))).ConfigureAwait(false);
+                bool responsive = ReferenceEquals(completed, dispatched.Task);
+                release.Set();
+                return responsive;
+            });
+
+            Task connect = viewModel.ConnectCommand.ExecuteAsync(null);
+
+            Assert.That(await responsiveness.ConfigureAwait(true), Is.True,
+                "A stalled transport must not block diagnostics, cancellation, or window repainting.");
+            await connect.ConfigureAwait(true);
+        });
+    }
+
     [Test]
     public Task CatalogOpensActualToolAndTabCloseRestoresWelcome()
     {

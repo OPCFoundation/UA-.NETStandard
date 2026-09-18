@@ -146,7 +146,7 @@ internal sealed class ProfileIdentityProvider : IClientIdentityProvider
         CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        if (!m_profile.MatchesEndpoint(context.EndpointDescription) || !m_profile.MatchesPolicy(policy))
+        if (!m_profile.MatchesSessionPolicy(context.EndpointDescription, policy))
         {
             return ValueTask.FromResult(CanSatisfyResult.No("The policy differs from the selected profile."));
         }

@@ -53,7 +53,7 @@ internal sealed class DesktopConnectionContext : IAsyncDisposable
         IWorkspaceDispatcher? dispatcher = null)
     {
         Bindings.Setup(b => b.HasChannelFactory(It.IsAny<string>()))
-            .Returns((string scheme) => scheme is "opc.tcp" or "wss" or "opc.wss");
+            .Returns((string scheme) => scheme is "opc.tcp" or "ws" or "wss" or "opc.wss");
         Bindings.Setup(b => b.HasListenerFactory(It.IsAny<string>()))
             .Returns((string scheme) => scheme is "opc.tcp" or "wss" or "opc.wss");
         Runtime.Setup(r => r.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);

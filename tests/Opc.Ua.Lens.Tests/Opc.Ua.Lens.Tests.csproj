@@ -12,6 +12,10 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj" />
+    <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="..\..\tools\Opc.Ua.Lens\**\*.axaml"

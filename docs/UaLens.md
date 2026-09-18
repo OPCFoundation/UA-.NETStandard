@@ -205,6 +205,19 @@ choice.
 *Choose an advertised endpoint and its user-token policy. Selecting SignAndEncrypt
 does not automatically grant certificate trust.*
 
+The endpoint picker also accepts the OPC UA OpenAPI transport profiles advertised
+for `https://`, `opc.https://`, `ws://`, `wss://`, and `opc.wss://` endpoints.
+For `wss://` and `opc.wss://`, discovery can use the server's binary WebSocket
+endpoint; selecting its **WSS OpenAPI** twin switches the session to the
+`opcua+openapi` WebSocket subprotocol. A direct `ws://` URL uses the OpenAPI
+WebSocket transport for discovery and is intended for trusted local networks.
+Browse, attributes, reads, writes, calls, history, data-change monitoring, and
+event monitoring use the same documents as UA-TCP connections. TLS trust remains
+fail-closed. OPC UA Anonymous, UserName, X.509, and issued-token identities are
+separate from optional HTTP Basic, HTTP bearer, mutual-TLS, or WebSocket bearer
+authentication configured by the host. WebSocket bearer authentication requires
+`wss://`.
+
 The validation callback never blocks on a window. Connection coordination rejects
 and captures the validation failure, prompts asynchronously, and makes a bounded
 retry using the decision. Cancellation does not apply a late dialog answer.

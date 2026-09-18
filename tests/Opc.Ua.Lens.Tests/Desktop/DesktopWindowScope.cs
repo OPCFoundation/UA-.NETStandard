@@ -52,11 +52,14 @@ namespace UaLens.Tests.Desktop;
 internal sealed class DesktopWindowScope : IAsyncDisposable
 {
     private DesktopWindowScope(
-        string directory, IStorageProvider? storageProvider, INodeSetRepository? nodeSetRepository)
+        string directory,
+        IStorageProvider? storageProvider,
+        INodeSetRepository? nodeSetRepository,
+        MainViewModel? viewModel)
     {
         DirectoryPath = directory;
         Appearance = new AppearancePreferences(Path.Combine(directory, "appearance.json"));
-        ViewModel = new MainViewModel();
+        ViewModel = viewModel ?? new MainViewModel();
         Window = new MainWindow(
             ViewModel, Appearance, storageProvider: storageProvider, nodeSetRepository: nodeSetRepository);
         Window.Closed += (_, _) => m_closed.TrySetResult();
@@ -69,11 +72,13 @@ internal sealed class DesktopWindowScope : IAsyncDisposable
     public Task Closed => m_closed.Task;
 
     public static async Task<DesktopWindowScope> OpenAsync(
-        IStorageProvider? storageProvider = null, INodeSetRepository? nodeSetRepository = null)
+        IStorageProvider? storageProvider = null,
+        INodeSetRepository? nodeSetRepository = null,
+        MainViewModel? viewModel = null)
     {
         Dispatcher.UIThread.VerifyAccess();
         string directory = Path.GetFullPath(Path.Combine("TestResults", "lens-desktop", Guid.NewGuid().ToString("N")));
-        var scope = new DesktopWindowScope(directory, storageProvider, nodeSetRepository);
+        var scope = new DesktopWindowScope(directory, storageProvider, nodeSetRepository, viewModel);
         Directory.CreateDirectory(directory);
         var loaded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         void OnThemeChanged() => loaded.TrySetResult();

@@ -148,7 +148,7 @@ internal sealed class StackConnectionBackend : IConfiguredConnectionBackend, IAs
         ConnectionSetupSelection setup,
         CancellationToken ct)
     {
-        Transports.RequireForward(setup.EndpointUrl);
+        string endpointUrl = Transports.RequireForward(setup.EndpointUrl);
         if (configuration.CertificateManager is null ||
             configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates ||
             configuration.SecurityConfiguration.UseValidatedCertificates)
@@ -163,7 +163,7 @@ internal sealed class StackConnectionBackend : IConfiguredConnectionBackend, IAs
             if (setup.ReverseConnection is not { } reverse)
             {
                 using DiscoveryClient client = await DiscoveryClient.CreateAsync(
-                    channels, new Uri(setup.EndpointUrl), endpointConfiguration, m_telemetry, ct: ct)
+                    channels, new Uri(endpointUrl), endpointConfiguration, m_telemetry, ct: ct)
                     .ConfigureAwait(false);
                 return await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
             }
@@ -213,7 +213,11 @@ internal sealed class StackConnectionBackend : IConfiguredConnectionBackend, IAs
         {
             throw new NotSupportedException(unavailable);
         }
-        var configuredEndpoint = new ConfiguredEndpoint(null, endpoint, EndpointConfiguration.Create(configuration))
+        EndpointDescription selectedEndpoint = CoreUtils.Clone(endpoint)!;
+        var configuredEndpoint = new ConfiguredEndpoint(
+            null,
+            CoreUtils.Clone(selectedEndpoint)!,
+            EndpointConfiguration.Create(configuration))
         {
             UpdateBeforeConnect = false
         };
@@ -264,6 +268,7 @@ internal sealed class StackConnectionBackend : IConfiguredConnectionBackend, IAs
                 builder.UseReverseConnect(resources.ReverseLease.Manager, new Uri(reverse.ServerUri));
             }
             resources.Session = await builder.ConnectAsync(ct).ConfigureAwait(false);
+            PreserveOpenApiSelection(resources.Session.ConfiguredEndpoint.Description, selectedEndpoint);
             return resources.Transfer();
         }
     }
@@ -340,6 +345,20 @@ internal sealed class StackConnectionBackend : IConfiguredConnectionBackend, IAs
             }
         }
         private bool m_transferred;
+    }
+
+    private static void PreserveOpenApiSelection(
+        EndpointDescription connectedEndpoint,
+        EndpointDescription selectedEndpoint)
+    {
+        if (!Profiles.IsHttpsOpenApi(selectedEndpoint.TransportProfileUri) &&
+            !Profiles.IsWssOpenApi(selectedEndpoint.TransportProfileUri))
+        {
+            return;
+        }
+
+        connectedEndpoint.TransportProfileUri = selectedEndpoint.TransportProfileUri;
+        connectedEndpoint.UserIdentityTokens = CoreUtils.Clone(selectedEndpoint.UserIdentityTokens);
     }
 
     private readonly ITelemetryContext m_telemetry;
