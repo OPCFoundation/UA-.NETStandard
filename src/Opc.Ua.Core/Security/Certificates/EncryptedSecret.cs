@@ -667,7 +667,7 @@ namespace Opc.Ua
         /// Tries to decrypt an RSAEncryptedSecret payload.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public bool TryDecryptRsa(byte[] encodedSecret, byte[] expectedNonce, out byte[]? secret)
+        public bool TryDecryptRsa(byte[] encodedSecret, byte[]? expectedNonce, out byte[]? secret)
         {
             secret = null;
 
@@ -857,13 +857,13 @@ namespace Opc.Ua
         /// Tries to decrypt the encrypted secret and returns the plain secret.
         /// </summary>
         /// <param name="encryptedSecret">The encrypted secret bytes.</param>
-        /// <param name="expectedNonce">The expected nonce to validate.</param>
+        /// <param name="expectedNonce">The expected nonce, or null when the protocol does not check it.</param>
         /// <param name="secret">The decrypted secret when decryption succeeds.</param>
         /// <returns>
         /// <c>true</c> if decryption succeeds; otherwise <c>false</c>.
         /// Routes to RSA or ECC decryption based on the configured security policy.
         /// </returns>
-        public bool TryDecrypt(byte[] encryptedSecret, byte[] expectedNonce, out byte[]? secret)
+        public bool TryDecrypt(byte[] encryptedSecret, byte[]? expectedNonce, out byte[]? secret)
         {
             secret = null;
 
@@ -905,7 +905,7 @@ namespace Opc.Ua
         /// </summary>
         public async ValueTask<(bool Success, byte[]? Secret)> TryDecryptAsync(
             byte[] encryptedSecret,
-            byte[] expectedNonce,
+            byte[]? expectedNonce,
             CancellationToken cancellationToken = default)
         {
             if (encryptedSecret == null)
@@ -1469,7 +1469,7 @@ namespace Opc.Ua
         /// Decrypts the specified data using the ECC algorithm.
         /// </summary>
         /// <param name="earliestTime">The earliest time allowed for the message.</param>
-        /// <param name="expectedNonce">The expected nonce value.</param>
+        /// <param name="expectedNonce">The expected nonce, or null when the protocol does not check it.</param>
         /// <param name="data">The data to decrypt.</param>
         /// <param name="offset">The offset of the data to decrypt.</param>
         /// <param name="count">The number of bytes to decrypt.</param>
@@ -1479,7 +1479,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public async ValueTask<byte[]> DecryptAsync(
             DateTime earliestTime,
-            byte[] expectedNonce,
+            byte[]? expectedNonce,
             byte[] data,
             int offset,
             int count,
@@ -1499,7 +1499,7 @@ namespace Opc.Ua
         /// Decrypts the specified data using the ECC algorithm.
         /// </summary>
         /// <param name="earliestTime">The earliest time allowed for the message.</param>
-        /// <param name="expectedNonce">The expected nonce value.</param>
+        /// <param name="expectedNonce">The expected nonce, or null when the protocol does not check it.</param>
         /// <param name="data">The data to decrypt.</param>
         /// <param name="offset">The offset of the data to decrypt.</param>
         /// <param name="count">The number of bytes to decrypt.</param>
@@ -1508,7 +1508,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public byte[] Decrypt(
             DateTime earliestTime,
-            byte[] expectedNonce,
+            byte[]? expectedNonce,
             byte[] data,
             int offset,
             int count,
@@ -1525,7 +1525,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decrypts a verified ECC payload, validates its nonce and padding, and clears temporary secret material.
         /// </summary>
-        private byte[] DecryptVerifiedEcc(ArraySegment<byte> dataToDecrypt, byte[] expectedNonce)
+        private byte[] DecryptVerifiedEcc(ArraySegment<byte> dataToDecrypt, byte[]? expectedNonce)
         {
             if (ReceiverNonce == null || SenderNonce == null)
             {
@@ -1568,7 +1568,7 @@ namespace Opc.Ua
                 for (int ii = 0; ii < paddingCount; ii++)
                 {
                     byte padding = decoder.ReadByte(null);
-                    error |= padding & ~paddingCount;
+                    error |= padding ^ paddingCount;
                 }
 
                 byte highByte = decoder.ReadByte(null);

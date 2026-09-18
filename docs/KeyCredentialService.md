@@ -242,6 +242,10 @@ certificate registry. `UpdateCredential` decrypts a UA Binary
 It verifies the declared policy, certificate thumbprint, envelope, signature
 and timestamp; invalid input never reaches the store. Both methods require
 the SecurityAdmin role and an encrypted SecureChannel.
+The envelope nonce is deliberately not compared with a session nonce:
+outside `ActivateSession`, OPC UA Part 4 Table 185 requires the receiver not
+to check it. A peer may therefore supply a 32-128 byte random nonce without
+causing an otherwise valid credential push to be rejected.
 
 The push binding accepts `Basic256Sha256`, `Aes128_Sha256_RsaOaep` and
 `Aes256_Sha256_RsaPss`. Restrict or reorder these through

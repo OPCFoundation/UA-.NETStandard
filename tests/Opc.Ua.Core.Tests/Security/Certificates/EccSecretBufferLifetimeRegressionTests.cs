@@ -54,7 +54,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task DecryptClearsOwnedPayloadAndKeysWithoutErasingHeadersOrReturnedSecretAsync(
             [Values(false, true)] bool p384,
             [Values(0, 17)] int offset,
-            [Values("success", "nonce", "padding", "cipher")] string outcome)
+            [Values("success", "nonce", "padding", "padding-byte", "cipher")] string outcome)
         {
             ECCurve curve = p384 ? ECCurve.NamedCurves.nistP384 : ECCurve.NamedCurves.nistP256;
             string policy = p384 ? SecurityPolicies.ECC_nistP384 : SecurityPolicies.ECC_nistP256;
@@ -63,7 +63,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.That(SecurityPolicies.Default.GetInfo(policy), Is.Null);
                 Assert.That(() => Nonce.CreateNonce(policy),
                     Throws.ArgumentNullException.With.Property("ParamName").EqualTo("securityPolicy"));
-                SecurityPolicyInfo unsupported = p384 ? SecurityPolicyInfo.ECC_nistP384 : SecurityPolicyInfo.ECC_nistP256;
+                SecurityPolicyInfo unsupported = p384
+                    ? SecurityPolicyInfo.ECC_nistP384 : SecurityPolicyInfo.ECC_nistP256;
                 using Nonce local = Nonce.CreateNonce(unsupported);
                 using Nonce remote = Nonce.CreateNonce(unsupported);
                 Assert.That(() => local.GenerateSecret(remote, null), Throws.TypeOf<NotSupportedException>());
@@ -105,6 +106,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     if (outcome == "padding")
                     {
                         plaintext.Array![plaintext.Offset + plaintext.Count - 1] = 1;
+                    }
+                    else if (outcome == "padding-byte")
+                    {
+                        int paddingOffset = plaintext.Offset + plaintext.Count - 2;
+                        Assert.That(plaintext.Array![paddingOffset], Is.GreaterThan(0));
+                        plaintext.Array[paddingOffset] = 0;
                     }
                     return plaintext;
                 });

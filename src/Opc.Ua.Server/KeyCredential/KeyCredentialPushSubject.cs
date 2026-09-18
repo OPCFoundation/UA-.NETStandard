@@ -374,7 +374,8 @@ namespace Opc.Ua.Server
                     }
                 }
                 using var decryptor = EncryptedSecret.CreateForRsa(context.AsMessageContext(), policyUri, receiver);
-                (bool success, byte[]? decoded) = await decryptor.TryDecryptAsync(encoded, [], ct).ConfigureAwait(false);
+                (bool success, byte[]? decoded) = await decryptor.TryDecryptAsync(encoded, null, ct)
+                    .ConfigureAwait(false);
                 if (!success || decoded == null)
                 {
                     throw new ServiceResultException(StatusCodes.BadInvalidArgument);
