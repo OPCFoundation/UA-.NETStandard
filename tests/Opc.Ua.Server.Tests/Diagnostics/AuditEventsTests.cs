@@ -189,10 +189,10 @@ namespace Opc.Ua.Server.Tests.Diagnostics
         }
 
         /// <summary>
-        /// Verifies that secure-channel-close auditing uses Uncertain status when the exception has no inner result.
+        /// Verifies that secure-channel-close auditing uses the service-result status when the exception has no inner result.
         /// </summary>
         [Test]
-        public void ReportAuditCloseSecureChannelEventWithServiceResultExceptionWithoutInnerResultUsesUncertainStatus()
+        public void ReportAuditCloseSecureChannelEventWithServiceResultExceptionWithoutInnerResultUsesExceptionStatus()
         {
             CapturingAuditEventServer server = CreateAuditServer();
 
@@ -205,7 +205,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
 
             var auditEvent = (AuditChannelEventState)server.Events.Single();
             Assert.That(auditEvent.Status.Value, Is.False);
-            Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
         }
 
         /// <summary>

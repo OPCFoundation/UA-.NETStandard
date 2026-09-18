@@ -180,6 +180,7 @@ namespace Opc.Ua.Server.AliasNames
             await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                long deadline = AliasNameWildcardMatcher.CreateDeadline();
                 CollectMatches(
                     root,
                     pattern,
@@ -188,6 +189,7 @@ namespace Opc.Ua.Server.AliasNames
                     verbose: false,
                     nonVerboseSink: result,
                     verboseSink: null,
+                    deadline,
                     ct);
             }
             finally
@@ -224,6 +226,7 @@ namespace Opc.Ua.Server.AliasNames
             await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                long deadline = AliasNameWildcardMatcher.CreateDeadline();
                 CollectMatches(
                     root,
                     pattern,
@@ -232,6 +235,7 @@ namespace Opc.Ua.Server.AliasNames
                     verbose: true,
                     nonVerboseSink: null,
                     verboseSink: result,
+                    deadline,
                     ct);
             }
             finally
@@ -513,6 +517,7 @@ namespace Opc.Ua.Server.AliasNames
             bool verbose,
             List<AliasNameDataType>? nonVerboseSink,
             List<AliasNameVerboseDataType>? verboseSink,
+            long deadline,
             CancellationToken ct)
         {
             ushort nsIndex = category.Descriptor.BrowseName.NamespaceIndex;
@@ -521,7 +526,7 @@ namespace Opc.Ua.Server.AliasNames
                 in category.Aliases)
             {
                 ct.ThrowIfCancellationRequested();
-                if (!AliasNameWildcardMatcher.Matches(alias.Key, pattern))
+                if (!AliasNameWildcardMatcher.Matches(alias.Key, pattern, deadline))
                 {
                     continue;
                 }
@@ -578,6 +583,7 @@ namespace Opc.Ua.Server.AliasNames
                         verbose,
                         nonVerboseSink,
                         verboseSink,
+                        deadline,
                         ct);
                 }
             }

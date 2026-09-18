@@ -2795,19 +2795,13 @@ namespace Opc.Ua.Server
         {
             get
             {
-                m_semaphoreSlim.Wait();
-                try
+                IServerInternal? serverInternal = System.Threading.Volatile.Read(ref m_serverInternal);
+                if (serverInternal == null)
                 {
-                    if (m_serverInternal == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadServerHalted);
-                    }
-                    return m_serverInternal;
+                    throw new ServiceResultException(StatusCodes.BadServerHalted);
                 }
-                finally
-                {
-                    m_semaphoreSlim.Release();
-                }
+
+                return serverInternal;
             }
         }
 
@@ -3438,21 +3432,13 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void OnRequestComplete(OperationContext context)
         {
-            m_semaphoreSlim.Wait();
-            try
+            if (System.Threading.Volatile.Read(ref m_serverInternal) == null)
             {
-                if (m_serverInternal == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadServerHalted);
-                }
+                throw new ServiceResultException(StatusCodes.BadServerHalted);
+            }
 
-                // The request itself is completed by disposing the OperationContext, which owns
-                // the execution scope. This hook remains for derived servers that extend it.
-            }
-            finally
-            {
-                m_semaphoreSlim.Release();
-            }
+            // The request itself is completed by disposing the OperationContext, which owns
+            // the execution scope. This hook remains for derived servers that extend it.
         }
 
         /// <summary>

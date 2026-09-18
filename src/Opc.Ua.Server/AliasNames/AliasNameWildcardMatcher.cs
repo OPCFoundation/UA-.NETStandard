@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
 
 namespace Opc.Ua.Server.AliasNames
 {
@@ -110,9 +111,33 @@ namespace Opc.Ua.Server.AliasNames
         /// </summary>
         internal static bool Matches(string target, LikePattern pattern)
         {
+            return Matches(target, pattern, CreateDeadline());
+        }
+
+        /// <summary>
+        /// Creates the deadline shared by all alias matches in one request.
+        /// </summary>
+        internal static long CreateDeadline()
+        {
+            return Stopwatch.GetTimestamp() + (long)(Stopwatch.Frequency * s_matchTimeout.TotalSeconds);
+        }
+
+        /// <summary>
+        /// Tests an alias name before the shared search deadline expires.
+        /// </summary>
+        internal static bool Matches(string target, LikePattern pattern, long deadline)
+        {
             try
             {
-                return pattern.IsMatch(target, s_matchTimeout);
+                long remaining = deadline - Stopwatch.GetTimestamp();
+                if (remaining <= 0)
+                {
+                    throw new TimeoutException();
+                }
+
+                return pattern.IsMatch(
+                    target,
+                    TimeSpan.FromSeconds((double)remaining / Stopwatch.Frequency));
             }
             catch (TimeoutException ex)
             {

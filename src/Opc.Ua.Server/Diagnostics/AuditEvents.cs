@@ -2137,7 +2137,7 @@ namespace Opc.Ua.Server
                 }
                 if (exception is ServiceResultException sre)
                 {
-                    statusCode = sre.InnerResult?.StatusCode ?? StatusCodes.Uncertain;
+                    statusCode = sre.InnerResult?.StatusCode ?? sre.StatusCode;
                 }
 
                 ISystemContext systemContext = server.DefaultAuditContext;

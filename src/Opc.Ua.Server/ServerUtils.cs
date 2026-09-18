@@ -60,8 +60,10 @@ namespace Opc.Ua.Server
             public MonitoringMode MonitoringMode;
         }
 
+        private const int MaxQueuedEvents = 1024;
         private static readonly Queue<Event> s_events = new();
-        private static bool s_eventsEnabled;
+        private static readonly System.Threading.Lock s_eventsLock = new();
+        private static volatile bool s_eventsEnabled;
 
         /// <summary>
         /// Whether event queuing is enabled.
@@ -73,7 +75,7 @@ namespace Opc.Ua.Server
             {
                 if (s_eventsEnabled != value && !value)
                 {
-                    lock (s_events)
+                    lock (s_eventsLock)
                     {
                         s_events.Clear();
                     }
@@ -93,7 +95,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            lock (s_events)
+            lock (s_eventsLock)
             {
                 var e = new Event
                 {
@@ -111,7 +113,7 @@ namespace Opc.Ua.Server
                     e.Value = new DataValue(value.WrappedValue, error);
                 }
 
-                s_events.Enqueue(e);
+                EnqueueEvent(e);
             }
         }
 
@@ -125,7 +127,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            lock (s_events)
+            lock (s_eventsLock)
             {
                 var e = new Event
                 {
@@ -137,7 +139,7 @@ namespace Opc.Ua.Server
                     Parameters = null,
                     MonitoringMode = MonitoringMode.Disabled
                 };
-                s_events.Enqueue(e);
+                EnqueueEvent(e);
             }
         }
 
@@ -151,7 +153,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            lock (s_events)
+            lock (s_eventsLock)
             {
                 var e = new Event
                 {
@@ -163,7 +165,7 @@ namespace Opc.Ua.Server
                     Parameters = null,
                     MonitoringMode = MonitoringMode.Disabled
                 };
-                s_events.Enqueue(e);
+                EnqueueEvent(e);
             }
         }
 
@@ -177,7 +179,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            lock (s_events)
+            lock (s_eventsLock)
             {
                 var e = new Event
                 {
@@ -189,7 +191,7 @@ namespace Opc.Ua.Server
                     Parameters = null,
                     MonitoringMode = MonitoringMode.Disabled
                 };
-                s_events.Enqueue(e);
+                EnqueueEvent(e);
             }
         }
 
@@ -203,7 +205,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            lock (s_events)
+            lock (s_eventsLock)
             {
                 var e = new Event
                 {
@@ -215,7 +217,7 @@ namespace Opc.Ua.Server
                     Parameters = null,
                     MonitoringMode = MonitoringMode.Disabled
                 };
-                s_events.Enqueue(e);
+                EnqueueEvent(e);
             }
         }
 
@@ -236,7 +238,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            lock (s_events)
+            lock (s_eventsLock)
             {
                 var e = new Event
                 {
@@ -254,7 +256,7 @@ namespace Opc.Ua.Server
                     },
                     MonitoringMode = monitoringMode
                 };
-                s_events.Enqueue(e);
+                EnqueueEvent(e);
             }
         }
 
@@ -275,7 +277,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            lock (s_events)
+            lock (s_eventsLock)
             {
                 var e = new Event
                 {
@@ -293,8 +295,18 @@ namespace Opc.Ua.Server
                     },
                     MonitoringMode = monitoringMode
                 };
-                s_events.Enqueue(e);
+                EnqueueEvent(e);
             }
+        }
+
+        private static void EnqueueEvent(Event e)
+        {
+            if (s_events.Count == MaxQueuedEvents)
+            {
+                s_events.Dequeue();
+            }
+
+            s_events.Enqueue(e);
         }
 
         /// <summary>
