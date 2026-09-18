@@ -247,7 +247,7 @@ namespace Opc.Ua.WotCon.Tests
                 ByteString thirdBytes = ByteString.From(TestMaterialization.Td("urn:rehydrated-native", "v3"));
                 await third.Proxy.UploadAsync(thirdBytes, ct: ct).ConfigureAwait(false);
                 WotResource after = FindResource();
-                WotResource stored = (await m_store.LoadAsync(ct).ConfigureAwait(false))
+                WotResource stored = (await ReadStoredSnapshotAsync(ct).ConfigureAwait(false))
                     .FindResource(resource.GroupId, resource.ResourceId)!;
                 Assert.Multiple(() =>
                 {
@@ -346,7 +346,7 @@ namespace Opc.Ua.WotCon.Tests
             WotResourceVersion replacement = FindResource().FindVersion("v1")!;
             Assert.That(replacement.Digest, Is.EqualTo(staleLease.Version.Digest));
             Assert.That(await m_registry.ReadContentAsync(replacement, ct).ConfigureAwait(false), Is.EqualTo(original));
-            WotResource stored = (await m_store.LoadAsync(ct).ConfigureAwait(false))
+            WotResource stored = (await ReadStoredSnapshotAsync(ct).ConfigureAwait(false))
                 .FindResource(resource.GroupId, resource.ResourceId)!;
             Assert.That(stored.FindVersion("v1")!.Digest, Is.EqualTo(replacement.Digest));
             Assert.That(stored.MetaEpoch, Is.EqualTo(FindResource().MetaEpoch));
@@ -364,6 +364,12 @@ namespace Opc.Ua.WotCon.Tests
                 m_registry.Current, WotRegistryGroups.ThingDescriptions, "rehydrated-native")!;
         }
 
+        private async ValueTask<WotRegistrySnapshot> ReadStoredSnapshotAsync(CancellationToken ct)
+        {
+            using var observer = new FileWotRegistryStore(Path.Combine(m_root, "registry"));
+            return await observer.LoadAsync(ct).ConfigureAwait(false);
+        }
+
         private async Task AssertAllocationBlockedAsync(WotRegistryGroupClient group, CancellationToken ct)
         {
             WotRegistrySnapshot before = m_registry.Current;
@@ -376,7 +382,7 @@ namespace Opc.Ua.WotCon.Tests
                 .With.Property(nameof(ServiceResultException.StatusCode))
                 .EqualTo(StatusCodes.BadTooManyOperations)).ConfigureAwait(false);
             Assert.That(m_registry.Current, Is.SameAs(before));
-            WotRegistrySnapshot stored = await m_store.LoadAsync(ct).ConfigureAwait(false);
+            WotRegistrySnapshot stored = await ReadStoredSnapshotAsync(ct).ConfigureAwait(false);
             Assert.That(stored.Generation, Is.EqualTo(before.Generation));
             Assert.That(stored.FindResource(resource.GroupId, resource.ResourceId)!.FindVersion("v1"), Is.Not.Null);
         }

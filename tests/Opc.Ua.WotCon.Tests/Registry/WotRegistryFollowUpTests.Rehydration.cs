@@ -53,6 +53,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             try
             {
                 using var durable = new FileWotRegistryStore(root);
+                using var observer = new FileWotRegistryStore(root);
                 var boundary = new RehydratingLeaseStore(durable);
                 using var service = new WotRegistryService(
                     publication == "reload" ? durable : boundary,
@@ -66,7 +67,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     resource.GroupId, resource.ResourceId, first, ct).ConfigureAwait(false);
                 using IWotRegistryVersionLease peer = await service.AcquireVersionLeaseAsync(
                     resource.GroupId, resource.ResourceId, first, ct).ConfigureAwait(false);
-                await AssertRehydratedLeaseRetentionAsync(service, durable, ct).ConfigureAwait(false);
+                await AssertRehydratedLeaseRetentionAsync(service, observer, ct).ConfigureAwait(false);
 
                 if (publication == "reload")
                 {
@@ -118,16 +119,16 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 });
                 int changes = 0;
                 service.Changed += (_, _) => changes++;
-                await AssertRehydratedLeaseRetentionAsync(service, durable, ct).ConfigureAwait(false);
+                await AssertRehydratedLeaseRetentionAsync(service, observer, ct).ConfigureAwait(false);
                 using IWotRegistryVersionLease renewed = await service.AcquireVersionLeaseAsync(
                     resource.GroupId, resource.ResourceId, first, ct).ConfigureAwait(false);
                 Assert.That(renewed.Version, Is.SameAs(rehydrated));
                 initial.Dispose();
                 initial.Dispose();
                 await service.InitializeAsync(ct).ConfigureAwait(false);
-                await AssertRehydratedLeaseRetentionAsync(service, durable, ct).ConfigureAwait(false);
+                await AssertRehydratedLeaseRetentionAsync(service, observer, ct).ConfigureAwait(false);
                 peer.Dispose();
-                await AssertRehydratedLeaseRetentionAsync(service, durable, ct).ConfigureAwait(false);
+                await AssertRehydratedLeaseRetentionAsync(service, observer, ct).ConfigureAwait(false);
                 Assert.That(await service.ReadContentAsync(initial.Version, ct).ConfigureAwait(false),
                     Is.EqualTo(ByteString.From(TestMaterialization.Td("urn:rehydrated-lease", "v1"))));
                 Assert.That(changes, Is.Zero, "Reload, rejection and lease accounting must not emit mutations.");
@@ -135,7 +136,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 renewed.Dispose();
                 Assert.That(service.Current, Is.SameAs(beforeRelease));
 
-                await AssertLeaseRecoveryEvictionAsync(service, durable, ct).ConfigureAwait(false);
+                await AssertLeaseRecoveryEvictionAsync(service, observer, ct).ConfigureAwait(false);
                 Assert.That(changes, Is.EqualTo(2), "Only allocation and content commit publish mutations.");
                 using var restarted = new WotRegistryService(durable, service.Bounds);
                 await restarted.InitializeAsync(ct).ConfigureAwait(false);
@@ -158,6 +159,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             try
             {
                 using var durable = new FileWotRegistryStore(root);
+                using var observer = new FileWotRegistryStore(root);
                 using var service = new WotRegistryService(
                     durable, new WotRegistryPersistenceBounds { MaxVersionsPerResource = 2 });
                 await service.InitializeAsync(ct).ConfigureAwait(false);
@@ -205,7 +207,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     resource.ResourceId, TestMaterialization.Td("urn:rehydrated-lease", "v3"), "v3", false), ct)
                     .ConfigureAwait(false)).Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
                 AssertLeaseRecoveryVersions(FindLeaseRecoveryResource(service));
-                AssertLeaseRecoveryVersions((await durable.LoadAsync(ct).ConfigureAwait(false))
+                AssertLeaseRecoveryVersions((await observer.LoadAsync(ct).ConfigureAwait(false))
                     .FindResource(resource.GroupId, resource.ResourceId)!);
             }
             finally
@@ -229,7 +231,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
         private static async Task AssertRehydratedLeaseRetentionAsync(
             WotRegistryService service,
-            FileWotRegistryStore durable,
+            FileWotRegistryStore observer,
             CancellationToken ct)
         {
             WotRegistrySnapshot before = service.Current;
@@ -246,7 +248,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 resource.ResourceId, TestMaterialization.Td("urn:rehydrated-lease", "v3"), "v3", false), ct)
                 .ConfigureAwait(false)).Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
             Assert.That(service.Current, Is.SameAs(before));
-            WotRegistrySnapshot stored = await durable.LoadAsync(ct).ConfigureAwait(false);
+            WotRegistrySnapshot stored = await observer.LoadAsync(ct).ConfigureAwait(false);
             WotResource retained = stored.FindResource(resource.GroupId, resource.ResourceId)!;
             Assert.Multiple(() =>
             {
@@ -263,7 +265,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
         private static async Task AssertLeaseRecoveryEvictionAsync(
             WotRegistryService service,
-            FileWotRegistryStore durable,
+            FileWotRegistryStore observer,
             CancellationToken ct)
         {
             WotResource resource = FindLeaseRecoveryResource(service);
@@ -273,7 +275,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 resource.ResourceId, TestMaterialization.Td("urn:rehydrated-lease", "v3"), "v3", false), ct)
                 .ConfigureAwait(false)).Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             AssertLeaseRecoveryVersions(FindLeaseRecoveryResource(service));
-            AssertLeaseRecoveryVersions((await durable.LoadAsync(ct).ConfigureAwait(false))
+            AssertLeaseRecoveryVersions((await observer.LoadAsync(ct).ConfigureAwait(false))
                 .FindResource(resource.GroupId, resource.ResourceId)!);
             Assert.That(await service.ReadContentAsync(
                 FindLeaseRecoveryResource(service).FindVersion("v3")!, ct).ConfigureAwait(false),

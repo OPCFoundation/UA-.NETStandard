@@ -26,6 +26,14 @@ generations and disposes it with the service. Calling `LoadAsync` again
 invalidates earlier captures; disposing all captures releases their content
 protection. A later fresh capture may need to validate content again.
 
+Reload a live registry through `WotRegistryService.InitializeAsync`, which
+refreshes its store-owned evidence while reconnecting retained logical Version
+leases. For a durable-state assertion or diagnostic read, use a separate
+`FileWotRegistryStore` observer of the same root (and the same content provider
+when one is injected). Do not call `LoadAsync` on the live service's store merely
+to inspect persistence: that invalidates the service's retained prepared input.
+The observer's loaded snapshot does not replace `registry.Current`.
+
 After a committed decision, the service completes its mandatory validated
 generation handoff before invoking external `Changed` subscribers. A throwing
 subscriber cannot strand the previous capture or prevent the next mutation.
