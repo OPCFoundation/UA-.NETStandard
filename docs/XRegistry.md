@@ -373,12 +373,153 @@ allowed.
 ### Federation
 
 `XRegistryFederationNodeManager` publishes a **proxy** for a resource hosted by another registry. The
-proxy is itself a `ResourceType` instance, so a generic xRegistry client drives it through exactly the
-same generated proxy as a locally hosted resource. It carries an `ExternalReference` — an
-`ExpandedNodeId` whose `ServerIndex` names the remote server through the local `ServerArray`, and whose
-`NamespaceUri` and `Identifier` locate the remote resource node — and/or a plain `ResourceUrl`.
-`ResourceId`, `VersionId`, and `Xid` retain the remote structural xRegistry identity. A content
-digest may still be used by the remote NodeId or a local cache, but it never replaces `Xid`.
+proxy is a `ResourceType` Object carrying three different facts:
+
+| Property | Meaning |
+| --- | --- |
+| `OriginRegistry` | Read-only, immutable origin identity from an independently trusted binding. |
+| `ExternalReference` | The remote **logical Resource** Object, never its content-digest Variable or an exact Version. |
+| `ResourceUrl` | An authorized transport locator, not evidence of application or registry identity. |
+
+The proxy retains its own configured `ResourceId`, `VersionId` and historical structural `Xid`;
+the remote logical Xid is pinned separately in `XRegistryFederationTarget`. Equal bytes do not merge
+different remote entities. A non-materialized proxy has no local `Versions` folder: follow its
+verified remote logical Resource to browse Versions and use the generated FileType client.
+
+#### Configuring the trusted binding
+
+`PublishFederationProxy` requires an immutable `FederationTarget`, an authorized `RemoteEndpointUrl`
+and an `IXRegistryFederationProvider`. The provider must verify the origin, logical Resource
+ownership/Xid and FileType/Versions capability before publication. Missing or unsupported verification
+fails with `Bad_NotSupported`; it never falls back to a content link. A disabled proxy needs none of
+these optional settings.
+
+An existing `XRegistryClient`, including `WotRegistryClient`, implements the native provider over its
+already connected Session. Establish that Session using the application's endpoint authorization and
+certificate trust policy, independently of proxy/document metadata. Pin the expected ApplicationUri,
+registry-root NodeId and assigned logical Resource identity from trusted configuration:
+
+```csharp
+const string remoteNamespace = "urn:example:remote-registry:nodes";
+const string applicationUri = "urn:example:remote-registry";
+var binding = new XRegistryFederationTarget(
+    new RegistryOriginDataType
+    {
+        OriginUri = string.Empty,
+        ServerUri = applicationUri,
+        RegistryNodeId = new ExpandedNodeId(XRegistryWellKnown.RegistryObject, remoteNamespace)
+    },
+    applicationUri,
+    new ExpandedNodeId("pump-resource", remoteNamespace),
+    "/groups/pumps/resources/pump-resource");
+
+var remote = new GenericXRegistryClient(remoteSession, remoteNamespace, telemetry);
+var options = new XRegistryServerOptions
+{
+    PublishFederationProxy = true,
+    FederationTarget = binding,
+    FederationProvider = remote,
+    RemoteEndpointUrl = authorizedEndpointUrl
+};
+var federation = new XRegistryFederationNodeManager(server, configuration, options);
+```
+
+Use the actual assigned remote NodeIds and Xid, not identifiers derived from document bytes or an
+endpoint path. Portable NodeIds carry a namespace URI and no session-local namespace/server index.
+The native provider requires a signed or encrypted authenticated channel, verifies the channel's
+actual application/endpoint rather than mutable configured endpoint labels, and checks the
+registry root, Group ownership, logical Resource type/Xid, typed Versions folder and executable
+FileType read Methods. Verification does not open a file or read content.
+
+Both the remote session and referencing session must provide
+[`ISessionBindingProvider`](SessionBindings.md). Stock native/managed sessions
+capture authenticated dispatch, session incarnation and namespace/server maps
+coherently. All verification requests and the returned generated client use that
+binding, not a mutable ISession forwarder. Unsupported custom adapters reject
+with `Bad_NotSupported` before native verification/content actions.
+
+The alternative stable `OriginUri` form is available to explicitly configured custom providers.
+It has empty `ServerUri` and null `RegistryNodeId` inside `OriginRegistry`; the native Session
+provider rejects that form with `Bad_NotSupported` rather than inventing an application/root
+identity. Origin URI comparisons preserve exact spelling, including case and percent escapes.
+
+DI uses the existing `AddXRegistryServer` seam:
+
+```csharp
+services.AddSingleton<IXRegistryFederationProvider>(remote);
+services.AddXRegistryServer(options =>
+{
+    options.PublishFederationProxy = true;
+    options.FederationTarget = binding;
+    options.RemoteEndpointUrl = authorizedEndpointUrl;
+});
+```
+
+Direct construction remains supported. The application owns the provider's Session lifetime.
+The node manager captures its configuration at construction; later mutation of the options or
+of an `OriginRegistry` copy cannot replace the captured authority.
+
+#### Following and relocating a proxy
+
+Use the independently selected remote client and trusted binding to follow metadata obtained from
+the local referencing Session:
+
+```csharp
+ResourceTypeClient logical = await remote.FollowExternalReferenceAsync(
+    localSession, proxyNodeId, binding, ct);
+try
+{
+    ResourceVersionsTypeClient? versions = await logical.GetVersionsAsync(telemetry, ct);
+    ByteString document = await logical.ReadDocumentAsync(ct: ct);
+}
+finally
+{
+    await logical.Session.CloseAsync(CancellationToken.None);
+    logical.Session.Dispose();
+}
+```
+
+Close any explicit file handles before releasing the returned binding.
+In-place session recreation, native/managed channel replacement or map mutation
+invalidates it; it cannot redirect a later Open/Read to another peer. Acquire a
+fresh verified binding after authorized same-origin relocation or table changes.
+
+The client validates the actual scalar declarations as well as their values: `OriginRegistry`
+must declare `RegistryOriginDataType`, `ExternalReference` must declare `ExpandedNodeId`, and
+`ResourceUrl` and the remote Group/Resource `Xid` must declare `String`. Wrong DataTypes or ranks
+fail with `Bad_TypeMismatch`, even if the encoded value would otherwise look valid.
+
+`ExternalReference.ServerIndex` resolves through the referencing Session's `ServerUris`;
+zero means that referencing application. An index-only namespace resolves through that Session's
+`NamespaceUris`. The resulting portable identity is then resolved against the selected remote
+Session's current namespace table. Neither an old Session's indexes nor a source server's indexes
+are reused as remote identity.
+
+A default-Version change leaves the logical target, origin and local Xid unchanged. A new FileType
+handle reads the new default; a handle opened before the switch retains its original exact bytes.
+The independent content fast path may be removed or replaced without changing these identities or
+invalidating the logical handle. `FederatedDocument`, `ContentIdProvider` and the legacy
+`RemoteRegistryNamespaceUri` content-lookup hint do not gate proxy publication. The legacy
+`RemoteServerIndex` hint is ignored; the current ServerArray index is derived from the pinned
+ApplicationUri when the reference is read.
+
+For an authorized endpoint relocation, establish a replacement trusted Session/client and call:
+
+```csharp
+await federation.UpdateEndpointAsync(replacementEndpointUrl, replacementClient, ct);
+```
+
+This verifies the **same** pinned origin, logical target and Xid before changing only `ResourceUrl`.
+Failed or cancelled verification leaves the published binding unchanged, including cancellation
+while waiting for another update or after a provider returns. An origin change requires a new
+binding, not a locator update. Startup verification and locator updates are awaited and serialized;
+no connection manager, automatic URL fetch, resolver or content cache is created.
+
+These are the bounded client/provider and proxy-publication surfaces for the xRegistry federation
+and WoT Connectivity federated-origin contracts. They do not implement automatic federated
+dependency acquisition, durable federation-record storage or projection restore/startup orchestration.
+Hosts retain their trusted configuration and obtain fresh provider verification on reconstruction.
+This support alone is not a claim of Full, XREG-Federation or WOTC-Federation conformance.
 
 ### Labels
 

@@ -54,7 +54,7 @@ namespace Opc.Ua.XRegistry.Client
     /// client reuses every convenience method defined here.
     /// </para>
     /// </remarks>
-    public abstract class XRegistryClient
+    public abstract partial class XRegistryClient : IXRegistryFederationProvider
     {
         /// <summary>
         /// Initializes a registry client bound to a connected <paramref name="session"/> and the
@@ -124,6 +124,7 @@ namespace Opc.Ua.XRegistry.Client
             RegistryNodeId = registryNodeId.IsNull
                 ? new NodeId(XRegistryWellKnown.RegistryObject, NamespaceIndex)
                 : registryNodeId;
+            m_registryIdentity = NodeId.ToExpandedNodeId(RegistryNodeId, session.NamespaceUris);
         }
 
         /// <summary>
@@ -521,7 +522,7 @@ namespace Opc.Ua.XRegistry.Client
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP2_1_OR_GREATER
                     !int.TryParse(patchPart.AsSpan(0, end), out pat))
 #else
-                    !int.TryParse(patchPart.Substring(0, end), out pat))
+                    !int.TryParse(patchPart[..end], out pat))
 #endif
                 {
                     return false;
@@ -529,10 +530,11 @@ namespace Opc.Ua.XRegistry.Client
             }
 
             return maj > major ||
-                   (maj == major && min > minor) ||
-                   (maj == major && min == minor && pat >= patch);
+                (maj == major && min > minor) ||
+                (maj == major && min == minor && pat >= patch);
         }
 
+        private readonly ExpandedNodeId m_registryIdentity;
         private bool m_hierarchyChecked;
         private bool m_usesDistinctHierarchy;
     }

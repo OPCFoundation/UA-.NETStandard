@@ -26,6 +26,7 @@
     <InternalsVisibleTo Include="Opc.Ua.Client.ComplexTypes" />
     <InternalsVisibleTo Include="Opc.Ua.Client.ComplexTypes.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Client.TestFramework" />
+    <InternalsVisibleTo Include="Opc.Ua.WotCon.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Session.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Sessions.Tests" />

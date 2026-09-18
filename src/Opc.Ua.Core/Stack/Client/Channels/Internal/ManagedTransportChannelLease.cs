@@ -33,7 +33,7 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
-    internal sealed class ManagedTransportChannelLease : IManagedTransportChannel
+    internal sealed class ManagedTransportChannelLease : IManagedTransportChannel, ITransportChannelBindingProvider
     {
         internal ManagedTransportChannelLease(
             ChannelEntry entry, IReconnectParticipant participant)
@@ -179,7 +179,49 @@ namespace Opc.Ua
             Interlocked.Exchange(ref m_active, 1);
         }
 
-        // ---- ITransportChannel forwarding ----
+        async ValueTask<TransportChannelBinding> ITransportChannelBindingProvider.CreateTransportBindingAsync(
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            ChannelEntry entry = Entry;
+            int swap = SwapCount;
+            long generation = entry.ReconnectGeneration;
+            if (!IsActive || entry.State != ChannelState.Ready)
+            {
+                throw TransportChannelBinding.InvalidBinding();
+            }
+            ITransportChannel underlying = entry.Underlying ??
+                throw TransportChannelBinding.InvalidBinding();
+            if (underlying is not ITransportChannelBindingProvider provider)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The managed channel has no generation-bound transport.");
+            }
+            TransportChannelBinding binding = await provider.CreateTransportBindingAsync(ct).ConfigureAwait(false);
+            bool IsCurrent()
+            {
+                return IsActive &&
+                    ReferenceEquals(Entry, entry) &&
+                    SwapCount == swap &&
+                    entry.ReconnectGeneration == generation &&
+                    entry.State == ChannelState.Ready &&
+                    ReferenceEquals(entry.Underlying, underlying);
+            }
+            try
+            {
+                if (!IsCurrent())
+                {
+                    throw TransportChannelBinding.InvalidBinding();
+                }
+                binding.AddValidation(IsCurrent);
+                return binding;
+            }
+            catch
+            {
+                binding.Dispose();
+                throw;
+            }
+        }
 
         /// <inheritdoc/>
         public TransportChannelFeatures SupportedFeatures
@@ -334,17 +376,17 @@ namespace Opc.Ua
         private static bool IsTransientChannelError(StatusCode statusCode)
         {
             uint code = statusCode.CodeBits;
-            return code == StatusCodes.BadConnectionClosed
-                || code == StatusCodes.BadSecureChannelClosed
-                || code == StatusCodes.BadSecureChannelIdInvalid
-                || code == StatusCodes.BadNotConnected
-                || code == StatusCodes.BadConnectionRejected
-                || code == StatusCodes.BadServerNotConnected
-                || code == StatusCodes.BadServerHalted
-                || code == StatusCodes.BadNoCommunication
-                || code == StatusCodes.BadCommunicationError
-                || code == StatusCodes.BadTcpInternalError
-                || code == StatusCodes.BadRequestInterrupted;
+            return code == StatusCodes.BadConnectionClosed ||
+                code == StatusCodes.BadSecureChannelClosed ||
+                code == StatusCodes.BadSecureChannelIdInvalid ||
+                code == StatusCodes.BadNotConnected ||
+                code == StatusCodes.BadConnectionRejected ||
+                code == StatusCodes.BadServerNotConnected ||
+                code == StatusCodes.BadServerHalted ||
+                code == StatusCodes.BadNoCommunication ||
+                code == StatusCodes.BadCommunicationError ||
+                code == StatusCodes.BadTcpInternalError ||
+                code == StatusCodes.BadRequestInterrupted;
         }
 
         /// <inheritdoc/>
