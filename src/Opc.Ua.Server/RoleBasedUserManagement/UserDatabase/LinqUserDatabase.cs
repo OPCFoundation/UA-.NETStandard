@@ -305,6 +305,40 @@ namespace Opc.Ua.Server.UserDatabase
         }
 
         /// <inheritdoc/>
+        public bool ResetPassword(
+            string userName,
+            ReadOnlySpan<byte> newPassword,
+            UserConfigurationMask userConfiguration,
+            string description)
+        {
+            if (string.IsNullOrEmpty(userName))
+            {
+                throw new ArgumentException("UserName cannot be empty.", nameof(userName));
+            }
+
+            if (Utils.Utf8IsNullOrEmpty(newPassword))
+            {
+                throw new ArgumentException("New Password cannot be empty.", nameof(newPassword));
+            }
+
+            string hash = Hash(newPassword);
+            lock (m_updateLock)
+            {
+                if (!m_users.TryGetValue(userName, out User? user))
+                {
+                    return false;
+                }
+
+                var replacement = SnapshotUser(user);
+                replacement.Hash = hash;
+                replacement.UserConfiguration = (uint)userConfiguration;
+                replacement.Description = description ?? string.Empty;
+                SaveUserChange(userName, user, replacement);
+                return true;
+            }
+        }
+
+        /// <inheritdoc/>
         public bool ChangePassword(string userName, ReadOnlySpan<byte> oldPassword, ReadOnlySpan<byte> newPassword)
         {
             if (string.IsNullOrEmpty(userName))

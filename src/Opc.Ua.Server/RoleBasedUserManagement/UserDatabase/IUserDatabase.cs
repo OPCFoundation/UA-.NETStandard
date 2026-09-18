@@ -111,6 +111,24 @@ namespace Opc.Ua.Server.UserDatabase
             string description);
 
         /// <summary>
+        /// Resets a user's password, configuration flags, and description in one transaction.
+        /// </summary>
+        /// <param name="userName">The name of the existing user.</param>
+        /// <param name="newPassword">The new UTF-8 encoded password.</param>
+        /// <param name="userConfiguration">The configuration flags to store with the new password.</param>
+        /// <param name="description">The description to store with the new password.</param>
+        /// <returns><c>true</c> if committed; <c>false</c> if the user does not exist.</returns>
+        /// <remarks>
+        /// Preserve the user's identity and roles. On rejection or failure, preserve the actual previous password
+        /// verifier and metadata in both memory and persistent storage. Do not delete and recreate the user.
+        /// </remarks>
+        bool ResetPassword(
+            string userName,
+            ReadOnlySpan<byte> newPassword,
+            UserConfigurationMask userConfiguration,
+            string description);
+
+        /// <summary>
         /// Stores the configuration mask and description for a user.
         /// </summary>
         bool UpdateUserMetadata(

@@ -209,6 +209,9 @@ namespace Opc.Ua.Server.UserManagement
                 UserConfigurationMask effectiveConfig = modifyUserConfiguration
                     ? userConfiguration
                     : existing.Configuration;
+                string effectiveDescription = modifyDescription
+                    ? description ?? string.Empty
+                    : existing.Description;
 
                 if (modifyUserConfiguration)
                 {
@@ -238,52 +241,42 @@ namespace Opc.Ua.Server.UserManagement
                         return passwordValidation;
                     }
 
-                    // The IUserDatabase API only exposes ChangePassword which
-                    // requires the old password — admin password resets are
-                    // emulated by delete + recreate to keep the abstraction
-                    // stable. The previously assigned roles are snapshotted
-                    // and re-applied to preserve role assignments across the
-                    // reset (Part 18 §5.2.6 does not mandate role removal on
-                    // password change).
-                    //
-                    // KNOWN LIMITATION (see docs/RoleBasedUserManagement.md):
-                    // this two-step is not atomic — if CreateUser fails after
-                    // DeleteUser succeeds, the user account is lost. The
-                    // built-in LinqUserDatabase / JsonUserDatabase delete and
-                    // create operations succeed unconditionally so this is
-                    // only a concern for custom IUserDatabase implementations
-                    // that may fail mid-reset.
-                    ICollection<Role> preservedRoles = SnapshotUserRolesSafe(userName);
-                    if (!m_userDatabase.DeleteUser(userName))
+                    if (m_userMetadataDatabase != null)
                     {
-                        return new ServiceResult(StatusCodes.BadResourceUnavailable,
-                            new LocalizedText("User-database rejected the delete during password reset."));
+                        if (!m_userMetadataDatabase.ResetPassword(
+                            userName, GetPasswordBytes(password), effectiveConfig, effectiveDescription))
+                        {
+                            return new ServiceResult(StatusCodes.BadResourceUnavailable,
+                                new LocalizedText("User-database rejected the password reset."));
+                        }
                     }
-                    if (!m_userDatabase.CreateUser(userName, GetPasswordBytes(password), preservedRoles))
+                    else
                     {
-                        // User has been deleted but recreate failed — surface
-                        // a clear error. There is no way to recover the
-                        // original password from IUserDatabase.
-                        m_metadata.Remove(userName);
-                        return new ServiceResult(StatusCodes.BadResourceUnavailable,
-                            new LocalizedText(
-                                "User-database rejected the create during password reset; " +
-                                "the user account has been removed."));
+                        // Legacy stores expose no transaction or prior verifier for an admin reset.
+                        ICollection<Role> preservedRoles = SnapshotUserRolesSafe(userName);
+                        if (!m_userDatabase.DeleteUser(userName))
+                        {
+                            return new ServiceResult(StatusCodes.BadResourceUnavailable,
+                                new LocalizedText("User-database rejected the delete during password reset."));
+                        }
+                        if (!m_userDatabase.CreateUser(userName, GetPasswordBytes(password), preservedRoles))
+                        {
+                            m_metadata.Remove(userName);
+                            return new ServiceResult(StatusCodes.BadResourceUnavailable,
+                                new LocalizedText(
+                                    "User-database rejected the create during password reset; " +
+                                    "the user account has been removed."));
+                        }
                     }
                 }
-
-                disabled = (effectiveConfig & UserConfigurationMask.Disabled) != 0;
-                m_metadata[userName] = new UserMetadata(
-                    effectiveConfig,
-                    modifyDescription ? description ?? string.Empty : existing.Description);
-                if (!PersistUserMetadata(
-                    userName,
-                    effectiveConfig,
-                    modifyDescription ? description ?? string.Empty : existing.Description))
+                else if (!PersistUserMetadata(userName, effectiveConfig, effectiveDescription))
                 {
                     return new ServiceResult(StatusCodes.BadResourceUnavailable,
                         new LocalizedText("User-database rejected the metadata write."));
                 }
+
+                disabled = (effectiveConfig & UserConfigurationMask.Disabled) != 0;
+                m_metadata[userName] = new UserMetadata(effectiveConfig, effectiveDescription);
             }
             finally
             {

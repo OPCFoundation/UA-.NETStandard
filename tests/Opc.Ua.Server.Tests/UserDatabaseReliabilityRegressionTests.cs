@@ -88,6 +88,60 @@ namespace Opc.Ua.Server.Tests
             Assert.That(Directory.GetFiles(files.DirectoryName), Has.Length.EqualTo(1));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void FailedUserModificationPreservesPasswordAndMetadataAfterRestart(bool resetPassword)
+        {
+            using var files = new DatabaseFiles();
+            var initial = new JsonUserDatabase(files.FileName);
+            Assert.That(initial.CreateUser("alice", "credential"u8, [Role.SecurityAdmin]), Is.True);
+            Assert.That(initial.UpdateUserMetadata(
+                "alice", UserConfigurationMask.MustChangePassword, "Original restriction"), Is.True);
+            byte[] committed = File.ReadAllBytes(files.FileName);
+            var database = new JsonUserDatabase(files.FileName, (path, bytes) =>
+            {
+                File.WriteAllBytes(path, bytes);
+                using JsonDocument snapshot = JsonDocument.Parse(bytes);
+                if (snapshot.RootElement.GetProperty("users").EnumerateArray().Any(user =>
+                    user.GetProperty("Description").GetString() == "Reset pending approval"))
+                {
+                    throw new IOException("controlled modification failure");
+                }
+            })
+            {
+                Users = initial.Users
+            };
+            using var management = new UserManagementFacade(database);
+            bool deactivated = false;
+            management.UserDeactivated += (_, _) => deactivated = true;
+
+            IOException failure = Assert.Throws<IOException>(() => management.ModifyUser(
+                "alice",
+                modifyPassword: resetPassword,
+                password: "replacement-credential",
+                modifyUserConfiguration: true,
+                userConfiguration: UserConfigurationMask.Disabled | UserConfigurationMask.MustChangePassword,
+                modifyDescription: true,
+                description: "Reset pending approval",
+                callingUserName: "admin"));
+            Assert.That(failure.Message, Is.EqualTo("controlled modification failure"));
+
+            IUserDatabase reloaded = JsonUserDatabase.Load(files.FileName, NUnitTelemetryContext.Create());
+            AssertOriginalUser(reloaded);
+            Assert.That(File.ReadAllBytes(files.FileName), Is.EqualTo(committed));
+            AssertOriginalUser(database);
+            Assert.That(database.Users.Single().ID, Is.EqualTo(initial.Users.Single().ID));
+            Assert.That(database.Users.Single().Hash, Is.EqualTo(initial.Users.Single().Hash));
+            Assert.That(management.IsUserActive("alice"), Is.True);
+            Assert.That(management.MustChangePassword("alice"), Is.True);
+            Assert.That(management.SnapshotUsers().Single().Description, Is.EqualTo("Original restriction"));
+            Assert.That(deactivated, Is.False);
+
+            Assert.That(database.CreateUser("bob", "other-credential"u8, [Role.Operator]), Is.True);
+            AssertOriginalUser(JsonUserDatabase.Load(files.FileName, NUnitTelemetryContext.Create()));
+            Assert.That(Directory.GetFiles(files.DirectoryName), Has.Length.EqualTo(1));
+        }
+
         /// <summary>
         /// Verifies that a partial snapshot-write failure preserves the committed database and removes temporary files.
         /// </summary>
@@ -312,6 +366,16 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(result.Error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             }
             CryptoUtils.ZeroMemory(handler.DecryptedPassword);
+        }
+
+        private static void AssertOriginalUser(IUserDatabase database)
+        {
+            Assert.That(database.CheckCredentials("alice", "credential"u8), Is.True);
+            Assert.That(database.CheckCredentials("alice", "replacement-credential"u8), Is.False);
+            Assert.That(database.GetUserRoles("alice").Single(), Is.EqualTo(Role.SecurityAdmin));
+            UserManagementDataType user = database.GetUsers().Single(user => user.UserName == "alice");
+            Assert.That(user.UserConfiguration, Is.EqualTo((uint)UserConfigurationMask.MustChangePassword));
+            Assert.That(user.Description, Is.EqualTo("Original restriction"));
         }
 
         /// <summary>
