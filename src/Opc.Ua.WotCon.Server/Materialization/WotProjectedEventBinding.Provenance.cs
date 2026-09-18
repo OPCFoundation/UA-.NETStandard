@@ -335,7 +335,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             DateTimeUtc ReceiveTime,
             ArrayOf<DataValue> Fields,
             Occurrence Occurrence,
-            EventManager.EventIdentityReservation? IdentityReservation);
+            EventManager.EventIdentityReservation? IdentityReservation,
+            ArrayOf<bool> RefreshableFields);
 
         private readonly Dictionary<ByteString, Origin> m_origins = [];
         private readonly List<WeakReference<WoTEventBindingState>> m_descriptorAliases = [];

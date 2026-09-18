@@ -176,13 +176,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         private static WotProjectionDocument ConditionProjection(
-            string mode, string endpoint, WotEventSelection? selection = null, bool useDefaultMode = false)
+            string mode, string endpoint, WotEventSelection? selection = null, bool useDefaultMode = false,
+            NodeId conditionType = default)
         {
+            if (conditionType.IsNull)
+            {
+                conditionType = Ua.ObjectTypeIds.ConditionType;
+            }
             bool transparent = mode == "transparent-forwarding";
             ExpandedNodeId type = new("ConditionEventType", transparent ? SourceNamespace : LocalNamespace);
             using JsonDocument definition = JsonDocument.Parse(useDefaultMode
-                ? """{"uav:conditionTypeId":"i=2782"}"""
-                : $$"""{"uav:eventIdentityMode":"{{mode}}","uav:conditionTypeId":"i=2782"}""");
+                ? $$"""{"uav:conditionTypeId":"{{conditionType}}"}"""
+                : $$"""{"uav:eventIdentityMode":"{{mode}}","uav:conditionTypeId":"{{conditionType}}"}""");
             WotProjectedAffordance declaration = WotProjectedAffordance.FromConverted(new WotConvertedAffordance(
                 Wot.WotAffordanceKind.Event, "condition", "/events/condition", type,
                 new ExpandedNodeId("Owner", LocalNamespace), definition.RootElement));
@@ -199,7 +204,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 NamespaceUris = [SourceNamespace],
                 Models = [new ModelTableEntry { ModelUri = SourceNamespace, Version = "1.0.0" }],
-                Items = [ConditionEventType(1, Ua.ObjectTypeIds.ConditionType.ToString())]
+                Items = [ConditionEventType(1, conditionType.ToString())]
             };
             UAObject owner = Object("ns=1;s=Owner", "1:Owner");
             owner.References =

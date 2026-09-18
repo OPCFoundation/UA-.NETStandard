@@ -592,10 +592,16 @@ empty successful record. The returned provenance is data, not an action-dispatch
 capability.
 
 A verified retransmission retains the same occurrence identity and refreshes
-receipt provenance without publishing another occurrence. Only receipt facts are
-excluded from state comparison. Reusing an EventId with changed selected or privately captured Core state,
-identity, or source binding faults that binding's availability with
-`BadSecurityChecksFailed`, preserves the last accepted evidence, and revokes its
+receipt provenance without publishing another occurrence. A retained Condition
+refresh may also update a non-state Property declared by its Core Condition
+representation, such as the namespace-zero `HighLimit` of `LimitAlarmType`.
+The declared type must agree with that representation. The update retains
+EventId, Time, ConditionId, BranchId, captured Core state, value type and
+status/timestamp facts. It updates the retained Property and receipt provenance
+without consuming another occurrence slot. Namespace lookalikes do not gain this
+permission. Other changes to selected or privately captured state, identity, or
+source binding fault that binding's availability with
+`BadSecurityChecksFailed`, preserve the last accepted evidence, and revoke its
 occurrence action route.
 
 Notification-only Conditions do not need invented actions or a static action

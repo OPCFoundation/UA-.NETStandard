@@ -194,7 +194,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     if (!committed && prepared is not null)
                     {
-                        prepared.IdentityReservation?.Dispose();
+                        if (!prepared.IsRetainedRefresh)
+                        {
+                            prepared.IdentityReservation?.Dispose();
+                        }
                         if (prepared.OwnsTransparentReservation)
                         {
                             m_routeRegistry.ReleaseTransparentEvent(this, prepared.Occurrence.EventId);
@@ -429,15 +432,26 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 Origin previous = m_origins[retainedId];
                 if (m_rejectedEvents.Contains(retainedId) || previous.Occurrence != occurrence ||
                     !SameCapturedOccurrence(previous.Captured, captured) ||
-                    !SameOccurrenceFields(previous.Fields, sourceFields))
+                    !SameOccurrenceFields(previous.Fields, sourceFields,
+                        IsRetainedCondition(captured) ? previous.RefreshableFields : [],
+                        out bool propertyChanged))
                 {
                     m_rejectedEvents.Add(retainedId);
                     throw new ServiceResultException(
                         StatusCodes.BadSecurityChecksFailed,
                         "The source reused an EventId for a different occurrence or state.");
                 }
+                if (propertyChanged)
+                {
+                    return new PreparedOccurrence(occurrence, retainedId, captured, sourceFields, now)
+                    {
+                        IsRetainedRefresh = true,
+                        IdentityReservation = previous.IdentityReservation
+                    };
+                }
                 m_origins[retainedId] = new Origin(
-                    captured, now, previous.Fields, occurrence, previous.IdentityReservation);
+                    captured, now, previous.Fields, occurrence, previous.IdentityReservation,
+                    previous.RefreshableFields);
                 UpdateDescriptor(captured);
                 return null;
             }
@@ -505,14 +519,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 SetIdentity(condition, prepared.LocalEventId, prepared.ReceiveTime);
                 prepared.IdentityReservation?.Attach(m_context, condition);
             }
-            if (!occurrence.EventId.IsEmpty)
+            if (!prepared.IsRetainedRefresh && !occurrence.EventId.IsEmpty)
             {
                 m_routes.Add(prepared.LocalEventId, occurrence);
                 m_sourceEventIds.Add(occurrence.EventId, prepared.LocalEventId);
             }
-            m_origins.Add(prepared.LocalEventId,
-                new Origin(prepared.Captured, prepared.ReceiveTime, prepared.Fields, occurrence,
-                    prepared.IdentityReservation));
+            ArrayOf<bool> refreshableFields = prepared.IsRetainedRefresh
+                ? m_origins[prepared.LocalEventId].RefreshableFields
+                : CaptureRefreshableFields(condition, prepared.Captured);
+            m_origins[prepared.LocalEventId] = new Origin(
+                prepared.Captured, prepared.ReceiveTime, prepared.Fields, occurrence,
+                prepared.IdentityReservation, refreshableFields);
             UpdateDescriptor(prepared.Captured);
             return result;
         }
@@ -624,8 +641,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return result;
         }
 
-        private bool SameOccurrenceFields(ArrayOf<DataValue> previous, ArrayOf<DataValue> current)
+        private bool SameOccurrenceFields(
+            ArrayOf<DataValue> previous,
+            ArrayOf<DataValue> current,
+            ArrayOf<bool> refreshableFields,
+            out bool propertyChanged)
         {
+            propertyChanged = false;
             if (previous.Count != current.Count)
             {
                 return false;
@@ -640,13 +662,72 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 DataValue left = previous[index];
                 DataValue right = current[index];
                 if (!left.StatusCode.Equals(right.StatusCode, StatusCodeComparison.AllBits) ||
-                    left.SourceTimestamp != right.SourceTimestamp ||
-                    !left.WrappedValue.Equals(right.WrappedValue))
+                    left.SourceTimestamp != right.SourceTimestamp)
                 {
                     return false;
                 }
+                if (!left.WrappedValue.Equals(right.WrappedValue))
+                {
+                    if (refreshableFields.Count != m_fields.Count || !refreshableFields[index] ||
+                        left.WrappedValue.TypeInfo != right.WrappedValue.TypeInfo)
+                    {
+                        return false;
+                    }
+                    propertyChanged = true;
+                }
             }
             return true;
+        }
+
+        private ArrayOf<bool> CaptureRefreshableFields(ConditionState? condition, WotCapturedEvent? captured)
+        {
+            if (condition is null || !IsRetainedCondition(captured))
+            {
+                return [];
+            }
+            NodeId coreType = condition switch
+            {
+                LimitAlarmState => Ua.ObjectTypeIds.LimitAlarmType,
+                AlarmConditionState => Ua.ObjectTypeIds.AlarmConditionType,
+                AcknowledgeableConditionState => Ua.ObjectTypeIds.AcknowledgeableConditionType,
+                _ => Ua.ObjectTypeIds.ConditionType
+            };
+            if (!m_context.TypeTable.IsTypeOf(EventTypeId, coreType))
+            {
+                return [];
+            }
+            var children = new List<BaseInstanceState>();
+            condition.GetChildren(m_context, children);
+            var permitted = new bool[m_fields.Count];
+            for (int index = 0; index < m_fields.Count; index++)
+            {
+                Field field = m_fields[index];
+                if (field.Path.Count == 1 && field.Path[0].NamespaceIndex == 0 &&
+                    !HasCapturedField(captured, field.Path))
+                {
+                    permitted[index] = children.Any(child =>
+                        child is PropertyState && child.BrowseName == field.Path[0]);
+                }
+            }
+            return permitted;
+        }
+
+        private static bool IsRetainedCondition(WotCapturedEvent? captured)
+        {
+            if (captured is not { HasConditionId: true, HasBranchId: true, HasEventType: true, HasTime: true })
+            {
+                return false;
+            }
+            for (int index = 0; index < captured.Clauses.Count; index++)
+            {
+                WotResolvedEventSelectClause clause = captured.Clauses[index];
+                if (clause.TypeDefinitionId == WotCapturedEvent.ConditionTypeId &&
+                    clause.BrowsePath == Ua.BrowseNames.Retain)
+                {
+                    return captured.Fields[index].TryGetValue(out bool retained) && retained;
+                }
+            }
+            return false;
         }
 
         private static bool SameCapturedOccurrence(WotCapturedEvent? previous, WotCapturedEvent? current)
@@ -906,6 +987,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ArrayOf<DataValue> Fields,
             DateTimeUtc ReceiveTime)
         {
+            public bool IsRetainedRefresh { get; init; }
+
             public bool OwnsTransparentReservation { get; set; }
 
             public EventManager.EventIdentityReservation? IdentityReservation { get; set; }
