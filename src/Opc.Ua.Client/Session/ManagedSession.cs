@@ -2199,18 +2199,6 @@ namespace Opc.Ua.Client
             }
         }
 
-        private void CancelIdentityRefreshLoop()
-        {
-            CancellationTokenSource? cts;
-            lock (m_identityRefreshLock)
-            {
-                cts = m_identityRefreshCancellation;
-                m_identityRefreshCancellation = null;
-                m_identityRefreshTask = null;
-            }
-            cts?.Cancel();
-        }
-
         /// <summary>
         /// Returns the security policy registry the session factory was
         /// composed with, so a policy the application contributed through
@@ -2389,7 +2377,7 @@ namespace Opc.Ua.Client
         private static readonly TimeSpan s_redundancyRefreshTimeout = TimeSpan.FromSeconds(2);
         private readonly Lock m_identityRefreshLock = new();
 #pragma warning disable CA2213
-        // Disposed by StopIdentityRefreshLoopAsync; sync Dispose cancels because it cannot await.
+        // Owned and disposed by StopIdentityRefreshLoopAsync.
         // TODO: move ManagedSession to async-only disposal.
         private CancellationTokenSource? m_identityRefreshCancellation;
 #pragma warning restore CA2213

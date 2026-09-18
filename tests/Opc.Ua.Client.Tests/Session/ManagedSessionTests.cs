@@ -55,6 +55,36 @@ namespace Opc.Ua.Client.Tests.ManagedSession
     public sealed class ManagedSessionTests
     {
         [Test]
+        public async Task DisposeAsyncRetainsRevalidationWorkerUntilItCompletesAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using SessionMock inner = SessionMock.Create();
+            await using Client.ManagedSession managed = CreateManagedSessionWithInner(
+                CreateClientConfiguration(telemetry), CreateEndpoint(), inner, telemetry);
+            using var cancellation = new CancellationTokenSource();
+            var pending = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            typeof(Client.ManagedSession).GetField(
+                "m_revalidationCancellation", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .SetValue(managed, cancellation);
+            typeof(Client.ManagedSession).GetField(
+                "m_revalidationTask", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .SetValue(managed, pending.Task);
+
+            Task disposal = managed.DisposeAsync().AsTask();
+            try
+            {
+                Assert.That(cancellation.IsCancellationRequested, Is.True);
+                Assert.That(disposal.IsCompleted, Is.False);
+            }
+            finally
+            {
+                pending.TrySetResult(true);
+                await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+            Assert.That(() => cancellation.Token, Throws.TypeOf<ObjectDisposedException>());
+        }
+
+        [Test]
         public void ExponentialBackoffIncreasesDelay()
         {
             var policy = new ReconnectPolicy

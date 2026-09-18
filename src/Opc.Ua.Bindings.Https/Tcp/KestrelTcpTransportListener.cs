@@ -369,7 +369,7 @@ namespace Opc.Ua.Bindings
 
             if (entries.Length == 0)
             {
-                return new ValueTask<IReadOnlyList<string>>(Array.Empty<string>());
+                return new ValueTask<IReadOnlyList<string>>([]);
             }
 
             return CloseChannelsForUntrustedPeersCoreAsync(entries, isPeerTrustedAsync, ct);

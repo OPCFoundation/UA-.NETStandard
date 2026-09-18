@@ -1151,7 +1151,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Arrange
             using var sut = SessionMock.Create();
-            sut.SetConnected();
+            sut.SetConnectedAndResponsive();
             CancellationToken ct = CancellationToken.None;
 
             sut.Channel
@@ -1198,7 +1198,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Arrange
             using var sut = SessionMock.Create();
-            sut.SetConnected();
+            sut.SetConnectedAndResponsive();
             CancellationToken ct = CancellationToken.None;
 
             sut.Channel
@@ -1226,7 +1226,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Arrange
             var sut = SessionMock.Create();
-            sut.SetConnected();
+            sut.SetConnectedAndResponsive();
             CloseSessionRequest? closeRequest = null;
             sut.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -1255,7 +1255,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Arrange
             using var sut = SessionMock.Create();
-            sut.SetConnected();
+            sut.SetConnectedAndResponsive();
             sut.DeleteSubscriptionsOnClose = false;
             CancellationToken ct = CancellationToken.None;
 
@@ -1287,7 +1287,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Arrange
             using var sut = SessionMock.Create();
-            sut.SetConnected();
+            sut.SetConnectedAndResponsive();
             CancellationToken ct = CancellationToken.None;
 
             sut.Channel
@@ -1316,7 +1316,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Arrange
             using var sut = SessionMock.Create();
-            sut.SetConnected();
+            sut.SetConnectedAndResponsive();
             CancellationToken ct = CancellationToken.None;
 
             sut.Channel
@@ -1347,7 +1347,7 @@ namespace Opc.Ua.Client.Tests
         {
             // Arrange
             using var sut = SessionMock.Create();
-            sut.SetConnected();
+            sut.SetConnectedAndResponsive();
             CancellationToken ct = CancellationToken.None;
 
             sut.Channel

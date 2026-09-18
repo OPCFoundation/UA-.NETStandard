@@ -4540,19 +4540,16 @@ namespace Opc.Ua.Client
         /// Completes once all of the supplied tasks completed, ignoring their
         /// outcome. The publish completion handler reports the failures.
         /// </summary>
-        private static async Task WhenAllCompletedAsync(List<Task> tasks)
+        private static Task WhenAllCompletedAsync(List<Task> tasks)
         {
-            foreach (Task task in tasks)
-            {
-                try
+            return Task.WhenAll(tasks).ContinueWith(
+                static completed =>
                 {
-                    await task.ConfigureAwait(false);
-                }
-                catch (Exception)
-                {
-                    // Observed by the publish completion handler.
-                }
-            }
+                    _ = completed.Exception;
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
         }
 
         /// <summary>
@@ -5339,23 +5336,18 @@ namespace Opc.Ua.Client
             }
 
             // find the matching description (TBD - check domains against certificate).
-            EndpointDescription? foundDescription = FindMatchingDescription(
+            // could be a security risk.
+            return (FindMatchingDescription(
                 serverEndpoints,
                 m_endpoint.Description,
                 true) ??
                 FindMatchingDescription(
                     serverEndpoints,
                     m_endpoint.Description,
-                    false);
-
-            // could be a security risk.
-            if (foundDescription == null)
-            {
+                    false)) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
                     "Server did not return an EndpointDescription that matched the one used to create the secure channel.");
-            }
-            return foundDescription;
         }
 
         private static bool HaveEquivalentServerEndpoints(
