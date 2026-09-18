@@ -35,6 +35,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -58,7 +59,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task TwoStructuresAtOneTimestampAreStoredSeparatelyAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "two.structures");
             HistorianOperationContext context = CreateContext();
 
@@ -98,7 +101,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task RawPagingAcrossSameTimestampEntriesReturnsEveryEntryOnceAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "paged.structures");
             HistorianOperationContext context = CreateContext();
 
@@ -159,7 +164,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ReverseRawPagingAcrossSameTimestampEntriesReturnsEveryEntryOnceAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "reverse.structures");
             HistorianOperationContext context = CreateContext();
 
@@ -215,7 +222,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ModifiedHistoryKeepsEveryPriorVersionAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "modified.structures");
             HistorianOperationContext context = CreateContext();
 
@@ -271,7 +280,8 @@ namespace Opc.Ua.Server.Tests.Historian
                 }
             }
             Assert.That(replaceReadings, Is.EquivalentTo(PriorReadings));
-            Assert.That(insertReadings, Is.EquivalentTo(new[] { 1.0 }));
+            Assert.That(insertReadings, Has.Count.EqualTo(1));
+            Assert.That(insertReadings[0], Is.EqualTo(1.0));
         }
 
         /// <summary>
@@ -280,7 +290,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ModifiedHistoryPagesSameTimestampEntriesWithoutLossAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "modified.paged");
             HistorianOperationContext context = CreateContext();
 
@@ -338,7 +350,8 @@ namespace Opc.Ua.Server.Tests.Historian
             // 2 insert entries (brand-new values) + 2 replace entries
             // (each prior version) share the same timestamp; paging one at a
             // time must not lose any of them.
-            Assert.That(readings, Is.EquivalentTo(new[] { 1.0, 2.0, 1.0, 2.0 }));
+            double[] expectedReadings = [1.0, 2.0, 1.0, 2.0];
+            Assert.That(readings, Is.EquivalentTo(expectedReadings));
         }
 
         /// <summary>
@@ -347,7 +360,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task AtTimeReadReturnsEveryEntryAtTheTimestampAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "attime.structures");
             HistorianOperationContext context = CreateContext();
 
@@ -386,7 +401,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task AtTimeReadPagesEntriesAtTheTimestampAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "attime.paged");
             HistorianOperationContext context = CreateContext();
 
@@ -434,7 +451,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task InsertReplaceUpdateRemoveFollowCompositeKeyAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "cycle.structures");
             HistorianOperationContext context = CreateContext();
 
@@ -529,7 +548,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ReplaceWithChangedUniquenessFieldReturnsBadNoEntryExistsAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "changedkey.structures");
             HistorianOperationContext context = CreateContext();
 
@@ -562,7 +583,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DuplicateKeysInOneBatchReportEntryExistsAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "duplicate.structures");
             HistorianOperationContext context = CreateContext();
 
@@ -594,7 +617,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ForeignStructureIsRejectedWithTypeMismatchAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "mismatch.structures");
             HistorianOperationContext context = CreateContext();
 
@@ -625,7 +650,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DeleteAtTimeRemovesEveryEntryAtTheTimestampAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "deleteattime.structures");
             HistorianOperationContext context = CreateContext();
 
@@ -660,7 +687,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task BulkInsertKeepsEntriesWithTheSameTimestampAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "bulk.structures");
             HistorianOperationContext context = CreateContext();
 
@@ -699,7 +728,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task AtomicInsertRollsBackDuplicateCompositeKeysAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "atomic.structures");
             HistorianOperationContext context = CreateContext();
 
@@ -730,7 +761,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task AtomicInsertRollsBackForeignStructureAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "atomic.mismatch");
             HistorianOperationContext context = CreateContext();
 
@@ -762,7 +795,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task BoundsForStructuredNodeUseAdjacentEntriesAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "bounds.structures");
             HistorianOperationContext context = CreateContext();
 
@@ -811,7 +846,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task RegisterStructuredAdvertisesStructuredCapabilitiesAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "caps.structures");
 
             HistorianNodeCapabilities capabilities = await provider.GetCapabilitiesAsync(
@@ -833,7 +870,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task GetKeySelectorReturnsRegisteredOrDefaultSelectorAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId structured = RegisterStructured(provider, "selector.structures");
             var ordinary = new NodeId("selector.raw", NamespaceIndex);
             provider.Register(ordinary);
@@ -857,7 +896,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ForgetDropsStructuredRegistrationAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "forget.structures");
             HistorianOperationContext context = CreateContext();
 
@@ -880,7 +921,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void RegisterStructuredValidatesArguments()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
 
             Assert.That(
                 () => provider.RegisterStructured(
@@ -900,7 +943,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task OrdinaryRawNodeKeepsTimestampOnlyIdentityAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             var nodeId = new NodeId("regression.raw", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
@@ -957,7 +1002,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task OrdinaryRawNodeStillPagesAndBoundsAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             var nodeId = new NodeId("regression.paging", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
@@ -1034,7 +1081,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void InsertAnnotationAtNewTimestampDoesNotThrow()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             var nodeId = new NodeId("annotation.insert", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
@@ -1062,7 +1111,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task InsertAnnotationAtNewTimestampIsReadBackAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             var nodeId = new NodeId("annotation.readback", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
@@ -1096,7 +1147,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task InsertAnnotationBatchKeepsNewEntryWhenOneKeyIsDuplicateAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             var nodeId = new NodeId("annotation.batch", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
@@ -1129,7 +1182,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ReplaceAnnotationReturnsPriorAnnotationAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             var nodeId = new NodeId("annotation.replace", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
@@ -1169,7 +1224,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void UpdateAnnotationAtNewTimestampDoesNotThrow()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             var nodeId = new NodeId("annotation.update", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
@@ -1196,7 +1253,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task StructuredRegistrationAdvertisesStructuredProfileOnlyAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             NodeId nodeId = RegisterStructured(provider, "advertised.structures");
 
             HistorianNodeCapabilities rollup = await provider.GetCapabilitiesAsync(
@@ -1227,7 +1286,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DataOnlyRegistrationDoesNotAdvertiseStructuredProfileAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(Capture));
             provider.Register(
                 new NodeId("advertised.raw", NamespaceIndex),
                 HistorianNodeCapabilities.DataReadWrite);

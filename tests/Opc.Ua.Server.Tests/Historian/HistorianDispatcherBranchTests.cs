@@ -39,6 +39,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -69,7 +70,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 BrowseName = new QualifiedName("Var")
             };
 
-            var sentinel = new InMemoryHistorianProvider();
+            var sentinel = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(HarnessFixture.BaseTime));
             IHistorianProvider? resolved = HistorianDispatcher.ResolveProvider(
                 h.MockServer.Object, node, sentinel);
 
@@ -82,7 +85,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public void ResolveProviderFallsBackToRegistryWhenNoOverride()
         {
-            var sentinel = new InMemoryHistorianProvider();
+            var sentinel = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(HarnessFixture.BaseTime));
             var nodeId = new NodeId("resolve-registry", 1);
 
             var mockRegistry = new Mock<IHistorianProviderRegistry>();
@@ -1380,7 +1385,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public HarnessFixture(bool withAggregateManager = false)
             {
-                Provider = new InMemoryHistorianProvider();
+                Provider = new InMemoryHistorianProvider(
+                    new InMemoryHistorianOptions(),
+                    new FakeTimeProvider(HarnessFixture.BaseTime));
 
                 var mockTelemetry = new Mock<ITelemetryContext>();
 

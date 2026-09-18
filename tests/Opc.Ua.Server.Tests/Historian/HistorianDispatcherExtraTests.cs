@@ -36,6 +36,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -885,7 +886,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public HarnessFixture()
             {
-                Provider = new InMemoryHistorianProvider();
+                Provider = new InMemoryHistorianProvider(
+                    new InMemoryHistorianOptions(),
+                    new FakeTimeProvider(BaseTime));
 
                 var mockTelemetry = new Mock<ITelemetryContext>();
                 var continuationStore = new Dictionary<Guid, IHistoryContinuationPoint>();

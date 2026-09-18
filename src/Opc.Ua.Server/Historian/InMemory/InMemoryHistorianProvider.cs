@@ -105,9 +105,21 @@ namespace Opc.Ua.Server.Historian.InMemory
         /// <summary>
         /// Creates a provider with the supplied options.
         /// </summary>
+        /// <param name="options">The archive retention and capability options.</param>
         public InMemoryHistorianProvider(InMemoryHistorianOptions options)
+            : this(options, TimeProvider.System)
+        {
+        }
+
+        /// <summary>
+        /// Creates a provider with a clock for wall-clock raw-history retention.
+        /// </summary>
+        /// <param name="options">The archive retention and capability options.</param>
+        /// <param name="timeProvider">The clock used to determine the oldest retained source timestamp.</param>
+        public InMemoryHistorianProvider(InMemoryHistorianOptions options, TimeProvider timeProvider)
         {
             m_options = options ?? throw new ArgumentNullException(nameof(options));
+            m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             if (m_options.RawDataRetentionPeriod < TimeSpan.Zero)
             {
                 throw new ArgumentOutOfRangeException(
@@ -387,6 +399,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                     return new ValueTask<HistorianPage<HistoricalDataValue>>(HistorianPage<HistoricalDataValue>.Empty);
                 }
 
+                EvictExpiredRaw(archive, GetRawRetentionCutoff());
                 bool hasResume = TryDecodeCursor(
                     resumeToken,
                     out HistoricalValueKey resumeKey,
@@ -438,6 +451,7 @@ namespace Opc.Ua.Server.Historian.InMemory
             var result = new HistorianUpdateOutcome<DataValue>[batch.Count];
             lock (m_lock)
             {
+                DateTime cutoff = GetRawRetentionCutoff();
                 for (int batchIndex = 0; batchIndex < batch.Count; batchIndex++)
                 {
                     HistorianDataBatch entry = batch[batchIndex];
@@ -447,6 +461,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         continue;
                     }
                     NodeArchive archive = GetOrCreateArchive(entry.NodeId);
+                    EvictExpiredRaw(archive, cutoff);
                     IHistorianStructuredDataKeySelector selector =
                         GetKeySelector(entry.NodeId);
                     var statuses = new StatusCode[entry.Values.Count];
@@ -469,14 +484,14 @@ namespace Opc.Ua.Server.Historian.InMemory
                             statuses[i] = StatusCodes.BadEntryExists;
                             continue;
                         }
-                        if (!CanStoreRaw(archive, key.SourceTimestamp.ToDateTime()))
+                        if (!CanStoreRaw(archive, key, cutoff))
                         {
                             statuses[i] = StatusCodes.BadOutOfRange;
                             continue;
                         }
                         archive.Raw[key] = CloneValue(value);
                         statuses[i] = StatusCodes.GoodEntryInserted;
-                        EvictRawIfNeeded(archive, key.SourceTimestamp.ToDateTime());
+                        EvictRawIfNeeded(archive, key.SourceTimestamp.ToDateTime(), cutoff);
                     }
                     result[batchIndex] =
                         CreateOutcome<DataValue>(statuses);
@@ -629,16 +644,19 @@ namespace Opc.Ua.Server.Historian.InMemory
                 var oldValues = new List<DataValue>();
                 if (isDeleteModified)
                 {
-                    for (int i = archive.ModifiedLog.Count - 1; i >= 0; i--)
+                    LinkedListNode<ModificationEntry>? current = archive.ModifiedLog.Last;
+                    while (current != null)
                     {
-                        ModificationEntry entry = archive.ModifiedLog[i];
+                        LinkedListNode<ModificationEntry>? previous = current.Previous;
+                        ModificationEntry entry = current.Value;
                         var timestamp = entry.Value.SourceTimestamp.ToDateTime();
                         if (timestamp >= start && timestamp < end)
                         {
                             oldValues.Add(CloneValue(entry.Value));
-                            archive.ModifiedLog.RemoveAt(i);
+                            RemoveModification(archive, current);
                             removed++;
                         }
+                        current = previous;
                     }
                 }
                 else
@@ -649,7 +667,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         DataValue prior = archive.Raw[key];
                         archive.Raw.Remove(key);
                         oldValues.Add(CloneValue(prior));
-                        LogModification(archive, prior, HistoryUpdateType.Delete, context.DefaultModificationInfo);
+                        LogModification(archive, key, prior, HistoryUpdateType.Delete, context.DefaultModificationInfo);
                         removed++;
                     }
                     if (removed > 0)
@@ -711,7 +729,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         DataValue prior = archive.Raw[key];
                         archive.Raw.Remove(key);
                         oldValues.Add(CloneValue(prior));
-                        LogModification(archive, prior, HistoryUpdateType.Delete, context.DefaultModificationInfo);
+                        LogModification(archive, key, prior, HistoryUpdateType.Delete, context.DefaultModificationInfo);
                     }
                     statuses[i] = StatusCodes.Good;
                 }
@@ -862,7 +880,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                     if (archive.Annotations.TryGetValue(key, out HistorianAnnotation annotation))
                     {
                         oldValues.Add(CloneAnnotation(annotation.Annotation));
-                        archive.Annotations.Remove(key);
+                        RemoveAnnotation(archive, key);
                         statuses[i] = StatusCodes.Good;
                     }
                     else
@@ -1349,6 +1367,8 @@ namespace Opc.Ua.Server.Historian.InMemory
             var oldValues = new List<DataValue>();
             NodeArchive archive = GetOrCreateArchive(nodeId);
             IHistorianStructuredDataKeySelector selector = GetKeySelector(nodeId);
+            DateTime cutoff = GetRawRetentionCutoff();
+            EvictExpiredRaw(archive, cutoff);
 
             for (int i = 0; i < values.Length; i++)
             {
@@ -1375,19 +1395,15 @@ namespace Opc.Ua.Server.Historian.InMemory
                         }
                         else
                         {
-                            if (!CanStoreRaw(archive, key.SourceTimestamp.ToDateTime()))
+                            if (!CanStoreRaw(archive, key, cutoff))
                             {
                                 statuses[i] = StatusCodes.BadOutOfRange;
                                 break;
                             }
                             archive.Raw[key] = CloneValue(value);
-                            // An explicit HistoryUpdate insert is itself a
-                            // modification of the historized record and must
-                            // be retained as an INSERT entry in modified
-                            // history (unlike raw auto-capture inserts).
-                            LogModification(archive, value, HistoryUpdateType.Insert, context.DefaultModificationInfo);
+                            EvictRawIfNeeded(archive, key.SourceTimestamp.ToDateTime(), cutoff);
+                            LogModification(archive, key, value, HistoryUpdateType.Insert, context.DefaultModificationInfo);
                             statuses[i] = StatusCodes.GoodEntryInserted;
-                            EvictRawIfNeeded(archive, key.SourceTimestamp.ToDateTime());
                         }
                         break;
                     case HistoryUpdateType.Replace:
@@ -1401,7 +1417,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                         else
                         {
                             oldValues.Add(CloneValue(prior));
-                            LogModification(archive, prior, HistoryUpdateType.Replace, context.DefaultModificationInfo);
+                            LogModification(
+                                archive, key, prior, HistoryUpdateType.Replace, context.DefaultModificationInfo);
                             archive.Raw[key] = CloneValue(value);
                             statuses[i] = StatusCodes.GoodEntryReplaced;
                         }
@@ -1410,25 +1427,21 @@ namespace Opc.Ua.Server.Historian.InMemory
                         if (exists)
                         {
                             oldValues.Add(CloneValue(prior));
-                            LogModification(archive, prior, HistoryUpdateType.Update, context.DefaultModificationInfo);
+                            LogModification(archive, key, prior, HistoryUpdateType.Update, context.DefaultModificationInfo);
                             archive.Raw[key] = CloneValue(value);
                             statuses[i] = StatusCodes.GoodEntryReplaced;
                         }
                         else
                         {
-                            if (!CanStoreRaw(archive, key.SourceTimestamp.ToDateTime()))
+                            if (!CanStoreRaw(archive, key, cutoff))
                             {
                                 statuses[i] = StatusCodes.BadOutOfRange;
                                 break;
                             }
                             archive.Raw[key] = CloneValue(value);
-                            // An explicit HistoryUpdate update-that-inserts is
-                            // itself a modification of the historized record
-                            // and must be retained as an INSERT entry in
-                            // modified history (unlike raw auto-capture inserts).
-                            LogModification(archive, value, HistoryUpdateType.Insert, context.DefaultModificationInfo);
+                            EvictRawIfNeeded(archive, key.SourceTimestamp.ToDateTime(), cutoff);
+                            LogModification(archive, key, value, HistoryUpdateType.Insert, context.DefaultModificationInfo);
                             statuses[i] = StatusCodes.GoodEntryInserted;
-                            EvictRawIfNeeded(archive, key.SourceTimestamp.ToDateTime());
                         }
                         break;
                     case HistoryUpdateType.Delete:
@@ -1436,7 +1449,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         {
                             oldValues.Add(CloneValue(prior));
                             archive.Raw.Remove(key);
-                            LogModification(archive, prior, HistoryUpdateType.Delete, context.DefaultModificationInfo);
+                            LogModification(archive, key, prior, HistoryUpdateType.Delete, context.DefaultModificationInfo);
                             RefreshLatestRawTimestamp(archive);
                             statuses[i] = StatusCodes.Good;
                         }
@@ -1480,6 +1493,10 @@ namespace Opc.Ua.Server.Historian.InMemory
             {
                 NodeArchive archive = GetOrCreateArchive(nodeId);
                 IHistorianStructuredDataKeySelector selector = GetKeySelector(nodeId);
+                DateTime cutoff = GetRawRetentionCutoff();
+                EvictExpiredRaw(archive, cutoff);
+                var projectedKeys = new SortedSet<HistoricalValueKey>(
+                    archive.Raw.Keys, HistoricalValueKeyComparer.Instance);
 
                 // Pre-flight pass
                 for (int i = 0; i < values.Count; i++)
@@ -1529,7 +1546,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                     if (!exists &&
                         (updateType == HistoryUpdateType.Insert ||
                             updateType == HistoryUpdateType.Update) &&
-                        !CanStoreRaw(archive, key.SourceTimestamp.ToDateTime()))
+                        !CanStoreRaw(key, cutoff, projectedKeys.Count, projectedKeys.Min))
                     {
                         preflightResult = StatusCodes.BadOutOfRange;
                     }
@@ -1544,10 +1561,16 @@ namespace Opc.Ua.Server.Historian.InMemory
                     }
                     statuses[i] = preflightResult;
                     virtualValues[key] = value;
+                    projectedKeys.Add(key);
+                    if (m_options.MaxSamplesPerNode > 0 && projectedKeys.Count > m_options.MaxSamplesPerNode)
+                    {
+                        HistoricalValueKey evicted = projectedKeys.Min;
+                        projectedKeys.Remove(evicted);
+                        virtualValues[evicted] = DataValue.Null;
+                    }
                 }
 
                 // Commit pass: at this point we know every value will succeed.
-                DateTime? newestInsertedTimestamp = null;
                 var oldValues = new List<DataValue>();
                 for (int i = 0; i < values.Count; i++)
                 {
@@ -1562,6 +1585,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         oldValues.Add(CloneValue(prior));
                         LogModification(
                             archive,
+                            key,
                             prior,
                             updateType,
                             context.DefaultModificationInfo);
@@ -1569,25 +1593,14 @@ namespace Opc.Ua.Server.Historian.InMemory
                     archive.Raw[key] = CloneValue(value);
                     if (statuses[i].Code == StatusCodes.GoodEntryInserted.Code)
                     {
-                        // An explicit HistoryUpdate insert is itself a
-                        // modification of the historized record and must
-                        // be retained as an INSERT entry in modified
-                        // history (unlike raw auto-capture inserts).
+                        EvictRawIfNeeded(archive, timestamp, cutoff);
                         LogModification(
                             archive,
+                            key,
                             value,
                             HistoryUpdateType.Insert,
                             context.DefaultModificationInfo);
-                        if (!newestInsertedTimestamp.HasValue || timestamp > newestInsertedTimestamp.Value)
-                        {
-                            newestInsertedTimestamp = timestamp;
-                        }
-                        EvictRawIfNeeded(archive, timestamp);
                     }
-                }
-                if (newestInsertedTimestamp.HasValue)
-                {
-                    EvictRawIfNeeded(archive, newestInsertedTimestamp.Value);
                 }
                 return CreateOutcome(statuses, oldValues);
             }
@@ -1676,7 +1689,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                             return CreateRawPage(output, lastEmitted, remainingValues);
                         }
                         output.Add(new HistoricalDataValue(
-                            CloneValue(archive.Raw[key]),
+                            CloneRawValue(archive, key, archive.Raw[key]),
                             request.ReturnBounds));
                         lastEmitted = key;
                     }
@@ -1694,7 +1707,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                             {
                                 return CreateRawPage(output, lastEmitted, remainingValues);
                             }
-                            output.Add(new HistoricalDataValue(CloneValue(entry.Value), IsBound: true));
+                            output.Add(new HistoricalDataValue(
+                                CloneRawValue(archive, entry.Key, entry.Value), IsBound: true));
                             break;
                         }
                     }
@@ -1762,7 +1776,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                             {
                                 return CreateRawPage(output, lastEmitted, remainingValues);
                             }
-                            output.Add(new HistoricalDataValue(CloneValue(entry.Value), IsBound: true));
+                            output.Add(new HistoricalDataValue(
+                                CloneRawValue(archive, entry.Key, entry.Value), IsBound: true));
                         }
                         return new HistorianPage<HistoricalDataValue>(output);
                     }
@@ -1781,7 +1796,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                             {
                                 return CreateRawPage(output, lastEmitted, remainingValues);
                             }
-                            output.Add(new HistoricalDataValue(CloneValue(entry.Value), IsBound: true));
+                            output.Add(new HistoricalDataValue(
+                                CloneRawValue(archive, entry.Key, entry.Value), IsBound: true));
                         }
                         return new HistorianPage<HistoricalDataValue>(output);
                     }
@@ -1796,12 +1812,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                     return CreateRawPage(output, lastEmitted, remainingValues);
                 }
 
-                DataValue value = CloneValue(entry.Value);
-                if (HasModifiedValueAt(archive, entry.Key))
-                {
-                    value = value.WithStatus(
-                        value.StatusCode.WithAggregateBits(AggregateBits.ExtraData));
-                }
+                DataValue value = CloneRawValue(archive, entry.Key, entry.Value);
                 output.Add(new HistoricalDataValue(value));
                 lastEmitted = entry.Key;
                 capReached = output.Count >= cap;
@@ -1875,7 +1886,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 }
                 if (!candidate.IsNull)
                 {
-                    bound = new HistoricalDataValue(CloneValue(candidate), IsBound: true);
+                    bound = new HistoricalDataValue(CloneRawValue(archive, candidateKey, candidate), IsBound: true);
                     boundKey = candidateKey;
                     return true;
                 }
@@ -1886,7 +1897,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                 {
                     if (entry.Key.SourceTimestamp.ToDateTime() > windowMax)
                     {
-                        bound = new HistoricalDataValue(CloneValue(entry.Value), IsBound: true);
+                        bound = new HistoricalDataValue(CloneRawValue(archive, entry.Key, entry.Value), IsBound: true);
                         boundKey = entry.Key;
                         return true;
                     }
@@ -2065,7 +2076,7 @@ namespace Opc.Ua.Server.Historian.InMemory
             }
             if (cursor.Key.IsEmpty)
             {
-                ModificationEntry? boundary = archive.ModifiedLog.Find(
+                ModificationEntry? boundary = archive.ModifiedLog.FirstOrDefault(
                     entry =>
                         entry.Value.SourceTimestamp == cursor.Timestamp &&
                         entry.Sequence == cursor.Sequence);
@@ -2272,27 +2283,40 @@ namespace Opc.Ua.Server.Historian.InMemory
             return false;
         }
 
-        private void EvictRawIfNeeded(NodeArchive archive, DateTime newestInsertedTimestamp)
+        private DateTime GetRawRetentionCutoff()
         {
-            RefreshLatestRawTimestamp(archive);
-
-            if (m_options.RawDataRetentionPeriod > TimeSpan.Zero)
+            if (m_options.RawDataRetentionPeriod == TimeSpan.Zero)
             {
-                long cutoffTicks = archive.LatestRawTimestamp.Ticks > m_options.RawDataRetentionPeriod.Ticks
-                    ? archive.LatestRawTimestamp.Ticks - m_options.RawDataRetentionPeriod.Ticks
-                    : DateTime.MinValue.Ticks;
-                var cutoff = new DateTime(cutoffTicks, archive.LatestRawTimestamp.Kind);
-
-                while (archive.Raw.Count > 0)
-                {
-                    HistoricalValueKey oldest = archive.Raw.Keys.First();
-                    if (oldest.SourceTimestamp.ToDateTime() >= cutoff)
-                    {
-                        break;
-                    }
-                    archive.Raw.Remove(oldest);
-                }
+                return DateTime.MinValue;
             }
+            long now = m_timeProvider.GetUtcNow().UtcDateTime.Ticks;
+            return new DateTime(Math.Max(0, now - m_options.RawDataRetentionPeriod.Ticks), DateTimeKind.Utc);
+        }
+
+        private static void EvictExpiredRaw(NodeArchive archive, DateTime cutoff)
+        {
+            while (archive.Raw.Count > 0)
+            {
+                HistoricalValueKey oldest = archive.Raw.Keys.First();
+                if (oldest.SourceTimestamp.ToDateTime() >= cutoff)
+                {
+                    break;
+                }
+                archive.Raw.Remove(oldest);
+            }
+            if (archive.Raw.Count == 0)
+            {
+                archive.LatestRawTimestamp = DateTime.MinValue;
+            }
+        }
+
+        private void EvictRawIfNeeded(NodeArchive archive, DateTime newestInsertedTimestamp, DateTime cutoff)
+        {
+            if (newestInsertedTimestamp > archive.LatestRawTimestamp)
+            {
+                archive.LatestRawTimestamp = newestInsertedTimestamp;
+            }
+            EvictExpiredRaw(archive, cutoff);
 
             if (m_options.MaxSamplesPerNode > 0)
             {
@@ -2303,30 +2327,28 @@ namespace Opc.Ua.Server.Historian.InMemory
             }
         }
 
-        private bool CanStoreRaw(NodeArchive archive, DateTime timestamp)
+        private bool CanStoreRaw(NodeArchive archive, HistoricalValueKey key, DateTime cutoff)
         {
-            // Retention is enforced by post-insert eviction (see
-            // EvictRawIfNeeded), which supports the documented
-            // accept-then-evict contract for out-of-order samples older
-            // than the retention window; do not pre-reject them here.
-            // Future timestamps are accepted too: explicit HistoryUpdate
-            // inserts may legitimately backfill or seed values at any
-            // timestamp, including at DateTimeUtc.MaxValue boundaries.
-            return m_options.MaxSamplesPerNode == 0 ||
-                archive.Raw.Count < m_options.MaxSamplesPerNode ||
-                timestamp >= archive.Raw.Keys.First().SourceTimestamp.ToDateTime();
+            HistoricalValueKey oldest = m_options.MaxSamplesPerNode > 0 &&
+                archive.Raw.Count >= m_options.MaxSamplesPerNode ? archive.Raw.Keys.First() : default;
+            return CanStoreRaw(key, cutoff, archive.Raw.Count, oldest);
         }
 
-        private static bool HasModifiedValueAt(NodeArchive archive, HistoricalValueKey key)
+        private bool CanStoreRaw(HistoricalValueKey key, DateTime cutoff, int count, HistoricalValueKey oldest)
         {
-            foreach (ModificationEntry entry in archive.ModifiedLog)
+            return key.SourceTimestamp.ToDateTime() >= cutoff &&
+                (m_options.MaxSamplesPerNode == 0 || count < m_options.MaxSamplesPerNode || key > oldest);
+        }
+
+        private static DataValue CloneRawValue(NodeArchive archive, HistoricalValueKey key, in DataValue value)
+        {
+            if (archive.PriorValueCounts.ContainsKey(key) ||
+                archive.AnnotationCounts.ContainsKey(key.SourceTimestamp.ToDateTime()))
             {
-                if (entry.Value.SourceTimestamp == key.SourceTimestamp)
-                {
-                    return true;
-                }
+                return value.WithStatus(value.StatusCode.WithAggregateBits(
+                    value.StatusCode.AggregateBits | AggregateBits.ExtraData));
             }
-            return false;
+            return value;
         }
 
         private static void RefreshLatestRawTimestamp(NodeArchive archive)
@@ -2346,12 +2368,29 @@ namespace Opc.Ua.Server.Historian.InMemory
             while (archive.Annotations.Count > m_options.MaxAnnotationsPerNode)
             {
                 AnnotationKey oldest = archive.Annotations.Keys.First();
-                archive.Annotations.Remove(oldest);
+                RemoveAnnotation(archive, oldest);
+            }
+        }
+
+        private static void RemoveAnnotation(NodeArchive archive, AnnotationKey key)
+        {
+            if (archive.Annotations.Remove(key) &&
+                archive.AnnotationCounts.TryGetValue(key.SourceTimestamp, out int count))
+            {
+                if (count == 1)
+                {
+                    archive.AnnotationCounts.Remove(key.SourceTimestamp);
+                }
+                else
+                {
+                    archive.AnnotationCounts[key.SourceTimestamp] = count - 1;
+                }
             }
         }
 
         private void LogModification(
             NodeArchive archive,
+            HistoricalValueKey key,
             DataValue prior,
             HistoryUpdateType updateType,
             ModificationInfo defaultInfo)
@@ -2362,13 +2401,36 @@ namespace Opc.Ua.Server.Historian.InMemory
                 UpdateType = updateType,
                 UserName = defaultInfo.UserName
             };
-            archive.ModifiedLog.Add(new ModificationEntry(CloneValue(prior), info, ++archive.SequenceCounter));
+            archive.ModifiedLog.AddLast(new ModificationEntry(key, CloneValue(prior), info, ++archive.SequenceCounter));
+            if (updateType != HistoryUpdateType.Insert)
+            {
+                archive.PriorValueCounts.TryGetValue(key, out int count);
+                archive.PriorValueCounts[key] = count + 1;
+            }
 
             if (m_options.MaxModifiedEntriesPerNode > 0 &&
                 archive.ModifiedLog.Count > m_options.MaxModifiedEntriesPerNode)
             {
-                archive.ModifiedLog.RemoveAt(0);
+                RemoveModification(archive, archive.ModifiedLog.First!);
             }
+        }
+
+        private static void RemoveModification(NodeArchive archive, LinkedListNode<ModificationEntry> node)
+        {
+            ModificationEntry entry = node.Value;
+            if (entry.Info.UpdateType != HistoryUpdateType.Insert &&
+                archive.PriorValueCounts.TryGetValue(entry.Key, out int count))
+            {
+                if (count == 1)
+                {
+                    archive.PriorValueCounts.Remove(entry.Key);
+                }
+                else
+                {
+                    archive.PriorValueCounts[entry.Key] = count - 1;
+                }
+            }
+            archive.ModifiedLog.Remove(node);
         }
 
         /// <inheritdoc/>
@@ -2476,7 +2538,7 @@ namespace Opc.Ua.Server.Historian.InMemory
                         }
                         else
                         {
-                            archive.Annotations.Remove(key);
+                            RemoveAnnotation(archive, key);
                             oldValues.Add(new HistorianAnnotation(
                                 prior.SourceTimestamp,
                                 CloneAnnotation(prior.Annotation)));
@@ -2502,6 +2564,8 @@ namespace Opc.Ua.Server.Historian.InMemory
                         statuses[i] = exists ? StatusCodes.GoodEntryReplaced : StatusCodes.GoodEntryInserted;
                         if (!exists)
                         {
+                            archive.AnnotationCounts.TryGetValue(key.SourceTimestamp, out int count);
+                            archive.AnnotationCounts[key.SourceTimestamp] = count + 1;
                             EvictAnnotationsIfNeeded(archive);
                         }
                     }
@@ -2624,6 +2688,7 @@ namespace Opc.Ua.Server.Historian.InMemory
 
         private readonly Lock m_lock = new();
         private readonly InMemoryHistorianOptions m_options;
+        private readonly TimeProvider m_timeProvider;
         private readonly NodeIdDictionary<NodeArchive> m_archives = [];
         private readonly NodeIdDictionary<HistorianNodeCapabilities> m_capabilities = [];
         private readonly NodeIdDictionary<List<EventEntry>> m_events = [];
@@ -2635,13 +2700,20 @@ namespace Opc.Ua.Server.Historian.InMemory
             public SortedDictionary<HistoricalValueKey, DataValue> Raw { get; }
                 = new(HistoricalValueKeyComparer.Instance);
 
-            public List<ModificationEntry> ModifiedLog { get; } = [];
+            public LinkedList<ModificationEntry> ModifiedLog { get; } = [];
+            public Dictionary<HistoricalValueKey, int> PriorValueCounts { get; } =
+                new(HistoricalValueKeyComparer.Instance);
             public SortedDictionary<AnnotationKey, HistorianAnnotation> Annotations { get; } = [];
+            public Dictionary<DateTime, int> AnnotationCounts { get; } = [];
             public DateTime LatestRawTimestamp { get; set; } = DateTime.MinValue;
             public int SequenceCounter;
         }
 
-        private sealed record ModificationEntry(DataValue Value, ModificationInfo Info, int Sequence);
+        private sealed record ModificationEntry(
+            HistoricalValueKey Key,
+            DataValue Value,
+            ModificationInfo Info,
+            int Sequence);
 
         private readonly record struct AnnotationKey(
             DateTime SourceTimestamp,

@@ -1127,7 +1127,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     targetSessionId,
                     CancellationToken.None);
             Assert.That(successors, Has.Count.EqualTo(1));
-            Assert.That(successors[0].CodecVersion, Is.EqualTo(4));
+            Assert.That(successors[0].CodecVersion, Is.EqualTo(5));
             var decodedSuccessor =
                 (HistorianContinuationState)await codec.DecodeAsync(
                     successors[0],

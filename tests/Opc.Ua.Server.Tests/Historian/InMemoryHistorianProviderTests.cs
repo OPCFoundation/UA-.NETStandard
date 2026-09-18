@@ -36,6 +36,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -59,7 +60,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task InsertAsyncStoresValuesAndRawReadReturnsThemAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("test.var", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -109,7 +112,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task InsertRejectsDuplicateSourceTimestampAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("dup.var", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -130,7 +135,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ReplaceFailsWhenNoEntryExistsAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("rep.var", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -150,7 +157,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task UpdateUpsertsAndLogsModificationAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("up.var", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -202,7 +211,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DeleteAtTimeRemovesEntriesAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("del.var", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -238,7 +249,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task PaginationFollowsResumeTokensAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("page.var", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -295,7 +308,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ReadRawWithEqualTimesReturnsExactValueAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("equal.var", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -340,7 +355,9 @@ namespace Opc.Ua.Server.Tests.Historian
             int maxValues,
             int expectedCount)
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId($"equal-bounds-{maxValues}", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -387,7 +404,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ReadRawBoundsCountTowardsMaximumAndContinueOnNextPageAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("bounded-page.var", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -432,7 +451,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ReadRawMissingBoundsReturnsBadBoundNotFoundAtRequestedTimesAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("missing-bounds.var", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -476,7 +497,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [TestCase(false)]
         public async Task ReadRawOneSidedRequestReturnsRequestedCountWithoutContinuationAsync(bool isForward)
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId($"one-sided-{isForward}", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -517,7 +540,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [TestCase(false)]
         public async Task ReadRawOneSidedBoundsAddMissingBoundaryWhenArchiveIsExhaustedAsync(bool isForward)
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId($"one-sided-missing-{isForward}", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -559,7 +584,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [TestCase(false)]
         public async Task ReadRawOneSidedBoundsStopAtRequestedMaximumWithoutContinuationAsync(bool isForward)
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId($"one-sided-bounds-max-{isForward}", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -596,7 +623,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task AnnotationLifecycleAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("ann.var", NamespaceIndex);
             provider.Register(nodeId);
 
@@ -633,7 +662,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ExactModifiedPageDoesNotReturnContinuationAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("modified.final.page", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
@@ -679,7 +710,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ReverseModifiedHistoryIncludesStartAndExcludesEndAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("modified.reverse.boundaries", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
@@ -748,7 +781,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ModifiedHistoryForwardCursorIncludesBackdatedModificationAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("modified.forward.cursor", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext insertContext = CreateContext();
@@ -845,7 +880,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ModifiedHistoryReverseCursorUsesCompleteOrderingTupleAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("modified.reverse.cursor", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext insertContext = CreateContext();
@@ -922,7 +959,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ModifiedHistoryAcceptsLegacySequenceOnlyCursorAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("modified.legacy.cursor", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext insertContext = CreateContext();
@@ -985,7 +1024,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ModifiedHistoryRejectsUnknownCursorKeyVersionAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("modified.invalid.cursor", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
@@ -1031,7 +1072,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task ExactAnnotationPageDoesNotReturnContinuationAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("annotation.final.page", NamespaceIndex);
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
@@ -1079,7 +1122,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task InsertedValueAppearsInModifiedHistoryAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("modified.insert", NamespaceIndex);
             HistorianOperationContext context = CreateContext();
             DateTime timestamp = BaseTime.AddSeconds(10);
@@ -1120,7 +1165,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task UpdateThatInsertsAppearsInModifiedHistoryAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("modified.update-inserts", NamespaceIndex);
             HistorianOperationContext context = CreateContext();
             DateTime timestamp = BaseTime.AddSeconds(10);
@@ -1162,7 +1209,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task TransactionalInsertAppearsInModifiedHistoryAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("modified.insert-atomic", NamespaceIndex);
             HistorianOperationContext context = CreateContext();
             DateTime timestamp = BaseTime.AddSeconds(10);
@@ -1203,7 +1252,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task AutoCaptureInsertBatchDoesNotAppearInModifiedHistoryAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("modified.auto-capture", NamespaceIndex);
             HistorianOperationContext context = CreateContext();
             DateTime timestamp = BaseTime.AddSeconds(10);
@@ -1236,7 +1287,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task RawServerPageLimitProducesContinuationAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("raw.server-page-limit", NamespaceIndex);
             HistorianOperationContext context = CreateContext();
             await provider.InsertAsync(

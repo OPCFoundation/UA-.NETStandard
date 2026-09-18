@@ -36,6 +36,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -203,7 +204,9 @@ namespace Opc.Ua.Server.Tests.Historian
         [Test]
         public async Task DispatchUpdateDataAsyncThrowsWhenSystemContextIsNullAsync()
         {
-            var provider = new InMemoryHistorianProvider();
+            var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             BaseDataVariableState node = CreateVariable(new NodeId("n", 1));
             var details = new UpdateDataDetails { PerformInsertReplace = PerformUpdateType.Insert };
             var result = new HistoryUpdateResult();
@@ -963,7 +966,9 @@ namespace Opc.Ua.Server.Tests.Historian
             public Fixture(
                 DiagnosticsMasks diagnosticsMask = DiagnosticsMasks.None)
             {
-                Provider = new InMemoryHistorianProvider();
+                Provider = new InMemoryHistorianProvider(
+                    new InMemoryHistorianOptions(),
+                    new FakeTimeProvider(BaseTime));
 
                 var mockTelemetry = new Mock<ITelemetryContext>();
                 var mockSession = new Mock<ISession>();

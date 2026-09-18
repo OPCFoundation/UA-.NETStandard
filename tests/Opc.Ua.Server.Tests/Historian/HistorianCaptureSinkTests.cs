@@ -34,6 +34,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -440,7 +441,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
                 IServerInternal server = mockServer.Object;
                 var systemContext = new ServerSystemContext(server);
-                var provider = new InMemoryHistorianProvider();
+                var provider = new InMemoryHistorianProvider(
+                    new InMemoryHistorianOptions(),
+                    new FakeTimeProvider(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
                 var builder = new HistorianBuilder(server);
                 builder.UseProvider(provider).RegisterAsDefault();
 
