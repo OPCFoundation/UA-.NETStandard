@@ -826,6 +826,29 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         [Test]
+        public async Task CustomAnonymousAuthenticatorOverridesHostedDefaultAsync()
+        {
+            var rejection = new ServiceResult(
+                StatusCodes.BadUserAccessDenied, new LocalizedText("Anonymous access is disabled."));
+            var authenticator = new Mock<IUserTokenAuthenticator>();
+            authenticator.Setup(value => value.TokenType).Returns(UserTokenType.Anonymous);
+            authenticator.Setup(value => value.AuthenticateAsync(
+                It.IsAny<AuthenticationContext>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<AuthenticationResult>(AuthenticationResult.Reject(rejection)));
+            HostedFixture fixture = HostedFixture.Create(builder =>
+                builder.AddIdentityAuthenticator(authenticator.Object));
+            await using var cleanup = fixture.ConfigureAwait(false);
+            await fixture.StartAsync().ConfigureAwait(false);
+
+            AuthenticationResult result = await fixture.Server.CurrentInstance.IdentityRegistry.AuthenticateAsync(
+                CreateAuthenticationContext(fixture.Context, new AnonymousIdentityTokenHandler()))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(result.Error, Is.SameAs(rejection));
+        }
+
+        [Test]
         public async Task ResourceCallbacksRunAfterDefaultsInOrderOnTheLiveResourceManagerAsync()
         {
             var seen = new List<ResourceManager>();

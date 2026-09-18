@@ -252,4 +252,17 @@ namespace Opc.Ua.Identity
             AuthenticationContext context,
             CancellationToken ct = default);
     }
+
+    /// <summary>
+    /// Qualifies an issued-token authenticator's registration by its trusted issuer.
+    /// </summary>
+    public interface IIssuerTokenAuthenticator : IUserTokenAuthenticator
+    {
+        /// <summary>
+        /// Gets the trusted issuer URI, or <see langword="null"/> for an unqualified
+        /// authenticator that replaces all registrations for its token type and profile.
+        /// The authenticator must still verify the token's issuer and signature.
+        /// </summary>
+        string? IssuerUri { get; }
+    }
 }

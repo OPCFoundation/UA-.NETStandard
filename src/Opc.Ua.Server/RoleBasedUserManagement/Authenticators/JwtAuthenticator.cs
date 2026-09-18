@@ -42,7 +42,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Validates JWT issued identity tokens without a JWT library dependency.
     /// </summary>
-    public sealed class JwtAuthenticator : IUserTokenAuthenticator
+    public sealed class JwtAuthenticator : IIssuerTokenAuthenticator
     {
         private readonly IIssuerKeyResolver? m_keyResolver;
         private readonly string? m_expectedAudience;
@@ -83,6 +83,9 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public string? IssuedTokenProfileUri => Profiles.JwtUserToken;
+
+        /// <inheritdoc/>
+        public string? IssuerUri => m_keyResolver?.IssuerUri;
 
         /// <inheritdoc/>
         public async ValueTask<AuthenticationResult> AuthenticateAsync(

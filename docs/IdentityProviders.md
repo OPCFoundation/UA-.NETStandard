@@ -571,6 +571,18 @@ tokens; a SAML or Kerberos authenticator on the same channel is left
 to handle the rest. Register with `IssuedTokenProfileUri = null` for a
 catch-all (useful when bridging to a legacy `ITokenValidator`).
 
+`Register` replaces the existing registration with the same token type and
+profile, so application authenticators replace hosted defaults rather than
+being shadowed by them. Issuer-backed `JwtAuthenticator` instances implement
+`IIssuerTokenAuthenticator`: distinct issuers coexist, while re-registering the
+same issuer replaces its old verifier. Issuer matching is ordinal and never
+substitutes for signature, audience, or lifetime validation. A custom,
+unqualified authenticator replaces every issuer for its type/profile; a later
+issuer-qualified registration replaces any unqualified registration.
+Rejections stop dispatch and preserve their status and diagnostic message.
+If neither the registry nor the legacy callback handles a non-anonymous token,
+session activation fails closed.
+
 ### Identity augmenters
 
 `IIdentityAugmenter` is a post-authentication hook. It runs only after

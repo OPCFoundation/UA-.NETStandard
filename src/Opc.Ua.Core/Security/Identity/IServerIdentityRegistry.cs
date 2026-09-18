@@ -53,9 +53,9 @@ namespace Opc.Ua.Identity
     ///         <see cref="AuthenticationOutcome.Rejected"/>, the
     ///         <c>SessionManager</c> falls back to the legacy
     ///         <c>ImpersonateUser</c> event.</item>
-    ///   <item>If the legacy event is not subscribed either, the
-    ///         <c>SessionManager</c> falls back to wrapping the raw
-    ///         <c>UserIdentity</c> from the token.</item>
+    ///   <item>If neither path handles the token, only Anonymous may be
+    ///         wrapped as a raw <c>UserIdentity</c>. Other token types
+    ///         are rejected.</item>
     /// </list>
     /// <para>
     /// Registry membership is mutable but writes are infrequent; reads
@@ -70,6 +70,9 @@ namespace Opc.Ua.Identity
         /// <see cref="IUserTokenAuthenticator.TokenType"/> +
         /// <see cref="IUserTokenAuthenticator.IssuedTokenProfileUri"/>
         /// is already registered, it is replaced.
+        /// Issued-token authenticators implementing <see cref="IIssuerTokenAuthenticator"/>
+        /// with a non-null issuer replace only that issuer (and any unqualified registration).
+        /// An unqualified registration replaces all issuers for its type and profile.
         /// </summary>
         void Register(IUserTokenAuthenticator authenticator);
 

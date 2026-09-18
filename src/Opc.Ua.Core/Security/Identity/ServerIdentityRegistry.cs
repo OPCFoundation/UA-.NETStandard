@@ -40,14 +40,10 @@ namespace Opc.Ua.Identity
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Authenticators are dispatched in registration order: this
-    /// preserves predictable precedence when more than one
-    /// authenticator claims the same
-    /// <see cref="IUserTokenAuthenticator.TokenType"/> (e.g. two
-    /// different JWT authenticators for two different issuers — the
-    /// first to <see cref="AuthenticationOutcome.Accepted"/> or
-    /// <see cref="AuthenticationOutcome.Rejected"/> wins; a
-    /// <see cref="AuthenticationOutcome.NotHandled"/> moves on).
+    /// Register replaces the existing token-type/profile registration. Issuer-qualified
+    /// authenticators can coexist for distinct issuers; replacing an issuer never leaves
+    /// its old verifier active. Remaining registrations are dispatched in registration
+    /// order, stopping at the first Accepted or Rejected result.
     /// </para>
     /// </remarks>
     public sealed class ServerIdentityRegistry : IServerIdentityRegistry
@@ -84,6 +80,15 @@ namespace Opc.Ua.Identity
             }
             lock (m_lock)
             {
+                string? issuer = GetIssuer(authenticator);
+                m_order.RemoveAll(existing =>
+                    existing.TokenType == authenticator.TokenType &&
+                    string.Equals(
+                        existing.IssuedTokenProfileUri,
+                        authenticator.IssuedTokenProfileUri,
+                        StringComparison.Ordinal) &&
+                    (issuer == null || GetIssuer(existing) == null ||
+                        string.Equals(GetIssuer(existing), issuer, StringComparison.Ordinal)));
                 m_order.Add(authenticator);
             }
         }
@@ -202,6 +207,14 @@ namespace Opc.Ua.Identity
             }
 
             return AuthenticationResult.NotHandled;
+        }
+
+        private static string? GetIssuer(IUserTokenAuthenticator authenticator)
+        {
+            return authenticator.TokenType == UserTokenType.IssuedToken &&
+                authenticator is IIssuerTokenAuthenticator issuerAuthenticator
+                ? issuerAuthenticator.IssuerUri
+                : null;
         }
 
         private readonly Lock m_lock = new();
