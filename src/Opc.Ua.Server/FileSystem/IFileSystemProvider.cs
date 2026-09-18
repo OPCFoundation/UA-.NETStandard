@@ -149,4 +149,18 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         ValueTask CopyAsync(string source, string target, CancellationToken ct);
     }
+
+    /// <summary>
+    /// Supplies stable file identities when several provider paths address the same backing entry.
+    /// Providers with exact, case-sensitive path identities need not implement this interface.
+    /// </summary>
+    public interface IFileSystemPathIdentityProvider
+    {
+        /// <summary>
+        /// Returns an ordinal identity key for the provider-relative path without opening the entry.
+        /// Equivalent path spellings must return the same key, including for entries that no longer exist.
+        /// The key is for handle ownership only and need not be a browsable or provider-accessible path.
+        /// </summary>
+        string GetPathIdentity(string path);
+    }
 }

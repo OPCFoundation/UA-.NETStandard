@@ -184,18 +184,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(provider.ReadText(existingFile ? "existing" : "existing/payload.txt"), Is.EqualTo("payload"));
         }
 
-        [Test]
-        [TestCase("../escape")]
-        [TestCase("..\\escape")]
-        [TestCase("sub/child")]
-        [TestCase("sub\\child")]
-        [TestCase("/rooted")]
-        [TestCase("\\rooted")]
-        [TestCase("C:\\Windows\\System32\\evil")]
-        [TestCase("..")]
-        [TestCase(".")]
-        [TestCase("stream:name")]
-        [TestCase("   ")]
+        [TestCaseSource(nameof(s_invalidEntryNames))]
         public async Task CreateRejectsANameThatIsNotASingleSegmentAsync(string name)
         {
             InMemoryFileSystemProvider provider = CreateProvider();
@@ -246,7 +235,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 sourceId,
                 targetId,
                 false,
-                "..\\..\\escape",
+                Path.DirectorySeparatorChar == '\\' ? "..\\..\\escape" : "../../escape",
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(
@@ -438,6 +427,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(programs.CreateFile!.OnCallAsync, Is.Null);
             Assert.That(main.Open.OnCallAsync, Is.Null);
             Assert.That(main.Size!.OnReadValue, Is.Null);
+            Assert.That(main.Size.OnReadValueAsync, Is.Null);
             Assert.That(Find<FileDirectoryState>(root, context, "programs"), Is.Null);
         }
 
@@ -523,6 +513,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
         {
             return new InMemoryFileSystemProvider(isWritable);
         }
+
+        private static readonly string[] s_invalidEntryNames = Path.DirectorySeparatorChar == '\\'
+            ? ["../escape", "..\\escape", "sub/child", "sub\\child", "/rooted", "\\rooted",
+                "C:\\Windows\\System32\\evil", "..", ".", "stream:name", "   "]
+            : ["../escape", "sub/child", "/rooted", "..", ".", "   "];
 
         private sealed class TestServerBuilder : IOpcUaServerBuilder
         {

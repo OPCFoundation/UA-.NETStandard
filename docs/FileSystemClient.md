@@ -285,10 +285,11 @@ move, and copy. A NodeId from another namespace, an invalid encoded type,
 or a component identifier cannot alias a file-system object.
 
 Before Delete or MoveOrCopy reaches an arbitrary provider, the lazy host
-validates the decoded provider path. Separator-only root aliases, including
-backslashes, resolve to the protected empty root. Nonroot paths must use
-forward slashes and contain no empty, `.` or `..` segments, backslashes,
-or drive/stream qualifiers. Valid relative paths are passed unchanged.
+validates the decoded provider path. Separator-only root aliases resolve to
+the protected empty root. Nonroot paths use forward slashes and contain no
+empty, `.` or `..` segments. On Windows, backslashes and drive/stream
+qualifiers are rejected; on Unix, colon and backslash are ordinary name
+characters and remain addressable. Valid relative paths are passed unchanged.
 The root remains a valid move/copy **destination** for a child, but never
 the object being deleted, moved, or copied.
 
@@ -309,6 +310,14 @@ after session closure or disposal are closed rather than published.
 stream supports both operations. `SetPosition` clamps positions beyond
 EOF to the current file length. `Writable` describes the provider/file
 capability and does not become false merely because a handle is open.
+
+Providers with multiple spellings for one file can implement
+`IFileSystemPathIdentityProvider`. The physical provider uses Windows
+case-insensitive identity and Win32 trailing-dot/space normalization, so
+alternate NodeIds share `OpenCount` and writer exclusion. Metadata reads
+query the provider asynchronously without allocating retained handle state.
+Closed or failed opens release idle handle bags; pending opens remain
+protected by their reservations.
 
 Materialized directory bindings serialize capacity admission, provider
 mutations, refresh, and teardown. Creates and cross-directory moves/copies

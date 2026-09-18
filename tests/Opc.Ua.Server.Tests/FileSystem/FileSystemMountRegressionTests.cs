@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         [Test]
         public async Task AlternateRootIdsCannotDeleteMoveOrCopyMountAsync(
             [Values("delete", "move", "copy")] string operation,
-            [Values("0:", "1:", "2:", "0:/", "0:\\", "0://")] string identifier)
+            [ValueSource(nameof(s_rootIds))] string identifier)
         {
             Mock<IFileSystemProvider> provider = CreateProvider();
             using FileSystemNodeManager manager = CreateManager(provider.Object);
@@ -173,7 +173,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         [Test]
         public async Task SeparatorOnlyTargetsResolveToCanonicalMountRootAsync(
             [Values(false, true)] bool createCopy,
-            [Values("", "/", "\\", "//", "\\\\", "/\\/")] string providerPath,
+            [ValueSource(nameof(s_rootPaths))] string providerPath,
             [Values(FileSystemNodeId.Root, FileSystemNodeId.Directory)] int rootType)
         {
             Mock<IFileSystemProvider> provider = CreateProvider();
@@ -478,9 +478,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// </summary>
         private static readonly string[] s_invalidNonRootPaths =
         [
-            ".", "..", "sub/..", "sub\\..", "sub/../", "sub\\..\\", "../sub", "sub/../leaf", "sub\\..\\leaf",
-            "sub//leaf", "sub\\\\leaf", "sub/./leaf", "sub\\.\\leaf", "/sub", "sub/", "\\sub", "sub\\leaf",
-            "C:/sub", "C:\\sub", "sub/stream:name", " ", "sub/ /leaf"
+            ".", "..", "sub/..", "sub/../", "../sub", "sub/../leaf", "sub//leaf", "sub/./leaf", "/sub", "sub/",
+            " ", "sub/ /leaf",
+            .. Path.DirectorySeparatorChar == '\\'
+                ? new[] { "sub\\..", "sub\\..\\", "sub\\..\\leaf", "sub\\\\leaf", "sub\\.\\leaf", "\\sub",
+                    "sub\\leaf", "C:/sub", "C:\\sub", "sub/stream:name" }
+                : Array.Empty<string>()
         ];
 
         /// <summary>
@@ -488,7 +491,16 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// </summary>
         private static readonly string[] s_nonCanonicalProviderPaths =
         [
-            "/", "\\", "//", "\\\\", "/\\/", .. s_invalidNonRootPaths
+            "/", "//", .. s_invalidNonRootPaths,
+            .. Path.DirectorySeparatorChar == '\\' ? new[] { "\\", "\\\\", "/\\/" } : Array.Empty<string>()
         ];
+
+        private static readonly string[] s_rootIds = Path.DirectorySeparatorChar == '\\'
+            ? ["0:", "1:", "2:", "0:/", "0:\\", "0://"]
+            : ["0:", "1:", "2:", "0:/", "0://"];
+
+        private static readonly string[] s_rootPaths = Path.DirectorySeparatorChar == '\\'
+            ? [string.Empty, "/", "\\", "//", "\\\\", "/\\/"]
+            : [string.Empty, "/", "//"];
     }
 }

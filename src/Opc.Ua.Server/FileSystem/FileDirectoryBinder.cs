@@ -315,20 +315,49 @@ namespace Opc.Ua.Server.FileSystem
             /// <inheritdoc/>
             public FileHandle? GetOrCreateHandle(NodeId nodeId, string providerPath)
             {
+                if (nodeId.NamespaceIndex != Directory.NodeId.NamespaceIndex)
+                {
+                    return null;
+                }
+                string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, providerPath);
                 lock (m_lock)
                 {
                     if (m_disposed)
                     {
                         return null;
                     }
-                    if (m_handles.TryGetValue(nodeId, out FileHandle? handle))
+                    if (m_handles.TryGetValue(identity, out FileHandle? handle))
                     {
                         return handle;
                     }
 
                     handle = new FileHandle(Provider, providerPath);
-                    m_handles.Add(nodeId, handle);
+                    m_handles.Add(identity, handle);
                     return handle;
+                }
+            }
+
+            /// <inheritdoc/>
+            public FileHandle? FindHandle(string providerPath)
+            {
+                string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, providerPath);
+                lock (m_lock)
+                {
+                    return !m_disposed && m_handles.TryGetValue(identity, out FileHandle? handle) ? handle : null;
+                }
+            }
+
+            /// <inheritdoc/>
+            public void ReleaseHandle(FileHandle handle)
+            {
+                string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, handle.ProviderPath);
+                lock (m_lock)
+                {
+                    if (m_handles.TryGetValue(identity, out FileHandle? current) &&
+                        ReferenceEquals(current, handle) && handle.TryRetire())
+                    {
+                        m_handles.Remove(identity);
+                    }
                 }
             }
 
@@ -338,10 +367,13 @@ namespace Opc.Ua.Server.FileSystem
                 FileHandle? retired = null;
                 lock (m_lock)
                 {
-                    if (m_handles.TryGetValue(nodeId, out FileHandle? handle))
+                    if (m_lookupById.TryGetValue(nodeId, out MaterializedNode? entry))
                     {
-                        m_handles.Remove(nodeId);
-                        retired = handle;
+                        string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, entry.ProviderPath);
+                        if (m_handles.TryGetValue(identity, out retired))
+                        {
+                            m_handles.Remove(identity);
+                        }
                     }
                 }
                 retired?.Dispose();
@@ -844,7 +876,7 @@ namespace Opc.Ua.Server.FileSystem
             }
 
             private readonly SemaphoreSlim m_gate = new(1, 1);
-            private readonly Dictionary<NodeId, FileHandle> m_handles = [];
+            private readonly Dictionary<string, FileHandle> m_handles = new(StringComparer.Ordinal);
             private readonly Dictionary<NodeId, MaterializedNode> m_nodesById = [];
             private readonly Dictionary<string, MaterializedNode> m_nodesByPath = new(StringComparer.Ordinal);
             private readonly ISystemContext m_context;

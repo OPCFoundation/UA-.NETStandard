@@ -457,6 +457,23 @@ namespace Opc.Ua.Server.FileSystem
             DisposeStreams(streamsToClose);
         }
 
+        /// <summary>
+        /// Retires an idle bag atomically with open reservation admission.
+        /// A caller that obtained this bag just before retirement must reacquire it from its host.
+        /// </summary>
+        internal bool TryRetire()
+        {
+            lock (m_lock)
+            {
+                if (m_write != null || m_reads.Count != 0)
+                {
+                    return false;
+                }
+                m_disposed = true;
+                return true;
+            }
+        }
+
         private uint CreateFileHandle()
         {
             uint fileHandle;
