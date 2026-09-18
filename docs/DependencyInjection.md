@@ -147,6 +147,10 @@ services.AddOpcUa()
 
 When `MaxOutstandingBytesPerProcess` is positive, the singleton factory wraps every manager it creates with `LimitingBufferManager` and shares one `BufferManagerMemoryLimiter` across them. A synchronous rent blocks without holding a manager lock until another buffer is returned. A single rent whose conservative expected size exceeds the budget fails immediately instead of waiting forever.
 
+Capacity changes notify only currently registered renters; idle buffer returns
+do not accumulate wakeups. Cancellation removes any unclaimed wakeup, and
+disposal wakes all blocked renters before releasing the wait primitive.
+
 Applications can replace the complete policy by registering an `IBufferManagerFactory` before `AddOpcUa()`:
 
 ```csharp

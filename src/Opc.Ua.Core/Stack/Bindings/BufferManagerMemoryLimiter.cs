@@ -62,6 +62,30 @@ namespace Opc.Ua
         public long MaxOutstandingBytes { get; }
 
         /// <summary>
+        /// Pauses a registered renter before it waits, for deterministic concurrency tests.
+        /// </summary>
+        internal Action? BeforeCapacityWaitForTesting { get; set; }
+
+        /// <summary>
+        /// Observes registered renters and available wakeups without exposing synchronization objects.
+        /// </summary>
+        internal (int WaiterCount, int WakeupCount) WaitStateForTesting
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    int wakeups = 0;
+                    foreach (CapacityWaiter waiter in m_waiters)
+                    {
+                        wakeups += waiter.WakeupCount;
+                    }
+                    return (m_waiters.Count, wakeups);
+                }
+            }
+        }
+
+        /// <summary>
         /// Disposes owned resources.
         /// </summary>
         public void Dispose()
@@ -71,10 +95,7 @@ namespace Opc.Ua
                 if (!m_disposed)
                 {
                     m_disposed = true;
-                    if (m_waiterCount > 0)
-                    {
-                        m_capacityChanged.Release(m_waiterCount);
-                    }
+                    SignalCapacityChanged();
                 }
             }
             GC.SuppressFinalize(this);
@@ -108,6 +129,7 @@ namespace Opc.Ua
 
             while (true)
             {
+                LinkedListNode<CapacityWaiter> registration;
                 lock (m_lock)
                 {
                     if (m_disposed)
@@ -128,18 +150,20 @@ namespace Opc.Ua
                             "A buffer rent cannot synchronously re-enter the same limiter during a return.");
                     }
 
-                    m_waiterCount++;
+                    registration = m_waiters.AddLast(new CapacityWaiter());
                 }
 
+                using CapacityWaiter waiter = registration.Value;
                 try
                 {
-                    m_capacityChanged.Wait(ct);
+                    BeforeCapacityWaitForTesting?.Invoke();
+                    waiter.Wait(ct);
                 }
                 finally
                 {
                     lock (m_lock)
                     {
-                        m_waiterCount--;
+                        m_waiters.Remove(registration);
                     }
                 }
             }
@@ -204,11 +228,11 @@ namespace Opc.Ua
 
                     reservationFits = true;
                 }
-            }
 
-            if (signalCapacityChanged)
-            {
-                m_capacityChanged.Release();
+                if (signalCapacityChanged)
+                {
+                    SignalCapacityChanged();
+                }
             }
 
             return reservationFits;
@@ -221,7 +245,6 @@ namespace Opc.Ua
         /// <exception cref="InvalidOperationException"></exception>
         internal void Cancel(long reservationId)
         {
-            bool signalCapacityChanged;
             lock (m_lock)
             {
                 Reservation reservation = GetReservation(reservationId);
@@ -238,12 +261,7 @@ namespace Opc.Ua
 
                 m_reservations.Remove(reservationId);
                 m_outstandingBytes -= reservation.ReservedBytes;
-                signalCapacityChanged = true;
-            }
-
-            if (signalCapacityChanged)
-            {
-                m_capacityChanged.Release();
+                SignalCapacityChanged();
             }
         }
 
@@ -309,7 +327,6 @@ namespace Opc.Ua
         /// <exception cref="InvalidOperationException"></exception>
         internal void CompleteReturn(long reservationId)
         {
-            bool signalCapacityChanged;
             lock (m_lock)
             {
                 Reservation reservation = GetReservation(reservationId);
@@ -326,12 +343,7 @@ namespace Opc.Ua
                 }
                 m_reservations.Remove(reservationId);
                 m_outstandingBytes -= reservation.ActualBytes;
-                signalCapacityChanged = true;
-            }
-
-            if (signalCapacityChanged)
-            {
-                m_capacityChanged.Release();
+                SignalCapacityChanged();
             }
         }
 
@@ -373,6 +385,17 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Notifies every registered renter that does not already have a wakeup.
+        /// </summary>
+        private void SignalCapacityChanged()
+        {
+            foreach (CapacityWaiter waiter in m_waiters)
+            {
+                waiter.Signal();
+            }
+        }
+
+        /// <summary>
         /// Returns the reservation associated with an identifier.
         /// </summary>
         /// <param name="reservationId">The reservation identifier.</param>
@@ -401,6 +424,36 @@ namespace Opc.Ua
                 m_outstandingBytes = outstandingBytes;
                 return previousOutstandingBytes;
             }
+        }
+
+        /// <summary>
+        /// Owns one registration's signal so a retry cannot consume another renter's wakeup.
+        /// </summary>
+        private sealed class CapacityWaiter : IDisposable
+        {
+            public int WakeupCount => m_changed.CurrentCount;
+
+            public void Wait(CancellationToken ct)
+            {
+                m_changed.Wait(ct);
+            }
+
+            public void Signal()
+            {
+                if (!m_signaled)
+                {
+                    m_signaled = true;
+                    m_changed.Release();
+                }
+            }
+
+            public void Dispose()
+            {
+                m_changed.Dispose();
+            }
+
+            private readonly SemaphoreSlim m_changed = new(0, 1);
+            private bool m_signaled;
         }
 
         /// <summary>
@@ -464,17 +517,10 @@ namespace Opc.Ua
         private readonly Dictionary<byte[], long> m_buffers = [];
         private readonly Dictionary<long, Reservation> m_reservations = [];
 
-        // A semaphore gives each capacity release to one waiter without allowing
-        // another waiter to reset a shared manual-reset signal after the release.
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Usage",
-            "CA2213:Disposable fields should be disposed",
-            Justification = "Blocked renters may still be unwinding when the limiter is disposed.")]
-        private readonly SemaphoreSlim m_capacityChanged = new(0, int.MaxValue);
+        private readonly LinkedList<CapacityWaiter> m_waiters = new();
 
         private long m_nextReservationId;
         private long m_outstandingBytes;
-        private int m_waiterCount;
         private bool m_disposed;
 
         [ThreadStatic]
