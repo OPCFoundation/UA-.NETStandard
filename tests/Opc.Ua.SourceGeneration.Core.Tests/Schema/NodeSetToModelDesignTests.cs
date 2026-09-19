@@ -127,6 +127,52 @@ namespace Opc.Ua.Schema.Model.Tests
             </UANodeSet>
             """;
 
+        private const string UnsupportedIdNodeSetTemplate = """
+            <?xml version="1.0" encoding="utf-8"?>
+            <UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                <NamespaceUris>
+                    <Uri>http://test.org/UA/UnsupportedId/</Uri>
+                </NamespaceUris>
+                <Models>
+                    <Model ModelUri="http://test.org/UA/UnsupportedId/"
+                        PublicationDate="2026-08-12T00:00:00Z"
+                        Version="1.0.0" />
+                </Models>
+                <Aliases>
+                    <Alias Alias="HasSubtype">i=45</Alias>
+                    <Alias Alias="HasTypeDefinition">i=40</Alias>
+                    <Alias Alias="Organizes">i=35</Alias>
+                </Aliases>
+                <UAReferenceType NodeId="i=33" BrowseName="HierarchicalReferences" IsAbstract="true">
+                    <DisplayName>HierarchicalReferences</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
+                    </References>
+                </UAReferenceType>
+                <UAReferenceType NodeId="i=35" BrowseName="Organizes">
+                    <DisplayName>Organizes</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
+                    </References>
+                </UAReferenceType>
+                <UAObjectType NodeId="i=58" BrowseName="BaseObjectType">
+                    <DisplayName>BaseObjectType</DisplayName>
+                    <References>
+                        <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+                    </References>
+                </UAObjectType>
+                <UAObject NodeId="__NODEID__" BrowseName="1:Unsupported">
+                    <DisplayName>Unsupported</DisplayName>
+                    <References>
+                        <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+                        <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+                    </References>
+                </UAObject>
+            </UANodeSet>
+            """;
+
         private VirtualFileSystem m_fileSystem;
 
         [SetUp]
@@ -387,6 +433,43 @@ namespace Opc.Ua.Schema.Model.Tests
                 Assert.That(viewsFolder.References.Select(x => x.IsInverse), Is.All.False);
                 Assert.That(viewsFolder.References.Select(x => x.TargetId.Name), Is.EquivalentTo(
                     expectedViews));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that identifier types which the model design cannot represent
+        /// fail the import instead of producing nodes without any identifier.
+        /// </summary>
+        [TestCase("ns=1;g=09087e75-8e5e-499b-954f-f2a9603db28a", "Guid")]
+        [TestCase("ns=1;b=M/RbKBsRVkePCePcx24oRA==", "Opaque")]
+        [TestCase("ns=1;g=00000000-0000-0000-0000-000000000000", "Guid")]
+        public void ImportUnsupportedNodeIdTypeThrowsInvalidDataException(
+            string nodeId,
+            string idType)
+        {
+            const string path = "memory://UnsupportedId.NodeSet2.xml";
+            m_fileSystem.Add(
+                path,
+                Encoding.UTF8.GetBytes(
+                    UnsupportedIdNodeSetTemplate.Replace(
+                        "__NODEID__",
+                        nodeId,
+                        StringComparison.Ordinal)));
+
+            var settings = new NodeSetReaderSettings();
+            NodeSetToModelDesign importer = new(
+                m_fileSystem,
+                path,
+                settings,
+                CreateTelemetry());
+
+            InvalidDataException ex = Assert.Throws<InvalidDataException>(
+                () => importer.Import("UnsupportedId", "UnsupportedId"));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ex.Message, Does.Contain(nodeId));
+                Assert.That(ex.Message, Does.Contain(idType));
             });
         }
 
