@@ -582,6 +582,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             backup.Description.EndpointUrl = "opc.tcp://backup:4840";
             var time = new FakeTimeProvider();
             var peerEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var backupEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var peerRetried = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var blocked = new TaskCompletionSource<ConfiguredEndpoint?>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
@@ -604,6 +605,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 });
             resolver.Setup(value => value.ResolveAsync(
                     "urn:backup", It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()))
+                .Callback(() => backupEntered.TrySetResult(true))
                 .ReturnsAsync(() => backupAvailable ? backup : null);
             var redundancy = new DefaultServerRedundancyHandler(resolver.Object, time);
             var response = new ReadResponse
@@ -648,7 +650,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Task<Client.ManagedSession> connecting = Client.ManagedSession.CreateAsync(
                 configuration, primary, factory.Object, redundancyHandler: redundancy, timeProvider: time,
                 ct: timeout.Token);
-            await peerEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+            // Advancing before both parallel lookups enter can expire a peer before it is called.
+            await Task.WhenAll(peerEntered.Task, backupEntered.Task).WaitAsync(timeout.Token).ConfigureAwait(false);
             if (waitForPeerTimeout)
             {
                 time.Advance(TimeSpan.FromSeconds(2));
@@ -677,10 +680,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             }
             await discovery!.WaitAsync(timeout.Token).ConfigureAwait(false);
             backupAvailable = true;
+            // The offline peer's retry returns no endpoint without timing out the healthy peer alongside it.
+            blocked.TrySetResult(null);
             Task<ServiceResult> failover = managed.StateMachine.FailoverWithBudgetAsync!(
                 new RetryBudget(TimeSpan.FromSeconds(30), time), timeout.Token);
             await peerRetried.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-            time.Advance(TimeSpan.FromSeconds(2));
             ServiceResult result = await failover.WaitAsync(timeout.Token).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
