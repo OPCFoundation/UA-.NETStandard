@@ -50,7 +50,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Default live NodeManager lifecycle provider owned by a <see cref="StandardServer"/>.
     /// </summary>
-    public sealed class NodeManagerLifecycle : INodeManagerLifecycle, IDisposable
+    public sealed partial class NodeManagerLifecycle : INodeManagerBatchLifecycle, IDisposable
     {
         /// <summary>
         /// Creates a lifecycle provider for a directly constructed server.
@@ -531,8 +531,9 @@ namespace Opc.Ua.Server
                 allowRemovalRetry: true);
             bool allowRequestCallback =
                 permissionState.AllowLifecycleFromRequestCallback;
-            (IServerInternal entryServer, _) =
+            (IServerInternal entryServer, IDynamicNodeManagerHost entryHost) =
                 GetRunningServer(allowRequestCallback, callerContext);
+            using IDisposable? routing = (entryHost as IDynamicNodeManagerBatchHost)?.UseLiveRouting();
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
                 EnterRequestLifecycleWaiter(entryServer);
             await WaitForLifecycleSemaphoreAsync(requestWaiter, ct)
@@ -815,8 +816,9 @@ namespace Opc.Ua.Server
             CancellationToken ct = default)
         {
             using OperationLifetime operation = EnterLifecycleOperation();
-            (IServerInternal entryServer, _) =
+            (IServerInternal entryServer, IDynamicNodeManagerHost entryHost) =
                 GetRunningServer(allowRequestCallback, callerContext);
+            using IDisposable? routing = (entryHost as IDynamicNodeManagerBatchHost)?.UseLiveRouting();
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
                 EnterRequestLifecycleWaiter(entryServer);
             await WaitForLifecycleSemaphoreAsync(requestWaiter, ct)
@@ -1071,8 +1073,9 @@ namespace Opc.Ua.Server
             RegistrationState permissionState = GetCurrentState(registration);
             allowRequestCallback = factoryAllowsRequestCallback &&
                 permissionState.AllowLifecycleFromRequestCallback;
-            (IServerInternal entryServer, _) =
+            (IServerInternal entryServer, IDynamicNodeManagerHost entryHost) =
                 GetRunningServer(allowRequestCallback, callerContext);
+            using IDisposable? routing = (entryHost as IDynamicNodeManagerBatchHost)?.UseLiveRouting();
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
                 EnterRequestLifecycleWaiter(entryServer);
             await WaitForLifecycleSemaphoreAsync(requestWaiter, ct)

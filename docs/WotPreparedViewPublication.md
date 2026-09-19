@@ -183,8 +183,23 @@ The queue does not supply the prepared batch or durable publication decision.
 
 The declarations and graph-root persistence are independently composable.
 `INodeManagerBatchLifecycle` is an optional capability; declarations alone do
-not make a lifecycle implementation support it. A full coordinator/runtime
-adapter must still stage and publish source routing, references, metadata and
+not make a lifecycle implementation support it. The stock NodeManager lifecycle
+implements this interface. The hosted lifecycle forwards it to the attached
+server, or reports that a custom lifecycle does not support it.
+
+The lifecycle privately prepares additions, replacements and removals. Commit
+rechecks the exact registrations and routing revision before calling the supplied
+durable decision. It then publishes one routing image. A prepared batch can be
+consumed only once; disposal aborts an uncommitted candidate. Post-decision
+cancellation cannot undo the committed image.
+
+The optional committed-state callback runs after the routing switch and before
+readiness and retirement. If that callback throws, the lifecycle retains its
+failure in `NodeManagerBatchResult.CleanupFailure` and still runs reconciliation.
+Readiness and retirement failures are also reported as committed outcomes, not
+as permission to discard the active registrations.
+
+A full coordinator/runtime adapter must still stage and publish source routing, references, metadata and
 View state through one owner before advertising atomicity. Do not infer
 multi-resource atomicity, stock host support, or lock-free visibility merely
 from these carrier types.

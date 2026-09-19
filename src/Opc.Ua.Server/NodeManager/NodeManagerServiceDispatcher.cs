@@ -173,6 +173,7 @@ namespace Opc.Ua.Server
             ArrayOf<BrowsePath> browsePaths,
             CancellationToken cancellationToken = default)
         {
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
             bool diagnosticsExist = false;
             var results = new List<BrowsePathResult>(browsePaths.Count);
             var diagnosticInfos = new List<DiagnosticInfo>(browsePaths.Count);
@@ -539,6 +540,7 @@ namespace Opc.Ua.Server
             ArrayOf<BrowseDescription> nodesToBrowse,
             CancellationToken cancellationToken = default)
         {
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -733,6 +735,7 @@ namespace Opc.Ua.Server
                 ArrayOf<ByteString> continuationPoints,
                 CancellationToken cancellationToken = default)
         {
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -1165,6 +1168,7 @@ namespace Opc.Ua.Server
             ArrayOf<ReadValueId> nodesToRead,
             CancellationToken cancellationToken = default)
         {
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
             if (maxAge < 0)
             {
                 throw new ServiceResultException(StatusCodes.BadMaxAgeInvalid);
@@ -1300,6 +1304,7 @@ namespace Opc.Ua.Server
             ArrayOf<HistoryReadValueId> nodesToRead,
             CancellationToken cancellationToken = default)
         {
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
             // validate history details parameter.
             if (historyReadDetails.IsNull)
             {
@@ -1424,6 +1429,7 @@ namespace Opc.Ua.Server
             ArrayOf<WriteValue> nodesToWrite,
             CancellationToken cancellationToken = default)
         {
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -1537,6 +1543,7 @@ namespace Opc.Ua.Server
                 ArrayOf<ExtensionObject> historyUpdateDetails,
                 CancellationToken cancellationToken = default)
         {
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
             Type? detailsType = null;
             var nodesToUpdate = new List<HistoryUpdateDetails>();
 
@@ -1673,6 +1680,7 @@ namespace Opc.Ua.Server
                 ArrayOf<CallMethodRequest> methodsToCall,
                 CancellationToken cancellationToken = default)
         {
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -1830,6 +1838,7 @@ namespace Opc.Ua.Server
             bool createDurable,
             CancellationToken cancellationToken = default)
         {
+            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
             await CreateMonitoredItemsCoreAsync(
                 context,
                 subscriptionId,
