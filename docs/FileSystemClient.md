@@ -142,6 +142,15 @@ properties (`MimeType`, `MaxByteStringLength`, `LastModifiedTime`) are
 returned as `null` when the server does not expose them
 (`BadNoMatch`, `BadNodeIdUnknown`, or empty target lists are tolerated).
 
+On the stack's `FileSystemNodeManager`, metadata reads and initial monitored-item
+values use the asynchronous provider binding without allocating retained file
+handle state or opening a stream. The first `Size` notification contains the
+file's current byte count and status, not a stored null placeholder. Reattaching
+an item after removing and re-adding its manager, or re-enabling a disabled item,
+also reads fresh metadata. These initial reads do not add periodic polling for
+external file changes; later notifications still require the node's normal
+change-notification mechanism.
+
 `Writable` / `UserWritable` are advisory: callers should not pre-check
 them before opening a file. Rely on the server's `Open` response for the
 authoritative answer.

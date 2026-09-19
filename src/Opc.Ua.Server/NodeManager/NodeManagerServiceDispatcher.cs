@@ -2031,7 +2031,13 @@ namespace Opc.Ua.Server
                                     subscriptionId,
                                     monitoredItem,
                                     false,
-                                    cancellationToken).ConfigureAwait(false);
+                                    cancellationToken).ConfigureAwait(false) ??
+                                    ServiceResult.Good;
+                                if (subscriptionResult.StatusCode == StatusCodes.BadNotSupported)
+                                {
+                                    subscriptionResult = ServiceResult.Good;
+                                    continue;
+                                }
                                 if (ServiceResult.IsBad(subscriptionResult))
                                 {
                                     break;
@@ -2087,6 +2093,7 @@ namespace Opc.Ua.Server
                                                 context, subscriptionId, monitoredItem, true, CancellationToken.None)
                                             : owner.SubscribeToEventsAsync(
                                                 context, handle, subscriptionId, monitoredItem, true, CancellationToken.None),
+                                        allEvents,
                                         CancellationToken.None).ConfigureAwait(false);
                                 }
                             }
@@ -2855,6 +2862,7 @@ namespace Opc.Ua.Server
                                     monitoredItem,
                                     true,
                                     cancellationToken),
+                                allEvents: true,
                                 cancellationToken)
                                 .ConfigureAwait(false);
                             if (ServiceResult.IsBad(unsubscribe) && ServiceResult.IsGood(result))
@@ -2883,6 +2891,7 @@ namespace Opc.Ua.Server
                         () => owningNodeManager.SubscribeToEventsAsync(
                             context, monitoredItem.ManagerHandle, subscriptionId, monitoredItem, true,
                             cancellationToken),
+                        allEvents: false,
                         cancellationToken).ConfigureAwait(false);
                 }
 
@@ -3657,12 +3666,17 @@ namespace Opc.Ua.Server
         private async ValueTask<ServiceResult> UnsubscribeEventsAsync(
             IAsyncNodeManager owner,
             Func<ValueTask<ServiceResult>> unsubscribe,
+            bool allEvents,
             CancellationToken cancellationToken)
         {
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                ServiceResult result = await unsubscribe().ConfigureAwait(false);
+                ServiceResult result = await unsubscribe().ConfigureAwait(false) ?? ServiceResult.Good;
+                if (allEvents && result.StatusCode == StatusCodes.BadNotSupported)
+                {
+                    return ServiceResult.Good;
+                }
                 if (ServiceResult.IsBad(result))
                 {
                     m_logger.MonitoredItemOwnerDispatchFailed(result.GetServiceResultException(), owner.GetType().Name);

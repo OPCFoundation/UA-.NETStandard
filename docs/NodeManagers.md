@@ -1419,6 +1419,20 @@ unaccepted monitored item from registration, sampling, and any newly
 acquired component-cache entry. Existing items on that node remain valid.
 Recoverable bad data values do not prevent creating the monitored item.
 
+`AsyncCustomNodeManager` acquires current values through
+`NodeState.ReadAttributeAsync`, including initial creation, aggregate-filter
+validation and current-value fallbacks, lifecycle compatibility checks,
+reattachment/recovery, and re-enabling monitoring. Async `OnReadValueAsync`
+bindings therefore supply the first sample rather than the node's stored
+placeholder (OPC UA Part 4 [5.13.1.3](https://reference.opcfoundation.org/Core/Part4/v105/docs/5.13.1.3)).
+Provider awaits run outside the monitored-item registry semaphore; registration
+and cleanup remain serialized, and the operation lifetime prevents disposal
+from releasing owned resources before the read completes. Request cancellation
+removes unaccepted registrations instead of publishing a cancelled read as a
+successful initial sample. Override `ReadInitialValueAsync` for custom initial
+acquisition; the legacy synchronous `ReadInitialValue` hook is obsolete and is
+not called by asynchronous admission.
+
 Manager-level asynchronous batch hooks receive only successful items and
 run after the monitored-item manager has applied its changes:
 
@@ -1819,6 +1833,19 @@ builder.Boilers.Boiler__1.DrumX001
 ```
 
 #### Hand-written node managers
+
+The `Server` Object (`i=2253`) is the aggregate event subscription point
+(OPC UA Part 5 [8.3.2](https://reference.opcfoundation.org/Core/Part5/v105/docs/8.3.2)).
+Server-wide fan-out treats an individual root or manager's `BadNotSupported` as
+non-participation, not as a failure of every other source. Root registration
+does not silently set `EventNotifier.SubscribeToEvents`; declare the capability
+on actual notifiers as required by Part 3
+[7.18](https://reference.opcfoundation.org/Core/Part3/v105/docs/7.18).
+A direct subscription to an unsupported root still fails with `BadNotSupported`.
+Other startup errors fail the item and roll back attempted registrations.
+Unsubscription continues across independent roots and managers while reporting
+genuine cleanup errors; unsupported participants do not turn successful deletion
+into an error.
 
 An event stream that connects an asynchronous upstream producer can also
 implement `IEventSourceReadiness`. The registry enumerates the stream while
