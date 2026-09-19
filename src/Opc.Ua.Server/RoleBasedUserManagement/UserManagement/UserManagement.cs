@@ -62,6 +62,11 @@ namespace Opc.Ua.Server.UserManagement
             = new(StringComparer.Ordinal);
 
         private readonly ReaderWriterLockSlim m_lock = new(LockRecursionPolicy.NoRecursion);
+
+        /// <summary>
+        /// Queued mutations must not make metadata readers wait behind a self-service password change.
+        /// </summary>
+        private readonly Lock m_mutationLock = new();
         private bool m_disposed;
 
         /// <summary>
@@ -159,28 +164,31 @@ namespace Opc.Ua.Server.UserManagement
                 return passwordValidation;
             }
 
-            m_lock.EnterWriteLock();
-            try
+            lock (m_mutationLock)
             {
-                if (m_metadata.ContainsKey(userName))
+                m_lock.EnterWriteLock();
+                try
                 {
-                    return new ServiceResult(StatusCodes.BadAlreadyExists,
-                        new LocalizedText($"User '{userName}' already exists."));
+                    if (m_metadata.ContainsKey(userName))
+                    {
+                        return new ServiceResult(StatusCodes.BadAlreadyExists,
+                            new LocalizedText($"User '{userName}' already exists."));
+                    }
+                    bool created = m_userMetadataDatabase != null
+                        ? m_userMetadataDatabase.CreateUser(
+                            userName, GetPasswordBytes(password), [], userConfiguration, description ?? string.Empty)
+                        : m_userDatabase.CreateUser(userName, GetPasswordBytes(password), []);
+                    if (!created)
+                    {
+                        return new ServiceResult(StatusCodes.BadResourceUnavailable,
+                            new LocalizedText("User-database rejected the create operation."));
+                    }
+                    m_metadata[userName] = new UserMetadata(userConfiguration, description ?? string.Empty);
                 }
-                bool created = m_userMetadataDatabase != null
-                    ? m_userMetadataDatabase.CreateUser(
-                        userName, GetPasswordBytes(password), [], userConfiguration, description ?? string.Empty)
-                    : m_userDatabase.CreateUser(userName, GetPasswordBytes(password), []);
-                if (!created)
+                finally
                 {
-                    return new ServiceResult(StatusCodes.BadResourceUnavailable,
-                        new LocalizedText("User-database rejected the create operation."));
+                    m_lock.ExitWriteLock();
                 }
-                m_metadata[userName] = new UserMetadata(userConfiguration, description ?? string.Empty);
-            }
-            finally
-            {
-                m_lock.ExitWriteLock();
             }
 
             return ServiceResult.Good;
@@ -205,90 +213,93 @@ namespace Opc.Ua.Server.UserManagement
             bool willDisable = false;
             bool disabled;
 
-            m_lock.EnterWriteLock();
-            try
+            lock (m_mutationLock)
             {
-                if (!m_metadata.TryGetValue(userName, out UserMetadata? existing))
+                m_lock.EnterWriteLock();
+                try
                 {
-                    return new ServiceResult(StatusCodes.BadNotFound,
-                        new LocalizedText($"User '{userName}' not found."));
-                }
-
-                UserConfigurationMask effectiveConfig = modifyUserConfiguration
-                    ? userConfiguration
-                    : existing.Configuration;
-                string effectiveDescription = modifyDescription
-                    ? description ?? string.Empty
-                    : existing.Description;
-
-                if (modifyUserConfiguration)
-                {
-                    ServiceResult configValidation = ValidateConfigurationFlags(userConfiguration);
-                    if (ServiceResult.IsBad(configValidation))
+                    if (!m_metadata.TryGetValue(userName, out UserMetadata? existing))
                     {
-                        return configValidation;
+                        return new ServiceResult(StatusCodes.BadNotFound,
+                            new LocalizedText($"User '{userName}' not found."));
                     }
 
-                    willDisable = (existing.Configuration & UserConfigurationMask.Disabled) == 0 &&
-                        (userConfiguration & UserConfigurationMask.Disabled) != 0;
+                    UserConfigurationMask effectiveConfig = modifyUserConfiguration
+                        ? userConfiguration
+                        : existing.Configuration;
+                    string effectiveDescription = modifyDescription
+                        ? description ?? string.Empty
+                        : existing.Description;
 
-                    if (willDisable &&
-                        callingUserName != null &&
-                        string.Equals(callingUserName, userName, StringComparison.Ordinal))
+                    if (modifyUserConfiguration)
                     {
-                        return new ServiceResult(StatusCodes.BadInvalidSelfReference,
-                            new LocalizedText("The user to disable is the calling session's user."));
-                    }
-                }
-
-                if (modifyPassword)
-                {
-                    ServiceResult passwordValidation = ValidatePassword(password);
-                    if (ServiceResult.IsBad(passwordValidation))
-                    {
-                        return passwordValidation;
-                    }
-
-                    if (m_userMetadataDatabase != null)
-                    {
-                        if (!m_userMetadataDatabase.ResetPassword(
-                            userName, GetPasswordBytes(password), effectiveConfig, effectiveDescription))
+                        ServiceResult configValidation = ValidateConfigurationFlags(userConfiguration);
+                        if (ServiceResult.IsBad(configValidation))
                         {
-                            return new ServiceResult(StatusCodes.BadResourceUnavailable,
-                                new LocalizedText("User-database rejected the password reset."));
+                            return configValidation;
+                        }
+
+                        willDisable = (existing.Configuration & UserConfigurationMask.Disabled) == 0 &&
+                            (userConfiguration & UserConfigurationMask.Disabled) != 0;
+
+                        if (willDisable &&
+                            callingUserName != null &&
+                            string.Equals(callingUserName, userName, StringComparison.Ordinal))
+                        {
+                            return new ServiceResult(StatusCodes.BadInvalidSelfReference,
+                                new LocalizedText("The user to disable is the calling session's user."));
                         }
                     }
-                    else
+
+                    if (modifyPassword)
                     {
-                        // Legacy stores expose no transaction or prior verifier for an admin reset.
-                        ICollection<Role> preservedRoles = SnapshotUserRolesSafe(userName);
-                        if (!m_userDatabase.DeleteUser(userName))
+                        ServiceResult passwordValidation = ValidatePassword(password);
+                        if (ServiceResult.IsBad(passwordValidation))
                         {
-                            return new ServiceResult(StatusCodes.BadResourceUnavailable,
-                                new LocalizedText("User-database rejected the delete during password reset."));
+                            return passwordValidation;
                         }
-                        if (!m_userDatabase.CreateUser(userName, GetPasswordBytes(password), preservedRoles))
+
+                        if (m_userMetadataDatabase != null)
                         {
-                            m_metadata.Remove(userName);
-                            return new ServiceResult(StatusCodes.BadResourceUnavailable,
-                                new LocalizedText(
-                                    "User-database rejected the create during password reset; " +
-                                    "the user account has been removed."));
+                            if (!m_userMetadataDatabase.ResetPassword(
+                                userName, GetPasswordBytes(password), effectiveConfig, effectiveDescription))
+                            {
+                                return new ServiceResult(StatusCodes.BadResourceUnavailable,
+                                    new LocalizedText("User-database rejected the password reset."));
+                            }
+                        }
+                        else
+                        {
+                            // Legacy stores expose no transaction or prior verifier for an admin reset.
+                            ICollection<Role> preservedRoles = SnapshotUserRolesSafe(userName);
+                            if (!m_userDatabase.DeleteUser(userName))
+                            {
+                                return new ServiceResult(StatusCodes.BadResourceUnavailable,
+                                    new LocalizedText("User-database rejected the delete during password reset."));
+                            }
+                            if (!m_userDatabase.CreateUser(userName, GetPasswordBytes(password), preservedRoles))
+                            {
+                                m_metadata.Remove(userName);
+                                return new ServiceResult(StatusCodes.BadResourceUnavailable,
+                                    new LocalizedText(
+                                        "User-database rejected the create during password reset; " +
+                                        "the user account has been removed."));
+                            }
                         }
                     }
-                }
-                else if (!PersistUserMetadata(userName, effectiveConfig, effectiveDescription))
-                {
-                    return new ServiceResult(StatusCodes.BadResourceUnavailable,
-                        new LocalizedText("User-database rejected the metadata write."));
-                }
+                    else if (!PersistUserMetadata(userName, effectiveConfig, effectiveDescription))
+                    {
+                        return new ServiceResult(StatusCodes.BadResourceUnavailable,
+                            new LocalizedText("User-database rejected the metadata write."));
+                    }
 
-                disabled = (effectiveConfig & UserConfigurationMask.Disabled) != 0;
-                m_metadata[userName] = new UserMetadata(effectiveConfig, effectiveDescription);
-            }
-            finally
-            {
-                m_lock.ExitWriteLock();
+                    disabled = (effectiveConfig & UserConfigurationMask.Disabled) != 0;
+                    m_metadata[userName] = new UserMetadata(effectiveConfig, effectiveDescription);
+                }
+                finally
+                {
+                    m_lock.ExitWriteLock();
+                }
             }
 
             if (willDisable && disabled)
@@ -313,27 +324,30 @@ namespace Opc.Ua.Server.UserManagement
                     new LocalizedText("The user to remove is the calling session's user."));
             }
 
-            m_lock.EnterWriteLock();
-            try
+            lock (m_mutationLock)
             {
-                if (!m_metadata.TryGetValue(userName, out UserMetadata? existing))
+                m_lock.EnterWriteLock();
+                try
                 {
-                    return new ServiceResult(StatusCodes.BadNotFound);
+                    if (!m_metadata.TryGetValue(userName, out UserMetadata? existing))
+                    {
+                        return new ServiceResult(StatusCodes.BadNotFound);
+                    }
+                    if ((existing.Configuration & UserConfigurationMask.NoDelete) != 0)
+                    {
+                        return new ServiceResult(StatusCodes.BadNotSupported,
+                            new LocalizedText($"User '{userName}' is marked NoDelete."));
+                    }
+                    if (!m_userDatabase.DeleteUser(userName))
+                    {
+                        return new ServiceResult(StatusCodes.BadResourceUnavailable);
+                    }
+                    m_metadata.Remove(userName);
                 }
-                if ((existing.Configuration & UserConfigurationMask.NoDelete) != 0)
+                finally
                 {
-                    return new ServiceResult(StatusCodes.BadNotSupported,
-                        new LocalizedText($"User '{userName}' is marked NoDelete."));
+                    m_lock.ExitWriteLock();
                 }
-                if (!m_userDatabase.DeleteUser(userName))
-                {
-                    return new ServiceResult(StatusCodes.BadResourceUnavailable);
-                }
-                m_metadata.Remove(userName);
-            }
-            finally
-            {
-                m_lock.ExitWriteLock();
             }
 
             RaiseUserDeactivated(userName);
@@ -360,18 +374,27 @@ namespace Opc.Ua.Server.UserManagement
                     new LocalizedText("New password matches the old password."));
             }
 
-            m_lock.EnterWriteLock();
-            try
+            lock (m_mutationLock)
             {
-                if (!m_metadata.TryGetValue(userName, out UserMetadata? metadata))
+                UserMetadata metadata;
+                m_lock.EnterReadLock();
+                try
                 {
-                    return new ServiceResult(StatusCodes.BadNotFound);
+                    if (!m_metadata.TryGetValue(userName, out metadata!))
+                    {
+                        return new ServiceResult(StatusCodes.BadNotFound);
+                    }
+                    if ((metadata.Configuration & UserConfigurationMask.NoChangeByUser) != 0)
+                    {
+                        return new ServiceResult(StatusCodes.BadNotSupported,
+                            new LocalizedText($"User '{userName}' is marked NoChangeByUser."));
+                    }
                 }
-                if ((metadata.Configuration & UserConfigurationMask.NoChangeByUser) != 0)
+                finally
                 {
-                    return new ServiceResult(StatusCodes.BadNotSupported,
-                        new LocalizedText($"User '{userName}' is marked NoChangeByUser."));
+                    m_lock.ExitReadLock();
                 }
+
                 if (!m_userDatabase.ChangePassword(userName,
                     GetPasswordBytes(oldPassword), GetPasswordBytes(newPassword)))
                 {
@@ -379,13 +402,17 @@ namespace Opc.Ua.Server.UserManagement
                         new LocalizedText("Old password does not match."));
                 }
 
-                m_metadata[userName] = new UserMetadata(
-                    metadata.Configuration & ~UserConfigurationMask.MustChangePassword,
-                    metadata.Description);
-            }
-            finally
-            {
-                m_lock.ExitWriteLock();
+                m_lock.EnterWriteLock();
+                try
+                {
+                    m_metadata[userName] = new UserMetadata(
+                        metadata.Configuration & ~UserConfigurationMask.MustChangePassword,
+                        metadata.Description);
+                }
+                finally
+                {
+                    m_lock.ExitWriteLock();
+                }
             }
 
             return ServiceResult.Good;
@@ -582,12 +609,15 @@ namespace Opc.Ua.Server.UserManagement
         /// <inheritdoc/>
         public void Dispose()
         {
-            if (m_disposed)
+            lock (m_mutationLock)
             {
-                return;
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_disposed = true;
+                m_lock.Dispose();
             }
-            m_disposed = true;
-            m_lock.Dispose();
         }
     }
 }

@@ -154,7 +154,7 @@ namespace Opc.Ua.Server.UserDatabase
                     UserConfiguration = previous?.UserConfiguration ?? 0,
                     Description = previous?.Description ?? string.Empty
                 };
-                SaveUserChange(userName, previous, replacement);
+                SaveUserChange(userName, replacement);
                 return added;
             }
         }
@@ -194,7 +194,7 @@ namespace Opc.Ua.Server.UserDatabase
                     UserConfiguration = (uint)userConfiguration,
                     Description = description ?? string.Empty
                 };
-                SaveUserChange(userName, null, user);
+                SaveUserChange(userName, user);
                 return true;
             }
         }
@@ -209,12 +209,12 @@ namespace Opc.Ua.Server.UserDatabase
 
             lock (m_updateLock)
             {
-                if (!m_users.TryGetValue(userName, out User? user))
+                if (!m_users.TryGetValue(userName, out _))
                 {
                     return false;
                 }
 
-                SaveUserChange(userName, user, null);
+                SaveUserChange(userName, null);
                 return true;
             }
         }
@@ -232,12 +232,7 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("Password cannot be empty.", nameof(password));
             }
 
-            bool known;
-            User? user;
-            lock (m_updateLock)
-            {
-                known = m_users.TryGetValue(userName, out user);
-            }
+            bool known = m_users.TryGetValue(userName, out User? user);
             bool valid = Check(known ? user!.Hash : s_unknownUserHash, password);
             return known && valid;
         }
@@ -250,15 +245,11 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
 
-            lock (m_updateLock)
+            if (!m_users.TryGetValue(userName, out User? user))
             {
-                if (!m_users.TryGetValue(userName, out User? user))
-                {
-                    throw new ArgumentException("No user found with the UserName " + userName);
-                }
-
-                return user!.Roles;
+                throw new ArgumentException("No user found with the UserName " + userName);
             }
+            return user.Roles?.ToArray()!;
         }
 
         /// <inheritdoc/>
@@ -268,7 +259,7 @@ namespace Opc.Ua.Server.UserDatabase
             {
                 return
                 [
-                    .. m_users.Values.Select(user => new UserManagementDataType
+                    .. GetSnapshotUsers().Select(user => new UserManagementDataType
                     {
                         UserName = user.UserName,
                         UserConfiguration = user.UserConfiguration,
@@ -299,7 +290,7 @@ namespace Opc.Ua.Server.UserDatabase
                 User replacement = SnapshotUser(user);
                 replacement.UserConfiguration = (uint)userConfiguration;
                 replacement.Description = description ?? string.Empty;
-                SaveUserChange(userName, user, replacement);
+                SaveUserChange(userName, replacement);
                 return true;
             }
         }
@@ -333,7 +324,7 @@ namespace Opc.Ua.Server.UserDatabase
                 replacement.Hash = hash;
                 replacement.UserConfiguration = (uint)userConfiguration;
                 replacement.Description = description ?? string.Empty;
-                SaveUserChange(userName, user, replacement);
+                SaveUserChange(userName, replacement);
                 return true;
             }
         }
@@ -358,17 +349,25 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("New Password cannot be empty.", nameof(newPassword));
             }
 
+            if (!m_users.TryGetValue(userName, out User? captured) || !Check(captured.Hash, oldPassword))
+            {
+                return false;
+            }
+
+            string hash = Hash(newPassword);
             lock (m_updateLock)
             {
-                if (!m_users.TryGetValue(userName, out User? user) || !Check(user.Hash, oldPassword))
+                if (!m_users.TryGetValue(userName, out User? user) ||
+                    user.ID != captured.ID ||
+                    !string.Equals(user.Hash, captured.Hash, StringComparison.Ordinal))
                 {
                     return false;
                 }
 
                 User replacement = SnapshotUser(user);
-                replacement.Hash = Hash(newPassword);
+                replacement.Hash = hash;
                 replacement.UserConfiguration &= ~(uint)UserConfigurationMask.MustChangePassword;
-                SaveUserChange(userName, user, replacement);
+                SaveUserChange(userName, replacement);
                 return true;
             }
         }
@@ -379,7 +378,8 @@ namespace Opc.Ua.Server.UserDatabase
         /// <remarks>
         /// This base implementation keeps records only in memory.
         /// An override must commit one complete snapshot or leave the previous stored snapshot unchanged and throw.
-        /// The caller restores the previous in-memory record if this method throws.
+        /// <see cref="Users"/> and <see cref="GetUsers"/> include the pending change during this call.
+        /// Authentication continues to use the committed record until persistence succeeds.
         /// </remarks>
         protected virtual void Save()
         {
@@ -395,7 +395,7 @@ namespace Opc.Ua.Server.UserDatabase
             {
                 lock (m_updateLock)
                 {
-                    return [.. m_users.Values.Select(SnapshotUser)];
+                    return [.. GetSnapshotUsers().Select(SnapshotUser)];
                 }
             }
             set
@@ -418,32 +418,41 @@ namespace Opc.Ua.Server.UserDatabase
             m_users = new ConcurrentDictionary<string, User>();
         }
 
-        private void SaveUserChange(string userName, User? previous, User? replacement)
+        private IEnumerable<User> GetSnapshotUsers()
         {
-            if (replacement == null)
+            foreach (User user in m_users.Values)
             {
-                m_users.TryRemove(userName, out _);
+                if (!string.Equals(user.UserName, m_pendingUserName, StringComparison.Ordinal))
+                {
+                    yield return user;
+                }
             }
-            else
+            if (m_pendingUser != null)
             {
-                m_users[userName] = replacement;
+                yield return m_pendingUser;
             }
+        }
 
+        private void SaveUserChange(string userName, User? replacement)
+        {
+            m_pendingUserName = userName;
+            m_pendingUser = replacement;
             try
             {
                 Save();
-            }
-            catch
-            {
-                if (previous == null)
+                if (replacement == null)
                 {
                     m_users.TryRemove(userName, out _);
                 }
                 else
                 {
-                    m_users[userName] = previous;
+                    m_users[userName] = replacement;
                 }
-                throw;
+            }
+            finally
+            {
+                m_pendingUserName = null;
+                m_pendingUser = null;
             }
         }
 
@@ -624,6 +633,8 @@ namespace Opc.Ua.Server.UserDatabase
         private readonly Action<byte[]>? m_keyDerived;
 
         private readonly Lock m_updateLock = new();
+        private string? m_pendingUserName;
+        private User? m_pendingUser;
 
         /// <summary>
         /// Supplies a real verifier for credential checks that do not find a stored user.

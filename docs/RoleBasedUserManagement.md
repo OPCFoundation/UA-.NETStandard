@@ -223,6 +223,21 @@ through atomic file replacement. Failed writes leave the previous file
 intact, and saves are serialized per database instance. Missing files
 initialize an empty database; malformed or inaccessible files are logged
 and reported as errors instead of silently becoming empty databases.
+Authentication reads committed credential and role records without waiting
+for snapshot I/O; the pending replacement is visible only to snapshot
+persistence until the write succeeds. A failed write never publishes its
+candidate credentials.
+
+Self-service password changes verify the captured credential and derive the
+replacement outside the credential-store and metadata-reader locks, retaining
+100,000-iteration PBKDF2-SHA512. The store commits only if the user's identity
+and captured verifier still match, so a concurrent password reset or change
+cannot be overwritten by stale verification. The password and cleared
+`MustChangePassword` flag remain one atomic persisted update, preserving the
+latest other metadata. Management mutations remain serialized separately from
+authentication reads; self-service hashing and snapshot I/O do not hold the
+metadata write lock. Administrative mutations retain their existing metadata
+publication semantics.
 
 Password verification uses the shared fixed-time comparison with the
 expected derived-key width and clears working key/password buffers on

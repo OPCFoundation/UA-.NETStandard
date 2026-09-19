@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Identity;
@@ -330,6 +331,299 @@ namespace Opc.Ua.Server.Tests
             Assert.That(user.UserConfiguration,
                 Is.EqualTo((uint)(UserConfigurationMask.Disabled | UserConfigurationMask.NoDelete)));
             Assert.That(user.Description, Is.EqualTo("Original restriction"));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PasswordVerificationDoesNotBlockUnrelatedAuthenticationAsync(bool correctPassword)
+        {
+            using var release = new ManualResetEventSlim();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int verifications = 0;
+            var database = new LinqUserDatabase(_ =>
+            {
+                if (Interlocked.Increment(ref verifications) == 1)
+                {
+                    entered.TrySetResult(true);
+                    release.Wait();
+                }
+            });
+            Assert.That(database.CreateUser(
+                "alice", "credential"u8, [Role.AuthenticatedUser],
+                UserConfigurationMask.MustChangePassword, "Pending change"), Is.True);
+            Assert.That(database.CreateUser("bob", "other-credential"u8, [Role.Operator]), Is.True);
+            using var management = new UserManagementFacade(database);
+            var change = Task.Run(() =>
+            {
+                ServiceResult result = management.ChangePassword(
+                    "alice", correctPassword ? "credential" : "incorrect", "replacement-credential");
+                Assert.That(result.StatusCode,
+                    Is.EqualTo(correctPassword ? StatusCodes.Good : StatusCodes.BadIdentityTokenInvalid));
+            });
+            Task authentication = Task.CompletedTask;
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                authentication = Task.Run(async () =>
+                    await AuthenticateUnrelatedUserAsync(database, management).ConfigureAwait(false));
+                await authentication.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(release.IsSet, Is.False,
+                    "Authentication must finish while the other user's verification is still paused.");
+            }
+            finally
+            {
+                release.Set();
+                await Task.WhenAll(change, authentication).ConfigureAwait(false);
+            }
+            Assert.That(management.MustChangePassword("alice"), Is.EqualTo(!correctPassword));
+            Assert.That(database.CheckCredentials("alice", "replacement-credential"u8), Is.EqualTo(correctPassword));
+            Assert.That(database.CheckCredentials("alice", "credential"u8), Is.EqualTo(!correctPassword));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PasswordPersistenceDoesNotBlockAuthenticationOrExposeTentativeCredentialsAsync(bool failSave)
+        {
+            using var files = new DatabaseFiles();
+            var initial = new JsonUserDatabase(files.FileName);
+            Assert.That(initial.CreateUser(
+                "alice", "credential"u8, [Role.AuthenticatedUser],
+                UserConfigurationMask.MustChangePassword, "Pending change"), Is.True);
+            Assert.That(initial.CreateUser("bob", "other-credential"u8, [Role.Operator]), Is.True);
+            byte[] committed = File.ReadAllBytes(files.FileName);
+            using var release = new ManualResetEventSlim();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int writes = 0;
+            var database = new JsonUserDatabase(files.FileName, (path, bytes) =>
+            {
+                Interlocked.Increment(ref writes);
+                File.WriteAllBytes(path, bytes);
+                entered.TrySetResult(true);
+                release.Wait();
+                if (failSave)
+                {
+                    throw new IOException("controlled password persistence failure");
+                }
+            })
+            {
+                Users = initial.Users
+            };
+            using var management = new UserManagementFacade(database);
+            var change = Task.Run(() =>
+            {
+                if (failSave)
+                {
+                    Assert.That(
+                        () => management.ChangePassword("alice", "credential", "replacement-credential"),
+                        Throws.TypeOf<IOException>().With.Message.EqualTo("controlled password persistence failure"));
+                }
+                else
+                {
+                    Assert.That(
+                        ServiceResult.IsGood(
+                            management.ChangePassword("alice", "credential", "replacement-credential")),
+                        Is.True);
+                }
+            });
+            Task<(bool OldValid, bool NewValid, bool MustChange)> authentication =
+                Task.FromResult((false, false, false));
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                authentication = Task.Run(async () =>
+                {
+                    await AuthenticateUnrelatedUserAsync(database, management).ConfigureAwait(false);
+                    return (
+                        database.CheckCredentials("alice", "credential"u8),
+                        database.CheckCredentials("alice", "replacement-credential"u8),
+                        management.MustChangePassword("alice"));
+                });
+                (bool oldValid, bool newValid, bool mustChange) = await authentication
+                    .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(oldValid, Is.True);
+                Assert.That(newValid, Is.False);
+                Assert.That(mustChange, Is.True);
+                Assert.That(release.IsSet, Is.False);
+                Assert.That(File.ReadAllBytes(files.FileName).SequenceEqual(committed), Is.True);
+            }
+            finally
+            {
+                release.Set();
+                await Task.WhenAll(change, authentication).ConfigureAwait(false);
+            }
+            Assert.That(writes, Is.EqualTo(1));
+            Assert.That(database.CheckCredentials("alice", "credential"u8), Is.EqualTo(failSave));
+            Assert.That(database.CheckCredentials("alice", "replacement-credential"u8), Is.EqualTo(!failSave));
+            Assert.That(management.MustChangePassword("alice"), Is.EqualTo(failSave));
+            IUserDatabase reloaded = JsonUserDatabase.Load(files.FileName, NUnitTelemetryContext.Create());
+            Assert.That(reloaded.CheckCredentials("alice", "credential"u8), Is.EqualTo(failSave));
+            Assert.That(reloaded.CheckCredentials("alice", "replacement-credential"u8), Is.EqualTo(!failSave));
+            Assert.That(reloaded.GetUsers().Single(user => user.UserName == "alice").UserConfiguration,
+                Is.EqualTo((uint)(failSave ? UserConfigurationMask.MustChangePassword : UserConfigurationMask.None)));
+            Assert.That(Directory.GetFiles(files.DirectoryName), Has.Length.EqualTo(1));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void PasswordChangeRejectsVerifierReplacedDuringVerification(bool resetPassword)
+        {
+            Action onVerified = null!;
+            var database = new LinqUserDatabase(_ => onVerified?.Invoke());
+            Assert.That(database.CreateUser(
+                "alice", "credential"u8, [Role.SecurityAdmin],
+                UserConfigurationMask.MustChangePassword, "Original restriction"), Is.True);
+            onVerified = () =>
+            {
+                onVerified = null!;
+                bool changed = resetPassword
+                    ? database.ResetPassword(
+                        "alice", "concurrent-credential"u8,
+                        UserConfigurationMask.MustChangePassword, "Concurrent reset")
+                    : database.ChangePassword("alice", "credential"u8, "concurrent-credential"u8);
+                Assert.That(changed, Is.True);
+            };
+
+            Assert.That(database.ChangePassword("alice", "credential"u8, "replacement-credential"u8), Is.False);
+            Assert.That(database.CheckCredentials("alice", "concurrent-credential"u8), Is.True);
+            Assert.That(database.CheckCredentials("alice", "credential"u8), Is.False);
+            Assert.That(database.CheckCredentials("alice", "replacement-credential"u8), Is.False);
+            Assert.That(database.GetUserRoles("alice").Single(), Is.EqualTo(Role.SecurityAdmin));
+            UserManagementDataType user = database.GetUsers().Single();
+            Assert.That(user.UserConfiguration, Is.EqualTo((uint)(resetPassword
+                ? UserConfigurationMask.MustChangePassword
+                : UserConfigurationMask.None)));
+            Assert.That(user.Description, Is.EqualTo(resetPassword ? "Concurrent reset" : "Original restriction"));
+            Assert.That(database.Users.Single().Hash.Split('.')[0], Is.EqualTo("100000"));
+        }
+
+        [Test]
+        public void PasswordChangePreservesMetadataCommittedDuringVerification()
+        {
+            Action onVerified = null!;
+            var database = new LinqUserDatabase(_ => onVerified?.Invoke());
+            Assert.That(database.CreateUser(
+                "alice", "credential"u8, [Role.SecurityAdmin],
+                UserConfigurationMask.MustChangePassword, "Original restriction"), Is.True);
+            onVerified = () =>
+            {
+                onVerified = null!;
+                Assert.That(database.UpdateUserMetadata(
+                    "alice",
+                    UserConfigurationMask.Disabled |
+                    UserConfigurationMask.NoDelete |
+                    UserConfigurationMask.MustChangePassword,
+                    "Concurrent restriction"), Is.True);
+            };
+
+            Assert.That(database.ChangePassword("alice", "credential"u8, "replacement-credential"u8), Is.True);
+            Assert.That(database.CheckCredentials("alice", "credential"u8), Is.False);
+            Assert.That(database.CheckCredentials("alice", "replacement-credential"u8), Is.True);
+            UserManagementDataType user = database.GetUsers().Single();
+            Assert.That(user.UserConfiguration,
+                Is.EqualTo((uint)(UserConfigurationMask.Disabled | UserConfigurationMask.NoDelete)));
+            Assert.That(user.Description, Is.EqualTo("Concurrent restriction"));
+        }
+
+        [Test]
+        public async Task ConcurrentPasswordChangesCommitOnlyOneCapturedVerifierAsync()
+        {
+            using var release = new ManualResetEventSlim();
+            var bothVerified = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int verifications = 0;
+            var database = new LinqUserDatabase(_ =>
+            {
+                int count = Interlocked.Increment(ref verifications);
+                if (count <= 2)
+                {
+                    if (count == 2)
+                    {
+                        bothVerified.TrySetResult(true);
+                    }
+                    release.Wait();
+                }
+            });
+            Assert.That(database.CreateUser(
+                "alice", "credential"u8, [Role.SecurityAdmin],
+                UserConfigurationMask.MustChangePassword, "Pending change"), Is.True);
+            Task<bool> first = Task.Run(() =>
+                database.ChangePassword("alice", "credential"u8, "first-replacement"u8));
+            Task<bool> second = Task.Run(() =>
+                database.ChangePassword("alice", "credential"u8, "second-replacement"u8));
+            try
+            {
+                await bothVerified.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
+            finally
+            {
+                release.Set();
+                await Task.WhenAll(first, second).ConfigureAwait(false);
+            }
+
+            bool[] accepted = await Task.WhenAll(first, second).ConfigureAwait(false);
+            Assert.That(accepted.Count(value => value), Is.EqualTo(1));
+            Assert.That(database.CheckCredentials("alice", "credential"u8), Is.False);
+            Assert.That(database.CheckCredentials("alice", "first-replacement"u8), Is.EqualTo(accepted[0]));
+            Assert.That(database.CheckCredentials("alice", "second-replacement"u8), Is.EqualTo(accepted[1]));
+            Assert.That(database.GetUsers().Single().UserConfiguration, Is.Zero);
+            Assert.That(database.GetUserRoles("alice").Single(), Is.EqualTo(Role.SecurityAdmin));
+        }
+
+        [Test]
+        public async Task QueuedAdministrativeResetPreservesRequiredChangeWithoutBlockingOtherUsersAsync()
+        {
+            using var release = new ManualResetEventSlim();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var resetStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int verifications = 0;
+            var database = new LinqUserDatabase(_ =>
+            {
+                if (Interlocked.Increment(ref verifications) == 1)
+                {
+                    entered.TrySetResult(true);
+                    release.Wait();
+                }
+            });
+            Assert.That(database.CreateUser(
+                "alice", "credential"u8, [Role.SecurityAdmin],
+                UserConfigurationMask.MustChangePassword, "Pending change"), Is.True);
+            Assert.That(database.CreateUser("bob", "other-credential"u8, [Role.Operator]), Is.True);
+            using var management = new UserManagementFacade(database);
+            Task<ServiceResult> change = Task.Run(() =>
+                management.ChangePassword("alice", "credential", "replacement-credential"));
+            Task reset = Task.CompletedTask;
+            Task authentication = Task.CompletedTask;
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                reset = Task.Run(() =>
+                {
+                    resetStarted.TrySetResult(true);
+                    ServiceResult result = management.ModifyUser(
+                        "alice", true, "admin-replacement", true, UserConfigurationMask.MustChangePassword,
+                        true, "Administrator reset", "admin");
+                    Assert.That(ServiceResult.IsGood(result), Is.True);
+                });
+                await resetStarted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                authentication = Task.Run(async () =>
+                    await AuthenticateUnrelatedUserAsync(database, management).ConfigureAwait(false));
+                await authentication.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(release.IsSet, Is.False);
+            }
+            finally
+            {
+                release.Set();
+                await Task.WhenAll(change, reset, authentication).ConfigureAwait(false);
+            }
+
+            Assert.That(ServiceResult.IsGood(await change.ConfigureAwait(false)), Is.True);
+            Assert.That(management.MustChangePassword("alice"), Is.True);
+            Assert.That(database.CheckCredentials("alice", "admin-replacement"u8), Is.True);
+            Assert.That(database.CheckCredentials("alice", "replacement-credential"u8), Is.False);
+            UserManagementDataType persisted = database.GetUsers().Single(user => user.UserName == "alice");
+            UserManagementDataType published = management.SnapshotUsers().Single(user => user.UserName == "alice");
+            Assert.That(persisted.UserConfiguration, Is.EqualTo((uint)UserConfigurationMask.MustChangePassword));
+            Assert.That(published.UserConfiguration, Is.EqualTo(persisted.UserConfiguration));
+            Assert.That(published.Description, Is.EqualTo("Administrator reset"));
         }
 
         [TestCase("create")]
@@ -703,6 +997,32 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(result.Error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             }
             CryptoUtils.ZeroMemory(handler.DecryptedPassword);
+        }
+
+        private static async Task AuthenticateUnrelatedUserAsync(
+            IUserDatabase database,
+            UserManagementFacade management)
+        {
+            Assert.That(management.MustChangePassword("bob"), Is.False);
+            var authenticator = new UserNamePasswordAuthenticator(
+                database, management, NUnitTelemetryContext.Create());
+            var handler = new UserNameIdentityTokenHandler("bob", "other-credential"u8);
+            try
+            {
+                var context = new AuthenticationContext(
+                    handler,
+                    new UserTokenPolicy { TokenType = UserTokenType.UserName, PolicyId = "username" },
+                    new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt },
+                    ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+                AuthenticationResult authenticated = await authenticator.AuthenticateAsync(context)
+                    .ConfigureAwait(false);
+                Assert.That(authenticated.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+                Assert.That(database.GetUserRoles("bob").Single(), Is.EqualTo(Role.Operator));
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(handler.DecryptedPassword);
+            }
         }
 
         private static void AssertOriginalUser(IUserDatabase database)
