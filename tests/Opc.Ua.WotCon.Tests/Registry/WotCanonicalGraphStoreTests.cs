@@ -262,6 +262,85 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "Restoring Version incarnations must preserve the root graph state.");
         }
 
+        [TestCase("absent", false)]
+        [TestCase("empty", false)]
+        [TestCase("nonempty", false)]
+        [TestCase("absent", true)]
+        [TestCase("empty", true)]
+        [TestCase("nonempty", true)]
+        [Platform("Win")]
+        public async Task DependencyMetadataMigrationPreservesCommittedGraph(
+            string graphKind, bool missingDependencies)
+        {
+            ByteString graph = graphKind switch
+            {
+                "absent" => default,
+                "empty" => ByteString.Empty,
+                "nonempty" => s_graph,
+                _ => throw new ArgumentOutOfRangeException(nameof(graphKind))
+            };
+            WotRegistrySnapshot persisted;
+            WotResource child;
+            WotResource parent;
+            WotResource unrelated;
+            using (var store = new FileWotRegistryStore(m_root))
+            using (var registry = new WotRegistryService(store))
+            {
+                await registry.InitializeAsync().ConfigureAwait(false);
+                child = await AddAsync(registry, "child").ConfigureAwait(false);
+                parent = await AddAsync(registry, "parent").ConfigureAwait(false);
+                unrelated = await AddAsync(registry, "unrelated").ConfigureAwait(false);
+                WotRegistrySnapshot snapshot = WithRoot(registry.Current, child, "child-view");
+                snapshot = WithRoot(snapshot, parent, "parent-view");
+                if (missingDependencies)
+                {
+                    WotResourceVersion version = unrelated.DefaultVersion!;
+                    var legacy = new WotResourceVersion(
+                        version.VersionId, version.Digest, version.ContentLength, version.ContentType,
+                        version.Format, version.CreatedAt, version.ModifiedAt)
+                    {
+                        Epoch = version.Epoch,
+                        Labels = version.Labels,
+                        DocumentId = version.DocumentId,
+                        Title = version.Title,
+                        BaseUri = version.BaseUri,
+                        ModelVersion = version.ModelVersion
+                    };
+                    WotResourceGroup group = snapshot.FindGroup(unrelated.GroupId)!;
+                    snapshot = snapshot.WithGroup(group.WithResources(group.Resources.SetItem(
+                        unrelated.ResourceId, unrelated.With(versions: [legacy])), group.Epoch), snapshot.Generation);
+                }
+                persisted = snapshot.WithPublicationState(snapshot.Generation + 1, 7, graph);
+                await store.CommitAsync(persisted).ConfigureAwait(false);
+            }
+
+            using var reloadedStore = new FileWotRegistryStore(m_root);
+            using var reloaded = new WotRegistryService(reloadedStore);
+            await reloaded.InitializeAsync().ConfigureAwait(false);
+            using var observer = new FileWotRegistryStore(m_root);
+            WotRegistrySnapshot durable = await observer.LoadAsync().ConfigureAwait(false);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(reloaded.Current.Generation,
+                    Is.EqualTo(persisted.Generation + (missingDependencies ? 1 : 0)));
+                Assert.That(reloaded.Current.CanonicalViewGraphState.IsNull, Is.EqualTo(graph.IsNull));
+                Assert.That(reloaded.Current.CanonicalViewGraphState, Is.EqualTo(graph));
+                Assert.That(reloaded.Current.RefreshGeneration, Is.EqualTo(7u));
+                Assert.That(durable.CanonicalViewGraphState.IsNull, Is.EqualTo(graph.IsNull));
+                Assert.That(durable.CanonicalViewGraphState, Is.EqualTo(graph));
+                Assert.That(durable.RefreshGeneration, Is.EqualTo(7u));
+                Assert.That(durable.Generation, Is.EqualTo(reloaded.Current.Generation));
+                Assert.That(reloaded.Current.FindResource(unrelated.GroupId, unrelated.ResourceId)!
+                    .DefaultVersion!.Dependencies, Is.Not.Null);
+                Assert.That(durable.FindResource(unrelated.GroupId, unrelated.ResourceId)!
+                    .DefaultVersion!.Dependencies, Is.Not.Null);
+                AssertAffected(reloaded.Current, child, "child-view");
+                AssertAffected(reloaded.Current, parent, "parent-view");
+                AssertAffected(durable, child, "child-view");
+                AssertAffected(durable, parent, "parent-view");
+            }
+        }
+
         [Test]
         public void CommittedPublicationOwnsBindingCapabilitySnapshots()
         {

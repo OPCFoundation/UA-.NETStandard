@@ -129,6 +129,9 @@ and records supplied committed generation values. No `ByteString?` is used.
 Older manifests without these optional fields load as absent graph/generation
 zero. An explicitly empty graph remains non-null and zero-length across
 serialization and service reload; it must not become an absent legacy graph.
+If startup needs to persist a missing dependency index, that migration advances
+the store generation but preserves the graph carrier and committed refresh
+generation. It does not create a new View publication.
 Retired identity/token history belongs to the canonical payload even when no
 Views remain live. Parent-local retirement must not reset that history or
 replace it with an empty payload.

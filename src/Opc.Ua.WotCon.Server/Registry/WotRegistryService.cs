@@ -158,8 +158,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 m_reloadRequired = false;
                 if (migrate)
                 {
-                    var migrated = new WotRegistrySnapshot(
-                        checked(loaded.Generation + 1), hydrated.Groups, hydrated.Labels);
+                    WotRegistrySnapshot migrated = hydrated.WithPublicationState(
+                        checked(loaded.Generation + 1), hydrated.RefreshGeneration);
                     try
                     {
                         await CommitAndPublishAsync(
