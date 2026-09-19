@@ -45,10 +45,18 @@ namespace Opc.Ua.Server
             return m_nodeManagers.UseLiveRouting();
         }
 
+        IDisposable IDynamicNodeManagerBatchHost.UseTypeTree(TypeTable typeTree)
+        {
+            return m_nodeManagers.UseTypeTree(typeTree);
+        }
+
         async ValueTask IDynamicNodeManagerBatchHost.CommitBatchAsync(
             ArrayOf<PreparedNodeManager> candidates,
             ArrayOf<IAsyncNodeManager> removed,
             NodeManagerRoutingTable.RoutingSnapshot routingRevision,
+            TypeTable typeTree,
+            TypeTable originalTypes,
+            long typeRevision,
             Func<CancellationToken, ValueTask> decideAsync,
             Action published,
             CancellationToken cancellationToken)
@@ -90,19 +98,23 @@ namespace Opc.Ua.Server
                     {
                         nextReferences.Add(candidate.NodeManager, candidate.ExternalReferences);
                     }
-                    for (int index = 0; index < candidates.Count; index++)
+                    using (m_nodeManagers.UseTypeTree(typeTree))
                     {
-                        PreparedNodeManager candidate = candidates[index];
-                        foreach (Dictionary<NodeId, IList<IReference>> references in nextReferences.Values)
+                        for (int index = 0; index < candidates.Count; index++)
                         {
-                            await candidate.NodeManager.AddReferencesAsync(references, cancellationToken)
-                                .ConfigureAwait(false);
+                            PreparedNodeManager candidate = candidates[index];
+                            foreach (Dictionary<NodeId, IList<IReference>> references in nextReferences.Values)
+                            {
+                                await candidate.NodeManager.AddReferencesAsync(references, cancellationToken)
+                                    .ConfigureAwait(false);
+                            }
                         }
                     }
 
                     NodeManagerRoutingTable.PreparedRoutes routes =
-                        m_nodeManagers.PrepareBatch(candidates, removed, routingRevision, ResolveNamespaceIndexes);
+                        m_nodeManagers.PrepareBatch(candidates, removed, routingRevision, ResolveNamespaceIndexes, typeTree);
                     routes.Validate();
+                    using TypeTable.Publication types = Server.TypeTree.BeginPublication(originalTypes, typeRevision);
                     cancellationToken.ThrowIfCancellationRequested();
                     await decideAsync(cancellationToken).ConfigureAwait(false);
 
@@ -111,6 +123,7 @@ namespace Opc.Ua.Server
                         RetainRetiredGenerationNotifications(manager);
                     }
                     routes.Publish();
+                    types.Complete();
                     foreach (IAsyncNodeManager manager in retiring)
                     {
                         m_dynamicExternalReferences.Remove(manager);

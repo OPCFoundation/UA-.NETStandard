@@ -84,9 +84,12 @@ namespace Opc.Ua.Server
                 using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
                     EnterRequestLifecycleWaiter(server);
                 await WaitForLifecycleSemaphoreAsync(waiter, cancellationToken).ConfigureAwait(false);
+                TypeTable? preparedTypes = null;
                 try
                 {
                     EnsureSameRunningServer(server, host, allowRequestCallback);
+                    preparedTypes = server.TypeTree.CaptureSnapshot(out TypeTable originalTypes, out long typeRevision);
+                    using IDisposable types = batchHost.UseTypeTree(preparedTypes);
                     int namespaceCount = server.NamespaceUris.Count;
                     for (int index = 0; index < changes.Count; index++)
                     {
@@ -145,12 +148,13 @@ namespace Opc.Ua.Server
                     // Staging can register hidden namespace routes; freeze its completed routing image.
                     var prepared = new PreparedBatch(
                         this, server, host, entries, operation, namespaceCount, allowRequestCallback,
-                        batchHost.RoutingRevision);
+                        batchHost.RoutingRevision, preparedTypes, originalTypes, typeRevision);
                     operation = null;
                     return prepared;
                 }
                 catch (Exception failure) when (failure is not OutOfMemoryException)
                 {
+                    using IDisposable? types = preparedTypes is null ? null : batchHost.UseTypeTree(preparedTypes);
                     Exception? cleanup = await AbortBatchEntriesAsync(server, host, entries, allowRequestCallback)
                         .ConfigureAwait(false);
                     if (cleanup is not null)
@@ -194,6 +198,7 @@ namespace Opc.Ua.Server
                     }
                     if (entry.Manager is not null && entry.Bindings is not null)
                     {
+                        using IDisposable types = ((IDynamicNodeManagerBatchHost)batch.Host).UseTypeTree(batch.TypeTree);
                         await ReconcileBindingsAsync(
                             batch.Server, entry.Manager, entry.Bindings, cancellationToken).ConfigureAwait(false);
                     }
@@ -218,7 +223,8 @@ namespace Opc.Ua.Server
                     .ToArrayOf();
 
                 await ((IDynamicNodeManagerBatchHost)batch.Host).CommitBatchAsync(
-                    candidates, removed, batch.RoutingRevision, decideAsync,
+                    candidates, removed, batch.RoutingRevision, batch.TypeTree, batch.OriginalTypes,
+                    batch.TypeRevision, decideAsync,
                     () =>
                     {
                         batch.IsCommitted = true;
@@ -257,7 +263,6 @@ namespace Opc.Ua.Server
                     }
                     try
                     {
-                        RebuildTypeTree(entry.Manager);
                         await RecoverDetachedMonitoredItemsAsync(batch.Server, entry.Manager, CancellationToken.None)
                             .ConfigureAwait(false);
                         await CompleteReadinessOutsideLifecycleSemaphoreAsync(
@@ -357,7 +362,10 @@ namespace Opc.Ua.Server
                 OperationLifetime operation,
                 int namespaceCount,
                 bool allowRequestCallback,
-                NodeManagerRoutingTable.RoutingSnapshot routingRevision)
+                NodeManagerRoutingTable.RoutingSnapshot routingRevision,
+                TypeTable typeTree,
+                TypeTable originalTypes,
+                long typeRevision)
             {
                 m_owner = owner;
                 Server = server;
@@ -367,6 +375,9 @@ namespace Opc.Ua.Server
                 NamespaceCount = namespaceCount;
                 AllowRequestCallback = allowRequestCallback;
                 RoutingRevision = routingRevision;
+                TypeTree = typeTree;
+                OriginalTypes = originalTypes;
+                TypeRevision = typeRevision;
                 Registrations = entries.Where(entry => entry.Next is not null)
                     .Select(entry => entry.Next!.Registration).ToArrayOf();
             }
@@ -379,6 +390,9 @@ namespace Opc.Ua.Server
             public int NamespaceCount { get; }
             public bool AllowRequestCallback { get; }
             public NodeManagerRoutingTable.RoutingSnapshot RoutingRevision { get; }
+            public TypeTable TypeTree { get; }
+            public TypeTable OriginalTypes { get; }
+            public long TypeRevision { get; }
 
             public ValueTask<NodeManagerBatchResult> CommitAsync(
                 Func<CancellationToken, ValueTask> decideAsync,
@@ -414,6 +428,8 @@ namespace Opc.Ua.Server
                 {
                     if (!IsCommitted)
                     {
+                        using IDisposable routing = ((IDynamicNodeManagerBatchHost)Host).UseLiveRouting();
+                        using IDisposable types = ((IDynamicNodeManagerBatchHost)Host).UseTypeTree(TypeTree);
                         await m_owner.m_lifecycleSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                         try
                         {

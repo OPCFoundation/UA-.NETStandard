@@ -38,6 +38,8 @@ namespace Opc.Ua.Server
     {
         internal RoutingSnapshot Revision => Volatile.Read(ref m_snapshot);
 
+        internal TypeTable? TypeTree => m_preparedTypes.Value ?? ReadSnapshot.TypeTree;
+
         private RoutingSnapshot ReadSnapshot => m_readSnapshot.Value ?? Volatile.Read(ref m_snapshot);
 
         internal ReadScope Capture()
@@ -54,11 +56,19 @@ namespace Opc.Ua.Server
             return new ReadScope(this, previous);
         }
 
+        internal IDisposable UseTypeTree(TypeTable typeTree)
+        {
+            TypeTable? previous = m_preparedTypes.Value;
+            m_preparedTypes.Value = typeTree;
+            return new TypeScope(this, previous);
+        }
+
         internal PreparedRoutes PrepareBatch(
             ArrayOf<PreparedNodeManager> candidates,
             ArrayOf<IAsyncNodeManager> removed,
             RoutingSnapshot expectedRevision,
-            Func<IAsyncNodeManager, IEnumerable<int>> resolveNamespaces)
+            Func<IAsyncNodeManager, IEnumerable<int>> resolveNamespaces,
+            TypeTable typeTree)
         {
             lock (m_lock)
             {
@@ -140,12 +150,28 @@ namespace Opc.Ua.Server
                 var next = new RoutingSnapshot(
                     [.. managers],
                     routes,
-                    [.. current.HiddenNodeManagers.Where(manager => !removals.Contains(manager))]);
+                    [.. current.HiddenNodeManagers.Where(manager => !removals.Contains(manager))],
+                    typeTree);
                 return new PreparedRoutes(this, current, next);
             }
         }
 
         private readonly AsyncLocal<RoutingSnapshot?> m_readSnapshot = new();
+        private readonly AsyncLocal<TypeTable?> m_preparedTypes = new();
+
+        private sealed class TypeScope(NodeManagerRoutingTable owner, TypeTable? previous) : IDisposable
+        {
+            public void Dispose()
+            {
+                NodeManagerRoutingTable? current = Interlocked.Exchange(ref m_owner, null);
+                if (current is not null)
+                {
+                    current.m_preparedTypes.Value = previous;
+                }
+            }
+
+            private NodeManagerRoutingTable? m_owner = owner;
+        }
 
         internal sealed class ReadScope : IDisposable
         {

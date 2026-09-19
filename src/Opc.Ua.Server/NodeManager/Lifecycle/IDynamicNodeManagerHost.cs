@@ -234,10 +234,18 @@ namespace Opc.Ua.Server
         /// </summary>
         IDisposable UseLiveRouting();
 
+        /// <summary>
+        /// Uses a private type image while preparing or discarding a candidate.
+        /// </summary>
+        IDisposable UseTypeTree(TypeTable typeTree);
+
         ValueTask CommitBatchAsync(
             ArrayOf<PreparedNodeManager> candidates,
             ArrayOf<IAsyncNodeManager> removed,
             NodeManagerRoutingTable.RoutingSnapshot routingRevision,
+            TypeTable typeTree,
+            TypeTable originalTypes,
+            long typeRevision,
             Func<CancellationToken, ValueTask> decideAsync,
             Action published,
             CancellationToken cancellationToken);

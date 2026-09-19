@@ -150,7 +150,8 @@ namespace Opc.Ua.Server
             }
 
             // Publish the initial manager and namespace routing snapshot.
-            m_nodeManagers.Initialize(namespaceManagers);
+            m_nodeManagers.Initialize(namespaceManagers, server.TypeTree.CaptureSnapshot(out _, out _));
+            server.TypeTree.SetViewSelector(() => m_nodeManagers.TypeTree);
 
             m_serviceDispatch = new NodeManagerServiceDispatcher(this, m_nodeManagers, server, m_logger);
         }

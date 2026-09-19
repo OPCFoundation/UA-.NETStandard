@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -42,6 +43,144 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerLifecycleTests
     {
+        [Test]
+        public async Task PreparedBatchRejectsChangedTypeInputsBeforeDecisionAsync()
+        {
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))]).ConfigureAwait(false);
+            NodeId unrelated = new(8301,
+                m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(kModelNamespaceUri));
+            m_server.CurrentInstance.TypeTree.AddSubtype(unrelated, Ua.ObjectTypeIds.BaseObjectType);
+            int decisions = 0;
+            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await prepared.CommitAsync(_ =>
+                {
+                    decisions++;
+                    return default;
+                }).ConfigureAwait(false));
+            Assert.That(decisions, Is.Zero);
+            Assert.That(prepared.IsCommitted, Is.False);
+            Assert.That(lifecycle.Registrations.IsEmpty, Is.True);
+            Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(unrelated),
+                Is.EqualTo(Ua.ObjectTypeIds.BaseObjectType));
+        }
+
+        [Test]
+        public async Task PreparedBatchDoesNotLoseTypeWritesDuringDecisionAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))], timeout.Token).ConfigureAwait(false);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(token).ConfigureAwait(false);
+            }, timeout.Token).AsTask();
+            NodeId unrelated = new(8302,
+                m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(kModelNamespaceUri));
+            bool accepted = false;
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                try
+                {
+                    m_server.CurrentInstance.TypeTree.AddSubtype(unrelated, Ua.ObjectTypeIds.BaseObjectType);
+                    accepted = true;
+                }
+                catch (InvalidOperationException)
+                {
+                    Assert.That(m_server.CurrentInstance.TypeTree.IsKnown(unrelated), Is.False);
+                }
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(prepared.IsCommitted, Is.True);
+            Assert.That(result.CleanupFailure, Is.Null);
+            Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(unrelated),
+                Is.EqualTo(accepted ? Ua.ObjectTypeIds.BaseObjectType : NodeId.Null),
+                "A concurrent type mutation must either be retained or fail before it changes the serving image.");
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task PreparedBatchTypesRemainPrivateUntilPublicationAsync(bool replace, bool publish)
+        {
+            const string modelUri = kModelNamespaceUri + ":BatchTypes";
+            const uint typeIdentifier = 8100;
+            ushort namespaceIndex = m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(modelUri);
+            NodeId typeId = new(typeIdentifier, namespaceIndex);
+            NodeManagerRegistration previous = null;
+            if (replace)
+            {
+                previous = await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
+                    Options(Ua.ObjectTypeIds.BaseObjectType), null).ConfigureAwait(false);
+            }
+            NodeId originalParent = replace ? Ua.ObjectTypeIds.BaseObjectType : NodeId.Null;
+            Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(typeId), Is.EqualTo(originalParent));
+            var factory = new RuntimeNodeSetNodeManagerFactory(Options(Ua.ObjectTypeIds.FolderType));
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            NodeId whilePrepared;
+            await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [replace ? NodeManagerBatchChange.Replace(previous, factory) : NodeManagerBatchChange.Add(factory)])
+                .ConfigureAwait(false))
+            {
+                whilePrepared = m_server.CurrentInstance.TypeTree.FindSuperType(typeId);
+                if (publish)
+                {
+                    NodeManagerBatchResult result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
+                    Assert.That(result.CleanupFailure, Is.Null);
+                }
+            }
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(whilePrepared, Is.EqualTo(originalParent),
+                    "Private preparation must not add or replace a serving type relationship.");
+                Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(typeId),
+                    Is.EqualTo(publish ? Ua.ObjectTypeIds.FolderType : originalParent),
+                    "Abort retains the old type image; publication installs the complete new image.");
+                Assert.That(lifecycle.Registrations.Count, Is.EqualTo(replace || publish ? 1 : 0));
+                if (replace && !publish)
+                {
+                    Assert.That(lifecycle.Registrations[0], Is.SameAs(previous));
+                }
+            }
+
+            RuntimeNodeSetOptions Options(NodeId parent)
+            {
+                string xml = $$"""
+                    <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                      <NamespaceUris><Uri>{{modelUri}}</Uri></NamespaceUris>
+                      <Models><Model ModelUri="{{modelUri}}" Version="1.0.0" /></Models>
+                      <UAObjectType NodeId="ns=1;i={{typeIdentifier}}" BrowseName="1:BatchType">
+                        <DisplayName>BatchType</DisplayName>
+                        <References>
+                          <Reference ReferenceType="i=45" IsForward="false">{{parent}}</Reference>
+                        </References>
+                      </UAObjectType>
+                    </UANodeSet>
+                    """;
+                return new RuntimeNodeSetOptions
+                {
+                    Sources =
+                    [
+                        RuntimeNodeSetSource.FromStream("batch-types",
+                            _ => new ValueTask<Stream>(new MemoryStream(Encoding.UTF8.GetBytes(xml))), [modelUri])
+                    ]
+                };
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         [Category("Integration")]
@@ -57,11 +196,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRegistration second = await m_server.NodeManagerLifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(kSecondRegistrationValue, manager => secondManager = manager,
                     kSecondModelNamespaceUri), null, timeout.Token).ConfigureAwait(false);
+            NodeId typeId = new(8303,
+                (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
+            m_server.CurrentInstance.TypeTree.AddSubtype(typeId, Ua.ObjectTypeIds.BaseObjectType);
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [
                     NodeManagerBatchChange.Replace(first,
-                        CreateTrackingNodeManagementFactory(303, _ => { })),
+                        CreateTrackingNodeManagementFactory(303, _ =>
+                            m_server.CurrentInstance.TypeTree.AddSubtype(typeId, Ua.ObjectTypeIds.FolderType))),
                     NodeManagerBatchChange.Replace(second,
                         CreateTrackingNodeManagementFactory(404, _ => { }, kSecondModelNamespaceUri))
                 ], timeout.Token).ConfigureAwait(false);
@@ -78,11 +221,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
             NodeId secondId = new(kValueNodeId,
                 (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri));
+            NodeId beforePublication = NodeId.Null;
+            NodeId afterPublication = NodeId.Null;
             firstManager.ReadCallbackNodeId = firstId;
             firstManager.ReadCallback = async token =>
             {
+                beforePublication = m_server.CurrentInstance.TypeTree.FindSuperType(typeId);
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
+                afterPublication = m_server.CurrentInstance.TypeTree.FindSuperType(typeId);
             };
             Task<ReadResponse> pendingRead = ReadPairAsync();
             Task<NodeManagerBatchResult> pendingCommit = null;
@@ -148,6 +295,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(prepared.IsCommitted, Is.EqualTo(!rejectDecision));
                 Assert.That(firstManager.DisposeCount, Is.EqualTo(rejectDecision ? 0 : 1));
                 Assert.That(secondManager.DisposeCount, Is.EqualTo(rejectDecision ? 0 : 1));
+                Assert.That(beforePublication, Is.EqualTo(Ua.ObjectTypeIds.BaseObjectType));
+                Assert.That(afterPublication, Is.EqualTo(Ua.ObjectTypeIds.BaseObjectType),
+                    "A native request must retain its captured type image when routing is published.");
+                Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(typeId),
+                    Is.EqualTo(rejectDecision ? Ua.ObjectTypeIds.BaseObjectType : Ua.ObjectTypeIds.FolderType));
             }
             await session.CloseAsync(timeout.Token).ConfigureAwait(false);
 
