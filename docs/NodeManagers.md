@@ -587,6 +587,8 @@ encodeables so existing Sessions and in-flight values remain decodable.
 
 `INodeManagerBatchLifecycle` prepares type relationships, reference-type names,
 encoding mappings, and encodeable-factory registrations in private images.
+Commit reveals the batch's candidates even when they register namespace routes
+during preparation; unrelated hidden registrations remain hidden.
 Publication switches both images with the routing snapshot. An in-flight request
 retains the images captured with its routes. Writes to a serving image fail with
 `InvalidOperationException` while the decision callback runs, rather than being

@@ -47,6 +47,50 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static readonly int[] ReplaceNamespaceIndexes = [3, 4];
         private static readonly int[] InitialNamespaceIndexes = [2, 3];
         private static readonly int[] ConcurrentNamespaceIndexes = [9];
+        private static readonly int[] BatchNamespaceIndexes = [2];
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void PreparedBatchRevealsOnlyItsCandidatesInThePublishedImage(bool replace)
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            IAsyncNodeManager original = CreateManager();
+            if (replace)
+            {
+                table.Add(original, BatchNamespaceIndexes);
+            }
+            IAsyncNodeManager candidate = CreateManager();
+            IAsyncNodeManager unrelated = CreateManager();
+            table.RegisterNamespace(2, candidate, visible: false);
+            table.RegisterNamespace(3, unrelated, visible: false);
+            var prepared = new PreparedNodeManager(candidate, [])
+            {
+                Staged = true,
+                ReplacedNodeManager = replace ? original : null
+            };
+            NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
+                [prepared], [], table.Revision, _ => BatchNamespaceIndexes,
+                new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create());
+            using (table.Capture())
+            {
+                routes.Validate();
+                routes.Publish();
+                Assert.That(table.Any(manager => ReferenceEquals(manager, candidate)), Is.False,
+                    "An in-flight request must retain the unpublished routing image.");
+            }
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(table.IsVisible(candidate), Is.True);
+                Assert.That(table.IsVisible(unrelated), Is.False);
+                Assert.That(table.NamespaceManagers.ContainsKey(3), Is.False);
+                Assert.That(table.Revision.HiddenNodeManagers, Is.EquivalentTo(new[] { unrelated }));
+                AssertSingleManagerRoute(table.NamespaceManagers, 2, candidate);
+                if (replace)
+                {
+                    Assert.That(table.IsVisible(original), Is.False);
+                }
+            }
+        }
 
         [Test]
         public void AddPublishesManagerAndNamespaceRoutesWithoutMutatingCapturedSnapshots()

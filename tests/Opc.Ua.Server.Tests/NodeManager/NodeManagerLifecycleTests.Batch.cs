@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server.RuntimeNodeSet;
@@ -43,6 +44,76 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerLifecycleTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("Integration")]
+        [Category("NativeTcp")]
+        public async Task PreparedBatchRevealsSelfRegisteredNamespaceOnlyOnCommitAsync(bool publish)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            IAsyncNodeManager candidate = null;
+            RuntimeNodeSetOptions options = CreateOptions(kModelNamespaceUri, kFirstRegistrationValue);
+            Action<INodeManagerBuilder> configure = options.Configure;
+            options.Configure = builder =>
+            {
+                configure?.Invoke(builder);
+                m_server.CurrentInstance.NodeManager.RegisterNamespaceManager(kModelNamespaceUri, candidate);
+            };
+            var runtimeFactory = new RuntimeNodeSetNodeManagerFactory(options);
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns((IServerInternal server, ApplicationConfiguration configuration, CancellationToken token) =>
+                    CreateCandidateAsync(server, configuration, token));
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            using Opc.Ua.Client.ISession session = await client.ConnectAsync(
+                new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
+                .ConfigureAwait(false);
+            NodeId valueId;
+            await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false))
+            {
+                valueId = new NodeId(kValueNodeId,
+                    (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
+                ReadResponse hidden = await ReadAsync(valueId).ConfigureAwait(false);
+                Assert.That(hidden.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                if (publish)
+                {
+                    NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
+                        .ConfigureAwait(false);
+                    Assert.That(result.CleanupFailure, Is.Null);
+                }
+            }
+            ReadResponse final = await ReadAsync(valueId).ConfigureAwait(false);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(final.Results[0].StatusCode,
+                    Is.EqualTo(publish ? StatusCodes.Good : StatusCodes.BadNodeIdUnknown));
+                Assert.That(lifecycle.Registrations.Count, Is.EqualTo(publish ? 1 : 0));
+                if (publish)
+                {
+                    Assert.That(final.Results[0].WrappedValue, Is.EqualTo(new Variant(kFirstRegistrationValue)));
+                }
+            }
+            await session.CloseAsync(timeout.Token).ConfigureAwait(false);
+
+            async ValueTask<IAsyncNodeManager> CreateCandidateAsync(
+                IServerInternal server, ApplicationConfiguration configuration, CancellationToken token)
+            {
+                candidate = await runtimeFactory.CreateAsync(server, configuration, token).ConfigureAwait(false);
+                return candidate;
+            }
+
+            async Task<ReadResponse> ReadAsync(NodeId id)
+            {
+                return await session.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                    [new ReadValueId { NodeId = id, AttributeId = Attributes.Value }], timeout.Token)
+                    .ConfigureAwait(false);
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         [Category("Integration")]

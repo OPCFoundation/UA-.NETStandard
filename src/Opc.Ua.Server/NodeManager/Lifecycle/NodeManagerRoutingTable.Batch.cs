@@ -85,9 +85,11 @@ namespace Opc.Ua.Server
                 }
 
                 HashSet<IAsyncNodeManager> removals = [.. removed];
+                HashSet<IAsyncNodeManager> publishing = [];
                 var replacements = new Dictionary<IAsyncNodeManager, IAsyncNodeManager>();
                 foreach (PreparedNodeManager candidate in candidates)
                 {
+                    publishing.Add(candidate.NodeManager);
                     if (candidate.ReplacedNodeManager is { } replaced)
                     {
                         removals.Add(replaced);
@@ -156,7 +158,11 @@ namespace Opc.Ua.Server
                 var next = new RoutingSnapshot(
                     [.. managers],
                     routes,
-                    [.. current.HiddenNodeManagers.Where(manager => !removals.Contains(manager))],
+                    [
+                        .. current.HiddenNodeManagers.Where(manager =>
+                            !removals.Contains(manager) &&
+                            !publishing.Any(candidate => AreSameManager(candidate, manager)))
+                    ],
                     typeTree,
                     factory,
                     references ?? current.References);
