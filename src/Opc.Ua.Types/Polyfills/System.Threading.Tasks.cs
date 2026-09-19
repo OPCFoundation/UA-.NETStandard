@@ -50,6 +50,7 @@ namespace System.Threading.Tasks
         /// may not be the same instance as the current instance.</returns>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="TimeoutException"></exception>
+        /// <exception cref="OperationCanceledException">The source task or the wait was cancelled.</exception>
         public static async Task<T> WaitAsync<T>(this Task<T> task, TimeSpan timeout, CancellationToken ct = default)
         {
             if (task is null)
@@ -58,24 +59,17 @@ namespace System.Threading.Tasks
             }
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(timeout);
-            try
+            var tcs = new TaskCompletionSource<bool>();
+            using (cts.Token.Register(() => tcs.TrySetCanceled(), useSynchronizationContext: false))
             {
-                var tcs = new TaskCompletionSource<bool>();
-                using (cts.Token.Register(() => tcs.TrySetCanceled(), useSynchronizationContext: false))
+                Task completedTask = await Task.WhenAny(task, tcs.Task).ConfigureAwait(false);
+                if (task != completedTask)
                 {
-                    Task completedTask = await Task.WhenAny(task, tcs.Task).ConfigureAwait(false);
-                    if (task != completedTask)
-                    {
-                        ct.ThrowIfCancellationRequested();
-                        throw new TimeoutException("The operation has timed out.");
-                    }
+                    ct.ThrowIfCancellationRequested();
+                    throw new TimeoutException("The operation has timed out.");
                 }
-                return await task.ConfigureAwait(false);
             }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
-                throw new TimeoutException("The operation has timed out.");
-            }
+            return await task.ConfigureAwait(false);
         }
 
         /// <summary>
@@ -92,6 +86,7 @@ namespace System.Threading.Tasks
         /// may not be the same instance as the current instance.</returns>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="TimeoutException"></exception>
+        /// <exception cref="OperationCanceledException">The source task or the wait was cancelled.</exception>
         public static async Task WaitAsync(this Task task, TimeSpan timeout, CancellationToken ct = default)
         {
             if (task is null)
@@ -100,24 +95,17 @@ namespace System.Threading.Tasks
             }
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(timeout);
-            try
+            var tcs = new TaskCompletionSource<bool>();
+            using (cts.Token.Register(() => tcs.TrySetCanceled(), useSynchronizationContext: false))
             {
-                var tcs = new TaskCompletionSource<bool>();
-                using (cts.Token.Register(() => tcs.TrySetCanceled(), useSynchronizationContext: false))
+                Task completedTask = await Task.WhenAny(task, tcs.Task).ConfigureAwait(false);
+                if (task != completedTask)
                 {
-                    Task completedTask = await Task.WhenAny(task, tcs.Task).ConfigureAwait(false);
-                    if (task != completedTask)
-                    {
-                        ct.ThrowIfCancellationRequested();
-                        throw new TimeoutException("The operation has timed out.");
-                    }
+                    ct.ThrowIfCancellationRequested();
+                    throw new TimeoutException("The operation has timed out.");
                 }
-                await task.ConfigureAwait(false);
             }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
-                throw new TimeoutException("The operation has timed out.");
-            }
+            await task.ConfigureAwait(false);
         }
 #endif
 
