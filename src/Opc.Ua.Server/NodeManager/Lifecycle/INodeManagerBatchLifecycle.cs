@@ -40,6 +40,7 @@ namespace Opc.Ua.Server
     {
         /// <summary>
         /// Prepares the requested additions, replacements and retirements without publishing them.
+        /// The change sequence is copied before the operation can yield.
         /// The returned owner must be committed or asynchronously disposed.
         /// </summary>
         ValueTask<IPreparedNodeManagerBatch> PrepareAsync(

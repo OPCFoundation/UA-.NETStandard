@@ -42,6 +42,69 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerLifecycleTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PreparedBatchOwnsItsChangesAcrossAwaitAsync(bool mutateCallerArray)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            NodeManagerRegistration unrelated = await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
+                CreateOptions(kReadinessProbeNamespaceUri, 707), null, timeout.Token).ConfigureAwait(false);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var originalFactory = new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue));
+            var delayedFactory = new Mock<IAsyncNodeManagerFactory>();
+            delayedFactory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns((IServerInternal server, ApplicationConfiguration configuration, CancellationToken token) =>
+                    CreateDelayedAsync(server, configuration, token));
+            NodeManagerBatchChange[] changes =
+            [
+                NodeManagerBatchChange.Add(delayedFactory.Object),
+                NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))
+            ];
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            Task<IPreparedNodeManagerBatch> pending = lifecycle.PrepareAsync(changes, timeout.Token).AsTask();
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                if (mutateCallerArray)
+                {
+                    changes[1] = NodeManagerBatchChange.Remove(unrelated);
+                }
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            await using IPreparedNodeManagerBatch prepared = await pending.WaitAsync(timeout.Token).ConfigureAwait(false);
+            NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
+            DataValue second = await ReadValueAsync(new NodeId(kValueNodeId,
+                (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri))).ConfigureAwait(false);
+            DataValue original = await ReadValueAsync(new NodeId(kValueNodeId,
+                (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kReadinessProbeNamespaceUri))).ConfigureAwait(false);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.Registrations.Count, Is.EqualTo(2));
+                Assert.That(lifecycle.Registrations.Count, Is.EqualTo(3));
+                Assert.That(lifecycle.Registrations.ToList(), Does.Contain(unrelated));
+                Assert.That(result.Retired, Is.Zero);
+                Assert.That(second.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(second.WrappedValue, Is.EqualTo(new Variant(kSecondRegistrationValue)));
+                Assert.That(original.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(original.WrappedValue, Is.EqualTo(new Variant(707)));
+            }
+
+            async ValueTask<IAsyncNodeManager> CreateDelayedAsync(
+                IServerInternal server, ApplicationConfiguration configuration, CancellationToken token)
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(token).ConfigureAwait(false);
+                return await originalFactory.CreateAsync(server, configuration, token).ConfigureAwait(false);
+            }
+        }
+
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]

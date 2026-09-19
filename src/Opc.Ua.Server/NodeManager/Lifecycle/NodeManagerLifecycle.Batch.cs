@@ -46,6 +46,7 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentException("A publication unit must contain at least one change.", nameof(changes));
             }
+            changes = [.. changes];
             var identities = new HashSet<Guid>();
             bool allowRequestCallback = true;
             foreach (NodeManagerBatchChange change in changes)
