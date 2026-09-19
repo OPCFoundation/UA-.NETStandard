@@ -1645,15 +1645,10 @@ namespace Opc.Ua.Client
         {
             ct.ThrowIfCancellationRequested();
             IServerRedundancyHandler? handler = m_redundancyHandler;
-            Task<ServerRedundancyInfo>? previous = resolveCachedEndpoints
-                ? m_redundancyEndpointRefreshTask
-                : m_redundancyRefreshTask;
-            if (handler == null || (previous != null && !previous.IsCompleted))
+            if (handler == null)
             {
                 return;
             }
-
-            Func<CancellationToken, ValueTask<ServerRedundancyInfo>> operation;
             if (resolveCachedEndpoints)
             {
                 ServerRedundancyInfo? snapshot = m_redundancyInfo;
@@ -1661,29 +1656,44 @@ namespace Opc.Ua.Client
                 {
                     return;
                 }
-                ConfiguredEndpoint current = m_session?.ConfiguredEndpoint ?? ConfiguredEndpoint;
-                operation = token => cache.ResolveCachedEndpointsAsync(snapshot, current, token);
-            }
-            else
-            {
-                operation = token => handler.FetchRedundancyInfoAsync(this, token);
+                if (m_redundancyEndpointRefreshTask is { IsCompleted: false } pending)
+                {
+                    try
+                    {
+                        await pending.WaitAsync(ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                    {
+                        // The previous connection's refresh was cancelled; retry using this failover's token.
+                    }
+                }
+                snapshot = Volatile.Read(ref m_redundancyInfo) ?? snapshot;
+                await StartRedundancyEndpointRefresh(cache, snapshot, ct).WaitAsync(ct).ConfigureAwait(false);
+                return;
             }
 
+            Task<ServerRedundancyInfo>? previous = m_redundancyRefreshTask;
+            if (previous != null && !previous.IsCompleted)
+            {
+                return;
+            }
+            Func<CancellationToken, ValueTask<ServerRedundancyInfo>> operation =
+                handler is IServerRedundancyEndpointCache reader
+                    ? token => reader.ReadRedundancyInfoAsync(this, token)
+                    : token => handler.FetchRedundancyInfoAsync(this, token);
             Task<ServerRedundancyInfo>? refresh = null;
             try
             {
                 refresh = FetchRedundancySnapshotAsync(operation, ct);
-                if (resolveCachedEndpoints)
-                {
-                    m_redundancyEndpointRefreshTask = refresh;
-                }
-                else
-                {
-                    m_redundancyRefreshTask = refresh;
-                }
+                m_redundancyRefreshTask = refresh;
                 m_redundancyInfo = await refresh.WaitAsync(s_redundancyRefreshTimeout, m_timeProvider, ct)
                     .ConfigureAwait(false)
                     ?? throw ServiceResultException.Unexpected("The redundancy handler returned no snapshot.");
+                if (handler is IServerRedundancyEndpointCache cache &&
+                    m_redundancyInfo.Mode is not (RedundancySupport.None or RedundancySupport.Transparent))
+                {
+                    _ = StartRedundancyEndpointRefresh(cache, m_redundancyInfo, ct);
+                }
             }
             catch (Exception exception) when (exception is OperationCanceledException or TimeoutException)
             {
@@ -1698,6 +1708,46 @@ namespace Opc.Ua.Client
             {
                 m_logger.ManagedSessionRedundancyDiscoveryFailed(exception);
             }
+        }
+
+        private Task<ServerRedundancyInfo> StartRedundancyEndpointRefresh(
+            IServerRedundancyEndpointCache cache,
+            ServerRedundancyInfo snapshot,
+            CancellationToken ct)
+        {
+            if (m_redundancyEndpointRefreshTask is { IsCompleted: false } previous)
+            {
+                return previous;
+            }
+            var completion = new TaskCompletionSource<ServerRedundancyInfo>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            m_redundancyEndpointRefreshTask = completion.Task;
+            ConfiguredEndpoint current = m_session?.ConfiguredEndpoint ?? ConfiguredEndpoint;
+            if (!m_backgroundWork.Run("RefreshRedundantEndpoints", async shutdown =>
+            {
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, shutdown);
+                try
+                {
+                    ServerRedundancyInfo resolved = await cache.ResolveCachedEndpointsAsync(
+                        snapshot, current, linked.Token).ConfigureAwait(false);
+                    linked.Token.ThrowIfCancellationRequested();
+                    Interlocked.CompareExchange(ref m_redundancyInfo, resolved, snapshot);
+                    completion.TrySetResult(resolved);
+                }
+                catch (OperationCanceledException exception)
+                {
+                    completion.TrySetCanceled(exception.CancellationToken);
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    completion.TrySetException(exception);
+                }
+            }))
+            {
+                completion.TrySetCanceled(CancellationToken.None);
+            }
+            _ = ObserveLateRedundancyRefreshAsync(completion.Task);
+            return completion.Task;
         }
 
         private async Task<ServerRedundancyInfo> FetchRedundancySnapshotAsync(

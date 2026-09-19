@@ -192,6 +192,112 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(discovery.GetEndpointsCallCount, Is.EqualTo(2));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ResolveAsyncRetainsPeerAddressAfterUnavailableOrCancelledDiscoveryAsync(bool cancel)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ConfiguredEndpoint current = CreateEndpoint(
+                "urn:current", "opc.tcp://current:4840",
+                MessageSecurityMode.Sign, SecurityPolicies.Basic256Sha256);
+            ApplicationDescription peer = CreateApplication("urn:peer", "opc.tcp://peer:4840");
+            EndpointDescription endpoint = CreateEndpointDescription(
+                "urn:peer", "opc.tcp://peer:4840",
+                MessageSecurityMode.Sign, SecurityPolicies.Basic256Sha256);
+            bool primaryAvailable = true;
+            bool peerAvailable = false;
+            int findCalls = 0;
+            int endpointCalls = 0;
+            using var cancellation = new CancellationTokenSource();
+            var discovery = new CallbackDiscovery(
+                (_, ct) =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    findCalls++;
+                    if (!primaryAvailable)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNotConnected);
+                    }
+                    return new ValueTask<ArrayOf<ApplicationDescription>>([peer]);
+                },
+                (uri, ct) =>
+                {
+                    Assert.That(uri, Is.EqualTo(new Uri("opc.tcp://peer:4840")));
+                    endpointCalls++;
+                    if (!peerAvailable)
+                    {
+                        if (cancel)
+                        {
+                            cancellation.Cancel();
+                            ct.ThrowIfCancellationRequested();
+                        }
+                        throw new ServiceResultException(StatusCodes.BadNotConnected);
+                    }
+                    return new ValueTask<ArrayOf<EndpointDescription>>([endpoint]);
+                });
+            var resolver = new DefaultRedundantServerEndpointResolver(telemetry, discovery);
+            if (cancel)
+            {
+                await Assert.ThatAsync(
+                    async () => await resolver.ResolveAsync("urn:peer", current, cancellation.Token)
+                        .ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            }
+            else
+            {
+                Assert.That(await resolver.ResolveAsync("urn:peer", current).ConfigureAwait(false), Is.Null);
+            }
+            primaryAvailable = false;
+            peerAvailable = true;
+
+            ConfiguredEndpoint? resolved = await resolver.ResolveAsync("urn:peer", current).ConfigureAwait(false);
+
+            Assert.That(resolved, Is.Not.Null);
+            Assert.That(resolved!.Description.EndpointUrl, Is.EqualTo(endpoint.EndpointUrl));
+            Assert.That(resolved.Description.SecurityMode, Is.EqualTo(MessageSecurityMode.Sign));
+            Assert.That(resolved.Description.SecurityPolicyUri, Is.EqualTo(SecurityPolicies.Basic256Sha256));
+            Assert.That(resolved.Description.Server.ApplicationUri, Is.EqualTo("urn:peer"));
+            Assert.That(findCalls, Is.EqualTo(1), "The failed primary must not be needed to rediscover this peer.");
+            Assert.That(endpointCalls, Is.EqualTo(2));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ResolveAsyncCachedPeerAddressStillChecksSecurityAndServerIdentityAsync(bool wrongServer)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ConfiguredEndpoint current = CreateEndpoint(
+                "urn:current", "opc.tcp://current:4840",
+                MessageSecurityMode.Sign, SecurityPolicies.Basic256Sha256);
+            ApplicationDescription peer = CreateApplication("urn:peer", "opc.tcp://peer:4840");
+            EndpointDescription endpoint = CreateEndpointDescription(
+                wrongServer ? "urn:other" : "urn:peer", "opc.tcp://peer:4840",
+                wrongServer ? MessageSecurityMode.Sign : MessageSecurityMode.None,
+                wrongServer ? SecurityPolicies.Basic256Sha256 : SecurityPolicies.None);
+            bool primaryAvailable = true;
+            int endpointCalls = 0;
+            var discovery = new CallbackDiscovery(
+                (_, _) => primaryAvailable
+                    ? new ValueTask<ArrayOf<ApplicationDescription>>([peer])
+                    : throw new ServiceResultException(StatusCodes.BadNotConnected),
+                (_, _) =>
+                {
+                    endpointCalls++;
+                    return primaryAvailable
+                        ? throw new ServiceResultException(StatusCodes.BadNotConnected)
+                        : new ValueTask<ArrayOf<EndpointDescription>>([endpoint]);
+                });
+            var resolver = new DefaultRedundantServerEndpointResolver(telemetry, discovery);
+            Assert.That(await resolver.ResolveAsync("urn:peer", current).ConfigureAwait(false), Is.Null);
+            primaryAvailable = false;
+
+            ConfiguredEndpoint? resolved = await resolver.ResolveAsync("urn:peer", current).ConfigureAwait(false);
+
+            Assert.That(resolved, Is.Null);
+            Assert.That(endpointCalls, Is.EqualTo(2),
+                "The cached address must be retried without trusting its endpoint.");
+        }
+
         [Test]
         public void PrivateSelectionHelpersMatchSecurityAndDiscoveryFallbacks()
         {
@@ -427,6 +533,31 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             return new RecordingDiscovery(
                 new ArrayOf<ApplicationDescription>(applications),
                 [new ArrayOf<EndpointDescription>(endpoints)]);
+        }
+
+        private sealed class CallbackDiscovery(
+            Func<Uri, CancellationToken, ValueTask<ArrayOf<ApplicationDescription>>> findServers,
+            Func<Uri, CancellationToken, ValueTask<ArrayOf<EndpointDescription>>> getEndpoints)
+            : IRedundantServerDiscovery
+        {
+            public ValueTask<ArrayOf<ApplicationDescription>> FindServersAsync(
+                Uri discoveryUri,
+                EndpointConfiguration configuration,
+                string serverUri,
+                ITelemetryContext telemetry,
+                CancellationToken ct)
+            {
+                return findServers(discoveryUri, ct);
+            }
+
+            public ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
+                Uri discoveryUri,
+                EndpointConfiguration configuration,
+                ITelemetryContext telemetry,
+                CancellationToken ct)
+            {
+                return getEndpoints(discoveryUri, ct);
+            }
         }
 
         private sealed class RecordingDiscovery : IRedundantServerDiscovery

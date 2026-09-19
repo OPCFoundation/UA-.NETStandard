@@ -145,7 +145,7 @@ namespace Opc.Ua
 
         internal bool IsActive => Interlocked.CompareExchange(ref m_active, 0, 0) == 1;
 
-        internal ITransportChannel CreateReactivationView(CancellationToken ct)
+        internal IManagedTransportChannel CreateReactivationView(CancellationToken ct)
         {
             ChannelEntry entry = Entry;
             ITransportChannel transport = entry.Underlying
@@ -404,8 +404,11 @@ namespace Opc.Ua
             ChannelEntry entry,
             ITransportChannel transport,
             long generation,
-            CancellationToken scopeToken) : ITransportChannel
+            CancellationToken scopeToken) : IManagedTransportChannel
         {
+            public ManagedChannelKey Key => owner.Key;
+            public ChannelState State => entry.State;
+            public IClientChannelManager Manager => entry.OwnerManager;
             public TransportChannelFeatures SupportedFeatures => transport.SupportedFeatures;
             public EndpointDescription EndpointDescription => transport.EndpointDescription;
             public EndpointConfiguration EndpointConfiguration => transport.EndpointConfiguration;
@@ -418,6 +421,12 @@ namespace Opc.Ua
             {
                 get => transport.OperationTimeout;
                 set => transport.OperationTimeout = value;
+            }
+
+            public event Action<IManagedTransportChannel, ChannelStateChange>? StateChanged
+            {
+                add => owner.StateChanged += value;
+                remove => owner.StateChanged -= value;
             }
 
             public ValueTask ReconnectAsync(

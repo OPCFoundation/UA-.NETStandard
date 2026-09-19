@@ -28,9 +28,13 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client
 {
@@ -64,6 +68,7 @@ namespace Opc.Ua.Client
         {
             m_telemetry = telemetry ?? AmbientMessageContext.Telemetry!;
             m_discovery = discovery ?? throw new ArgumentNullException(nameof(discovery));
+            m_logger = m_telemetry.CreateLogger<DefaultRedundantServerEndpointResolver>();
         }
 
         /// <inheritdoc/>
@@ -84,6 +89,16 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(currentEndpoint));
             }
 
+            ct.ThrowIfCancellationRequested();
+            if (m_discoveredServers.TryGetValue(serverUri, out ApplicationDescription? cached))
+            {
+                ConfiguredEndpoint? resolved = await ResolveServerEndpointsAsync(cached, currentEndpoint, ct)
+                    .ConfigureAwait(false);
+                if (resolved != null)
+                {
+                    return resolved;
+                }
+            }
             foreach (string discoveryUrl in GetDiscoveryUrls(currentEndpoint))
             {
                 ConfiguredEndpoint? endpoint;
@@ -99,8 +114,11 @@ namespace Opc.Ua.Client
                 {
                     throw;
                 }
-                catch
+                catch (Exception exception) when (exception is ServiceResultException
+                    or TimeoutException or IOException or SocketException)
                 {
+                    ct.ThrowIfCancellationRequested();
+                    m_logger.ManagedSessionRedundancyDiscoveryFailed(exception);
                     continue;
                 }
                 if (endpoint != null)
@@ -141,19 +159,47 @@ namespace Opc.Ua.Client
                 return null;
             }
 
+            // Keep the address mapping even when an offline peer cannot yet answer GetEndpoints.
+            server = CoreUtils.Clone(server)!;
+            m_discoveredServers[serverUri] = server;
+            return await ResolveServerEndpointsAsync(server, currentEndpoint, ct).ConfigureAwait(false);
+        }
+
+        private async ValueTask<ConfiguredEndpoint?> ResolveServerEndpointsAsync(
+            ApplicationDescription server,
+            ConfiguredEndpoint currentEndpoint,
+            CancellationToken ct)
+        {
+            string serverUri = server.ApplicationUri
+                ?? throw ServiceResultException.Unexpected("Discovery returned a server without an application URI.");
             for (int ii = 0; ii < server.DiscoveryUrls.Count; ii++)
             {
-                EndpointDescription? endpointDescription = await SelectEndpointAsync(
-                    currentEndpoint,
-                    server.DiscoveryUrls[ii],
-                    ct).ConfigureAwait(false);
-                if (endpointDescription != null)
+                ct.ThrowIfCancellationRequested();
+                try
                 {
-                    endpointDescription.Server = server;
-                    return new ConfiguredEndpoint(
-                        currentEndpoint.Collection,
-                        endpointDescription,
-                        currentEndpoint.Configuration);
+                    EndpointDescription? endpointDescription = await SelectEndpointAsync(
+                        serverUri,
+                        currentEndpoint,
+                        server.DiscoveryUrls[ii],
+                        ct).ConfigureAwait(false);
+                    if (endpointDescription != null)
+                    {
+                        endpointDescription.Server = CoreUtils.Clone(server)!;
+                        return new ConfiguredEndpoint(
+                            currentEndpoint.Collection,
+                            endpointDescription,
+                            currentEndpoint.Configuration);
+                    }
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception exception) when (exception is ServiceResultException
+                    or TimeoutException or IOException or SocketException)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    m_logger.ManagedSessionRedundancyDiscoveryFailed(exception);
                 }
             }
 
@@ -161,6 +207,7 @@ namespace Opc.Ua.Client
         }
 
         private async ValueTask<EndpointDescription?> SelectEndpointAsync(
+            string serverUri,
             ConfiguredEndpoint currentEndpoint,
             string discoveryUrl,
             CancellationToken ct)
@@ -172,11 +219,13 @@ namespace Opc.Ua.Client
             ArrayOf<EndpointDescription> endpoints = await m_discovery
                 .GetEndpointsAsync(discoveryUri, configuration, m_telemetry, ct)
                 .ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
 
             EndpointDescription? exactMatch = null;
             for (int ii = 0; ii < endpoints.Count; ii++)
             {
-                if (IsSameSecurity(endpoints[ii], currentEndpoint.Description) &&
+                if (string.Equals(endpoints[ii].Server?.ApplicationUri, serverUri, StringComparison.Ordinal) &&
+                    IsSameSecurity(endpoints[ii], currentEndpoint.Description) &&
                     IsSameScheme(endpoints[ii], currentEndpoint.Description))
                 {
                     exactMatch = endpoints[ii];
@@ -231,6 +280,10 @@ namespace Opc.Ua.Client
 
         private readonly ITelemetryContext m_telemetry;
         private readonly IRedundantServerDiscovery m_discovery;
+        private readonly ILogger m_logger;
+
+        private readonly ConcurrentDictionary<string, ApplicationDescription> m_discoveredServers =
+            new(StringComparer.Ordinal);
     }
 
     /// <summary>

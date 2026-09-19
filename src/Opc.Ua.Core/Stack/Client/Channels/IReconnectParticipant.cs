@@ -41,10 +41,12 @@ namespace Opc.Ua
     /// <remarks>
     /// The manager invokes <see cref="OnReconnectAsync"/> for every
     /// active participant lease on a channel after the underlying
-    /// transport has been (re)opened. The supplied channel remains the
-    /// participant's owning lease. Participants that send session recovery
-    /// requests before the channel is ready implement
-    /// <see cref="IChannelRecoveryParticipant"/> to receive a separate send capability.
+    /// transport has been (re)opened. The supplied channel is a non-owning,
+    /// generation-bound view that permits recovery requests before the channel is ready.
+    /// It expires when reactivation and any immediately following recreation finish,
+    /// time out, or are cancelled. Retain the owning lease separately for ordinary requests.
+    /// Implement <see cref="IChannelRecoveryParticipant"/> to receive the owning lease
+    /// and a separate send capability explicitly.
     /// </remarks>
     public interface IReconnectParticipant
     {
@@ -69,7 +71,7 @@ namespace Opc.Ua
         /// multiple times within one reconnect cycle if the channel
         /// manager has to retry transport-level open.
         /// </summary>
-        /// <param name="channel">The reconnected managed channel.</param>
+        /// <param name="channel">A scoped recovery view; the owning lease for a shutdown notification.</param>
         /// <param name="reconnectAttempt">The attempt counter for the
         /// current cycle (0-based). A value of <c>-1</c> indicates the
         /// manager is shutting down the channel and the participant
@@ -95,6 +97,8 @@ namespace Opc.Ua
         /// The participant performs its own session recreation here. The manager
         /// awaits completion before transitioning the channel to
         /// <see cref="ChannelState.Ready"/>.
+        /// The recovery view supplied to <see cref="OnReconnectAsync"/> remains valid
+        /// during this callback, but must not be used after it completes.
         /// </remarks>
         /// <param name="ct">Cancellation token bound to the manager's shutdown.</param>
         /// <returns>The asynchronous recreation work.</returns>
@@ -121,6 +125,8 @@ namespace Opc.Ua
         /// The participant performs its own session recreation here. The manager
         /// awaits completion before transitioning the channel to
         /// <see cref="ChannelState.Ready"/>.
+        /// The recovery view supplied to <see cref="IReconnectParticipant.OnReconnectAsync"/>
+        /// remains valid during this callback, but must not be used after it completes.
         /// </remarks>
         /// <param name="ct">Cancellation token bound to the manager's shutdown.</param>
         /// <returns>The asynchronous recreation work.</returns>

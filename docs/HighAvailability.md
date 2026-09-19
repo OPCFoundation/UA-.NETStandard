@@ -147,6 +147,14 @@ does not replace backend fencing or provide consensus.
 
 Client-side, `DefaultServerRedundancyHandler.FetchRedundancyInfoAsync` reads `RedundancySupport`, `ServiceLevel`, `EstimatedReturnTime`, `RedundantServerArray`, `ServerUriArray`, and `CurrentServerId` as applicable. `ServerRedundancyInfo.ServiceLevelSubrange` is calculated with `ServiceLevels.GetSubrange`.
 
+`ManagedSession` stores the default handler's basic snapshot as soon as that
+read succeeds, within the existing two-second metadata-read bound. Peer discovery
+runs separately in the background, in parallel with a two-second bound per peer;
+connection establishment does not wait for every backup. A peer timeout leaves
+its `Endpoint` unresolved without discarding the mode, peer URIs or other resolved
+endpoints. Caller cancellation is propagated, and session disposal cancels and
+drains the background refresh.
+
 ```csharp
 ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
     .UseEndpoint(endpoint)
@@ -167,7 +175,16 @@ if (decision.IsFailoverWarranted)
 
 ## Non-transparent failover modes and client actions (as per Part 4 §6.6.2.4.5)
 
-`ManagedSession` implements the Table 107 client patterns over `ManagedSession` instances discovered from `RedundantServerArray`/`ServerUriArray` and resolved with `IRedundantServerEndpointResolver`. The default resolver calls `FindServers` and `GetEndpoints` from the current endpoint's discovery URLs, chooses matching security policy/mode and URL scheme when possible, and caches the result.
+`ManagedSession` implements the Table 107 client patterns over `ManagedSession` instances discovered from `RedundantServerArray`/`ServerUriArray` and resolved with `IRedundantServerEndpointResolver`. The default resolver uses `FindServers` at the current endpoint to locate peers, then requires `GetEndpoints` results to match the peer application URI, security policy/mode and URL scheme.
+
+The resolver retains a peer's discovery addresses before contacting that peer.
+Thus a Cold backup that was offline at connect time can be resolved at failover
+without another `FindServers` call to the failed primary. Failed resolutions are
+not cached as permanent misses, and a failed failover invalidates the resolved
+endpoint so the next attempt can discover it again. Cached addresses never bypass
+endpoint or session security validation. If no peer address was learned before
+the primary became unreachable, a reachable discovery service or a custom
+`IRedundantServerEndpointResolver` is still required to translate its application URI.
 
 | Mode | Table 107 actions | `ManagedSession` realization |
 | --- | --- | --- |

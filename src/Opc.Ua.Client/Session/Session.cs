@@ -1828,7 +1828,8 @@ namespace Opc.Ua.Client
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadIdentityTokenRejected,
-                                "OverrideUserTokenPolicyUriNotOffered (override '{0}' is not advertised by the endpoint).",
+                                "OverrideUserTokenPolicyUriNotOffered " +
+                                "(override '{0}' is not advertised by the endpoint).",
                                 overrideUserTokenPolicyUri);
                         }
                     }
@@ -3343,10 +3344,37 @@ namespace Opc.Ua.Client
                     ArrayOf<EndpointDescription> refreshedEndpoints = default;
                     if (!m_endpoint.DiscoveryEndpoints.IsEmpty)
                     {
-                        // Refresh only the comparison snapshot; keep caller-pinned transport settings and URL.
-                        ConfiguredEndpoint discovery = CoreUtils.Clone(m_endpoint)!;
-                        await discovery.UpdateFromServerAsync(m_configuration, m_telemetry, ct).ConfigureAwait(false);
-                        refreshedEndpoints = discovery.DiscoveryEndpoints;
+                        using var discovery = new RecoveryDiscoveryClient(
+                            (recoveryClient ?? this).TransportChannel, m_telemetry);
+                        try
+                        {
+                            GetEndpointsResponse response = await discovery.GetEndpointsAsync(
+                                null, m_endpoint.Description.EndpointUrl, default, default, ct).ConfigureAwait(false);
+                            if (response.Endpoints.IsEmpty)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadSecurityChecksFailed, "Discovery returned no server endpoints.");
+                            }
+                            refreshedEndpoints = response.Endpoints;
+                        }
+                        catch (ServiceResultException exception) when (
+                            exception.StatusCode == StatusCodes.BadServiceUnsupported ||
+                            exception.StatusCode == StatusCodes.BadNotSupported ||
+                            exception.StatusCode == StatusCodes.BadTimeout ||
+                            exception.StatusCode == StatusCodes.BadNotConnected ||
+                            exception.StatusCode == StatusCodes.BadConnectionClosed ||
+                            exception.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                            exception.StatusCode == StatusCodes.BadCommunicationError ||
+                            exception.StatusCode == StatusCodes.BadNoCommunication)
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            m_logger.RecreationDiscoveryUnavailableUsingStoredSnapshot(exception);
+                        }
+                        catch (TimeoutException exception)
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            m_logger.RecreationDiscoveryUnavailableUsingStoredSnapshot(exception);
+                        }
                     }
                     await OpenCoreAsync(
                             recoveryClient ?? this,
@@ -5336,7 +5364,8 @@ namespace Opc.Ua.Client
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityChecksFailed,
-                        "The list of ServerEndpoints returned at CreateSession does not match the list from GetEndpoints.");
+                        "The list of ServerEndpoints returned at CreateSession " +
+                        "does not match the list from GetEndpoints.");
                 }
             }
 
@@ -5352,7 +5381,8 @@ namespace Opc.Ua.Client
                     false)) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "Server did not return an EndpointDescription that matched the one used to create the secure channel.");
+                    "Server did not return an EndpointDescription " +
+                    "that matched the one used to create the secure channel.");
         }
 
         private static bool HaveEquivalentServerEndpoints(
@@ -5433,7 +5463,8 @@ namespace Opc.Ua.Client
         private static bool AreEquivalentUserTokenPolicies(UserTokenPolicy first, UserTokenPolicy second)
         {
             return first.TokenType == second.TokenType &&
-                string.Equals(first.PolicyId ?? string.Empty, second.PolicyId ?? string.Empty, StringComparison.Ordinal) &&
+                string.Equals(
+                    first.PolicyId ?? string.Empty, second.PolicyId ?? string.Empty, StringComparison.Ordinal) &&
                 string.Equals(
                     first.SecurityPolicyUri ?? string.Empty,
                     second.SecurityPolicyUri ?? string.Empty,
@@ -5693,7 +5724,8 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Acquires a session-owned certificate and optional issuer chain from the active registry or configured store.
+        /// Acquires a session-owned certificate and optional issuer chain
+        /// from the active registry or configured store.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         internal static async Task<CertificateEntry> LoadInstanceCertificateEntryAsync(
@@ -5716,7 +5748,8 @@ namespace Opc.Ua.Client
                             "Active application certificate for security profile {0} is missing a private key.",
                             securityProfile);
                     }
-                    using CertificateCollection activeIssuers = configuration.SecurityConfiguration.SendCertificateChain
+                    using CertificateCollection activeIssuers =
+                        configuration.SecurityConfiguration.SendCertificateChain
                         ? registered.IssuerChain.AddRef()
                         : new CertificateCollection();
                     return new CertificateEntry(
@@ -5976,7 +6009,8 @@ namespace Opc.Ua.Client
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadDecodingError,
-                                "Server certificate or security policy URI is not available. User authentication not possible.");
+                                "Server certificate or security policy URI is not available. " +
+                                "User authentication not possible.");
                         }
 
                         if (!CryptoUtils.Verify(
@@ -6140,6 +6174,16 @@ namespace Opc.Ua.Client
         /// teardown continues without blocking.
         /// </summary>
         private static readonly TimeSpan s_keepAliveStopTimeout = TimeSpan.FromSeconds(5);
+
+        private sealed class RecoveryDiscoveryClient(ITransportChannel channel, ITelemetryContext telemetry)
+            : DiscoveryClient(channel, telemetry)
+        {
+            protected override void Dispose(bool disposing)
+            {
+                ReleaseChannel();
+                base.Dispose(disposing);
+            }
+        }
 
         private sealed class AsyncRequestState : IDisposable
         {
@@ -6658,7 +6702,9 @@ namespace Opc.Ua.Client
 
         [LoggerMessage(EventId = ClientEventIds.Session + 58, Level = LogLevel.Error,
             Message = "Cannot read ServerArray node: {StatusCode} - skipping.")]
-        public static partial void CannotReadServerArrayNodeStatusCodeSkipping(this ILogger logger, StatusCode statusCode);
+        public static partial void CannotReadServerArrayNodeStatusCodeSkipping(
+            this ILogger logger,
+            StatusCode statusCode);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 59, Level = LogLevel.Information,
             Message = "Server signature is null or empty.")]
@@ -6717,5 +6763,11 @@ namespace Opc.Ua.Client
                       "abandoning it. The worker task runs on the thread pool and will not " +
                       "prevent process exit.")]
         public static partial void KeepAliveWorkerDidNotStopWithinTimeout(this ILogger logger, int timeoutSeconds);
+
+        [LoggerMessage(EventId = ClientEventIds.Session + 70, Level = LogLevel.Warning,
+            Message = "Session recreation discovery is unavailable; validating against the stored endpoint snapshot.")]
+        public static partial void RecreationDiscoveryUnavailableUsingStoredSnapshot(
+            this ILogger logger,
+            Exception exception);
     }
 }

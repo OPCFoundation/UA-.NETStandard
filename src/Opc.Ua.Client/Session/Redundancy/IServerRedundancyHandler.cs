@@ -83,6 +83,14 @@ namespace Opc.Ua.Client
     internal interface IServerRedundancyEndpointCache
     {
         /// <summary>
+        /// Reads the active server's redundancy metadata without waiting for discovery of its peers.
+        /// </summary>
+        /// <param name="session">The active session to read from.</param>
+        /// <param name="ct">Cancellation for the metadata read.</param>
+        /// <returns>The basic snapshot, including unresolved peer URIs and any cached endpoints.</returns>
+        ValueTask<ServerRedundancyInfo> ReadRedundancyInfoAsync(ISession session, CancellationToken ct);
+
+        /// <summary>
         /// Resolves peer endpoints while retaining the redundancy and service-level data in the supplied snapshot.
         /// </summary>
         /// <param name="snapshot">The last known redundancy information.</param>
