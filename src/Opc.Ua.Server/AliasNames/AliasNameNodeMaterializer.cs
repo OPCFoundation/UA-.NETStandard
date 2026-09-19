@@ -222,6 +222,10 @@ namespace Opc.Ua.Server.AliasNames
         /// children and — when <paramref name="materializeAliasNodes"/> is
         /// set — their alias instance nodes.
         /// </summary>
+        /// <remarks>
+        /// A timed-out initial snapshot read is retried once before materializing its root.
+        /// Repeated timeouts, other errors, and cancellation still abort materialization.
+        /// </remarks>
         /// <param name="store">The store whose descriptor tree is walked;
         /// aliases are read through one recursive
         /// <c>FindAliasVerbose</c> query per root.</param>
@@ -258,8 +262,18 @@ namespace Opc.Ua.Server.AliasNames
                 Dictionary<NodeId, List<AliasNameVerboseDataType>>? aliasesByCategory = null;
                 if (materializeAliasNodes)
                 {
-                    aliasesByCategory = await QueryAliasesAsync(store, root.NodeId, cancellationToken)
-                        .ConfigureAwait(false);
+                    try
+                    {
+                        aliasesByCategory = await QueryAliasesAsync(store, root.NodeId, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException ex) when (
+                        ex.StatusCode == StatusCodes.BadTimeout && !cancellationToken.IsCancellationRequested)
+                    {
+                        m_logger.RetryingInitialAliasSnapshotAfterTimeout(root.NodeId, ex);
+                        aliasesByCategory = await QueryAliasesAsync(store, root.NodeId, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
                 }
 
                 await MaterializeCategoryAsync(
@@ -1227,5 +1241,10 @@ namespace Opc.Ua.Server.AliasNames
         [LoggerMessage(EventId = ServerEventIds.AliasNameNodeManager + 4, Level = LogLevel.Information,
             Message = "Materialized {Count} Part 17 alias name nodes from the alias store(s).")]
         public static partial void MaterializedAliasNameNodes(this ILogger logger, int count);
+
+        [LoggerMessage(EventId = ServerEventIds.AliasNameNodeManager + 6, Level = LogLevel.Warning,
+            Message = "Initial alias snapshot for category {CategoryId} timed out; retrying once before materialization.")]
+        public static partial void RetryingInitialAliasSnapshotAfterTimeout(
+            this ILogger logger, NodeId categoryId, Exception exception);
     }
 }

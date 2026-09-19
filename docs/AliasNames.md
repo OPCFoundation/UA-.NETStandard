@@ -36,9 +36,9 @@ character sets; `[^...]` negates a set (`[!...]` remains accepted for
 compatibility). Wildcards match line breaks. Trailing escapes, malformed sets,
 descending ranges, and unescaped `^` outside the start of a set return
 `BadInvalidArgument` from both FindAlias variants even with an empty
-store. Matching each alias name has a 100 ms time limit; exceeding it returns
-`BadTimeout`. The server also checks for request cancellation before matching
-the next name.
+store. All alias matches in one search share a 100 ms deadline; exceeding it
+returns `BadTimeout`. The server also checks for request cancellation before
+matching the next name.
 
 The server library exposes a pluggable backend (`IAliasNameStore`) plus
 a default in-memory implementation. Apps assemble their alias inventory
@@ -101,6 +101,11 @@ diagnostics-node-manager subclass is needed. The same setting applies
 to stores for `Topics`; their targets must be `PublishedDataSetType`
 instances. Omit `ConfigureAliasNames(...)` when only method-based
 lookup is needed.
+
+Initial node materialization retries one timed-out snapshot read before creating
+nodes for that root. The retry is logged; each attempt retains the 100 ms search limit.
+Repeated timeouts, other store errors, and cancellation still abort startup.
+Only initial materialization uses this immediate retry.
 
 When a client calls `Aliases.FindAlias` (`i=23476`),
 `TagVariables.FindAlias` (`i=23485`) or `Topics.FindAlias` (`i=23494`),

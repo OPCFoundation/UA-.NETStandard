@@ -49,6 +49,99 @@ namespace Opc.Ua.Server.Tests.AliasNames
     [Category("AliasNames")]
     public sealed class AliasRefreshRegressionTests
     {
+        [Test]
+        public async Task InitialMaterializationRetriesOneTimedOutSnapshotAsync()
+        {
+            await using var harness = new RefreshHarness();
+            int attempts = 0;
+            harness.Query = (id, pattern, reference, types, ct) =>
+            {
+                Assert.That(harness.Category, Is.Null);
+                if (++attempts == 1)
+                {
+                    return new ValueTask<IReadOnlyList<AliasNameVerboseDataType>>(
+                        Task.FromException<IReadOnlyList<AliasNameVerboseDataType>>(
+                            new ServiceResultException(StatusCodes.BadTimeout)));
+                }
+                return harness.Data.FindAliasVerboseAsync(id, pattern, reference, types, ct);
+            };
+
+            await harness.InitializeAsync().ConfigureAwait(false);
+
+            Assert.That(attempts, Is.EqualTo(2));
+            AliasNameState alias = harness.FindAlias("Alpha");
+            Assert.That(alias, Is.Not.Null);
+            Assert.That(harness.Category.ReferenceExists(ReferenceTypeIds.Organizes, false, alias.NodeId), Is.True);
+            Assert.That(harness.Target.ReferenceExists(ReferenceTypeIds.AliasFor, true, alias.NodeId), Is.True);
+        }
+
+        [Test]
+        public async Task InitialMaterializationPropagatesRepeatedTimeoutAsync()
+        {
+            await using var harness = new RefreshHarness();
+            var failure = new ServiceResultException(StatusCodes.BadTimeout);
+            int attempts = 0;
+            harness.Query = (_, _, _, _, _) =>
+            {
+                attempts++;
+                return new ValueTask<IReadOnlyList<AliasNameVerboseDataType>>(
+                    Task.FromException<IReadOnlyList<AliasNameVerboseDataType>>(failure));
+            };
+
+            ServiceResultException actual = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.InitializeAsync().ConfigureAwait(false));
+
+            Assert.That(actual, Is.SameAs(failure));
+            Assert.That(attempts, Is.EqualTo(2));
+            Assert.That(harness.Category, Is.Null);
+            Assert.That(harness.FindAlias("Alpha"), Is.Null);
+        }
+
+        [Test]
+        public async Task InitialMaterializationDoesNotRetryNonTimeoutFailureAsync()
+        {
+            await using var harness = new RefreshHarness();
+            var failure = new IOException("Initial alias store unavailable.");
+            int attempts = 0;
+            harness.Query = (_, _, _, _, _) =>
+            {
+                attempts++;
+                return new ValueTask<IReadOnlyList<AliasNameVerboseDataType>>(
+                    Task.FromException<IReadOnlyList<AliasNameVerboseDataType>>(failure));
+            };
+
+            IOException actual = Assert.ThrowsAsync<IOException>(
+                async () => await harness.InitializeAsync().ConfigureAwait(false));
+
+            Assert.That(actual, Is.SameAs(failure));
+            Assert.That(attempts, Is.EqualTo(1));
+            Assert.That(harness.Category, Is.Null);
+        }
+
+        [Test]
+        public async Task InitialMaterializationDoesNotRetryCanceledQueryAsync()
+        {
+            await using var harness = new RefreshHarness();
+            using var cancellation = new CancellationTokenSource();
+            var failure = new ServiceResultException(StatusCodes.BadTimeout);
+            int attempts = 0;
+            harness.Query = (_, _, _, _, ct) =>
+            {
+                Assert.That(ct, Is.EqualTo(cancellation.Token));
+                attempts++;
+                cancellation.Cancel();
+                return new ValueTask<IReadOnlyList<AliasNameVerboseDataType>>(
+                    Task.FromException<IReadOnlyList<AliasNameVerboseDataType>>(failure));
+            };
+
+            ServiceResultException actual = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.InitializeAsync(cancellation.Token).ConfigureAwait(false));
+
+            Assert.That(actual, Is.SameAs(failure));
+            Assert.That(attempts, Is.EqualTo(1));
+            Assert.That(harness.Category, Is.Null);
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task StoreQueryFailurePreservesMaterializedAliasNodesAsync(bool timeout)
@@ -534,13 +627,13 @@ namespace Opc.Ua.Server.Tests.AliasNames
             public AliasNameCategoryState Category =>
                 Manager.FindPredefinedNode<AliasNameCategoryState>(CategoryId);
 
-            public async ValueTask InitializeAsync()
+            public async ValueTask InitializeAsync(CancellationToken cancellationToken = default)
             {
-                await ((IAliasNameMaterializerHost)Manager).RegisterNodeAsync(Target, CancellationToken.None)
+                await ((IAliasNameMaterializerHost)Manager).RegisterNodeAsync(Target, cancellationToken)
                     .ConfigureAwait(false);
                 var references = new Dictionary<NodeId, IList<IReference>>();
-                await Manager.CreateAddressSpaceAsync(references).ConfigureAwait(false);
-                await Manager.AddReferencesAsync(references).ConfigureAwait(false);
+                await Manager.CreateAddressSpaceAsync(references, cancellationToken).ConfigureAwait(false);
+                await Manager.AddReferencesAsync(references, cancellationToken).ConfigureAwait(false);
             }
 
             public AliasNameState FindAlias(string name, NodeId categoryId = default)
