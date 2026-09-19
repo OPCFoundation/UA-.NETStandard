@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -124,9 +123,9 @@ namespace Opc.Ua.Server.AliasNames
                 {
                     await m_refresh(generation, cancellationToken).ConfigureAwait(false);
                 }
-                catch (Exception ex) when (!cancellationToken.IsCancellationRequested &&
-                    ex is ServiceResultException or IOException or InvalidOperationException or
-                        TimeoutException or ArgumentException or NotSupportedException or OperationCanceledException)
+                catch (Exception ex) when (
+                    ex is not OutOfMemoryException and not StackOverflowException and not AccessViolationException &&
+                    (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested))
                 {
                     m_logger.AliasRefreshFailed(ex, generation);
                 }

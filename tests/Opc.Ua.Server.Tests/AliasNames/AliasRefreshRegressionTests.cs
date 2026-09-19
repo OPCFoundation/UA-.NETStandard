@@ -30,7 +30,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.IO;
+using System.Net.Http;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -405,39 +408,142 @@ namespace Opc.Ua.Server.Tests.AliasNames
             Assert.That(calls, Is.EqualTo(2));
         }
 
-        [Test]
-        public async Task RefreshFaultIsLoggedAndNextChangeRetriesAsync()
+        [TestCaseSource(nameof(s_backendFailures))]
+        public async Task RefreshFaultIsLoggedAndNextChangeRetriesAsync(Exception failure)
         {
-            var logger = new Mock<ILogger>();
-            logger.Setup(log => log.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
-            var factory = new Mock<ILoggerFactory>();
-            factory.Setup(value => value.CreateLogger(It.IsAny<string>())).Returns(logger.Object);
-            var telemetry = new Mock<ITelemetryContext>();
-            telemetry.SetupGet(value => value.LoggerFactory).Returns(factory.Object);
-            var failed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            await using var harness = new RefreshHarness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            AliasNameState original = harness.FindAlias("Alpha");
+            ITelemetryContext telemetry = CreateRefreshTelemetry(out Mock<ILogger> logger);
+            Task<bool> logged = ObserveError(logger, "AliasRefreshFailed");
+            Task<bool> terminated = ObserveError(logger, "BackgroundTaskFailed");
             var retried = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var failure = new IOException("Alias store offline.");
             int calls = 0;
-            await using var coordinator = new AliasNameRefreshCoordinator(
-                "AliasFailureTest", telemetry.Object, (_, _) =>
+            harness.Query = (id, pattern, reference, types, ct) =>
+            {
+                if (Interlocked.Increment(ref calls) == 1)
                 {
-                    if (Interlocked.Increment(ref calls) == 1)
-                    {
-                        failed.TrySetResult(true);
-                        throw failure;
-                    }
+                    throw failure;
+                }
+                return harness.Data.FindAliasVerboseAsync(id, pattern, reference, types, ct);
+            };
+            await using var coordinator = new AliasNameRefreshCoordinator(
+                "AliasFailureTest", telemetry, async (_, ct) =>
+                {
+                    await harness.Materializer.RefreshCategoryAsync(
+                        harness.Store.Object, harness.CategoryId, materializeAliasNodes: true, cancellationToken: ct)
+                        .ConfigureAwait(false);
                     retried.TrySetResult(true);
-                    return default;
                 });
+
+            await harness.Data.AddAliasesAsync(harness.CategoryId,
+                [new AliasAddRequest("Beta", harness.Target.NodeId, null, ReferenceTypeIds.AliasFor)])
+                .ConfigureAwait(false);
             coordinator.RequestRefresh();
-            await failed.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Task<bool> outcome = await Task.WhenAny(logged, terminated).ConfigureAwait(false);
+
+            Assert.That(outcome, Is.SameAs(logged), "A backend failure must not terminate the only refresh worker.");
+            Assert.That(harness.FindAlias("Alpha"), Is.SameAs(original));
+            Assert.That(harness.FindAlias("Beta"), Is.Null);
+            Assert.That(harness.Target.ReferenceExists(ReferenceTypeIds.AliasFor, true, original.NodeId), Is.True);
+
+            await harness.Data.AddAliasesAsync(harness.CategoryId,
+                [new AliasAddRequest("Gamma", harness.Target.NodeId, null, ReferenceTypeIds.AliasFor)])
+                .ConfigureAwait(false);
             coordinator.RequestRefresh();
-            await retried.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            await retried.Task.ConfigureAwait(false);
 
             logger.Verify(log => log.Log(LogLevel.Error,
                 It.Is<EventId>(id => id.Name == "AliasRefreshFailed"), It.IsAny<It.IsAnyType>(), failure,
                 It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Once);
+            Assert.That(terminated.IsCompleted, Is.False);
             Assert.That(calls, Is.EqualTo(2));
+            Assert.That(coordinator.PendingTaskCount, Is.EqualTo(1));
+            Assert.That(harness.FindAlias("Alpha"), Is.SameAs(original));
+            Assert.That(harness.FindAlias("Beta"), Is.Not.Null);
+            Assert.That(harness.FindAlias("Gamma"), Is.Not.Null);
+            Assert.That(harness.Target.ReferenceExists(
+                ReferenceTypeIds.AliasFor, true, harness.FindAlias("Beta").NodeId), Is.True);
+            Assert.That(harness.Target.ReferenceExists(
+                ReferenceTypeIds.AliasFor, true, harness.FindAlias("Gamma").NodeId), Is.True);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ShutdownDistinguishesCancellationFromBackendFailureAsync(bool backendFailure)
+        {
+            ITelemetryContext telemetry = CreateRefreshTelemetry(out Mock<ILogger> logger);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var failure = new HttpRequestException("Alias store failed during shutdown.");
+            int calls = 0;
+            await using var coordinator = new AliasNameRefreshCoordinator(
+                "AliasShutdownTest", telemetry, async (_, ct) =>
+                {
+                    Interlocked.Increment(ref calls);
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    if (backendFailure)
+                    {
+                        throw failure;
+                    }
+                    ct.ThrowIfCancellationRequested();
+                });
+            try
+            {
+                coordinator.RequestRefresh();
+                await entered.Task.ConfigureAwait(false);
+                coordinator.RequestRefresh();
+                coordinator.Dispose();
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            await coordinator.DisposeAsync().ConfigureAwait(false);
+            coordinator.RequestRefresh();
+
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(coordinator.PendingTaskCount, Is.Zero);
+            Assert.That(coordinator.PendingRefreshCount, Is.Zero);
+            logger.Verify(log => log.Log(LogLevel.Error,
+                It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(), It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()), backendFailure ? Times.Once : Times.Never);
+            logger.Verify(log => log.Log(LogLevel.Error,
+                It.Is<EventId>(id => id.Name == "AliasRefreshFailed"), It.IsAny<It.IsAnyType>(), failure,
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()), backendFailure ? Times.Once : Times.Never);
+            logger.Verify(log => log.Log(LogLevel.Error,
+                It.Is<EventId>(id => id.Name == "BackgroundTaskFailed"), It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception>(), It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never);
+        }
+
+        [TestCaseSource(nameof(s_fatalFailures))]
+        public async Task FatalRefreshFailureIsNotRetriedAsync(Exception failure)
+        {
+            ITelemetryContext telemetry = CreateRefreshTelemetry(out Mock<ILogger> logger);
+            Task<bool> logged = ObserveError(logger, "AliasRefreshFailed");
+            Task<bool> terminated = ObserveError(logger, "BackgroundTaskFailed");
+            int calls = 0;
+            await using var coordinator = new AliasNameRefreshCoordinator(
+                "AliasFatalTest", telemetry, (_, _) =>
+                {
+                    Interlocked.Increment(ref calls);
+                    throw failure;
+                });
+
+            coordinator.RequestRefresh();
+            Task<bool> outcome = await Task.WhenAny(logged, terminated).ConfigureAwait(false);
+            Assert.That(outcome, Is.SameAs(terminated));
+            await coordinator.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(coordinator.PendingTaskCount, Is.Zero);
+            logger.Verify(log => log.Log(LogLevel.Error,
+                It.Is<EventId>(id => id.Name == "BackgroundTaskFailed"), It.IsAny<It.IsAnyType>(), failure,
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Once);
+            logger.Verify(log => log.Log(LogLevel.Error,
+                It.Is<EventId>(id => id.Name == "AliasRefreshFailed"), It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception>(), It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never);
         }
 
         [Test]
@@ -545,6 +651,27 @@ namespace Opc.Ua.Server.Tests.AliasNames
             Assert.That(harness.FindAlias("Alpha"), Is.SameAs(original));
             Assert.That(child.LastChange.Value, Is.EqualTo(33u));
             Assert.That(harness.Category.LastChange.Value, Is.EqualTo(33u));
+        }
+
+        private static ITelemetryContext CreateRefreshTelemetry(out Mock<ILogger> logger)
+        {
+            logger = new Mock<ILogger>();
+            logger.Setup(log => log.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
+            var factory = new Mock<ILoggerFactory>();
+            factory.Setup(value => value.CreateLogger(It.IsAny<string>())).Returns(logger.Object);
+            var telemetry = new Mock<ITelemetryContext>();
+            telemetry.SetupGet(value => value.LoggerFactory).Returns(factory.Object);
+            return telemetry.Object;
+        }
+
+        private static Task<bool> ObserveError(Mock<ILogger> logger, string eventName)
+        {
+            var observed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            logger.Setup(log => log.Log(LogLevel.Error,
+                It.Is<EventId>(id => id.Name == eventName), It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception>(), It.IsAny<Func<It.IsAnyType, Exception, string>>()))
+                .Callback(() => observed.TrySetResult(true));
+            return observed.Task;
         }
 
         private sealed class RefreshHarness : IAsyncDisposable
@@ -659,5 +786,29 @@ namespace Opc.Ua.Server.Tests.AliasNames
             private readonly MonitoredItemQueueFactory m_queues;
             private AliasQuery m_query;
         }
+
+        private static readonly TestCaseData[] s_backendFailures =
+        [
+            new TestCaseData(new IOException("Alias store offline."))
+                .SetArgDisplayNames(nameof(IOException)),
+            new TestCaseData(new HttpRequestException("Alias HTTP store offline."))
+                .SetArgDisplayNames(nameof(HttpRequestException)),
+            new TestCaseData(new Mock<DbException>().Object)
+                .SetArgDisplayNames(nameof(DbException)),
+            new TestCaseData(new SocketException((int)SocketError.ConnectionReset))
+                .SetArgDisplayNames(nameof(SocketException)),
+            new TestCaseData(new Mock<NullReferenceException>().Object)
+                .SetArgDisplayNames(nameof(NullReferenceException)),
+            new TestCaseData(new OperationCanceledException("Alias query canceled.", new CancellationToken(true)))
+                .SetArgDisplayNames(nameof(OperationCanceledException))
+        ];
+
+        private static readonly TestCaseData[] s_fatalFailures =
+        [
+            new TestCaseData(new Mock<OutOfMemoryException>().Object)
+                .SetArgDisplayNames(nameof(OutOfMemoryException)),
+            new TestCaseData(new Mock<AccessViolationException>().Object)
+                .SetArgDisplayNames(nameof(AccessViolationException))
+        ];
     }
 }
