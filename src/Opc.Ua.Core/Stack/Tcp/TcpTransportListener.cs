@@ -345,7 +345,7 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
-                KeyValuePair<uint, TcpListenerChannel>[] channels = [];
+                ICollection<TcpListenerChannel> channels = [];
                 lock (m_lock)
                 {
                     m_inactivityDetectionTimer?.Dispose();
@@ -361,14 +361,15 @@ namespace Opc.Ua.Bindings
 
                     if (m_channels != null)
                     {
-                        channels = [.. m_channels];
+                        // Values is an atomic snapshot; copying the live dictionary can race channel closure.
+                        channels = m_channels.Values;
                         m_channels.Clear();
                         m_channels = null;
                     }
                 }
-                foreach (KeyValuePair<uint, TcpListenerChannel> channel in channels)
+                foreach (TcpListenerChannel channel in channels)
                 {
-                    channel.Value.Dispose();
+                    channel.Dispose();
                 }
             }
         }
