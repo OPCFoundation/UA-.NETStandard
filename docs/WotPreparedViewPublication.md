@@ -59,15 +59,15 @@ operations. Calling them during preparation and attempting compensation later
 does not implement this contract. A host that cannot participate in the common
 lifecycle publication must not advertise prepared support.
 
-## Provisional dependency metadata shapes
+## Captured dependency metadata
 
-B2 has supplied signatures from frozen WIP, not a clean delivery or a finalized
-orchestration contract. No finalized captured-selection, effective-input or
-LastRefreshPlan producer API currently exists to consume. The independent clean
-R42 commit is not a substitute for that missing producer contract.
+`IWotRefreshCaptureProvider` resolves to the registered
+`WotMaterializationCoordinator`. Its `CaptureAsync` method captures the request,
+selected exact-Version inputs and their leases. The result is preparation input,
+not a prepared publication unit or a store-integrity token. Capture does not
+convert, activate, retire or publish anything.
 
-The supplied DTO shape retains the existing `WotResourceProjection` constructor
-and adds two init-only properties:
+`WotResourceProjection` carries two init-only observation properties:
 
 ```csharp
 public WotDependencySnapshot? DependencySnapshot { get; init; }
@@ -81,13 +81,18 @@ ResolvedAt, IsCommitted, EffectiveInputDigest, Edges and Targets. Its Generation
 and projection RefreshGeneration are UInt32 values, distinct from the registry/
 store's Int64 Generation.
 
-When a reviewed contract is delivered and integration is approved, the
-coordinator must preserve both additive payloads through its prepared metadata
-path. Committed dependency state belongs to the same authoritative
+The prepared metadata path must preserve both observation payloads.
+Committed dependency state belongs to the same authoritative
 publication as the Resource rows, graph, routes and plans. A failed attempt
 does not replace the previous committed dependency snapshot, and dry runs do
 not publish either dependency diagnostics or a new committed generation.
 These payloads do not own another deciding record or generation allocator.
+
+The capture's `GetRegistryInputDigest` fingerprints the registry inputs it holds.
+It does not cover uncaptured external artifacts. `CreateRefreshPlan` reports the
+publication owner's applied atomicity and unit count. It neither chooses those
+units nor publishes `LastRefreshPlan`. The publication owner still performs the
+final stale-input checks and commits the resulting image.
 
 Captured registry authority is not an execution-partition selector.
 OriginRegistry identifies registry authority; RegistryNodeId identifies its
@@ -101,10 +106,11 @@ Passing a data-only multi-model path does not establish that binding authority.
 Content-lease capability still comes from the actual wrapped
 `IXRegistryResourceStore` owner. Both ordinary and leased reads remain observable;
 SupportsDependencySnapshots is not an immutable-content lease substitute.
-These are provisional DTO compatibility notes and authority boundaries, not a
-finalized capture, partition or producer API and not a claim that B2 is included
-here. Composition requires reviewed clean delivery and explicit parent approval;
-no draft capture API, duplicate DTO or selection engine is introduced.
+The existing capture provider and prepared store serve different purposes.
+Neither the dependency snapshot nor these View contracts supplies another
+selection engine, durable decision or generation allocator.
+See [selected dependencies and exact-Version snapshots](WotDependencySnapshots.md)
+for capture and observation behavior.
 
 ## Authoritative graph carrier
 
@@ -138,7 +144,7 @@ DurabilityUncertain and Indeterminate retain their existing distinct meanings.
 
 ## Ordered live reconciliation
 
-The parent-owned R34 integration seam is an optional init-only
+The live projection seam is an optional init-only
 `XRegistryProjectionContext.ProjectionDispatcher`:
 
 ```csharp
@@ -166,9 +172,9 @@ decision or cancel mandatory post-commit state publication. Consumer callbacks
 and acknowledgment failures must not split the committed image or strand later
 publications, and post-commit failures must remain explicit.
 
-This section records the public integration contract; it does not assert that
-the pending parent R34 implementation is already part of this branch. Consume
-its reviewed clean delivery without copying or replacing parent WIP.
+The stock WoT projection supplies this dispatcher through its reconciliation
+queue. Generic xRegistry users without a dispatcher keep the direct path.
+The queue does not supply the prepared batch or durable publication decision.
 
 ## Integration status
 
