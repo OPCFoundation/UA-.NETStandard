@@ -910,8 +910,21 @@ namespace Opc.Ua.WotCon.Server.Registry
                 }
             }
 
+            ByteString graphState = default;
+            if (manifest.CanonicalViewGraphState is not null)
+            {
+                try
+                {
+                    graphState = ByteString.From(Convert.FromBase64String(manifest.CanonicalViewGraphState));
+                }
+                catch (FormatException failure)
+                {
+                    throw new InvalidDataException(
+                        $"The {manifestRole} contains an invalid canonical View graph carrier.", failure);
+                }
+            }
             var snapshot = new WotRegistrySnapshot(
-                generation, groups.ToImmutable(), registryLabels);
+                generation, groups.ToImmutable(), registryLabels, graphState, manifest.RefreshGeneration);
             WotRegistryIdentity.ValidateSnapshot(snapshot);
             return snapshot;
         }
@@ -1161,6 +1174,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 SchemaVersion = CurrentSchemaVersion,
                 Generation = snapshot.Generation,
+                RefreshGeneration = snapshot.RefreshGeneration,
+                CanonicalViewGraphState = snapshot.CanonicalViewGraphState.IsNull
+                    ? null
+                    : Convert.ToBase64String(snapshot.CanonicalViewGraphState.Span.ToArray()),
                 RegistryLabels = FromLabels(snapshot.Labels),
                 Groups = groups.Count == 0 ? null : [.. groups]
             };
@@ -2869,6 +2886,17 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the committed registry generation number.
             /// </summary>
             public long Generation { get; set; }
+
+            /// <summary>
+            /// Gets or sets the last committed materialization generation.
+            /// </summary>
+            [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+            public uint RefreshGeneration { get; set; }
+
+            /// <summary>
+            /// Gets or sets the optional canonical View graph carrier in base64.
+            /// </summary>
+            public string? CanonicalViewGraphState { get; set; }
 
             /// <summary>
             /// Gets or sets registry-level labels persisted with the manifest.
