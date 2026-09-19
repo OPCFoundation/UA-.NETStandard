@@ -1255,6 +1255,11 @@ namespace Opc.Ua.Server.Tests
                 configuration);
             await manager.StartupAsync().ConfigureAwait(false);
 
+            // Shutdown clears the manager's task field after draining the worker.
+            Task publishWorker = GetPrivateField<Task>(
+                manager,
+                "m_publishWorkerTask");
+            Assert.That(publishWorker.IsCompleted, Is.False);
             SemaphoreSlim semaphore = GetPrivateField<SemaphoreSlim>(
                 manager,
                 "m_semaphoreSlim");
@@ -1262,9 +1267,6 @@ namespace Opc.Ua.Server.Tests
             Task shutdown = manager.ShutdownAsync().AsTask();
             try
             {
-                Task publishWorker = GetPrivateField<Task>(
-                    manager,
-                    "m_publishWorkerTask");
                 await publishWorker.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 Assert.That(shutdown.IsCompleted, Is.False);
             }
