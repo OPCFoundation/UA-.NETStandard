@@ -1580,10 +1580,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// replacement generation, while the existing monitored item keeps being serviced
         /// by the retired (but not yet destroyed) current generation, including for a
         /// fresh value pushed directly on that retired generation's own node after the
-        /// switch. Once the owning subscription is deleted, a later lifecycle operation
-        /// opportunistically completes retired-generation cleanup and disposes the old
-        /// generation's address space, without the lifecycle provider ever deleting the
-        /// client's subscription itself.
+        /// switch. Once the owning subscription is deleted, retirement cleanup disposes
+        /// the old generation's address space asynchronously, without the lifecycle
+        /// provider ever deleting the client's subscription itself.
         /// </summary>
         [Test]
         public async Task ShadowReloadAsyncKeepsActiveMonitoredItemAliveThenDisposesRetiredGenerationAfterDrainAsync()
@@ -1679,20 +1678,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
             }
 
-            // With the owning subscription gone, a later lifecycle operation
-            // opportunistically finishes retired-generation cleanup: the old generation's
-            // own address space is torn down (DeleteAddressSpaceAsync empties its
-            // PredefinedNodes) without the lifecycle provider ever deleting the client's
-            // (already independently deleted) subscription itself.
+            // Removing the replacement can race an already-claimed background retirement
+            // drain. Its completion does not join that independent cleanup operation.
             NodeManagerRegistration current = m_server.NodeManagerLifecycle.Registrations
                 .Find(r => r.Id == original.Id);
             Assert.That(current, Is.Not.Null);
             await m_server.NodeManagerLifecycle.RemoveAsync(current, null).ConfigureAwait(false);
 
-            Assert.That(originalManager.Find(valueNodeId), Is.Null);
             Assert.That(
                 CountMatches(m_server.NodeManagerLifecycle.Registrations, r => r.Id == original.Id),
                 Is.Zero);
+            await AssertRetiredGenerationDisposedAsync(originalManager, valueNodeId).ConfigureAwait(false);
         }
 
         /// <summary>
