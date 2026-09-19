@@ -165,8 +165,8 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
 
         [Test]
         [Order(100)]
-        [TestCase(900, 100u, 100u, 10000u, 3600u, 83442u, TestName = "Test Lifetime Over Maximum")]
-        [TestCase(900, 100u, 100u, 0u, 3600u, 83442u, TestName = "Test Lifetime Zero")]
+        [TestCase(900, 100u, 100u, 10000u, 3600u, 14_400_000u, TestName = "Test Lifetime Over Maximum")]
+        [TestCase(900, 100u, 100u, 0u, 3600u, 14_400_000u, TestName = "Test Lifetime Zero")]
         [TestCase(1200, 100u, 100u, 1u, 1u, 3000u, TestName = "Test Lifetime One")]
         [TestCase(
             60000,
