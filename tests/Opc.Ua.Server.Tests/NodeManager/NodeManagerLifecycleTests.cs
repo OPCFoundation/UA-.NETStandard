@@ -7664,6 +7664,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public Func<CancellationToken, ValueTask> ReadCallback { get; set; }
 
+            public NodeId ReadCallbackNodeId { get; set; }
+
             public override async ValueTask ReadAsync(
                 OperationContext context,
                 double maxAge,
@@ -7673,7 +7675,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CancellationToken cancellationToken = default)
             {
                 Interlocked.Increment(ref m_readCount);
-                if (ReadCallback is not null)
+                if (ReadCallback is not null &&
+                    (ReadCallbackNodeId.IsNull || nodesToRead.Contains(node => node.NodeId == ReadCallbackNodeId)))
                 {
                     await ReadCallback(cancellationToken).ConfigureAwait(false);
                 }

@@ -44,6 +44,125 @@ namespace Opc.Ua.Server.Tests.NodeManager
     {
         [TestCase(false)]
         [TestCase(true)]
+        [Category("Integration")]
+        [Category("NativeTcp")]
+        public async Task PreparedBatchNativeReadRetainsOneGenerationAcrossDecisionAsync(bool rejectDecision)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            TrackingLifecycleNodeManager firstManager = null;
+            TrackingLifecycleNodeManager secondManager = null;
+            NodeManagerRegistration first = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kFirstRegistrationValue, manager => firstManager = manager),
+                null, timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration second = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kSecondRegistrationValue, manager => secondManager = manager,
+                    kSecondModelNamespaceUri), null, timeout.Token).ConfigureAwait(false);
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [
+                    NodeManagerBatchChange.Replace(first,
+                        CreateTrackingNodeManagementFactory(303, _ => { })),
+                    NodeManagerBatchChange.Replace(second,
+                        CreateTrackingNodeManagementFactory(404, _ => { }, kSecondModelNamespaceUri))
+                ], timeout.Token).ConfigureAwait(false);
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            using Opc.Ua.Client.ISession session = await client.ConnectAsync(
+                new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
+                .ConfigureAwait(false);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var decided = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            NodeId firstId = new(kValueNodeId,
+                (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
+            NodeId secondId = new(kValueNodeId,
+                (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri));
+            firstManager.ReadCallbackNodeId = firstId;
+            firstManager.ReadCallback = async token =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(token).ConfigureAwait(false);
+            };
+            Task<ReadResponse> pendingRead = ReadPairAsync();
+            Task<NodeManagerBatchResult> pendingCommit = null;
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                pendingCommit = prepared.CommitAsync(
+                    _ =>
+                    {
+                        decided.TrySetResult(true);
+                        if (rejectDecision)
+                        {
+                            throw new IOException("Confirmed noncommit while a native read owns the old image.");
+                        }
+                        return default;
+                    },
+                    () => published.TrySetResult(true),
+                    timeout.Token).AsTask();
+                await decided.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                if (!rejectDecision)
+                {
+                    await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(pendingRead.IsCompleted, Is.False);
+                    Assert.That(firstManager.DeleteAddressSpaceCount, Is.Zero);
+                    Assert.That(secondManager.DeleteAddressSpaceCount, Is.Zero);
+                    Assert.That(firstManager.DisposeCount, Is.Zero);
+                    Assert.That(secondManager.DisposeCount, Is.Zero);
+                }
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            ReadResponse oldRead = await pendingRead.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(pendingCommit, Is.Not.Null);
+            if (rejectDecision)
+            {
+                await Assert.ThatAsync(() => pendingCommit, Throws.TypeOf<IOException>()).ConfigureAwait(false);
+            }
+            else
+            {
+                NodeManagerBatchResult committed = await pendingCommit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(committed.CleanupFailure, Is.Null);
+                Assert.That(committed.Retired, Is.EqualTo(2u));
+            }
+            ReadResponse current = await ReadPairAsync().ConfigureAwait(false);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(oldRead.Results.Count, Is.EqualTo(2));
+                Assert.That(oldRead.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(oldRead.Results[1].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(oldRead.Results[0].WrappedValue, Is.EqualTo(new Variant(kFirstRegistrationValue)));
+                Assert.That(oldRead.Results[1].WrappedValue, Is.EqualTo(new Variant(kSecondRegistrationValue)));
+                Assert.That(current.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(current.Results[1].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(current.Results[0].WrappedValue,
+                    Is.EqualTo(new Variant(rejectDecision ? kFirstRegistrationValue : 303)));
+                Assert.That(current.Results[1].WrappedValue,
+                    Is.EqualTo(new Variant(rejectDecision ? kSecondRegistrationValue : 404)));
+                Assert.That(prepared.IsCommitted, Is.EqualTo(!rejectDecision));
+                Assert.That(firstManager.DisposeCount, Is.EqualTo(rejectDecision ? 0 : 1));
+                Assert.That(secondManager.DisposeCount, Is.EqualTo(rejectDecision ? 0 : 1));
+            }
+            await session.CloseAsync(timeout.Token).ConfigureAwait(false);
+
+            async Task<ReadResponse> ReadPairAsync()
+            {
+                return await session.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                    [
+                        new ReadValueId { NodeId = firstId, AttributeId = Attributes.Value },
+                        new ReadValueId { NodeId = secondId, AttributeId = Attributes.Value }
+                    ], timeout.Token).ConfigureAwait(false);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
         public async Task PreparedBatchOwnsItsChangesAcrossAwaitAsync(bool mutateCallerArray)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
