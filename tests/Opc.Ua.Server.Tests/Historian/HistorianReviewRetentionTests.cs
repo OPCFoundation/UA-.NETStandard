@@ -37,6 +37,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Historian
 {
@@ -70,7 +71,12 @@ namespace Opc.Ua.Server.Tests.Historian
                 context, s_nodeId, [MakeValue(s_now, 1)], CancellationToken.None).ConfigureAwait(false);
             Assert.That(outcome.OperationResults[0], Is.EqualTo(StatusCodes.GoodEntryInserted));
             clock.Advance(TimeSpan.FromHours(1) + TimeSpan.FromTicks(1));
-            Assert.That((await ReadRawAsync(provider, context).ConfigureAwait(false)).Values, Is.Empty);
+            HistorianPage<HistoricalDataValue> retained = await ReadRawAsync(provider, context).ConfigureAwait(false);
+            Assert.That(retained.Values, Has.Count.EqualTo(1));
+            Assert.That(retained.Values[0].Value.SourceTimestamp, Is.EqualTo((DateTimeUtc)s_now));
+            HistorianUpdateOutcome<DataValue> expired = await provider.InsertAsync(
+                context, s_nodeId, [MakeValue(s_now.AddTicks(-1), 2)], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(expired.OperationResults[0], Is.EqualTo(StatusCodes.BadOutOfRange));
         }
 
         [Test]
@@ -172,8 +178,8 @@ namespace Opc.Ua.Server.Tests.Historian
             ]));
             clock.Advance(TimeSpan.FromMinutes(31));
             raw = await ReadRawAsync(provider, context).ConfigureAwait(false);
-            Assert.That(raw.Values, Has.Count.EqualTo(2));
-            Assert.That(raw.Values[0].Value.SourceTimestamp, Is.EqualTo((DateTimeUtc)s_now.AddMinutes(-15)));
+            Assert.That(raw.Values, Has.Count.EqualTo(3));
+            Assert.That(raw.Values[0].Value.SourceTimestamp, Is.EqualTo((DateTimeUtc)s_now.AddMinutes(-30)));
         }
 
         [Test]
@@ -202,6 +208,139 @@ namespace Opc.Ua.Server.Tests.Historian
                     s_now.AddMinutes(-60), s_now.AddMinutes(-59), s_now, s_now.AddMinutes(1), s_now.AddMinutes(100_000)
                 ];
                 Assert.That(raw.Values.ToArray().Select(v => v.Value.SourceTimestamp), Is.EqualTo(expected));
+            }
+        }
+
+        [TestCase(-1)]
+        [TestCase(0)]
+        [TestCase(1)]
+        public async Task RawRetentionKeepsNewestValueAtOrBeforeCutoffAsync(int ticksFromBoundary)
+        {
+            var clock = new FakeTimeProvider(s_now);
+            using var provider = new InMemoryHistorianProvider(new InMemoryHistorianOptions(), clock);
+            HistorianOperationContext context = CreateContext();
+            DateTime older = s_now.AddHours(-1);
+            DateTime boundary = s_now.AddMinutes(-30);
+            DateTime newer = s_now.AddMinutes(-15);
+            HistorianUpdateOutcome<DataValue> inserted = await provider.InsertAsync(
+                context, s_nodeId,
+                [MakeValue(older, 1), MakeValue(boundary, 2), MakeValue(newer, 3), MakeValue(s_now, 4)],
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(inserted.OperationResults.ToArray(), Has.All.EqualTo(StatusCodes.GoodEntryInserted));
+
+            clock.Advance(TimeSpan.FromMinutes(30) + TimeSpan.FromTicks(ticksFromBoundary));
+            HistorianPage<HistoricalDataValue> raw = await ReadRawAsync(provider, context).ConfigureAwait(false);
+            DateTimeUtc[] expected = ticksFromBoundary < 0
+                ? [older, boundary, newer, s_now]
+                : [boundary, newer, s_now];
+            Assert.That(raw.Values.ToArray().Select(value => value.Value.SourceTimestamp), Is.EqualTo(expected));
+            Assert.That(raw.Values[0].Value.WrappedValue.TryGetValue(out int firstValue), Is.True);
+            Assert.That(firstValue, Is.EqualTo(ticksFromBoundary < 0 ? 1 : 2));
+            Assert.That(raw.Values[0].Value.StatusCode, Is.EqualTo(StatusCodes.Good));
+
+            HistorianPage<HistoricalDataValue> repeated = await ReadRawAsync(provider, context).ConfigureAwait(false);
+            Assert.That(repeated.Values.ToArray().Select(value => value.Value.SourceTimestamp), Is.EqualTo(expected));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task QuietValueRemainsAvailableAsRetainedStartBoundAsync(bool reverse)
+        {
+            var clock = new FakeTimeProvider(s_now);
+            using var provider = new InMemoryHistorianProvider(new InMemoryHistorianOptions(), clock);
+            HistorianOperationContext context = CreateContext();
+            HistorianUpdateOutcome<DataValue> inserted = await provider.InsertAsync(
+                context, s_nodeId, [MakeValue(s_now.AddMinutes(-30), 1), MakeValue(s_now, 2)],
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(inserted.OperationResults.ToArray(), Has.All.EqualTo(StatusCodes.GoodEntryInserted));
+
+            clock.Advance(TimeSpan.FromDays(1));
+            DateTime start = s_now.AddHours(23);
+            DateTime end = s_now.AddDays(1);
+            HistorianPage<HistoricalDataValue> bounds = await provider.ReadRawAsync(
+                context,
+                new HistorianRawReadRequest
+                {
+                    NodeId = s_nodeId,
+                    StartTime = reverse ? end : start,
+                    EndTime = reverse ? start : end,
+                    IsForward = !reverse,
+                    ReturnBounds = true
+                },
+                default,
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(bounds.Values, Has.Count.EqualTo(2));
+            HistoricalDataValue retained = bounds.Values[reverse ? 1 : 0];
+            Assert.That(retained.IsBound, Is.True);
+            Assert.That(retained.Value.SourceTimestamp, Is.EqualTo((DateTimeUtc)s_now));
+            Assert.That(retained.Value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(retained.Value.WrappedValue.TryGetValue(out int retainedValue), Is.True);
+            Assert.That(retainedValue, Is.EqualTo(2));
+            HistoricalDataValue missing = bounds.Values[reverse ? 0 : 1];
+            Assert.That(missing.IsBound, Is.True);
+            Assert.That(missing.Value.SourceTimestamp, Is.EqualTo((DateTimeUtc)end));
+            Assert.That(missing.Value.StatusCode, Is.EqualTo(StatusCodes.BadBoundNotFound));
+
+            HistorianUpdateOutcome<DataValue> backfill = await provider.InsertAsync(
+                context, s_nodeId, [MakeValue(start.AddTicks(-1), 3)], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(backfill.OperationResults[0], Is.EqualTo(StatusCodes.BadOutOfRange));
+            HistorianPage<HistoricalDataValue> raw = await ReadRawAsync(provider, context).ConfigureAwait(false);
+            Assert.That(raw.Values, Has.Count.EqualTo(1));
+            Assert.That(raw.Values[0].Value.SourceTimestamp, Is.EqualTo((DateTimeUtc)s_now));
+            Assert.That(raw.Values[0].Value.WrappedValue.TryGetValue(out int afterRejectedBackfill), Is.True);
+            Assert.That(afterRejectedBackfill, Is.EqualTo(2));
+        }
+
+        [Test]
+        public async Task OnceSeededTestDataHistoryRemainsCompleteAfterOneDayAsync()
+        {
+            var clock = new FakeTimeProvider(s_now);
+            var system = new TestData.TestDataSystem(
+                Mock.Of<TestData.ITestDataSystemCallback>(),
+                new NamespaceTable(),
+                new StringTable(),
+                NUnitTelemetryContext.Create(),
+                clock);
+            using InMemoryHistorianProvider provider = system.Historian;
+            HistorianOperationContext context = CreateContext();
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = s_nodeId,
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar
+            };
+            system.EnableHistoryArchiving(context.SystemContext, variable);
+            clock.Advance(TimeSpan.FromDays(1));
+
+            var values = new List<HistoricalDataValue>();
+            HistorianResumeToken token = default;
+            for (int pageIndex = 0; pageIndex < 2; pageIndex++)
+            {
+                HistorianPage<HistoricalDataValue> page = await provider.ReadRawAsync(
+                    context,
+                    new HistorianRawReadRequest
+                    {
+                        NodeId = s_nodeId,
+                        StartTime = DateTimeUtc.MinValue,
+                        EndTime = DateTimeUtc.MaxValue,
+                        IsForward = true
+                    },
+                    token,
+                    CancellationToken.None).ConfigureAwait(false);
+                values.AddRange(page.Values.ToArray());
+                token = page.NextToken;
+                Assert.That(page.IsFinal, Is.EqualTo(pageIndex == 1));
+            }
+
+            Assert.That(token.IsEmpty, Is.True);
+            Assert.That(values, Has.Count.EqualTo(1001));
+            for (int i = 0; i < values.Count; i++)
+            {
+                Assert.That(values[i].Value.WrappedValue.TryGetValue(out int value), Is.True);
+                Assert.That(value, Is.EqualTo(i));
+                Assert.That(values[i].Value.SourceTimestamp,
+                    Is.EqualTo((DateTimeUtc)s_now.AddSeconds(-(1000 - i) * 10).AddMilliseconds(1234)));
+                Assert.That(values[i].Value.StatusCode, Is.EqualTo(StatusCodes.Good));
             }
         }
 

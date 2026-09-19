@@ -80,7 +80,11 @@ namespace TestData
                 NamespaceUris = namespaceUris,
                 ServerUris = serverUris
             };
-            Historian = new InMemoryHistorianProvider();
+            Historian = new InMemoryHistorianProvider(new InMemoryHistorianOptions
+            {
+                // This history is seeded once rather than continuously captured.
+                RawDataRetentionPeriod = TimeSpan.Zero
+            }, m_timeProvider);
         }
 
         /// <summary>
@@ -164,7 +168,7 @@ namespace TestData
         {
             // Match the historic behaviour of the previous HistoryArchive
             // sample: ~1000 samples spaced 10 seconds apart leading up to now.
-            DateTime now = DateTime.UtcNow;
+            DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
             var seed = new List<DataValue>(1001);
             for (int ii = 1000; ii >= 0; ii--)
             {
@@ -952,5 +956,4 @@ namespace TestData
             Message = "DoSample HiRes={HiRes:ss.ffff} Now={CurrentTime:ss.ffff}")]
         public static partial void DoSample(this ILogger logger, DateTime hiRes, DateTime currentTime);
     }
-
 }

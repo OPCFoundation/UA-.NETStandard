@@ -133,12 +133,17 @@ When both limits are set, the provider enforces both. **Raw retention uses UTC w
 stored timestamp. A future-dated sample cannot move the retention horizon or erase current history. The cutoff is
 inclusive: a sample exactly one retention period old is retained; an older insert or inserting update returns
 `BadOutOfRange` without creating an INSERT modification. A full sample-count archive likewise rejects an entry
-whose composite key would cause it to be evicted immediately. Expired raw values are also removed on reads.
+whose composite key would cause it to be evicted immediately. Expired raw values are also removed on reads, except
+for the newest stored value at or before the cutoff: it remains the retained window's start bound, including when
+a value has not changed during the entire window. A value exactly at the cutoff supersedes any older start bound.
+The hard sample cap still applies to this bound. Raw reads and the at-time/processed fallbacks share this retained
+archive, so reading raw history does not erase a bound needed by subsequent interpolation or aggregation.
 
 For deterministic replay, inject a `TimeProvider` into
 `new InMemoryHistorianProvider(options, timeProvider)`, or explicitly set `RawDataRetentionPeriod = TimeSpan.Zero`.
 The fluent builder uses the server's injected clock automatically. Deleting a newer value does not rewind time or
 make expired backfill valid again.
+The once-seeded ReferenceServer and TestData sample histories explicitly use unbounded raw retention.
 
 Modified history has a separate finite default of **10,000 entries per node**, controlled by
 `MaxModifiedEntriesPerNode`; set it to zero only when unbounded modified history is intentional. Its FIFO log and
@@ -670,6 +675,12 @@ there is no separate client option or request flag for selecting the per-value p
 
 - If every input value is applicable, return one success status per value and commit.
 - If any value cannot be applied, return the per-value failure code(s) and roll back the entire batch — the archive is left in its pre-call state.
+
+The in-memory provider projects only the current batch's changes. Uncapped stores do not copy or sort existing
+archive keys. With a sample cap, preflight merges batch-added keys with an ordered cursor over the archive prefix
+that would be evicted, keeping projection work proportional to the batch rather than total archive size. It tracks
+retention-bound replacement and quota eviction in input order, preserving duplicate/replacement decisions and
+per-operation rollback statuses before committing.
 
 ### Modified history
 

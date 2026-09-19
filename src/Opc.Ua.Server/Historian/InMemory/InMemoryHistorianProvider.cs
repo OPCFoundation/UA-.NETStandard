@@ -1497,8 +1497,20 @@ namespace Opc.Ua.Server.Historian.InMemory
                 IHistorianStructuredDataKeySelector selector = GetKeySelector(nodeId);
                 DateTime cutoff = GetRawRetentionCutoff();
                 EvictExpiredRaw(archive, cutoff);
-                var projectedKeys = new SortedSet<HistoricalValueKey>(
-                    archive.Raw.Keys, HistoricalValueKeyComparer.Instance);
+                // Merge only the archive's evicted prefix with keys added by this batch.
+                int projectedCount = archive.Raw.Count;
+                SortedSet<HistoricalValueKey>? addedKeys = m_options.MaxSamplesPerNode > 0
+                    ? new SortedSet<HistoricalValueKey>(HistoricalValueKeyComparer.Instance)
+                    : null;
+                using SortedDictionary<HistoricalValueKey, DataValue>.KeyCollection.Enumerator archivedKeys =
+                    addedKeys != null ? archive.Raw.Keys.GetEnumerator() : default;
+                bool hasArchivedKey = addedKeys != null && archivedKeys.MoveNext();
+                HistoricalValueKey retainedBound = cutoff > DateTime.MinValue && archive.Raw.Count > 0
+                    ? archive.Raw.Keys.First()
+                    : default;
+                bool hasRetainedBound = cutoff > DateTime.MinValue &&
+                    archive.Raw.Count > 0 &&
+                    retainedBound.SourceTimestamp.ToDateTime() < cutoff;
 
                 // Pre-flight pass
                 for (int i = 0; i < values.Count; i++)
@@ -1545,10 +1557,18 @@ namespace Opc.Ua.Server.Historian.InMemory
                             : StatusCodes.GoodEntryInserted,
                         _ => StatusCodes.BadInvalidArgument
                     };
+                    HistoricalValueKey oldest = default;
+                    bool oldestIsArchived = false;
+                    if (!exists && addedKeys != null && projectedCount >= m_options.MaxSamplesPerNode)
+                    {
+                        oldestIsArchived = hasArchivedKey &&
+                            (addedKeys.Count == 0 || archivedKeys.Current <= addedKeys.Min);
+                        oldest = oldestIsArchived ? archivedKeys.Current : addedKeys.Min;
+                    }
                     if (!exists &&
                         (updateType == HistoryUpdateType.Insert ||
                             updateType == HistoryUpdateType.Update) &&
-                        !CanStoreRaw(key, cutoff, projectedKeys.Count, projectedKeys.Min))
+                        !CanStoreRaw(key, cutoff, projectedCount, oldest))
                     {
                         preflightResult = StatusCodes.BadOutOfRange;
                     }
@@ -1563,12 +1583,37 @@ namespace Opc.Ua.Server.Historian.InMemory
                     }
                     statuses[i] = preflightResult;
                     virtualValues[key] = value;
-                    projectedKeys.Add(key);
-                    if (m_options.MaxSamplesPerNode > 0 && projectedKeys.Count > m_options.MaxSamplesPerNode)
+                    if (!exists)
                     {
-                        HistoricalValueKey evicted = projectedKeys.Min;
-                        projectedKeys.Remove(evicted);
-                        virtualValues[evicted] = DataValue.Null;
+                        projectedCount++;
+                        addedKeys?.Add(key);
+                        if (hasRetainedBound && key.SourceTimestamp.ToDateTime() == cutoff)
+                        {
+                            virtualValues[retainedBound] = DataValue.Null;
+                            projectedCount--;
+                            hasRetainedBound = false;
+                            if (addedKeys != null)
+                            {
+                                hasArchivedKey = archivedKeys.MoveNext();
+                            }
+                        }
+                        if (addedKeys != null && projectedCount > m_options.MaxSamplesPerNode)
+                        {
+                            if (oldestIsArchived)
+                            {
+                                hasArchivedKey = archivedKeys.MoveNext();
+                            }
+                            else
+                            {
+                                addedKeys.Remove(oldest);
+                            }
+                            virtualValues[oldest] = DataValue.Null;
+                            projectedCount--;
+                            if (hasRetainedBound && oldest == retainedBound)
+                            {
+                                hasRetainedBound = false;
+                            }
+                        }
                     }
                 }
 
@@ -2298,13 +2343,30 @@ namespace Opc.Ua.Server.Historian.InMemory
 
         private static void EvictExpiredRaw(NodeArchive archive, DateTime cutoff)
         {
-            while (archive.Raw.Count > 0)
+            if (cutoff == DateTime.MinValue)
             {
-                HistoricalValueKey oldest = archive.Raw.Keys.First();
-                if (oldest.SourceTimestamp.ToDateTime() >= cutoff)
+                return;
+            }
+
+            while (archive.Raw.Count > 1)
+            {
+                HistoricalValueKey oldest;
+                using (SortedDictionary<HistoricalValueKey, DataValue>.Enumerator entries = archive.Raw.GetEnumerator())
                 {
-                    break;
+                    if (!entries.MoveNext())
+                    {
+                        break;
+                    }
+                    oldest = entries.Current.Key;
+                    if (oldest.SourceTimestamp.ToDateTime() >= cutoff ||
+                        !entries.MoveNext() ||
+                        entries.Current.Key.SourceTimestamp.ToDateTime() > cutoff)
+                    {
+                        break;
+                    }
                 }
+
+                // Keep the newest value at or before the cutoff as the retained window's start bound.
                 archive.Raw.Remove(oldest);
             }
             if (archive.Raw.Count == 0)

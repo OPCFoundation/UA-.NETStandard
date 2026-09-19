@@ -79,10 +79,10 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Verifies that default retention evicts samples older than one hour.
+        /// Verifies that default retention preserves the start bound when evicting older samples.
         /// </summary>
         [Test]
-        public async Task DefaultRetentionEvictsSamplesOlderThanOneHourAsync()
+        public async Task DefaultRetentionPreservesNewestStartBoundAsync()
         {
             var clock = new FakeTimeProvider(BaseTime);
             using var provider = new InMemoryHistorianProvider(new InMemoryHistorianOptions(), clock);
@@ -105,10 +105,10 @@ namespace Opc.Ua.Server.Tests.Historian
             HistorianPage<HistoricalDataValue> page =
                 await ReadAllAsync(provider, context, nodeId).ConfigureAwait(false);
 
-            Assert.That(page.Values, Has.Count.EqualTo(3));
+            Assert.That(page.Values, Has.Count.EqualTo(4));
             Assert.That(
                 page.Values[0].Value.SourceTimestamp.ToDateTime(),
-                Is.EqualTo(BaseTime.AddMinutes(30)));
+                Is.EqualTo(BaseTime));
         }
 
         /// <summary>

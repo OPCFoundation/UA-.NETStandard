@@ -39,6 +39,8 @@ namespace Opc.Ua.Server.Historian.InMemory
         /// <summary>
         /// Maximum source-timestamp age relative to the provider's UTC clock.
         /// The default is one hour. Zero = unbounded. Expired writes are rejected.
+        /// The newest stored value at or before the cutoff is retained as a start bound,
+        /// subject to <see cref="MaxSamplesPerNode"/>.
         /// </summary>
         public TimeSpan RawDataRetentionPeriod { get; init; } = TimeSpan.FromHours(1);
 
