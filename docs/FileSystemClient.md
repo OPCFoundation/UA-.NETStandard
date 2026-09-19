@@ -317,7 +317,8 @@ case-insensitive identity and Win32 trailing-dot/space normalization, so
 alternate NodeIds share `OpenCount` and writer exclusion. Metadata reads
 query the provider asynchronously without allocating retained handle state.
 Closed or failed opens release idle handle bags; pending opens remain
-protected by their reservations.
+protected by their reservations. Extended Windows roots (`\\?\...`) retain
+literal trailing-dot names rather than conflating distinct directory entries.
 
 Materialized directory bindings serialize capacity admission, provider
 mutations, refresh, and teardown. Creates and cross-directory moves/copies
