@@ -599,6 +599,26 @@ factory is rejected before candidate creation. When a server stops, a supplied
 private factory retains its committed registrations and can be reused by a later
 server lifetime.
 
+#### Prepared external references
+
+Prepared batches stage the external references of surviving and candidate
+NodeManagers in private `NodeState` reference images. The routing switch publishes
+these images together with the type and factory images; native Browse and Translate,
+direct reference lookups, cloning, and reference exports use the selected image.
+An in-flight request keeps its captured reference image. Abort leaves the serving
+references unchanged, and reference writes to a reserved or retired image fail
+instead of being lost. Reference callbacks run only after publication; callback
+failures are returned in `NodeManagerBatchResult.CleanupFailure` without undoing the
+committed references or preventing readiness and retirement.
+
+The batch reference path supports the in-memory `NodeState` ownership contract of
+`AsyncCustomNodeManager` and adapted `CustomNodeManager2`, not custom external
+reference stores. A non-null unsupported owner handle is rejected before the
+decision or any reference callback. This path does not call an override of
+`AddReferencesAsync` to mutate serving nodes. Contributions retained from startup
+and surviving registrations are merged without duplicate edges; replacement and
+removal withdraw only edges no remaining contribution requires.
+
 #### Change notifications
 
 Every committed lifecycle transaction emits one compressed model-change notification. Reload also

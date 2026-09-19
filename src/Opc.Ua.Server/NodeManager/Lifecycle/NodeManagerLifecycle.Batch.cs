@@ -272,6 +272,7 @@ namespace Opc.Ua.Server
                             failures.Add(failure);
                         }
                     },
+                    failures.Add,
                     cancellationToken).ConfigureAwait(false);
 
                 foreach (BatchEntry entry in batch.Entries)

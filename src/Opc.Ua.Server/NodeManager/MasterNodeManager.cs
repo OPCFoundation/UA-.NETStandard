@@ -905,6 +905,7 @@ namespace Opc.Ua.Server
             }
 
             RemoveRetiredGenerationNotifications(nodeManager);
+            m_nodeManagers.ReleaseReferences(nodeManager);
             if (m_dynamicExternalReferences.Remove(nodeManager))
             {
                 m_nodeManagers.Remove(nodeManager);

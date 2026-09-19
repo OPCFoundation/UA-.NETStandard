@@ -73,7 +73,8 @@ namespace Opc.Ua.Server
             RoutingSnapshot expectedRevision,
             Func<IAsyncNodeManager, IEnumerable<int>> resolveNamespaces,
             TypeTable typeTree,
-            EncodeableFactory factory)
+            EncodeableFactory factory,
+            IReadOnlyDictionary<NodeState, NodeState.ReferenceSnapshot>? references = null)
         {
             lock (m_lock)
             {
@@ -157,14 +158,73 @@ namespace Opc.Ua.Server
                     routes,
                     [.. current.HiddenNodeManagers.Where(manager => !removals.Contains(manager))],
                     typeTree,
-                    factory);
+                    factory,
+                    references ?? current.References);
                 return new PreparedRoutes(this, current, next);
             }
+        }
+
+        internal NodeState.ReferenceUpdate PrepareReferences(
+            IAsyncNodeManager owner,
+            NodeState node,
+            ArrayOf<IReference> additions,
+            ArrayOf<IReference> removals,
+            Dictionary<NodeState, NodeState.ReferenceSnapshot> next)
+        {
+            lock (m_lock)
+            {
+                if (m_referenceOwners.TryGetValue(node, out IAsyncNodeManager? existing) &&
+                    !AreSameManager(existing, owner))
+                {
+                    throw new NotSupportedException("A reference image cannot have multiple NodeManager owners.");
+                }
+                NodeState.ReferenceUpdate update = node.PrepareReferences(SelectReferences, additions, removals);
+                m_referenceOwners[node] = owner;
+                next[node] = update.Next;
+                return update;
+            }
+        }
+
+        internal void ReleaseReferences(IAsyncNodeManager owner)
+        {
+            lock (m_lock)
+            {
+                NodeState[] nodes =
+                [
+                    .. m_referenceOwners.Where(entry => AreSameManager(entry.Value, owner)).Select(entry => entry.Key)
+                ];
+                if (nodes.Length == 0)
+                {
+                    return;
+                }
+                Dictionary<NodeState, NodeState.ReferenceSnapshot> references =
+                    m_snapshot.References.ToDictionary(entry => entry.Key, entry => entry.Value);
+                bool changed = false;
+                foreach (NodeState node in nodes)
+                {
+                    references.TryGetValue(node, out NodeState.ReferenceSnapshot? image);
+                    node.ReleaseReferenceView(SelectReferences, image);
+                    changed |= references.Remove(node);
+                    m_referenceOwners.Remove(node);
+                }
+                if (changed)
+                {
+                    m_snapshot = new RoutingSnapshot(
+                        m_snapshot.NodeManagers, m_snapshot.NamespaceManagers, m_snapshot.HiddenNodeManagers,
+                        m_snapshot.TypeTree, m_snapshot.Factory, references);
+                }
+            }
+        }
+
+        private NodeState.ReferenceSnapshot? SelectReferences(NodeState node)
+        {
+            return ReadSnapshot.References.TryGetValue(node, out NodeState.ReferenceSnapshot? image) ? image : null;
         }
 
         private readonly AsyncLocal<RoutingSnapshot?> m_readSnapshot = new();
         private readonly AsyncLocal<TypeTable?> m_preparedTypes = new();
         private readonly AsyncLocal<EncodeableFactory?> m_preparedFactory = new();
+        private readonly Dictionary<NodeState, IAsyncNodeManager> m_referenceOwners = [];
 
         private sealed class TypeScope(
             NodeManagerRoutingTable owner,

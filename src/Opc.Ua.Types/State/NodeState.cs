@@ -41,7 +41,7 @@ namespace Opc.Ua
     /// <summary>
     /// The base class for custom nodes.
     /// </summary>
-    public abstract class NodeState : IFormattable, ICloneable
+    public abstract partial class NodeState : IFormattable, ICloneable
     {
         /// <summary>
         /// Creates an empty object.
@@ -97,13 +97,10 @@ namespace Opc.Ua
                 NodeSetDocumentation == node.NodeSetDocumentation &&
                 DesignToolOnly == node.DesignToolOnly)
             {
-                lock (m_referencesLock)
+                if (!ArrayEqualityComparer<IReference>.Default.Equals(
+                    GetReferenceKeys(), node.GetReferenceKeys()))
                 {
-                    if (!ArrayEqualityComparer<IReference>.Default.Equals(
-                        m_references?.Keys.ToArray(), node.m_references?.Keys.ToArray()))
-                    {
-                        return false;
-                    }
+                    return false;
                 }
 
                 lock (m_childrenLock)
@@ -171,12 +168,9 @@ namespace Opc.Ua
             target.RolePermissions = RolePermissions;
             target.UserRolePermissions = UserRolePermissions;
 
-            lock (m_referencesLock)
+            if (GetReferenceKeys() is { } references)
             {
-                if (m_references != null)
-                {
-                    target.AddReferences([.. m_references.Keys]);
-                }
+                target.AddReferences(references);
             }
 
             List<BaseInstanceState>? children;
@@ -329,7 +323,7 @@ namespace Opc.Ua
             m_description = source.m_description;
             m_writeMask = source.m_writeMask;
             m_children = null;
-            m_references = null;
+            ResetReferences();
             m_changeMasks = NodeStateChangeMasks.None;
 
             var children = new List<BaseInstanceState>();
@@ -1323,15 +1317,16 @@ namespace Opc.Ua
         /// <param name="encoder">The encoder wrapping the stream to write.</param>
         public void SaveReferences(ISystemContext context, BinaryEncoder encoder)
         {
-            if (m_references == null || m_references.Count == 0)
+            IReference[]? references = GetReferenceKeys();
+            if (references == null || references.Length == 0)
             {
                 encoder.WriteInt32(null, -1);
                 return;
             }
 
-            encoder.WriteInt32(null, m_references.Count);
+            encoder.WriteInt32(null, references.Length);
 
-            foreach (IReference reference in m_references.Keys)
+            foreach (IReference reference in references)
             {
                 encoder.WriteNodeId(null, reference.ReferenceTypeId);
                 encoder.WriteBoolean(null, reference.IsInverse);
@@ -1362,11 +1357,11 @@ namespace Opc.Ua
 
             lock (m_referencesLock)
             {
-                m_references ??= [];
+                ReferenceDictionary<object?> table = GetWritableReferences();
 
                 foreach (NodeStateReference reference in references)
                 {
-                    m_references[reference] = null;
+                    table[reference] = null;
                 }
             }
         }
@@ -1661,7 +1656,8 @@ namespace Opc.Ua
         /// <param name="encoder">The encoder wrapping the stream to write.</param>
         public void SaveReferences(ISystemContext context, XmlEncoder encoder)
         {
-            if (m_references == null || m_references.Count == 0)
+            IReference[]? references = GetReferenceKeys();
+            if (references == null || references.Length == 0)
             {
                 return;
             }
@@ -1672,7 +1668,7 @@ namespace Opc.Ua
             {
                 encoder.Push("References", Namespaces.OpcUaXsd);
 
-                foreach (IReference reference in m_references.Keys)
+                foreach (IReference reference in references)
                 {
                     encoder.Push("Reference", Namespaces.OpcUaXsd);
 
@@ -1729,12 +1725,7 @@ namespace Opc.Ua
         /// <param name="decoder">The decoder wrapping the stream to read.</param>
         public virtual void UpdateReferences(ISystemContext context, XmlDecoder decoder)
         {
-            // remove existing references.
-            if (m_references != null)
-            {
-                m_references.Clear();
-                m_changeMasks |= NodeStateChangeMasks.References;
-            }
+            var references = new ReferenceDictionary<object?>();
 
             // check if the table exists.
             decoder.PushNamespace(Namespaces.OpcUaXsd);
@@ -1742,6 +1733,7 @@ namespace Opc.Ua
             if (!decoder.Peek("References"))
             {
                 decoder.PopNamespace();
+                ReplaceReferences();
                 return;
             }
 
@@ -1771,12 +1763,7 @@ namespace Opc.Ua
                     targetId = decoder.ReadExpandedNodeId("TargetId");
                 }
 
-                // create table if it does not already exist.
-                m_references ??= [];
-
-                // create reference.
-                m_references[new NodeStateReference(referenceTypeId, isInverse, targetId)] = null;
-                m_changeMasks |= NodeStateChangeMasks.References;
+                references[new NodeStateReference(referenceTypeId, isInverse, targetId)] = null;
 
                 decoder.Skip(new XmlQualifiedName("Reference", Namespaces.OpcUaXsd));
             }
@@ -1784,6 +1771,22 @@ namespace Opc.Ua
             decoder.Skip(new XmlQualifiedName("References", Namespaces.OpcUaXsd));
 
             decoder.PopNamespace();
+            ReplaceReferences();
+
+            void ReplaceReferences()
+            {
+                lock (m_referencesLock)
+                {
+                    ReferenceSnapshot image = CurrentReferenceSnapshot;
+                    image.EnsureMutable();
+                    image.Revision++;
+                    if (image.References is not null || references.Count != 0)
+                    {
+                        image.References = references;
+                        m_changeMasks |= NodeStateChangeMasks.References;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -3519,9 +3522,9 @@ namespace Opc.Ua
             lock (m_referencesLock)
             {
                 // index any references.
-                if (m_references != null)
+                if (CurrentReferenceSnapshot.References is { } table)
                 {
-                    foreach (IReference reference in m_references.Keys)
+                    foreach (IReference reference in table.Keys)
                     {
                         var targetId = ExpandedNodeId.ToNodeId(
                             reference.TargetId,
@@ -3580,13 +3583,15 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
+                ReferenceSnapshot image = CurrentReferenceSnapshot;
+                image.EnsureMutable();
                 // check if there are references to update.
-                if (m_references != null)
+                if (image.References is { } table)
                 {
                     var referencesToAdd = new List<IReference>();
                     var referencesToRemove = new List<IReference>();
 
-                    foreach (IReference reference in m_references.Keys)
+                    foreach (IReference reference in table.Keys)
                     {
                         // check for absolute id.
                         var oldId = ExpandedNodeId.ToNodeId(
@@ -3610,10 +3615,15 @@ namespace Opc.Ua
                         }
                     }
 
+                    if (referencesToRemove.Count != 0)
+                    {
+                        image.Revision++;
+                    }
+
                     // remove old references.
                     for (int ii = 0; ii < referencesToRemove.Count; ii++)
                     {
-                        if (m_references.Remove(referencesToRemove[ii]))
+                        if (table.Remove(referencesToRemove[ii]))
                         {
                             m_changeMasks |= NodeStateChangeMasks.References;
                         }
@@ -3622,7 +3632,7 @@ namespace Opc.Ua
                     // add new references.
                     for (int ii = 0; ii < referencesToAdd.Count; ii++)
                     {
-                        m_references[referencesToAdd[ii]] = null;
+                        table[referencesToAdd[ii]] = null;
                         m_changeMasks |= NodeStateChangeMasks.References;
                     }
                 }
@@ -3726,11 +3736,11 @@ namespace Opc.Ua
             lock (m_referencesLock)
             {
                 // add any arbitrary references.
-                if (m_references != null)
+                if (CurrentReferenceSnapshot.References is { } table)
                 {
                     if (referenceTypeId.IsNull)
                     {
-                        foreach (IReference reference in m_references.Keys)
+                        foreach (IReference reference in table.Keys)
                         {
                             if (reference.IsInverse)
                             {
@@ -3754,14 +3764,14 @@ namespace Opc.Ua
                         {
                             if (browserIncludeSubtypes)
                             {
-                                references = m_references.Find(
+                                references = table.Find(
                                     browserReferenceType,
                                     false,
                                     context.TypeTable);
                             }
                             else
                             {
-                                references = m_references.Find(browserReferenceType, false);
+                                references = table.Find(browserReferenceType, false);
                             }
 
                             for (int ii = 0; ii < references.Count; ii++)
@@ -3774,14 +3784,14 @@ namespace Opc.Ua
                         {
                             if (browserIncludeSubtypes)
                             {
-                                references = m_references.Find(
+                                references = table.Find(
                                     browserReferenceType,
                                     true,
                                     context.TypeTable);
                             }
                             else
                             {
-                                references = m_references.Find(browserReferenceType, true);
+                                references = table.Find(browserReferenceType, true);
                             }
 
                             for (int ii = 0; ii < references.Count; ii++)
@@ -5427,12 +5437,13 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                if (m_references == null || referenceTypeId.IsNull || targetId.IsNull)
+                ReferenceDictionary<object?>? references = CurrentReferenceSnapshot.References;
+                if (references == null || referenceTypeId.IsNull || targetId.IsNull)
                 {
                     return false;
                 }
 
-                return m_references.ContainsKey(
+                return references.ContainsKey(
                     new NodeStateReference(referenceTypeId, isInverse, targetId));
             }
         }
@@ -5458,7 +5469,7 @@ namespace Opc.Ua
 
             lock (m_referencesLock)
             {
-                (m_references ??= []).Add(
+                GetWritableReferences().Add(
                     new NodeStateReference(referenceTypeId, isInverse, targetId),
                     null);
             }
@@ -5502,14 +5513,14 @@ namespace Opc.Ua
 
             lock (m_referencesLock)
             {
-                m_references ??= [];
+                ReferenceDictionary<object?> references = GetWritableReferences();
 
-                if (m_references.ContainsKey(reference))
+                if (references.ContainsKey(reference))
                 {
                     return false;
                 }
 
-                m_references.Add(reference, null);
+                references.Add(reference, null);
             }
 
             m_changeMasks |= NodeStateChangeMasks.References;
@@ -5542,9 +5553,14 @@ namespace Opc.Ua
 
             lock (m_referencesLock)
             {
-                removed = m_references != null &&
-                    m_references.Remove(
-                        new NodeStateReference(referenceTypeId, isInverse, targetId));
+                ReferenceSnapshot image = CurrentReferenceSnapshot;
+                image.EnsureMutable();
+                removed = image.References?.Remove(
+                    new NodeStateReference(referenceTypeId, isInverse, targetId)) == true;
+                if (removed)
+                {
+                    image.Revision++;
+                }
             }
 
             if (!removed)
@@ -5579,13 +5595,13 @@ namespace Opc.Ua
 
             lock (m_referencesLock)
             {
-                m_references ??= [];
+                ReferenceDictionary<object?> table = GetWritableReferences();
 
                 for (int ii = 0; ii < references.Count; ii++)
                 {
-                    if (!m_references.ContainsKey(references[ii]))
+                    if (!table.ContainsKey(references[ii]))
                     {
-                        m_references.Add(references[ii], null);
+                        table.Add(references[ii], null);
                         addedReferences.Add(references[ii]);
                     }
                 }
@@ -5616,25 +5632,39 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(referenceTypeId));
             }
 
-            List<IReference>? refsToRemove = null;
+            List<IReference> refsToRemove;
 
             lock (m_referencesLock)
             {
-                if (m_references == null)
+                ReferenceSnapshot image = CurrentReferenceSnapshot;
+                image.EnsureMutable();
+                if (image.References is not { } references)
                 {
                     return false;
                 }
 
                 refsToRemove =
                 [
-                    .. m_references
+                    .. references
                         .Select(r => r.Key)
                         .Where(
                             r => r.ReferenceTypeId == referenceTypeId && r.IsInverse == isInverse)
                 ];
+                foreach (IReference reference in refsToRemove)
+                {
+                    references.Remove(reference);
+                }
+                if (refsToRemove.Count != 0)
+                {
+                    image.Revision++;
+                    m_changeMasks |= NodeStateChangeMasks.References;
+                }
             }
 
-            refsToRemove.ForEach(r => RemoveReference(r.ReferenceTypeId, r.IsInverse, r.TargetId));
+            foreach (IReference reference in refsToRemove)
+            {
+                OnReferenceRemoved?.Invoke(this, reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
+            }
 
             return refsToRemove.Count != 0;
         }
@@ -5681,9 +5711,9 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                if (m_references != null)
+                if (CurrentReferenceSnapshot.References is { } table)
                 {
-                    foreach (IReference reference in m_references.Keys)
+                    foreach (IReference reference in table.Keys)
                     {
                         references.Add(reference);
                     }
@@ -5702,9 +5732,9 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                if (m_references != null)
+                if (CurrentReferenceSnapshot.References is { } table)
                 {
-                    foreach (IReference reference in m_references.Keys)
+                    foreach (IReference reference in table.Keys)
                     {
                         if (isInverse == reference.IsInverse &&
                             reference.ReferenceTypeId == referenceTypeId)
@@ -5836,7 +5866,6 @@ namespace Opc.Ua
         private ArrayOf<RolePermissionType> m_rolePermissions;
         private ArrayOf<RolePermissionType> m_userRolePermissions;
         private AccessRestrictionType? m_accessRestrictions;
-        private ReferenceDictionary<object?>? m_references;
         private int m_areEventsMonitored;
         private List<Notifier>? m_notifiers;
     }

@@ -251,6 +251,7 @@ namespace Opc.Ua.Server
             long factoryRevision,
             Func<CancellationToken, ValueTask> decideAsync,
             Action published,
+            Action<Exception> reportCleanupFailure,
             CancellationToken cancellationToken);
     }
 

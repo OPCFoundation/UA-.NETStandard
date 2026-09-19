@@ -43,6 +43,95 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerLifecycleTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("Integration")]
+        [Category("NativeTcp")]
+        public async Task PreparedBatchPublishesReferencesToSurvivingOwnersAsync(bool publish)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
+                CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue), null, timeout.Token)
+                .ConfigureAwait(false);
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            using Opc.Ua.Client.ISession session = await client.ConnectAsync(
+                new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
+                .ConfigureAwait(false);
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            ushort ns = m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(kModelNamespaceUri);
+            NodeId root = new(kRootNodeId, ns);
+            NodeId ordinaryRoot = new(kRootNodeId,
+                (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri));
+            Assert.That(await ObjectsContainsRootAsync(ordinaryRoot).ConfigureAwait(false), Is.True,
+                "The same native Browse predicate must find an ordinarily published root.");
+            bool whilePrepared;
+            await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))], timeout.Token).ConfigureAwait(false))
+            {
+                whilePrepared = await ObjectsContainsRootAsync(root).ConfigureAwait(false);
+                if (publish)
+                {
+                    NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
+                        .ConfigureAwait(false);
+                    Assert.That(result.CleanupFailure, Is.Null);
+                }
+            }
+            bool afterDecision = await ObjectsContainsRootAsync(root).ConfigureAwait(false);
+            ReadResponse direct = await session.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                [new ReadValueId { NodeId = root, AttributeId = Attributes.BrowseName }], timeout.Token)
+                .ConfigureAwait(false);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(direct.Results[0].StatusCode,
+                    Is.EqualTo(publish ? StatusCodes.Good : StatusCodes.BadNodeIdUnknown));
+                if (publish)
+                {
+                    Assert.That(direct.Results[0].WrappedValue,
+                        Is.EqualTo(new Variant(new QualifiedName(kRootBrowseName, ns))),
+                        "The committed candidate is routable even if its surviving owner's reference is missing.");
+                }
+                Assert.That(whilePrepared, Is.False, "Preparation must not mutate a serving owner's references.");
+                Assert.That(afterDecision, Is.EqualTo(publish),
+                    "The surviving Objects owner must expose the newly committed manager's root.");
+            }
+            await session.CloseAsync(timeout.Token).ConfigureAwait(false);
+
+            async Task<bool> ObjectsContainsRootAsync(NodeId target)
+            {
+                BrowseResponse response = await session.BrowseAsync(null, new ViewDescription(), 0,
+                    [
+                        new BrowseDescription
+                        {
+                            NodeId = ObjectIds.ObjectsFolder,
+                            BrowseDirection = BrowseDirection.Forward,
+                            ReferenceTypeId = ReferenceTypeIds.Organizes,
+                            IncludeSubtypes = true,
+                            NodeClassMask = 0,
+                            ResultMask = (uint)BrowseResultMask.All
+                        }
+                    ], timeout.Token).ConfigureAwait(false);
+                BrowseResult page = response.Results[0];
+                bool found = false;
+                while (true)
+                {
+                    Assert.That(page.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    for (int index = 0; index < page.References.Count; index++)
+                    {
+                        found |= page.References[index].NodeId == new ExpandedNodeId(target);
+                    }
+                    if (page.ContinuationPoint.Length == 0)
+                    {
+                        return found;
+                    }
+                    BrowseNextResponse next = await session.BrowseNextAsync(
+                        null, false, [page.ContinuationPoint], timeout.Token).ConfigureAwait(false);
+                    page = next.Results[0];
+                }
+            }
+        }
+
         [Test]
         public async Task PreparedBatchRejectsChangedTypeInputsBeforeDecisionAsync()
         {

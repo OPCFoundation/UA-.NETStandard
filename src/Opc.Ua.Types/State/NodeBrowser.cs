@@ -328,6 +328,18 @@ namespace Opc.Ua
             Target = null;
         }
 
+        internal NodeStateReference(
+            NodeId referenceTypeId,
+            bool isInverse,
+            ExpandedNodeId targetId,
+            NodeState? target)
+        {
+            ReferenceTypeId = referenceTypeId;
+            IsInverse = isInverse;
+            TargetId = targetId;
+            Target = target;
+        }
+
         /// <summary>
         /// The internal target of the reference.
         /// </summary>
