@@ -4745,8 +4745,11 @@ namespace Opc.Ua.Client
                 }
                 catch (ServiceResultException sre)
                 {
-                    // recover from error condition when secure channel is still alive
-                    OnKeepAliveError(sre.Result);
+                    // The transport can report cancellation of this worker as a service error.
+                    if (!ct.IsCancellationRequested)
+                    {
+                        OnKeepAliveError(sre.Result);
+                    }
                 }
                 catch (ObjectDisposedException) when (Disposed)
                 {

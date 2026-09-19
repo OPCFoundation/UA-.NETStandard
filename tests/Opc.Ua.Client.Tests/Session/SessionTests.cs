@@ -1369,6 +1369,125 @@ namespace Opc.Ua.Client.Tests
             sut.Channel.Verify();
         }
 
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        public async Task ShutdownCancellationOfKeepAliveStillClosesServerSessionAsync(
+            bool disposeAsync,
+            bool serverRejectsClose)
+        {
+            StatusCode closeStatus = serverRejectsClose ? StatusCodes.BadSessionIdInvalid : StatusCodes.Good;
+            EndpointDescription endpoint = CreateSessionEndpointDescription("opc.tcp://localhost:4840");
+            await using var session = SessionMock.Create(endpoint, [endpoint]);
+            ConfigureSuccessfulOpenResponses(
+                session.Channel,
+                [endpoint],
+                ByteString.From([1, 2, 3, 4]),
+                NodeId.Parse("s=keep-alive-auth"));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var readStarted = new TaskCompletionSource<CancellationToken>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var readCompletion = new TaskCompletionSource<IServiceResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int keepAliveErrors = 0;
+            session.KeepAlive += (_, args) =>
+            {
+                if (ServiceResult.IsBad(args.Status))
+                {
+                    Interlocked.Increment(ref keepAliveErrors);
+                }
+            };
+            session.Channel
+                .Setup(channel => channel.SendRequestAsync(
+                    It.Is<ReadRequest>(request =>
+                        request.NodesToRead.Count == 1 &&
+                        request.NodesToRead[0].NodeId == VariableIds.Server_ServerStatus_State),
+                    It.IsAny<CancellationToken>()))
+                .Returns((ReadRequest _, CancellationToken ct) =>
+                    new ValueTask<IServiceResponse>(ReadUntilCanceledAsync(ct)));
+            session.Channel
+                .Setup(channel => channel.SendRequestAsync(
+                    It.IsAny<CloseSessionRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new CloseSessionResponse
+                {
+                    ResponseHeader = new ResponseHeader { ServiceResult = closeStatus }
+                }))
+                .Verifiable(Times.Once);
+            session.Channel
+                .Setup(channel => channel.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask())
+                .Verifiable(Times.Once);
+
+            await session.OpenAsync("test", new UserIdentity(), timeout.Token).ConfigureAwait(false);
+            CancellationToken readCancellation = await readStarted.Task
+                .WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(session.KeepAliveStopped, Is.False);
+
+            if (disposeAsync)
+            {
+                await session.DisposeAsync().AsTask().WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+            else
+            {
+                StatusCode result = await session.CloseAsync(5000, true, timeout.Token).ConfigureAwait(false);
+                Assert.That(result, Is.EqualTo(closeStatus));
+            }
+
+            Assert.That(readCancellation.IsCancellationRequested, Is.True);
+            Assert.That(Volatile.Read(ref keepAliveErrors), Is.Zero);
+            Assert.That(session.KeepAliveStopped, Is.False);
+            session.Channel.Verify();
+
+            async Task<IServiceResponse> ReadUntilCanceledAsync(CancellationToken ct)
+            {
+                using CancellationTokenRegistration registration = ct.Register(() =>
+                    readCompletion.TrySetException(
+                        new ServiceResultException(StatusCodes.BadRequestCancelledByClient)));
+                readStarted.TrySetResult(ct);
+                return await readCompletion.Task.ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task KeepAliveServiceFailureWithoutCancellationStillStopsLivenessAsync()
+        {
+            EndpointDescription endpoint = CreateSessionEndpointDescription("opc.tcp://localhost:4840");
+            await using var session = SessionMock.Create(endpoint, [endpoint]);
+            ConfigureSuccessfulOpenResponses(
+                session.Channel,
+                [endpoint],
+                ByteString.From([1, 2, 3, 4]),
+                NodeId.Parse("s=keep-alive-auth"));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var reportedError = new TaskCompletionSource<StatusCode>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            session.KeepAlive += (_, args) =>
+            {
+                if (args.Status is { } status && ServiceResult.IsBad(status))
+                {
+                    reportedError.TrySetResult(status.StatusCode);
+                }
+            };
+            session.Channel
+                .Setup(channel => channel.SendRequestAsync(
+                    It.Is<ReadRequest>(request =>
+                        request.NodesToRead.Count == 1 &&
+                        request.NodesToRead[0].NodeId == VariableIds.Server_ServerStatus_State),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadTimeout));
+
+            await session.OpenAsync("test", new UserIdentity(), timeout.Token).ConfigureAwait(false);
+            StatusCode reportedStatus = await reportedError.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+            Assert.That(reportedStatus, Is.EqualTo(StatusCodes.BadTimeout));
+            Assert.That(session.KeepAliveStopped, Is.True);
+            await session.CloseAsync(5000, true, timeout.Token).ConfigureAwait(false);
+            session.Channel.Verify(channel => channel.SendRequestAsync(
+                It.IsAny<CloseSessionRequest>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
         [Test]
         public async Task ReconnectAsyncShouldReconnectSuccessfullyAsync()
         {
