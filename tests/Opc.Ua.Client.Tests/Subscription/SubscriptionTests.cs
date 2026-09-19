@@ -1055,6 +1055,117 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
+        public async Task DisposalDrainsCallbackPastCleanupBudgetAndDisposesOwnedItemsAsync()
+        {
+            var clock = new CleanupTimeProvider();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var received = new ConcurrentQueue<uint>();
+            CancellationToken deletionToken = default;
+            m_mockSubscriptionServices.Setup(service => service.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader _, ArrayOf<uint> _, CancellationToken token) =>
+                {
+                    deletionToken = token;
+                    token.ThrowIfCancellationRequested();
+                    return new ValueTask<DeleteSubscriptionsResponse>(
+                        new DeleteSubscriptionsResponse { Results = [StatusCodes.Good] });
+                });
+            await using var subscription = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, m_completion, m_options, m_telemetry,
+                subscriptionIdForAlreadyCreatedState: 22, timeProvider: clock);
+            Assert.That(subscription.MonitoredItems.TryAdd(
+                "Held", OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(), out IMonitoredItem owned),
+                Is.True);
+            var monitoredItem = (TestMonitoredItem)owned;
+            subscription.OnDataChangeAsync = async sequenceNumber =>
+            {
+                received.Enqueue(sequenceNumber);
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            };
+            try
+            {
+                await subscription.OnPublishReceivedAsync(BuildDataMessage(1), null, []).ConfigureAwait(false);
+                await entered.Task.ConfigureAwait(false);
+
+                Task disposal = subscription.DisposeAsync().AsTask();
+                TimeSpan cleanupBudget = await clock.CleanupScheduled.ConfigureAwait(false);
+                Assert.That(cleanupBudget, Is.EqualTo(TimeSpan.FromSeconds(5)));
+                clock.Advance(TimeSpan.FromSeconds(5));
+
+                Assert.That(disposal.IsCompleted, Is.False);
+                Assert.That(monitoredItem.DisposeCalls, Is.Zero);
+                Assert.That(subscription.MonitoredItems.Items, Does.Contain(monitoredItem));
+                release.TrySetResult(true);
+                await disposal.ConfigureAwait(false);
+
+                Assert.That(deletionToken.IsCancellationRequested, Is.True);
+                Assert.That(subscription.Disposed, Is.True);
+                Assert.That(subscription.Created, Is.False);
+                Assert.That(subscription.MonitoredItems.Items, Is.Empty);
+                Assert.That(monitoredItem.DisposeCalls, Is.EqualTo(1));
+                Assert.That(received, Is.EqualTo(new uint[] { 1 }));
+                Assert.That(subscription.LastSequenceNumberForTest, Is.Zero);
+                Assert.That(subscription.LastDataSequenceNumberForTest, Is.Zero);
+                Assert.That(m_completion.CompletedProcessors, Is.EqualTo(new IMessageProcessor[] { subscription }));
+                Assert.That(m_completion.CompletedSubscriptions, Is.EqualTo(new uint[] { 22 }));
+                Assert.That(m_completion.QueuedAcks, Has.Count.EqualTo(1));
+                Assert.That(m_completion.QueuedAcks[0].SubscriptionId, Is.EqualTo(22u));
+                Assert.That(m_completion.QueuedAcks[0].SequenceNumber, Is.EqualTo(1u));
+                m_mockSubscriptionServices.Verify(service => service.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(), It.Is<ArrayOf<uint>>(ids => ids.Count == 1 && ids[0] == 22),
+                    It.IsAny<CancellationToken>()), Times.Once);
+
+                await subscription.DisposeAsync().ConfigureAwait(false);
+                Assert.That(monitoredItem.DisposeCalls, Is.EqualTo(1));
+                Assert.That(m_completion.CompletedProcessors, Has.Count.EqualTo(1));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                try
+                {
+                    await subscription.DisposeAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    await monitoredItem.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+        }
+
+        [Test]
+        public async Task StateManagerFaultStillDisposesRemainingOwnedItemsAsync()
+        {
+            m_mockSubscriptionServices.Setup(service => service.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse { Results = [StatusCodes.Good] });
+            await using var subscription = new TestSubscription(
+                m_session, m_mockNotificationDataHandler.Object, m_completion, m_options, m_telemetry,
+                subscriptionIdForAlreadyCreatedState: 22);
+            Assert.That(subscription.MonitoredItems.TryAdd(
+                "Disposed", OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(), out IMonitoredItem disposed),
+                Is.True);
+            await using var disposedItem = (TestMonitoredItem)disposed;
+            Assert.That(subscription.MonitoredItems.TryAdd(
+                "Owned", OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(), out IMonitoredItem owned),
+                Is.True);
+            await using var ownedItem = (TestMonitoredItem)owned;
+            await disposedItem.DisposeAsync().ConfigureAwait(false);
+
+            await Assert.ThatAsync(
+                async () => await subscription.DisposeAsync().ConfigureAwait(false),
+                Throws.InstanceOf<ObjectDisposedException>()).ConfigureAwait(false);
+
+            Assert.That(subscription.Disposed, Is.True);
+            Assert.That(ownedItem.DisposeCalls, Is.EqualTo(1));
+            Assert.That(subscription.MonitoredItems.Items, Is.Empty);
+            Assert.That(m_completion.CompletedProcessors, Is.EqualTo(new IMessageProcessor[] { subscription }));
+            Assert.That(m_completion.CompletedSubscriptions, Is.EqualTo(new uint[] { 22 }));
+        }
+
+        [Test]
         public async Task FindItemByClientHandleShouldReturnMonitoredItemAsync()
         {
             // Arrange
@@ -2434,6 +2545,25 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        private sealed class CleanupTimeProvider : FakeTimeProvider
+        {
+            public Task<TimeSpan> CleanupScheduled => m_cleanupScheduled.Task;
+
+            public override ITimer CreateTimer(
+                TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+            {
+                ITimer timer = base.CreateTimer(callback, state, dueTime, period);
+                if (dueTime != Timeout.InfiniteTimeSpan && period == Timeout.InfiniteTimeSpan)
+                {
+                    m_cleanupScheduled.TrySetResult(dueTime);
+                }
+                return timer;
+            }
+
+            private readonly TaskCompletionSource<TimeSpan> m_cleanupScheduled =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
         private sealed class TestMonitoredItem : MonitoredItems.MonitoredItem
         {
             public static MonitoredItems.MonitoredItemOptions CreatedOptions => new()
@@ -2480,6 +2610,17 @@ namespace Opc.Ua.Client.Subscriptions
                         RevisedSamplingInterval = 10000,
                         RevisedQueueSize = 10
                     }, 0, [], new ResponseHeader());
+                }
+            }
+
+            public int DisposeCalls { get; private set; }
+
+            protected override async ValueTask DisposeAsync(bool disposing)
+            {
+                await base.DisposeAsync(disposing).ConfigureAwait(false);
+                if (disposing)
+                {
+                    DisposeCalls++;
                 }
             }
         }

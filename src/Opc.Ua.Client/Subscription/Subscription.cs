@@ -673,16 +673,21 @@ namespace Opc.Ua.Client.Subscriptions
                     // in-flight recreate walks both of them.
                     await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
 
-                    await m_stateManagement.ConfigureAwait(false);
-
-                    await m_stateLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                     try
                     {
-                        await m_monitoredItems.DisposeAsync().ConfigureAwait(false);
+                        await m_stateManagement.ConfigureAwait(false);
                     }
                     finally
                     {
-                        m_stateLock.Release();
+                        await m_stateLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                        try
+                        {
+                            await m_monitoredItems.DisposeAsync().ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            m_stateLock.Release();
+                        }
                     }
                 }
                 finally
@@ -1182,11 +1187,16 @@ namespace Opc.Ua.Client.Subscriptions
             await m_stateLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
-                // Local disposal must finish even when the server is unreachable.
-                // A failed remote delete is logged; the server retains its lifetime-based cleanup.
-                using CancellationTokenSource cleanup = TimeProvider.CreateCancellationTokenSource(
-                    TimeSpan.FromSeconds(5));
-                await DeleteAsync(cleanup.Token).ConfigureAwait(false);
+                if (Created)
+                {
+                    // Expiring the remote-delete budget must not cancel local generation
+                    // retirement. Wait for the active callback before resetting its state.
+                    using CancellationTokenSource cleanup = TimeProvider.CreateCancellationTokenSource(
+                        TimeSpan.FromSeconds(5));
+                    await ResetMessageGenerationAsync(
+                        _ => DeleteCoreAsync(cleanup.Token), _ => default, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
             }
             finally
             {
