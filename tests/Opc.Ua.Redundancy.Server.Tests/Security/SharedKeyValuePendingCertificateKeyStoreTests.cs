@@ -191,6 +191,47 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(taken, Is.Null, "a record produced under a different key must not decrypt (fail-closed)");
         }
 
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task PendingKeyReadsHandleMixedOwnedKeyRingsAsync(
+            bool unsupportedFirst,
+            bool tampered)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var owned = new AesCbcHmacRecordProtector(MakeKey(27));
+            var unsupported = new Mock<IRecordProtector>(MockBehavior.Strict);
+            using KeyRingRecordProtector ring = unsupportedFirst
+                ? new KeyRingRecordProtector(unsupported.Object, owned)
+                : new KeyRingRecordProtector(owned, unsupported.Object);
+            var writer = new SharedKeyValuePendingCertificateKeyStore(kv, NewOptions(), owned);
+            var reader = new SharedKeyValuePendingCertificateKeyStore(kv, NewOptions(), ring);
+            PendingCertificateKeyContext context = NewContext();
+            using Certificate original = NewCertificateWithKey();
+            Assert.That(await writer.SaveAsync(context, original).ConfigureAwait(false), Is.True);
+            if (tampered)
+            {
+                await kv.SetAsync(writer.KeyFor(context), ByteString.From(new byte[] { 1, 2, 3, 4 }))
+                    .ConfigureAwait(false);
+            }
+
+            using Certificate? taken = await reader.TryTakeAsync(context).ConfigureAwait(false);
+
+            if (tampered)
+            {
+                Assert.That(taken, Is.Null);
+            }
+            else
+            {
+                Assert.That(taken, Is.Not.Null);
+                Assert.That(taken!.Thumbprint, Is.EqualTo(original.Thumbprint));
+                Assert.That(taken.HasPrivateKey, Is.True);
+            }
+            unsupported.Verify(value => value.TryUnprotect(
+                It.IsAny<ByteString>(), It.IsAny<ByteString>(), out It.Ref<ByteString>.IsAny), Times.Never);
+        }
+
         [Test]
         public async Task TamperedRecordFailsClosedAsync()
         {

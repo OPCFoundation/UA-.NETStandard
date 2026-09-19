@@ -765,9 +765,12 @@ independent of the store input, so the caller can wipe it with
 `CryptoUtils.ZeroMemory` in a `finally` block. Do not implement this by calling
 `TryUnprotect(...).ToArray()`: that leaves an unwiped decrypted copy.
 `SharedKeyValuePendingCertificateKeyStore` rejects protectors without this
-ownership contract; owned key-ring reads also reject a consulted member that
-cannot supply owned buffers. Custom KMS/HSM providers registered as
-`IRecordProtector` must implement the owned contract when used for pending keys.
+ownership contract. Owned key-ring reads skip members that cannot supply owned
+buffers, without invoking their immutable-plaintext read path. If no capable
+member authenticates a record, the ring returns `false` and an empty buffer;
+pending-key stores treat that record as absent rather than throwing.
+Custom KMS/HSM providers must implement the owned contract to read pending keys
+protected by those members, including records retained during key rotation.
 `NullRecordProtector` remains a non-authenticating, process-local test/demo
 option, not a substitute for protection of a networked shared store.
 

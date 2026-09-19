@@ -231,16 +231,51 @@ namespace Opc.Ua.Core.Tests.Redundancy
         }
 
         [Test]
-        public void OwnedReadRejectsMemberWithoutOwnedCapability()
+        public void OwnedReadFailsClosedForMemberWithoutOwnedCapability()
         {
             var member = new Mock<IRecordProtector>();
             using var ring = new KeyRingRecordProtector(member.Object);
 
-            Assert.That(
-                () => ring.TryUnprotectOwned(default, s_plaintext, out _),
-                Throws.TypeOf<NotSupportedException>());
+            Assert.That(ring.TryUnprotectOwned(default, s_plaintext, out byte[] plaintext), Is.False);
+            Assert.That(plaintext, Is.Empty);
             member.Verify(value => value.TryUnprotect(
                 It.IsAny<ByteString>(), It.IsAny<ByteString>(), out It.Ref<ByteString>.IsAny), Times.Never);
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void OwnedReadSkipsUnsupportedMembersWithoutImmutableFallback(
+            bool unsupportedFirst,
+            bool authenticatedRecord)
+        {
+            using var owned = new AesCbcHmacRecordProtector(s_masterKeyA, keyId: 1);
+            using var other = new AesCbcHmacRecordProtector(s_masterKeyB, keyId: 2);
+            var unsupported = new Mock<IRecordProtector>(MockBehavior.Strict);
+            ByteString immutable = s_plaintext;
+            unsupported.Setup(value => value.TryUnprotect(
+                    It.IsAny<ByteString>(), It.IsAny<ByteString>(), out immutable))
+                .Returns(true);
+            using KeyRingRecordProtector ring = unsupportedFirst
+                ? new KeyRingRecordProtector(unsupported.Object, owned)
+                : new KeyRingRecordProtector(owned, unsupported.Object);
+            var context = ByteString.From("pending-key"u8);
+            ByteString record = (authenticatedRecord ? owned : other).Protect(context, s_plaintext);
+            byte[] plaintext = [];
+            try
+            {
+                bool accepted = ring.TryUnprotectOwned(context, record, out plaintext);
+
+                Assert.That(accepted, Is.EqualTo(authenticatedRecord));
+                Assert.That(plaintext, Is.EqualTo(authenticatedRecord ? s_plaintext.ToArray() : []));
+                unsupported.Verify(value => value.TryUnprotect(
+                    It.IsAny<ByteString>(), It.IsAny<ByteString>(), out immutable), Times.Never);
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(plaintext);
+            }
         }
 
         [Test]

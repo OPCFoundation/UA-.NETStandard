@@ -101,9 +101,11 @@ namespace Opc.Ua.Redundancy
         }
 
         /// <inheritdoc/>
-        /// <exception cref="NotSupportedException">
-        /// A member needed for the read cannot transfer ownership of its plaintext.
-        /// </exception>
+        /// <remarks>
+        /// Only members implementing <see cref="IOwnedRecordProtector"/> are consulted.
+        /// Other members are skipped without decrypting or copying immutable plaintext.
+        /// If no capable member authenticates the record, the read fails closed.
+        /// </remarks>
         public bool TryUnprotectOwned(
             ByteString context,
             ByteString protectedRecord,
@@ -111,12 +113,8 @@ namespace Opc.Ua.Redundancy
         {
             foreach (IRecordProtector protector in m_all)
             {
-                if (protector is not IOwnedRecordProtector ownedProtector)
-                {
-                    throw new NotSupportedException(
-                        "Owned reads require each consulted key-ring member to implement IOwnedRecordProtector.");
-                }
-                if (ownedProtector.TryUnprotectOwned(context, protectedRecord, out plaintext))
+                if (protector is IOwnedRecordProtector ownedProtector &&
+                    ownedProtector.TryUnprotectOwned(context, protectedRecord, out plaintext))
                 {
                     return true;
                 }
