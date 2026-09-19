@@ -35,7 +35,6 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Export;
 using Opc.Ua.SourceGeneration;
 using Opc.Ua.Types;
@@ -112,7 +111,6 @@ namespace Opc.Ua.Schema.Model
             m_settings = settings ?? throw new ArgumentNullException(nameof(settings));
             m_fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
             m_telemetry = telemetry;
-            m_logger = telemetry.CreateLogger<NodeSetToModelDesign>();
             m_index = [];
             m_symbolicIds = [];
 
@@ -1433,13 +1431,16 @@ namespace Opc.Ua.Schema.Model
                 output.StringId = stringId;
                 output.NumericIdSpecified = false;
             }
-            else if (nodeId.IsNull)
+            else
             {
-                m_logger.LogInformation("NodeId is not specified.");
-            }
-            else if (m_logger.IsEnabled(LogLevel.Information))
-            {
-                m_logger.LogInformation("NodeId {NodeId} is not supported.", nodeId);
+                // The model design can only carry numeric and string identifiers.
+                // Guid and Opaque identifiers (OPC 10000-3 5.2.2) would be dropped
+                // and code would be generated for a node without any identity, so
+                // the import fails instead of silently producing wrong output.
+                throw new InvalidDataException(
+                    $"NodeId ({input.NodeId}) of node '{input.BrowseName}' uses the " +
+                    $"{nodeId.IdType} identifier type which is not supported by the model " +
+                    "design. Only Numeric and String identifiers can be imported.");
             }
 
             m_settings.NodesByQName[output.SymbolicId] = output;
@@ -2987,7 +2988,6 @@ namespace Opc.Ua.Schema.Model
 
         private readonly NodeSetReaderSettings m_settings;
         private readonly ITelemetryContext m_telemetry;
-        private readonly ILogger m_logger;
         private readonly IFileSystem m_fileSystem;
         private readonly StringTable m_serverUris = new();
         private readonly UANodeSet m_nodeset;
