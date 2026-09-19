@@ -45,9 +45,9 @@ namespace Opc.Ua.Server
             return m_nodeManagers.UseLiveRouting();
         }
 
-        IDisposable IDynamicNodeManagerBatchHost.UseTypeTree(TypeTable typeTree)
+        IDisposable IDynamicNodeManagerBatchHost.UseTypeImage(TypeTable typeTree, EncodeableFactory factory)
         {
-            return m_nodeManagers.UseTypeTree(typeTree);
+            return m_nodeManagers.UseTypeImage(typeTree, factory);
         }
 
         async ValueTask IDynamicNodeManagerBatchHost.CommitBatchAsync(
@@ -57,6 +57,9 @@ namespace Opc.Ua.Server
             TypeTable typeTree,
             TypeTable originalTypes,
             long typeRevision,
+            EncodeableFactory factory,
+            EncodeableFactory originalFactory,
+            long factoryRevision,
             Func<CancellationToken, ValueTask> decideAsync,
             Action published,
             CancellationToken cancellationToken)
@@ -98,7 +101,7 @@ namespace Opc.Ua.Server
                     {
                         nextReferences.Add(candidate.NodeManager, candidate.ExternalReferences);
                     }
-                    using (m_nodeManagers.UseTypeTree(typeTree))
+                    using (m_nodeManagers.UseTypeImage(typeTree, factory))
                     {
                         for (int index = 0; index < candidates.Count; index++)
                         {
@@ -112,9 +115,12 @@ namespace Opc.Ua.Server
                     }
 
                     NodeManagerRoutingTable.PreparedRoutes routes =
-                        m_nodeManagers.PrepareBatch(candidates, removed, routingRevision, ResolveNamespaceIndexes, typeTree);
+                        m_nodeManagers.PrepareBatch(
+                            candidates, removed, routingRevision, ResolveNamespaceIndexes, typeTree, factory);
                     routes.Validate();
                     using TypeTable.Publication types = Server.TypeTree.BeginPublication(originalTypes, typeRevision);
+                    using EncodeableFactory.Publication registrations =
+                        originalFactory.BeginPublication(originalFactory, factoryRevision);
                     cancellationToken.ThrowIfCancellationRequested();
                     await decideAsync(cancellationToken).ConfigureAwait(false);
 
@@ -124,6 +130,7 @@ namespace Opc.Ua.Server
                     }
                     routes.Publish();
                     types.Complete();
+                    registrations.Complete();
                     foreach (IAsyncNodeManager manager in retiring)
                     {
                         m_dynamicExternalReferences.Remove(manager);

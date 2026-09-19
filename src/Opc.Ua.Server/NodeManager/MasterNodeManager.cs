@@ -150,8 +150,10 @@ namespace Opc.Ua.Server
             }
 
             // Publish the initial manager and namespace routing snapshot.
-            m_nodeManagers.Initialize(namespaceManagers, server.TypeTree.CaptureSnapshot(out _, out _));
+            var factory = server.Factory as EncodeableFactory;
+            m_nodeManagers.Initialize(namespaceManagers, server.TypeTree.CaptureSnapshot(out _, out _), factory?.Fork());
             server.TypeTree.SetViewSelector(() => m_nodeManagers.TypeTree);
+            m_factoryViewOwner = factory?.SetViewSelector(() => m_nodeManagers.Factory);
 
             m_serviceDispatch = new NodeManagerServiceDispatcher(this, m_nodeManagers, server, m_logger);
         }
@@ -211,6 +213,12 @@ namespace Opc.Ua.Server
                 m_startupShutdownSemaphoreSlim.Wait();
 
                 List<IAsyncNodeManager> nodeManagers = [.. m_nodeManagers];
+                if (m_factoryViewOwner is not null)
+                {
+                    EncodeableFactory image = m_nodeManagers.Revision.Factory ??
+                        throw new InvalidOperationException("The server factory image is unavailable during disposal.");
+                    m_factoryViewOwner.Release(image);
+                }
                 m_nodeManagers.Clear();
                 m_dynamicExternalReferences.Clear();
 
@@ -2233,6 +2241,7 @@ namespace Opc.Ua.Server
         private readonly SemaphoreSlim m_dynamicMutationSemaphore = new(1, 1);
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
         private readonly NodeManagerRoutingTable m_nodeManagers;
+        private readonly EncodeableFactory.ViewOwner? m_factoryViewOwner;
         private readonly HashSet<object> m_shutdownCompletedNodeManagers =
             new(RefEqualityComparer.Default);
         private int m_shutdownCompletedNodeManagerCount;

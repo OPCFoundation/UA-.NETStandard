@@ -89,7 +89,8 @@ namespace Opc.Ua.Server
                     [.. snapshot.NodeManagers, nodeManager],
                     snapshot.NamespaceManagers,
                     snapshot.HiddenNodeManagers,
-                    snapshot.TypeTree);
+                    snapshot.TypeTree,
+                    snapshot.Factory);
             }
         }
 
@@ -98,10 +99,12 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="namespaceManagers">The NodeManagers that serve each namespace index.</param>
         /// <param name="typeTree">The initial type image owned by the routing snapshot.</param>
+        /// <param name="factory">The initial factory image owned by the routing snapshot.</param>
         /// <exception cref="ArgumentNullException"><paramref name="namespaceManagers"/> is <c>null</c>.</exception>
         public void Initialize(
             IReadOnlyDictionary<int, List<IAsyncNodeManager>> namespaceManagers,
-            TypeTable? typeTree = null)
+            TypeTable? typeTree = null,
+            EncodeableFactory? factory = null)
         {
             if (namespaceManagers is null)
             {
@@ -116,7 +119,8 @@ namespace Opc.Ua.Server
                         entry => entry.Key,
                         entry => (IReadOnlyList<IAsyncNodeManager>)[.. entry.Value]),
                     m_snapshot.HiddenNodeManagers,
-                    typeTree ?? m_snapshot.TypeTree);
+                    typeTree ?? m_snapshot.TypeTree,
+                    factory ?? m_snapshot.Factory);
             }
         }
 
@@ -188,7 +192,8 @@ namespace Opc.Ua.Server
                     [.. snapshot.NodeManagers, nodeManager],
                     routes,
                     hiddenNodeManagers,
-                    snapshot.TypeTree);
+                    snapshot.TypeTree,
+                    snapshot.Factory);
             }
         }
 
@@ -327,7 +332,8 @@ namespace Opc.Ua.Server
                     managers,
                     routes,
                     hiddenNodeManagers,
-                    snapshot.TypeTree);
+                    snapshot.TypeTree,
+                    snapshot.Factory);
             }
         }
 
@@ -378,7 +384,8 @@ namespace Opc.Ua.Server
                         .. snapshot.HiddenNodeManagers.Where(manager =>
                             !ReferenceEquals(manager, nodeManager))
                     ],
-                    snapshot.TypeTree);
+                    snapshot.TypeTree,
+                    snapshot.Factory);
             }
         }
 
@@ -428,7 +435,8 @@ namespace Opc.Ua.Server
                     snapshot.NodeManagers,
                     routes,
                     hiddenNodeManagers,
-                    snapshot.TypeTree);
+                    snapshot.TypeTree,
+                    snapshot.Factory);
             }
         }
 
@@ -480,7 +488,8 @@ namespace Opc.Ua.Server
                     snapshot.NodeManagers,
                     routes,
                     snapshot.HiddenNodeManagers,
-                    snapshot.TypeTree);
+                    snapshot.TypeTree,
+                    snapshot.Factory);
                 return true;
             }
         }
@@ -524,7 +533,8 @@ namespace Opc.Ua.Server
                         .. snapshot.HiddenNodeManagers.Where(manager =>
                             !AreSameManager(manager, nodeManager))
                     ],
-                    snapshot.TypeTree);
+                    snapshot.TypeTree,
+                    snapshot.Factory);
             }
         }
 
@@ -605,7 +615,8 @@ namespace Opc.Ua.Server
                     snapshot.NodeManagers,
                     snapshot.NamespaceManagers,
                     hiddenNodeManagers,
-                    snapshot.TypeTree);
+                    snapshot.TypeTree,
+                    snapshot.Factory);
             }
         }
 
@@ -702,16 +713,19 @@ namespace Opc.Ua.Server
             /// <param name="namespaceManagers">The NodeManagers serving each namespace index.</param>
             /// <param name="hiddenNodeManagers">The NodeManagers not yet reachable by Clients.</param>
             /// <param name="typeTree">The type image published with these routes, if supplied.</param>
+            /// <param name="factory">The factory image published with these routes, if supplied.</param>
             public RoutingSnapshot(
                 IAsyncNodeManager[] nodeManagers,
                 IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers,
                 IAsyncNodeManager[] hiddenNodeManagers,
-                TypeTable? typeTree = null)
+                TypeTable? typeTree = null,
+                EncodeableFactory? factory = null)
             {
                 NodeManagers = nodeManagers;
                 NamespaceManagers = namespaceManagers;
                 HiddenNodeManagers = hiddenNodeManagers;
                 TypeTree = typeTree;
+                Factory = factory;
                 VisibleNodeManagers =
                 [
                     .. nodeManagers.Where(manager =>
@@ -736,6 +750,11 @@ namespace Opc.Ua.Server
             /// Gets the type image owned by this routing generation.
             /// </summary>
             public TypeTable? TypeTree { get; }
+
+            /// <summary>
+            /// Gets the factory image owned by this routing generation.
+            /// </summary>
+            public EncodeableFactory? Factory { get; }
 
             /// <summary>
             /// Gets all registered NodeManagers, in dispatch order, including hidden ones.

@@ -58,7 +58,7 @@ namespace Opc.Ua
     /// by encoders and decoders.
     /// <br/></para>
     /// </summary>
-    public sealed class EncodeableFactory : IEncodeableFactory
+    public sealed partial class EncodeableFactory : IEncodeableFactory
     {
         /// <summary>
         /// Create an empty instance of the encodeable factory.
@@ -83,17 +83,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public IEncodeableFactoryBuilder Builder => new EncodeableFactoryBuilder(this);
+        public IEncodeableFactoryBuilder Builder => CurrentView?.Builder ?? new EncodeableFactoryBuilder(this);
 
         /// <inheritdoc/>
         public IEnumerable<ExpandedNodeId> KnownTypeIds
-            => m_encodeableTypes.Keys.Concat(m_enumeratedTypes.Keys);
+            => CurrentView?.KnownTypeIds ?? m_encodeableTypes.Keys.Concat(m_enumeratedTypes.Keys);
 
         /// <inheritdoc/>
         public bool TryGetEncodeableType(
             ExpandedNodeId typeId,
             [NotNullWhen(true)] out IEncodeableType? encodeableType)
         {
+            if (CurrentView is { } view)
+            {
+                return view.TryGetEncodeableType(typeId, out encodeableType);
+            }
             if (typeId.IsNull)
             {
                 encodeableType = null;
@@ -107,6 +111,10 @@ namespace Opc.Ua
             ExpandedNodeId typeId,
             [NotNullWhen(true)] out IEnumeratedType? enumeratedType)
         {
+            if (CurrentView is { } view)
+            {
+                return view.TryGetEnumeratedType(typeId, out enumeratedType);
+            }
             if (typeId.IsNull)
             {
                 enumeratedType = null;
@@ -120,6 +128,10 @@ namespace Opc.Ua
             XmlQualifiedName xmlName,
             [NotNullWhen(true)] out IType? type)
         {
+            if (CurrentView is { } view)
+            {
+                return view.TryGetType(xmlName, out type);
+            }
             if (xmlName == null)
             {
                 type = null;
@@ -142,7 +154,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public EncodeableFactory Fork()
         {
-            return new EncodeableFactory(this);
+            return CaptureSnapshot(out _, out _);
         }
 
         /// <summary>
@@ -332,17 +344,24 @@ namespace Opc.Ua
             }
 
             /// <summary>
-            /// Build the factory. Returns the original factory if nothing changed.
-            /// Uses a lock free algorithm to update the factory which could be
-            /// rather heavy in case of multiple threads updating the factory at
-            /// the same time. We assume this is a rare case.
+            /// Applies accumulated registrations to the factory. An empty commit does not change the image.
             /// </summary>
             /// <returns></returns>
             public void Commit()
             {
-                CompareExchange(ref m_factory.m_encodeableTypes, m_encodeableTypes);
-                CompareExchange(ref m_factory.m_enumeratedTypes, m_enumeratedTypes);
-                CompareExchange(ref m_factory.m_xmlNameToType, m_xmlNameToType);
+                if (m_encodeableTypes.Count == 0 && m_enumeratedTypes.Count == 0 && m_xmlNameToType.Count == 0)
+                {
+                    return;
+                }
+                EncodeableFactory factory = m_factory.CurrentView ?? m_factory;
+                lock (factory.m_publicationGate)
+                {
+                    factory.EnsureMutable();
+                    CompareExchange(ref factory.m_encodeableTypes, m_encodeableTypes);
+                    CompareExchange(ref factory.m_enumeratedTypes, m_enumeratedTypes);
+                    CompareExchange(ref factory.m_xmlNameToType, m_xmlNameToType);
+                    factory.m_revision++;
+                }
             }
 
             internal static void CompareExchange<TKey, TValue>(

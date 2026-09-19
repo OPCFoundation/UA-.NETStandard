@@ -4765,9 +4765,10 @@ namespace Opc.Ua.Server
             // may be overridden by the subclass.
         }
 
-        internal async ValueTask RefreshComplexTypesAsync(
+        internal async ValueTask<IDataTypeDefinitionResolver?> RefreshComplexTypesAsync(
             IServerInternal server,
             IAsyncNodeManager? additionalNodeManager = null,
+            bool publishResolver = true,
             CancellationToken cancellationToken = default)
         {
             if (LoadComplexTypes)
@@ -4791,8 +4792,13 @@ namespace Opc.Ua.Server
                             additionalNodeManager,
                             cancellationToken)
                         .ConfigureAwait(false);
-                ComplexTypeResolverHolder?.SetResolver(resolver);
+                if (publishResolver)
+                {
+                    ComplexTypeResolverHolder?.SetResolver(resolver);
+                }
+                return resolver;
             }
+            return null;
         }
 
         /// <inheritdoc/>

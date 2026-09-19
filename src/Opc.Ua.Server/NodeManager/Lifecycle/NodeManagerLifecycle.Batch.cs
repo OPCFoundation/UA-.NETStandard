@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Schema;
 
 namespace Opc.Ua.Server
 {
@@ -80,16 +81,24 @@ namespace Opc.Ua.Server
                 {
                     throw new NotSupportedException("The server host does not support prepared publication.");
                 }
+                if (server.Factory is not EncodeableFactory servingFactory)
+                {
+                    throw new NotSupportedException("The server factory does not support prepared publication.");
+                }
                 using IDisposable routing = batchHost.UseLiveRouting();
                 using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
                     EnterRequestLifecycleWaiter(server);
                 await WaitForLifecycleSemaphoreAsync(waiter, cancellationToken).ConfigureAwait(false);
                 TypeTable? preparedTypes = null;
+                EncodeableFactory? preparedFactory = null;
                 try
                 {
                     EnsureSameRunningServer(server, host, allowRequestCallback);
                     preparedTypes = server.TypeTree.CaptureSnapshot(out TypeTable originalTypes, out long typeRevision);
-                    using IDisposable types = batchHost.UseTypeTree(preparedTypes);
+                    preparedFactory = servingFactory.CaptureSnapshot(
+                        out EncodeableFactory originalFactory, out long factoryRevision);
+                    using IDisposable types = batchHost.UseTypeImage(preparedTypes, preparedFactory);
+                    IDataTypeDefinitionResolver? resolver = null;
                     int namespaceCount = server.NamespaceUris.Count;
                     for (int index = 0; index < changes.Count; index++)
                     {
@@ -132,8 +141,10 @@ namespace Opc.Ua.Server
                         {
                             await host.PublishAsync(entry.Prepared, cancellationToken).ConfigureAwait(false);
                         }
-                        await m_server.RefreshComplexTypesAsync(server, entry.Manager, cancellationToken)
-                            .ConfigureAwait(false);
+                        resolver = await m_server.RefreshComplexTypesAsync(
+                            server, entry.Manager, publishResolver: false, cancellationToken: cancellationToken)
+                            .ConfigureAwait(false) ??
+                            resolver;
                         entry.Bindings = await BindToServerAsync(server, entry.Manager, cancellationToken)
                             .ConfigureAwait(false);
                         var registration = new NodeManagerRegistration(
@@ -148,13 +159,16 @@ namespace Opc.Ua.Server
                     // Staging can register hidden namespace routes; freeze its completed routing image.
                     var prepared = new PreparedBatch(
                         this, server, host, entries, operation, namespaceCount, allowRequestCallback,
-                        batchHost.RoutingRevision, preparedTypes, originalTypes, typeRevision);
+                        batchHost.RoutingRevision, preparedTypes, originalTypes, typeRevision,
+                        preparedFactory, originalFactory, factoryRevision, resolver);
                     operation = null;
                     return prepared;
                 }
                 catch (Exception failure) when (failure is not OutOfMemoryException)
                 {
-                    using IDisposable? types = preparedTypes is null ? null : batchHost.UseTypeTree(preparedTypes);
+                    using IDisposable? types = preparedTypes is null || preparedFactory is null
+                        ? null
+                        : batchHost.UseTypeImage(preparedTypes, preparedFactory);
                     Exception? cleanup = await AbortBatchEntriesAsync(server, host, entries, allowRequestCallback)
                         .ConfigureAwait(false);
                     if (cleanup is not null)
@@ -198,7 +212,8 @@ namespace Opc.Ua.Server
                     }
                     if (entry.Manager is not null && entry.Bindings is not null)
                     {
-                        using IDisposable types = ((IDynamicNodeManagerBatchHost)batch.Host).UseTypeTree(batch.TypeTree);
+                        using IDisposable types = ((IDynamicNodeManagerBatchHost)batch.Host)
+                            .UseTypeImage(batch.TypeTree, batch.Factory);
                         await ReconcileBindingsAsync(
                             batch.Server, entry.Manager, entry.Bindings, cancellationToken).ConfigureAwait(false);
                     }
@@ -224,10 +239,14 @@ namespace Opc.Ua.Server
 
                 await ((IDynamicNodeManagerBatchHost)batch.Host).CommitBatchAsync(
                     candidates, removed, batch.RoutingRevision, batch.TypeTree, batch.OriginalTypes,
-                    batch.TypeRevision, decideAsync,
+                    batch.TypeRevision, batch.Factory, batch.OriginalFactory, batch.FactoryRevision, decideAsync,
                     () =>
                     {
                         batch.IsCommitted = true;
+                        if (batch.Resolver is not null)
+                        {
+                            m_server.ComplexTypeResolverHolder?.SetResolver(batch.Resolver);
+                        }
                         lock (m_registrationLock)
                         {
                             foreach (BatchEntry entry in batch.Entries)
@@ -365,7 +384,11 @@ namespace Opc.Ua.Server
                 NodeManagerRoutingTable.RoutingSnapshot routingRevision,
                 TypeTable typeTree,
                 TypeTable originalTypes,
-                long typeRevision)
+                long typeRevision,
+                EncodeableFactory factory,
+                EncodeableFactory originalFactory,
+                long factoryRevision,
+                IDataTypeDefinitionResolver? resolver)
             {
                 m_owner = owner;
                 Server = server;
@@ -378,6 +401,10 @@ namespace Opc.Ua.Server
                 TypeTree = typeTree;
                 OriginalTypes = originalTypes;
                 TypeRevision = typeRevision;
+                Factory = factory;
+                OriginalFactory = originalFactory;
+                FactoryRevision = factoryRevision;
+                Resolver = resolver;
                 Registrations = entries.Where(entry => entry.Next is not null)
                     .Select(entry => entry.Next!.Registration).ToArrayOf();
             }
@@ -393,6 +420,10 @@ namespace Opc.Ua.Server
             public TypeTable TypeTree { get; }
             public TypeTable OriginalTypes { get; }
             public long TypeRevision { get; }
+            public EncodeableFactory Factory { get; }
+            public EncodeableFactory OriginalFactory { get; }
+            public long FactoryRevision { get; }
+            public IDataTypeDefinitionResolver? Resolver { get; }
 
             public ValueTask<NodeManagerBatchResult> CommitAsync(
                 Func<CancellationToken, ValueTask> decideAsync,
@@ -429,7 +460,7 @@ namespace Opc.Ua.Server
                     if (!IsCommitted)
                     {
                         using IDisposable routing = ((IDynamicNodeManagerBatchHost)Host).UseLiveRouting();
-                        using IDisposable types = ((IDynamicNodeManagerBatchHost)Host).UseTypeTree(TypeTree);
+                        using IDisposable types = ((IDynamicNodeManagerBatchHost)Host).UseTypeImage(TypeTree, Factory);
                         await m_owner.m_lifecycleSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                         try
                         {

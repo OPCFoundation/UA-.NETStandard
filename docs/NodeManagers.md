@@ -585,13 +585,19 @@ Runtime DataType registrations are additive. Reload accepts an existing DataType
 definition is structurally compatible, rejects incompatible changes, and retains removed stand-in
 encodeables so existing Sessions and in-flight values remain decodable.
 
-`INodeManagerBatchLifecycle` prepares `TypeTable` entries in a private image:
-type relationships, reference-type names, and encoding mappings. Publication
-switches that image with the routing snapshot. An in-flight request retains
-the type image captured with its routes. Writes to the serving image fail with
+`INodeManagerBatchLifecycle` prepares type relationships, reference-type names,
+encoding mappings, and encodeable-factory registrations in private images.
+Publication switches both images with the routing snapshot. An in-flight request
+retains the images captured with its routes. Writes to a serving image fail with
 `InvalidOperationException` while the decision callback runs, rather than being
 silently discarded by publication. Retired images remain readable but cannot be
-changed. This guarantee covers `TypeTable`, not encodeable-factory registrations.
+changed. Preparation does not replace the shared schema resolver; that update
+belongs to successful publication.
+
+Prepared batches require the stock `EncodeableFactory`. An unsupported custom
+factory is rejected before candidate creation. When a server stops, a supplied
+private factory retains its committed registrations and can be reused by a later
+server lifetime.
 
 #### Change notifications
 

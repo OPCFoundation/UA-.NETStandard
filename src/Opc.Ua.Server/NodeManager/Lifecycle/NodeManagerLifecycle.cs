@@ -849,7 +849,7 @@ namespace Opc.Ua.Server
                 await ValidateDataTypeCompatibilityAsync(server, nodeManager, ct)
                     .ConfigureAwait(false);
                 await m_server
-                    .RefreshComplexTypesAsync(server, nodeManager, ct)
+                    .RefreshComplexTypesAsync(server, nodeManager, cancellationToken: ct)
                     .ConfigureAwait(false);
                 ServerBindings bindings = await BindToServerAsync(
                     server,
@@ -1195,7 +1195,7 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                 droppedInboundReferences = [.. droppedReferences];
                 await m_server
-                    .RefreshComplexTypesAsync(server, replacementManager, ct)
+                    .RefreshComplexTypesAsync(server, replacementManager, cancellationToken: ct)
                     .ConfigureAwait(false);
                 ServerBindings bindings = await BindToServerAsync(
                     server,

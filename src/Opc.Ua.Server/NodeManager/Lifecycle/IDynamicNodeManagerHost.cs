@@ -237,7 +237,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Uses a private type image while preparing or discarding a candidate.
         /// </summary>
-        IDisposable UseTypeTree(TypeTable typeTree);
+        IDisposable UseTypeImage(TypeTable typeTree, EncodeableFactory factory);
 
         ValueTask CommitBatchAsync(
             ArrayOf<PreparedNodeManager> candidates,
@@ -246,6 +246,9 @@ namespace Opc.Ua.Server
             TypeTable typeTree,
             TypeTable originalTypes,
             long typeRevision,
+            EncodeableFactory factory,
+            EncodeableFactory originalFactory,
+            long factoryRevision,
             Func<CancellationToken, ValueTask> decideAsync,
             Action published,
             CancellationToken cancellationToken);

@@ -40,6 +40,8 @@ namespace Opc.Ua.Server
 
         internal TypeTable? TypeTree => m_preparedTypes.Value ?? ReadSnapshot.TypeTree;
 
+        internal EncodeableFactory? Factory => m_preparedFactory.Value ?? ReadSnapshot.Factory;
+
         private RoutingSnapshot ReadSnapshot => m_readSnapshot.Value ?? Volatile.Read(ref m_snapshot);
 
         internal ReadScope Capture()
@@ -56,11 +58,13 @@ namespace Opc.Ua.Server
             return new ReadScope(this, previous);
         }
 
-        internal IDisposable UseTypeTree(TypeTable typeTree)
+        internal IDisposable UseTypeImage(TypeTable typeTree, EncodeableFactory factory)
         {
             TypeTable? previous = m_preparedTypes.Value;
+            EncodeableFactory? previousFactory = m_preparedFactory.Value;
             m_preparedTypes.Value = typeTree;
-            return new TypeScope(this, previous);
+            m_preparedFactory.Value = factory;
+            return new TypeScope(this, previous, previousFactory);
         }
 
         internal PreparedRoutes PrepareBatch(
@@ -68,7 +72,8 @@ namespace Opc.Ua.Server
             ArrayOf<IAsyncNodeManager> removed,
             RoutingSnapshot expectedRevision,
             Func<IAsyncNodeManager, IEnumerable<int>> resolveNamespaces,
-            TypeTable typeTree)
+            TypeTable typeTree,
+            EncodeableFactory factory)
         {
             lock (m_lock)
             {
@@ -151,15 +156,20 @@ namespace Opc.Ua.Server
                     [.. managers],
                     routes,
                     [.. current.HiddenNodeManagers.Where(manager => !removals.Contains(manager))],
-                    typeTree);
+                    typeTree,
+                    factory);
                 return new PreparedRoutes(this, current, next);
             }
         }
 
         private readonly AsyncLocal<RoutingSnapshot?> m_readSnapshot = new();
         private readonly AsyncLocal<TypeTable?> m_preparedTypes = new();
+        private readonly AsyncLocal<EncodeableFactory?> m_preparedFactory = new();
 
-        private sealed class TypeScope(NodeManagerRoutingTable owner, TypeTable? previous) : IDisposable
+        private sealed class TypeScope(
+            NodeManagerRoutingTable owner,
+            TypeTable? previous,
+            EncodeableFactory? previousFactory) : IDisposable
         {
             public void Dispose()
             {
@@ -167,6 +177,7 @@ namespace Opc.Ua.Server
                 if (current is not null)
                 {
                     current.m_preparedTypes.Value = previous;
+                    current.m_preparedFactory.Value = previousFactory;
                 }
             }
 

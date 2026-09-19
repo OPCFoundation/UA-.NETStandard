@@ -199,12 +199,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeId typeId = new(8303,
                 (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
             m_server.CurrentInstance.TypeTree.AddSubtype(typeId, Ua.ObjectTypeIds.BaseObjectType);
+            IEncodeableFactory factory = m_server.CurrentInstance.Factory;
+            Assert.That(factory.TryGetEncodeableType(DataTypeIds.Range, out IEncodeableType structure), Is.True);
+            ExpandedNodeId alias = new(8307, "urn:opcfoundation.org:Tests:RetainedFactory");
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [
                     NodeManagerBatchChange.Replace(first,
                         CreateTrackingNodeManagementFactory(303, _ =>
-                            m_server.CurrentInstance.TypeTree.AddSubtype(typeId, Ua.ObjectTypeIds.FolderType))),
+                        {
+                            m_server.CurrentInstance.TypeTree.AddSubtype(typeId, Ua.ObjectTypeIds.FolderType);
+                            factory.Builder.AddEncodeableType(alias, structure).Commit();
+                        })),
                     NodeManagerBatchChange.Replace(second,
                         CreateTrackingNodeManagementFactory(404, _ => { }, kSecondModelNamespaceUri))
                 ], timeout.Token).ConfigureAwait(false);
@@ -223,13 +229,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri));
             NodeId beforePublication = NodeId.Null;
             NodeId afterPublication = NodeId.Null;
+            bool factoryBeforePublication = false;
+            bool factoryAfterPublication = false;
             firstManager.ReadCallbackNodeId = firstId;
             firstManager.ReadCallback = async token =>
             {
                 beforePublication = m_server.CurrentInstance.TypeTree.FindSuperType(typeId);
+                factoryBeforePublication = factory.TryGetEncodeableType(alias, out _);
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
                 afterPublication = m_server.CurrentInstance.TypeTree.FindSuperType(typeId);
+                factoryAfterPublication = factory.TryGetEncodeableType(alias, out _);
             };
             Task<ReadResponse> pendingRead = ReadPairAsync();
             Task<NodeManagerBatchResult> pendingCommit = null;
@@ -300,6 +310,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     "A native request must retain its captured type image when routing is published.");
                 Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(typeId),
                     Is.EqualTo(rejectDecision ? Ua.ObjectTypeIds.BaseObjectType : Ua.ObjectTypeIds.FolderType));
+                Assert.That(factoryBeforePublication, Is.False);
+                Assert.That(factoryAfterPublication, Is.False,
+                    "The native request must retain the factory image captured with its routes.");
+                Assert.That(factory.TryGetEncodeableType(alias, out _), Is.EqualTo(!rejectDecision));
             }
             await session.CloseAsync(timeout.Token).ConfigureAwait(false);
 
