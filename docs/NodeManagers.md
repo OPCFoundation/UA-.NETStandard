@@ -1842,6 +1842,8 @@ does not silently set `EventNotifier.SubscribeToEvents`; declare the capability
 on actual notifiers as required by Part 3
 [7.18](https://reference.opcfoundation.org/Core/Part3/v105/docs/7.18).
 A direct subscription to an unsupported root still fails with `BadNotSupported`.
+Legacy `null` success results are normalized to `Good` before per-root or
+per-manager status inspection.
 Other startup errors fail the item and roll back attempted registrations.
 Unsubscription continues across independent roots and managers while reporting
 genuine cleanup errors; unsupported participants do not turn successful deletion

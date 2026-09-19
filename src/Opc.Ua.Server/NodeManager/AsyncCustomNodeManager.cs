@@ -6838,7 +6838,8 @@ namespace Opc.Ua.Server
                         kvp.Value,
                         monitoredItem,
                         unsubscribe,
-                        cancellationToken).ConfigureAwait(false);
+                        cancellationToken).ConfigureAwait(false) ??
+                        ServiceResult.Good;
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {

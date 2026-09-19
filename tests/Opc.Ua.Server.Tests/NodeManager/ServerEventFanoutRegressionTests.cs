@@ -93,6 +93,80 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true, false)]
         [TestCase(false, true)]
         [TestCase(true, true)]
+        public async Task NullSuccessRootCallbacksPreserveSubscriptionAndCleanupResultsAsync(
+            bool samplingGroups,
+            bool failSecondSubscription)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            await using (var manager = new NullSuccessRootNodeManager(
+                server.Object, samplingGroups, failSecondSubscription))
+            {
+                ArrayOf<BaseObjectState> roots =
+                [
+                    new BaseObjectState(null)
+                    {
+                        NodeId = new NodeId("First", manager.NamespaceIndex),
+                        EventNotifier = EventNotifiers.SubscribeToEvents
+                    },
+                    new BaseObjectState(null)
+                    {
+                        NodeId = new NodeId("Second", manager.NamespaceIndex),
+                        EventNotifier = EventNotifiers.SubscribeToEvents
+                    }
+                ];
+                for (int ii = 0; ii < roots.Count; ii++)
+                {
+                    BaseObjectState root = roots[ii];
+                    root.CreateAsPredefinedNode(manager.SystemContext);
+                    await manager.RegisterRootAsync(root).ConfigureAwait(false);
+                }
+
+                var delivered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var item = new Mock<IEventMonitoredItem>();
+                item.SetupGet(value => value.Id).Returns(42);
+                item.SetupGet(value => value.NodeId).Returns(ObjectIds.Server);
+                item.SetupGet(value => value.MonitoringMode).Returns(MonitoringMode.Reporting);
+                IFilterTarget notification = Mock.Of<IFilterTarget>();
+                item.Setup(value => value.QueueEvent(notification)).Callback(() => delivered.TrySetResult(true));
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None);
+                try
+                {
+                    ServiceResult result = await manager.SubscribeToAllEventsAsync(context, 1, item.Object, false)
+                        .ConfigureAwait(false);
+
+                    Assert.That(result.StatusCode,
+                        Is.EqualTo(failSecondSubscription ? StatusCodes.BadServerNotConnected : StatusCodes.Good));
+                    Assert.That(manager.SubscriptionCalls, Is.EqualTo(2));
+                    if (!failSecondSubscription)
+                    {
+                        await roots[0].ReportEventAsync(manager.SystemContext, notification).ConfigureAwait(false);
+                        await delivered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                        item.Verify(value => value.QueueEvent(notification), Times.Once);
+                    }
+                }
+                finally
+                {
+                    ServiceResult cleanup = await manager.SubscribeToAllEventsAsync(context, 1, item.Object, true)
+                        .ConfigureAwait(false);
+                    Assert.That(cleanup.StatusCode, Is.EqualTo(StatusCodes.Good));
+                }
+
+                Assert.That(manager.UnsubscriptionCalls, Is.EqualTo(2));
+                Assert.That(await ((INodeManagerMonitoredItemLifecycle)manager)
+                    .GetMonitoredItemsSnapshotAsync().ConfigureAwait(false), Is.Empty);
+                foreach (BaseObjectState root in roots)
+                {
+                    Assert.That(root.AreEventsMonitored, Is.False);
+                }
+            }
+        }
+
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
         public async Task MixedRootsDeliverSupportedEventsAndUnsubscribeWithoutChangingCapabilitiesAsync(
             bool samplingGroups,
             bool cleanupFailure)
@@ -180,6 +254,64 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await manager.AddNodeAsync(manager.SystemContext, NodeId.Null, root).ConfigureAwait(false);
             await manager.AddRootNotifierPublicAsync(root).ConfigureAwait(false);
             return root;
+        }
+
+        private sealed class NullSuccessRootNodeManager : AsyncCustomNodeManager
+        {
+            public NullSuccessRootNodeManager(IServerInternal server, bool samplingGroups, bool failSecondSubscription)
+                : base(
+                    server,
+                    new ApplicationConfiguration
+                    {
+                        ServerConfiguration = new ServerConfiguration
+                        {
+                            MaxNotificationQueueSize = 100,
+                            MaxDurableNotificationQueueSize = 100,
+                            AvailableSamplingRates = []
+                        }
+                    },
+                    samplingGroups,
+                    NullLogger.Instance,
+                    DeterministicServerMock.TestNamespaceUri)
+            {
+                m_failSecondSubscription = failSecondSubscription;
+            }
+
+            public int SubscriptionCalls { get; private set; }
+
+            public int UnsubscriptionCalls { get; private set; }
+
+            public async ValueTask RegisterRootAsync(BaseObjectState root)
+            {
+                await AddNodeAsync(SystemContext, NodeId.Null, root).ConfigureAwait(false);
+                await AddRootNotifierAsync(root).ConfigureAwait(false);
+            }
+
+            protected override async ValueTask<ServiceResult> SubscribeToEventsAsync(
+                ServerSystemContext context,
+                NodeState source,
+                IEventMonitoredItem monitoredItem,
+                bool unsubscribe,
+                CancellationToken cancellationToken = default)
+            {
+                ServiceResult result = await base.SubscribeToEventsAsync(
+                    context, source, monitoredItem, unsubscribe, cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(result))
+                {
+                    return result;
+                }
+                if (unsubscribe)
+                {
+                    UnsubscriptionCalls++;
+                }
+                else if (++SubscriptionCalls == 2 && m_failSecondSubscription)
+                {
+                    return StatusCodes.BadServerNotConnected;
+                }
+                return null!;
+            }
+
+            private readonly bool m_failSecondSubscription;
         }
 
         private sealed class FanoutHarness : IDisposable
