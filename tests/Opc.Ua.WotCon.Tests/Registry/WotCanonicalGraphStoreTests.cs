@@ -30,8 +30,6 @@
 using System;
 using System.Collections.Immutable;
 using System.IO;
-using System.Runtime;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Bindings;
@@ -50,9 +48,6 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestContext.CurrentContext.WorkDirectory,
                 nameof(WotCanonicalGraphStoreTests),
                 Guid.NewGuid().ToString("N"));
-            TestContext.Out.WriteLine(
-                $"Runtime={RuntimeInformation.FrameworkDescription}; CLR={Environment.Version}; " +
-                $"ServerGC={GCSettings.IsServerGC}; Assembly={typeof(WotRegistrySnapshot).Assembly.Location}");
         }
 
         [TearDown]
