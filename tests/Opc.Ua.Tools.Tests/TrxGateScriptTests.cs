@@ -47,7 +47,7 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("Completed", true)]
         [TestCase("Passed", false)]
         [TestCase("Passed", true)]
-        public async Task CompletedGreenRunAllowsPostCompletionHostFailureAsync(
+        public async Task CompletedReportRemainsAuthoritativeForSucceededWithIssuesAsync(
             string outcome,
             bool prefixedNamespace)
         {
@@ -122,6 +122,23 @@ namespace Opc.Ua.Tools.Tests
             using var fixture = new ResultsFixture();
             XDocument document = CreateTrx("Failed", passed: 264);
             AddRunInfo(document, "Error");
+            fixture.Write(document);
+
+            await AssertRejectedAsync(fixture, "run outcome").ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task BlameTerminationWithAllRecordedTestsPassedIsRejectedAsync()
+        {
+            using var fixture = new ResultsFixture();
+            XDocument document = CreateTrx("Failed", passed: 264);
+            AddRunInfo(document, "Error");
+            Summary(document)
+                .Element(s_namespace + "RunInfos")!
+                .Element(s_namespace + "RunInfo")!
+                .Element(s_namespace + "Text")!
+                .Value = "The active test run was aborted. Reason: " +
+                    "The blame collector terminated the host during process exit.";
             fixture.Write(document);
 
             await AssertRejectedAsync(fixture, "run outcome").ConfigureAwait(false);

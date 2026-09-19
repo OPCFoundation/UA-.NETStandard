@@ -29,10 +29,12 @@ http://opcfoundation.org/License/MIT/1.00/
     Requires completed, successful VSTest TRX runs, or a successful MTP job status.
 
 .DESCRIPTION
-    A completed green TRX can outlive a nonzero test-host exit. Partial results
-    cannot establish success: every file must have a successful run verdict,
-    no run-level errors, and complete, consistent counters and recorded results.
-    When no TRX exists, preserve the MTP fallback to AGENT_JOBSTATUS.
+    Every TRX must explicitly record a Completed or Passed run, with no run-level
+    errors and complete, consistent counters and recorded results. Failed and
+    Aborted runs are rejected even if all recorded tests passed or blame killed
+    the host during process exit. A completed report remains authoritative when
+    AGENT_JOBSTATUS is SucceededWithIssues. When no TRX exists, preserve the MTP
+    fallback to AGENT_JOBSTATUS.
 #>
 [CmdletBinding()]
 param(
@@ -147,7 +149,7 @@ try {
     }
 
     Write-Host "Aggregated test results: total=$total, passed=$passed (from $($trx.Count) trx file(s))."
-    Write-Host "All TRX runs completed successfully; tolerating a non-zero post-completion test-host exit."
+    Write-Host "All TRX reports record completed, successful runs."
     exit 0
 }
 catch {

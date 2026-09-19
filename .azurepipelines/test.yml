@@ -200,14 +200,10 @@ jobs:
   - task: DotNetCoreCLI@2
     displayName: Test ${{ parameters.configuration }}
     timeoutInMinutes: 90
-    # continueOnError: a non-zero 'dotnet test' exit code no longer fails the job
-    # directly - the "Evaluate test results" gate below decides pass/fail from the
-    # emitted TRX. This is required because the hosted macOS agent intermittently
-    # stalls the test host during PROCESS EXIT (after every test has already
-    # passed and all teardowns have run; managed threads are frozen so no in-test
-    # mitigation can fire), and the blame collector then kills the host with a
-    # non-zero exit even though the run was functionally green. Test failures,
-    # aborted runs and incomplete reports are still rejected by the TRX gate.
+    # Continue to result publication and diagnostic collection even when the
+    # test host exits nonzero. The strict gate below determines the job result:
+    # failed, aborted, and incomplete runs are rejected even when every recorded
+    # test passed. This includes hosts terminated by the blame collector.
     continueOnError: true
     inputs:
       command: test
@@ -265,9 +261,10 @@ jobs:
     # by the 'dotnet test' exit code (the test step runs with continueOnError).
     # Every TRX must describe a completed successful run, with no run-level
     # errors and consistent results/counters. Green counters alone can describe
-    # a partial run whose host crashed. Completed green TRX runs still tolerate
-    # benign post-completion host exits; no-TRX MTP jobs retain their exit-status
-    # fallback. Run before failure-only artifacts so failed() sees real failures.
+    # a partial run whose host crashed. A Failed or Aborted verdict is never
+    # accepted, including a blame kill after all recorded tests passed. Only an
+    # explicit Completed/Passed verdict can establish TRX success; no-TRX MTP
+    # jobs retain their exit-status fallback. Run before failure-only artifacts.
     condition: succeededOrFailed()
     inputs:
       targetType: filePath
