@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -47,6 +48,29 @@ namespace Opc.Ua.Redundancy.Samples.Tests
     [NonParallelizable]
     internal sealed class SampleHaShortHaulTests
     {
+        /// <summary>
+        /// Separate released port batches may repeat; the two protocols need one distinct allocation.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(3)]
+        public void StrongReplicaPortPlanUsesDisjointEndpointGroups(int count)
+        {
+            int allocations = 0;
+            (int[] serverPorts, int[] raftPorts) = RedundantServerCluster.AllocateStrongPorts(
+                count,
+                requested =>
+                {
+                    allocations++;
+                    return [.. Enumerable.Range(45000, requested)];
+                });
+
+            Assert.That(serverPorts, Has.Length.EqualTo(count));
+            Assert.That(raftPorts, Has.Length.EqualTo(count));
+            Assert.That(serverPorts.Intersect(raftPorts), Is.Empty);
+            Assert.That(serverPorts.Concat(raftPorts), Is.Unique);
+            Assert.That(allocations, Is.EqualTo(1));
+        }
+
         /// <summary>
         /// Verifies that the single-process PubSub demo in hot mode fails the active
         /// publisher over to the standby and reports continuity with no data loss.
